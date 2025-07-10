@@ -4064,7 +4064,6 @@ dependencies = [
  "common_enums",
  "common_types",
  "common_utils",
- "diesel_models",
  "error-stack 0.4.1",
  "futures 0.3.31",
  "http 0.2.12",

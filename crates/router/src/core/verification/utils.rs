@@ -9,7 +9,7 @@ use crate::{
     logger,
     routes::SessionState,
     services::authentication::AuthenticationData,
-    types::{self, storage},
+    types::{self, storage, transformers::ForeignInto},
 };
 
 pub async fn check_existence_and_add_domain_to_db(
@@ -105,7 +105,7 @@ pub async fn check_existence_and_add_domain_to_db(
         .update_merchant_connector_account(
             key_manager_state,
             merchant_connector_account,
-            updated_mca.into(),
+            updated_mca.foreign_into(),
             &key_store,
         )
         .await

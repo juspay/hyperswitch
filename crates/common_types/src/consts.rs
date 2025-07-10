@@ -1,13 +1,5 @@
 //! Constants that are used in the domain level.
 
-/// API version
-#[cfg(feature = "v1")]
-pub const API_VERSION: common_enums::ApiVersion = common_enums::ApiVersion::V1;
-
-/// API version
-#[cfg(feature = "v2")]
-pub const API_VERSION: common_enums::ApiVersion = common_enums::ApiVersion::V2;
-
 /// Default payment intent statuses that trigger a webhook
 pub const DEFAULT_PAYMENT_WEBHOOK_TRIGGER_STATUSES: &[common_enums::IntentStatus] = &[
     common_enums::IntentStatus::Succeeded,

@@ -12,6 +12,7 @@ use api_models::{
 };
 use base64::Engine;
 use common_enums::ConnectorType;
+use common_types::business_profile::CardTestingGuardConfig;
 #[cfg(feature = "v2")]
 use common_utils::id_type::GenerateId;
 use common_utils::{
@@ -1476,7 +1477,7 @@ pub async fn validate_card_ip_blocking_for_business_profile(
     state: &SessionState,
     ip: IpAddr,
     fingerprnt: masking::Secret<String>,
-    card_testing_guard_config: &diesel_models::business_profile::CardTestingGuardConfig,
+    card_testing_guard_config: &CardTestingGuardConfig,
 ) -> RouterResult<String> {
     let cache_key = format!(
         "{}_{}_{}",
@@ -1494,7 +1495,7 @@ pub async fn validate_guest_user_card_blocking_for_business_profile(
     state: &SessionState,
     fingerprnt: masking::Secret<String>,
     customer_id: Option<id_type::CustomerId>,
-    card_testing_guard_config: &diesel_models::business_profile::CardTestingGuardConfig,
+    card_testing_guard_config: &CardTestingGuardConfig,
 ) -> RouterResult<String> {
     let cache_key = format!(
         "{}_{}",
@@ -1516,7 +1517,7 @@ pub async fn validate_customer_id_blocking_for_business_profile(
     state: &SessionState,
     customer_id: id_type::CustomerId,
     profile_id: &id_type::ProfileId,
-    card_testing_guard_config: &diesel_models::business_profile::CardTestingGuardConfig,
+    card_testing_guard_config: &CardTestingGuardConfig,
 ) -> RouterResult<String> {
     let cache_key = format!(
         "{}_{}_{}",

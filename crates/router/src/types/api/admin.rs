@@ -16,7 +16,7 @@ pub use api_models::{
     },
 };
 use common_utils::{ext_traits::ValueExt, types::keymanager as km_types};
-use diesel_models::{business_profile::CardTestingGuardConfig, organization::OrganizationBridge};
+use diesel_models::organization::OrganizationBridge;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -239,6 +239,8 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
     type Error = error_stack::Report<errors::ParsingError>;
 
     fn foreign_try_from(item: domain::Profile) -> Result<Self, Self::Error> {
+        use common_types::business_profile::CardTestingGuardConfig;
+
         let id = item.get_id().to_owned();
 
         let outgoing_webhook_custom_http_headers = item

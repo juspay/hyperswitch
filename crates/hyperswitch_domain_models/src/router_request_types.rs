@@ -3,9 +3,9 @@ pub mod fraud_check;
 pub mod revenue_recovery;
 pub mod unified_authentication_service;
 use api_models::payments::{AdditionalPaymentData, RequestSurchargeDetails};
-use common_types::payments as common_payments_types;
+use common_types::payments::{self as common_payments_types, OrderDetailsWithAmount};
 use common_utils::{consts, errors, ext_traits::OptionExt, id_type, pii, types::MinorUnit};
-use diesel_models::{enums as storage_enums, types::OrderDetailsWithAmount};
+// use diesel_models::{enums as common_enums, types::OrderDetailsWithAmount};
 use error_stack::ResultExt;
 use masking::Secret;
 use serde::Serialize;
@@ -35,16 +35,16 @@ pub struct PaymentsAuthorizeData {
     pub order_tax_amount: Option<MinorUnit>,
     pub email: Option<pii::Email>,
     pub customer_name: Option<Secret<String>>,
-    pub currency: storage_enums::Currency,
+    pub currency: common_enums::Currency,
     pub confirm: bool,
     pub statement_descriptor_suffix: Option<String>,
     pub statement_descriptor: Option<String>,
-    pub capture_method: Option<storage_enums::CaptureMethod>,
+    pub capture_method: Option<common_enums::CaptureMethod>,
     pub router_return_url: Option<String>,
     pub webhook_url: Option<String>,
     pub complete_authorize_url: Option<String>,
     // Mandates
-    pub setup_future_usage: Option<storage_enums::FutureUsage>,
+    pub setup_future_usage: Option<common_enums::FutureUsage>,
     pub mandate_id: Option<api_models::payments::MandateIds>,
     pub off_session: Option<bool>,
     pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
@@ -55,8 +55,8 @@ pub struct PaymentsAuthorizeData {
     pub session_token: Option<String>,
     pub enrolled_for_3ds: bool,
     pub related_transaction_id: Option<String>,
-    pub payment_experience: Option<storage_enums::PaymentExperience>,
-    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub payment_experience: Option<common_enums::PaymentExperience>,
+    pub payment_method_type: Option<common_enums::PaymentMethodType>,
     pub surcharge_details: Option<SurchargeDetails>,
     pub customer_id: Option<id_type::CustomerId>,
     pub request_incremental_authorization: bool,
@@ -77,7 +77,7 @@ pub struct PaymentsAuthorizeData {
     pub shipping_cost: Option<MinorUnit>,
     pub additional_payment_method_data: Option<AdditionalPaymentData>,
     pub merchant_account_id: Option<Secret<String>>,
-    pub merchant_config_currency: Option<storage_enums::Currency>,
+    pub merchant_config_currency: Option<common_enums::Currency>,
     pub connector_testing_data: Option<pii::SecretSerdeValue>,
     pub order_id: Option<String>,
 }
@@ -87,14 +87,14 @@ pub struct PaymentsPostSessionTokensData {
     pub amount: MinorUnit,
     /// original amount sent by the merchant
     pub order_amount: MinorUnit,
-    pub currency: storage_enums::Currency,
-    pub capture_method: Option<storage_enums::CaptureMethod>,
+    pub currency: common_enums::Currency,
+    pub capture_method: Option<common_enums::CaptureMethod>,
     /// Merchant's identifier for the payment/invoice. This will be sent to the connector
     /// if the connector provides support to accept multiple reference ids.
     /// In case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.
     pub merchant_order_reference_id: Option<String>,
     pub shipping_cost: Option<MinorUnit>,
-    pub setup_future_usage: Option<storage_enums::FutureUsage>,
+    pub setup_future_usage: Option<common_enums::FutureUsage>,
     pub router_return_url: Option<String>,
 }
 
@@ -109,7 +109,7 @@ pub struct AuthoriseIntegrityObject {
     /// Authorise amount
     pub amount: MinorUnit,
     /// Authorise currency
-    pub currency: storage_enums::Currency,
+    pub currency: common_enums::Currency,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -117,13 +117,13 @@ pub struct SyncIntegrityObject {
     /// Sync amount
     pub amount: Option<MinorUnit>,
     /// Sync currency
-    pub currency: Option<storage_enums::Currency>,
+    pub currency: Option<common_enums::Currency>,
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct PaymentsCaptureData {
     pub amount_to_capture: i64,
-    pub currency: storage_enums::Currency,
+    pub currency: common_enums::Currency,
     pub connector_transaction_id: String,
     pub payment_amount: i64,
     pub multiple_capture_data: Option<MultipleCaptureRequestData>,
@@ -131,7 +131,7 @@ pub struct PaymentsCaptureData {
     pub browser_info: Option<BrowserInformation>,
     pub metadata: Option<serde_json::Value>,
     // This metadata is used to store the metadata shared during the payment intent request.
-    pub capture_method: Option<storage_enums::CaptureMethod>,
+    pub capture_method: Option<common_enums::CaptureMethod>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
     // New amount for amount frame work
     pub minor_payment_amount: MinorUnit,
@@ -145,14 +145,14 @@ pub struct CaptureIntegrityObject {
     /// capture amount
     pub capture_amount: Option<MinorUnit>,
     /// capture currency
-    pub currency: storage_enums::Currency,
+    pub currency: common_enums::Currency,
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct PaymentsIncrementalAuthorizationData {
     pub total_amount: i64,
     pub additional_amount: i64,
-    pub currency: storage_enums::Currency,
+    pub currency: common_enums::Currency,
     pub reason: Option<String>,
     pub connector_transaction_id: String,
 }
@@ -166,7 +166,7 @@ pub struct MultipleCaptureRequestData {
 #[derive(Debug, Clone)]
 pub struct AuthorizeSessionTokenData {
     pub amount_to_capture: Option<i64>,
-    pub currency: storage_enums::Currency,
+    pub currency: common_enums::Currency,
     pub connector_transaction_id: String,
     pub amount: Option<i64>,
 }
@@ -250,7 +250,7 @@ impl TryFrom<&RouterData<flows::Session, PaymentsSessionData, response_types::Pa
 pub struct PaymentMethodTokenizationData {
     pub payment_method_data: PaymentMethodData,
     pub browser_info: Option<BrowserInformation>,
-    pub currency: storage_enums::Currency,
+    pub currency: common_enums::Currency,
     pub amount: Option<i64>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 }
@@ -320,7 +320,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentMethodTokenizationData {
 #[derive(Debug, Clone)]
 pub struct CreateOrderRequestData {
     pub minor_amount: MinorUnit,
-    pub currency: storage_enums::Currency,
+    pub currency: common_enums::Currency,
 }
 
 impl TryFrom<PaymentsAuthorizeData> for CreateOrderRequestData {
@@ -339,10 +339,10 @@ pub struct PaymentsPreProcessingData {
     pub payment_method_data: Option<PaymentMethodData>,
     pub amount: Option<i64>,
     pub email: Option<pii::Email>,
-    pub currency: Option<storage_enums::Currency>,
-    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub currency: Option<common_enums::Currency>,
+    pub payment_method_type: Option<common_enums::PaymentMethodType>,
     pub setup_mandate_details: Option<mandates::MandateData>,
-    pub capture_method: Option<storage_enums::CaptureMethod>,
+    pub capture_method: Option<common_enums::CaptureMethod>,
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub router_return_url: Option<String>,
     pub webhook_url: Option<String>,
@@ -464,12 +464,12 @@ pub struct CompleteAuthorizeData {
     pub payment_method_data: Option<PaymentMethodData>,
     pub amount: i64,
     pub email: Option<pii::Email>,
-    pub currency: storage_enums::Currency,
+    pub currency: common_enums::Currency,
     pub confirm: bool,
     pub statement_descriptor_suffix: Option<String>,
-    pub capture_method: Option<storage_enums::CaptureMethod>,
+    pub capture_method: Option<common_enums::CaptureMethod>,
     // Mandates
-    pub setup_future_usage: Option<storage_enums::FutureUsage>,
+    pub setup_future_usage: Option<common_enums::FutureUsage>,
     pub mandate_id: Option<api_models::payments::MandateIds>,
     pub off_session: Option<bool>,
     pub setup_mandate_details: Option<mandates::MandateData>,
@@ -483,7 +483,7 @@ pub struct CompleteAuthorizeData {
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
     pub merchant_account_id: Option<Secret<String>>,
-    pub merchant_config_currency: Option<storage_enums::Currency>,
+    pub merchant_config_currency: Option<common_enums::Currency>,
     pub threeds_method_comp_ind: Option<api_models::payments::ThreeDsCompletionIndicator>,
 }
 
@@ -498,12 +498,12 @@ pub struct PaymentsSyncData {
     //TODO : add fields based on the connector requirements
     pub connector_transaction_id: ResponseId,
     pub encoded_data: Option<String>,
-    pub capture_method: Option<storage_enums::CaptureMethod>,
+    pub capture_method: Option<common_enums::CaptureMethod>,
     pub connector_meta: Option<serde_json::Value>,
     pub sync_type: SyncRequestType,
     pub mandate_id: Option<api_models::payments::MandateIds>,
-    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
-    pub currency: storage_enums::Currency,
+    pub payment_method_type: Option<common_enums::PaymentMethodType>,
+    pub currency: common_enums::Currency,
     pub payment_experience: Option<common_enums::PaymentExperience>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
     pub amount: MinorUnit,
@@ -521,7 +521,7 @@ pub enum SyncRequestType {
 #[derive(Debug, Default, Clone)]
 pub struct PaymentsCancelData {
     pub amount: Option<i64>,
-    pub currency: Option<storage_enums::Currency>,
+    pub currency: Option<common_enums::Currency>,
     pub connector_transaction_id: String,
     pub cancellation_reason: Option<String>,
     pub connector_meta: Option<serde_json::Value>,
@@ -532,19 +532,19 @@ pub struct PaymentsCancelData {
     // minor amount data for amount framework
     pub minor_amount: Option<MinorUnit>,
     pub webhook_url: Option<String>,
-    pub capture_method: Option<storage_enums::CaptureMethod>,
+    pub capture_method: Option<common_enums::CaptureMethod>,
 }
 
 #[derive(Debug, Default, Clone)]
 pub struct PaymentsRejectData {
     pub amount: Option<i64>,
-    pub currency: Option<storage_enums::Currency>,
+    pub currency: Option<common_enums::Currency>,
 }
 
 #[derive(Debug, Default, Clone)]
 pub struct PaymentsApproveData {
     pub amount: Option<i64>,
-    pub currency: Option<storage_enums::Currency>,
+    pub currency: Option<common_enums::Currency>,
 }
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
@@ -688,7 +688,7 @@ pub struct RefundsData {
     pub connector_transaction_id: String,
 
     pub connector_refund_id: Option<String>,
-    pub currency: storage_enums::Currency,
+    pub currency: common_enums::Currency,
     /// Amount for the payment against which this refund is issued
     pub payment_amount: i64,
 
@@ -708,17 +708,17 @@ pub struct RefundsData {
     pub minor_payment_amount: MinorUnit,
     pub minor_refund_amount: MinorUnit,
     pub integrity_object: Option<RefundIntegrityObject>,
-    pub refund_status: storage_enums::RefundStatus,
+    pub refund_status: common_enums::RefundStatus,
     pub merchant_account_id: Option<Secret<String>>,
-    pub merchant_config_currency: Option<storage_enums::Currency>,
-    pub capture_method: Option<storage_enums::CaptureMethod>,
+    pub merchant_config_currency: Option<common_enums::Currency>,
+    pub capture_method: Option<common_enums::CaptureMethod>,
     pub additional_payment_method_data: Option<AdditionalPaymentData>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct RefundIntegrityObject {
     /// refund currency
-    pub currency: storage_enums::Currency,
+    pub currency: common_enums::Currency,
     /// refund amount
     pub refund_amount: MinorUnit,
 }
@@ -894,16 +894,16 @@ pub struct PayoutsData {
     pub payout_id: id_type::PayoutId,
     pub amount: i64,
     pub connector_payout_id: Option<String>,
-    pub destination_currency: storage_enums::Currency,
-    pub source_currency: storage_enums::Currency,
-    pub payout_type: Option<storage_enums::PayoutType>,
-    pub entity_type: storage_enums::PayoutEntityType,
+    pub destination_currency: common_enums::Currency,
+    pub source_currency: common_enums::Currency,
+    pub payout_type: Option<common_enums::PayoutType>,
+    pub entity_type: common_enums::PayoutEntityType,
     pub customer_details: Option<CustomerDetails>,
     pub vendor_details: Option<api_models::payouts::PayoutVendorAccountDetails>,
 
     // New minor amount for amount framework
     pub minor_amount: MinorUnit,
-    pub priority: Option<storage_enums::PayoutSendPriority>,
+    pub priority: Option<common_enums::PayoutSendPriority>,
     pub connector_transfer_method_id: Option<String>,
 }
 
@@ -946,7 +946,7 @@ pub struct PaymentsSessionData {
 #[derive(Debug, Clone, Default)]
 pub struct PaymentsTaxCalculationData {
     pub amount: MinorUnit,
-    pub currency: storage_enums::Currency,
+    pub currency: common_enums::Currency,
     pub shipping_cost: Option<MinorUnit>,
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub shipping_address: address::Address,
@@ -959,21 +959,21 @@ pub struct SdkPaymentsSessionUpdateData {
     pub amount: MinorUnit,
     /// original amount sent by the merchant
     pub order_amount: MinorUnit,
-    pub currency: storage_enums::Currency,
+    pub currency: common_enums::Currency,
     pub session_id: Option<String>,
     pub shipping_cost: Option<MinorUnit>,
 }
 
 #[derive(Debug, Clone)]
 pub struct SetupMandateRequestData {
-    pub currency: storage_enums::Currency,
+    pub currency: common_enums::Currency,
     pub payment_method_data: PaymentMethodData,
     pub amount: Option<i64>,
     pub confirm: bool,
     pub statement_descriptor_suffix: Option<String>,
     pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
     pub mandate_id: Option<api_models::payments::MandateIds>,
-    pub setup_future_usage: Option<storage_enums::FutureUsage>,
+    pub setup_future_usage: Option<common_enums::FutureUsage>,
     pub off_session: Option<bool>,
     pub setup_mandate_details: Option<mandates::MandateData>,
     pub router_return_url: Option<String>,
@@ -982,11 +982,11 @@ pub struct SetupMandateRequestData {
     pub email: Option<pii::Email>,
     pub customer_name: Option<Secret<String>>,
     pub return_url: Option<String>,
-    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub payment_method_type: Option<common_enums::PaymentMethodType>,
     pub request_incremental_authorization: bool,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub complete_authorize_url: Option<String>,
-    pub capture_method: Option<storage_enums::CaptureMethod>,
+    pub capture_method: Option<common_enums::CaptureMethod>,
 
     // MinorUnit for amount framework
     pub minor_amount: Option<MinorUnit>,

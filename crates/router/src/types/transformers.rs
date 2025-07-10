@@ -14,11 +14,18 @@ use common_utils::{
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payments::payment_intent::CustomerData;
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::{
+    merchant_account::MerchantAccountUpdate,
+    merchant_connector_account::{
+        MerchantConnectorAccountFeatureMetadata, MerchantConnectorAccountUpdate,
+    },
+};
 use masking::{ExposeInterface, PeekInterface, Secret};
 
 use super::domain;
 use crate::{
-    core::errors,
+    core::{authentication::AuthenticationStore, errors},
     headers::{
         ACCEPT_LANGUAGE, BROWSER_NAME, X_APP_ID, X_CLIENT_PLATFORM, X_CLIENT_SOURCE,
         X_CLIENT_VERSION, X_MERCHANT_DOMAIN, X_PAYMENT_CONFIRM_SOURCE, X_REDIRECT_URI,
@@ -220,30 +227,24 @@ impl ForeignFrom<payments::MandateData> for hyperswitch_domain_models::mandates:
             customer_acceptance: d.customer_acceptance,
             mandate_type: d.mandate_type.map(|d| match d {
                 payments::MandateType::MultiUse(Some(i)) => {
-                    hyperswitch_domain_models::mandates::MandateDataType::MultiUse(Some(
-                        hyperswitch_domain_models::mandates::MandateAmountData {
-                            amount: i.amount,
-                            currency: i.currency,
-                            start_date: i.start_date,
-                            end_date: i.end_date,
-                            metadata: i.metadata,
-                        },
-                    ))
+                    MandateDataType::MultiUse(Some(MandateAmountData {
+                        amount: i.amount,
+                        currency: i.currency,
+                        start_date: i.start_date,
+                        end_date: i.end_date,
+                        metadata: i.metadata,
+                    }))
                 }
                 payments::MandateType::SingleUse(i) => {
-                    hyperswitch_domain_models::mandates::MandateDataType::SingleUse(
-                        hyperswitch_domain_models::mandates::MandateAmountData {
-                            amount: i.amount,
-                            currency: i.currency,
-                            start_date: i.start_date,
-                            end_date: i.end_date,
-                            metadata: i.metadata,
-                        },
-                    )
+                    MandateDataType::SingleUse(MandateAmountData {
+                        amount: i.amount,
+                        currency: i.currency,
+                        start_date: i.start_date,
+                        end_date: i.end_date,
+                        metadata: i.metadata,
+                    })
                 }
-                payments::MandateType::MultiUse(None) => {
-                    hyperswitch_domain_models::mandates::MandateDataType::MultiUse(None)
-                }
+                payments::MandateType::MultiUse(None) => MandateDataType::MultiUse(None),
             }),
             update_mandate_id: d.update_mandate_id,
         }
@@ -712,14 +713,8 @@ impl ForeignFrom<storage::Authorization> for payments::IncrementalAuthorizationR
     }
 }
 
-impl
-    ForeignFrom<
-        &hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore,
-    > for payments::ExternalAuthenticationDetailsResponse
-{
-    fn foreign_from(
-        authn_store: &hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore,
-    ) -> Self {
+impl ForeignFrom<&AuthenticationStore> for payments::ExternalAuthenticationDetailsResponse {
+    fn foreign_from(authn_store: &AuthenticationStore) -> Self {
         let authn_data = &authn_store.authentication;
         let version = authn_data
             .maximum_supported_version
@@ -767,8 +762,10 @@ impl ForeignFrom<storage::FileMetadata> for api_models::files::FileMetadataRespo
     }
 }
 
-impl ForeignFrom<diesel_models::cards_info::CardInfo> for api_models::cards_info::CardInfoResponse {
-    fn foreign_from(item: diesel_models::cards_info::CardInfo) -> Self {
+impl ForeignFrom<hyperswitch_domain_models::cards_info::CardInfo>
+    for api_models::cards_info::CardInfoResponse
+{
+    fn foreign_from(item: hyperswitch_domain_models::cards_info::CardInfo) -> Self {
         Self {
             card_iin: item.card_iin,
             card_type: item.card_type,
@@ -1764,7 +1761,7 @@ impl TryFrom<domain::Event> for api_models::webhook_events::EventRetrieveRespons
 }
 
 impl ForeignFrom<api_models::admin::AuthenticationConnectorDetails>
-    for diesel_models::business_profile::AuthenticationConnectorDetails
+    for common_types::business_profile::AuthenticationConnectorDetails
 {
     fn foreign_from(item: api_models::admin::AuthenticationConnectorDetails) -> Self {
         Self {
@@ -1775,10 +1772,10 @@ impl ForeignFrom<api_models::admin::AuthenticationConnectorDetails>
     }
 }
 
-impl ForeignFrom<diesel_models::business_profile::AuthenticationConnectorDetails>
+impl ForeignFrom<common_types::business_profile::AuthenticationConnectorDetails>
     for api_models::admin::AuthenticationConnectorDetails
 {
-    fn foreign_from(item: diesel_models::business_profile::AuthenticationConnectorDetails) -> Self {
+    fn foreign_from(item: common_types::business_profile::AuthenticationConnectorDetails) -> Self {
         Self {
             authentication_connectors: item.authentication_connectors,
             three_ds_requestor_url: item.three_ds_requestor_url,
@@ -1788,7 +1785,7 @@ impl ForeignFrom<diesel_models::business_profile::AuthenticationConnectorDetails
 }
 
 impl ForeignFrom<api_models::admin::ExternalVaultConnectorDetails>
-    for diesel_models::business_profile::ExternalVaultConnectorDetails
+    for common_types::business_profile::ExternalVaultConnectorDetails
 {
     fn foreign_from(item: api_models::admin::ExternalVaultConnectorDetails) -> Self {
         Self {
@@ -1798,10 +1795,10 @@ impl ForeignFrom<api_models::admin::ExternalVaultConnectorDetails>
     }
 }
 
-impl ForeignFrom<diesel_models::business_profile::ExternalVaultConnectorDetails>
+impl ForeignFrom<common_types::business_profile::ExternalVaultConnectorDetails>
     for api_models::admin::ExternalVaultConnectorDetails
 {
-    fn foreign_from(item: diesel_models::business_profile::ExternalVaultConnectorDetails) -> Self {
+    fn foreign_from(item: common_types::business_profile::ExternalVaultConnectorDetails) -> Self {
         Self {
             vault_connector_id: item.vault_connector_id,
             vault_sdk: item.vault_sdk,
@@ -1810,7 +1807,7 @@ impl ForeignFrom<diesel_models::business_profile::ExternalVaultConnectorDetails>
 }
 
 impl ForeignFrom<api_models::admin::CardTestingGuardConfig>
-    for diesel_models::business_profile::CardTestingGuardConfig
+    for common_types::business_profile::CardTestingGuardConfig
 {
     fn foreign_from(item: api_models::admin::CardTestingGuardConfig) -> Self {
         Self {
@@ -1834,10 +1831,10 @@ impl ForeignFrom<api_models::admin::CardTestingGuardConfig>
     }
 }
 
-impl ForeignFrom<diesel_models::business_profile::CardTestingGuardConfig>
+impl ForeignFrom<common_types::business_profile::CardTestingGuardConfig>
     for api_models::admin::CardTestingGuardConfig
 {
-    fn foreign_from(item: diesel_models::business_profile::CardTestingGuardConfig) -> Self {
+    fn foreign_from(item: common_types::business_profile::CardTestingGuardConfig) -> Self {
         Self {
             card_ip_blocking_status: match item.is_card_ip_blocking_enabled {
                 true => api_models::admin::CardTestingGuardStatus::Enabled,
@@ -1860,7 +1857,7 @@ impl ForeignFrom<diesel_models::business_profile::CardTestingGuardConfig>
 }
 
 impl ForeignFrom<api_models::admin::WebhookDetails>
-    for diesel_models::business_profile::WebhookDetails
+    for common_types::business_profile::WebhookDetails
 {
     fn foreign_from(item: api_models::admin::WebhookDetails) -> Self {
         Self {
@@ -1878,10 +1875,10 @@ impl ForeignFrom<api_models::admin::WebhookDetails>
     }
 }
 
-impl ForeignFrom<diesel_models::business_profile::WebhookDetails>
+impl ForeignFrom<common_types::business_profile::WebhookDetails>
     for api_models::admin::WebhookDetails
 {
-    fn foreign_from(item: diesel_models::business_profile::WebhookDetails) -> Self {
+    fn foreign_from(item: common_types::business_profile::WebhookDetails) -> Self {
         Self {
             webhook_version: item.webhook_version,
             webhook_username: item.webhook_username,
@@ -1898,7 +1895,7 @@ impl ForeignFrom<diesel_models::business_profile::WebhookDetails>
 }
 
 impl ForeignFrom<api_models::admin::BusinessPaymentLinkConfig>
-    for diesel_models::business_profile::BusinessPaymentLinkConfig
+    for common_types::business_profile::BusinessPaymentLinkConfig
 {
     fn foreign_from(item: api_models::admin::BusinessPaymentLinkConfig) -> Self {
         Self {
@@ -1915,10 +1912,10 @@ impl ForeignFrom<api_models::admin::BusinessPaymentLinkConfig>
     }
 }
 
-impl ForeignFrom<diesel_models::business_profile::BusinessPaymentLinkConfig>
+impl ForeignFrom<common_types::business_profile::BusinessPaymentLinkConfig>
     for api_models::admin::BusinessPaymentLinkConfig
 {
-    fn foreign_from(item: diesel_models::business_profile::BusinessPaymentLinkConfig) -> Self {
+    fn foreign_from(item: common_types::business_profile::BusinessPaymentLinkConfig) -> Self {
         Self {
             domain_name: item.domain_name,
             default_config: item.default_config.map(ForeignInto::foreign_into),
@@ -1934,7 +1931,7 @@ impl ForeignFrom<diesel_models::business_profile::BusinessPaymentLinkConfig>
 }
 
 impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
-    for diesel_models::business_profile::PaymentLinkConfigRequest
+    for common_types::business_profile::PaymentLinkConfigRequest
 {
     fn foreign_from(item: api_models::admin::PaymentLinkConfigRequest) -> Self {
         Self {
@@ -1968,10 +1965,10 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
     }
 }
 
-impl ForeignFrom<diesel_models::business_profile::PaymentLinkConfigRequest>
+impl ForeignFrom<common_types::business_profile::PaymentLinkConfigRequest>
     for api_models::admin::PaymentLinkConfigRequest
 {
-    fn foreign_from(item: diesel_models::business_profile::PaymentLinkConfigRequest) -> Self {
+    fn foreign_from(item: common_types::business_profile::PaymentLinkConfigRequest) -> Self {
         Self {
             theme: item.theme,
             logo: item.logo,
@@ -2004,12 +2001,10 @@ impl ForeignFrom<diesel_models::business_profile::PaymentLinkConfigRequest>
     }
 }
 
-impl ForeignFrom<diesel_models::business_profile::PaymentLinkBackgroundImageConfig>
+impl ForeignFrom<common_types::payments::PaymentLinkBackgroundImageConfig>
     for api_models::admin::PaymentLinkBackgroundImageConfig
 {
-    fn foreign_from(
-        item: diesel_models::business_profile::PaymentLinkBackgroundImageConfig,
-    ) -> Self {
+    fn foreign_from(item: common_types::payments::PaymentLinkBackgroundImageConfig) -> Self {
         Self {
             url: item.url,
             position: item.position,
@@ -2019,7 +2014,7 @@ impl ForeignFrom<diesel_models::business_profile::PaymentLinkBackgroundImageConf
 }
 
 impl ForeignFrom<api_models::admin::PaymentLinkBackgroundImageConfig>
-    for diesel_models::business_profile::PaymentLinkBackgroundImageConfig
+    for common_types::payments::PaymentLinkBackgroundImageConfig
 {
     fn foreign_from(item: api_models::admin::PaymentLinkBackgroundImageConfig) -> Self {
         Self {
@@ -2031,7 +2026,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkBackgroundImageConfig>
 }
 
 impl ForeignFrom<api_models::admin::BusinessPayoutLinkConfig>
-    for diesel_models::business_profile::BusinessPayoutLinkConfig
+    for common_types::business_profile::BusinessPayoutLinkConfig
 {
     fn foreign_from(item: api_models::admin::BusinessPayoutLinkConfig) -> Self {
         Self {
@@ -2042,10 +2037,10 @@ impl ForeignFrom<api_models::admin::BusinessPayoutLinkConfig>
     }
 }
 
-impl ForeignFrom<diesel_models::business_profile::BusinessPayoutLinkConfig>
+impl ForeignFrom<common_types::business_profile::BusinessPayoutLinkConfig>
     for api_models::admin::BusinessPayoutLinkConfig
 {
-    fn foreign_from(item: diesel_models::business_profile::BusinessPayoutLinkConfig) -> Self {
+    fn foreign_from(item: common_types::business_profile::BusinessPayoutLinkConfig) -> Self {
         Self {
             config: item.config.foreign_into(),
             form_layout: item.form_layout,
@@ -2055,7 +2050,7 @@ impl ForeignFrom<diesel_models::business_profile::BusinessPayoutLinkConfig>
 }
 
 impl ForeignFrom<api_models::admin::BusinessGenericLinkConfig>
-    for diesel_models::business_profile::BusinessGenericLinkConfig
+    for common_types::business_profile::BusinessGenericLinkConfig
 {
     fn foreign_from(item: api_models::admin::BusinessGenericLinkConfig) -> Self {
         Self {
@@ -2066,10 +2061,10 @@ impl ForeignFrom<api_models::admin::BusinessGenericLinkConfig>
     }
 }
 
-impl ForeignFrom<diesel_models::business_profile::BusinessGenericLinkConfig>
+impl ForeignFrom<common_types::business_profile::BusinessGenericLinkConfig>
     for api_models::admin::BusinessGenericLinkConfig
 {
-    fn foreign_from(item: diesel_models::business_profile::BusinessGenericLinkConfig) -> Self {
+    fn foreign_from(item: common_types::business_profile::BusinessGenericLinkConfig) -> Self {
         Self {
             domain_name: item.domain_name,
             allowed_domains: item.allowed_domains,
@@ -2078,7 +2073,9 @@ impl ForeignFrom<diesel_models::business_profile::BusinessGenericLinkConfig>
     }
 }
 
-impl ForeignFrom<card_info_types::CardInfoCreateRequest> for storage::CardInfo {
+impl ForeignFrom<card_info_types::CardInfoCreateRequest>
+    for hyperswitch_domain_models::cards_info::CardInfo
+{
     fn foreign_from(value: card_info_types::CardInfoCreateRequest) -> Self {
         Self {
             card_iin: value.card_iin,
@@ -2097,7 +2094,9 @@ impl ForeignFrom<card_info_types::CardInfoCreateRequest> for storage::CardInfo {
     }
 }
 
-impl ForeignFrom<card_info_types::CardInfoUpdateRequest> for storage::CardInfo {
+impl ForeignFrom<card_info_types::CardInfoUpdateRequest>
+    for hyperswitch_domain_models::cards_info::CardInfo
+{
     fn foreign_from(value: card_info_types::CardInfoUpdateRequest) -> Self {
         Self {
             card_iin: value.card_iin,
@@ -2112,6 +2111,477 @@ impl ForeignFrom<card_info_types::CardInfoUpdateRequest> for storage::CardInfo {
             date_created: common_utils::date_time::now(),
             last_updated: Some(common_utils::date_time::now()),
             last_updated_provider: value.last_updated_provider,
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::CardInfo> for hyperswitch_domain_models::cards_info::CardInfo {
+    fn foreign_from(from: diesel_models::CardInfo) -> Self {
+        Self {
+            card_iin: from.card_iin,
+            card_issuer: from.card_issuer,
+            card_network: from.card_network,
+            card_type: from.card_type,
+            card_subtype: from.card_subtype,
+            card_issuing_country: from.card_issuing_country,
+            bank_code_id: from.bank_code_id,
+            bank_code: from.bank_code,
+            country_code: from.country_code,
+            date_created: from.date_created,
+            last_updated: from.last_updated,
+            last_updated_provider: from.last_updated_provider,
+        }
+    }
+}
+
+impl ForeignFrom<hyperswitch_domain_models::cards_info::CardInfo> for diesel_models::CardInfo {
+    fn foreign_from(from: hyperswitch_domain_models::cards_info::CardInfo) -> Self {
+        Self {
+            card_iin: from.card_iin,
+            card_issuer: from.card_issuer,
+            card_network: from.card_network,
+            card_type: from.card_type,
+            card_subtype: from.card_subtype,
+            card_issuing_country: from.card_issuing_country,
+            bank_code_id: from.bank_code_id,
+            bank_code: from.bank_code,
+            country_code: from.country_code,
+            date_created: from.date_created,
+            last_updated: from.last_updated,
+            last_updated_provider: from.last_updated_provider,
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::UpdateCardInfo>
+    for hyperswitch_domain_models::cards_info::UpdateCardInfo
+{
+    fn foreign_from(from: diesel_models::UpdateCardInfo) -> Self {
+        Self {
+            card_issuer: from.card_issuer,
+            card_network: from.card_network,
+            card_type: from.card_type,
+            card_subtype: from.card_subtype,
+            card_issuing_country: from.card_issuing_country,
+            bank_code_id: from.bank_code_id,
+            bank_code: from.bank_code,
+            country_code: from.country_code,
+            last_updated: from.last_updated,
+            last_updated_provider: from.last_updated_provider,
+        }
+    }
+}
+
+impl ForeignFrom<hyperswitch_domain_models::cards_info::UpdateCardInfo>
+    for diesel_models::UpdateCardInfo
+{
+    fn foreign_from(from: hyperswitch_domain_models::cards_info::UpdateCardInfo) -> Self {
+        Self {
+            card_issuer: from.card_issuer,
+            card_network: from.card_network,
+            card_type: from.card_type,
+            card_subtype: from.card_subtype,
+            card_issuing_country: from.card_issuing_country,
+            bank_code_id: from.bank_code_id,
+            bank_code: from.bank_code,
+            country_code: from.country_code,
+            last_updated: from.last_updated,
+            last_updated_provider: from.last_updated_provider,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<MerchantAccountUpdate> for diesel_models::MerchantAccountUpdateInternal {
+    fn foreign_from(merchant_account_update: MerchantAccountUpdate) -> Self {
+        let now = common_utils::date_time::now();
+
+        match merchant_account_update {
+            MerchantAccountUpdate::Update {
+                merchant_name,
+                merchant_details,
+                publishable_key,
+                metadata,
+            } => Self {
+                merchant_name: merchant_name.map(common_utils::encryption::Encryption::from),
+                merchant_details: merchant_details.map(common_utils::encryption::Encryption::from),
+                publishable_key,
+                metadata: metadata.map(|metadata| *metadata),
+                modified_at: now,
+                storage_scheme: None,
+                organization_id: None,
+                recon_status: None,
+                is_platform_account: None,
+                product_type: None,
+            },
+            MerchantAccountUpdate::StorageSchemeUpdate { storage_scheme } => Self {
+                storage_scheme: Some(storage_scheme),
+                modified_at: now,
+                merchant_name: None,
+                merchant_details: None,
+                publishable_key: None,
+                metadata: None,
+                organization_id: None,
+                recon_status: None,
+                is_platform_account: None,
+                product_type: None,
+            },
+            MerchantAccountUpdate::ReconUpdate { recon_status } => Self {
+                recon_status: Some(recon_status),
+                modified_at: now,
+                merchant_name: None,
+                merchant_details: None,
+                publishable_key: None,
+                storage_scheme: None,
+                metadata: None,
+                organization_id: None,
+                is_platform_account: None,
+                product_type: None,
+            },
+            MerchantAccountUpdate::ModifiedAtUpdate => Self {
+                modified_at: now,
+                merchant_name: None,
+                merchant_details: None,
+                publishable_key: None,
+                storage_scheme: None,
+                metadata: None,
+                organization_id: None,
+                recon_status: None,
+                is_platform_account: None,
+                product_type: None,
+            },
+            MerchantAccountUpdate::ToPlatformAccount => Self {
+                modified_at: now,
+                merchant_name: None,
+                merchant_details: None,
+                publishable_key: None,
+                storage_scheme: None,
+                metadata: None,
+                organization_id: None,
+                recon_status: None,
+                is_platform_account: Some(true),
+                product_type: None,
+            },
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<MerchantConnectorAccountUpdate>
+    for diesel_models::MerchantConnectorAccountUpdateInternal
+{
+    fn foreign_from(merchant_connector_account_update: MerchantConnectorAccountUpdate) -> Self {
+        match merchant_connector_account_update {
+            MerchantConnectorAccountUpdate::Update {
+                connector_type,
+                connector_account_details,
+                disabled,
+                payment_methods_enabled,
+                metadata,
+                frm_configs,
+                connector_webhook_details,
+                applepay_verified_domains,
+                pm_auth_config,
+                connector_label,
+                status,
+                connector_wallets_details,
+                additional_merchant_data,
+                feature_metadata,
+            } => Self {
+                connector_type,
+                connector_account_details: connector_account_details
+                    .map(common_utils::encryption::Encryption::from),
+                disabled,
+                payment_methods_enabled,
+                metadata,
+                frm_config: frm_configs,
+                modified_at: Some(common_utils::date_time::now()),
+                connector_webhook_details: *connector_webhook_details,
+                applepay_verified_domains,
+                pm_auth_config: *pm_auth_config,
+                connector_label,
+                status,
+                connector_wallets_details: connector_wallets_details
+                    .map(common_utils::encryption::Encryption::from),
+                additional_merchant_data: additional_merchant_data
+                    .map(common_utils::encryption::Encryption::from),
+                feature_metadata: feature_metadata.map(ForeignFrom::foreign_from),
+            },
+            MerchantConnectorAccountUpdate::ConnectorWalletDetailsUpdate {
+                connector_wallets_details,
+            } => Self {
+                connector_wallets_details: Some(common_utils::encryption::Encryption::from(
+                    connector_wallets_details,
+                )),
+                connector_type: None,
+                connector_account_details: None,
+                connector_label: None,
+                disabled: None,
+                payment_methods_enabled: None,
+                metadata: None,
+                modified_at: None,
+                connector_webhook_details: None,
+                frm_config: None,
+                applepay_verified_domains: None,
+                pm_auth_config: None,
+                status: None,
+                additional_merchant_data: None,
+                feature_metadata: None,
+            },
+        }
+    }
+}
+
+use diesel_models::merchant_connector_account::{
+    BillingAccountReference as DieselBillingAccountReference,
+    MerchantConnectorAccountFeatureMetadata as DieselMerchantConnectorAccountFeatureMetadata,
+    RevenueRecoveryMetadata as DieselRevenueRecoveryMetadata,
+};
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<MerchantConnectorAccountFeatureMetadata>
+    for DieselMerchantConnectorAccountFeatureMetadata
+{
+    fn foreign_from(feature_metadata: MerchantConnectorAccountFeatureMetadata) -> Self {
+        let revenue_recovery = feature_metadata.revenue_recovery.map(|recovery_metadata| {
+            DieselRevenueRecoveryMetadata {
+                max_retry_count: recovery_metadata.max_retry_count,
+                billing_connector_retry_threshold: recovery_metadata
+                    .billing_connector_retry_threshold,
+                billing_account_reference: DieselBillingAccountReference(
+                    recovery_metadata.mca_reference.recovery_to_billing,
+                ),
+            }
+        });
+        Self { revenue_recovery }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<DieselMerchantConnectorAccountFeatureMetadata>
+    for MerchantConnectorAccountFeatureMetadata
+{
+    fn foreign_from(feature_metadata: DieselMerchantConnectorAccountFeatureMetadata) -> Self {
+        let revenue_recovery = feature_metadata.revenue_recovery.map(|recovery_metadata| {
+            use hyperswitch_domain_models::merchant_connector_account::{
+                AccountReferenceMap, RevenueRecoveryMetadata,
+            };
+
+            let mut billing_to_recovery = std::collections::HashMap::new();
+            for (key, value) in &recovery_metadata.billing_account_reference.0 {
+                billing_to_recovery.insert(value.to_string(), key.clone());
+            }
+            RevenueRecoveryMetadata {
+                max_retry_count: recovery_metadata.max_retry_count,
+                billing_connector_retry_threshold: recovery_metadata
+                    .billing_connector_retry_threshold,
+                mca_reference: AccountReferenceMap {
+                    recovery_to_billing: recovery_metadata.billing_account_reference.0,
+                    billing_to_recovery,
+                },
+            }
+        });
+        Self { revenue_recovery }
+    }
+}
+
+use hyperswitch_domain_models::mandates::{
+    CommonMandateReference, ConnectorTokenReferenceRecord, MandateAmountData, MandateDataType,
+    MandateDetails, PaymentsTokenReference, PayoutsMandateReference, PayoutsMandateReferenceRecord,
+};
+
+impl ForeignFrom<MandateDetails> for diesel_models::enums::MandateDetails {
+    fn foreign_from(value: MandateDetails) -> Self {
+        Self {
+            update_mandate_id: value.update_mandate_id,
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::enums::MandateDetails> for MandateDetails {
+    fn foreign_from(value: diesel_models::enums::MandateDetails) -> Self {
+        Self {
+            update_mandate_id: value.update_mandate_id,
+        }
+    }
+}
+
+impl ForeignFrom<MandateDataType> for diesel_models::enums::MandateDataType {
+    fn foreign_from(value: MandateDataType) -> Self {
+        match value {
+            MandateDataType::SingleUse(data) => Self::SingleUse(data.foreign_into()),
+            MandateDataType::MultiUse(None) => Self::MultiUse(None),
+            MandateDataType::MultiUse(Some(data)) => Self::MultiUse(Some(data.foreign_into())),
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::enums::MandateDataType> for MandateDataType {
+    fn foreign_from(value: diesel_models::enums::MandateDataType) -> Self {
+        use diesel_models::enums::MandateDataType as DieselMandateDataType;
+
+        match value {
+            DieselMandateDataType::SingleUse(data) => Self::SingleUse(data.foreign_into()),
+            DieselMandateDataType::MultiUse(None) => Self::MultiUse(None),
+            DieselMandateDataType::MultiUse(Some(data)) => {
+                Self::MultiUse(Some(data.foreign_into()))
+            }
+        }
+    }
+}
+
+impl ForeignFrom<MandateAmountData> for diesel_models::enums::MandateAmountData {
+    fn foreign_from(value: MandateAmountData) -> Self {
+        Self {
+            amount: value.amount,
+            currency: value.currency,
+            start_date: value.start_date,
+            end_date: value.end_date,
+            metadata: value.metadata,
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::enums::MandateAmountData> for MandateAmountData {
+    fn foreign_from(value: diesel_models::enums::MandateAmountData) -> Self {
+        Self {
+            amount: value.amount,
+            currency: value.currency,
+            start_date: value.start_date,
+            end_date: value.end_date,
+            metadata: value.metadata,
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::CommonMandateReference> for CommonMandateReference {
+    fn foreign_from(value: diesel_models::CommonMandateReference) -> Self {
+        Self {
+            payments: value.payments.map(|payments| payments.foreign_into()),
+            payouts: value.payouts.map(|payouts| payouts.foreign_into()),
+        }
+    }
+}
+
+impl ForeignFrom<CommonMandateReference> for diesel_models::CommonMandateReference {
+    fn foreign_from(value: CommonMandateReference) -> Self {
+        Self {
+            payments: value.payments.map(|payments| payments.foreign_into()),
+            payouts: value.payouts.map(|payouts| payouts.foreign_into()),
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::PayoutsMandateReference> for PayoutsMandateReference {
+    fn foreign_from(value: diesel_models::PayoutsMandateReference) -> Self {
+        Self(
+            value
+                .0
+                .into_iter()
+                .map(|(key, record)| (key, record.foreign_into()))
+                .collect(),
+        )
+    }
+}
+
+impl ForeignFrom<PayoutsMandateReference> for diesel_models::PayoutsMandateReference {
+    fn foreign_from(value: PayoutsMandateReference) -> Self {
+        Self(
+            value
+                .0
+                .into_iter()
+                .map(|(key, record)| (key, record.foreign_into()))
+                .collect(),
+        )
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<diesel_models::PaymentsTokenReference> for PaymentsTokenReference {
+    fn foreign_from(value: diesel_models::PaymentsTokenReference) -> Self {
+        Self(
+            value
+                .0
+                .into_iter()
+                .map(|(key, record)| (key, record.foreign_into()))
+                .collect(),
+        )
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<PaymentsTokenReference> for diesel_models::PaymentsTokenReference {
+    fn foreign_from(value: PaymentsTokenReference) -> Self {
+        Self(
+            value
+                .0
+                .into_iter()
+                .map(|(key, record)| (key, record.foreign_into()))
+                .collect(),
+        )
+    }
+}
+
+impl ForeignFrom<diesel_models::PayoutsMandateReferenceRecord> for PayoutsMandateReferenceRecord {
+    fn foreign_from(value: diesel_models::PayoutsMandateReferenceRecord) -> Self {
+        Self {
+            transfer_method_id: value.transfer_method_id,
+        }
+    }
+}
+
+impl ForeignFrom<PayoutsMandateReferenceRecord> for diesel_models::PayoutsMandateReferenceRecord {
+    fn foreign_from(value: PayoutsMandateReferenceRecord) -> Self {
+        Self {
+            transfer_method_id: value.transfer_method_id,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<diesel_models::ConnectorTokenReferenceRecord> for ConnectorTokenReferenceRecord {
+    fn foreign_from(value: diesel_models::ConnectorTokenReferenceRecord) -> Self {
+        let diesel_models::ConnectorTokenReferenceRecord {
+            connector_token,
+            payment_method_subtype,
+            original_payment_authorized_amount,
+            original_payment_authorized_currency,
+            metadata,
+            connector_token_status,
+            connector_token_request_reference_id,
+        } = value;
+        Self {
+            connector_token,
+            payment_method_subtype,
+            original_payment_authorized_amount,
+            original_payment_authorized_currency,
+            metadata,
+            connector_token_status,
+            connector_token_request_reference_id,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<ConnectorTokenReferenceRecord> for diesel_models::ConnectorTokenReferenceRecord {
+    fn foreign_from(value: ConnectorTokenReferenceRecord) -> Self {
+        let ConnectorTokenReferenceRecord {
+            connector_token,
+            payment_method_subtype,
+            original_payment_authorized_amount,
+            original_payment_authorized_currency,
+            metadata,
+            connector_token_status,
+            connector_token_request_reference_id,
+        } = value;
+        Self {
+            connector_token,
+            payment_method_subtype,
+            original_payment_authorized_amount,
+            original_payment_authorized_currency,
+            metadata,
+            connector_token_status,
+            connector_token_request_reference_id,
         }
     }
 }

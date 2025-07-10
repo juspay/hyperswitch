@@ -1,12 +1,12 @@
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use common_utils::{errors::CustomResult, types::keymanager::KeyManagerState};
+use common_utils::{errors::ValidationError, types::keymanager};
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use error_stack::{report, ResultExt};
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-use hyperswitch_domain_models::{
-    behaviour::{Conversion, ReverseConversion},
-    merchant_key_store::MerchantKeyStore,
-};
+use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
+use hyperswitch_domain_models::tokenization::Tokenization;
+use masking::Secret;
 
 use super::MockDb;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
@@ -21,17 +21,17 @@ pub trait TokenizationInterface {}
 pub trait TokenizationInterface {
     async fn insert_tokenization(
         &self,
-        tokenization: hyperswitch_domain_models::tokenization::Tokenization,
+        tokenization: Tokenization,
         merchant_key_store: &MerchantKeyStore,
         key_manager_state: &KeyManagerState,
-    ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>;
+    ) -> CustomResult<Tokenization, errors::StorageError>;
 
     async fn get_entity_id_vault_id_by_token_id(
         &self,
         token: &common_utils::id_type::GlobalTokenId,
         merchant_key_store: &MerchantKeyStore,
         key_manager_state: &KeyManagerState,
-    ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>;
+    ) -> CustomResult<Tokenization, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -39,11 +39,12 @@ pub trait TokenizationInterface {
 impl<T: DatabaseStore> TokenizationInterface for RouterStore<T> {
     async fn insert_tokenization(
         &self,
-        tokenization: hyperswitch_domain_models::tokenization::Tokenization,
+        tokenization: Tokenization,
         merchant_key_store: &MerchantKeyStore,
         key_manager_state: &KeyManagerState,
-    ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
-    {
+    ) -> CustomResult<Tokenization, errors::StorageError> {
+        use crate::behaviour::{Conversion, ReverseConversion};
+
         let conn = connection::pg_connection_write(self).await?;
 
         tokenization
@@ -67,8 +68,9 @@ impl<T: DatabaseStore> TokenizationInterface for RouterStore<T> {
         token: &common_utils::id_type::GlobalTokenId,
         merchant_key_store: &MerchantKeyStore,
         key_manager_state: &KeyManagerState,
-    ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
-    {
+    ) -> CustomResult<Tokenization, errors::StorageError> {
+        use crate::behaviour::ReverseConversion;
+
         let conn = connection::pg_connection_read(self).await?;
 
         let tokenization = diesel_models::tokenization::Tokenization::find_by_id(&conn, token)
@@ -93,11 +95,10 @@ impl<T: DatabaseStore> TokenizationInterface for RouterStore<T> {
 impl<T: DatabaseStore> TokenizationInterface for KVRouterStore<T> {
     async fn insert_tokenization(
         &self,
-        tokenization: hyperswitch_domain_models::tokenization::Tokenization,
+        tokenization: Tokenization,
         merchant_key_store: &MerchantKeyStore,
         key_manager_state: &KeyManagerState,
-    ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
-    {
+    ) -> CustomResult<Tokenization, errors::StorageError> {
         self.router_store
             .insert_tokenization(tokenization, merchant_key_store, key_manager_state)
             .await
@@ -108,8 +109,7 @@ impl<T: DatabaseStore> TokenizationInterface for KVRouterStore<T> {
         token: &common_utils::id_type::GlobalTokenId,
         merchant_key_store: &MerchantKeyStore,
         key_manager_state: &KeyManagerState,
-    ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
-    {
+    ) -> CustomResult<Tokenization, errors::StorageError> {
         self.router_store
             .get_entity_id_vault_id_by_token_id(token, merchant_key_store, key_manager_state)
             .await
@@ -121,11 +121,10 @@ impl<T: DatabaseStore> TokenizationInterface for KVRouterStore<T> {
 impl TokenizationInterface for MockDb {
     async fn insert_tokenization(
         &self,
-        _tokenization: hyperswitch_domain_models::tokenization::Tokenization,
+        _tokenization: Tokenization,
         _merchant_key_store: &MerchantKeyStore,
         _key_manager_state: &KeyManagerState,
-    ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
-    {
+    ) -> CustomResult<Tokenization, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
     async fn get_entity_id_vault_id_by_token_id(
@@ -133,8 +132,7 @@ impl TokenizationInterface for MockDb {
         _token: &common_utils::id_type::GlobalTokenId,
         _merchant_key_store: &MerchantKeyStore,
         _key_manager_state: &KeyManagerState,
-    ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
-    {
+    ) -> CustomResult<Tokenization, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
 }
@@ -147,3 +145,53 @@ impl<T: DatabaseStore> TokenizationInterface for KVRouterStore<T> {}
 
 #[cfg(not(all(feature = "v2", feature = "tokenization_v2")))]
 impl<T: DatabaseStore> TokenizationInterface for RouterStore<T> {}
+
+#[async_trait::async_trait]
+impl super::behaviour::Conversion for Tokenization {
+    type DstType = diesel_models::tokenization::Tokenization;
+    type NewDstType = diesel_models::tokenization::Tokenization;
+
+    async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
+        Ok(diesel_models::tokenization::Tokenization {
+            id: self.id,
+            merchant_id: self.merchant_id,
+            customer_id: self.customer_id,
+            locker_id: self.locker_id,
+            created_at: self.created_at,
+            updated_at: self.updated_at,
+            version: self.version,
+            flag: self.flag,
+        })
+    }
+
+    async fn convert_back(
+        _state: &KeyManagerState,
+        item: Self::DstType,
+        _key: &Secret<Vec<u8>>,
+        _key_manager_identifier: keymanager::Identifier,
+    ) -> CustomResult<Self, ValidationError> {
+        Ok(Self {
+            id: item.id,
+            merchant_id: item.merchant_id,
+            customer_id: item.customer_id,
+            locker_id: item.locker_id,
+            created_at: item.created_at,
+            updated_at: item.updated_at,
+            flag: item.flag,
+            version: item.version,
+        })
+    }
+
+    async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
+        Ok(diesel_models::tokenization::Tokenization {
+            id: self.id,
+            merchant_id: self.merchant_id,
+            customer_id: self.customer_id,
+            locker_id: self.locker_id,
+            created_at: self.created_at,
+            updated_at: self.updated_at,
+            version: self.version,
+            flag: self.flag,
+        })
+    }
+}

@@ -1,27 +1,35 @@
-use common_utils::{id_type, pii};
-use diesel_models::{customers, kv};
+use common_utils::{
+    crypto::Encryptable,
+    date_time,
+    encryption::Encryption,
+    errors::ValidationError,
+    id_type, pii,
+    types::{keymanager, keymanager::ToEncryptable},
+};
+use diesel_models::{customers as storage, kv};
 use error_stack::ResultExt;
 use futures::future::try_join_all;
 use hyperswitch_domain_models::{
-    behaviour::{Conversion, ReverseConversion},
     customer as domain,
     merchant_key_store::MerchantKeyStore,
+    type_encryption::{crypto_operation, CryptoOperation},
 };
-use masking::PeekInterface;
+use masking::{PeekInterface, Secret, SwitchStrategy};
 use router_env::{instrument, tracing};
 
 #[cfg(feature = "v1")]
 use crate::diesel_error_to_data_error;
 use crate::{
+    behaviour::{Conversion, ReverseConversion},
     errors::StorageError,
     kv_router_store,
     redis::kv_store::{decide_storage_scheme, KvStorePartition, Op, PartitionKey},
     store::enums::MerchantStorageScheme,
-    utils::{pg_connection_read, pg_connection_write},
+    utils::{pg_connection_read, pg_connection_write, ForeignFrom, ForeignInto},
     CustomResult, DatabaseStore, KeyManagerState, MockDb, RouterStore,
 };
 
-impl KvStorePartition for customers::Customer {}
+impl KvStorePartition for storage::Customer {}
 
 #[cfg(feature = "v2")]
 mod label {
@@ -69,7 +77,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
                 state,
                 key_store,
                 storage_scheme,
-                customers::Customer::find_optional_by_customer_id_merchant_id(
+                storage::Customer::find_optional_by_customer_id_merchant_id(
                     &conn,
                     customer_id,
                     merchant_id,
@@ -106,7 +114,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
             state,
             key_store,
             storage_scheme,
-            customers::Customer::find_optional_by_customer_id_merchant_id(
+            storage::Customer::find_optional_by_customer_id_merchant_id(
                 &conn,
                 customer_id,
                 merchant_id,
@@ -137,7 +145,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
                 state,
                 key_store,
                 storage_scheme,
-                customers::Customer::find_optional_by_merchant_id_merchant_reference_id(
+                storage::Customer::find_optional_by_merchant_id_merchant_reference_id(
                     &conn,
                     merchant_reference_id,
                     merchant_id,
@@ -185,7 +193,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
             state,
             key_store,
             storage_scheme,
-            customers::Customer::update_by_customer_id_merchant_id(
+            storage::Customer::update_by_customer_id_merchant_id(
                 &conn,
                 customer_id.clone(),
                 merchant_id.clone(),
@@ -219,7 +227,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
                 state,
                 key_store,
                 storage_scheme,
-                customers::Customer::find_by_merchant_reference_id_merchant_id(
+                storage::Customer::find_by_merchant_reference_id_merchant_id(
                     &conn,
                     merchant_reference_id,
                     merchant_id,
@@ -256,11 +264,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
                 state,
                 key_store,
                 storage_scheme,
-                customers::Customer::find_by_customer_id_merchant_id(
-                    &conn,
-                    customer_id,
-                    merchant_id,
-                ),
+                storage::Customer::find_by_customer_id_merchant_id(&conn, customer_id, merchant_id),
                 kv_router_store::FindResourceBy::Id(
                     format!("cust_{}", customer_id.get_string_repr()),
                     PartitionKey::MerchantIdCustomerId {
@@ -310,7 +314,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
             .await
             .change_context(StorageError::EncryptionError)?;
 
-        let decided_storage_scheme = Box::pin(decide_storage_scheme::<_, customers::Customer>(
+        let decided_storage_scheme = Box::pin(decide_storage_scheme::<_, storage::Customer>(
             self,
             storage_scheme,
             Op::Insert,
@@ -362,7 +366,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
             .construct_new()
             .await
             .change_context(StorageError::EncryptionError)?;
-        let storage_scheme = Box::pin(decide_storage_scheme::<_, customers::Customer>(
+        let storage_scheme = Box::pin(decide_storage_scheme::<_, storage::Customer>(
             self,
             storage_scheme,
             Op::Insert,
@@ -414,7 +418,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
                 state,
                 key_store,
                 storage_scheme,
-                customers::Customer::find_by_global_id(&conn, id),
+                storage::Customer::find_by_global_id(&conn, id),
                 kv_router_store::FindResourceBy::Id(
                     format!("cust_{}", id.get_string_repr()),
                     PartitionKey::GlobalId {
@@ -446,8 +450,11 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         let customer = Conversion::convert(customer)
             .await
             .change_context(StorageError::EncryptionError)?;
-        let database_call =
-            customers::Customer::update_by_id(&conn, id.clone(), customer_update.clone().into());
+        let database_call = storage::Customer::update_by_id(
+            &conn,
+            id.clone(),
+            customer_update.clone().foreign_into(),
+        );
         let key = PartitionKey::GlobalId {
             id: id.get_string_repr(),
         };
@@ -457,12 +464,12 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
             key_store,
             storage_scheme,
             database_call,
-            diesel_models::CustomerUpdateInternal::from(customer_update.clone())
+            diesel_models::CustomerUpdateInternal::foreign_from(customer_update.clone())
                 .apply_changeset(customer.clone()),
             kv_router_store::UpdateResourceParams {
                 updateable: kv::Updateable::CustomerUpdate(kv::CustomerUpdateMems {
                     orig: customer.clone(),
-                    update_data: customer_update.into(),
+                    update_data: customer_update.foreign_into(),
                 }),
                 operation: Op::Update(key.clone(), &field, customer.updated_by.as_deref()),
             },
@@ -489,7 +496,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
             .find_optional_resource(
                 state,
                 key_store,
-                customers::Customer::find_optional_by_customer_id_merchant_id(
+                storage::Customer::find_optional_by_customer_id_merchant_id(
                     &conn,
                     customer_id,
                     merchant_id,
@@ -522,7 +529,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         self.find_optional_resource(
             state,
             key_store,
-            customers::Customer::find_optional_by_customer_id_merchant_id(
+            storage::Customer::find_optional_by_customer_id_merchant_id(
                 &conn,
                 customer_id,
                 merchant_id,
@@ -546,7 +553,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
             .find_optional_resource(
                 state,
                 key_store,
-                customers::Customer::find_optional_by_merchant_id_merchant_reference_id(
+                storage::Customer::find_optional_by_merchant_id_merchant_reference_id(
                     &conn,
                     customer_id,
                     merchant_id,
@@ -581,7 +588,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         self.call_database(
             state,
             key_store,
-            customers::Customer::update_by_customer_id_merchant_id(
+            storage::Customer::update_by_customer_id_merchant_id(
                 &conn,
                 customer_id,
                 merchant_id.clone(),
@@ -606,11 +613,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
             .call_database(
                 state,
                 key_store,
-                customers::Customer::find_by_customer_id_merchant_id(
-                    &conn,
-                    customer_id,
-                    merchant_id,
-                ),
+                storage::Customer::find_by_customer_id_merchant_id(&conn, customer_id, merchant_id),
             )
             .await?;
         match customer.name {
@@ -634,7 +637,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
             .call_database(
                 state,
                 key_store,
-                customers::Customer::find_by_merchant_reference_id_merchant_id(
+                storage::Customer::find_by_merchant_reference_id_merchant_id(
                     &conn,
                     merchant_reference_id,
                     merchant_id,
@@ -657,11 +660,11 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
     ) -> CustomResult<Vec<domain::Customer>, StorageError> {
         let conn = pg_connection_read(self).await?;
         let customer_list_constraints =
-            diesel_models::query::customers::CustomerListConstraints::from(constraints);
+            diesel_models::query::customers::CustomerListConstraints::foreign_from(constraints);
         self.find_resources(
             state,
             key_store,
-            customers::Customer::list_by_merchant_id(&conn, merchant_id, customer_list_constraints),
+            storage::Customer::list_by_merchant_id(&conn, merchant_id, customer_list_constraints),
         )
         .await
     }
@@ -714,7 +717,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         self.call_database(
             state,
             key_store,
-            customers::Customer::update_by_id(&conn, id.clone(), customer_update.into()),
+            storage::Customer::update_by_id(&conn, id.clone(), customer_update.foreign_into()),
         )
         .await
     }
@@ -733,7 +736,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
             .call_database(
                 state,
                 key_store,
-                customers::Customer::find_by_global_id(&conn, id),
+                storage::Customer::find_by_global_id(&conn, id),
             )
             .await?;
         match customer.name {
@@ -925,5 +928,199 @@ impl domain::CustomerInterface for MockDb {
     ) -> CustomResult<domain::Customer, StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
+    }
+}
+
+#[cfg(feature = "v2")]
+#[async_trait::async_trait]
+impl Conversion for domain::Customer {
+    type DstType = storage::Customer;
+    type NewDstType = storage::CustomerNew;
+    async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
+        Ok(storage::Customer {
+            id: self.id,
+            merchant_reference_id: self.merchant_reference_id,
+            merchant_id: self.merchant_id,
+            name: self.name.map(Encryption::from),
+            email: self.email.map(Encryption::from),
+            phone: self.phone.map(Encryption::from),
+            phone_country_code: self.phone_country_code,
+            description: self.description,
+            created_at: self.created_at,
+            metadata: self.metadata,
+            modified_at: self.modified_at,
+            connector_customer: self.connector_customer,
+            default_payment_method_id: self.default_payment_method_id,
+            updated_by: self.updated_by,
+            default_billing_address: self.default_billing_address,
+            default_shipping_address: self.default_shipping_address,
+            version: self.version,
+            status: self.status,
+        })
+    }
+
+    async fn convert_back(
+        state: &KeyManagerState,
+        item: Self::DstType,
+        key: &Secret<Vec<u8>>,
+        _key_store_ref_id: keymanager::Identifier,
+    ) -> CustomResult<Self, ValidationError>
+    where
+        Self: Sized,
+    {
+        let decrypted = crypto_operation(
+            state,
+            common_utils::type_name!(Self::DstType),
+            CryptoOperation::BatchDecrypt(domain::EncryptedCustomer::to_encryptable(
+                domain::EncryptedCustomer {
+                    name: item.name.clone(),
+                    phone: item.phone.clone(),
+                    email: item.email.clone(),
+                },
+            )),
+            keymanager::Identifier::Merchant(item.merchant_id.clone()),
+            key.peek(),
+        )
+        .await
+        .and_then(|val| val.try_into_batchoperation())
+        .change_context(ValidationError::InvalidValue {
+            message: "Failed while decrypting customer data".to_string(),
+        })?;
+        let encryptable_customer = domain::EncryptedCustomer::from_encryptable(decrypted)
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed while decrypting customer data".to_string(),
+            })?;
+
+        Ok(Self {
+            id: item.id,
+            merchant_reference_id: item.merchant_reference_id,
+            merchant_id: item.merchant_id,
+            name: encryptable_customer.name,
+            email: encryptable_customer.email.map(|email| {
+                let encryptable: Encryptable<Secret<String, pii::EmailStrategy>> = Encryptable::new(
+                    email.clone().into_inner().switch_strategy(),
+                    email.into_encrypted(),
+                );
+                encryptable
+            }),
+            phone: encryptable_customer.phone,
+            phone_country_code: item.phone_country_code,
+            description: item.description,
+            created_at: item.created_at,
+            metadata: item.metadata,
+            modified_at: item.modified_at,
+            connector_customer: item.connector_customer,
+            default_payment_method_id: item.default_payment_method_id,
+            updated_by: item.updated_by,
+            default_billing_address: item.default_billing_address,
+            default_shipping_address: item.default_shipping_address,
+            version: item.version,
+            status: item.status,
+        })
+    }
+
+    async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
+        let now = date_time::now();
+        Ok(storage::CustomerNew {
+            id: self.id,
+            merchant_reference_id: self.merchant_reference_id,
+            merchant_id: self.merchant_id,
+            name: self.name.map(Encryption::from),
+            email: self.email.map(Encryption::from),
+            phone: self.phone.map(Encryption::from),
+            description: self.description,
+            phone_country_code: self.phone_country_code,
+            metadata: self.metadata,
+            default_payment_method_id: None,
+            created_at: now,
+            modified_at: now,
+            connector_customer: self.connector_customer,
+            updated_by: self.updated_by,
+            default_billing_address: self.default_billing_address,
+            default_shipping_address: self.default_shipping_address,
+            version: common_utils::consts::API_VERSION,
+            status: self.status,
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<domain::CustomerUpdate> for storage::CustomerUpdateInternal {
+    fn foreign_from(customer_update: domain::CustomerUpdate) -> Self {
+        match customer_update {
+            domain::CustomerUpdate::Update(update) => {
+                let domain::CustomerGeneralUpdate {
+                    name,
+                    email,
+                    phone,
+                    description,
+                    phone_country_code,
+                    metadata,
+                    connector_customer,
+                    default_billing_address,
+                    default_shipping_address,
+                    default_payment_method_id,
+                    status,
+                } = *update;
+                Self {
+                    name: name.map(Encryption::from),
+                    email: email.map(Encryption::from),
+                    phone: phone.map(Encryption::from),
+                    description,
+                    phone_country_code,
+                    metadata,
+                    connector_customer: *connector_customer,
+                    modified_at: date_time::now(),
+                    default_billing_address,
+                    default_shipping_address,
+                    default_payment_method_id,
+                    updated_by: None,
+                    status,
+                }
+            }
+            domain::CustomerUpdate::ConnectorCustomer { connector_customer } => Self {
+                connector_customer,
+                name: None,
+                email: None,
+                phone: None,
+                description: None,
+                phone_country_code: None,
+                metadata: None,
+                modified_at: date_time::now(),
+                default_payment_method_id: None,
+                updated_by: None,
+                default_billing_address: None,
+                default_shipping_address: None,
+                status: None,
+            },
+            domain::CustomerUpdate::UpdateDefaultPaymentMethod {
+                default_payment_method_id,
+            } => Self {
+                default_payment_method_id,
+                modified_at: date_time::now(),
+                name: None,
+                email: None,
+                phone: None,
+                description: None,
+                phone_country_code: None,
+                metadata: None,
+                connector_customer: None,
+                updated_by: None,
+                default_billing_address: None,
+                default_shipping_address: None,
+                status: None,
+            },
+        }
+    }
+}
+
+impl ForeignFrom<domain::CustomerListConstraints>
+    for diesel_models::query::customers::CustomerListConstraints
+{
+    fn foreign_from(value: domain::CustomerListConstraints) -> Self {
+        Self {
+            limit: i64::from(value.limit),
+            offset: value.offset.map(i64::from),
+        }
     }
 }

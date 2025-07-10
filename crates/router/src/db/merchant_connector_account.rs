@@ -1277,6 +1277,8 @@ impl MerchantConnectorAccountInterface for MockDb {
         t: domain::MerchantConnectorAccount,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
+        use crate::types::transformers::ForeignFrom;
+
         let mut accounts = self.merchant_connector_accounts.lock().await;
         let account = storage::MerchantConnectorAccount {
             id: t.id,
@@ -1299,7 +1301,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             connector_wallets_details: t.connector_wallets_details.map(Encryption::from),
             additional_merchant_data: t.additional_merchant_data.map(|data| data.into()),
             version: t.version,
-            feature_metadata: t.feature_metadata.map(From::from),
+            feature_metadata: t.feature_metadata.map(ForeignFrom::foreign_from),
         };
         accounts.push(account.clone());
         account
@@ -1856,7 +1858,7 @@ mod merchant_connector_account_cache_tests {
                 .unwrap(),
             ),
             additional_merchant_data: None,
-            version: common_types::consts::API_VERSION,
+            version: common_utils::consts::API_VERSION,
             feature_metadata: None,
         };
 

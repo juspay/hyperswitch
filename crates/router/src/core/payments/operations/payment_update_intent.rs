@@ -5,12 +5,12 @@ use api_models::{
     payments::PaymentsUpdateIntentRequest,
 };
 use async_trait::async_trait;
+use common_types::payments::FeatureMetadata;
 use common_utils::{
     errors::CustomResult,
     ext_traits::{Encode, ValueExt},
     types::keymanager::ToEncryptable,
 };
-use diesel_models::types::FeatureMetadata;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payments::payment_intent::{PaymentIntentUpdate, PaymentIntentUpdateFields},
@@ -219,7 +219,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
                 .into_iter()
                 .map(|order_detail| {
                     masking::Secret::new(
-                        diesel_models::types::OrderDetailsWithAmount::convert_from(order_detail),
+                        common_types::payments::OrderDetailsWithAmount::convert_from(order_detail),
                     )
                 })
                 .collect()

@@ -2,13 +2,12 @@ use std::{fmt::Debug, sync::Arc};
 
 use diesel_models as store;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{
-    behaviour::{Conversion, ReverseConversion},
-    merchant_key_store::MerchantKeyStore,
-};
+use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
 use masking::StrongSecret;
 use redis::{kv_store::RedisConnInterface, pub_sub::PubSubInterface, RedisStore};
 mod address;
+pub mod behaviour;
+pub mod business_profile;
 pub mod callback_mapper;
 pub mod cards_info;
 pub mod config;
@@ -19,14 +18,19 @@ pub mod errors;
 pub mod kv_router_store;
 pub mod lookup;
 pub mod mandate;
+pub mod merchant_account;
+pub mod merchant_connector_account;
+pub mod merchant_key_store;
 pub mod metrics;
 pub mod mock_db;
 pub mod payment_method;
 pub mod payments;
 #[cfg(feature = "payouts")]
 pub mod payouts;
+pub mod redirect_form;
 pub mod redis;
 pub mod refund;
+pub mod relay;
 mod reverse_lookup;
 pub mod utils;
 
@@ -38,6 +42,7 @@ use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 pub use mock_db::MockDb;
 use redis_interface::{errors::RedisError, RedisConnectionPool, SaddReply};
 
+use crate::behaviour::{Conversion, ReverseConversion};
 #[cfg(not(feature = "payouts"))]
 pub use crate::database::store::Store;
 pub use crate::{database::store::DatabaseStore, errors::StorageError};

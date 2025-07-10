@@ -57,8 +57,8 @@ pub trait PayoutsInterface {
         Vec<(
             Payouts,
             PayoutAttempt,
-            Option<diesel_models::Customer>,
-            Option<diesel_models::Address>,
+            Option<crate::customer::Customer>,
+            Option<crate::address::Address>,
         )>,
         Self::Error,
     >;

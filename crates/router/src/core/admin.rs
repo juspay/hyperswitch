@@ -12,7 +12,7 @@ use common_utils::{
     types::keymanager::{self as km_types, KeyManagerState, ToEncryptable},
 };
 #[cfg(all(any(feature = "v1", feature = "v2"), feature = "olap"))]
-use diesel_models::{business_profile::CardTestingGuardConfig, organization::OrganizationBridge};
+use diesel_models::organization::OrganizationBridge;
 use diesel_models::{configs, payment_method};
 use error_stack::{report, FutureExt, ResultExt};
 use external_services::http_client::client;
@@ -770,7 +770,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     organization_id: organization.get_organization_id(),
                     recon_status: diesel_models::enums::ReconStatus::NotRequested,
                     is_platform_account: false,
-                    version: common_types::consts::API_VERSION,
+                    version: common_utils::consts::API_VERSION,
                     product_type: self.product_type,
                     merchant_account_type,
                 }),
@@ -2226,7 +2226,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             status: connector_status,
             connector_wallets_details: encrypted_data.connector_wallets_details,
             additional_merchant_data: encrypted_data.additional_merchant_data,
-            version: common_types::consts::API_VERSION,
+            version: common_utils::consts::API_VERSION,
             feature_metadata,
         })
     }
@@ -2893,7 +2893,7 @@ pub async fn update_connector(
         .update_merchant_connector_account(
             key_manager_state,
             mca,
-            payment_connector.into(),
+            payment_connector.foreign_into(),
             &key_store,
         )
         .await
@@ -3499,6 +3499,8 @@ impl ProfileCreateBridge for api::ProfileCreate {
         key_store: &domain::MerchantKeyStore,
         merchant_id: &id_type::MerchantId,
     ) -> RouterResult<domain::Profile> {
+        use common_types::business_profile::CardTestingGuardConfig;
+
         if let Some(session_expiry) = &self.session_expiry {
             helpers::validate_session_expiry(session_expiry.to_owned())?;
         }
@@ -4303,7 +4305,7 @@ impl ProfileWrapper {
         revenue_recovery_retry_algorithm_type: common_enums::RevenueRecoveryAlgorithmType,
     ) -> RouterResult<()> {
         let recovery_algorithm_data =
-            diesel_models::business_profile::RevenueRecoveryAlgorithmData {
+            common_types::business_profile::RevenueRecoveryAlgorithmData {
                 monitoring_configured_timestamp: date_time::now(),
             };
         let profile_update = domain::ProfileUpdate::RevenueRecoveryAlgorithmUpdate {

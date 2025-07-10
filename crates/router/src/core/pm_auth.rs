@@ -568,33 +568,33 @@ async fn store_in_db(
     db: &dyn StorageInterface,
     storage_scheme: MerchantStorageScheme,
 ) -> RouterResult<()> {
-    let key_manager_state = &(state.into());
-    let update_entries_futures = update_entries
-        .into_iter()
-        .map(|(pm, pm_update)| {
-            db.update_payment_method(key_manager_state, key_store, pm, pm_update, storage_scheme)
-        })
-        .collect::<Vec<_>>();
+    // let key_manager_state = &(state.into());
+    // let update_entries_futures = update_entries
+    //     .into_iter()
+    //     .map(|(pm, pm_update)| {
+    //         db.update_payment_method(key_manager_state, key_store, pm, pm_update, storage_scheme)
+    //     })
+    //     .collect::<Vec<_>>();
 
-    let new_entries_futures = new_entries
-        .into_iter()
-        .map(|pm_new| {
-            db.insert_payment_method(key_manager_state, key_store, pm_new, storage_scheme)
-        })
-        .collect::<Vec<_>>();
+    // let new_entries_futures = new_entries
+    //     .into_iter()
+    //     .map(|pm_new| {
+    //         db.insert_payment_method(key_manager_state, key_store, pm_new, storage_scheme)
+    //     })
+    //     .collect::<Vec<_>>();
 
-    let update_futures = futures::future::join_all(update_entries_futures);
-    let new_futures = futures::future::join_all(new_entries_futures);
+    // let update_futures = futures::future::join_all(update_entries_futures);
+    // let new_futures = futures::future::join_all(new_entries_futures);
 
-    let (update, new) = tokio::join!(update_futures, new_futures);
+    // let (update, new) = tokio::join!(update_futures, new_futures);
 
-    let _ = update
-        .into_iter()
-        .map(|res| res.map_err(|err| logger::error!("Payment method storage failed {err:?}")));
+    // let _ = update
+    //     .into_iter()
+    //     .map(|res| res.map_err(|err| logger::error!("Payment method storage failed {err:?}")));
 
-    let _ = new
-        .into_iter()
-        .map(|res| res.map_err(|err| logger::error!("Payment method storage failed {err:?}")));
+    // let _ = new
+    //     .into_iter()
+    //     .map(|res| res.map_err(|err| logger::error!("Payment method storage failed {err:?}")));
 
     Ok(())
 }

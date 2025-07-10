@@ -21,6 +21,12 @@ use crate::{
     utils::check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata,
 };
 
+#[derive(Clone, Debug)]
+pub struct AuthenticationStore {
+    pub cavv: Option<masking::Secret<String>>,
+    pub authentication: diesel_models::authentication::Authentication,
+}
+
 #[allow(clippy::too_many_arguments)]
 pub async fn perform_authentication(
     state: &SessionState,
@@ -105,10 +111,7 @@ pub async fn perform_post_authentication(
     business_profile: domain::Profile,
     authentication_id: common_utils::id_type::AuthenticationId,
     payment_id: &common_utils::id_type::PaymentId,
-) -> CustomResult<
-    hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore,
-    ApiErrorResponse,
-> {
+) -> CustomResult<AuthenticationStore, ApiErrorResponse> {
     let (authentication_connector, three_ds_connector_account) =
         utils::get_authentication_connector_data(state, key_store, &business_profile).await?;
     let is_pull_mechanism_enabled =
@@ -165,11 +168,10 @@ pub async fn perform_post_authentication(
     .attach_printable("cavv not present after authentication flow")
     .ok();
 
-    let authentication_store =
-        hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
-            cavv: tokenized_data.map(|data| masking::Secret::new(data.value1)),
-            authentication: authentication_update,
-        };
+    let authentication_store = AuthenticationStore {
+        cavv: tokenized_data.map(|data| masking::Secret::new(data.value1)),
+        authentication: authentication_update,
+    };
 
     Ok(authentication_store)
 }
@@ -186,10 +188,7 @@ pub async fn perform_pre_authentication(
     organization_id: common_utils::id_type::OrganizationId,
     force_3ds_challenge: Option<bool>,
     psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
-) -> CustomResult<
-    hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore,
-    ApiErrorResponse,
-> {
+) -> CustomResult<AuthenticationStore, ApiErrorResponse> {
     let (authentication_connector, three_ds_connector_account) =
         utils::get_authentication_connector_data(state, key_store, business_profile).await?;
     let authentication_connector_name = authentication_connector.to_string();
@@ -238,7 +237,7 @@ pub async fn perform_pre_authentication(
         // from version call response, we will get to know the maximum supported 3ds version.
         // If the version is not greater than or equal to 3DS 2.0, We should not do the successive pre authentication call.
         if !updated_authentication.is_separate_authn_required() {
-            return Ok(hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore{
+            return Ok(AuthenticationStore {
                 authentication: updated_authentication,
                 cavv: None, // since cavv wont be present in pre_authentication step
             });
@@ -269,10 +268,8 @@ pub async fn perform_pre_authentication(
     )
     .await?;
 
-    Ok(
-        hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
-            authentication: authentication_update,
-            cavv: None, // since cavv wont be present in pre_authentication step
-        },
-    )
+    Ok(AuthenticationStore {
+        authentication: authentication_update,
+        cavv: None, // since cavv wont be present in pre_authentication step
+    })
 }

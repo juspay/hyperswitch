@@ -12,7 +12,7 @@ use common_utils::{
     id_type, pii, type_name,
     types::keymanager,
 };
-use diesel_models::{enums as storage_enums, PaymentMethodUpdate};
+// use diesel_models::{enums as storage_enums, PaymentMethodUpdate};
 use error_stack::ResultExt;
 #[cfg(feature = "v1")]
 use masking::ExposeInterface;
@@ -104,15 +104,15 @@ pub struct PaymentMethod {
     pub external_vault_source: Option<id_type::MerchantConnectorAccountId>,
     pub created_at: PrimitiveDateTime,
     pub last_modified: PrimitiveDateTime,
-    pub payment_method_type: Option<storage_enums::PaymentMethod>,
-    pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
+    pub payment_method_type: Option<common_enums::PaymentMethod>,
+    pub payment_method_subtype: Option<common_enums::PaymentMethodType>,
     #[encrypt(ty = Value)]
     pub payment_method_data: Option<Encryptable<PaymentMethodsData>>,
     pub locker_id: Option<VaultId>,
     pub last_used_at: PrimitiveDateTime,
     pub connector_mandate_details: Option<CommonMandateReference>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
-    pub status: storage_enums::PaymentMethodStatus,
+    pub status: common_enums::PaymentMethodStatus,
     pub network_transaction_id: Option<String>,
     pub client_secret: Option<String>,
     #[encrypt(ty = Value)]
@@ -163,7 +163,7 @@ impl PaymentMethod {
     }
 
     #[cfg(feature = "v2")]
-    pub fn get_payment_method_type(&self) -> Option<storage_enums::PaymentMethod> {
+    pub fn get_payment_method_type(&self) -> Option<common_enums::PaymentMethod> {
         self.payment_method_type
     }
 
@@ -173,7 +173,7 @@ impl PaymentMethod {
     }
 
     #[cfg(feature = "v2")]
-    pub fn get_payment_method_subtype(&self) -> Option<storage_enums::PaymentMethodType> {
+    pub fn get_payment_method_subtype(&self) -> Option<common_enums::PaymentMethodType> {
         self.payment_method_subtype
     }
 
@@ -435,172 +435,6 @@ impl super::behaviour::Conversion for PaymentMethod {
 }
 
 #[cfg(feature = "v2")]
-#[async_trait::async_trait]
-impl super::behaviour::Conversion for PaymentMethod {
-    type DstType = diesel_models::payment_method::PaymentMethod;
-    type NewDstType = diesel_models::payment_method::PaymentMethodNew;
-    async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
-        Ok(Self::DstType {
-            customer_id: self.customer_id,
-            merchant_id: self.merchant_id,
-            id: self.id,
-            created_at: self.created_at,
-            last_modified: self.last_modified,
-            payment_method_type_v2: self.payment_method_type,
-            payment_method_subtype: self.payment_method_subtype,
-            payment_method_data: self.payment_method_data.map(|val| val.into()),
-            locker_id: self.locker_id.map(|id| id.get_string_repr().clone()),
-            last_used_at: self.last_used_at,
-            connector_mandate_details: self.connector_mandate_details.map(|cmd| cmd.into()),
-            customer_acceptance: self.customer_acceptance,
-            status: self.status,
-            network_transaction_id: self.network_transaction_id,
-            client_secret: self.client_secret,
-            payment_method_billing_address: self
-                .payment_method_billing_address
-                .map(|val| val.into()),
-            updated_by: self.updated_by,
-            locker_fingerprint_id: self.locker_fingerprint_id,
-            version: self.version,
-            network_token_requestor_reference_id: self.network_token_requestor_reference_id,
-            network_token_locker_id: self.network_token_locker_id,
-            network_token_payment_method_data: self
-                .network_token_payment_method_data
-                .map(|val| val.into()),
-            external_vault_source: self.external_vault_source,
-        })
-    }
-
-    async fn convert_back(
-        state: &keymanager::KeyManagerState,
-        storage_model: Self::DstType,
-        key: &Secret<Vec<u8>>,
-        key_manager_identifier: keymanager::Identifier,
-    ) -> CustomResult<Self, ValidationError>
-    where
-        Self: Sized,
-    {
-        use common_utils::ext_traits::ValueExt;
-
-        async {
-            let decrypted_data = crypto_operation(
-                state,
-                type_name!(Self::DstType),
-                CryptoOperation::BatchDecrypt(EncryptedPaymentMethod::to_encryptable(
-                    EncryptedPaymentMethod {
-                        payment_method_data: storage_model.payment_method_data,
-                        payment_method_billing_address: storage_model
-                            .payment_method_billing_address,
-                        network_token_payment_method_data: storage_model
-                            .network_token_payment_method_data,
-                    },
-                )),
-                key_manager_identifier,
-                key.peek(),
-            )
-            .await
-            .and_then(|val| val.try_into_batchoperation())?;
-
-            let data = EncryptedPaymentMethod::from_encryptable(decrypted_data)
-                .change_context(common_utils::errors::CryptoError::DecodingFailed)
-                .attach_printable("Invalid batch operation data")?;
-
-            let payment_method_billing_address = data
-                .payment_method_billing_address
-                .map(|billing| {
-                    billing.deserialize_inner_value(|value| value.parse_value("Address"))
-                })
-                .transpose()
-                .change_context(common_utils::errors::CryptoError::DecodingFailed)
-                .attach_printable("Error while deserializing Address")?;
-
-            let payment_method_data = data
-                .payment_method_data
-                .map(|payment_method_data| {
-                    payment_method_data
-                        .deserialize_inner_value(|value| value.parse_value("Payment Method Data"))
-                })
-                .transpose()
-                .change_context(common_utils::errors::CryptoError::DecodingFailed)
-                .attach_printable("Error while deserializing Payment Method Data")?;
-
-            let network_token_payment_method_data = data
-                .network_token_payment_method_data
-                .map(|network_token_payment_method_data| {
-                    network_token_payment_method_data.deserialize_inner_value(|value| {
-                        value.parse_value("Network token Payment Method Data")
-                    })
-                })
-                .transpose()
-                .change_context(common_utils::errors::CryptoError::DecodingFailed)
-                .attach_printable("Error while deserializing Network token Payment Method Data")?;
-
-            Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
-                customer_id: storage_model.customer_id,
-                merchant_id: storage_model.merchant_id,
-                id: storage_model.id,
-                created_at: storage_model.created_at,
-                last_modified: storage_model.last_modified,
-                payment_method_type: storage_model.payment_method_type_v2,
-                payment_method_subtype: storage_model.payment_method_subtype,
-                payment_method_data,
-                locker_id: storage_model.locker_id.map(VaultId::generate),
-                last_used_at: storage_model.last_used_at,
-                connector_mandate_details: storage_model.connector_mandate_details.map(From::from),
-                customer_acceptance: storage_model.customer_acceptance,
-                status: storage_model.status,
-                network_transaction_id: storage_model.network_transaction_id,
-                client_secret: storage_model.client_secret,
-                payment_method_billing_address,
-                updated_by: storage_model.updated_by,
-                locker_fingerprint_id: storage_model.locker_fingerprint_id,
-                version: storage_model.version,
-                network_token_requestor_reference_id: storage_model
-                    .network_token_requestor_reference_id,
-                network_token_locker_id: storage_model.network_token_locker_id,
-                network_token_payment_method_data,
-                external_vault_source: storage_model.external_vault_source,
-            })
-        }
-        .await
-        .change_context(ValidationError::InvalidValue {
-            message: "Failed while decrypting payment method data".to_string(),
-        })
-    }
-
-    async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
-        Ok(Self::NewDstType {
-            customer_id: self.customer_id,
-            merchant_id: self.merchant_id,
-            id: self.id,
-            created_at: self.created_at,
-            last_modified: self.last_modified,
-            payment_method_type_v2: self.payment_method_type,
-            payment_method_subtype: self.payment_method_subtype,
-            payment_method_data: self.payment_method_data.map(|val| val.into()),
-            locker_id: self.locker_id.map(|id| id.get_string_repr().clone()),
-            last_used_at: self.last_used_at,
-            connector_mandate_details: self.connector_mandate_details.map(|cmd| cmd.into()),
-            customer_acceptance: self.customer_acceptance,
-            status: self.status,
-            network_transaction_id: self.network_transaction_id,
-            client_secret: self.client_secret,
-            payment_method_billing_address: self
-                .payment_method_billing_address
-                .map(|val| val.into()),
-            updated_by: self.updated_by,
-            locker_fingerprint_id: self.locker_fingerprint_id,
-            version: self.version,
-            network_token_requestor_reference_id: self.network_token_requestor_reference_id,
-            network_token_locker_id: self.network_token_locker_id,
-            network_token_payment_method_data: self
-                .network_token_payment_method_data
-                .map(|val| val.into()),
-        })
-    }
-}
-
-#[cfg(feature = "v2")]
 #[derive(Clone, Debug, router_derive::ToEncryption)]
 pub struct PaymentMethodSession {
     pub id: id_type::GlobalPaymentMethodSessionId,
@@ -615,103 +449,6 @@ pub struct PaymentMethodSession {
     pub associated_payment_methods: Option<Vec<String>>,
     pub associated_payment: Option<id_type::GlobalPaymentId>,
     pub associated_token_id: Option<id_type::GlobalTokenId>,
-}
-
-#[cfg(feature = "v2")]
-#[async_trait::async_trait]
-impl super::behaviour::Conversion for PaymentMethodSession {
-    type DstType = diesel_models::payment_methods_session::PaymentMethodSession;
-    type NewDstType = diesel_models::payment_methods_session::PaymentMethodSession;
-    async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
-        Ok(Self::DstType {
-            id: self.id,
-            customer_id: self.customer_id,
-            billing: self.billing.map(|val| val.into()),
-            psp_tokenization: self.psp_tokenization,
-            network_tokenization: self.network_tokenization,
-            tokenization_data: self.tokenization_data,
-            expires_at: self.expires_at,
-            associated_payment_methods: self.associated_payment_methods,
-            associated_payment: self.associated_payment,
-            return_url: self.return_url,
-            associated_token_id: self.associated_token_id,
-        })
-    }
-
-    async fn convert_back(
-        state: &keymanager::KeyManagerState,
-        storage_model: Self::DstType,
-        key: &Secret<Vec<u8>>,
-        key_manager_identifier: keymanager::Identifier,
-    ) -> CustomResult<Self, ValidationError>
-    where
-        Self: Sized,
-    {
-        use common_utils::ext_traits::ValueExt;
-
-        async {
-            let decrypted_data = crypto_operation(
-                state,
-                type_name!(Self::DstType),
-                CryptoOperation::BatchDecrypt(EncryptedPaymentMethodSession::to_encryptable(
-                    EncryptedPaymentMethodSession {
-                        billing: storage_model.billing,
-                    },
-                )),
-                key_manager_identifier,
-                key.peek(),
-            )
-            .await
-            .and_then(|val| val.try_into_batchoperation())?;
-
-            let data = EncryptedPaymentMethodSession::from_encryptable(decrypted_data)
-                .change_context(common_utils::errors::CryptoError::DecodingFailed)
-                .attach_printable("Invalid batch operation data")?;
-
-            let billing = data
-                .billing
-                .map(|billing| {
-                    billing.deserialize_inner_value(|value| value.parse_value("Address"))
-                })
-                .transpose()
-                .change_context(common_utils::errors::CryptoError::DecodingFailed)
-                .attach_printable("Error while deserializing Address")?;
-
-            Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
-                id: storage_model.id,
-                customer_id: storage_model.customer_id,
-                billing,
-                psp_tokenization: storage_model.psp_tokenization,
-                network_tokenization: storage_model.network_tokenization,
-                tokenization_data: storage_model.tokenization_data,
-                expires_at: storage_model.expires_at,
-                associated_payment_methods: storage_model.associated_payment_methods,
-                associated_payment: storage_model.associated_payment,
-                return_url: storage_model.return_url,
-                associated_token_id: storage_model.associated_token_id,
-            })
-        }
-        .await
-        .change_context(ValidationError::InvalidValue {
-            message: "Failed while decrypting payment method data".to_string(),
-        })
-    }
-
-    async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
-        Ok(Self::NewDstType {
-            id: self.id,
-            customer_id: self.customer_id,
-            billing: self.billing.map(|val| val.into()),
-            psp_tokenization: self.psp_tokenization,
-            network_tokenization: self.network_tokenization,
-            tokenization_data: self.tokenization_data,
-            expires_at: self.expires_at,
-            associated_payment_methods: self.associated_payment_methods,
-            associated_payment: self.associated_payment,
-            return_url: self.return_url,
-            associated_token_id: self.associated_token_id,
-        })
-    }
 }
 
 #[async_trait::async_trait]
@@ -812,14 +549,14 @@ pub trait PaymentMethodInterface {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentMethod, Self::Error>;
 
-    async fn update_payment_method(
-        &self,
-        state: &keymanager::KeyManagerState,
-        key_store: &MerchantKeyStore,
-        payment_method: PaymentMethod,
-        payment_method_update: PaymentMethodUpdate,
-        storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<PaymentMethod, Self::Error>;
+    // async fn update_payment_method(
+    //     &self,
+    //     state: &keymanager::KeyManagerState,
+    //     key_store: &MerchantKeyStore,
+    //     payment_method: PaymentMethod,
+    //     payment_method_update: PaymentMethodUpdate,
+    //     storage_scheme: MerchantStorageScheme,
+    // ) -> CustomResult<PaymentMethod, Self::Error>;
 
     #[cfg(feature = "v2")]
     async fn delete_payment_method(

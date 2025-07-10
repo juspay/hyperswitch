@@ -3,6 +3,8 @@ use std::marker::PhantomData;
 
 #[cfg(feature = "v2")]
 use api_models::payments::{SessionToken, VaultSessionDetails};
+#[cfg(feature = "v2")]
+use common_types::payments::{FeatureMetadata, OrderDetailsWithAmount};
 #[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
     AlwaysRequestExtendedAuthorization, RequestExtendedAuthorizationBool,
@@ -16,7 +18,7 @@ use common_utils::{
     id_type, pii,
     types::{keymanager::ToEncryptable, CreatedBy, MinorUnit},
 };
-use diesel_models::payment_intent::TaxDetails;
+// use diesel_models::payment_intent::TaxDetails;
 #[cfg(feature = "v2")]
 use error_stack::ResultExt;
 use masking::Secret;
@@ -29,9 +31,9 @@ pub mod payment_attempt;
 pub mod payment_intent;
 
 use common_enums as storage_enums;
-#[cfg(feature = "v2")]
-use diesel_models::types::{FeatureMetadata, OrderDetailsWithAmount};
 
+// #[cfg(feature = "v2")]
+// use diesel_models::types::{FeatureMetadata, OrderDetailsWithAmount};
 use self::payment_attempt::PaymentAttempt;
 #[cfg(feature = "v2")]
 use crate::{
@@ -262,7 +264,7 @@ pub struct AmountDetails {
     /// The shipping cost of the order. This has to be collected from the merchant
     pub shipping_cost: Option<MinorUnit>,
     /// Tax details related to the order. This will be calculated by the external tax provider
-    pub tax_details: Option<TaxDetails>,
+    pub tax_details: Option<common_types::payments::TaxDetails>,
     /// The action to whether calculate tax by calling external tax provider or not
     pub skip_external_tax_calculation: common_enums::TaxCalculationOverride,
     /// The action to whether calculate surcharge or not
@@ -279,7 +281,7 @@ pub struct AmountDetails {
 #[cfg(feature = "v2")]
 impl AmountDetails {
     /// Get the action to whether calculate surcharge or not as a boolean value
-    fn get_surcharge_action_as_bool(&self) -> bool {
+    pub fn get_surcharge_action_as_bool(&self) -> bool {
         self.skip_surcharge_calculation.as_bool()
     }
 
@@ -379,8 +381,8 @@ impl AmountDetails {
             shipping_cost: req.shipping_cost().or(self.shipping_cost),
             tax_details: req
                 .order_tax_amount()
-                .map(|order_tax_amount| TaxDetails {
-                    default: Some(diesel_models::DefaultTax { order_tax_amount }),
+                .map(|order_tax_amount| common_types::payments::TaxDetails {
+                    default: Some(common_types::payments::DefaultTax { order_tax_amount }),
                     payment_method_type: None,
                 })
                 .or(self.tax_details),
@@ -488,7 +490,7 @@ pub struct PaymentIntent {
     /// Denotes whether the customer is present during the payment flow. This information may be used for 3ds authentication
     pub customer_present: common_enums::PresenceOfCustomerDuringPayment,
     /// Denotes the override for payment link configuration
-    pub payment_link_config: Option<diesel_models::PaymentLinkConfigRequestForPayments>,
+    pub payment_link_config: Option<common_types::payments::PaymentLinkConfigRequestForPayments>,
     /// The straight through routing algorithm id that is used for this payment. This overrides the default routing algorithm that is configured in business profile.
     pub routing_algorithm_id: Option<id_type::RoutingId>,
     /// Split Payment Data
@@ -679,7 +681,7 @@ impl PaymentIntent {
 
     pub fn get_revenue_recovery_metadata(
         &self,
-    ) -> Option<diesel_models::types::PaymentRevenueRecoveryMetadata> {
+    ) -> Option<common_types::payments::PaymentRevenueRecoveryMetadata> {
         self.feature_metadata
             .as_ref()
             .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.clone())
@@ -1026,8 +1028,8 @@ where
             );
 
         let billing_connector_payment_method_details = Some(
-            diesel_models::types::BillingConnectorPaymentMethodDetails::Card(
-                diesel_models::types::BillingConnectorAdditionalCardInfo {
+            common_types::payments::BillingConnectorPaymentMethodDetails::Card(
+                common_types::payments::BillingConnectorAdditionalCardInfo {
                     card_network: self.revenue_recovery_data.card_network.clone(),
                     card_issuer: self.revenue_recovery_data.card_issuer.clone(),
                 },
@@ -1035,7 +1037,7 @@ where
         );
 
         let payment_revenue_recovery_metadata = match payment_attempt_connector {
-            Some(connector) => Some(diesel_models::types::PaymentRevenueRecoveryMetadata {
+            Some(connector) => Some(common_types::payments::PaymentRevenueRecoveryMetadata {
                 // Update retry count by one.
                 total_retry_count: revenue_recovery.as_ref().map_or(
                     self.revenue_recovery_data
@@ -1051,7 +1053,7 @@ where
                     .payment_attempt
                     .get_attempt_merchant_connector_account_id()?,
                 billing_connector_payment_details:
-                    diesel_models::types::BillingConnectorPaymentDetails {
+                    common_types::payments::BillingConnectorPaymentDetails {
                         payment_processor_token: self
                             .revenue_recovery_data
                             .processor_payment_method_token

@@ -228,7 +228,7 @@ async fn insert_psync_pcr_task_to_pt(
         psync_workflow_tracking_data,
         None,
         schedule_time,
-        common_types::consts::API_VERSION,
+        common_utils::consts::API_VERSION,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct delete tokenized data process tracker task")?;

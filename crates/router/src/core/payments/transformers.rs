@@ -4306,13 +4306,13 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
 
 impl
     ForeignFrom<(
-        diesel_models::types::ApplePayRecurringDetails,
+        common_types::payments::ApplePayRecurringDetails,
         StringMajorUnit,
     )> for api_models::payments::ApplePayRecurringPaymentRequest
 {
     fn foreign_from(
         (apple_pay_recurring_details, net_amount): (
-            diesel_models::types::ApplePayRecurringDetails,
+            common_types::payments::ApplePayRecurringDetails,
             StringMajorUnit,
         ),
     ) -> Self {
@@ -4342,11 +4342,11 @@ impl
     }
 }
 
-impl ForeignFrom<diesel_models::types::ApplePayRecurringDetails>
+impl ForeignFrom<common_types::payments::ApplePayRecurringDetails>
     for api_models::payments::ApplePayRecurringDetails
 {
     fn foreign_from(
-        apple_pay_recurring_details: diesel_models::types::ApplePayRecurringDetails,
+        apple_pay_recurring_details: common_types::payments::ApplePayRecurringDetails,
     ) -> Self {
         Self {
             payment_description: apple_pay_recurring_details.payment_description,
@@ -4357,11 +4357,11 @@ impl ForeignFrom<diesel_models::types::ApplePayRecurringDetails>
     }
 }
 
-impl ForeignFrom<diesel_models::types::ApplePayRegularBillingDetails>
+impl ForeignFrom<common_types::payments::ApplePayRegularBillingDetails>
     for api_models::payments::ApplePayRegularBillingDetails
 {
     fn foreign_from(
-        apple_pay_regular_billing: diesel_models::types::ApplePayRegularBillingDetails,
+        apple_pay_regular_billing: common_types::payments::ApplePayRegularBillingDetails,
     ) -> Self {
         Self {
             label: apple_pay_regular_billing.label,
@@ -4376,26 +4376,26 @@ impl ForeignFrom<diesel_models::types::ApplePayRegularBillingDetails>
     }
 }
 
-impl ForeignFrom<diesel_models::types::RecurringPaymentIntervalUnit>
+impl ForeignFrom<common_types::payments::RecurringPaymentIntervalUnit>
     for api_models::payments::RecurringPaymentIntervalUnit
 {
     fn foreign_from(
-        apple_pay_recurring_payment_interval_unit: diesel_models::types::RecurringPaymentIntervalUnit,
+        apple_pay_recurring_payment_interval_unit: common_types::payments::RecurringPaymentIntervalUnit,
     ) -> Self {
         match apple_pay_recurring_payment_interval_unit {
-            diesel_models::types::RecurringPaymentIntervalUnit::Day => Self::Day,
-            diesel_models::types::RecurringPaymentIntervalUnit::Month => Self::Month,
-            diesel_models::types::RecurringPaymentIntervalUnit::Year => Self::Year,
-            diesel_models::types::RecurringPaymentIntervalUnit::Hour => Self::Hour,
-            diesel_models::types::RecurringPaymentIntervalUnit::Minute => Self::Minute,
+            common_types::payments::RecurringPaymentIntervalUnit::Day => Self::Day,
+            common_types::payments::RecurringPaymentIntervalUnit::Month => Self::Month,
+            common_types::payments::RecurringPaymentIntervalUnit::Year => Self::Year,
+            common_types::payments::RecurringPaymentIntervalUnit::Hour => Self::Hour,
+            common_types::payments::RecurringPaymentIntervalUnit::Minute => Self::Minute,
         }
     }
 }
 
-impl ForeignFrom<diesel_models::types::RedirectResponse>
+impl ForeignFrom<common_types::payments::RedirectResponse>
     for api_models::payments::RedirectResponse
 {
-    fn foreign_from(redirect_res: diesel_models::types::RedirectResponse) -> Self {
+    fn foreign_from(redirect_res: common_types::payments::RedirectResponse) -> Self {
         Self {
             param: redirect_res.param,
             json_payload: redirect_res.json_payload,
@@ -4950,10 +4950,10 @@ impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::AttemptA
 }
 
 #[cfg(feature = "v2")]
-impl ForeignFrom<&diesel_models::types::BillingConnectorPaymentDetails>
+impl ForeignFrom<&common_types::payments::BillingConnectorPaymentDetails>
     for api_models::payments::BillingConnectorPaymentDetails
 {
-    fn foreign_from(metadata: &diesel_models::types::BillingConnectorPaymentDetails) -> Self {
+    fn foreign_from(metadata: &common_types::payments::BillingConnectorPaymentDetails) -> Self {
         Self {
             payment_processor_token: metadata.payment_processor_token.clone(),
             connector_customer_id: metadata.connector_customer_id.clone(),
@@ -4962,12 +4962,14 @@ impl ForeignFrom<&diesel_models::types::BillingConnectorPaymentDetails>
 }
 
 #[cfg(feature = "v2")]
-impl ForeignFrom<&diesel_models::types::BillingConnectorPaymentMethodDetails>
+impl ForeignFrom<&common_types::payments::BillingConnectorPaymentMethodDetails>
     for api_models::payments::BillingConnectorPaymentMethodDetails
 {
-    fn foreign_from(metadata: &diesel_models::types::BillingConnectorPaymentMethodDetails) -> Self {
+    fn foreign_from(
+        metadata: &common_types::payments::BillingConnectorPaymentMethodDetails,
+    ) -> Self {
         match metadata {
-            diesel_models::types::BillingConnectorPaymentMethodDetails::Card(card_details) => {
+            common_types::payments::BillingConnectorPaymentMethodDetails::Card(card_details) => {
                 Self::Card(api_models::payments::BillingConnectorAdditionalCardInfo {
                     card_issuer: card_details.card_issuer.clone(),
                     card_network: card_details.card_network.clone(),
@@ -5016,8 +5018,10 @@ impl
 }
 
 #[cfg(feature = "v2")]
-impl ForeignFrom<&diesel_models::types::FeatureMetadata> for api_models::payments::FeatureMetadata {
-    fn foreign_from(feature_metadata: &diesel_models::types::FeatureMetadata) -> Self {
+impl ForeignFrom<&common_types::payments::FeatureMetadata>
+    for api_models::payments::FeatureMetadata
+{
+    fn foreign_from(feature_metadata: &common_types::payments::FeatureMetadata) -> Self {
         let revenue_recovery = feature_metadata
             .payment_revenue_recovery_metadata
             .as_ref()
@@ -5095,7 +5099,7 @@ impl ForeignFrom<hyperswitch_domain_models::payments::AmountDetails>
 
 #[cfg(feature = "v2")]
 impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
-    for diesel_models::PaymentLinkConfigRequestForPayments
+    for common_types::payments::PaymentLinkConfigRequestForPayments
 {
     fn foreign_from(config: api_models::admin::PaymentLinkConfigRequest) -> Self {
         Self {
@@ -5112,12 +5116,14 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
                 transaction_details
                     .iter()
                     .map(|details| {
-                        diesel_models::PaymentLinkTransactionDetails::foreign_from(details.clone())
+                        common_types::payments::PaymentLinkTransactionDetails::foreign_from(
+                            details.clone(),
+                        )
                     })
                     .collect()
             }),
             background_image: config.background_image.map(|background_image| {
-                diesel_models::business_profile::PaymentLinkBackgroundImageConfig::foreign_from(
+                common_types::payments::PaymentLinkBackgroundImageConfig::foreign_from(
                     background_image.clone(),
                 )
             }),
@@ -5141,7 +5147,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
 
 #[cfg(feature = "v2")]
 impl ForeignFrom<api_models::admin::PaymentLinkTransactionDetails>
-    for diesel_models::PaymentLinkTransactionDetails
+    for common_types::payments::PaymentLinkTransactionDetails
 {
     fn foreign_from(from: api_models::admin::PaymentLinkTransactionDetails) -> Self {
         Self {
@@ -5149,14 +5155,14 @@ impl ForeignFrom<api_models::admin::PaymentLinkTransactionDetails>
             value: from.value,
             ui_configuration: from
                 .ui_configuration
-                .map(diesel_models::TransactionDetailsUiConfiguration::foreign_from),
+                .map(common_types::payments::TransactionDetailsUiConfiguration::foreign_from),
         }
     }
 }
 
 #[cfg(feature = "v2")]
 impl ForeignFrom<api_models::admin::TransactionDetailsUiConfiguration>
-    for diesel_models::TransactionDetailsUiConfiguration
+    for common_types::payments::TransactionDetailsUiConfiguration
 {
     fn foreign_from(from: api_models::admin::TransactionDetailsUiConfiguration) -> Self {
         Self {
@@ -5168,10 +5174,10 @@ impl ForeignFrom<api_models::admin::TransactionDetailsUiConfiguration>
 }
 
 #[cfg(feature = "v2")]
-impl ForeignFrom<diesel_models::PaymentLinkConfigRequestForPayments>
+impl ForeignFrom<common_types::payments::PaymentLinkConfigRequestForPayments>
     for api_models::admin::PaymentLinkConfigRequest
 {
-    fn foreign_from(config: diesel_models::PaymentLinkConfigRequestForPayments) -> Self {
+    fn foreign_from(config: common_types::payments::PaymentLinkConfigRequestForPayments) -> Self {
         Self {
             theme: config.theme,
             logo: config.logo,
@@ -5216,10 +5222,10 @@ impl ForeignFrom<diesel_models::PaymentLinkConfigRequestForPayments>
 }
 
 #[cfg(feature = "v2")]
-impl ForeignFrom<diesel_models::PaymentLinkTransactionDetails>
+impl ForeignFrom<common_types::payments::PaymentLinkTransactionDetails>
     for api_models::admin::PaymentLinkTransactionDetails
 {
-    fn foreign_from(from: diesel_models::PaymentLinkTransactionDetails) -> Self {
+    fn foreign_from(from: common_types::payments::PaymentLinkTransactionDetails) -> Self {
         Self {
             key: from.key,
             value: from.value,
@@ -5231,10 +5237,10 @@ impl ForeignFrom<diesel_models::PaymentLinkTransactionDetails>
 }
 
 #[cfg(feature = "v2")]
-impl ForeignFrom<diesel_models::TransactionDetailsUiConfiguration>
+impl ForeignFrom<common_types::payments::TransactionDetailsUiConfiguration>
     for api_models::admin::TransactionDetailsUiConfiguration
 {
-    fn foreign_from(from: diesel_models::TransactionDetailsUiConfiguration) -> Self {
+    fn foreign_from(from: common_types::payments::TransactionDetailsUiConfiguration) -> Self {
         Self {
             position: from.position,
             is_key_bold: from.is_key_bold,
@@ -5268,10 +5274,10 @@ impl ForeignFrom<ConnectorMandateReferenceId> for DieselConnectorMandateReferenc
 }
 
 #[cfg(feature = "v2")]
-impl ForeignFrom<diesel_models::ConnectorTokenDetails>
+impl ForeignFrom<common_types::payments::ConnectorTokenDetails>
     for Option<api_models::payments::ConnectorTokenDetails>
 {
-    fn foreign_from(value: diesel_models::ConnectorTokenDetails) -> Self {
+    fn foreign_from(value: common_types::payments::ConnectorTokenDetails) -> Self {
         let connector_token_request_reference_id =
             value.connector_token_request_reference_id.clone();
         value.connector_mandate_id.clone().map(|mandate_id| {

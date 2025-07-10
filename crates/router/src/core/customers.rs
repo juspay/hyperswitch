@@ -342,7 +342,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             updated_by: None,
             default_billing_address: encrypted_customer_billing_address.map(Into::into),
             default_shipping_address: encrypted_customer_shipping_address.map(Into::into),
-            version: common_types::consts::API_VERSION,
+            version: common_utils::consts::API_VERSION,
             status: common_enums::DeleteStatus::Active,
         })
     }

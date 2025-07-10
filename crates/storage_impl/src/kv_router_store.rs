@@ -4,10 +4,7 @@ use common_enums::enums::MerchantStorageScheme;
 use common_utils::{fallback_reverse_lookup_not_found, types::keymanager::KeyManagerState};
 use diesel_models::{errors::DatabaseError, kv};
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{
-    behaviour::{Conversion, ReverseConversion},
-    merchant_key_store::MerchantKeyStore,
-};
+use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 use masking::StrongSecret;
@@ -18,6 +15,7 @@ use serde::de;
 #[cfg(not(feature = "payouts"))]
 pub use crate::database::store::Store;
 use crate::{
+    behaviour::{Conversion, ReverseConversion},
     config::TenantConfig,
     database::store::PgPool,
     diesel_error_to_data_error,

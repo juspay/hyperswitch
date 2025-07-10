@@ -284,28 +284,27 @@ impl ApiKeyInterface for KafkaStore {
     }
 }
 
+use hyperswitch_domain_models::cards_info::{CardInfo, UpdateCardInfo};
+
 #[async_trait::async_trait]
 impl CardsInfoInterface for KafkaStore {
     type Error = errors::StorageError;
     async fn get_card_info(
         &self,
         card_iin: &str,
-    ) -> CustomResult<Option<storage::CardInfo>, errors::StorageError> {
+    ) -> CustomResult<Option<CardInfo>, errors::StorageError> {
         self.diesel_store.get_card_info(card_iin).await
     }
 
-    async fn add_card_info(
-        &self,
-        data: storage::CardInfo,
-    ) -> CustomResult<storage::CardInfo, errors::StorageError> {
+    async fn add_card_info(&self, data: CardInfo) -> CustomResult<CardInfo, errors::StorageError> {
         self.diesel_store.add_card_info(data).await
     }
 
     async fn update_card_info(
         &self,
         card_iin: String,
-        data: storage::UpdateCardInfo,
-    ) -> CustomResult<storage::CardInfo, errors::StorageError> {
+        data: UpdateCardInfo,
+    ) -> CustomResult<CardInfo, errors::StorageError> {
         self.diesel_store.update_card_info(card_iin, data).await
     }
 }
@@ -2263,24 +2262,24 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
-    async fn update_payment_method(
-        &self,
-        state: &KeyManagerState,
-        key_store: &domain::MerchantKeyStore,
-        payment_method: domain::PaymentMethod,
-        payment_method_update: storage::PaymentMethodUpdate,
-        storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
-        self.diesel_store
-            .update_payment_method(
-                state,
-                key_store,
-                payment_method,
-                payment_method_update,
-                storage_scheme,
-            )
-            .await
-    }
+    // async fn update_payment_method(
+    //     &self,
+    //     state: &KeyManagerState,
+    //     key_store: &domain::MerchantKeyStore,
+    //     payment_method: domain::PaymentMethod,
+    //     payment_method_update: storage::PaymentMethodUpdate,
+    //     storage_scheme: MerchantStorageScheme,
+    // ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
+    //     self.diesel_store
+    //         .update_payment_method(
+    //             state,
+    //             key_store,
+    //             payment_method,
+    //             payment_method_update,
+    //             storage_scheme,
+    //         )
+    //         .await
+    // }
 
     #[cfg(feature = "v1")]
     async fn delete_payment_method_by_merchant_id_payment_method_id(
@@ -2530,8 +2529,8 @@ impl PayoutsInterface for KafkaStore {
         Vec<(
             storage::Payouts,
             storage::PayoutAttempt,
-            Option<diesel_models::Customer>,
-            Option<diesel_models::Address>,
+            Option<hyperswitch_domain_models::customer::Customer>,
+            Option<hyperswitch_domain_models::address::Address>,
         )>,
         errors::StorageError,
     > {

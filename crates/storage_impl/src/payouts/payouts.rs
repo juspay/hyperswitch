@@ -9,7 +9,6 @@ use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
 use diesel::{JoinOnDsl, NullableExpressionMethods};
 #[cfg(feature = "olap")]
 use diesel_models::{
-    address::Address as DieselAddress, customers::Customer as DieselCustomer,
     enums as storage_enums, query::generics::db_metrics, schema::payouts::dsl as po_dsl,
 };
 use diesel_models::{
@@ -327,8 +326,8 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         Vec<(
             Payouts,
             PayoutAttempt,
-            Option<DieselCustomer>,
-            Option<DieselAddress>,
+            Option<hyperswitch_domain_models::customer::Customer>,
+            Option<hyperswitch_domain_models::address::Address>,
         )>,
         StorageError,
     > {
@@ -739,8 +738,8 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         Vec<(
             Payouts,
             PayoutAttempt,
-            Option<DieselCustomer>,
-            Option<DieselAddress>,
+            Option<hyperswitch_domain_models::customer::Customer>,
+            Option<hyperswitch_domain_models::address::Address>,
         )>,
         StorageError,
     > {

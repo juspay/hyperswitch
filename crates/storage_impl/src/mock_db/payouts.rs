@@ -71,8 +71,8 @@ impl PayoutsInterface for MockDb {
         Vec<(
             Payouts,
             PayoutAttempt,
-            Option<diesel_models::Customer>,
-            Option<diesel_models::Address>,
+            Option<hyperswitch_domain_models::customer::Customer>,
+            Option<hyperswitch_domain_models::address::Address>,
         )>,
         StorageError,
     > {

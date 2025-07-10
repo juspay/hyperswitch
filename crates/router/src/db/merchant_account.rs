@@ -19,6 +19,7 @@ use crate::{
             behaviour::{Conversion, ReverseConversion},
         },
         storage,
+        transformers::{ForeignFrom, ForeignInto},
     },
 };
 
@@ -188,7 +189,7 @@ impl MerchantAccountInterface for Store {
         let updated_merchant_account = Conversion::convert(this)
             .await
             .change_context(errors::StorageError::EncryptionError)?
-            .update(&conn, merchant_account.into())
+            .update(&conn, merchant_account.foreign_into())
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?;
 
@@ -218,7 +219,7 @@ impl MerchantAccountInterface for Store {
         let updated_merchant_account = storage::MerchantAccount::update_with_specific_fields(
             &conn,
             merchant_id,
-            merchant_account.into(),
+            merchant_account.foreign_into(),
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))?;
@@ -465,7 +466,7 @@ impl MerchantAccountInterface for Store {
         let db_func = || async {
             storage::MerchantAccount::update_all_merchant_accounts(
                 &conn,
-                MerchantAccountUpdateInternal::from(merchant_account),
+                MerchantAccountUpdateInternal::foreign_from(merchant_account),
             )
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -551,7 +552,7 @@ impl MerchantAccountInterface for MockDb {
             .iter_mut()
             .find(|account| account.get_id() == merchant_account.get_id())
             .async_map(|account| async {
-                let update = MerchantAccountUpdateInternal::from(merchant_account_update)
+                let update = MerchantAccountUpdateInternal::foreign_from(merchant_account_update)
                     .apply_changeset(
                         Conversion::convert(merchant_account)
                             .await
@@ -589,7 +590,7 @@ impl MerchantAccountInterface for MockDb {
             .iter_mut()
             .find(|account| account.get_id() == merchant_id)
             .async_map(|account| async {
-                let update = MerchantAccountUpdateInternal::from(merchant_account_update)
+                let update = MerchantAccountUpdateInternal::foreign_from(merchant_account_update)
                     .apply_changeset(account.clone());
                 *account = update.clone();
                 update
@@ -654,8 +655,9 @@ impl MerchantAccountInterface for MockDb {
     ) -> CustomResult<usize, errors::StorageError> {
         let mut accounts = self.merchant_accounts.lock().await;
         Ok(accounts.iter_mut().fold(0, |acc, account| {
-            let update = MerchantAccountUpdateInternal::from(merchant_account_update.clone())
-                .apply_changeset(account.clone());
+            let update =
+                MerchantAccountUpdateInternal::foreign_from(merchant_account_update.clone())
+                    .apply_changeset(account.clone());
             *account = update;
             acc + 1
         }))

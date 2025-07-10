@@ -17,7 +17,7 @@ production = ["connector_configs/production"]
 sandbox = ["connector_configs/sandbox"]
 payouts = ["api_models/payouts", "common_enums/payouts", "euclid/payouts"]
 v1 = ["api_models/v1", "kgraph_utils/v1", "payouts"]
-v2 = []
+v2 = ["payouts"]
 
 [dependencies]
 api_models = { version = "0.1.0", path = "../api_models", package = "api_models" }

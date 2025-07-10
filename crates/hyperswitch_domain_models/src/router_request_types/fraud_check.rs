@@ -1,10 +1,10 @@
 use api_models;
 use common_enums;
+use common_types::payments::OrderDetailsWithAmount;
 use common_utils::{
     events::{ApiEventMetric, ApiEventsType},
     pii::Email,
 };
-use diesel_models::types::OrderDetailsWithAmount;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;

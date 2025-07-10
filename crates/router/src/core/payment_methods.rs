@@ -1004,17 +1004,19 @@ pub async fn create_payment_method_core(
             .await
             .attach_printable("unable to create payment method data")?;
 
-            let payment_method = db
-                .update_payment_method(
-                    &(state.into()),
-                    merchant_context.get_merchant_key_store(),
-                    payment_method,
-                    pm_update,
-                    merchant_context.get_merchant_account().storage_scheme,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to update payment method in db")?;
+            // let payment_method = db
+            //     .update_payment_method(
+            //         &(state.into()),
+            //         merchant_context.get_merchant_key_store(),
+            //         payment_method,
+            //         pm_update,
+            //         merchant_context.get_merchant_account().storage_scheme,
+            //     )
+            //     .await
+            //     .change_context(errors::ApiErrorResponse::InternalServerError)
+            //     .attach_printable("Failed to update payment method in db")?;
+
+            todo!();
 
             let resp = pm_transforms::generate_payment_method_response(&payment_method, &None)?;
 
@@ -1025,16 +1027,17 @@ pub async fn create_payment_method_core(
                 status: Some(enums::PaymentMethodStatus::Inactive),
             };
 
-            db.update_payment_method(
-                &(state.into()),
-                merchant_context.get_merchant_key_store(),
-                payment_method,
-                pm_update,
-                merchant_context.get_merchant_account().storage_scheme,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to update payment method in db")?;
+            // db.update_payment_method(
+            //     &(state.into()),
+            //     merchant_context.get_merchant_key_store(),
+            //     payment_method,
+            //     pm_update,
+            //     merchant_context.get_merchant_account().storage_scheme,
+            // )
+            // .await
+            // .change_context(errors::ApiErrorResponse::InternalServerError)
+            // .attach_printable("Failed to update payment method in db")?;
+            todo!();
 
             Err(e)
         }
@@ -1678,7 +1681,7 @@ pub async fn create_payment_method_for_intent(
                 last_used_at: current_time,
                 payment_method_billing_address,
                 updated_by: None,
-                version: common_types::consts::API_VERSION,
+                version: common_utils::consts::API_VERSION,
                 locker_fingerprint_id: None,
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
@@ -1780,7 +1783,7 @@ pub async fn create_pm_additional_data_update(
         .map(|connector_token| {
             create_connector_token_details_update(connector_token, payment_method)
         })
-        .map(From::from);
+        .map(ForeignFrom::foreign_from);
 
     let pm_update = storage::PaymentMethodUpdate::GenericUpdate {
         // A new payment method is created with inactive state
@@ -2270,36 +2273,38 @@ pub async fn update_payment_method_status_internal(
     status: enums::PaymentMethodStatus,
     payment_method_id: &id_type::GlobalPaymentMethodId,
 ) -> RouterResult<domain::PaymentMethod> {
-    let db = &*state.store;
-    let key_manager_state = &state.into();
+    // let db = &*state.store;
+    // let key_manager_state = &state.into();
 
-    let payment_method = db
-        .find_payment_method(
-            &((state).into()),
-            key_store,
-            payment_method_id,
-            storage_scheme,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+    // let payment_method = db
+    //     .find_payment_method(
+    //         &((state).into()),
+    //         key_store,
+    //         payment_method_id,
+    //         storage_scheme,
+    //     )
+    //     .await
+    //     .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
-    let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
-        status: Some(status),
-    };
+    // let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
+    //     status: Some(status),
+    // };
 
-    let updated_pm = db
-        .update_payment_method(
-            key_manager_state,
-            key_store,
-            payment_method.clone(),
-            pm_update,
-            storage_scheme,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to update payment method in db")?;
+    // let updated_pm = db
+    //     .update_payment_method(
+    //         key_manager_state,
+    //         key_store,
+    //         payment_method.clone(),
+    //         pm_update,
+    //         storage_scheme,
+    //     )
+    //     .await
+    //     .change_context(errors::ApiErrorResponse::InternalServerError)
+    //     .attach_printable("Failed to update payment method in db")?;
 
-    Ok(updated_pm)
+    todo!();
+
+    // Ok(updated_pm)
 }
 
 #[cfg(feature = "v2")]
@@ -2411,17 +2416,19 @@ pub async fn update_payment_method_core(
     .await
     .attach_printable("Unable to create Payment method data")?;
 
-    let payment_method = db
-        .update_payment_method(
-            &((state).into()),
-            merchant_context.get_merchant_key_store(),
-            payment_method,
-            pm_update,
-            merchant_context.get_merchant_account().storage_scheme,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to update payment method in db")?;
+    // let payment_method = db
+    //     .update_payment_method(
+    //         &((state).into()),
+    //         merchant_context.get_merchant_key_store(),
+    //         payment_method,
+    //         pm_update,
+    //         merchant_context.get_merchant_account().storage_scheme,
+    //     )
+    //     .await
+    //     .change_context(errors::ApiErrorResponse::InternalServerError)
+    //     .attach_printable("Failed to update payment method in db")?;
+
+    todo!();
 
     let response = pm_transforms::generate_payment_method_response(&payment_method, &None)?;
 
@@ -2488,16 +2495,16 @@ pub async fn delete_payment_method_core(
         status: Some(enums::PaymentMethodStatus::Inactive),
     };
 
-    db.update_payment_method(
-        &(state.into()),
-        merchant_context.get_merchant_key_store(),
-        payment_method.clone(),
-        pm_update,
-        merchant_context.get_merchant_account().storage_scheme,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to update payment method in db")?;
+    // db.update_payment_method(
+    //     &(state.into()),
+    //     merchant_context.get_merchant_key_store(),
+    //     payment_method.clone(),
+    //     pm_update,
+    //     merchant_context.get_merchant_account().storage_scheme,
+    // )
+    // .await
+    // .change_context(errors::ApiErrorResponse::InternalServerError)
+    // .attach_printable("Failed to update payment method in db")?;
 
     vault::delete_payment_method_data_from_vault(state, merchant_context, profile, &payment_method)
         .await
