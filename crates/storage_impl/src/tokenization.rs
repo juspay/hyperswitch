@@ -1,14 +1,14 @@
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use common_utils::{errors::CustomResult, types::keymanager::KeyManagerState};
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+use diesel_models::tokenization as tokenization_diesel;
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use error_stack::{report, ResultExt};
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use hyperswitch_domain_models::{
     behaviour::{Conversion, ReverseConversion},
     merchant_key_store::MerchantKeyStore,
 };
-#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-use diesel_models::tokenization as tokenization_diesel;
 
 use super::MockDb;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
@@ -113,7 +113,10 @@ impl<T: DatabaseStore> TokenizationInterface for RouterStore<T> {
         self.call_database(
             key_manager_state,
             merchant_key_store,
-            tokenization_record.update_with_id(&conn, tokenization_diesel::TokenizationUpdateInternal::from(tokenization_update)),
+            tokenization_record.update_with_id(
+                &conn,
+                tokenization_diesel::TokenizationUpdateInternal::from(tokenization_update),
+            ),
         )
         .await
     }

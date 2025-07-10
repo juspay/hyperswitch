@@ -4266,7 +4266,8 @@ impl TokenizationInterface for KafkaStore {
         tokenization_update: hyperswitch_domain_models::tokenization::TokenizationUpdate,
         merchant_key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
         key_manager_state: &KeyManagerState,
-    ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>{
+    ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
+    {
         self.diesel_store
             .update_tokenization_record(
                 tokenization,
