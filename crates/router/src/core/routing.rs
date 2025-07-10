@@ -687,7 +687,7 @@ pub async fn link_routing_config(
                 // Call to DE here to update SR configs
                 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                 {
-                    if state.conf.open_router.enabled {
+                    if state.conf.open_router.dynamic_routing_enabled {
                         update_decision_engine_dynamic_routing_setup(
                             &state,
                             business_profile.get_id(),
@@ -718,7 +718,7 @@ pub async fn link_routing_config(
             );
                 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                 {
-                    if state.conf.open_router.enabled {
+                    if state.conf.open_router.dynamic_routing_enabled {
                         update_decision_engine_dynamic_routing_setup(
                             &state,
                             business_profile.get_id(),
@@ -1844,7 +1844,7 @@ pub async fn success_based_routing_update_configs(
         router_env::metric_attributes!(("profile_id", profile_id.clone())),
     );
 
-    if !state.conf.open_router.enabled {
+    if !state.conf.open_router.dynamic_routing_enabled {
         state
             .grpc_client
             .dynamic_routing
@@ -1948,7 +1948,7 @@ pub async fn elimination_routing_update_configs(
         router_env::metric_attributes!(("profile_id", profile_id.clone())),
     );
 
-    if !state.conf.open_router.enabled {
+    if !state.conf.open_router.dynamic_routing_enabled {
         state
             .grpc_client
             .dynamic_routing
