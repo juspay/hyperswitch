@@ -17621,7 +17621,7 @@
               "bank_names": {
                 "type": "array",
                 "items": {
-                  "$ref": "#/components/schemas/BankCodeResponse"
+                  "$ref": "#/components/schemas/common_enums.BankNames"
                 }
               }
             }
@@ -22329,11 +22329,11 @@
                 "$ref": "#/components/schemas/PaymentMethodType"
               },
               "payment_experience": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/PaymentExperience"
-                  }
-                ],
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PaymentExperience"
+                },
+                "description": "The payment experience for the payment method",
                 "nullable": true
               },
               "required_fields": {

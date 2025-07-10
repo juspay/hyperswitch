@@ -18,10 +18,7 @@ use utoipa::{schema, ToSchema};
 
 #[cfg(feature = "payouts")]
 use crate::payouts;
-use crate::{
-    admin, enums as api_enums, open_router,
-    payments::{self, BankCodeResponse},
-};
+use crate::{admin, enums as api_enums, open_router, payments};
 
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -1442,7 +1439,9 @@ pub enum PaymentMethodSubtypeSpecificData {
         card_networks: Vec<CardNetworkTypes>,
     },
     #[schema(title = "bank")]
-    Bank { bank_names: Vec<BankCodeResponse> },
+    Bank {
+        bank_names: Vec<common_enums::BankNames>,
+    },
 }
 
 #[cfg(feature = "v2")]
