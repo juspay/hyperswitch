@@ -202,9 +202,8 @@ pub fn generate_oauth_token(auth: &MpgsAuthType) -> CustomResult<String, errors:
         version
     );
 
-    let key_pair =
-        signature::RsaKeyPair::from_pkcs8(auth.private_key.clone().expose().as_bytes())
-            .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
+    let key_pair = signature::RsaKeyPair::from_pkcs8(auth.private_key.clone().expose().as_bytes())
+        .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
     let mut signature = vec![0; key_pair.public().modulus_len()];
     let rng = ring::rand::SystemRandom::new();
     key_pair
