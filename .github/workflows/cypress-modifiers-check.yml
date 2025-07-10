@@ -1,0 +1,170 @@
+name: Cypress Code Quality Check
+
+on:
+  pull_request:
+    paths:
+      - '**/*.cy.js'
+      - '**/*.cy.ts'
+      - '**/cypress/**'
+      - '**/*cypress*'
+
+jobs:
+  cypress-quality-check:
+    runs-on: ubuntu-latest
+    name: Check for .skip and .only in Cypress code
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v41
+        with:
+          files: |
+            **/*.cy.js
+            **/*.cy.ts
+            **/cypress/**
+            **/*cypress*
+
+      - name: Check for .skip and .only in Cypress files
+        if: steps.changed-files.outputs.any_changed == 'true'
+        run: |
+          echo "Checking Cypress files for .skip and .only..."
+          echo "Changed files: ${{ steps.changed-files.outputs.all_changed_files }}"
+          
+          # Initialize flags and create results file
+          SKIP_FOUND=false
+          ONLY_FOUND=false
+          RESULTS_FILE="quality_check_results.txt"
+          > "$RESULTS_FILE"
+          
+          # Check each changed file
+          for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+            if [[ -f "$file" ]]; then
+              echo "Checking file: $file"
+              
+              # Check for .skip with line numbers (exclude this.skip())
+              SKIP_RESULTS=$(grep -n "\.skip" "$file" | grep -v "this\.skip" || true)
+              if [[ -n "$SKIP_RESULTS" ]]; then
+                echo "❌ Found .skip in $file:"
+                echo "$SKIP_RESULTS" | while read -r line; do
+                  echo "  Line $line"
+                  echo "📁 $file:$line (.skip)" >> "$RESULTS_FILE"
+                done
+                SKIP_FOUND=true
+              fi
+              
+              # Check for .only with line numbers
+              ONLY_RESULTS=$(grep -n "\.only" "$file" || true)
+              if [[ -n "$ONLY_RESULTS" ]]; then
+                echo "❌ Found .only in $file:"
+                echo "$ONLY_RESULTS" | while read -r line; do
+                  echo "  Line $line"
+                  echo "📁 $file:$line (.only)" >> "$RESULTS_FILE"
+                done
+                ONLY_FOUND=true
+              fi
+            fi
+          done
+          
+          # Read results file to check if any violations were found
+          if [[ -s "$RESULTS_FILE" ]]; then
+            echo "📋 Summary of violations found:"
+            cat "$RESULTS_FILE"
+            
+            # Export results for use in PR comment
+            echo "VIOLATIONS<<EOF" >> $GITHUB_ENV
+            cat "$RESULTS_FILE" >> $GITHUB_ENV
+            echo "EOF" >> $GITHUB_ENV
+            
+            echo "❌ Quality check failed!"
+            echo "::error::Cypress code contains .skip or .only which should not be committed"
+            echo "::error::This check will FAIL and block PR merging until violations are fixed"
+            
+            # Explicitly fail the job with exit code 1
+            exit 1
+          else
+            echo "✅ No .skip or .only found in Cypress files"
+            echo "::notice::Cypress quality check passed successfully"
+          fi
+        id: quality-check
+
+      - name: Comment on PR (if check fails)
+        if: failure() && steps.changed-files.outputs.any_changed == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            
+            const botComment = comments.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('Cypress Quality Check Failed')
+            );
+            
+            const commentBody = `## 🚨 Cypress Quality Check Failed
+            
+            Your PR contains Cypress code with \`.skip\` or \`.only\` methods that should not be committed to the main branch.
+            
+            **Please remove the following before merging:**
+            - \`.skip\` - This disables tests and should not be committed
+            - \`.only\` - This runs only specific tests and should not be committed
+            
+            ### 📍 Violations Found:
+            \`\`\`
+            ${process.env.VIOLATIONS}
+            \`\`\`
+            
+            Please fix these issues and push a new commit to continue.`;
+            
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: commentBody
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: commentBody
+              });
+            }
+
+      - name: Comment on PR (if check passes)
+        if: success() && steps.changed-files.outputs.any_changed == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            
+            const botComment = comments.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('Cypress Quality Check')
+            );
+            
+            if (botComment) {
+              await github.rest.issues.deleteComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id
+              });
+            }
+
+      - name: No Cypress changes detected
+        if: steps.changed-files.outputs.any_changed == 'false'
+        run: |
+          echo "ℹ️ No Cypress files were changed in this PR"
+          echo "Skipping quality check"
