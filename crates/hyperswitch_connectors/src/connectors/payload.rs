@@ -124,7 +124,7 @@ impl ConnectorCommon for Payload {
         &self,
         auth_type: &ConnectorAuthType,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let auth = transformers::PayloadAuthType::try_from(auth_type)
+        let auth = payload::PayloadAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         // The API key is the same for all currencies, so we can take any.
         let api_key = auth
