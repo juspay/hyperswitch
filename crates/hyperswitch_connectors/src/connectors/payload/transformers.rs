@@ -1,4 +1,4 @@
-use std::{any::Any, collections::HashMap};
+use std::collections::HashMap;
 
 use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::enums;
@@ -190,7 +190,7 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
                     None
                 };
 
-                Ok(Self::PayloadCardsRequest(
+                Ok(Self::PayloadCardsRequest(Box::new(
                     requests::PayloadCardsRequestData {
                         amount: item.amount.clone(),
                         card,
@@ -202,18 +202,18 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
                         processing_id: payload_auth.processing_account_id,
                         customer_id,
                     },
-                ))
+                )))
             }
             PaymentMethodData::MandatePayment => {
                 let connector_customer_id = item.router_data.get_connector_customer_id()?;
 
-                Ok(Self::PayloadMandateRequest(
+                Ok(Self::PayloadMandateRequest(Box::new(
                     requests::PayloadMandateRequestData {
                         amount: item.amount.clone(),
                         transaction_types: requests::TransactionTypes::Payment,
                         customer_id: Secret::new(connector_customer_id),
                     },
-                ))
+                )))
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
@@ -247,11 +247,11 @@ where
             responses::PayloadPaymentsResponse::PayloadCardsResponse(response) => {
                 let status = enums::AttemptStatus::from(response.status);
                 let connector_customer = response.customer_id.clone().expose_option();
-                let is_mandate_payment = (&item.data.request as &dyn Any)
-                    .downcast_ref::<PaymentsAuthorizeData>()
-                    .map_or(false, |req| req.is_mandate_payment());
 
-                println!(">>>>> {:#?}", is_mandate_payment.clone());
+                let request_any: &dyn std::any::Any = &item.data.request;
+                let is_mandate_payment = request_any
+                    .downcast_ref::<PaymentsAuthorizeData>()
+                    .is_some_and(|req| req.is_mandate_payment());
 
                 let mandate_reference = if is_mandate_payment {
                     let connector_payment_method_id =

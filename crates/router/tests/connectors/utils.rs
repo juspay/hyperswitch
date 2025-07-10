@@ -1108,6 +1108,11 @@ impl Default for CustomerType {
             name: None,
             preprocessing_id: None,
             split_payments: None,
+            customer_acceptance: None,
+            mandate_id: None,
+            off_session: None,
+            setup_future_usage: None,
+            setup_mandate_details: None,
         };
         Self(data)
     }

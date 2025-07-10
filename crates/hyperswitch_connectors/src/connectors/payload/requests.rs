@@ -17,8 +17,8 @@ pub struct PayloadCustomerRequest {
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(untagged)]
 pub enum PayloadPaymentsRequest {
-    PayloadCardsRequest(PayloadCardsRequestData),
-    PayloadMandateRequest(PayloadMandateRequestData),
+    PayloadCardsRequest(Box<PayloadCardsRequestData>),
+    PayloadMandateRequest(Box<PayloadMandateRequestData>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
