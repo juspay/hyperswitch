@@ -1121,6 +1121,10 @@ impl Default for TokenType {
             amount: Some(100),
             currency: enums::Currency::USD,
             split_payments: None,
+            mandate_id: None,
+            setup_future_usage: None,
+            customer_acceptance: None,
+            setup_mandate_details: None,
         };
         Self(data)
     }

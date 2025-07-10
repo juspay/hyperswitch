@@ -45,7 +45,8 @@ use crate::{
     types::{PaymentsSyncResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
     utils::{
         self, construct_captures_response_hashmap, CardData, ForeignTryFrom,
-        MultipleCaptureSyncResponse, PaymentsAuthorizeRequestData, RouterData as _, WalletData,
+        MultipleCaptureSyncResponse, PaymentMethodTokenizationRequestData,
+        PaymentsAuthorizeRequestData, RouterData as _, WalletData,
     },
 };
 
@@ -90,6 +91,13 @@ impl TryFrom<&GlobalPayRouterData<&PaymentsAuthorizeRouterData>> for GlobalpayPa
     fn try_from(
         item: &GlobalPayRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
+        if item.router_data.is_three_ds() {
+            return Err(errors::ConnectorError::NotSupported {
+                message: "3DS flow".to_string(),
+                connector: "Globalpay",
+            }
+            .into());
+        }
         let metadata = GlobalPayMeta::try_from(&item.router_data.connector_meta_data)?;
         let account_name = metadata.account_name;
         let (initiator, stored_credential, connector_mandate_id, brand_reference) =
@@ -200,8 +208,14 @@ impl TryFrom<&GlobalPayRouterData<&PaymentsCaptureRouterData>>
 impl TryFrom<&TokenizationRouterData> for requests::GlobalPayPaymentMethodsRequest {
     type Error = Error;
     fn try_from(item: &TokenizationRouterData) -> Result<Self, Self::Error> {
+        if !item.request.is_mandate_payment() {
+            return Err(errors::ConnectorError::FlowNotSupported {
+                flow: "Tokenization apart from Mandates".to_string(),
+                connector: "Globalpay".to_string(),
+            }
+            .into());
+        }
         Ok(Self {
-            account_name: None,
             reference: item.connector_request_reference_id.clone(),
             usage_mode: Some(requests::UsageMode::Multiple),
             card: match &item.request.payment_method_data {
@@ -328,20 +342,19 @@ fn get_payment_response(
     status_code: u16,
 ) -> Result<PaymentsResponseData, Box<ErrorResponse>> {
     let mandate_reference = response.payment_method.as_ref().and_then(|pm| {
-        pm.card
-            .as_ref()
-            .and_then(|card| card.brand_reference.to_owned())
-            .and_then(|_id| {
+        pm.card.as_ref().and_then(|card| {
+            card.brand_reference.as_ref().and_then(|brand_ref| {
                 payment_method_token.ok().and_then(|token| match token {
                     PaymentMethodToken::Token(token_string) => Some(MandateReference {
-                        connector_mandate_id: Some(token_string.expose()),
+                        connector_mandate_id: Some(token_string.clone().expose()),
                         payment_method_id: None,
                         mandate_metadata: None,
-                        connector_mandate_request_reference_id: None,
+                        connector_mandate_request_reference_id: Some(brand_ref.clone().expose()),
                     }),
                     _ => None,
                 })
             })
+        })
     });
 
     match status {

@@ -5692,11 +5692,15 @@ fn is_payment_flow_allowed_for_connector(
     mandate_flow_enabled: Option<storage_enums::FutureUsage>,
     payment_flow: Option<PaymentFlow>,
 ) -> bool {
-    matches!(payment_flow, Some(PaymentFlow::Mandates))
-        && matches!(
-            mandate_flow_enabled,
-            Some(storage_enums::FutureUsage::OffSession)
-        )
+    if payment_flow.is_none() {
+        true
+    } else {
+        matches!(payment_flow, Some(PaymentFlow::Mandates))
+            && matches!(
+                mandate_flow_enabled,
+                Some(storage_enums::FutureUsage::OffSession)
+            )
+    }
 }
 
 fn is_apple_pay_pre_decrypt_type_connector_tokenization(

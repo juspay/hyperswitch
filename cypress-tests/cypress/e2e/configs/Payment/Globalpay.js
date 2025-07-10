@@ -4,10 +4,10 @@ import { getCustomExchange } from "./Modifiers";
 // Test card details for successful non-3DS transactions
 // Based on Global Payments test cards
 const successfulNo3DSCardDetails = {
-  card_number: "4263970000005262",
+  card_number: "4111111111111111",
   card_exp_month: "12",
   card_exp_year: "2030",
-  card_holder_name: "Test Customer",
+  card_holder_name: "joseph Doe",
   card_cvc: "123",
 };
 
@@ -48,18 +48,18 @@ const multiUseMandateData = {
 // Payment method data for non-3DS card transactions
 const payment_method_data_no3ds = {
   card: {
-    last4: "5262",
-    card_type: null,
-    card_network: null,
-    card_issuer: null,
-    card_issuing_country: null,
-    card_isin: "426397",
+    last4: "1111",
+    card_type: "CREDIT",
+    card_network: "Visa",
+    card_issuer: "JP Morgan",
+    card_issuing_country: "INDIA",
+    card_isin: "411111",
     card_extended_bin: null,
     card_exp_month: "12",
     card_exp_year: "2030",
-    card_holder_name: "Test Customer",
+    card_holder_name: "joseph Doe",
     payment_checks: null,
-    authentication_data: null,
+    authentication_data: null
   },
   billing: null,
 };
@@ -262,15 +262,14 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "failed",
-          error_code: "feature_not_supported",
-          error_message:
-            "3DS authentication is not supported by Globalpay connector",
-          unified_code: "UE_5004",
-          unified_message:
-            "The operation requested is not supported by the payment processor",
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "IR_19",
+            reason: "3DS flow is not supported by Globalpay"
+        }
         },
       },
     },
@@ -286,15 +285,14 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "failed",
-          error_code: "feature_not_supported",
-          error_message:
-            "3DS authentication is not supported by Globalpay connector",
-          unified_code: "UE_5004",
-          unified_message:
-            "The operation requested is not supported by the payment processor",
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "IR_19",
+            reason: "3DS flow is not supported by Globalpay"
+        }
         },
       },
     },
@@ -411,8 +409,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
-          setup_future_usage: "off_session",
+          status: "succeeded"
         },
       },
     },
@@ -429,7 +426,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
-          setup_future_usage: "off_session",
         },
       },
     },
@@ -446,7 +442,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
-          setup_future_usage: "off_session",
         },
       },
     },
@@ -463,7 +458,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
-          setup_future_usage: "off_session",
         },
       },
     },
@@ -478,15 +472,14 @@ export const connectorDetails = {
         authentication_type: "three_ds",
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "failed",
-          error_code: "feature_not_supported",
-          error_message:
-            "3DS authentication is not supported by Globalpay connector",
-          unified_code: "UE_5004",
-          unified_message:
-            "The operation requested is not supported by the payment processor",
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "IR_19",
+            reason: "3DS flow is not supported by Globalpay"
+        }
         },
       },
     },
@@ -501,15 +494,14 @@ export const connectorDetails = {
         authentication_type: "three_ds",
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "failed",
-          error_code: "feature_not_supported",
-          error_message:
-            "3DS authentication is not supported by Globalpay connector",
-          unified_code: "UE_5004",
-          unified_message:
-            "The operation requested is not supported by the payment processor",
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "IR_19",
+            reason: "3DS flow is not supported by Globalpay"
+        }
         },
       },
     },
@@ -524,15 +516,14 @@ export const connectorDetails = {
         authentication_type: "three_ds",
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "failed",
-          error_code: "feature_not_supported",
-          error_message:
-            "3DS authentication is not supported by Globalpay connector",
-          unified_code: "UE_5004",
-          unified_message:
-            "The operation requested is not supported by the payment processor",
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "IR_19",
+            reason: "3DS flow is not supported by Globalpay"
+        }
         },
       },
     },
@@ -547,15 +538,14 @@ export const connectorDetails = {
         authentication_type: "three_ds",
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "failed",
-          error_code: "feature_not_supported",
-          error_message:
-            "3DS authentication is not supported by Globalpay connector",
-          unified_code: "UE_5004",
-          unified_message:
-            "The operation requested is not supported by the payment processor",
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "IR_19",
+            reason: "3DS flow is not supported by Globalpay"
+        }
         },
       },
     },
@@ -568,7 +558,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
-          setup_future_usage: "off_session",
         },
       },
     },
@@ -581,7 +570,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
-          setup_future_usage: "off_session",
         },
       },
     },
@@ -626,6 +614,7 @@ export const connectorDetails = {
     ZeroAuthConfirmPayment: {
       Request: {
         payment_type: "setup_mandate",
+        setup_future_usage: "off_session",
         payment_method: "card",
         payment_method_type: "credit",
         payment_method_data: {
@@ -689,15 +678,14 @@ export const connectorDetails = {
         authentication_type: "three_ds",
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "failed",
-          error_code: "feature_not_supported",
-          error_message:
-            "3DS authentication is not supported by Globalpay connector",
-          unified_code: "UE_5004",
-          unified_message:
-            "The operation requested is not supported by the payment processor",
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "IR_19",
+            reason: "3DS flow is not supported by Globalpay"
+        }
         },
       },
     },
@@ -713,15 +701,14 @@ export const connectorDetails = {
         authentication_type: "three_ds",
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "failed",
-          error_code: "feature_not_supported",
-          error_message:
-            "3DS authentication is not supported by Globalpay connector",
-          unified_code: "UE_5004",
-          unified_message:
-            "The operation requested is not supported by the payment processor",
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "IR_19",
+            reason: "3DS flow is not supported by Globalpay"
+        }
         },
       },
     },

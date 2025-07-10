@@ -128,4 +128,5 @@ pub enum GlobalpayPaymentMethodStatus {
 pub struct GlobalpayPaymentMethodsResponse {
     #[serde(rename = "id")]
     pub payment_method_token_id: Option<String>,
+    pub card: Card,
 }
