@@ -10,9 +10,9 @@ pub use api_models::payment_methods::{
     PaymentMethodIntentCreate, PaymentMethodListData, PaymentMethodListRequest,
     PaymentMethodListResponseForSession, PaymentMethodMigrate, PaymentMethodMigrateResponse,
     PaymentMethodResponse, PaymentMethodResponseData, PaymentMethodUpdate, PaymentMethodUpdateData,
-    PaymentMethodsData, TokenDataResponse, TokenDetailsResponse, TokenizePayloadEncrypted,
-    TokenizePayloadRequest, TokenizedCardValue1, TokenizedCardValue2, TokenizedWalletValue1,
-    TokenizedWalletValue2, TotalPaymentMethodCountResponse,
+    PaymentMethodsData, RequestPaymentMethodTypes, TokenDataResponse, TokenDetailsResponse,
+    TokenizePayloadEncrypted, TokenizePayloadRequest, TokenizedCardValue1, TokenizedCardValue2,
+    TokenizedWalletValue1, TokenizedWalletValue2, TotalPaymentMethodCountResponse,
 };
 #[cfg(feature = "v1")]
 pub use api_models::payment_methods::{
