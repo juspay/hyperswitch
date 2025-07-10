@@ -188,7 +188,6 @@ impl ConnectorCommon for Noon {
 }
 
 impl ConnectorValidation for Noon {
-
     fn validate_mandate_payment(
         &self,
         pm_type: Option<enums::PaymentMethodType>,
