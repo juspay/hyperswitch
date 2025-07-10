@@ -1,5 +1,16 @@
+use common_utils::pii;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PayloadCustomerResponse {
+    pub email: Option<pii::Email>,
+    #[serde(rename = "id")]
+    pub customer_id: Secret<String>,
+    pub keep_active: bool,
+    pub name: Secret<String>,
+    pub primary_processing_id: Secret<String>,
+}
 
 // PaymentsResponse
 #[derive(Default, Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
@@ -34,12 +45,12 @@ pub enum AvsResponse {
 pub struct PayloadCardsResponseData {
     pub amount: f64,
     pub avs: Option<AvsResponse>,
-    pub customer_id: Option<String>,
+    pub customer_id: Option<Secret<String>>,
     #[serde(rename = "id")]
     pub transaction_id: String,
-    pub payment_method_id: Option<Secret<String>>,
-    // Connector customer id
-    pub processing_id: Option<String>,
+    #[serde(rename = "payment_method_id")]
+    pub connector_payment_method_id: Option<Secret<String>>,
+    pub processing_id: Option<Secret<String>>,
     pub processing_method_id: Option<String>,
     pub ref_number: Option<String>,
     pub status: PayloadPaymentStatus,
@@ -84,9 +95,9 @@ pub struct PayloadRefundResponse {
     #[serde(rename = "id")]
     pub transaction_id: String,
     pub ledger: Vec<RefundsLedger>,
-    pub payment_method_id: Option<Secret<String>>,
-    // Connector customer id
-    pub processing_id: Option<String>,
+    #[serde(rename = "payment_method_id")]
+    pub connector_payment_method_id: Option<Secret<String>>,
+    pub processing_id: Option<Secret<String>>,
     pub ref_number: Option<String>,
     pub status: RefundStatus,
     pub status_code: Option<String>,

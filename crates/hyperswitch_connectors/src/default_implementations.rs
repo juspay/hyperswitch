@@ -1213,7 +1213,6 @@ default_imp_for_create_customer!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
-    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,

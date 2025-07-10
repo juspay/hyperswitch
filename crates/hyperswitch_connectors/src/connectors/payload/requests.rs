@@ -1,13 +1,24 @@
-use common_utils::types::StringMajorUnit;
+use common_utils::{pii, types::StringMinorUnit};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::connectors::payload::responses;
 
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub struct PayloadCustomerRequest {
+    pub email: Option<pii::Email>,
+    pub name: Secret<String>,
+    /// Allows one-time payment by customer without saving their payment method
+    /// This is true by default
+    pub keep_active: bool,
+}
+
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(untagged)]
 pub enum PayloadPaymentsRequest {
     PayloadCardsRequest(PayloadCardsRequestData),
+    PayloadMandateRequest(PayloadMandateRequestData),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -38,7 +49,7 @@ pub struct BillingAddress {
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct PayloadCardsRequestData {
-    pub amount: StringMajorUnit,
+    pub amount: StringMinorUnit,
     #[serde(flatten)]
     pub card: PayloadCard,
     #[serde(rename = "type")]
@@ -48,10 +59,21 @@ pub struct PayloadCardsRequestData {
     pub status: Option<responses::PayloadPaymentStatus>,
     #[serde(rename = "payment_method[type]")]
     pub payment_method_type: String,
+    #[serde(rename = "payment_method[default_payment_method]")]
+    pub default_payment_method: Option<bool>,
     // Billing address fields are for AVS validation
     #[serde(flatten)]
     pub billing_address: BillingAddress,
     pub processing_id: Option<Secret<String>>,
+    pub customer_id: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct PayloadMandateRequestData {
+    pub amount: StringMinorUnit,
+    #[serde(rename = "type")]
+    pub transaction_types: TransactionTypes,
+    pub customer_id: Secret<String>,
 }
 
 #[derive(Default, Clone, Debug, Serialize, Eq, PartialEq)]
@@ -80,7 +102,7 @@ pub struct PayloadCaptureRequest {
 pub struct PayloadRefundRequest {
     #[serde(rename = "type")]
     pub transaction_type: TransactionTypes,
-    pub amount: StringMajorUnit,
+    pub amount: StringMinorUnit,
     #[serde(rename = "ledger[0][assoc_transaction_id]")]
     pub ledger_assoc_transaction_id: String,
 }

@@ -180,6 +180,12 @@ pub struct ConnectorCustomerData {
     pub preprocessing_id: Option<String>,
     pub payment_method_data: Option<PaymentMethodData>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
+    // Mandates
+    pub setup_future_usage: Option<storage_enums::FutureUsage>,
+    pub mandate_id: Option<api_models::payments::MandateIds>,
+    pub off_session: Option<bool>,
+    pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
+    pub setup_mandate_details: Option<mandates::MandateData>,
 }
 
 impl TryFrom<SetupMandateRequestData> for ConnectorCustomerData {
@@ -193,6 +199,11 @@ impl TryFrom<SetupMandateRequestData> for ConnectorCustomerData {
             name: None,
             preprocessing_id: None,
             split_payments: None,
+            setup_future_usage: None,
+            mandate_id: None,
+            off_session: None,
+            customer_acceptance: None,
+            setup_mandate_details: None,
         })
     }
 }
@@ -218,6 +229,11 @@ impl
             name: data.request.customer_name.clone(),
             preprocessing_id: data.preprocessing_id.clone(),
             split_payments: data.request.split_payments.clone(),
+            setup_future_usage: None,
+            mandate_id: None,
+            off_session: None,
+            customer_acceptance: None,
+            setup_mandate_details: None,
         })
     }
 }
@@ -242,6 +258,11 @@ impl TryFrom<&RouterData<flows::Session, PaymentsSessionData, response_types::Pa
             name: data.request.customer_name.clone(),
             preprocessing_id: data.preprocessing_id.clone(),
             split_payments: None,
+            setup_future_usage: None,
+            mandate_id: None,
+            off_session: None,
+            customer_acceptance: None,
+            setup_mandate_details: None,
         })
     }
 }
