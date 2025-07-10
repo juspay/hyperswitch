@@ -9,7 +9,6 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{BytesExt, StringExt},
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -50,15 +49,11 @@ use transformers as silverflow;
 use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
-pub struct Silverflow {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
-}
+pub struct Silverflow;
 
 impl Silverflow {
     pub fn new() -> &'static Self {
-        &Self {
-            amount_converter: &StringMinorUnitForConnector,
-        }
+        &Self
     }
 }
 
@@ -316,13 +311,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = utils::convert_amount(
-            self.amount_converter,
-            req.request.minor_amount,
-            req.request.currency,
-        )?;
-
-        let connector_router_data = silverflow::SilverflowRouterData::from((amount, req));
+        let connector_router_data =
+            silverflow::SilverflowRouterData::from((req.request.minor_amount, req));
         let connector_req =
             silverflow::SilverflowPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -396,20 +386,13 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Sil
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_payment_id = match &req.request.connector_transaction_id {
-            hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(
-                id,
-            ) => id.clone(),
-            hyperswitch_domain_models::router_request_types::ResponseId::EncodedData(id) => {
-                id.clone()
-            }
-            hyperswitch_domain_models::router_request_types::ResponseId::NoResponseId => {
-                return Err(errors::ConnectorError::MissingRequiredField {
-                    field_name: "connector_transaction_id for payment sync",
-                }
-                .into())
-            }
-        };
+        let connector_payment_id = req
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "connector_transaction_id for payment sync",
+            })?;
         Ok(format!(
             "{}/charges/{}",
             self.base_url(connectors),
@@ -658,13 +641,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Silverf
         req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let refund_amount = utils::convert_amount(
-            self.amount_converter,
-            req.request.minor_refund_amount,
-            req.request.currency,
-        )?;
-
-        let connector_router_data = silverflow::SilverflowRouterData::from((refund_amount, req));
+        let connector_router_data =
+            silverflow::SilverflowRouterData::from((req.request.minor_refund_amount, req));
         let connector_req = silverflow::SilverflowRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -832,7 +810,32 @@ impl webhooks::IncomingWebhook for Silverflow {
 
         match webhook_event.event_type.as_str() {
             "charge.authorization.succeeded" => {
-                Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess)
+                // Handle manual capture flow: check if clearing is still pending
+                if let Some(status) = webhook_event.event_data.status {
+                    match (&status.authorization, &status.clearing) {
+                        (
+                            silverflow::SilverflowAuthorizationStatus::Approved,
+                            silverflow::SilverflowClearingStatus::Pending,
+                        ) => {
+                            // Manual capture: authorization succeeded, but clearing is pending
+                            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationSuccess)
+                        }
+                        (
+                            silverflow::SilverflowAuthorizationStatus::Approved,
+                            silverflow::SilverflowClearingStatus::Cleared,
+                        ) => {
+                            // Automatic capture: authorization and clearing both completed
+                            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess)
+                        }
+                        _ => {
+                            // Fallback for other authorization states
+                            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationSuccess)
+                        }
+                    }
+                } else {
+                    // Fallback when status is not available
+                    Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationSuccess)
+                }
             }
             "charge.authorization.failed" => {
                 Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure)
@@ -921,7 +924,7 @@ static SILVERFLOW_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                 specific_features: Some(
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::Supported,
+                            three_ds: common_enums::FeatureStatus::NotSupported,
                             no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_networks.clone(),
                         }
@@ -940,7 +943,7 @@ static SILVERFLOW_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                 specific_features: Some(
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::Supported,
+                            three_ds: common_enums::FeatureStatus::NotSupported,
                             no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_networks.clone(),
                         }

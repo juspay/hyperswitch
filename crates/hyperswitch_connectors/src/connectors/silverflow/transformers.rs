@@ -1,5 +1,6 @@
 use common_enums::enums;
-use common_utils::types::StringMinorUnit;
+use common_utils::types::MinorUnit;
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
@@ -15,16 +16,19 @@ use hyperswitch_interfaces::errors;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
-use crate::types::{RefundsResponseRouterData, ResponseRouterData};
+use crate::{
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils::{self, CardData},
+};
 
 //TODO: Fill the struct with respective fields
 pub struct SilverflowRouterData<T> {
-    pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: MinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
 }
 
-impl<T> From<(StringMinorUnit, T)> for SilverflowRouterData<T> {
-    fn from((amount, item): (StringMinorUnit, T)) -> Self {
+impl<T> From<(MinorUnit, T)> for SilverflowRouterData<T> {
+    fn from((amount, item): (MinorUnit, T)) -> Self {
         //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Self {
             amount,
@@ -41,27 +45,24 @@ pub struct Amount {
 }
 
 #[derive(Default, Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct Card {
-    #[serde(rename = "number")]
     number: cards::CardNumber,
-    #[serde(rename = "expiryMonth")]
-    expiry_month: u8,
-    #[serde(rename = "expiryYear")]
-    expiry_year: u16,
+    expiry_month: Secret<String>,
+    expiry_year: Secret<String>,
     cvc: Secret<String>,
-    #[serde(rename = "holderName")]
     holder_name: Option<Secret<String>>,
 }
 
 #[derive(Default, Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct MerchantAcceptorResolver {
-    #[serde(rename = "merchantAcceptorKey")]
     merchant_acceptor_key: String,
 }
 
 #[derive(Default, Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct SilverflowPaymentsRequest {
-    #[serde(rename = "merchantAcceptorResolver")]
     merchant_acceptor_resolver: MerchantAcceptorResolver,
     card: Card,
     amount: Amount,
@@ -70,11 +71,28 @@ pub struct SilverflowPaymentsRequest {
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct PaymentType {
     intent: String,
-    #[serde(rename = "cardEntry")]
     card_entry: String,
     order: String,
+}
+
+// Silverflow Connector Metadata
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct SilverflowConnectorMetadata {
+    pub merchant_acceptor_key: String,
+}
+
+impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for SilverflowConnectorMetadata {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        connector_meta_data: &Option<common_utils::pii::SecretSerdeValue>,
+    ) -> Result<Self, Self::Error> {
+        utils::to_connector_meta_from_secret::<Self>(connector_meta_data.clone())
+            .change_context(errors::ConnectorError::InvalidConnectorConfig { config: "metadata" })
+    }
 }
 
 impl TryFrom<&SilverflowRouterData<&PaymentsAuthorizeRouterData>> for SilverflowPaymentsRequest {
@@ -85,27 +103,23 @@ impl TryFrom<&SilverflowRouterData<&PaymentsAuthorizeRouterData>> for Silverflow
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => {
                 // Convert MinorUnit to i64 for amount value
-                let amount_value = item.router_data.request.minor_amount.get_amount_as_i64();
+                let amount_value = item.amount.get_amount_as_i64();
+
+                // Extract merchant acceptor key from connector metadata
+                let connector_metadata =
+                    SilverflowConnectorMetadata::try_from(&item.router_data.connector_meta_data)?;
 
                 let card = Card {
-                    number: req_card.card_number,
-                    expiry_month: req_card
-                        .card_exp_month
-                        .expose()
-                        .parse()
-                        .map_err(|_| errors::ConnectorError::ParsingFailed)?,
-                    expiry_year: req_card
-                        .card_exp_year
-                        .expose()
-                        .parse()
-                        .map_err(|_| errors::ConnectorError::ParsingFailed)?,
-                    cvc: req_card.card_cvc,
-                    holder_name: req_card.card_holder_name,
+                    number: req_card.card_number.clone(),
+                    expiry_month: req_card.card_exp_month.clone(),
+                    expiry_year: req_card.card_exp_year.clone(),
+                    cvc: req_card.card_cvc.clone(),
+                    holder_name: req_card.get_cardholder_name().ok(),
                 };
 
                 Ok(Self {
                     merchant_acceptor_resolver: MerchantAcceptorResolver {
-                        merchant_acceptor_key: "default".to_string(), // This should come from connector metadata
+                        merchant_acceptor_key: connector_metadata.merchant_acceptor_key,
                     },
                     card,
                     amount: Amount {
@@ -142,12 +156,33 @@ impl TryFrom<&ConnectorAuthType> for SilverflowAuthType {
         }
     }
 }
+// Enum for Silverflow payment authorization status
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum SilverflowAuthorizationStatus {
+    Approved,
+    Declined,
+    Failed,
+    #[default]
+    Pending,
+}
+
+// Enum for Silverflow payment clearing status
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum SilverflowClearingStatus {
+    Cleared,
+    #[default]
+    Pending,
+    Failed,
+}
+
 // Payment Authorization Response Structures
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PaymentStatus {
     pub authentication: String,
-    pub authorization: String,
-    pub clearing: String,
+    pub authorization: SilverflowAuthorizationStatus,
+    pub clearing: SilverflowClearingStatus,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -157,22 +192,22 @@ pub struct MerchantAcceptorRef {
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct CardResponse {
-    #[serde(rename = "maskedNumber")]
     pub masked_number: String,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Authentication {
     pub sca: SCA,
-    pub cvc: String,
+    pub cvc: Secret<String>,
     pub avs: String,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct SCA {
     pub compliance: String,
-    #[serde(rename = "complianceReason")]
     pub compliance_reason: String,
     pub method: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -180,57 +215,46 @@ pub struct SCA {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct SCAResult {
     pub version: String,
-    #[serde(rename = "directoryServerTransId")]
     pub directory_server_trans_id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct AuthorizationIsoFields {
-    #[serde(rename = "responseCode")]
     pub response_code: String,
-    #[serde(rename = "responseCodeDescription")]
     pub response_code_description: String,
-    #[serde(rename = "authorizationCode")]
     pub authorization_code: String,
-    #[serde(rename = "networkCode")]
     pub network_code: String,
-    #[serde(rename = "systemTraceAuditNumber")]
-    pub system_trace_audit_number: String,
-    #[serde(rename = "retrievalReferenceNumber")]
+    pub system_trace_audit_number: Secret<String>,
     pub retrieval_reference_number: String,
     pub eci: String,
-    #[serde(rename = "networkSpecificFields")]
     pub network_specific_fields: NetworkSpecificFields,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct NetworkSpecificFields {
-    #[serde(rename = "transactionIdentifier")]
     pub transaction_identifier: String,
-    #[serde(rename = "cvv2ResultCode")]
     pub cvv2_result_code: String,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct SilverflowPaymentsResponse {
     pub key: String,
-    #[serde(rename = "merchantAcceptorRef")]
     pub merchant_acceptor_ref: MerchantAcceptorRef,
     pub card: CardResponse,
     pub amount: Amount,
     #[serde(rename = "type")]
     pub payment_type: PaymentType,
-    #[serde(rename = "clearingMode")]
     pub clearing_mode: String,
     pub status: PaymentStatus,
     pub authentication: Authentication,
-    #[serde(rename = "localTransactionDateTime")]
     pub local_transaction_date_time: String,
-    #[serde(rename = "fraudLiability")]
     pub fraud_liability: String,
-    #[serde(rename = "authorizationIsoFields")]
     pub authorization_iso_fields: Option<AuthorizationIsoFields>,
     pub created: String,
     pub version: i32,
@@ -238,13 +262,19 @@ pub struct SilverflowPaymentsResponse {
 
 impl From<&PaymentStatus> for common_enums::AttemptStatus {
     fn from(status: &PaymentStatus) -> Self {
-        match (status.authorization.as_str(), status.clearing.as_str()) {
-            ("approved", "cleared") => Self::Charged,
-            ("approved", "pending") => Self::Authorized,
-            ("declined", _) => Self::Failure,
-            ("failed", _) => Self::Failure,
-            ("pending", _) => Self::Pending,
-            _ => Self::Pending,
+        match (&status.authorization, &status.clearing) {
+            (SilverflowAuthorizationStatus::Approved, SilverflowClearingStatus::Cleared) => {
+                Self::Charged
+            }
+            (SilverflowAuthorizationStatus::Approved, SilverflowClearingStatus::Pending) => {
+                Self::Authorized
+            }
+            (SilverflowAuthorizationStatus::Approved, SilverflowClearingStatus::Failed) => {
+                Self::Failure
+            }
+            (SilverflowAuthorizationStatus::Declined, _) => Self::Failure,
+            (SilverflowAuthorizationStatus::Failed, _) => Self::Failure,
+            (SilverflowAuthorizationStatus::Pending, _) => Self::Pending,
         }
     }
 }
@@ -285,10 +315,11 @@ impl<F, T> TryFrom<ResponseRouterData<F, SilverflowPaymentsResponse, T, Payments
 // CAPTURE:
 // Type definition for CaptureRequest based on Silverflow API documentation
 #[derive(Default, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SilverflowCaptureRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub amount: Option<i64>,
-    #[serde(rename = "closeCharge", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub close_charge: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
@@ -298,11 +329,7 @@ impl TryFrom<&PaymentsCaptureRouterData> for SilverflowCaptureRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         // amount_to_capture is directly an i64, representing the amount in minor units
-        let amount_to_capture = if item.request.amount_to_capture > 0 {
-            Some(item.request.amount_to_capture)
-        } else {
-            None // If no amount specified, Silverflow will clear the full amount
-        };
+        let amount_to_capture = Some(item.request.amount_to_capture);
 
         Ok(Self {
             amount: amount_to_capture,
@@ -312,31 +339,39 @@ impl TryFrom<&PaymentsCaptureRouterData> for SilverflowCaptureRequest {
     }
 }
 
+// Enum for Silverflow capture status
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum SilverflowCaptureStatus {
+    Completed,
+    #[default]
+    Pending,
+    Failed,
+}
+
 // Type definition for CaptureResponse based on Silverflow clearing action response
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct SilverflowCaptureResponse {
     #[serde(rename = "type")]
     pub action_type: String,
     pub key: String,
-    #[serde(rename = "chargeKey")]
     pub charge_key: String,
-    pub status: String,
+    pub status: SilverflowCaptureStatus,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
     pub amount: Amount,
     pub created: String,
-    #[serde(rename = "lastModified")]
     pub last_modified: String,
     pub version: i32,
 }
 
 impl From<&SilverflowCaptureResponse> for common_enums::AttemptStatus {
     fn from(response: &SilverflowCaptureResponse) -> Self {
-        match response.status.as_str() {
-            "completed" => Self::Charged,
-            "pending" => Self::Pending,
-            "failed" => Self::Failure,
-            _ => Self::Pending,
+        match response.status {
+            SilverflowCaptureStatus::Completed => Self::Charged,
+            SilverflowCaptureStatus::Pending => Self::Pending,
+            SilverflowCaptureStatus::Failed => Self::Failure,
         }
     }
 }
@@ -368,8 +403,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, SilverflowCaptureResponse, T, PaymentsR
 // VOID/REVERSE:
 // Type definition for Reverse Charge Request based on Silverflow API documentation
 #[derive(Default, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SilverflowVoidRequest {
-    #[serde(rename = "replacementAmount", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub replacement_amount: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
@@ -389,40 +425,48 @@ impl TryFrom<&RouterData<Void, PaymentsCancelData, PaymentsResponseData>>
     }
 }
 
+// Enum for Silverflow void authorization status
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum SilverflowVoidAuthorizationStatus {
+    Approved,
+    Declined,
+    Failed,
+    #[default]
+    Pending,
+}
+
 // Type definition for Void Status (only authorization, no clearing)
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct VoidStatus {
-    pub authorization: String,
+    pub authorization: SilverflowVoidAuthorizationStatus,
 }
 
 // Type definition for Reverse Charge Response based on Silverflow API documentation
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct SilverflowVoidResponse {
     #[serde(rename = "type")]
     pub action_type: String,
     pub key: String,
-    #[serde(rename = "chargeKey")]
     pub charge_key: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
-    #[serde(rename = "replacementAmount")]
     pub replacement_amount: Amount,
     pub status: VoidStatus,
-    #[serde(rename = "authorizationResponse")]
     pub authorization_response: Option<AuthorizationResponse>,
     pub created: String,
-    #[serde(rename = "lastModified")]
     pub last_modified: String,
     pub version: i32,
 }
 
 impl From<&SilverflowVoidResponse> for common_enums::AttemptStatus {
     fn from(response: &SilverflowVoidResponse) -> Self {
-        match response.status.authorization.as_str() {
-            "approved" => Self::Voided,
-            "declined" | "failed" => Self::VoidFailed,
-            "pending" => Self::Pending,
-            _ => Self::Pending,
+        match response.status.authorization {
+            SilverflowVoidAuthorizationStatus::Approved => Self::Voided,
+            SilverflowVoidAuthorizationStatus::Declined
+            | SilverflowVoidAuthorizationStatus::Failed => Self::VoidFailed,
+            SilverflowVoidAuthorizationStatus::Pending => Self::Pending,
         }
     }
 }
@@ -454,10 +498,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, SilverflowVoidResponse, T, PaymentsResp
 // REFUND :
 // Type definition for DynamicDescriptor
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct DynamicDescriptor {
-    #[serde(rename = "merchantName")]
     pub merchant_name: String,
-    #[serde(rename = "merchantCity")]
     pub merchant_city: String,
 }
 
@@ -472,11 +515,7 @@ pub struct SilverflowRefundRequest {
 impl<F> TryFrom<&SilverflowRouterData<&RefundsRouterData<F>>> for SilverflowRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &SilverflowRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
-        let refund_amount_value = item
-            .router_data
-            .request
-            .minor_refund_amount
-            .get_amount_as_i64();
+        let refund_amount_value = item.amount.get_amount_as_i64();
 
         Ok(Self {
             refund_amount: refund_amount_value,
@@ -487,49 +526,59 @@ impl<F> TryFrom<&SilverflowRouterData<&RefundsRouterData<F>>> for SilverflowRefu
 
 // Type definition for Authorization Response
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct AuthorizationResponse {
     pub network: String,
-    #[serde(rename = "responseCode")]
+
     pub response_code: String,
-    #[serde(rename = "responseCodeDescription")]
+
     pub response_code_description: String,
 }
 
-// Type definition for Refund Status
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct RefundStatus {
-    pub authorization: String,
+// Enum for Silverflow refund authorization status
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum SilverflowRefundAuthorizationStatus {
+    Approved,
+    Declined,
+    Failed,
+    Pending,
 }
 
-impl From<&RefundStatus> for enums::RefundStatus {
-    fn from(item: &RefundStatus) -> Self {
-        match item.authorization.as_str() {
-            "approved" => Self::Success,
-            "declined" | "failed" => Self::Failure,
-            "pending" => Self::Pending,
-            _ => Self::Pending,
+// Enum for Silverflow refund status
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum SilverflowRefundStatus {
+    Success,
+    Failure,
+    #[default]
+    Pending,
+}
+
+impl From<&SilverflowRefundStatus> for enums::RefundStatus {
+    fn from(item: &SilverflowRefundStatus) -> Self {
+        match item {
+            SilverflowRefundStatus::Success => Self::Success,
+            SilverflowRefundStatus::Failure => Self::Failure,
+            SilverflowRefundStatus::Pending => Self::Pending,
         }
     }
 }
 
 // Type definition for Refund Response
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct RefundResponse {
     #[serde(rename = "type")]
     pub action_type: String,
     pub key: String,
-    #[serde(rename = "chargeKey")]
     pub charge_key: String,
     pub reference: String,
     pub amount: Amount,
-    #[serde(rename = "status")]
-    pub status: RefundStatus,
-    #[serde(rename = "clearAfter")]
+    pub status: SilverflowRefundStatus,
     pub clear_after: Option<String>,
-    #[serde(rename = "authorizationResponse")]
     pub authorization_response: Option<AuthorizationResponse>,
     pub created: String,
-    #[serde(rename = "lastModified")]
     pub last_modified: String,
     pub version: i32,
 }
@@ -567,21 +616,20 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
 // TOKENIZATION:
 // Type definition for TokenizationRequest
 #[derive(Default, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SilverflowTokenizationRequest {
     pub reference: String,
-    #[serde(rename = "cardData")]
-    pub card_data: CardData,
+
+    pub card_data: SilverflowCardData,
 }
 
 #[derive(Default, Debug, Serialize)]
-pub struct CardData {
+#[serde(rename_all = "camelCase")]
+pub struct SilverflowCardData {
     pub number: String,
-    #[serde(rename = "expiryMonth")]
-    pub expiry_month: u8,
-    #[serde(rename = "expiryYear")]
-    pub expiry_year: u16,
+    pub expiry_month: Secret<String>,
+    pub expiry_year: Secret<String>,
     pub cvc: String,
-    #[serde(rename = "holderName")]
     pub holder_name: String,
 }
 
@@ -590,23 +638,15 @@ impl TryFrom<&PaymentsAuthorizeRouterData> for SilverflowTokenizationRequest {
     fn try_from(item: &PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => {
-                let card_data = CardData {
+                let card_data = SilverflowCardData {
                     number: req_card.card_number.peek().to_string(),
-                    expiry_month: req_card
-                        .card_exp_month
-                        .expose()
-                        .parse()
-                        .map_err(|_| errors::ConnectorError::ParsingFailed)?,
-                    expiry_year: req_card
-                        .card_exp_year
-                        .expose()
-                        .parse()
-                        .map_err(|_| errors::ConnectorError::ParsingFailed)?,
-                    cvc: req_card.card_cvc.expose(),
+                    expiry_month: req_card.card_exp_month.clone(),
+                    expiry_year: req_card.card_exp_year.clone(),
+                    cvc: req_card.card_cvc.clone().expose(),
                     holder_name: req_card
-                        .card_holder_name
-                        .map(|name| name.expose())
-                        .unwrap_or_default(),
+                        .get_cardholder_name()
+                        .unwrap_or(Secret::new("".to_string()))
+                        .expose(),
                 };
 
                 Ok(Self {
@@ -639,23 +679,15 @@ impl
     ) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => {
-                let card_data = CardData {
+                let card_data = SilverflowCardData {
                     number: req_card.card_number.peek().to_string(),
-                    expiry_month: req_card
-                        .card_exp_month
-                        .expose()
-                        .parse()
-                        .map_err(|_| errors::ConnectorError::ParsingFailed)?,
-                    expiry_year: req_card
-                        .card_exp_year
-                        .expose()
-                        .parse()
-                        .map_err(|_| errors::ConnectorError::ParsingFailed)?,
-                    cvc: req_card.card_cvc.expose(),
+                    expiry_month: req_card.card_exp_month.clone(),
+                    expiry_year: req_card.card_exp_year.clone(),
+                    cvc: req_card.card_cvc.clone().expose(),
                     holder_name: req_card
-                        .card_holder_name
-                        .map(|name| name.expose())
-                        .unwrap_or_default(),
+                        .get_cardholder_name()
+                        .unwrap_or(Secret::new("".to_string()))
+                        .expose(),
                 };
 
                 Ok(Self {
@@ -702,7 +734,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, SilverflowTokenizationResponse, T, Paym
         item: ResponseRouterData<F, SilverflowTokenizationResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: common_enums::AttemptStatus::Pending,
             response: Ok(PaymentsResponseData::TokenizationResponse {
                 token: item.response.key,
             }),
@@ -712,40 +743,33 @@ impl<F, T> TryFrom<ResponseRouterData<F, SilverflowTokenizationResponse, T, Paym
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct TokenizedCardDetails {
-    #[serde(rename = "maskedCardNumber")]
     pub masked_card_number: String,
-    #[serde(rename = "expiryMonth")]
-    pub expiry_month: u8,
-    #[serde(rename = "expiryYear")]
-    pub expiry_year: u16,
-    #[serde(rename = "cardBrand")]
+    pub expiry_month: Secret<String>,
+    pub expiry_year: Secret<String>,
     pub card_brand: String,
 }
 
 // WEBHOOKS:
 // Type definition for Webhook Event structures
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct SilverflowWebhookEvent {
-    #[serde(rename = "eventType")]
     pub event_type: String,
-    #[serde(rename = "eventData")]
     pub event_data: SilverflowWebhookEventData,
-    #[serde(rename = "eventId")]
     pub event_id: String,
     pub created: String,
     pub version: i32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct SilverflowWebhookEventData {
-    #[serde(rename = "chargeKey")]
     pub charge_key: Option<String>,
-    #[serde(rename = "refundKey")]
     pub refund_key: Option<String>,
     pub status: Option<PaymentStatus>,
     pub amount: Option<Amount>,
-    #[serde(rename = "transactionReference")]
     pub transaction_reference: Option<String>,
 }
 
