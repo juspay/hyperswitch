@@ -600,6 +600,8 @@ pub enum Flow {
     AuthenticationCreate,
     /// Authentication Eligibility flow
     AuthenticationEligibility,
+    /// Authentication Sync flow
+    AuthenticationSync,
     ///Proxy Flow
     Proxy,
     /// Profile Acquirer Create flow
