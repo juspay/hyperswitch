@@ -5,11 +5,11 @@ import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 let globalState;
 
 describe("Wallet Payments", () => {
-    before("seed global state", () => {
-        cy.task("getGlobalState").then((state) => {
-            globalState = new State(state);
-        });
+  before("seed global state", () => {
+    cy.task("getGlobalState").then((state) => {
+      globalState = new State(state);
     });
+  });
 
   after("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
