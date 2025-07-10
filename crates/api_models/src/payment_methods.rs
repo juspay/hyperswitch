@@ -16,12 +16,11 @@ use masking::PeekInterface;
 use serde::de;
 use utoipa::{schema, ToSchema};
 
+#[cfg(feature = "v1")]
+use crate::payments::BankCodeResponse;
 #[cfg(feature = "payouts")]
 use crate::payouts;
 use crate::{admin, enums as api_enums, open_router, payments};
-
-#[cfg(feature = "v1")]
-use crate::payments::BankCodeResponse;
 
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
