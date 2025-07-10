@@ -324,7 +324,8 @@ export const connectorDetails = {
         status: 400,
         body: {
           type: "invalid_request",
-          message: "No eligible connector was found for the current payment method configuration",
+          message:
+            "No eligible connector was found for the current payment method configuration",
           code: "IR_39",
         },
       },
@@ -455,7 +456,8 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "No eligible connector was found for the current payment method configuration",
+            message:
+              "No eligible connector was found for the current payment method configuration",
             code: "IR_00",
           },
         },
