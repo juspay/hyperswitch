@@ -161,6 +161,8 @@ pub struct Capture {
 pub struct BillToAddressData {
     pub name: Option<Secret<String>>,
     pub address_line1: Option<Secret<String>>,
+    pub address_line2: Option<Secret<String>>,
+    pub address_line3: Option<Secret<String>>,
     pub city: Option<String>,
     pub state: Option<Secret<String>>,
     pub zip: Option<Secret<String>>,
@@ -430,6 +432,8 @@ fn get_bill_to_address(item: &PaymentsAuthorizeRouterData) -> Option<BillToAddre
             .map(|address| BillToAddressData {
                 name: address.get_optional_full_name(),
                 address_line1: item.get_optional_billing_line1(),
+                address_line2: item.get_optional_billing_line2(),
+                address_line3: item.get_optional_billing_line3(),
                 city: item.get_optional_billing_city(),
                 state: item.get_optional_billing_state(),
                 zip: item.get_optional_billing_zip(),
