@@ -26,8 +26,8 @@ pub async fn get_data_from_automation_workflow(
         state,
         &http_req,
         payload.into_inner(),
-        |state, user: auth::UserFromToken, payload, _| {
-            chat_core::get_data_from_automation_workflow(state, user, payload, query.clone())
+        |state, _: (), payload, _| {
+            chat_core::get_data_from_automation_workflow(state, payload, query.clone())
         },
         &auth::JWTAuth {
             permission: Permission::MerchantPaymentRead,
@@ -48,9 +48,7 @@ pub async fn get_data_from_embedded_workflow(
         state,
         &http_req,
         payload.into_inner(),
-        |state, user: auth::UserFromToken, payload, _| {
-            chat_core::get_data_from_embedded_workflow(state, user, payload)
-        },
+        |state, _: (), payload, _| chat_core::get_data_from_embedded_workflow(state, payload),
         &auth::JWTAuth {
             permission: Permission::MerchantPaymentRead,
         },

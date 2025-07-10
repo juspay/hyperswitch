@@ -6,15 +6,10 @@ use common_utils::{
 use error_stack::ResultExt;
 use external_services::http_client;
 
-use crate::{
-    db::errors::chat::ChatErrors,
-    routes::SessionState,
-    services::{authentication as auth, ApplicationResponse},
-};
+use crate::{db::errors::chat::ChatErrors, routes::SessionState, services::ApplicationResponse};
 
 pub async fn get_data_from_automation_workflow(
     state: SessionState,
-    user_from_token: auth::UserFromToken,
     payload: chat::AutomationAiGetDataRequest,
     query: chat::GetDataMessage,
 ) -> CustomResult<ApplicationResponse<chat::AutomationAiDataResponse>, ChatErrors> {
@@ -42,7 +37,6 @@ pub async fn get_data_from_automation_workflow(
 
 pub async fn get_data_from_embedded_workflow(
     state: SessionState,
-    user_from_token: auth::UserFromToken,
     payload: chat::EmbeddedAiGetDataRequest,
 ) -> CustomResult<ApplicationResponse<chat::EmbeddedAiDataResponse>, ChatErrors> {
     let url = format!("{}/webhook", state.conf.chat.embedded_workflow_host);

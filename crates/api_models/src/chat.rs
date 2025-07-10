@@ -7,14 +7,6 @@ pub struct AutomationAiGetDataRequest {
     pub org_id: id_type::OrganizationId,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct GetDataBody {
-    pub merchant_id: id_type::MerchantId,
-    pub profile_id: id_type::ProfileId,
-    pub org_id: id_type::OrganizationId,
-    pub query: GetDataMessage,
-}
-
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct GetDataMessage {
     pub message: String,
@@ -22,7 +14,10 @@ pub struct GetDataMessage {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct EmbeddedAiGetDataRequest {
-    pub body: GetDataBody,
+    pub merchant_id: id_type::MerchantId,
+    pub profile_id: id_type::ProfileId,
+    pub org_id: id_type::OrganizationId,
+    pub query: GetDataMessage,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
