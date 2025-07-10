@@ -163,6 +163,11 @@ impl AuthenticationInterface for MockDb {
             return_url: authentication.return_url,
             amount: authentication.amount,
             currency: authentication.currency,
+            billing_address: authentication.billing_address,
+            shipping_address: authentication.shipping_address,
+            browser_info: authentication.browser_info,
+            email: authentication.email,
+            profile_acquirer_id: authentication.profile_acquirer_id,
         };
         authentications.push(authentication.clone());
         Ok(authentication)
