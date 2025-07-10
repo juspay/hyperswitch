@@ -22,14 +22,10 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-<<<<<<< HEAD
-    router_response_types::{ConnectorInfo, PaymentMethodDetails,PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt},
-=======
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
         SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
->>>>>>> origin/main
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefundSyncRouterData, RefundsRouterData,
@@ -50,8 +46,6 @@ use masking::{ExposeInterface, Mask};
 use transformers as paystack;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
-
-use std::sync::LazyLock;
 
 #[derive(Clone)]
 pub struct Paystack {
