@@ -1,16 +1,12 @@
 use common_utils::events::{ApiEventMetric, ApiEventsType};
 
-use crate::chat::{
-    AutomationAiDataResponse, AutomationAiGetDataRequest, EmbeddedAiDataResponse,
-    EmbeddedAiGetDataRequest,
-};
+use crate::chat::{AutomationAiDataResponse, ChatRequest, EmbeddedAiDataResponse};
 
 common_utils::impl_api_event_type!(
     Miscellaneous,
     (
-        AutomationAiGetDataRequest,
+        ChatRequest,
         AutomationAiDataResponse,
-        EmbeddedAiGetDataRequest,
         EmbeddedAiDataResponse
     )
 );

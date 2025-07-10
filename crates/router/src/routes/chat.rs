@@ -1,6 +1,6 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 #[cfg(feature = "olap")]
-use api_models::chat;
+use api_models::chat as chat_api;
 use router_env::Flow;
 
 use super::AppState;
@@ -16,18 +16,16 @@ use crate::{
 pub async fn get_data_from_automation_workflow(
     state: web::Data<AppState>,
     http_req: HttpRequest,
-    payload: web::Json<chat::AutomationAiGetDataRequest>,
-    query: web::Query<chat::GetDataMessage>,
+    payload: web::Json<chat_api::ChatRequest>,
 ) -> HttpResponse {
     let flow = Flow::GetDataFromAutomationFlow;
-    let query = query.into_inner();
     Box::pin(api::server_wrap(
         flow.clone(),
         state,
         &http_req,
         payload.into_inner(),
-        |state, _: (), payload, _| {
-            chat_core::get_data_from_automation_workflow(state, payload, query.clone())
+        |state, user: auth::UserFromToken, payload, _| {
+            chat_core::get_data_from_automation_workflow(state, user, payload)
         },
         &auth::JWTAuth {
             permission: Permission::MerchantPaymentRead,
@@ -40,7 +38,7 @@ pub async fn get_data_from_automation_workflow(
 pub async fn get_data_from_embedded_workflow(
     state: web::Data<AppState>,
     http_req: HttpRequest,
-    payload: web::Json<chat::EmbeddedAiGetDataRequest>,
+    payload: web::Json<chat_api::ChatRequest>,
 ) -> HttpResponse {
     let flow = Flow::GetDataFromEmbeddedFlow;
     Box::pin(api::server_wrap(
@@ -48,7 +46,9 @@ pub async fn get_data_from_embedded_workflow(
         state,
         &http_req,
         payload.into_inner(),
-        |state, _: (), payload, _| chat_core::get_data_from_embedded_workflow(state, payload),
+        |state, user: auth::UserFromToken, payload, _| {
+            chat_core::get_data_from_embedded_workflow(state, user, payload)
+        },
         &auth::JWTAuth {
             permission: Permission::MerchantPaymentRead,
         },

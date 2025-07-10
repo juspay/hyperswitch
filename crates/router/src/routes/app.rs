@@ -2226,13 +2226,13 @@ impl Chat {
                 .service(
                     web::scope("/n8n").service(
                         web::resource("/data")
-                            .route(web::get().to(chat::get_data_from_automation_workflow)),
+                            .route(web::post().to(chat::get_data_from_automation_workflow)),
                     ),
                 )
                 .service(
                     web::scope("/ai").service(
                         web::resource("/data")
-                            .route(web::get().to(chat::get_data_from_embedded_workflow)),
+                            .route(web::post().to(chat::get_data_from_embedded_workflow)),
                     ),
                 )
         } else {
