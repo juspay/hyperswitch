@@ -6333,3 +6333,8 @@ api_key="API Key"
 [silverflow.connector_auth.BodyKey]
 api_key="API Key"
 key1="Secret Key"
+
+[mpgs]
+[mpgs.connector_auth.HeaderKey]
+api_key = "API Key"
+
