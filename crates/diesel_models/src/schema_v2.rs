@@ -704,7 +704,7 @@ diesel::table! {
         customer_accepted_at -> Nullable<Timestamp>,
         #[max_length = 64]
         customer_ip_address -> Nullable<Varchar>,
-        #[max_length = 255]
+        #[max_length = 512]
         customer_user_agent -> Nullable<Varchar>,
         #[max_length = 128]
         network_transaction_id -> Nullable<Varchar>,
