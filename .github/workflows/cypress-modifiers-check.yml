@@ -4,7 +4,8 @@ on:
   pull_request:
     paths:
       - '**/*.cy.js'
-      - '**/cypress/**'
+      - '**/cypress-tests/**'
+      - '**/cypress-tests-v2/**'
 
 jobs:
   cypress-modifiers-check:
@@ -23,7 +24,8 @@ jobs:
         with:
           files: |
             **/*.cy.js
-            **/cypress/**
+            **/cypress-tests/**
+            **/cypress-tests-v2/**
 
       - name: Check for .skip and .only in Cypress files
         if: steps.changed-files.outputs.any_changed == 'true'
