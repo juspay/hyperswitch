@@ -373,6 +373,19 @@ pub struct ErrorDetails {
     pub network_error_message: Option<String>,
 }
 
+#[cfg(feature = "v2")]
+impl From<ErrorDetails> for api_models::payments::RecordAttemptErrorDetails {
+    fn from(error_details: ErrorDetails) -> Self {
+        Self {
+            code: error_details.code,
+            message: error_details.message,
+            network_decline_code: error_details.network_decline_code,
+            network_advice_code: error_details.network_advice_code,
+            network_error_message: error_details.network_error_message,
+        }
+    }
+}
+
 /// Domain model for the payment attempt.
 /// Few fields which are related are grouped together for better readability and understandability.
 /// These fields will be flattened and stored in the database in individual columns

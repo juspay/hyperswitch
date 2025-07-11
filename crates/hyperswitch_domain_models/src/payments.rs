@@ -744,6 +744,7 @@ impl PaymentIntent {
             network_error_message: None,
             retry_count: None,
             invoice_next_billing_time: None,
+            invoice_billing_started_at_time: None,
             card_isin: None,
             card_network: None,
             // No charge id is present here since it is an internal payment and we didn't call connector yet.
@@ -1068,6 +1069,9 @@ where
                     errors::api_error_response::ApiErrorResponse::InternalServerError
                 })?,
                 invoice_next_billing_time: self.revenue_recovery_data.invoice_next_billing_time,
+                invoice_billing_started_at_time: self
+                    .revenue_recovery_data
+                    .invoice_next_billing_time,
                 billing_connector_payment_method_details,
                 first_payment_attempt_network_advice_code: first_network_advice_code,
                 first_payment_attempt_network_decline_code: first_network_decline_code,
