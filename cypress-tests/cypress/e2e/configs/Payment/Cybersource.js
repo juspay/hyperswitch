@@ -313,9 +313,9 @@ export const connectorDetails = {
             code: "IR_06",
             message: "amount_to_capture is greater than amount",
             type: "invalid_request",
-          }
-        }
-      }
+          },
+        },
+      },
     }),
     PartialCapture: {
       Configs: {
