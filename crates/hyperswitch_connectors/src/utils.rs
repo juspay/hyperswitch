@@ -1681,6 +1681,7 @@ impl CustomerData for ConnectorCustomerData {
                 .is_some()
     }
 }
+
 pub trait PaymentsAuthorizeRequestData {
     fn get_optional_language_from_browser_info(&self) -> Option<String>;
     fn is_auto_capture(&self) -> Result<bool, Error>;

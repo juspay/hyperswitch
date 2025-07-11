@@ -199,11 +199,11 @@ impl TryFrom<SetupMandateRequestData> for ConnectorCustomerData {
             name: None,
             preprocessing_id: None,
             split_payments: None,
-            setup_future_usage: None,
-            mandate_id: None,
-            off_session: None,
-            customer_acceptance: None,
-            setup_mandate_details: None,
+            setup_future_usage: data.setup_future_usage,
+            mandate_id: data.mandate_id,
+            off_session: data.off_session,
+            customer_acceptance: data.customer_acceptance,
+            setup_mandate_details: data.setup_mandate_details,
         })
     }
 }
@@ -229,11 +229,11 @@ impl
             name: data.request.customer_name.clone(),
             preprocessing_id: data.preprocessing_id.clone(),
             split_payments: data.request.split_payments.clone(),
-            setup_future_usage: None,
-            mandate_id: None,
-            off_session: None,
-            customer_acceptance: None,
-            setup_mandate_details: None,
+            setup_future_usage: data.request.setup_future_usage.clone(),
+            mandate_id: data.request.mandate_id.clone(),
+            off_session: data.request.off_session.clone(),
+            customer_acceptance: data.request.customer_acceptance.clone(),
+            setup_mandate_details: data.request.setup_mandate_details.clone(),
         })
     }
 }
