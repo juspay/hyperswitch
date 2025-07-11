@@ -320,7 +320,7 @@ pub enum ApiErrorResponse {
         connector_transaction_id: Option<String>,
     },
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Tokenization record not found for the given token_id {id}")]
-    TokenizationRecordNotFound{ id: String },
+    TokenizationRecordNotFound { id: String },
 }
 
 #[derive(Clone)]

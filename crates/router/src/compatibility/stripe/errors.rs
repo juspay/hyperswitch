@@ -693,7 +693,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::ProfileAcquirerNotFound { .. } => {
                 Self::ProfileAcquirerNotFound
             }
-            errors::ApiErrorResponse::TokenizationRecordNotFound{ id } => Self::ResourceMissing {
+            errors::ApiErrorResponse::TokenizationRecordNotFound { id } => Self::ResourceMissing {
                 object: "tokenization record".to_owned(),
                 id,
             },
