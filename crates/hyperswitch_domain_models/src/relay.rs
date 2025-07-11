@@ -237,6 +237,28 @@ impl super::behaviour::Conversion for Relay {
         })
     }
 
+    fn validate(
+        item: Self::DstType,
+        key_manager_identifier: keymanager::Identifier,
+    ) -> CustomResult<(), ValidationError>
+    where
+        Self: Sized,
+    {
+        match key_manager_identifier {
+            keymanager::Identifier::Merchant(merchant_id) => {
+                if item.merchant_id != merchant_id {
+                    return Err(ValidationError::IncorrectValueProvided {
+                        field_name: "Relay ID",
+                    }
+                    .into());
+                }
+
+                Ok(())
+            }
+            _ => Ok(()),
+        }
+    }
+
     async fn convert_back(
         _state: &keymanager::KeyManagerState,
         item: Self::DstType,
@@ -254,8 +276,8 @@ impl super::behaviour::Conversion for Relay {
                 .request_data
                 .map(|data| {
                     serde_json::from_value(data.expose()).change_context(
-                        ValidationError::InvalidValue {
-                            message: "Failed while decrypting business profile data".to_string(),
+                        ValidationError::DecryptionError {
+                            message: "business profile data".to_string(),
                         },
                     )
                 })

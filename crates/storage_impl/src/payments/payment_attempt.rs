@@ -98,7 +98,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
                 merchant_key_store.merchant_id.clone().into(),
             )
             .await
-            .change_context(errors::StorageError::DecryptionError)
+            .map_err(|error| error_stack::report!(errors::StorageError::from(error)))
     }
 
     #[cfg(feature = "v1")]
@@ -150,7 +150,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
                 merchant_key_store.merchant_id.clone().into(),
             )
             .await
-            .change_context(errors::StorageError::DecryptionError)
+            .map_err(|error| error_stack::report!(errors::StorageError::from(error)))
     }
 
     #[cfg(feature = "v1")]
@@ -245,7 +245,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             merchant_key_store.merchant_id.clone().into(),
         )
         .await
-        .change_context(errors::StorageError::DecryptionError)
+        .map_err(|error| error_stack::report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -297,7 +297,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             merchant_key_store.merchant_id.clone().into(),
         )
         .await
-        .change_context(errors::StorageError::DecryptionError)
+        .map_err(|error| error_stack::report!(errors::StorageError::from(error)))
     }
 
     #[cfg(feature = "v1")]
@@ -455,7 +455,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
                 merchant_key_store.merchant_id.clone().into(),
             )
             .await
-            .change_context(errors::StorageError::DecryptionError)
+            .map_err(|error| error_stack::report!(errors::StorageError::from(error)))
     }
 
     #[cfg(feature = "v2")]
@@ -487,7 +487,9 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
                                 merchant_key_store.merchant_id.clone().into(),
                             )
                             .await
-                            .change_context(errors::StorageError::DecryptionError)?,
+                            .map_err(|error| {
+                                error_stack::report!(errors::StorageError::from(error))
+                            })?,
                     );
                 }
                 Ok(domain_payment_attempts)
