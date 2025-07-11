@@ -136,6 +136,9 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::PermataBankTransfer => {
             Ok(dirval!(BankTransferType = PermataBankTransfer))
         }
+        api_enums::PaymentMethodType::IndonesianBankTransfer => {
+            Ok(dirval!(BankTransferType = IndonesianBankTransfer))
+        }
         api_enums::PaymentMethodType::PaySafeCard => Ok(dirval!(GiftCardType = PaySafeCard)),
         api_enums::PaymentMethodType::SevenEleven => Ok(dirval!(VoucherType = SevenEleven)),
         api_enums::PaymentMethodType::Lawson => Ok(dirval!(VoucherType = Lawson)),
@@ -168,6 +171,7 @@ fn get_dir_value_payment_method(
             Ok(dirval!(MobilePaymentType = DirectCarrierBilling))
         }
         api_enums::PaymentMethodType::RevolutPay => Ok(dirval!(WalletType = RevolutPay)),
+        api_enums::PaymentMethodType::Skrill => Ok(dirval!(WalletType = Skrill)),
     }
 }
 
