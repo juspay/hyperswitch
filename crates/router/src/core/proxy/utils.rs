@@ -102,16 +102,18 @@ impl ProxyRecord {
                 .get_required_value("vault_id")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Locker id not present in Payment Method Entry"),
-            Self::TokenizationRecord(tokenization_record) => Ok(payment_methods::VaultId::generate(
-                tokenization_record.locker_id.clone(),
-            )),
+            Self::TokenizationRecord(tokenization_record) => Ok(
+                payment_methods::VaultId::generate(tokenization_record.locker_id.clone()),
+            ),
         }
     }
 
     fn get_customer_id(&self) -> id_type::GlobalCustomerId {
         match self {
             Self::PaymentMethodRecord(payment_method) => payment_method.customer_id.clone(),
-            Self::TokenizationRecord(tokenization_record) => tokenization_record.customer_id.clone(),
+            Self::TokenizationRecord(tokenization_record) => {
+                tokenization_record.customer_id.clone()
+            }
         }
     }
 

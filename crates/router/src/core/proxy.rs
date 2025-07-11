@@ -23,7 +23,7 @@ pub async fn proxy_core(
             merchant_context.get_merchant_account().storage_scheme,
         )
         .await?;
-    
+
     let vault_data = proxy_record
         .get_vault_data(&state, merchant_context)
         .await?;
