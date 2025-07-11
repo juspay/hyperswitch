@@ -439,7 +439,7 @@ export const connectorDetails = {
           amount_capturable: 6000,
           amount_received: null,
           incremental_authorizations: {
-            "0": {
+            0: {
               amount: 8000,
               previously_authorized_amount: 6000,
               status: "failure",
