@@ -117,7 +117,7 @@ impl super::behaviour::Conversion for Tokenization {
 
 impl From<TokenizationUpdate> for diesel_models::tokenization::TokenizationUpdateInternal {
     fn from(value: TokenizationUpdate) -> Self {
-        match value{
+        match value {
             TokenizationUpdate::Update {
                 updated_at,
                 flag,
