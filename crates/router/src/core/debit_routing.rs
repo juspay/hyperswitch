@@ -123,7 +123,7 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    if business_profile.is_debit_routing_enabled && state.conf.open_router.enabled {
+    if business_profile.is_debit_routing_enabled && state.conf.open_router.dynamic_routing_enabled {
         logger::info!("Debit routing is enabled for the profile");
 
         let debit_routing_config = &state.conf.debit_routing_config;
@@ -281,7 +281,10 @@ where
             &profile_id,
             &key_store,
             vec![connector_data.clone()],
-            debit_routing_output.get_co_badged_card_networks(),
+            debit_routing_output
+                .co_badged_card_networks_info
+                .clone()
+                .get_card_networks(),
         )
         .await
         .map_err(|error| {
@@ -454,7 +457,10 @@ where
             &profile_id,
             &key_store,
             connector_data_list.clone(),
-            debit_routing_output.get_co_badged_card_networks(),
+            debit_routing_output
+                .co_badged_card_networks_info
+                .clone()
+                .get_card_networks(),
         )
         .await
         .map_err(|error| {

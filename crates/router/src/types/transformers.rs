@@ -207,6 +207,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
     fn foreign_try_from(from: api_enums::Connector) -> Result<Self, Self::Error> {
         Ok(match from {
             api_enums::Connector::Aci => Self::Aci,
+            api_enums::Connector::Authipay => Self::Authipay,
             api_enums::Connector::Adyen => Self::Adyen,
             api_enums::Connector::Adyenplatform => Self::Adyenplatform,
             api_enums::Connector::Airwallex => Self::Airwallex,
@@ -223,6 +224,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Boku => Self::Boku,
             api_enums::Connector::Braintree => Self::Braintree,
             api_enums::Connector::Cashtocode => Self::Cashtocode,
+            api_enums::Connector::Celero => Self::Celero,
             api_enums::Connector::Chargebee => Self::Chargebee,
             // api_enums::Connector::Checkbook => Self::Checkbook,
             api_enums::Connector::Checkout => Self::Checkout,
@@ -297,6 +299,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Nuvei => Self::Nuvei,
             api_enums::Connector::Opennode => Self::Opennode,
             api_enums::Connector::Paybox => Self::Paybox,
+            api_enums::Connector::Payload => Self::Payload,
             api_enums::Connector::Payme => Self::Payme,
             api_enums::Connector::Payone => Self::Payone,
             api_enums::Connector::Paypal => Self::Paypal,

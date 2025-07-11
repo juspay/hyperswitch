@@ -38,8 +38,6 @@ use error_stack::{report, ResultExt};
 use futures::TryStreamExt;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
-#[cfg(feature = "v2")]
-use hyperswitch_domain_models::mandates::CommonMandateReference;
 use hyperswitch_domain_models::payments::{
     payment_attempt::PaymentAttempt, PaymentIntent, VaultData,
 };
@@ -49,8 +47,6 @@ use hyperswitch_domain_models::{
     router_data_v2::flow_common_types::VaultConnectorFlowData,
     router_flow_types::ExternalVaultInsertFlow, types::VaultRouterData,
 };
-#[cfg(feature = "v2")]
-use masking::ExposeOptionInterface;
 use masking::{PeekInterface, Secret};
 use router_env::{instrument, tracing};
 use time::Duration;
@@ -865,12 +861,15 @@ fn get_card_network_with_us_local_debit_network_override(
         .map(|network| network.is_us_local_network())
     {
         services::logger::debug!("Card network is a US local network, checking for global network in co-badged card data");
-        co_badged_card_data.and_then(|data| {
-            data.co_badged_card_networks
-                .iter()
-                .find(|network| network.is_global_network())
-                .cloned()
-        })
+        let info: Option<api_models::open_router::CoBadgedCardNetworksInfo> = co_badged_card_data
+            .and_then(|data| {
+                data.co_badged_card_networks_info
+                    .0
+                    .iter()
+                    .find(|info| info.network.is_global_network())
+                    .cloned()
+            });
+        info.map(|data| data.network)
     } else {
         card_network
     }
@@ -1099,6 +1098,7 @@ pub async fn network_tokenize_and_vault_the_pmd(
             merchant_context,
             &network_token_vaulting_data,
             None,
+            customer_id,
         )
         .await
         .change_context(errors::NetworkTokenizationError::SaveNetworkTokenFailed)
@@ -1839,11 +1839,16 @@ pub async fn vault_payment_method_internal(
         },
     )?;
 
-    let mut resp_from_vault =
-        vault::add_payment_method_to_vault(state, merchant_context, pmd, existing_vault_id)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to add payment method in vault")?;
+    let mut resp_from_vault = vault::add_payment_method_to_vault(
+        state,
+        merchant_context,
+        pmd,
+        existing_vault_id,
+        customer_id,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to add payment method in vault")?;
 
     // add fingerprint_id to the response
     resp_from_vault.fingerprint_id = Some(fingerprint_id_from_vault);
@@ -2922,6 +2927,7 @@ fn construct_zero_auth_payments_request(
         force_3ds_challenge: None,
         is_iframe_redirection_enabled: None,
         merchant_connector_details: None,
+        return_raw_connector_response: None,
     })
 }
 
@@ -3023,7 +3029,7 @@ pub async fn payment_methods_session_confirm(
 
     let intent_fulfillment_time = common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME;
 
-    // insert the parent payment method token into the database
+    // insert the token data into redis
     if let Some(token_data) = token_data {
         pm_routes::ParentPaymentMethodToken::create_key_for_token((
             &parent_payment_method_token,
@@ -3043,6 +3049,7 @@ pub async fn payment_methods_session_confirm(
         create_payment_method_request.payment_method_data.clone(),
         request.payment_method_type,
         intent_fulfillment_time,
+        merchant_context.get_merchant_key_store().key.get_inner(),
     )
     .await?;
 
@@ -3306,7 +3313,8 @@ async fn create_single_use_tokenization_flow(
             connector_mandate_request_reference_id: None,
             authentication_id: None,
             psd2_sca_exemption_type: None,
-            whole_connector_response: None,
+            raw_connector_response: None,
+            is_payment_id_from_merchant: None,
         };
 
     let payment_method_token_response = tokenization::add_token_for_payment_method(

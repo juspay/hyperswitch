@@ -457,35 +457,47 @@ impl TryFrom<&RedsysRouterData<&PaymentsPreProcessingRouterData>> for RedsysTran
                 connector: "redsys",
             })?
         };
-        let redsys_preprocessing_request =
-            if item.router_data.auth_type == enums::AuthenticationType::ThreeDs {
-                let ds_merchant_emv3ds = Some(EmvThreedsData::new(RedsysThreeDsInfo::CardData));
-                let ds_merchant_transactiontype = if item.router_data.request.is_auto_capture()? {
-                    RedsysTransactionType::Payment
-                } else {
-                    RedsysTransactionType::Preauthorization
-                };
-                let ds_merchant_order = connector_utils::generate_12_digit_number().to_string();
-                let card_data =
-                    RedsysCardData::try_from(&item.router_data.request.payment_method_data)?;
-                Ok(PaymentsRequest {
-                    ds_merchant_emv3ds,
-                    ds_merchant_transactiontype,
-                    ds_merchant_currency: item.currency.iso_4217().to_owned(),
-                    ds_merchant_pan: card_data.card_number,
-                    ds_merchant_merchantcode: auth.merchant_id.clone(),
-                    ds_merchant_terminal: auth.terminal_id.clone(),
-                    ds_merchant_order,
-                    ds_merchant_amount: item.amount.clone(),
-                    ds_merchant_expirydate: card_data.expiry_date,
-                    ds_merchant_cvv2: card_data.cvv2,
-                })
+        let redsys_preprocessing_request = if item.router_data.auth_type
+            == enums::AuthenticationType::ThreeDs
+        {
+            let ds_merchant_emv3ds = Some(EmvThreedsData::new(RedsysThreeDsInfo::CardData));
+            let ds_merchant_transactiontype = if item.router_data.request.is_auto_capture()? {
+                RedsysTransactionType::Payment
             } else {
-                Err(errors::ConnectorError::FlowNotSupported {
-                    flow: "PreProcessing".to_string(),
-                    connector: "redsys".to_string(),
+                RedsysTransactionType::Preauthorization
+            };
+
+            let ds_merchant_order = if item.router_data.connector_request_reference_id.len() <= 12 {
+                Ok(item.router_data.connector_request_reference_id.clone())
+            } else {
+                Err(errors::ConnectorError::MaxFieldLengthViolated {
+                    connector: "Redsys".to_string(),
+                    field_name: "ds_merchant_order".to_string(),
+                    max_length: 12,
+                    received_length: item.router_data.connector_request_reference_id.len(),
                 })
             }?;
+
+            let card_data =
+                RedsysCardData::try_from(&item.router_data.request.payment_method_data)?;
+            Ok(PaymentsRequest {
+                ds_merchant_emv3ds,
+                ds_merchant_transactiontype,
+                ds_merchant_currency: item.currency.iso_4217().to_owned(),
+                ds_merchant_pan: card_data.card_number,
+                ds_merchant_merchantcode: auth.merchant_id.clone(),
+                ds_merchant_terminal: auth.terminal_id.clone(),
+                ds_merchant_order,
+                ds_merchant_amount: item.amount.clone(),
+                ds_merchant_expirydate: card_data.expiry_date,
+                ds_merchant_cvv2: card_data.cvv2,
+            })
+        } else {
+            Err(errors::ConnectorError::FlowNotSupported {
+                flow: "PreProcessing".to_string(),
+                connector: "redsys".to_string(),
+            })
+        }?;
 
         Self::try_from((&redsys_preprocessing_request, &auth))
     }
