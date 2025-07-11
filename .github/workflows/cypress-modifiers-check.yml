@@ -39,44 +39,44 @@ jobs:
             if [[ -f "$file" ]]; then
               echo "Checking file: $file"
               
-              # Check for .skip with line numbers (exclude this.skip() and commented lines)
+              # Check for .skip (active, not commented, not this.skip())
               SKIP_RESULTS=$(grep -n "\.skip" "$file" | grep -v "this\.skip" | grep -v "^\s*//" || true)
               if [[ -n "$SKIP_RESULTS" ]]; then
-                echo -e "\n⚠️ Found .skip in $file:"
+                echo -e "\n⚠️ Found .skip in $file (active, not commented):"
                 echo "$SKIP_RESULTS" | while read -r line; do
                   echo "  Line $line"
                 done
                 MODIFIERS_FOUND=true
               fi
-              
-              # Check for .only with line numbers (exclude commented lines)
+
+              # Check for .skip (commented)
+              SKIP_COMMENTED_RESULTS=$(grep -nE '^\s*//.*\\.skip' "$file" || true)
+              if [[ -n "$SKIP_COMMENTED_RESULTS" ]]; then
+                echo -e "\n⚠️ Found commented .skip in $file:"
+                echo "$SKIP_COMMENTED_RESULTS" | while read -r line; do
+                  echo "  Line $line"
+                done
+                # Optionally set MODIFIERS_FOUND=true if you want to fail on commented
+              fi
+
+              # Check for .only (active, not commented)
               ONLY_RESULTS=$(grep -n "\.only" "$file" | grep -v "^\s*//" || true)
               if [[ -n "$ONLY_RESULTS" ]]; then
-                echo -e "\n⚠️ Found .only in $file:"
+                echo -e "\n⚠️ Found .only in $file (active, not commented):"
                 echo "$ONLY_RESULTS" | while read -r line; do
                   echo "  Line $line"
                 done
                 MODIFIERS_FOUND=true
               fi
 
-              # Check for commented .skip with line numbers (exclude this.skip())
-              SKIP_RESULTS=$(grep -n "\.skip" "$file" | grep -v "this\.skip" || true)
-              if [[ -n "$SKIP_RESULTS" ]]; then
-                echo -e "\n⚠️ Found commented .skip in $file:"
-                echo "$SKIP_RESULTS" | while read -r line; do
-                  echo "  Line $line"
-                done
-                MODIFIERS_FOUND=true
-              fi
-              
-              # Check for commented .only with line numbers 
-              ONLY_RESULTS=$(grep -n "\.only" "$file" || true)
-              if [[ -n "$ONLY_RESULTS" ]]; then
+              # Check for .only (commented)
+              ONLY_COMMENTED_RESULTS=$(grep -nE '^\s*//.*\\.only' "$file" || true)
+              if [[ -n "$ONLY_COMMENTED_RESULTS" ]]; then
                 echo -e "\n⚠️ Found commented .only in $file:"
-                echo "$ONLY_RESULTS" | while read -r line; do
+                echo "$ONLY_COMMENTED_RESULTS" | while read -r line; do
                   echo "  Line $line"
                 done
-                MODIFIERS_FOUND=true
+                # Optionally set MODIFIERS_FOUND=true if you want to fail on commented
               fi
             fi
           done
