@@ -288,7 +288,7 @@ export const connectorDetails = {
         },
       },
     },
-    Capture: {
+    Capture: getCustomExchange({
       Configs: {
         CONNECTOR_CREDENTIAL: {
           value: "connector_1",
@@ -306,7 +306,17 @@ export const connectorDetails = {
           amount_received: null,
         },
       },
-    },
+      ResponseCustom: {
+        status: 422,
+        body: {
+          error: {
+            code: "IR_06",
+            message: "amount_to_capture is greater than amount",
+            type: "invalid_request",
+          }
+        }
+      }
+    }),
     PartialCapture: {
       Configs: {
         CONNECTOR_CREDENTIAL: {
