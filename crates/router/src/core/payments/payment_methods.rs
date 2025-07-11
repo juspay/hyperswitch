@@ -7,7 +7,9 @@ use common_utils::{ext_traits::OptionExt, id_type};
 use error_stack::ResultExt;
 
 use super::errors;
-use crate::{core::payment_methods, db::errors::StorageErrorExt, logger, routes, types::domain};
+use crate::{
+    core::payment_methods, db::errors::StorageErrorExt, logger, routes, settings, types::domain,
+};
 
 #[cfg(feature = "v2")]
 pub async fn list_payment_methods(
@@ -62,7 +64,7 @@ pub async fn list_payment_methods(
             .merge_and_transform()
             .get_required_fields(RequiredFieldsInput::new())
             .perform_surcharge_calculation()
-            .populate_extra_information(&state)
+            .populate_extra_information(&state.conf.bank_config)
             .generate_response(customer_payment_methods);
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
@@ -228,7 +230,7 @@ struct RequiredFieldsAndSurchargeForEnabledPaymentMethodTypes(
 );
 
 fn get_extra_info_from_state(
-    state: &routes::SessionState,
+    bank_config: &settings::BankRedirectConfig,
     payment_method_type: common_enums::enums::PaymentMethod,
     payment_method_subtype: common_enums::enums::PaymentMethodType,
     connectors: &Vec<api_models::enums::Connector>,
@@ -240,20 +242,21 @@ fn get_extra_info_from_state(
         common_enums::PaymentMethod::BankRedirect
         | common_enums::PaymentMethod::BankTransfer
         | common_enums::PaymentMethod::BankDebit => {
-            if let Some(connector_bank_names) =
-                state.conf.bank_config.0.get(&payment_method_subtype)
-            {
-                let mut bank_names = Vec::new();
-
-                for connector in connectors {
-                    if let Some(connector_hash_set) =
+            if let Some(connector_bank_names) = bank_config.0.get(&payment_method_subtype) {
+                let bank_names = connectors
+                    .iter()
+                    .filter_map(|connector| {
                         connector_bank_names.0.get(&connector.to_string())
-                    {
-                        bank_names.extend(connector_hash_set.banks.clone().into_iter());
-                    } else {
-                        logger::error!("Could not find any configured connectors for payment_method -> {payment_method_subtype} for connector -> {connector}");
-                    }
-                }
+                            .map(|connector_hash_set| {
+                                connector_hash_set.banks.clone()
+                            })
+                            .or_else(|| {
+                                logger::error!("Could not find any configured connectors for payment_method -> {payment_method_subtype} for connector -> {connector}");
+                                None
+                            })
+                    })
+                    .flatten()
+                    .collect();
                 Some(
                     api_models::payment_methods::PaymentMethodSubtypeSpecificData::Bank {
                         bank_names,
@@ -281,7 +284,7 @@ fn get_extra_info_from_state(
 impl RequiredFieldsAndSurchargeForEnabledPaymentMethodTypes {
     fn populate_extra_information(
         self,
-        state: &routes::SessionState,
+        bank_config: &settings::BankRedirectConfig,
     ) -> RequiredFieldsAndSurchargeWithExtraInfoForEnabledPaymentMethodTypes {
         let response_payment_methods = self
             .0
@@ -294,7 +297,7 @@ impl RequiredFieldsAndSurchargeForEnabledPaymentMethodTypes {
                     required_field: payment_methods_enabled.required_field,
                     surcharge: payment_methods_enabled.surcharge,
                     extra_information: get_extra_info_from_state(
-                        state,
+                        bank_config,
                         payment_methods_enabled.payment_method_type,
                         payment_methods_enabled.payment_method_subtype,
                         &payment_methods_enabled.connectors,
