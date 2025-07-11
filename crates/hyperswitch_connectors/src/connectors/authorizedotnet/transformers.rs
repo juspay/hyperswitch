@@ -308,13 +308,21 @@ pub struct AuthorizedotnetZeroMandateRequest {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ShipToList {
+    #[serde(skip_serializing_if = "Option::is_none")]
     first_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     last_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     address: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     city: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     state: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     zip: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     country: Option<enums::CountryAlpha2>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     phone_number: Option<Secret<String>>,
 }
 
@@ -325,6 +333,7 @@ struct Profile {
     description: Option<String>,
     email: Option<Email>,
     payment_profiles: PaymentProfiles,
+    #[serde(skip_serializing_if = "Option::is_none")]
     ship_to_list: Option<Vec<ShipToList>>,
 }
 
@@ -390,7 +399,7 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerProfileRequest {
                             city: address.city.clone(),
                             state: address.state.clone(),
                             zip: address.zip.clone(),
-                            country: address.country.clone(),
+                            country: address.country,
                             phone_number: shipping.phone.as_ref().and_then(|phone| {
                                 phone.number.as_ref().map(|number| number.to_owned())
                             }),
@@ -437,7 +446,7 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerProfileRequest {
                                 city: address.city.clone(),
                                 state: address.state.clone(),
                                 zip: address.zip.clone(),
-                                country: address.country.clone(),
+                                country: address.country,
                                 phone_number: shipping.phone.as_ref().and_then(|phone| {
                                     phone.number.as_ref().map(|number| number.to_owned())
                                 }),
@@ -483,7 +492,7 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerProfileRequest {
                                 city: address.city.clone(),
                                 state: address.state.clone(),
                                 zip: address.zip.clone(),
-                                country: address.country.clone(),
+                                country: address.country,
                                 phone_number: shipping.phone.as_ref().and_then(|phone| {
                                     phone.number.as_ref().map(|number| number.to_owned())
                                 }),
