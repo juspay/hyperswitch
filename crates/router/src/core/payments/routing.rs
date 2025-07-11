@@ -442,7 +442,7 @@ pub async fn perform_static_routing_v1(
     Vec<routing_types::RoutableConnectorChoice>,
     Option<common_enums::RoutingApproach>,
 )> {
-    let get_merchant_fallback_config = async || {
+    let get_merchant_fallback_config = || async {
         #[cfg(feature = "v1")]
         return routing::helpers::get_merchant_default_config(
             &*state.clone().store,
