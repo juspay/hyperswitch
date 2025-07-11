@@ -17,8 +17,6 @@ use error_stack::ResultExt;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use hyperswitch_domain_models;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-use masking::{JsonMaskStrategy, Secret};
-#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use router_env::{instrument, logger, tracing, Flow};
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use serde::Serialize;
@@ -29,6 +27,7 @@ use crate::{
         errors::{self, RouterResponse, RouterResult},
         payment_methods::vault as pm_vault,
     },
+    db::errors::StorageErrorExt,
     routes::{app::StorageInterface, AppState, SessionState},
     services::{self, api as api_service, authentication as auth},
     types::{api, domain, payment_methods as pm_types},
@@ -122,19 +121,25 @@ pub async fn delete_tokenized_data_core(
             key_manager_state,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .to_not_found_response(errors::ApiErrorResponse::TokenizationRecordNotFound)
         .attach_printable("Failed to get tokenization record")?;
+
+    when(tokenization_record.customer_id != payload.customer_id, || {
+        Err(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "Tokenization record does not belong to the customer".to_string(),
+        })
+    })?;
 
     when(tokenization_record.is_disabled(), || {
         Err(errors::ApiErrorResponse::GenericNotFoundError {
             message: "Tokenization is already disabled for the id".to_string(),
         })
-    });
+    })?;
 
     //fetch locker id
     let vault_id = domain::VaultId::generate(tokenization_record.locker_id.clone());
     //delete card from vault
-    let delete_resp = pm_vault::delete_payment_method_data_from_vault_internal(
+    pm_vault::delete_payment_method_data_from_vault_internal(
         &state,
         &merchant_context,
         vault_id,
@@ -147,9 +152,8 @@ pub async fn delete_tokenized_data_core(
     let tokenization_update = hyperswitch_domain_models::tokenization::TokenizationUpdate::Update {
         updated_at: Some(common_utils::date_time::now()),
         flag: Some(enums::TokenizationFlag::Disabled),
-        version: Some(enums::ApiVersion::V2),
     };
-    let response = db
+    db
         .update_tokenization_record(
             tokenization_record,
             tokenization_update,
@@ -159,11 +163,6 @@ pub async fn delete_tokenized_data_core(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update tokenization record")?;
-
-    logger::info!(
-        "Tokenization record updated successfully for token_id: {:?}",
-        token_id
-    );
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         api_models::tokenization::DeleteTokenDataResponse {

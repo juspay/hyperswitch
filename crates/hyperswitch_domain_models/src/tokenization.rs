@@ -61,7 +61,6 @@ impl From<Tokenization> for TokenizationResponse {
 pub enum TokenizationUpdate {
     Update {
         updated_at: Option<PrimitiveDateTime>,
-        version: Option<common_enums::enums::ApiVersion>,
         flag: Option<common_enums::enums::TokenizationFlag>,
     },
 }
@@ -121,11 +120,9 @@ impl From<TokenizationUpdate> for diesel_models::tokenization::TokenizationUpdat
         match value{
             TokenizationUpdate::Update {
                 updated_at,
-                version,
                 flag,
             } => Self {
                 updated_at,
-                version,
                 flag,
             },
         }
