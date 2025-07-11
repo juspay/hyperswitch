@@ -3,7 +3,7 @@ use common_enums::PaymentAction;
 use common_utils::{crypto, errors::CustomResult, request::Request};
 use hyperswitch_domain_models::{
     api::ApplicationResponse,
-    configs::Connectors,
+    connector_endpoints::Connectors,
     errors::api_error_response::ApiErrorResponse,
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},

@@ -3981,7 +3981,10 @@ Cypress.Commands.add("incrementalAuth", (globalState, data) => {
           )
             .to.have.property("previously_authorized_amount")
             .to.be.a("number")
-            .to.equal(response.body.amount).and.not.be.null;
+            .to.equal(
+              response.body.incremental_authorizations[key]
+                .previously_authorized_amount
+            ).and.not.be.null;
           expect(response.body.incremental_authorizations[key], "status")
             .to.have.property("status")
             .to.equal("success");
