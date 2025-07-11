@@ -6,7 +6,7 @@
   ];
   perSystem = { pkgs, ... }: {
     rust-project.toolchain = pkgs.rust-bin.fromRustupToolchain {
-      channel = "1.87.0";
+      channel = "1.88.0";
     };
   };
 }
