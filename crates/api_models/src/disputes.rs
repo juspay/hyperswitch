@@ -87,7 +87,7 @@ pub struct DisputeResponsePaymentsRetrieve {
     pub created_at: PrimitiveDateTime,
 }
 
-#[derive(Debug, Serialize, Deserialize, strum::Display, Clone)]
+#[derive(Debug, Serialize, Deserialize, strum::Display, Clone, ToSchema)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum EvidenceType {

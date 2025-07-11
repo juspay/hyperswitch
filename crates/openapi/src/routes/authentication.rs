@@ -1,3 +1,5 @@
+use api_models::authentication::{AuthenticationCreateRequest, AuthenticationResponse};
+
 /// Authentication - Create
 ///
 /// Create a new authentication for accessing our APIs from your servers.

@@ -1,3 +1,5 @@
+#[cfg(feature = "v2")]
+use api_models::tokenization::{GenericTokenizationRequest, GenericTokenizationResponse};
 use serde_json::json;
 use utoipa::OpenApi;
 

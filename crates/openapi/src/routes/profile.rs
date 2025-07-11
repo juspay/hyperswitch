@@ -1,5 +1,13 @@
 // ******************************************** V1 profile routes ******************************************** //
 
+use api_models::{
+    admin::{MerchantConnectorResponse, ProfileCreate, ProfileResponse},
+    routing::{
+        LinkedRoutingConfigRetrieveResponse, RoutableConnectorChoice, RoutingAlgorithmId,
+        RoutingDictionaryRecord,
+    },
+};
+
 #[cfg(feature = "v1")]
 /// Profile - Create
 ///

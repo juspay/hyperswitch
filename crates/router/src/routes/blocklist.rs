@@ -1,5 +1,8 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use api_models::blocklist as api_blocklist;
+use api_models::blocklist::{
+    self as api_blocklist, BlocklistRequest, BlocklistResponse, ToggleBlocklistResponse,
+};
+use common_enums::BlocklistDataKind;
 use router_env::Flow;
 
 use crate::{

@@ -1,3 +1,10 @@
+use api_models::payouts::{
+    PayoutCancelRequest, PayoutConfirmRequest, PayoutCreateResponse, PayoutFulfillRequest,
+    PayoutListFilterConstraints, PayoutListFilters, PayoutListResponse, PayoutUpdateRequest,
+    PayoutsCreateRequest,
+};
+use common_utils::types::TimeRange;
+
 /// Payouts - Create
 #[utoipa::path(
     post,

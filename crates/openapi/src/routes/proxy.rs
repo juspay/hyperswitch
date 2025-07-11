@@ -1,4 +1,7 @@
 #[cfg(feature = "v2")]
+use api_models::proxy::{ProxyRequest, ProxyResponse};
+
+#[cfg(feature = "v2")]
 ///Proxy
 ///
 /// Create a proxy request

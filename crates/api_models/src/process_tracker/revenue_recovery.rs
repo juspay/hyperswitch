@@ -10,12 +10,13 @@ pub struct RevenueRecoveryResponse {
     pub name: Option<String>,
     pub schedule_time_for_payment: Option<PrimitiveDateTime>,
     pub schedule_time_for_psync: Option<PrimitiveDateTime>,
-    #[schema(value_type = ProcessTrackerStatus, example = "finish")]
+    #[schema(example = "finish")]
     pub status: enums::ProcessTrackerStatus,
     pub business_status: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct RevenueRecoveryId {
+    #[schema(value_type = String)]
     pub revenue_recovery_id: id_type::GlobalPaymentId,
 }

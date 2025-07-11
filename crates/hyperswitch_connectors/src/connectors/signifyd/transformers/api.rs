@@ -461,7 +461,7 @@ impl TryFrom<&FrmCheckoutRouterData> for SignifydPaymentsCheckoutRequest {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, ToSchema)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(deny_unknown_fields)]
 #[serde_with::skip_serializing_none]
 #[serde(rename_all = "camelCase")]
@@ -482,7 +482,7 @@ pub enum FulfillmentStatus {
     CANCELED,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize)]
 #[serde_with::skip_serializing_none]
 #[serde(rename_all = "camelCase")]
 pub struct Fulfillments {

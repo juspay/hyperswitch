@@ -1,3 +1,8 @@
+use api_models::api_keys::{
+    CreateApiKeyRequest, CreateApiKeyResponse, RetrieveApiKeyResponse, RevokeApiKeyResponse,
+    UpdateApiKeyRequest,
+};
+
 #[cfg(feature = "v1")]
 /// API Key - Create
 ///

@@ -28,11 +28,11 @@ use crate::{
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodCreate {
     /// The type of payment method use for the payment.
-    #[schema(value_type = PaymentMethod,example = "card")]
+    #[schema(example = "card")]
     pub payment_method: Option<api_enums::PaymentMethod>,
 
     /// This is a sub-category of payment method.
-    #[schema(value_type = Option<PaymentMethodType>,example = "credit")]
+    #[schema(example = "credit")]
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
 
     /// The name of the bank/ provider issuing the payment method to the end user
@@ -40,7 +40,7 @@ pub struct PaymentMethodCreate {
     pub payment_method_issuer: Option<String>,
 
     /// A standard code representing the issuer of payment method
-    #[schema(value_type = Option<PaymentMethodIssuerCode>,example = "jp_applepay")]
+    #[schema(example = "jp_applepay")]
     pub payment_method_issuer_code: Option<api_enums::PaymentMethodIssuerCode>,
 
     /// Card Details
@@ -65,12 +65,10 @@ pub struct PaymentMethodCreate {
 
     /// Payment method details from locker
     #[cfg(feature = "payouts")]
-    #[schema(value_type = Option<Bank>)]
     pub bank_transfer: Option<payouts::Bank>,
 
     /// Payment method details from locker
     #[cfg(feature = "payouts")]
-    #[schema(value_type = Option<Wallet>)]
     pub wallet: Option<payouts::Wallet>,
 
     /// For Client based calls, SDK will use the client_secret
@@ -84,7 +82,6 @@ pub struct PaymentMethodCreate {
     pub payment_method_data: Option<PaymentMethodCreateData>,
 
     /// The billing details of the payment method
-    #[schema(value_type = Option<Address>)]
     pub billing: Option<payments::Address>,
 
     #[serde(skip_deserializing)]
@@ -105,11 +102,11 @@ pub struct PaymentMethodCreate {
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodCreate {
     /// The type of payment method use for the payment.
-    #[schema(value_type = PaymentMethod,example = "card")]
+    #[schema(example = "card")]
     pub payment_method_type: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
-    #[schema(value_type = PaymentMethodType,example = "google_pay")]
+    #[schema(example = "google_pay")]
     pub payment_method_subtype: api_enums::PaymentMethodType,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
@@ -129,15 +126,12 @@ pub struct PaymentMethodCreate {
     pub payment_method_data: PaymentMethodCreateData,
 
     /// The billing details of the payment method
-    #[schema(value_type = Option<Address>)]
     pub billing: Option<payments::Address>,
 
     /// The tokenization type to be applied
-    #[schema(value_type = Option<PspTokenization>)]
     pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
 
     /// The network tokenization configuration if applicable
-    #[schema(value_type = Option<NetworkTokenization>)]
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
 }
 
@@ -150,7 +144,6 @@ pub struct PaymentMethodIntentCreate {
     pub metadata: Option<pii::SecretSerdeValue>,
 
     /// The billing details of the payment method
-    #[schema(value_type = Option<Address>)]
     pub billing: Option<payments::Address>,
 
     /// The unique identifier of the customer.
@@ -175,11 +168,11 @@ pub struct PaymentMethodIntentConfirm {
     pub payment_method_data: PaymentMethodCreateData,
 
     /// The type of payment method use for the payment.
-    #[schema(value_type = PaymentMethod,example = "card")]
+    #[schema(example = "card")]
     pub payment_method_type: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
-    #[schema(value_type = PaymentMethodType,example = "credit")]
+    #[schema(example = "credit")]
     pub payment_method_subtype: api_enums::PaymentMethodType,
 }
 
@@ -537,7 +530,6 @@ pub struct CardDetail {
     pub card_issuing_country: Option<String>,
 
     /// Card's Network
-    #[schema(value_type = Option<CardNetwork>)]
     pub card_network: Option<api_enums::CardNetwork>,
 
     /// Issuer Bank for Card
@@ -594,11 +586,9 @@ pub struct CardDetail {
     pub nick_name: Option<masking::Secret<String>>,
 
     /// Card Issuing Country
-    #[schema(value_type = CountryAlpha2)]
     pub card_issuing_country: Option<api_enums::CountryAlpha2>,
 
     /// Card's Network
-    #[schema(value_type = Option<CardNetwork>)]
     pub card_network: Option<api_enums::CardNetwork>,
 
     /// Issuer Bank for Card
@@ -640,7 +630,6 @@ pub struct MigrateCardDetail {
     pub card_issuing_country: Option<String>,
 
     /// Card's Network
-    #[schema(value_type = Option<CardNetwork>)]
     pub card_network: Option<api_enums::CardNetwork>,
 
     /// Issuer Bank for Card
@@ -677,7 +666,6 @@ pub struct MigrateNetworkTokenData {
     pub card_issuing_country: Option<String>,
 
     /// Card's Network
-    #[schema(value_type = Option<CardNetwork>)]
     pub card_network: Option<api_enums::CardNetwork>,
 
     /// Issuer Bank for Card
@@ -809,11 +797,11 @@ pub struct PaymentMethodResponse {
     pub payment_method_id: String,
 
     /// The type of payment method use for the payment.
-    #[schema(value_type = PaymentMethod, example = "card")]
+    #[schema(example = "card")]
     pub payment_method: Option<api_enums::PaymentMethod>,
 
     /// This is a sub-category of payment method.
-    #[schema(value_type = Option<PaymentMethodType>, example = "credit")]
+    #[schema(example = "credit")]
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
 
     /// Card details from card locker
@@ -829,7 +817,7 @@ pub struct PaymentMethodResponse {
     pub installment_payment_enabled: Option<bool>,
 
     /// Type of payment experience enabled with the connector
-    #[schema(value_type = Option<Vec<PaymentExperience>>, example = json!(["redirect_to_url"]))]
+    #[schema(example = json!(["redirect_to_url"]))]
     pub payment_experience: Option<Vec<api_enums::PaymentExperience>>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
@@ -843,11 +831,10 @@ pub struct PaymentMethodResponse {
 
     /// Payment method details from locker
     #[cfg(feature = "payouts")]
-    #[schema(value_type = Option<Bank>)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bank_transfer: Option<payouts::Bank>,
 
-    #[schema(value_type = Option<PrimitiveDateTime>, example = "2024-02-24T11:04:09.922Z")]
+    #[schema(example = "2024-02-24T11:04:09.922Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_used_at: Option<time::PrimitiveDateTime>,
 
@@ -862,11 +849,9 @@ pub struct ConnectorTokenDetails {
     #[schema(value_type = String, example = "mca_")]
     pub connector_id: id_type::MerchantConnectorAccountId,
 
-    #[schema(value_type = TokenizationType)]
     pub token_type: common_enums::TokenizationType,
 
     /// The status of connector token if it is active or inactive
-    #[schema(value_type = ConnectorTokenStatus)]
     pub status: common_enums::ConnectorTokenStatus,
 
     /// The reference id of the connector token
@@ -876,13 +861,14 @@ pub struct ConnectorTokenDetails {
     pub original_payment_authorized_amount: Option<MinorUnit>,
 
     /// The currency of the original payment authorized amount
-    #[schema(value_type = Currency)]
     pub original_payment_authorized_currency: Option<common_enums::Currency>,
 
     /// Metadata associated with the connector token
+    #[schema(value_type = Option<Object>)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
     /// The value of the connector token. This token can be used to make merchant initiated payments ( MIT ), directly with the connector.
+    #[schema(value_type = String)]
     pub token: masking::Secret<String>,
 }
 
@@ -907,11 +893,11 @@ pub struct PaymentMethodResponse {
     pub customer_id: id_type::GlobalCustomerId,
 
     /// The type of payment method use for the payment.
-    #[schema(value_type = PaymentMethod, example = "card")]
+    #[schema(example = "card")]
     pub payment_method_type: Option<api_enums::PaymentMethod>,
 
     /// This is a sub-category of payment method.
-    #[schema(value_type = Option<PaymentMethodType>, example = "credit")]
+    #[schema(example = "credit")]
     pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
 
     /// Indicates whether the payment method supports recurring payments. Optional.
@@ -993,7 +979,6 @@ pub struct CoBadgedCardDataToBeSaved {
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct NetworkTokenDetailsPaymentMethod {
     pub last4_digits: Option<String>,
-    #[schema(value_type = Option<CountryAlpha2>)]
     pub issuer_country: Option<common_enums::CountryAlpha2>,
     #[schema(value_type = Option<String>)]
     pub network_token_expiry_month: Option<masking::Secret<String>>,
@@ -1005,7 +990,6 @@ pub struct NetworkTokenDetailsPaymentMethod {
     pub card_holder_name: Option<masking::Secret<String>>,
     pub card_isin: Option<String>,
     pub card_issuer: Option<String>,
-    #[schema(value_type = Option<CardNetwork>)]
     pub card_network: Option<api_enums::CardNetwork>,
     pub card_type: Option<String>,
     #[serde(default = "saved_in_locker_default")]
@@ -1158,7 +1142,6 @@ pub struct CardDetailFromLocker {
     #[schema(value_type=Option<String>)]
     pub nick_name: Option<masking::Secret<String>>,
 
-    #[schema(value_type = Option<CardNetwork>)]
     pub card_network: Option<api_enums::CardNetwork>,
 
     pub card_isin: Option<String>,
@@ -1170,7 +1153,6 @@ pub struct CardDetailFromLocker {
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct CardDetailFromLocker {
-    #[schema(value_type = Option<CountryAlpha2>)]
     pub issuer_country: Option<api_enums::CountryAlpha2>,
     pub last4_digits: Option<String>,
     #[serde(skip)]
@@ -1192,7 +1174,6 @@ pub struct CardDetailFromLocker {
     #[schema(value_type=Option<String>)]
     pub nick_name: Option<masking::Secret<String>>,
 
-    #[schema(value_type = Option<CardNetwork>)]
     pub card_network: Option<api_enums::CardNetwork>,
 
     pub card_isin: Option<String>,
@@ -1403,7 +1384,7 @@ impl From<CardDetailFromLocker> for CardDetailsPaymentMethod {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
 pub struct PaymentExperienceTypes {
     /// The payment experience enabled
-    #[schema(value_type = Option<PaymentExperience>, example = "redirect_to_url")]
+    #[schema(example = "redirect_to_url")]
     pub payment_experience_type: api_enums::PaymentExperience,
 
     /// The list of eligible connectors for a given payment experience
@@ -1414,7 +1395,7 @@ pub struct PaymentExperienceTypes {
 #[derive(Debug, Clone, serde::Serialize, ToSchema, PartialEq)]
 pub struct CardNetworkTypes {
     /// The card network enabled
-    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    #[schema(example = "Visa")]
     pub card_network: api_enums::CardNetwork,
 
     /// surcharge details for this card network
@@ -1434,7 +1415,7 @@ pub struct BankDebitTypes {
 #[derive(Debug, Clone, serde::Serialize, ToSchema, PartialEq)]
 pub struct ResponsePaymentMethodTypes {
     /// The payment method type enabled
-    #[schema(example = "klarna", value_type = PaymentMethodType)]
+    #[schema(example = "klarna")]
     pub payment_method_type: api_enums::PaymentMethodType,
 
     /// The list of payment experiences enabled, if applicable for a payment method type
@@ -1478,11 +1459,11 @@ pub enum PaymentMethodSubtypeSpecificData {
 #[derive(Debug, Clone, serde::Serialize, ToSchema, PartialEq)]
 pub struct ResponsePaymentMethodTypes {
     /// The payment method type enabled
-    #[schema(example = "pay_later", value_type = PaymentMethod)]
+    #[schema(example = "pay_later")]
     pub payment_method_type: common_enums::PaymentMethod,
 
     /// The payment method subtype enabled
-    #[schema(example = "klarna", value_type = PaymentMethodType)]
+    #[schema(example = "klarna")]
     pub payment_method_subtype: common_enums::PaymentMethodType,
 
     /// payment method subtype specific information
@@ -1549,7 +1530,6 @@ pub struct RequiredFieldInfo {
     pub display_name: String,
 
     /// Possible field type of required field
-    #[schema(value_type = FieldType)]
     pub field_type: api_enums::FieldType,
 
     #[schema(value_type = Option<String>)]
@@ -1559,7 +1539,6 @@ pub struct RequiredFieldInfo {
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 pub struct ResponsePaymentMethodsEnabled {
     /// The payment method enabled
-    #[schema(value_type = PaymentMethod)]
     pub payment_method: api_enums::PaymentMethod,
 
     /// The list of payment method types enabled for a connector account
@@ -1603,11 +1582,8 @@ impl ResponsePaymentMethodIntermediate {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, Hash)]
 pub struct RequestPaymentMethodTypes {
-    #[schema(value_type = PaymentMethodType)]
     pub payment_method_type: api_enums::PaymentMethodType,
-    #[schema(value_type = Option<PaymentExperience>)]
     pub payment_experience: Option<api_enums::PaymentExperience>,
-    #[schema(value_type = Option<Vec<CardNetwork>>)]
     pub card_networks: Option<Vec<api_enums::CardNetwork>>,
     /// List of currencies accepted or has the processing capabilities of the processor
     #[schema(example = json!(
@@ -1615,7 +1591,7 @@ pub struct RequestPaymentMethodTypes {
             "type": "specific_accepted",
             "list": ["USD", "INR"]
         }
-    ), value_type = Option<AcceptedCurrencies>)]
+    ))]
     pub accepted_currencies: Option<admin::AcceptedCurrencies>,
 
     ///  List of Countries accepted or has the processing capabilities of the processor
@@ -1624,7 +1600,7 @@ pub struct RequestPaymentMethodTypes {
             "type": "specific_accepted",
             "list": ["UK", "AU"]
         }
-    ), value_type = Option<AcceptedCountries>)]
+    ))]
     pub accepted_countries: Option<admin::AcceptedCountries>,
 
     /// Minimum amount supported by the processor. To be represented in the lowest denomination of the target currency (For example, for USD it should be in cents)
@@ -1662,11 +1638,11 @@ pub struct PaymentMethodListRequest {
     pub client_secret: Option<String>,
 
     /// The two-letter ISO currency code
-    #[schema(value_type = Option<Vec<CountryAlpha2>>, example = json!(["US", "UK", "IN"]))]
+    #[schema(example = json!(["US", "UK", "IN"]))]
     pub accepted_countries: Option<Vec<api_enums::CountryAlpha2>>,
 
     /// The three-letter ISO currency code
-    #[schema(value_type = Option<Vec<Currency>>,example = json!(["USD", "EUR"]))]
+    #[schema(example = json!(["USD", "EUR"]))]
     pub accepted_currencies: Option<Vec<api_enums::Currency>>,
 
     /// Filter by amount
@@ -1682,7 +1658,7 @@ pub struct PaymentMethodListRequest {
     pub installment_payment_enabled: Option<bool>,
 
     /// Indicates whether the payment method is eligible for card netwotks
-    #[schema(value_type = Option<Vec<CardNetwork>>, example = json!(["visa", "mastercard"]))]
+    #[schema(example = json!(["visa", "mastercard"]))]
     pub card_networks: Option<Vec<api_enums::CardNetwork>>,
 
     /// Indicates the limit of last used payment methods
@@ -1782,7 +1758,7 @@ pub struct PaymentMethodListRequest {
     pub client_secret: Option<String>,
 
     /// The two-letter ISO currency code
-    #[schema(value_type = Option<Vec<CountryAlpha2>>, example = json!(["US", "UK", "IN"]))]
+    #[schema(example = json!(["US", "UK", "IN"]))]
     pub accepted_countries: Option<Vec<api_enums::CountryAlpha2>>,
 
     /// Filter by amount
@@ -1790,7 +1766,7 @@ pub struct PaymentMethodListRequest {
     pub amount: Option<MinorUnit>,
 
     /// The three-letter ISO currency code
-    #[schema(value_type = Option<Vec<Currency>>,example = json!(["USD", "EUR"]))]
+    #[schema(example = json!(["USD", "EUR"]))]
     pub accepted_currencies: Option<Vec<api_enums::Currency>>,
 
     /// Indicates whether the payment method supports recurring payments. Optional.
@@ -1798,7 +1774,7 @@ pub struct PaymentMethodListRequest {
     pub recurring_enabled: Option<bool>,
 
     /// Indicates whether the payment method is eligible for card netwotks
-    #[schema(value_type = Option<Vec<CardNetwork>>, example = json!(["visa", "mastercard"]))]
+    #[schema(example = json!(["visa", "mastercard"]))]
     pub card_networks: Option<Vec<api_enums::CardNetwork>>,
 
     /// Indicates the limit of last used payment methods
@@ -1904,13 +1880,12 @@ pub struct PaymentMethodListResponse {
     pub redirect_url: Option<String>,
 
     /// currency of the Payment to be done
-    #[schema(example = "USD", value_type = Currency)]
+    #[schema(example = "USD")]
     pub currency: Option<api_enums::Currency>,
 
     /// Information about the payment method
     pub payment_methods: Vec<ResponsePaymentMethodsEnabled>,
     /// Value indicating if the current payment is a mandate payment
-    #[schema(value_type = MandateType)]
     pub mandate_payment: Option<payments::MandateType>,
 
     #[schema(value_type = Option<String>)]
@@ -1920,7 +1895,6 @@ pub struct PaymentMethodListResponse {
     #[schema(value_type = bool)]
     pub show_surcharge_breakup_screen: bool,
 
-    #[schema(value_type = Option<PaymentType>)]
     pub payment_type: Option<api_enums::PaymentType>,
 
     /// flag to indicate whether to perform external 3ds authentication
@@ -1973,7 +1947,6 @@ pub struct TokenDataResponse {
     pub payment_method_id: id_type::GlobalPaymentMethodId,
 
     /// token type of the payment method
-    #[schema(value_type = TokenDataType)]
     pub token_type: api_enums::TokenDataType,
 
     /// token details of the payment method
@@ -2013,14 +1986,12 @@ pub struct NetworkTokenDetailsResponse {
     pub card_issuer: Option<String>,
 
     /// Card network of the token
-    #[schema(value_type = Option<CardNetwork>)]
     pub card_network: Option<common_enums::CardNetwork>,
 
     /// Card type of the token
     pub card_type: Option<CardType>,
 
     /// Issuing country of the card
-    #[schema(value_type = Option<CountryAlpha2>)]
     pub card_issuing_country: Option<common_enums::CountryAlpha2>,
 
     /// Bank code of the card
@@ -2078,10 +2049,10 @@ pub struct CustomerDefaultPaymentMethodResponse {
     #[schema(value_type = String, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub customer_id: id_type::CustomerId,
     /// The type of payment method use for the payment.
-    #[schema(value_type = PaymentMethod,example = "card")]
+    #[schema(example = "card")]
     pub payment_method: api_enums::PaymentMethod,
     /// This is a sub-category of payment method.
-    #[schema(value_type = Option<PaymentMethodType>,example = "credit")]
+    #[schema(example = "credit")]
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
 }
 
@@ -2102,11 +2073,11 @@ pub struct PaymentMethodResponseItem {
     pub customer_id: id_type::GlobalCustomerId,
 
     /// The type of payment method use for the payment.
-    #[schema(value_type = PaymentMethod,example = "card")]
+    #[schema(example = "card")]
     pub payment_method_type: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
-    #[schema(value_type = PaymentMethodType,example = "credit")]
+    #[schema(example = "credit")]
     pub payment_method_subtype: api_enums::PaymentMethodType,
 
     /// Indicates whether the payment method supports recurring payments. Optional.
@@ -2139,7 +2110,6 @@ pub struct PaymentMethodResponseItem {
     pub is_default: bool,
 
     /// The billing details of the payment method
-    #[schema(value_type = Option<Address>)]
     pub billing: Option<payments::Address>,
 
     ///The network token details for the payment method
@@ -2171,11 +2141,11 @@ pub struct CustomerPaymentMethodResponseItem {
     pub customer_id: id_type::GlobalCustomerId,
 
     /// The type of payment method use for the payment.
-    #[schema(value_type = PaymentMethod,example = "card")]
+    #[schema(example = "card")]
     pub payment_method_type: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
-    #[schema(value_type = PaymentMethodType,example = "credit")]
+    #[schema(example = "credit")]
     pub payment_method_subtype: api_enums::PaymentMethodType,
 
     /// Indicates whether the payment method is eligible for recurring payments
@@ -2208,7 +2178,6 @@ pub struct CustomerPaymentMethodResponseItem {
     pub is_default: bool,
 
     /// The billing details of the payment method
-    #[schema(value_type = Option<Address>)]
     pub billing: Option<payments::Address>,
 }
 
@@ -2218,7 +2187,6 @@ pub struct CustomerPaymentMethodResponseItem {
 pub enum PaymentMethodListData {
     Card(CardDetailFromLocker),
     #[cfg(feature = "payouts")]
-    #[schema(value_type = Bank)]
     Bank(payouts::Bank),
 }
 
@@ -2237,11 +2205,11 @@ pub struct CustomerPaymentMethod {
     pub customer_id: id_type::CustomerId,
 
     /// The type of payment method use for the payment.
-    #[schema(value_type = PaymentMethod,example = "card")]
+    #[schema(example = "card")]
     pub payment_method: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
-    #[schema(value_type = Option<PaymentMethodType>,example = "credit_card")]
+    #[schema(example = "credit_card")]
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
 
     /// The name of the bank/ provider issuing the payment method to the end user
@@ -2249,7 +2217,7 @@ pub struct CustomerPaymentMethod {
     pub payment_method_issuer: Option<String>,
 
     /// A standard code representing the issuer of payment method
-    #[schema(value_type = Option<PaymentMethodIssuerCode>,example = "jp_applepay")]
+    #[schema(example = "jp_applepay")]
     pub payment_method_issuer_code: Option<api_enums::PaymentMethodIssuerCode>,
 
     /// Indicates whether the payment method supports recurring payments. Optional.
@@ -2261,7 +2229,7 @@ pub struct CustomerPaymentMethod {
     pub installment_payment_enabled: Option<bool>,
 
     /// Type of payment experience enabled with the connector
-    #[schema(value_type = Option<Vec<PaymentExperience>>,example = json!(["redirect_to_url"]))]
+    #[schema(example = json!(["redirect_to_url"]))]
     pub payment_experience: Option<Vec<api_enums::PaymentExperience>>,
 
     /// Card details from card locker
@@ -2279,7 +2247,6 @@ pub struct CustomerPaymentMethod {
 
     /// Payment method details from locker
     #[cfg(feature = "payouts")]
-    #[schema(value_type = Option<Bank>)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bank_transfer: Option<payouts::Bank>,
 
@@ -2303,7 +2270,6 @@ pub struct CustomerPaymentMethod {
     pub default_payment_method_set: bool,
 
     /// The billing details of the payment method
-    #[schema(value_type = Option<Address>)]
     pub billing: Option<payments::Address>,
 }
 
@@ -2318,7 +2284,6 @@ pub struct PaymentMethodCollectLinkRequest {
     pub customer_id: id_type::CustomerId,
 
     #[serde(flatten)]
-    #[schema(value_type = Option<GenericLinkUiConfig>)]
     pub ui_config: Option<link_utils::GenericLinkUiConfig>,
 
     /// Will be used to expire client secret after certain amount of time to be supplied in seconds
@@ -2331,7 +2296,9 @@ pub struct PaymentMethodCollectLinkRequest {
     pub return_url: Option<String>,
 
     /// List of payment methods shown on collect UI
-    #[schema(value_type = Option<Vec<EnabledPaymentMethod>>, example = r#"[{"payment_method": "bank_transfer", "payment_method_types": ["ach", "bacs"]}]"#)]
+    #[schema(
+        example = r#"[{"payment_method": "bank_transfer", "payment_method_types": ["ach", "bacs"]}]"#
+    )]
     pub enabled_payment_methods: Option<Vec<link_utils::EnabledPaymentMethod>>,
 }
 
@@ -2360,11 +2327,12 @@ pub struct PaymentMethodCollectLinkResponse {
 
     /// Collect link config used
     #[serde(flatten)]
-    #[schema(value_type = GenericLinkUiConfig)]
     pub ui_config: link_utils::GenericLinkUiConfig,
 
     /// List of payment methods shown on collect UI
-    #[schema(value_type = Option<Vec<EnabledPaymentMethod>>, example = r#"[{"payment_method": "bank_transfer", "payment_method_types": ["ach", "bacs"]}]"#)]
+    #[schema(
+        example = r#"[{"payment_method": "bank_transfer", "payment_method_types": ["ach", "bacs"]}]"#
+    )]
     pub enabled_payment_methods: Option<Vec<link_utils::EnabledPaymentMethod>>,
 }
 
@@ -2804,11 +2772,9 @@ pub struct CardNetworkTokenizeRequest {
     pub data: TokenizeDataRequest,
 
     /// Customer details
-    #[schema(value_type = CustomerDetails)]
     pub customer: payments::CustomerDetails,
 
     /// The billing details of the payment method
-    #[schema(value_type = Option<Address>)]
     pub billing: Option<payments::Address>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
@@ -2859,7 +2825,6 @@ pub struct TokenizeCardRequest {
     pub card_issuing_country: Option<String>,
 
     /// Card's Network
-    #[schema(value_type = Option<CardNetwork>)]
     pub card_network: Option<api_enums::CardNetwork>,
 
     /// Issuer Bank for Card
@@ -2886,7 +2851,6 @@ pub struct CardNetworkTokenizeResponse {
     pub payment_method_response: Option<PaymentMethodResponse>,
 
     /// Customer details
-    #[schema(value_type = CustomerDetails)]
     pub customer: Option<payments::CustomerDetails>,
 
     /// Card network tokenization status
@@ -2934,19 +2898,15 @@ pub struct PaymentMethodSessionRequest {
     pub customer_id: id_type::GlobalCustomerId,
 
     /// The billing address details of the customer. This will also be used for any new payment methods added during the session
-    #[schema(value_type = Option<Address>)]
     pub billing: Option<payments::Address>,
 
     /// The return url to which the customer should be redirected to after adding the payment method
-    #[schema(value_type = Option<String>)]
     pub return_url: Option<common_utils::types::Url>,
 
     /// The tokenization type to be applied
-    #[schema(value_type = Option<PspTokenization>)]
     pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
 
     /// The network tokenization configuration if applicable
-    #[schema(value_type = Option<NetworkTokenization>)]
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
 
     /// The time (seconds ) when the session will expire
@@ -2963,15 +2923,12 @@ pub struct PaymentMethodSessionRequest {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentMethodsSessionUpdateRequest {
     /// The billing address details of the customer. This will also be used for any new payment methods added during the session
-    #[schema(value_type = Option<Address>)]
     pub billing: Option<payments::Address>,
 
     /// The tokenization type to be applied
-    #[schema(value_type = Option<PspTokenization>)]
     pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
 
     /// The network tokenization configuration if applicable
-    #[schema(value_type = Option<NetworkTokenization>)]
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
 
     /// Contains data to be passed on to tokenization service ( if present ) to create token_id for given JSON data
@@ -3003,19 +2960,17 @@ pub struct PaymentMethodSessionDeleteSavedPaymentMethod {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentMethodSessionConfirmRequest {
     /// The payment method type
-    #[schema(value_type = PaymentMethod, example = "card")]
+    #[schema(example = "card")]
     pub payment_method_type: common_enums::PaymentMethod,
 
     /// The payment method subtype
-    #[schema(value_type = PaymentMethodType, example = "google_pay")]
+    #[schema(example = "google_pay")]
     pub payment_method_subtype: common_enums::PaymentMethodType,
 
     /// The payment instrument data to be used for the payment
-    #[schema(value_type = PaymentMethodDataRequest)]
     pub payment_method_data: payments::PaymentMethodDataRequest,
 
     /// The return url to which the customer should be redirected to after adding the payment method
-    #[schema(value_type = Option<String>)]
     pub return_url: Option<common_utils::types::Url>,
 }
 
@@ -3030,15 +2985,12 @@ pub struct PaymentMethodSessionResponse {
     pub customer_id: id_type::GlobalCustomerId,
 
     /// The billing address details of the customer. This will also be used for any new payment methods added during the session
-    #[schema(value_type = Option<Address>)]
     pub billing: Option<payments::Address>,
 
     /// The tokenization type to be applied
-    #[schema(value_type = Option<PspTokenization>)]
     pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
 
     /// The network tokenization configuration if applicable
-    #[schema(value_type = Option<NetworkTokenization>)]
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
 
     /// Contains data to be passed on to tokenization service ( if present ) to create token_id for given JSON data
@@ -3060,7 +3012,6 @@ pub struct PaymentMethodSessionResponse {
     pub return_url: Option<common_utils::types::Url>,
 
     /// The next action details for the payment method session
-    #[schema(value_type = Option<NextActionData>)]
     pub next_action: Option<payments::NextActionData>,
 
     /// The customer authentication details for the payment method
@@ -3068,7 +3019,6 @@ pub struct PaymentMethodSessionResponse {
     pub authentication_details: Option<AuthenticationDetails>,
 
     /// The payment method that was created using this payment method session
-    #[schema(value_type = Option<Vec<String>>)]
     pub associated_payment_methods: Option<Vec<String>>,
 
     /// The token-id created if there is tokenization_data present
@@ -3080,10 +3030,8 @@ pub struct PaymentMethodSessionResponse {
 #[derive(Debug, serde::Serialize, ToSchema, Clone)]
 pub struct AuthenticationDetails {
     /// The status of authentication for the payment method
-    #[schema(value_type = IntentStatus)]
     pub status: common_enums::IntentStatus,
 
     /// Error details of the authentication
-    #[schema(value_type = Option<ErrorDetails>)]
     pub error: Option<payments::ErrorDetails>,
 }

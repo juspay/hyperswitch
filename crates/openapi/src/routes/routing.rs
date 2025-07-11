@@ -1,3 +1,9 @@
+use api_models::routing::{
+    ContractBasedRoutingConfig, DynamicRoutingFeatures, LinkedRoutingConfigRetrieveResponse,
+    MerchantRoutingAlgorithm, ProfileDefaultRoutingConfig, RoutableConnectorChoice,
+    RoutingConfigRequest, RoutingDictionaryRecord, RoutingKind, SuccessBasedRoutingConfig,
+};
+
 #[cfg(feature = "v1")]
 /// Routing - Create
 ///

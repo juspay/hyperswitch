@@ -1,3 +1,8 @@
+use api_models::admin::{
+    MerchantConnectorCreate, MerchantConnectorDeleteResponse, MerchantConnectorListResponse,
+    MerchantConnectorResponse, MerchantConnectorUpdate,
+};
+
 /// Merchant Connector - Create
 ///
 /// Creates a new Merchant Connector for the merchant account. The connector could be a payment processor/facilitator/acquirer or a provider of specialized services like Fraud/Accounting etc.

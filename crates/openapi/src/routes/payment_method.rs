@@ -1,3 +1,17 @@
+use api_models::payment_methods::{
+    CardNetworkTokenizeRequest, CardNetworkTokenizeResponse, CustomerDefaultPaymentMethodResponse,
+    CustomerPaymentMethodsListResponse, PaymentMethodCreate, PaymentMethodDeleteResponse,
+    PaymentMethodListResponse, PaymentMethodResponse, PaymentMethodUpdate,
+};
+#[cfg(feature = "v2")]
+use api_models::payment_methods::{
+    PaymentMethodIntentConfirm, PaymentMethodIntentCreate, PaymentMethodListResponseForSession,
+    PaymentMethodResponse, PaymentMethodSessionConfirmRequest,
+    PaymentMethodSessionDeleteSavedPaymentMethod, PaymentMethodSessionRequest,
+    PaymentMethodSessionResponse, PaymentMethodSessionUpdateSavedPaymentMethod,
+};
+use euclid::enums::{CardNetwork, CountryAlpha2, Currency};
+
 /// PaymentMethods - Create
 ///
 /// Creates and stores a payment method against a customer.
@@ -60,6 +74,7 @@ pub async fn create_payment_method_api() {}
     operation_id = "List all Payment Methods for a Merchant",
     security(("api_key" = []), ("publishable_key" = []))
 )]
+#[cfg(feature = "v1")]
 pub async fn list_payment_method_api() {}
 
 /// List payment methods for a Customer
@@ -191,7 +206,7 @@ pub async fn payment_method_delete_api() {}
         ("payment_method_id" = String,Path, description = "The unique identifier for the Payment Method"),
     ),
     responses(
-        (status = 200, description = "Payment Method has been set as default", body =CustomerDefaultPaymentMethodResponse ),
+        (status = 200, description = "Payment Method has been set as default", body = CustomerDefaultPaymentMethodResponse ),
         (status = 400, description = "Payment Method has already been set as default for that customer"),
         (status = 404, description = "Payment Method not found for the customer")
     ),
@@ -199,6 +214,7 @@ pub async fn payment_method_delete_api() {}
     operation_id = "Set the Payment Method as Default",
     security(("ephemeral_key" = []))
 )]
+#[cfg(feature = "v1")]
 pub async fn default_payment_method_set_api() {}
 
 /// Payment Method - Create Intent

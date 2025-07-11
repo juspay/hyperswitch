@@ -1,4 +1,5 @@
 use actix_web::{web, HttpRequest, HttpResponse};
+use api_models::poll::PollResponse;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;

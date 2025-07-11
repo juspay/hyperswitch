@@ -1,3 +1,7 @@
+use api_models::customers::{
+    CustomerDeleteResponse, CustomerRequest, CustomerResponse, CustomerUpdateRequest,
+};
+
 /// Customers - Create
 ///
 /// Creates a customer object and stores the customer details to be reused for future payments.

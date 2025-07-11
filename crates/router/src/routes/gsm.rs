@@ -15,10 +15,10 @@ use crate::{
     post,
     path = "/gsm",
     request_body(
-        content = GsmCreateRequest,
+        content = gsm_api_types::GsmCreateRequest,
     ),
     responses(
-        (status = 200, description = "Gsm created", body = GsmResponse),
+        (status = 200, description = "Gsm created", body = gsm_api_types::GsmResponse),
         (status = 400, description = "Missing Mandatory fields")
     ),
     tag = "Gsm",
@@ -53,10 +53,10 @@ pub async fn create_gsm_rule(
     post,
     path = "/gsm/get",
     request_body(
-        content = GsmRetrieveRequest,
+        content = gsm_api_types::GsmRetrieveRequest,
     ),
     responses(
-        (status = 200, description = "Gsm retrieved", body = GsmResponse),
+        (status = 200, description = "Gsm retrieved", body = gsm_api_types::GsmResponse),
         (status = 400, description = "Missing Mandatory fields")
     ),
     tag = "Gsm",
@@ -90,10 +90,10 @@ pub async fn get_gsm_rule(
     post,
     path = "/gsm/update",
     request_body(
-        content = GsmUpdateRequest,
+        content = gsm_api_types::GsmUpdateRequest,
     ),
     responses(
-        (status = 200, description = "Gsm updated", body = GsmResponse),
+        (status = 200, description = "Gsm updated", body = gsm_api_types::GsmResponse),
         (status = 400, description = "Missing Mandatory fields")
     ),
     tag = "Gsm",
@@ -128,10 +128,10 @@ pub async fn update_gsm_rule(
     post,
     path = "/gsm/delete",
     request_body(
-        content = GsmDeleteRequest,
+        content = gsm_api_types::GsmDeleteRequest,
     ),
     responses(
-        (status = 200, description = "Gsm deleted", body = GsmDeleteResponse),
+        (status = 200, description = "Gsm deleted", body = gsm_api_types::GsmDeleteResponse),
         (status = 400, description = "Missing Mandatory fields")
     ),
     tag = "Gsm",

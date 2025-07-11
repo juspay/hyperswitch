@@ -1,4 +1,7 @@
 #[cfg(feature = "v2")]
+use api_models::process_tracker::revenue_recovery::RevenueRecoveryResponse;
+
+#[cfg(feature = "v2")]
 /// Revenue Recovery - Retrieve
 ///
 /// Retrieve the Revenue Recovery Payment Info

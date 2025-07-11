@@ -140,20 +140,26 @@ pub struct Product {
 #[serde_with::skip_serializing_none]
 #[serde(rename_all = "snake_case")]
 pub struct Destination {
+    #[schema(value_type = String)]
     pub full_name: Secret<String>,
     pub organization: Option<String>,
+    #[schema(value_type = Option<String>)]
     pub email: Option<Email>,
     pub address: Address,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq, Deserialize, Clone)]
+#[derive(Debug, Serialize, Eq, PartialEq, Deserialize, Clone, ToSchema)]
 #[serde_with::skip_serializing_none]
 #[serde(rename_all = "snake_case")]
 pub struct Address {
+    #[schema(value_type = String)]
     pub street_address: Secret<String>,
+    #[schema(value_type = String)]
     pub unit: Option<Secret<String>>,
+    #[schema(value_type = String)]
     pub postal_code: Secret<String>,
     pub city: String,
+    #[schema(value_type = String)]
     pub province_code: Secret<String>,
     pub country_code: common_enums::CountryAlpha2,
 }

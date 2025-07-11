@@ -33,7 +33,7 @@ pub struct AdyenSplitItem {
     #[schema(value_type = i64, example = 6540)]
     pub amount: Option<MinorUnit>,
     /// Defines type of split item
-    #[schema(value_type = AdyenSplitType, example = "BalanceAccount")]
+    #[schema(example = "BalanceAccount")]
     pub split_type: enums::AdyenSplitType,
     /// The unique identifier of the account to which the split amount is allocated.
     pub account: Option<String>,
@@ -94,7 +94,6 @@ impl_to_sql_from_sql_json!(AcquirerConfigMap);
 #[cfg(feature = "v2")]
 pub struct MerchantConnectorAuthDetails {
     /// The connector used for the payment
-    #[schema(value_type = Connector)]
     pub connector_name: common_enums::connector_enums::Connector,
 
     /// The merchant connector credentials used for the payment

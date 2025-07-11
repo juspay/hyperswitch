@@ -1,3 +1,8 @@
+use api_models::{
+    blocklist::{BlocklistRequest, BlocklistResponse, ToggleBlocklistResponse},
+    enums::BlocklistDataKind,
+};
+
 #[utoipa::path(
     post,
     path = "/blocklist/toggle",

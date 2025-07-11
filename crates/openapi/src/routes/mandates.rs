@@ -1,3 +1,8 @@
+use api_models::{
+    enums::MandateStatus,
+    mandates::{MandateResponse, MandateRevokedResponse},
+};
+
 /// Mandates - Retrieve Mandate
 ///
 /// Retrieves a mandate created using the Payments/Create API

@@ -14,10 +14,12 @@ pub enum BlocklistRequest {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct GenerateFingerprintRequest {
     pub card: Card,
+    #[schema(value_type = String)]
     pub hash_key: StrongSecret<String>,
 }
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct Card {
+    #[schema(value_type = String)]
     pub card_number: StrongSecret<String>,
 }
 pub type AddToBlocklistRequest = BlocklistRequest;
@@ -26,7 +28,6 @@ pub type DeleteFromBlocklistRequest = BlocklistRequest;
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct BlocklistResponse {
     pub fingerprint_id: String,
-    #[schema(value_type = BlocklistDataKind)]
     pub data_kind: enums::BlocklistDataKind,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: time::PrimitiveDateTime,
@@ -47,7 +48,6 @@ pub type DeleteFromBlocklistResponse = BlocklistResponse;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ListBlocklistQuery {
-    #[schema(value_type = BlocklistDataKind)]
     pub data_kind: enums::BlocklistDataKind,
     #[serde(default = "default_list_limit")]
     pub limit: u16,
@@ -61,7 +61,7 @@ fn default_list_limit() -> u16 {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ToggleBlocklistQuery {
-    #[schema(value_type = BlocklistDataKind)]
+    #[schema(value_type = enums::BlocklistDataKind)]
     pub status: bool,
 }
 

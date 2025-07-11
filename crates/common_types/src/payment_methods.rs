@@ -22,7 +22,7 @@ use utoipa::ToSchema;
 #[diesel(sql_type = Json)]
 pub struct PaymentMethodsEnabled {
     /// Type of payment method.
-    #[schema(value_type = PaymentMethod,example = "card")]
+    #[schema(example = "card")]
     pub payment_method_type: common_enums::PaymentMethod,
 
     /// Payment method configuration, this includes all the filters associated with the payment method
@@ -110,15 +110,12 @@ impl PaymentMethodsEnabled {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, Hash)]
 pub struct RequestPaymentMethodTypes {
     /// The payment method subtype
-    #[schema(value_type = PaymentMethodType)]
     pub payment_method_subtype: common_enums::PaymentMethodType,
 
     /// The payment experience for the payment method
-    #[schema(value_type = Option<PaymentExperience>)]
     pub payment_experience: Option<common_enums::PaymentExperience>,
 
     /// List of cards networks that are enabled for this payment method, applicable for credit and debit payment method subtypes only
-    #[schema(value_type = Option<Vec<CardNetwork>>)]
     pub card_networks: Option<Vec<common_enums::CardNetwork>>,
     /// List of currencies accepted or has the processing capabilities of the processor
     #[schema(example = json!(
@@ -202,11 +199,9 @@ impl RequestPaymentMethodTypes {
 /// Object to filter the countries for which the payment method subtype is enabled
 pub enum AcceptedCountries {
     /// Only enable the payment method subtype for specific countries
-    #[schema(value_type = Vec<CountryAlpha2>)]
     EnableOnly(Vec<common_enums::CountryAlpha2>),
 
     /// Only disable the payment method subtype for specific countries
-    #[schema(value_type = Vec<CountryAlpha2>)]
     DisableOnly(Vec<common_enums::CountryAlpha2>),
 
     /// Enable the payment method subtype for all countries, in which the processor has the processing capabilities
@@ -223,11 +218,9 @@ pub enum AcceptedCountries {
 /// Object to filter the countries for which the payment method subtype is enabled
 pub enum AcceptedCurrencies {
     /// Only enable the payment method subtype for specific currencies
-    #[schema(value_type = Vec<Currency>)]
     EnableOnly(Vec<common_enums::Currency>),
 
     /// Only disable the payment method subtype for specific currencies
-    #[schema(value_type = Vec<Currency>)]
     DisableOnly(Vec<common_enums::Currency>),
 
     /// Enable the payment method subtype for all currencies, in which the processor has the processing capabilities
@@ -250,7 +243,6 @@ where
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct NetworkTokenization {
     /// Enable the network tokenization for payment methods that are created using the payment method session
-    #[schema(value_type = NetworkTokenizationToggle)]
     pub enable: common_enums::NetworkTokenizationToggle,
 }
 
@@ -258,7 +250,6 @@ pub struct NetworkTokenization {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PspTokenization {
     /// The tokenization type to be applied for the payment method
-    #[schema(value_type = TokenizationType)]
     pub tokenization_type: common_enums::TokenizationType,
 
     /// The merchant connector id to be used for tokenization

@@ -34,15 +34,15 @@ pub struct AchBankDebitAdditionalData {
     pub bank_account_holder_name: Option<Secret<String>>,
 
     /// Name of the bank
-    #[schema(value_type = Option<BankNames>, example = "ach")]
+    #[schema(example = "ach")]
     pub bank_name: Option<common_enums::BankNames>,
 
     /// Bank account type
-    #[schema(value_type = Option<BankType>, example = "checking")]
+    #[schema(example = "checking")]
     pub bank_type: Option<common_enums::BankType>,
 
     /// Bank holder entity type
-    #[schema(value_type = Option<BankHolderType>, example = "personal")]
+    #[schema(example = "personal")]
     pub bank_holder_type: Option<common_enums::BankHolderType>,
 }
 
@@ -130,7 +130,7 @@ pub struct GiropayBankRedirectAdditionalData {
     pub iban: Option<MaskedIban>,
 
     /// Country for bank payment
-    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    #[schema(example = "US")]
     pub country: Option<api_enums::CountryAlpha2>,
 }
 
@@ -211,7 +211,7 @@ pub struct CardTokenAdditionalData {
 #[serde(rename_all = "snake_case")]
 pub enum UpiAdditionalData {
     UpiCollect(Box<UpiCollectAdditionalData>),
-    #[schema(value_type = UpiIntentData)]
+    #[schema(value_type = super::UpiIntentData)]
     UpiIntent(Box<super::UpiIntentData>),
 }
 
