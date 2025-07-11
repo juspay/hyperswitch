@@ -3,7 +3,11 @@ use std::collections::BTreeMap;
 use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::enums;
 use common_utils::{
-    errors::CustomResult, ext_traits::{Encode, OptionExt, ValueExt}, id_type::CustomerId, pii::Email, request::Method
+    errors::CustomResult,
+    ext_traits::{Encode, OptionExt, ValueExt},
+    id_type::CustomerId,
+    pii::Email,
+    request::Method,
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -32,7 +36,8 @@ use serde_json::Value;
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        self, CardData, ForeignTryFrom, PaymentsAuthorizeRequestData, PaymentsSyncRequestData, RefundsRequestData, RouterData as OtherRouterData, WalletData as OtherWalletData
+        self, CardData, ForeignTryFrom, PaymentsAuthorizeRequestData, PaymentsSyncRequestData,
+        RefundsRequestData, RouterData as OtherRouterData, WalletData as OtherWalletData,
     },
 };
 

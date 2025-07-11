@@ -1019,6 +1019,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         capture_method: Some(payment_data.payment_intent.capture_method),
         complete_authorize_url,
         connector_testing_data: None,
+        customer_id: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
