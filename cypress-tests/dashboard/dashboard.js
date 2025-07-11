@@ -104,7 +104,7 @@ async function loadDashboardData() {
     // Simple logic: local uses dashboard-data.json, hosted uses report_latest.json
     if (window.location.hostname === "integ.hyperswitch.io") {
       // Hosted environment - use latest report
-      response = await fetch(".reports/cypress-test/reports/report_latest.json");
+      response = await fetch("./reports/cypress-test/reports/report_latest.json");
     } else {
       // Local environment - use dashboard data
       response = await fetch("../cypress/reports/dashboard-data.json");
@@ -133,7 +133,7 @@ async function loadLatestReport() {
 
     if (window.location.hostname === "integ.hyperswitch.io") {
       // Hosted environment - load latest report
-      response = await fetch(".reports/cypress-test/reports/report_latest.json");
+      response = await fetch("./reports/cypress-test/reports/report_latest.json");
     } else {
       // Local environment - just reload the dashboard data
       response = await fetch("../cypress/reports/dashboard-data.json");
