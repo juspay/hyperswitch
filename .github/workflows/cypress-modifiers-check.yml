@@ -40,7 +40,7 @@ jobs:
               echo "Checking file: $file"
               
               # Check for .skip with line numbers (exclude this.skip() and commented lines)
-              SKIP_RESULTS=$(grep -n "\.skip" "$file" | grep -v "this\.skip" | grep -v "^\s*[0-9]*:\s*//" || true)
+              SKIP_RESULTS=$(grep -n "\.skip" "$file" | grep -v "this\.skip" | grep -v "^\s*//" || true)
               if [[ -n "$SKIP_RESULTS" ]]; then
                 echo -e "\n⚠️ Found .skip in $file:"
                 echo "$SKIP_RESULTS" | while read -r line; do
@@ -50,7 +50,7 @@ jobs:
               fi
               
               # Check for .only with line numbers (exclude commented lines)
-              ONLY_RESULTS=$(grep -n "\.only" "$file" | grep -v "^\s*[0-9]*:\s*//" || true)
+              ONLY_RESULTS=$(grep -n "\.only" "$file" | grep -v "^\s*//" || true)
               if [[ -n "$ONLY_RESULTS" ]]; then
                 echo -e "\n⚠️ Found .only in $file:"
                 echo "$ONLY_RESULTS" | while read -r line; do

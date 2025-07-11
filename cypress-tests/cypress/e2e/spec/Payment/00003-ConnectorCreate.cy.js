@@ -36,6 +36,7 @@ describe("Connector Account Create flow test", () => {
         );
       });
 
+      // it.only("Create merchant connector account", () => {    // Check: whether the merchant connector account is created successfully
       it("Create merchant connector account", () => {
         utils.createMerchantConnectorAccount(
           "payment_processor",
