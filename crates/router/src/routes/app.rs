@@ -2220,24 +2220,16 @@ pub struct Chat;
 #[cfg(feature = "olap")]
 impl Chat {
     pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/chat").app_data(web::Data::new(state.clone()));
         if state.conf.chat.enabled {
-            web::scope("/chat")
-                .app_data(web::Data::new(state))
-                .service(
-                    web::scope("/n8n").service(
-                        web::resource("/data")
-                            .route(web::post().to(chat::get_data_from_automation_workflow)),
-                    ),
-                )
-                .service(
-                    web::scope("/ai").service(
-                        web::resource("/data")
-                            .route(web::post().to(chat::get_data_from_embedded_workflow)),
-                    ),
-                )
-        } else {
-            web::scope("")
+            route = route.service(
+                web::scope("/ai").service(
+                    web::resource("/data")
+                        .route(web::post().to(chat::get_data_from_ai_embedded_workflow)),
+                ),
+            );
         }
+        route
     }
 }
 pub struct ThreeDsDecisionRule;

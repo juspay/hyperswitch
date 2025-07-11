@@ -200,8 +200,7 @@ pub struct Platform {
 #[serde(default)]
 pub struct ChatSettings {
     pub enabled: bool,
-    pub automation_workflow_host: String,
-    pub embedded_workflow_host: String,
+    pub embedded_ai_workflow_host: String,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]

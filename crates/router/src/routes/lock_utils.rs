@@ -301,7 +301,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::DeleteTheme
             | Flow::CloneConnector => Self::User,
 
-            Flow::GetDataFromEmbeddedFlow | Flow::GetDataFromAutomationFlow => Self::AiWorkflow,
+            Flow::GetDataFromAiEmbeddedFlow => Self::AiWorkflow,
 
             Flow::ListRolesV2
             | Flow::ListInvitableRolesAtEntityLevel

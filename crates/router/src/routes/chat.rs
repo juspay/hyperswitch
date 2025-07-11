@@ -13,41 +13,19 @@ use crate::{
     },
 };
 
-pub async fn get_data_from_automation_workflow(
+pub async fn get_data_from_ai_embedded_workflow(
     state: web::Data<AppState>,
     http_req: HttpRequest,
     payload: web::Json<chat_api::ChatRequest>,
 ) -> HttpResponse {
-    let flow = Flow::GetDataFromAutomationFlow;
+    let flow = Flow::GetDataFromAiEmbeddedFlow;
     Box::pin(api::server_wrap(
         flow.clone(),
         state,
         &http_req,
         payload.into_inner(),
         |state, user: auth::UserFromToken, payload, _| {
-            chat_core::get_data_from_automation_workflow(state, user, payload)
-        },
-        &auth::JWTAuth {
-            permission: Permission::MerchantPaymentRead,
-        },
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
-pub async fn get_data_from_embedded_workflow(
-    state: web::Data<AppState>,
-    http_req: HttpRequest,
-    payload: web::Json<chat_api::ChatRequest>,
-) -> HttpResponse {
-    let flow = Flow::GetDataFromEmbeddedFlow;
-    Box::pin(api::server_wrap(
-        flow.clone(),
-        state,
-        &http_req,
-        payload.into_inner(),
-        |state, user: auth::UserFromToken, payload, _| {
-            chat_core::get_data_from_embedded_workflow(state, user, payload)
+            chat_core::get_data_from_ai_embedded_workflow(state, user, payload)
         },
         &auth::JWTAuth {
             permission: Permission::MerchantPaymentRead,

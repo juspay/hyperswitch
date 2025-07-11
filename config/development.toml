@@ -1191,11 +1191,6 @@ background_color = "#FFFFFF"                                                    
 enabled = true
 allow_connected_merchants = true
 
-[chat]
-enabled = true
-automation_workflow_host = "http://localhost:5678"
-embedded_workflow_host = "http://0.0.0.0:8000"
-
 [authentication_providers]
 click_to_pay = {connector_list = "adyen, cybersource"}
 
@@ -1220,3 +1215,7 @@ connector_names = "stripe, adyen"               # Comma-separated list of allowe
 [infra_values]
 cluster = "CLUSTER"
 version = "HOSTNAME"
+
+[chat]
+enabled = true
+embedded_ai_workflow_host = "http://0.0.0.0:8000"

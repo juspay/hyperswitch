@@ -1128,6 +1128,5 @@ enabled = false # Enable or disable platform features
 allow_connected_merchants = false # Enable or disable connected merchant account features
 
 [chat]
-enabled = false               # Enable or disable chat features
-automation_workflow_host = "" # Automation workflow host
-embedded_workflow_host = ""   # Embedded workflow host
+enabled = false                                # Enable or disable chat features
+embedded_ai_workflow_host = "http://0.0.0.0:8000" # Embedded workflow host

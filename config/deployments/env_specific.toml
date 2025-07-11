@@ -381,3 +381,7 @@ connector_names = "connector_names"     # Comma-separated list of allowed connec
 host = "localhost"                      # Unified Connector Service Client Host
 port = 8000                             # Unified Connector Service Client Port
 connection_timeout = 10                 # Connection Timeout Duration in Seconds
+
+[chat]
+enabled = false                                # Enable or disable chat features
+embedded_ai_workflow_host = "http://0.0.0.0:8000" # Embedded workflow host
