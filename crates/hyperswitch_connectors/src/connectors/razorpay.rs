@@ -10,6 +10,7 @@ use common_utils::{
 };
 use error_stack::{report, Report, ResultExt};
 use hyperswitch_domain_models::{
+    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -315,10 +316,16 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         _req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}v1/payments/create/upi",
-            self.base_url(connectors)
-        ))
+        match _req.request.payment_method_data {
+            PaymentMethodData::Upi(_) => Ok(format!(
+                "{}v1/payments/create/upi",
+                self.base_url(connectors)
+            )),
+            _ => Err(errors::ConnectorError::NotImplemented(
+                "Payment method not implemented for Razorpay".to_string(),
+            )
+            .into()),
+        }
     }
 
     fn get_request_body(
