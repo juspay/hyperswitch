@@ -229,9 +229,9 @@ impl
             name: data.request.customer_name.clone(),
             preprocessing_id: data.preprocessing_id.clone(),
             split_payments: data.request.split_payments.clone(),
-            setup_future_usage: data.request.setup_future_usage.clone(),
+            setup_future_usage: data.request.setup_future_usage,
             mandate_id: data.request.mandate_id.clone(),
-            off_session: data.request.off_session.clone(),
+            off_session: data.request.off_session,
             customer_acceptance: data.request.customer_acceptance.clone(),
             setup_mandate_details: data.request.setup_mandate_details.clone(),
         })
