@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.07.11.0
+
+### Miscellaneous Tasks
+
+- Address Rust 1.88.0 clippy lints ([#8607](https://github.com/juspay/hyperswitch/pull/8607)) ([`b1c9be1`](https://github.com/juspay/hyperswitch/commit/b1c9be1600dbd897c32adcc2d8b98e77ec67c516))
+
+**Full Changelog:** [`2025.07.10.0...2025.07.11.0`](https://github.com/juspay/hyperswitch/compare/2025.07.10.0...2025.07.11.0)
+
+- - -
+
 ## 2025.07.10.0
 
 ### Refactors
