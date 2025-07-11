@@ -174,6 +174,7 @@ mifinity.base_url = "https://demo.mifinity.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
 moneris.base_url = "https://api.sb.moneris.io"
 mollie.secondary_base_url = "https://api.cc.mollie.com/v1/"
+mpgs.base_url = "https://ap-gateway.mastercard.com"
 multisafepay.base_url = "https://testapi.multisafepay.com/"
 netcetera.base_url = "https://{{merchant_endpoint_prefix}}.3ds-server.prev.netcetera-cloud-payment.ch"
 nexinets.base_url = "https://apitest.payengine.de/v1"
@@ -298,6 +299,7 @@ cards = [
     "jpmorgan",
     "juspaythreedsserver",
     "mollie",
+    "mpgs",
     "moneris",
     "multisafepay",
     "netcetera",

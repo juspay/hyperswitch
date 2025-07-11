@@ -10978,6 +10978,7 @@
           "mifinity",
           "mollie",
           "moneris",
+          "mpgs",
           "multisafepay",
           "netcetera",
           "nexinets",
@@ -28028,7 +28029,8 @@
           "xendit",
           "zen",
           "plaid",
-          "zsl"
+          "zsl",
+          "mpgs"
         ]
       },
       "RoutingAlgorithmKind": {
