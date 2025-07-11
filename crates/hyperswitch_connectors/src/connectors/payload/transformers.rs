@@ -207,11 +207,19 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
             PaymentMethodData::MandatePayment => {
                 let connector_customer_id = item.router_data.get_connector_customer_id()?;
 
+                // For manual capture, set status to "authorized"
+                let status = if is_manual_capture(item.router_data.request.capture_method) {
+                    Some(responses::PayloadPaymentStatus::Authorized)
+                } else {
+                    None
+                };
+
                 Ok(Self::PayloadMandateRequest(Box::new(
                     requests::PayloadMandateRequestData {
                         amount: item.amount.clone(),
                         transaction_types: requests::TransactionTypes::Payment,
                         customer_id: Secret::new(connector_customer_id),
+                        status,
                     },
                 )))
             }

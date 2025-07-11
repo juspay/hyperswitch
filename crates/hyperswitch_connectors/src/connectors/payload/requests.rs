@@ -74,6 +74,9 @@ pub struct PayloadMandateRequestData {
     #[serde(rename = "type")]
     pub transaction_types: TransactionTypes,
     pub customer_id: Secret<String>,
+    // For manual capture, set status to "authorized", otherwise omit
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<responses::PayloadPaymentStatus>,
 }
 
 #[derive(Default, Clone, Debug, Serialize, Eq, PartialEq)]
