@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hyperswitch Cypress Test Dashboard</title>
+    <link rel="stylesheet" href="styles-minimal.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>🚀 Hyperswitch Cypress Test Dashboard</h1>
+        <div class="header-info">
+          <span id="lastUpdated"></span>
+          <!-- Report loader for hosted environment -->
+          <div
+            id="reportLoader"
+            style="display: none; gap: 8px; align-items: center"
+          >
+            <input
+              type="text"
+              id="reportNameInput"
+              placeholder="Enter report name (e.g., report_2024_01_15)"
+              style="
+                padding: 6px 10px;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                min-width: 250px;
+              "
+            />
+            <button
+              id="loadReportBtn"
+              class="btn btn-secondary"
+              title="Load Specific Report"
+            >
+              📂 Load
+            </button>
+          </div>
+          <button
+            id="loadLatestBtn"
+            class="btn btn-primary"
+            title="Load Latest Report"
+          >
+            📊 Latest Report
+          </button>
+          <button
+            id="themeToggle"
+            class="btn btn-secondary"
+            title="Toggle theme"
+          >
+            🌓
+          </button>
+          <button id="refreshBtn" class="btn btn-primary">
+            🔄 Refresh Data
+          </button>
+        </div>
+      </header>
+
+      <!-- Summary Cards -->
+      <section class="summary-cards">
+        <div class="card">
+          <h3>Total Connectors</h3>
+          <div class="metric" id="totalConnectors">0</div>
+        </div>
+        <div class="card">
+          <h3>Total Tests</h3>
+          <div class="metric" id="totalTests">0</div>
+        </div>
+        <div class="card">
+          <h3>Passed</h3>
+          <div class="metric success" id="totalPassed">0</div>
+        </div>
+        <div class="card">
+          <h3>Failed</h3>
+          <div class="metric error" id="totalFailed">0</div>
+        </div>
+        <div class="card">
+          <h3>Skipped</h3>
+          <div class="metric warning" id="totalSkipped">0</div>
+        </div>
+        <div class="card">
+          <h3>Success Rate</h3>
+          <div class="metric success" id="successRate">0%</div>
+        </div>
+        <div class="card">
+          <h3>Failure Rate</h3>
+          <div class="metric error" id="failureRate">0%</div>
+        </div>
+        <div class="card">
+          <h3>Execution Time</h3>
+          <div class="metric" id="executionTime">0s</div>
+        </div>
+      </section>
+
+      <!-- Charts Section -->
+      <section class="charts-section">
+        <div class="chart-container">
+          <h3>Test Results & Execution Time by Connector</h3>
+          <canvas id="connectorChart"></canvas>
+        </div>
+        <div class="chart-container">
+          <h3>Overall Test Distribution</h3>
+          <canvas id="distributionChart"></canvas>
+        </div>
+        <div class="chart-container">
+          <h3>Average Test Duration by Connector</h3>
+          <canvas id="avgDurationChart"></canvas>
+        </div>
+      </section>
+
+      <!-- Connector Details -->
+      <section class="connector-details">
+        <h2>Connector Details</h2>
+        <div class="filters">
+          <select id="connectorFilter" class="filter-select">
+            <option value="">All Connectors</option>
+          </select>
+          <select id="statusFilter" class="filter-select">
+            <option value="">All Status</option>
+            <option value="passed">Passed</option>
+            <option value="failed">Failed</option>
+            <option value="skipped">Skipped</option>
+            <option value="pending">Pending</option>
+          </select>
+        </div>
+        <div id="connectorTables"></div>
+      </section>
+
+      <!-- Failed Tests Details -->
+      <section class="failed-tests collapsed" id="failedTestsSection">
+        <h2 class="collapsible-header">
+          Failed Tests Details
+          <span class="failed-count" id="failedCount"></span>
+        </h2>
+        <div id="failedTestsList" class="collapsible-content"></div>
+      </section>
+
+      <!-- Test Runner Modal -->
+      <div id="testRunnerModal" class="modal">
+        <div class="modal-content">
+          <span class="close">&times;</span>
+          <h2>Run Individual Test</h2>
+          <div class="test-runner-form">
+            <label for="testConnector">Connector:</label>
+            <select id="testConnector"></select>
+
+            <label for="testFile">Test File:</label>
+            <select id="testFile"></select>
+
+            <label for="testCase">Test Case:</label>
+            <select id="testCase"></select>
+
+            <button id="runTestBtn" class="btn btn-primary">Run Test</button>
+
+            <div id="testOutput" class="test-output"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="dashboard.js"></script>
+  </body>
+</html>
