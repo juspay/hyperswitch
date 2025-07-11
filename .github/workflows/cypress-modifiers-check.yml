@@ -17,26 +17,42 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Get changed files
+      - name: Get changed Cypress files
         id: changed-files
-        uses: tj-actions/changed-files@v41
-        with:
-          files: |
-            **/*.cy.js
-            **/cypress/**
+        run: |
+          # Get the base branch (usually main or master)
+          BASE_BRANCH="${{ github.event.pull_request.base.ref }}"
+          
+          # Get changed files that match our patterns
+          CHANGED_FILES=$(git diff --name-only origin/$BASE_BRANCH...HEAD | grep -E '\.(cy\.js)$|cypress/' || true)
+          
+          if [[ -n "$CHANGED_FILES" ]]; then
+            echo "any_changed=true" >> $GITHUB_OUTPUT
+            echo "changed_files<<EOF" >> $GITHUB_OUTPUT
+            echo "$CHANGED_FILES" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "any_changed=false" >> $GITHUB_OUTPUT
+            echo "changed_files=" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "Changed Cypress files:"
+          echo "$CHANGED_FILES"
 
       - name: Check for .skip and .only in Cypress files
         if: steps.changed-files.outputs.any_changed == 'true'
         run: |
           echo "Checking Cypress files for .skip and .only..."
-          echo "Changed files: ${{ steps.changed-files.outputs.all_changed_files }}"
           
           # Initialize flag
           MODIFIERS_FOUND=false
           
+          # Read changed files from the output
+          CHANGED_FILES="${{ steps.changed-files.outputs.changed_files }}"
+          
           # Check each changed file
-          for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
-            if [[ -f "$file" ]]; then
+          while IFS= read -r file; do
+            if [[ -n "$file" && -f "$file" ]]; then
               echo "Checking file: $file"
               
               # Check for .skip (active, not commented, not this.skip())
@@ -79,7 +95,7 @@ jobs:
                 # Optionally set MODIFIERS_FOUND=true if you want to fail on commented
               fi
             fi
-          done
+          done <<< "$CHANGED_FILES"
           
           # Show results and fail the job if modifiers found
           if [[ "$MODIFIERS_FOUND" == "true" ]]; then
