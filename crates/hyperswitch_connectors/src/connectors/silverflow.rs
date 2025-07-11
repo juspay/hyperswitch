@@ -220,7 +220,7 @@ impl ConnectorCommon for Silverflow {
         let encoded = common_utils::consts::BASE64_ENGINE.encode(auth_string.as_bytes());
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            format!("Basic {}", encoded).into_masked(),
+            format!("Basic {encoded}").into_masked(),
         )])
     }
 
