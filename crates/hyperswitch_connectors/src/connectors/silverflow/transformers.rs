@@ -1,6 +1,5 @@
 use common_enums::enums;
 use common_utils::types::MinorUnit;
-use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
@@ -18,7 +17,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{self, CardData},
+    utils::CardData,
 };
 
 //TODO: Fill the struct with respective fields
@@ -40,7 +39,7 @@ impl<T> From<(MinorUnit, T)> for SilverflowRouterData<T> {
 // Basic structures for Silverflow API
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Amount {
-    value: i64,
+    value: MinorUnit,
     currency: String,
 }
 
@@ -78,23 +77,6 @@ pub struct PaymentType {
     order: String,
 }
 
-// Silverflow Connector Metadata
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct SilverflowConnectorMetadata {
-    pub merchant_acceptor_key: String,
-}
-
-impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for SilverflowConnectorMetadata {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        connector_meta_data: &Option<common_utils::pii::SecretSerdeValue>,
-    ) -> Result<Self, Self::Error> {
-        utils::to_connector_meta_from_secret::<Self>(connector_meta_data.clone())
-            .change_context(errors::ConnectorError::InvalidConnectorConfig { config: "metadata" })
-    }
-}
-
 impl TryFrom<&SilverflowRouterData<&PaymentsAuthorizeRouterData>> for SilverflowPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -102,12 +84,8 @@ impl TryFrom<&SilverflowRouterData<&PaymentsAuthorizeRouterData>> for Silverflow
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => {
-                // Convert MinorUnit to i64 for amount value
-                let amount_value = item.amount.get_amount_as_i64();
-
-                // Extract merchant acceptor key from connector metadata
-                let connector_metadata =
-                    SilverflowConnectorMetadata::try_from(&item.router_data.connector_meta_data)?;
+                // Extract merchant acceptor key from connector auth
+                let auth = SilverflowAuthType::try_from(&item.router_data.connector_auth_type)?;
 
                 let card = Card {
                     number: req_card.card_number.clone(),
@@ -119,11 +97,11 @@ impl TryFrom<&SilverflowRouterData<&PaymentsAuthorizeRouterData>> for Silverflow
 
                 Ok(Self {
                     merchant_acceptor_resolver: MerchantAcceptorResolver {
-                        merchant_acceptor_key: connector_metadata.merchant_acceptor_key,
+                        merchant_acceptor_key: auth.merchant_acceptor_key.expose(),
                     },
                     card,
                     amount: Amount {
-                        value: amount_value,
+                        value: item.amount,
                         currency: item.router_data.request.currency.to_string(),
                     },
                     payment_type: PaymentType {
@@ -142,15 +120,21 @@ impl TryFrom<&SilverflowRouterData<&PaymentsAuthorizeRouterData>> for Silverflow
 pub struct SilverflowAuthType {
     pub(super) api_key: Secret<String>,
     pub(super) api_secret: Secret<String>,
+    pub(super) merchant_acceptor_key: Secret<String>,
 }
 
 impl TryFrom<&ConnectorAuthType> for SilverflowAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+            ConnectorAuthType::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            } => Ok(Self {
                 api_key: api_key.clone(),
-                api_secret: key1.clone(),
+                api_secret: api_secret.clone(),
+                merchant_acceptor_key: key1.clone(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
@@ -508,17 +492,15 @@ pub struct DynamicDescriptor {
 #[derive(Default, Debug, Serialize)]
 pub struct SilverflowRefundRequest {
     #[serde(rename = "refundAmount")]
-    pub refund_amount: i64,
+    pub refund_amount: MinorUnit,
     pub reference: String,
 }
 
 impl<F> TryFrom<&SilverflowRouterData<&RefundsRouterData<F>>> for SilverflowRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &SilverflowRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
-        let refund_amount_value = item.amount.get_amount_as_i64();
-
         Ok(Self {
-            refund_amount: refund_amount_value,
+            refund_amount: item.amount,
             reference: format!("refund-{}", item.router_data.request.refund_id),
         })
     }
