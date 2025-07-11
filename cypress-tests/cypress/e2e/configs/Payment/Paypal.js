@@ -1,3 +1,5 @@
+import { getCustomExchange } from "./Modifiers";
+
 const successfulNo3DSCardDetails = {
   card_number: "4012000033330026",
   card_exp_month: "01",
@@ -165,7 +167,8 @@ export const connectorDetails = {
         },
       },
     },
-    Capture: {
+    Capture: getCustomExchange
+    ({
       Request: {
         amount_to_capture: 6000,
       },
@@ -178,7 +181,16 @@ export const connectorDetails = {
           amount_received: 6000,
         },
       },
-    },
+      ResponseCustom: {
+        status: 422,
+        body: {
+          error: {
+            code: "IR_06",
+            message: "amount_to_capture is greater than amount"
+          }
+        }
+      }
+    }),
     PartialCapture: {
       Request: {
         amount_to_capture: 2000,
@@ -256,15 +268,20 @@ export const connectorDetails = {
     },
     IncrementalAuth: {
       Request: {
-        amount: 6000,
+        amount: 8000,
       },
       Response: {
         status: 200,
         body: {
           status: "requires_capture",
-          amount: 6000,
-          amount_capturable: 6000,
+          amount: 8000,
+          amount_capturable: 6000, // Incremental Authorization can be done atleast 4 days after the authorization in case of Paypal
           amount_received: null,
+          is_error_code_expected: true,
+          incremental_authorizations: [{
+            error_code: "REAUTHORIZATION_TOO_SOON",
+            error_message: "REAUTHORIZATION_TOO_SOON",
+          }],
         },
       },
     },
@@ -415,12 +432,6 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSManualCaptureOffSession: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          specName: ["incrementalAuth"],
-          value: "connector_2",
-        },
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
