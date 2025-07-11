@@ -59,7 +59,7 @@ pub async fn list_payment_methods(
     };
 
     let response =
-        hyperswitch_domain_models::merchant_connector_account::FlattenedPaymentMethodsEnabled::from_payment_connectors_list(payment_connector_accounts)
+    FlattenedPaymentMethodsEnabled(hyperswitch_domain_models::merchant_connector_account::FlattenedPaymentMethodsEnabled::from_payment_connectors_list(payment_connector_accounts))
             .perform_filtering()
             .merge_and_transform()
             .get_required_fields(RequiredFieldsInput::new())
@@ -81,16 +81,13 @@ impl RequiredFieldsInput {
     }
 }
 
-// This trait is required because we can't directly impl on a foreign type
-trait PerformFilteringOnPaymentMethodsEnabled {
-    fn perform_filtering(self) -> FilteredPaymentMethodsEnabled;
-}
+struct FlattenedPaymentMethodsEnabled(
+    hyperswitch_domain_models::merchant_connector_account::FlattenedPaymentMethodsEnabled,
+);
 
-impl PerformFilteringOnPaymentMethodsEnabled
-    for hyperswitch_domain_models::merchant_connector_account::FlattenedPaymentMethodsEnabled
-{
+impl FlattenedPaymentMethodsEnabled {
     fn perform_filtering(self) -> FilteredPaymentMethodsEnabled {
-        FilteredPaymentMethodsEnabled(self.payment_methods_enabled)
+        FilteredPaymentMethodsEnabled(self.0.payment_methods_enabled)
     }
 }
 
@@ -233,7 +230,7 @@ fn get_extra_info_from_state(
     bank_config: &settings::BankRedirectConfig,
     payment_method_type: common_enums::enums::PaymentMethod,
     payment_method_subtype: common_enums::enums::PaymentMethodType,
-    connectors: &Vec<api_models::enums::Connector>,
+    connectors: &[api_models::enums::Connector],
 ) -> Option<api_models::payment_methods::PaymentMethodSubtypeSpecificData> {
     match payment_method_type {
         // TODO: Return card_networks
