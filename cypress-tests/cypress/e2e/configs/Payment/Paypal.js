@@ -167,8 +167,7 @@ export const connectorDetails = {
         },
       },
     },
-    Capture: getCustomExchange
-    ({
+    Capture: getCustomExchange({
       Request: {
         amount_to_capture: 6000,
       },
@@ -186,10 +185,10 @@ export const connectorDetails = {
         body: {
           error: {
             code: "IR_06",
-            message: "amount_to_capture is greater than amount"
-          }
-        }
-      }
+            message: "amount_to_capture is greater than amount",
+          },
+        },
+      },
     }),
     PartialCapture: {
       Request: {
@@ -278,10 +277,12 @@ export const connectorDetails = {
           amount_capturable: 6000, // Incremental Authorization can be done atleast 4 days after the authorization in case of Paypal
           amount_received: null,
           is_error_code_expected: true,
-          incremental_authorizations: [{
-            error_code: "REAUTHORIZATION_TOO_SOON",
-            error_message: "REAUTHORIZATION_TOO_SOON",
-          }],
+          incremental_authorizations: [
+            {
+              error_code: "REAUTHORIZATION_TOO_SOON",
+              error_message: "REAUTHORIZATION_TOO_SOON",
+            },
+          ],
         },
       },
     },

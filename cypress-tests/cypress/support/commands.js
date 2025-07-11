@@ -3967,16 +3967,16 @@ Cypress.Commands.add("incrementalAuth", (globalState, data) => {
             .to.have.property("amount")
             .to.be.a("number")
             .to.equal(resData.body.amount).and.not.be.null;
-            if (!resData.body.is_error_code_expected) {
-              expect(
-                response.body.incremental_authorizations[key],
-                "error_code"
-              ).to.have.property("error_code").to.be.null;
-              expect(
-                response.body.incremental_authorizations[key],
-                "error_message"
-              ).to.have.property("error_message").to.be.null;
-            }
+          if (!resData.body.is_error_code_expected) {
+            expect(
+              response.body.incremental_authorizations[key],
+              "error_code"
+            ).to.have.property("error_code").to.be.null;
+            expect(
+              response.body.incremental_authorizations[key],
+              "error_message"
+            ).to.have.property("error_message").to.be.null;
+          }
           expect(
             response.body.incremental_authorizations[key],
             "previously_authorized_amount"

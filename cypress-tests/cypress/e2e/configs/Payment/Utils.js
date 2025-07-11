@@ -390,7 +390,7 @@ export const CONNECTOR_LISTS = {
     MANDATES_USING_NTID_PROXY: ["cybersource"],
     INCREMENTAL_AUTH: [
       // "cybersource"    // issues with MULTIPLE_CONNECTORS handling
-      "paypal"
+      "paypal",
     ],
     // Add more inclusion lists
   },
