@@ -29,7 +29,6 @@ describe("Connector Account Create flow test", () => {
     "Create another business profile and merchant connector account if MULTIPLE_CONNECTORS flag is true",
     () => {
       it.only("Create business profile", () => {
-        // Check: whether the business profile is created successfully
         utils.createBusinessProfile(
           fixtures.businessProfile.bpCreate,
           globalState,
@@ -37,9 +36,7 @@ describe("Connector Account Create flow test", () => {
         );
       });
 
-      // it.only("Create merchant connector account", () => {    // Check: whether the merchant connector account is created successfully
       it.only("Create merchant connector account", () => {
-        //it.only
         utils.createMerchantConnectorAccount(
           "payment_processor",
           fixtures.createConnectorBody,
