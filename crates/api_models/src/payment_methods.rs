@@ -1058,14 +1058,13 @@ impl From<payments::ApplepayPaymentMethod> for PaymentMethodDataWalletInfo {
         Self {
             last4: item
                 .display_name
-                .clone()
                 .chars()
                 .rev()
                 .take(4)
-                .collect::<String>()
-                .chars()
+                .collect::<Vec<_>>()
+                .into_iter()
                 .rev()
-                .collect::<String>(),
+                .collect(),
             card_network: item.network,
             card_type: Some(item.pm_type),
         }

@@ -1969,14 +1969,13 @@ impl From<ApplePayWalletData> for payment_methods::PaymentMethodDataWalletInfo {
             last4: item
                 .payment_method
                 .display_name
-                .clone()
                 .chars()
                 .rev()
                 .take(4)
-                .collect::<String>()
-                .chars()
+                .collect::<Vec<_>>()
+                .into_iter()
                 .rev()
-                .collect::<String>(),
+                .collect(),
             card_network: item.payment_method.network,
             card_type: Some(item.payment_method.pm_type),
         }
