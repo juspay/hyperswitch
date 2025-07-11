@@ -10012,6 +10012,19 @@
           "frictionless"
         ]
       },
+      "DeleteTokenDataResponse": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier returned by the tokenization service",
+            "example": "12345_tok_01926c58bc6e77c09e809964e72af8c8"
+          }
+        }
+      },
       "DeviceChannel": {
         "type": "string",
         "description": "Device Channel indicating whether request is coming from App or Browser",

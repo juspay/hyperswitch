@@ -21,6 +21,12 @@ pub struct Tokenization {
     pub version: common_enums::ApiVersion,
 }
 
+impl Tokenization {
+    pub fn is_disabled(&self) -> bool {
+        self.flag == common_enums::TokenizationFlag::Disabled
+    }
+}
+
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TokenizationNew {
@@ -48,6 +54,15 @@ impl From<Tokenization> for TokenizationResponse {
             flag: value.flag,
         }
     }
+}
+
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum TokenizationUpdate {
+    Update {
+        updated_at: Option<PrimitiveDateTime>,
+        flag: Option<common_enums::enums::TokenizationFlag>,
+    },
 }
 
 #[async_trait::async_trait]
@@ -97,5 +112,13 @@ impl super::behaviour::Conversion for Tokenization {
             version: self.version,
             flag: self.flag,
         })
+    }
+}
+
+impl From<TokenizationUpdate> for diesel_models::tokenization::TokenizationUpdateInternal {
+    fn from(value: TokenizationUpdate) -> Self {
+        match value {
+            TokenizationUpdate::Update { updated_at, flag } => Self { updated_at, flag },
+        }
     }
 }
