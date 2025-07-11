@@ -214,6 +214,8 @@ pub enum PaymentMethodType {
     Blik,
     KlarnaDebitRisk,
     Bitpay,
+    Paysera,
+    Skrill,
 }
 
 #[derive(Debug, Serialize)]
@@ -372,6 +374,8 @@ impl TryFrom<&WalletData> for PaymentMethodType {
         match value {
             WalletData::AliPayRedirect { .. } => Ok(Self::Alipay),
             WalletData::WeChatPayRedirect { .. } => Ok(Self::Wechatpay),
+            WalletData::Paysera(_) => Ok(Self::Paysera),
+            WalletData::Skrill(_) => Ok(Self::Skrill),
             WalletData::AliPayQr(_)
             | WalletData::AliPayHkRedirect(_)
             | WalletData::AmazonPayRedirect(_)
