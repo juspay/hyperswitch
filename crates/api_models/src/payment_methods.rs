@@ -19,7 +19,7 @@ use utoipa::{schema, ToSchema};
 #[cfg(feature = "payouts")]
 use crate::payouts;
 use crate::{
-    admin, customers, enums as api_enums,
+    admin, enums as api_enums, open_router,
     payments::{self, BankCodeResponse},
 };
 
@@ -352,8 +352,7 @@ where
         .map_err(|err| {
             let err_msg = format!("{err:?}");
             de::Error::custom(format_args!(
-                "Failed to deserialize PaymentsMandateReference `{}`",
-                err_msg
+                "Failed to deserialize PaymentsMandateReference `{err_msg}`",
             ))
         })?;
 
@@ -371,8 +370,7 @@ where
         .map_err(|err| {
             let err_msg = format!("{err:?}");
             de::Error::custom(format_args!(
-                "Failed to deserialize CommonMandateReference `{}`",
-                err_msg
+                "Failed to deserialize CommonMandateReference `{err_msg}`",
             ))
         })?
         .flatten();
@@ -939,14 +937,14 @@ pub struct PaymentMethodResponse {
     pub network_token: Option<NetworkTokenResponse>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub enum PaymentMethodsData {
     Card(CardDetailsPaymentMethod),
     BankDetails(PaymentMethodDataBankCreds),
     WalletDetails(PaymentMethodDataWalletInfo),
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CardDetailsPaymentMethod {
     pub last4_digits: Option<String>,
     pub issuer_country: Option<String>,
@@ -960,12 +958,33 @@ pub struct CardDetailsPaymentMethod {
     pub card_type: Option<String>,
     #[serde(default = "saved_in_locker_default")]
     pub saved_to_locker: bool,
-    pub co_badged_card_data: Option<CoBadgedCardData>,
+    pub co_badged_card_data: Option<CoBadgedCardDataToBeSaved>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+impl From<&CoBadgedCardData> for CoBadgedCardDataToBeSaved {
+    fn from(co_badged_card_data: &CoBadgedCardData) -> Self {
+        Self {
+            co_badged_card_networks: co_badged_card_data
+                .co_badged_card_networks_info
+                .get_card_networks(),
+            issuer_country_code: co_badged_card_data.issuer_country_code,
+            is_regulated: co_badged_card_data.is_regulated,
+            regulated_name: co_badged_card_data.regulated_name.clone(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CoBadgedCardData {
-    pub co_badged_card_networks: Vec<api_enums::CardNetwork>,
+    pub co_badged_card_networks_info: open_router::CoBadgedCardNetworks,
+    pub issuer_country_code: common_enums::CountryAlpha2,
+    pub is_regulated: bool,
+    pub regulated_name: Option<common_enums::RegulatedName>,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct CoBadgedCardDataToBeSaved {
+    pub co_badged_card_networks: Vec<common_enums::CardNetwork>,
     pub issuer_country_code: common_enums::CountryAlpha2,
     pub is_regulated: bool,
     pub regulated_name: Option<common_enums::RegulatedName>,
@@ -1063,6 +1082,23 @@ pub struct Card {
     pub card_brand: Option<String>,
     pub card_isin: Option<String>,
     pub nick_name: Option<String>,
+}
+
+#[cfg(feature = "v1")]
+impl From<(Card, Option<common_enums::CardNetwork>)> for CardDetail {
+    fn from((card, card_network): (Card, Option<common_enums::CardNetwork>)) -> Self {
+        Self {
+            card_number: card.card_number.clone(),
+            card_exp_month: card.card_exp_month.clone(),
+            card_exp_year: card.card_exp_year.clone(),
+            card_holder_name: card.name_on_card.clone(),
+            nick_name: card.nick_name.map(masking::Secret::new),
+            card_issuing_country: None,
+            card_network,
+            card_issuer: None,
+            card_type: None,
+        }
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -1310,7 +1346,7 @@ impl From<(CardDetailFromLocker, Option<&CoBadgedCardData>)> for CardDetailsPaym
             card_network: item.card_network,
             card_type: item.card_type,
             saved_to_locker: item.saved_to_locker,
-            co_badged_card_data: co_badged_card_data.cloned(),
+            co_badged_card_data: co_badged_card_data.map(CoBadgedCardDataToBeSaved::from),
         }
     }
 }
@@ -2092,7 +2128,7 @@ pub struct CustomerPaymentMethodResponseItem {
     #[schema(value_type = String, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
     pub id: id_type::GlobalPaymentMethodId,
 
-    /// Temporary Token for payment method in vault which gets refreshed for every payment   
+    /// Temporary Token for payment method in vault which gets refreshed for every payment
     #[schema(example = "7ebf443f-a050-4067-84e5-e6f6d4800aef")]
     pub payment_token: String,
 
@@ -2500,6 +2536,7 @@ pub struct PaymentMethodRecord {
     pub billing_address_line3: Option<masking::Secret<String>>,
     pub raw_card_number: Option<masking::Secret<String>>,
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    pub merchant_connector_ids: Option<String>,
     pub original_transaction_amount: Option<i64>,
     pub original_transaction_currency: Option<common_enums::Currency>,
     pub line_number: Option<i64>,
@@ -2507,18 +2544,6 @@ pub struct PaymentMethodRecord {
     pub network_token_expiry_month: Option<masking::Secret<String>>,
     pub network_token_expiry_year: Option<masking::Secret<String>>,
     pub network_token_requestor_ref_id: Option<String>,
-}
-
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-pub struct ConnectorCustomerDetails {
-    pub connector_customer_id: String,
-    pub merchant_connector_id: id_type::MerchantConnectorAccountId,
-}
-
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-pub struct PaymentMethodCustomerMigrate {
-    pub customer: customers::CustomerRequest,
-    pub connector_customer_details: Option<ConnectorCustomerDetails>,
 }
 
 #[derive(Debug, Default, serde::Serialize)]
@@ -2637,47 +2662,56 @@ impl From<PaymentMethodMigrationResponseType> for PaymentMethodMigrationResponse
 
 impl
     TryFrom<(
-        PaymentMethodRecord,
+        &PaymentMethodRecord,
         id_type::MerchantId,
-        Option<id_type::MerchantConnectorAccountId>,
+        Option<&Vec<id_type::MerchantConnectorAccountId>>,
     )> for PaymentMethodMigrate
 {
     type Error = error_stack::Report<errors::ValidationError>;
+
     fn try_from(
         item: (
-            PaymentMethodRecord,
+            &PaymentMethodRecord,
             id_type::MerchantId,
-            Option<id_type::MerchantConnectorAccountId>,
+            Option<&Vec<id_type::MerchantConnectorAccountId>>,
         ),
     ) -> Result<Self, Self::Error> {
-        let (record, merchant_id, mca_id) = item;
+        let (record, merchant_id, mca_ids) = item;
         let billing = record.create_billing();
-
-        //  if payment instrument id is present then only construct this
-        let connector_mandate_details = if record.payment_instrument_id.is_some() {
-            Some(PaymentsMandateReference(HashMap::from([(
-                mca_id.get_required_value("merchant_connector_id")?,
-                PaymentsMandateReferenceRecord {
-                    connector_mandate_id: record
-                        .payment_instrument_id
-                        .get_required_value("payment_instrument_id")?
-                        .peek()
-                        .to_string(),
-                    payment_method_type: record.payment_method_type,
-                    original_payment_authorized_amount: record.original_transaction_amount,
-                    original_payment_authorized_currency: record.original_transaction_currency,
-                },
-            )])))
+        let connector_mandate_details = if let Some(payment_instrument_id) =
+            &record.payment_instrument_id
+        {
+            let ids = mca_ids.get_required_value("mca_ids")?;
+            let mandate_map: HashMap<_, _> = ids
+                .iter()
+                .map(|mca_id| {
+                    (
+                        mca_id.clone(),
+                        PaymentsMandateReferenceRecord {
+                            connector_mandate_id: payment_instrument_id.peek().to_string(),
+                            payment_method_type: record.payment_method_type,
+                            original_payment_authorized_amount: record.original_transaction_amount,
+                            original_payment_authorized_currency: record
+                                .original_transaction_currency,
+                        },
+                    )
+                })
+                .collect();
+            Some(PaymentsMandateReference(mandate_map))
         } else {
             None
         };
+
         Ok(Self {
             merchant_id,
-            customer_id: Some(record.customer_id),
+            customer_id: Some(record.customer_id.clone()),
             card: Some(MigrateCardDetail {
-                card_number: record.raw_card_number.unwrap_or(record.card_number_masked),
-                card_exp_month: record.card_expiry_month,
-                card_exp_year: record.card_expiry_year,
+                card_number: record
+                    .raw_card_number
+                    .clone()
+                    .unwrap_or_else(|| record.card_number_masked.clone()),
+                card_exp_month: record.card_expiry_month.clone(),
+                card_exp_year: record.card_expiry_year.clone(),
                 card_holder_name: record.name.clone(),
                 card_network: None,
                 card_type: None,
@@ -2687,10 +2721,16 @@ impl
             }),
             network_token: Some(MigrateNetworkTokenDetail {
                 network_token_data: MigrateNetworkTokenData {
-                    network_token_number: record.network_token_number.unwrap_or_default(),
-                    network_token_exp_month: record.network_token_expiry_month.unwrap_or_default(),
-                    network_token_exp_year: record.network_token_expiry_year.unwrap_or_default(),
-                    card_holder_name: record.name,
+                    network_token_number: record.network_token_number.clone().unwrap_or_default(),
+                    network_token_exp_month: record
+                        .network_token_expiry_month
+                        .clone()
+                        .unwrap_or_default(),
+                    network_token_exp_year: record
+                        .network_token_expiry_year
+                        .clone()
+                        .unwrap_or_default(),
+                    card_holder_name: record.name.clone(),
                     nick_name: record.nick_name.clone(),
                     card_issuing_country: None,
                     card_network: None,
@@ -2699,6 +2739,7 @@ impl
                 },
                 network_token_requestor_ref_id: record
                     .network_token_requestor_ref_id
+                    .clone()
                     .unwrap_or_default(),
             }),
             payment_method: record.payment_method,
@@ -2720,45 +2761,6 @@ impl
             payment_method_data: None,
             network_transaction_id: record.original_transaction_id.clone(),
         })
-    }
-}
-
-#[cfg(feature = "v1")]
-impl From<(PaymentMethodRecord, id_type::MerchantId)> for PaymentMethodCustomerMigrate {
-    fn from(value: (PaymentMethodRecord, id_type::MerchantId)) -> Self {
-        let (record, merchant_id) = value;
-        Self {
-            customer: customers::CustomerRequest {
-                customer_id: Some(record.customer_id),
-                merchant_id,
-                name: record.name,
-                email: record.email,
-                phone: record.phone,
-                description: None,
-                phone_country_code: record.phone_country_code,
-                address: Some(payments::AddressDetails {
-                    city: record.billing_address_city,
-                    country: record.billing_address_country,
-                    line1: record.billing_address_line1,
-                    line2: record.billing_address_line2,
-                    state: record.billing_address_state,
-                    line3: record.billing_address_line3,
-                    zip: record.billing_address_zip,
-                    first_name: record.billing_address_first_name,
-                    last_name: record.billing_address_last_name,
-                }),
-                metadata: None,
-            },
-            connector_customer_details: record
-                .connector_customer_id
-                .zip(record.merchant_connector_id)
-                .map(
-                    |(connector_customer_id, merchant_connector_id)| ConnectorCustomerDetails {
-                        connector_customer_id,
-                        merchant_connector_id,
-                    },
-                ),
-        }
     }
 }
 
@@ -3038,7 +3040,7 @@ pub struct PaymentMethodSessionResponse {
 
     /// The payment method that was created using this payment method session
     #[schema(value_type = Option<Vec<String>>)]
-    pub associated_payment_methods: Option<Vec<id_type::GlobalPaymentMethodId>>,
+    pub associated_payment_methods: Option<Vec<String>>,
 
     /// The token-id created if there is tokenization_data present
     #[schema(value_type = Option<String>, example = "12345_tok_01926c58bc6e77c09e809964e72af8c8")]

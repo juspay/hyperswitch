@@ -232,6 +232,7 @@ impl<'a> KafkaPaymentIntent<'a> {
             processor_merchant_id,
             created_by,
             is_iframe_redirection_enabled,
+            is_payment_id_from_merchant,
         } = intent;
 
         Self {

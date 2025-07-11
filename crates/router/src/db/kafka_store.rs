@@ -1520,11 +1520,18 @@ impl PaymentAttemptInterface for KafkaStore {
         payment_attempt: storage::PaymentAttemptUpdate,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::PaymentAttempt, errors::StorageError> {
-        let attempt = self
+        let mut attempt = self
             .diesel_store
-            .update_payment_attempt_with_attempt_id(this.clone(), payment_attempt, storage_scheme)
+            .update_payment_attempt_with_attempt_id(
+                this.clone(),
+                payment_attempt.clone(),
+                storage_scheme,
+            )
             .await?;
 
+        let debit_routing_savings = payment_attempt.get_debit_routing_savings();
+
+        attempt.set_debit_routing_savings(debit_routing_savings);
         if let Err(er) = self
             .kafka_producer
             .log_payment_attempt(&attempt, Some(this), self.tenant_id.clone())
@@ -2325,6 +2332,22 @@ impl PayoutAttemptInterface for KafkaStore {}
 #[async_trait::async_trait]
 impl PayoutAttemptInterface for KafkaStore {
     type Error = errors::StorageError;
+
+    async fn find_payout_attempt_by_merchant_id_merchant_order_reference_id(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        merchant_order_reference_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<storage::PayoutAttempt, errors::StorageError> {
+        self.diesel_store
+            .find_payout_attempt_by_merchant_id_merchant_order_reference_id(
+                merchant_id,
+                merchant_order_reference_id,
+                storage_scheme,
+            )
+            .await
+    }
+
     async fn find_payout_attempt_by_merchant_id_payout_attempt_id(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -2431,7 +2454,7 @@ impl PayoutsInterface for KafkaStore {
     async fn find_payout_by_merchant_id_payout_id(
         &self,
         merchant_id: &id_type::MerchantId,
-        payout_id: &str,
+        payout_id: &id_type::PayoutId,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::Payouts, errors::StorageError> {
         self.diesel_store
@@ -2477,7 +2500,7 @@ impl PayoutsInterface for KafkaStore {
     async fn find_optional_payout_by_merchant_id_payout_id(
         &self,
         merchant_id: &id_type::MerchantId,
-        payout_id: &str,
+        payout_id: &id_type::PayoutId,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<storage::Payouts>, errors::StorageError> {
         self.diesel_store
@@ -2533,7 +2556,7 @@ impl PayoutsInterface for KafkaStore {
     async fn get_total_count_of_filtered_payouts(
         &self,
         merchant_id: &id_type::MerchantId,
-        active_payout_ids: &[String],
+        active_payout_ids: &[id_type::PayoutId],
         connector: Option<Vec<api_models::enums::PayoutConnectors>>,
         currency: Option<Vec<enums::Currency>>,
         status: Option<Vec<enums::PayoutStatus>>,
@@ -2556,7 +2579,7 @@ impl PayoutsInterface for KafkaStore {
         &self,
         merchant_id: &id_type::MerchantId,
         constraints: &hyperswitch_domain_models::payouts::PayoutFetchConstraints,
-    ) -> CustomResult<Vec<String>, errors::StorageError> {
+    ) -> CustomResult<Vec<id_type::PayoutId>, errors::StorageError> {
         self.diesel_store
             .filter_active_payout_ids_by_constraints(merchant_id, constraints)
             .await

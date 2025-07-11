@@ -44,14 +44,17 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
 use josekit::jwe;
 use masking::{ExposeInterface, PeekInterface, SwitchStrategy};
+use num_traits::{FromPrimitive, ToPrimitive};
 use openssl::{
     derive::Deriver,
     pkey::PKey,
     symm::{decrypt_aead, Cipher},
 };
+use rand::Rng;
 #[cfg(feature = "v2")]
 use redis_interface::errors::RedisError;
 use router_env::{instrument, logger, tracing};
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use x509_parser::parse_x509_certificate;
@@ -1017,7 +1020,7 @@ pub fn validate_card_expiry(
 
     let mut year_str = card_exp_year.peek().to_string();
     if year_str.len() == 2 {
-        year_str = format!("20{}", year_str);
+        year_str = format!("20{year_str}");
     }
     let exp_year =
         year_str
@@ -1197,7 +1200,7 @@ pub fn create_redirect_url(
     connector_name: impl std::fmt::Display,
     creds_identifier: Option<&str>,
 ) -> String {
-    let creds_identifier_path = creds_identifier.map_or_else(String::new, |cd| format!("/{}", cd));
+    let creds_identifier_path = creds_identifier.map_or_else(String::new, |cd| format!("/{cd}"));
     format!(
         "{}/payments/{}/{}/redirect/response/{}",
         router_base_url,
@@ -1251,7 +1254,7 @@ pub fn create_complete_authorize_url(
     creds_identifier: Option<&str>,
 ) -> String {
     let creds_identifier = creds_identifier.map_or_else(String::new, |creds_identifier| {
-        format!("/{}", creds_identifier)
+        format!("/{creds_identifier}")
     });
     format!(
         "{}/payments/{}/{}/redirect/complete/{}{}",
@@ -1602,7 +1605,7 @@ pub async fn get_connector_default(
 #[cfg(feature = "v2")]
 pub async fn get_connector_data_from_request(
     state: &SessionState,
-    req: Option<api_models::payments::MerchantConnectorDetails>,
+    req: Option<common_types::domain::MerchantConnectorAuthDetails>,
 ) -> CustomResult<api::ConnectorData, errors::ApiErrorResponse> {
     let connector = req
         .as_ref()
@@ -2031,6 +2034,38 @@ pub fn decide_payment_method_retrieval_action(
         VaultFetchAction::FetchCardDetailsFromLocker
     } else {
         standard_flow()
+    }
+}
+
+pub async fn should_execute_based_on_rollout(
+    state: &SessionState,
+    config_key: &str,
+) -> RouterResult<bool> {
+    let db = state.store.as_ref();
+
+    match db.find_config_by_key(config_key).await {
+        Ok(rollout_config) => match rollout_config.config.parse::<f64>() {
+            Ok(rollout_percent) => {
+                if !(0.0..=1.0).contains(&rollout_percent) {
+                    logger::warn!(
+                        rollout_percent,
+                        "Rollout percent out of bounds. Must be between 0.0 and 1.0"
+                    );
+                    return Ok(false);
+                }
+
+                let sampled_value: f64 = rand::thread_rng().gen_range(0.0..1.0);
+                Ok(sampled_value < rollout_percent)
+            }
+            Err(err) => {
+                logger::error!(error = ?err, "Failed to parse rollout percent");
+                Ok(false)
+            }
+        },
+        Err(err) => {
+            logger::error!(error = ?err, "Failed to fetch rollout config from DB");
+            Ok(false)
+        }
     }
 }
 
@@ -3020,10 +3055,7 @@ pub(super) fn validate_payment_list_request(
         req.limit > PAYMENTS_LIST_MAX_LIMIT_V1 || req.limit < 1,
         || {
             Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: format!(
-                    "limit should be in between 1 and {}",
-                    PAYMENTS_LIST_MAX_LIMIT_V1
-                ),
+                message: format!("limit should be in between 1 and {PAYMENTS_LIST_MAX_LIMIT_V1}"),
             })
         },
     )?;
@@ -3037,10 +3069,7 @@ pub(super) fn validate_payment_list_request_for_joins(
 
     utils::when(!(1..=PAYMENTS_LIST_MAX_LIMIT_V2).contains(&limit), || {
         Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: format!(
-                "limit should be in between 1 and {}",
-                PAYMENTS_LIST_MAX_LIMIT_V2
-            ),
+            message: format!("limit should be in between 1 and {PAYMENTS_LIST_MAX_LIMIT_V2}"),
         })
     })?;
     Ok(())
@@ -3698,6 +3727,7 @@ mod tests {
             force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
             is_iframe_redirection_enabled: None,
+            is_payment_id_from_merchant: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3774,6 +3804,7 @@ mod tests {
             force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
             is_iframe_redirection_enabled: None,
+            is_payment_id_from_merchant: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -3848,6 +3879,7 @@ mod tests {
             force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
             is_iframe_redirection_enabled: None,
+            is_payment_id_from_merchant: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -4181,7 +4213,8 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         connector_mandate_request_reference_id: router_data.connector_mandate_request_reference_id,
         authentication_id: router_data.authentication_id,
         psd2_sca_exemption_type: router_data.psd2_sca_exemption_type,
-        whole_connector_response: router_data.whole_connector_response,
+        raw_connector_response: router_data.raw_connector_response,
+        is_payment_id_from_merchant: router_data.is_payment_id_from_merchant,
     }
 }
 
@@ -4399,6 +4432,7 @@ impl AttemptType {
             created_by: old_payment_attempt.created_by,
             setup_future_usage_applied: None,
             routing_approach: old_payment_attempt.routing_approach,
+            connector_request_reference_id: None,
         }
     }
 
@@ -5207,6 +5241,54 @@ pub fn get_applepay_metadata(
             field_name: "connector_metadata".to_string(),
             expected_format: "applepay_metadata_format".to_string(),
         })
+}
+
+pub fn calculate_debit_routing_savings(net_amount: i64, saving_percentage: f64) -> MinorUnit {
+    logger::debug!(
+        ?net_amount,
+        ?saving_percentage,
+        "Calculating debit routing saving amount"
+    );
+
+    let net_decimal = Decimal::from_i64(net_amount).unwrap_or_else(|| {
+        logger::warn!(?net_amount, "Invalid net_amount, using 0");
+        Decimal::ZERO
+    });
+
+    let percentage_decimal = Decimal::from_f64(saving_percentage).unwrap_or_else(|| {
+        logger::warn!(?saving_percentage, "Invalid saving_percentage, using 0");
+        Decimal::ZERO
+    });
+
+    let savings_decimal = net_decimal * percentage_decimal / Decimal::from(100);
+    let rounded_savings = savings_decimal.round();
+
+    let savings_int = rounded_savings.to_i64().unwrap_or_else(|| {
+        logger::warn!(
+            ?rounded_savings,
+            "Debit routing savings calculation overflowed when converting to i64"
+        );
+        0
+    });
+
+    MinorUnit::new(savings_int)
+}
+
+pub fn get_debit_routing_savings_amount(
+    payment_method_data: &domain::PaymentMethodData,
+    payment_attempt: &PaymentAttempt,
+) -> Option<MinorUnit> {
+    let card_network = payment_attempt.extract_card_network()?;
+
+    let saving_percentage =
+        payment_method_data.extract_debit_routing_saving_percentage(&card_network)?;
+
+    let net_amount = payment_attempt.get_total_amount().get_amount_as_i64();
+
+    Some(calculate_debit_routing_savings(
+        net_amount,
+        saving_percentage,
+    ))
 }
 
 #[cfg(all(feature = "retry", feature = "v1"))]
@@ -6985,8 +7067,8 @@ pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
                             ],
                         })
                         .attach_printable(format!(
-                            "Invalid connector_mandate_details provided for connector {:?}",
-                            migrating_merchant_connector_id
+                            "Invalid connector_mandate_details provided for connector {migrating_merchant_connector_id:?}",
+
                         ))?
                     }
                 }
@@ -6996,8 +7078,8 @@ pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
                 })
                 .attach_printable_lazy(|| {
                     format!(
-                        "{:?} invalid merchant connector id in connector_mandate_details",
-                        migrating_merchant_connector_id
+                        "{migrating_merchant_connector_id:?} invalid merchant connector id in connector_mandate_details",
+
                     )
                 })?,
             }
@@ -7301,8 +7383,8 @@ pub async fn validate_allowed_payment_method_types_request(
             || {
                 Err(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
                     .attach_printable(format!(
-                        "None of the allowed payment method types {:?} are configured for this merchant connector account.",
-                        allowed_payment_method_types
+                        "None of the allowed payment method types {allowed_payment_method_types:?} are configured for this merchant connector account.",
+
                     ))
             },
         )?;

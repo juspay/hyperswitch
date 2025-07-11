@@ -12,7 +12,7 @@ pub trait ApiEventMetric {
 #[serde(tag = "flow_type", rename_all = "snake_case")]
 pub enum ApiEventsType {
     Payout {
-        payout_id: String,
+        payout_id: id_type::PayoutId,
     },
     #[cfg(feature = "v1")]
     Payment {
@@ -74,6 +74,10 @@ pub enum ApiEventsType {
     Webhooks {
         connector: String,
         payment_id: Option<id_type::PaymentId>,
+    },
+    #[cfg(feature = "v1")]
+    NetworkTokenWebhook {
+        payment_method_id: Option<String>,
     },
     #[cfg(feature = "v2")]
     Webhooks {

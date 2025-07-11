@@ -39,11 +39,17 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
+use std::sync::LazyLock;
+
+use common_enums::enums;
+use hyperswitch_interfaces::api::ConnectorSpecifications;
+use hyperswitch_domain_models::router_response_types::{ConnectorInfo, SupportedPaymentMethods};
 use crate::{
     constants::headers,
     types::ResponseRouterData,
     utils,
 };
+use hyperswitch_domain_models::payment_method_data::PaymentMethodData;
 
 use transformers as {{project-name | downcase}};
 
@@ -147,13 +153,39 @@ impl ConnectorCommon for {{project-name | downcase | pascal_case}} {
             reason: response.reason,
             attempt_status: None,
             connector_transaction_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }
 
+
 impl ConnectorValidation for {{project-name | downcase | pascal_case}}
 {
-    //TODO: implement functions when support enabled
+    fn validate_mandate_payment(
+        &self,
+        _pm_type: Option<enums::PaymentMethodType>,
+        pm_data: PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        match pm_data {
+            PaymentMethodData::Card(_) => Err(errors::ConnectorError::NotImplemented(
+                "validate_mandate_payment does not support cards".to_string(),
+            )
+            .into()),
+            _ => Ok(()),
+        }
+    }
+
+    fn validate_psync_reference_id(
+        &self,
+        _data: &PaymentsSyncData,
+        _is_three_ds: bool,
+        _status: enums::AttemptStatus,
+        _connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        Ok(())
+    }
 }
 
 impl
@@ -194,7 +226,10 @@ impl
         self.common_get_content_type()
     }
 
-    fn get_url(&self, _req: &PaymentsAuthorizeRouterData, _connectors: &Connectors,) -> CustomResult<String,errors::ConnectorError> {
+    fn get_url(
+        &self,
+        _req: &PaymentsAuthorizeRouterData,
+        _connectors: &Connectors,) -> CustomResult<String,errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
@@ -425,7 +460,10 @@ impl
         self.common_get_content_type()
     }
 
-    fn get_url(&self, _req: &RefundsRouterData<Execute>, _connectors: &Connectors,) -> CustomResult<String,errors::ConnectorError> {
+    fn get_url(
+        &self,
+        _req: &RefundsRouterData<Execute>,
+        _connectors: &Connectors,) -> CustomResult<String,errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
@@ -487,7 +525,9 @@ impl
         self.common_get_content_type()
     }
 
-    fn get_url(&self, _req: &RefundSyncRouterData,_connectors: &Connectors,) -> CustomResult<String,errors::ConnectorError> {
+    fn get_url(
+        &self,
+        _req: &RefundSyncRouterData,_connectors: &Connectors,) -> CustomResult<String,errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
@@ -552,5 +592,27 @@ impl webhooks::IncomingWebhook for {{project-name | downcase | pascal_case}} {
     }
 }
 
-impl ConnectorSpecifications for {{project-name | downcase | pascal_case}} {}
-   
+static {{project-name | upcase}}_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(SupportedPaymentMethods::new);
+
+static {{project-name | upcase}}_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "{{project-name | downcase | pascal_case}}",
+    description: "{{project-name | downcase | pascal_case}} connector",
+    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+};
+
+static {{project-name | upcase}}_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+
+impl ConnectorSpecifications for {{project-name | downcase | pascal_case}} {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&{{project-name | upcase}}_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*{{project-name | upcase}}_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&{{project-name | upcase}}_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}

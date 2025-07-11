@@ -71,7 +71,7 @@ where
     ErrRes: serde::de::DeserializeOwned + std::fmt::Debug + Clone + DecisionEngineErrorsInterface,
 {
     let decision_engine_base_url = &state.conf.open_router.url;
-    let url = format!("{}/{}", decision_engine_base_url, path);
+    let url = format!("{decision_engine_base_url}/{path}");
     logger::debug!(decision_engine_api_call_url = %url, decision_engine_request_path = %path, http_method = ?http_method, "decision_engine: Initiating decision_engine API call ({})", context_message);
 
     let mut request_builder = services::RequestBuilder::new()
@@ -334,8 +334,6 @@ pub async fn perform_decision_euclid_routing(
     routing_event.set_routing_approach(RoutingApproach::StaticRouting.to_string());
     routing_event.set_routable_connectors(euclid_response.evaluated_output.clone());
     state.event_handler.log_event(&routing_event);
-
-    // Need to log euclid response event here
 
     logger::debug!(decision_engine_euclid_response=?euclid_response,"decision_engine_euclid");
     logger::debug!(decision_engine_euclid_selected_connector=?euclid_response.evaluated_output,"decision_engine_euclid");
