@@ -13,7 +13,7 @@ use crate::{
     services::{authentication as auth, ApplicationResponse},
 };
 
-pub async fn get_data_from_ai_embedded_workflow(
+pub async fn get_data_from_embedded_ai_workflow(
     state: SessionState,
     user_from_token: auth::UserFromToken,
     req: chat_api::ChatRequest,

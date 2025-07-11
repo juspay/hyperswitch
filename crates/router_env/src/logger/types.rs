@@ -350,7 +350,7 @@ pub enum Flow {
     /// Gsm Rule Delete flow
     GsmRuleDelete,
     /// Get data from embedded flow
-    GetDataFromAiEmbeddedFlow,
+    GetDataFromEmbeddedAiFlow,
     /// User Sign Up
     UserSignUp,
     /// User Sign Up

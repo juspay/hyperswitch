@@ -1222,5 +1222,5 @@ cluster = "CLUSTER"
 version = "HOSTNAME"
 
 [chat]
-enabled = true
+enabled = false
 embedded_ai_workflow_host = "http://0.0.0.0:8000"
