@@ -1520,11 +1520,18 @@ impl PaymentAttemptInterface for KafkaStore {
         payment_attempt: storage::PaymentAttemptUpdate,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::PaymentAttempt, errors::StorageError> {
-        let attempt = self
+        let mut attempt = self
             .diesel_store
-            .update_payment_attempt_with_attempt_id(this.clone(), payment_attempt, storage_scheme)
+            .update_payment_attempt_with_attempt_id(
+                this.clone(),
+                payment_attempt.clone(),
+                storage_scheme,
+            )
             .await?;
 
+        let debit_routing_savings = payment_attempt.get_debit_routing_savings();
+
+        attempt.set_debit_routing_savings(debit_routing_savings);
         if let Err(er) = self
             .kafka_producer
             .log_payment_attempt(&attempt, Some(this), self.tenant_id.clone())

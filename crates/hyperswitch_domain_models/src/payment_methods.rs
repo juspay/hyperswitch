@@ -612,7 +612,7 @@ pub struct PaymentMethodSession {
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     pub tokenization_data: Option<pii::SecretSerdeValue>,
     pub expires_at: PrimitiveDateTime,
-    pub associated_payment_methods: Option<Vec<id_type::GlobalPaymentMethodId>>,
+    pub associated_payment_methods: Option<Vec<String>>,
     pub associated_payment: Option<id_type::GlobalPaymentId>,
     pub associated_token_id: Option<id_type::GlobalTokenId>,
 }
@@ -850,10 +850,13 @@ pub trait PaymentMethodInterface {
 #[cfg(feature = "v2")]
 pub enum PaymentMethodsSessionUpdateEnum {
     GeneralUpdate {
-        billing: Option<Encryptable<Address>>,
+        billing: Box<Option<Encryptable<Address>>>,
         psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
         network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
         tokenization_data: Option<pii::SecretSerdeValue>,
+    },
+    UpdateAssociatedPaymentMethods {
+        associated_payment_methods: Option<Vec<String>>,
     },
 }
 
@@ -867,10 +870,20 @@ impl From<PaymentMethodsSessionUpdateEnum> for PaymentMethodsSessionUpdateIntern
                 network_tokenization,
                 tokenization_data,
             } => Self {
-                billing,
+                billing: *billing,
                 psp_tokenization,
                 network_tokenization,
                 tokenization_data,
+                associated_payment_methods: None,
+            },
+            PaymentMethodsSessionUpdateEnum::UpdateAssociatedPaymentMethods {
+                associated_payment_methods,
+            } => Self {
+                billing: None,
+                psp_tokenization: None,
+                network_tokenization: None,
+                tokenization_data: None,
+                associated_payment_methods,
             },
         }
     }
@@ -901,7 +914,9 @@ impl PaymentMethodSession {
             tokenization_data: update_session.tokenization_data.or(tokenization_data),
             expires_at,
             return_url,
-            associated_payment_methods,
+            associated_payment_methods: update_session
+                .associated_payment_methods
+                .or(associated_payment_methods),
             associated_payment,
             associated_token_id,
         }
@@ -914,6 +929,7 @@ pub struct PaymentMethodsSessionUpdateInternal {
     pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     pub tokenization_data: Option<pii::SecretSerdeValue>,
+    pub associated_payment_methods: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
