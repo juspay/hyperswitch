@@ -4527,6 +4527,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             complete_authorize_url,
             capture_method: payment_data.payment_attempt.capture_method,
             connector_testing_data,
+            customer_id: payment_data.payment_intent.customer_id,
         })
     }
 }
