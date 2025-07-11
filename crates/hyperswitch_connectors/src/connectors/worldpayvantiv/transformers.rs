@@ -2391,19 +2391,18 @@ pub enum WorldpayvantivPaymentFlow {
 }
 
 fn get_payment_flow_type(input: &str) -> Result<WorldpayvantivPaymentFlow, errors::ConnectorError> {
-    match input
-        .splitn(2, '_')
-        .next()
-        .ok_or(errors::ConnectorError::UnexpectedResponseError(
+    if input.contains("auth") {
+        Ok(WorldpayvantivPaymentFlow::Auth)
+    } else if input.contains("sale") {
+        Ok(WorldpayvantivPaymentFlow::Sale)
+    } else if input.contains("void") {
+        Ok(WorldpayvantivPaymentFlow::Void)
+    } else if input.contains("capture") {
+        Ok(WorldpayvantivPaymentFlow::Capture)
+    } else {
+        Err(errors::ConnectorError::UnexpectedResponseError(
             bytes::Bytes::from("Invalid merchantTxnId".to_string()),
-        ))? {
-        "auth" => Ok(WorldpayvantivPaymentFlow::Auth),
-        "sale" => Ok(WorldpayvantivPaymentFlow::Sale),
-        "void" => Ok(WorldpayvantivPaymentFlow::Void),
-        "capture" => Ok(WorldpayvantivPaymentFlow::Capture),
-        _ => Err(errors::ConnectorError::UnexpectedResponseError(
-            bytes::Bytes::from("Invalid merchantTxnId".to_string()),
-        )),
+        ))
     }
 }
 
