@@ -1108,7 +1108,7 @@ allow_connected_merchants = true
 
 [chat]
 enabled = false
-embedded_ai_workflow_host = "http://0.0.0.0:8000"
+hyperswitch_ai_host = "http://0.0.0.0:8000"
 
 [authentication_providers]
 click_to_pay = {connector_list = "adyen, cybersource"}

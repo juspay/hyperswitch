@@ -2225,7 +2225,7 @@ impl Chat {
             route = route.service(
                 web::scope("/ai").service(
                     web::resource("/data")
-                        .route(web::post().to(chat::get_data_from_embedded_ai_workflow)),
+                        .route(web::post().to(chat::get_data_from_hyperswitch_ai_workflow)),
                 ),
             );
         }

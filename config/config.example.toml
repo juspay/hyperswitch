@@ -1134,4 +1134,4 @@ allow_connected_merchants = false # Enable or disable connected merchant account
 
 [chat]
 enabled = false                                # Enable or disable chat features
-embedded_ai_workflow_host = "http://0.0.0.0:8000" # Embedded workflow host
+hyperswitch_ai_host = "http://0.0.0.0:8000" # Embedded workflow host

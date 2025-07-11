@@ -6,7 +6,7 @@ pub struct ChatRequest {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct EmbeddedAiDataResponse {
+pub struct ChatResponse {
     pub response: serde_json::Value,
     pub merchant_id: id_type::MerchantId,
     pub status: String,

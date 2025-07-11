@@ -13,12 +13,12 @@ use crate::{
     services::{authentication as auth, ApplicationResponse},
 };
 
-pub async fn get_data_from_embedded_ai_workflow(
+pub async fn get_data_from_hyperswitch_ai_workflow(
     state: SessionState,
     user_from_token: auth::UserFromToken,
     req: chat_api::ChatRequest,
-) -> CustomResult<ApplicationResponse<chat_api::EmbeddedAiDataResponse>, ChatErrors> {
-    let url = format!("{}/webhook", state.conf.chat.embedded_ai_workflow_host);
+) -> CustomResult<ApplicationResponse<chat_api::ChatResponse>, ChatErrors> {
+    let url = format!("{}/webhook", state.conf.chat.hyperswitch_ai_host);
 
     let request_body = chat_domain::EmbeddedAiDataRequest {
         query: chat_domain::GetDataMessage {

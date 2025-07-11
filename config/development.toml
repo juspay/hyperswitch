@@ -1223,4 +1223,4 @@ version = "HOSTNAME"
 
 [chat]
 enabled = false
-embedded_ai_workflow_host = "http://0.0.0.0:8000"
+hyperswitch_ai_host = "http://0.0.0.0:8000"
