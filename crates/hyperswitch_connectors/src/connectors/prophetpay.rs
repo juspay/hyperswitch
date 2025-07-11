@@ -746,6 +746,7 @@ static PROPHETPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Prophetpay",
         description: "GlobePay Limited is a professional cross-border payment solution provider (WeChat Pay & Alipay) in the UK",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Alpha,
     };
 
 static PROPHETPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
