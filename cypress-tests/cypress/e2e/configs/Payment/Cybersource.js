@@ -120,7 +120,7 @@ export const connectorDetails = {
       Configs: {
         CONNECTOR_CREDENTIAL: {
           specName: ["incrementalAuth"],
-          value: "connector_2",
+          value: "connector_1",
         },
       },
       Request: {
@@ -436,8 +436,17 @@ export const connectorDetails = {
         body: {
           status: "requires_capture",
           amount: 8000,
-          amount_capturable: 8000,
+          amount_capturable: 6000,
           amount_received: null,
+          incremental_authorizations: {
+            "0": {
+              amount: 8000,
+              previously_authorized_amount: 6000,
+              status: "failure",
+              error_code: "INVALID_DATA",
+              error_message: "INVALID_DATA",
+            },
+          },
         },
       },
     },
@@ -759,7 +768,7 @@ export const connectorDetails = {
       Configs: {
         CONNECTOR_CREDENTIAL: {
           specName: ["incrementalAuth"],
-          value: "connector_2",
+          value: "connector_1",
         },
       },
       Request: {

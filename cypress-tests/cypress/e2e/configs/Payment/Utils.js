@@ -390,7 +390,7 @@ export const CONNECTOR_LISTS = {
     MANDATES_USING_NTID_PROXY: ["cybersource"],
     INCREMENTAL_AUTH: [
       "archipel",
-      // "cybersource",    // issues with MULTIPLE_CONNECTORS handling
+      "cybersource",    // issues with MULTIPLE_CONNECTORS handling
     ],
     // Add more inclusion lists
   },
