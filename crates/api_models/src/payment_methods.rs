@@ -1053,6 +1053,35 @@ impl From<PaymentMethodDataWalletInfo> for payments::additional_info::WalletAddi
     }
 }
 
+impl From<payments::ApplepayPaymentMethod> for PaymentMethodDataWalletInfo {
+    fn from(item: payments::ApplepayPaymentMethod) -> Self {
+        Self {
+            last4: item
+                .display_name
+                .chars()
+                .rev()
+                .take(4)
+                .collect::<Vec<_>>()
+                .into_iter()
+                .rev()
+                .collect(),
+            card_network: item.network,
+            card_type: Some(item.pm_type),
+        }
+    }
+}
+
+impl TryFrom<PaymentMethodDataWalletInfo> for payments::ApplepayPaymentMethod {
+    type Error = error_stack::Report<errors::ValidationError>;
+    fn try_from(item: PaymentMethodDataWalletInfo) -> Result<Self, Self::Error> {
+        Ok(Self {
+            display_name: item.last4,
+            network: item.card_network,
+            pm_type: item.card_type.get_required_value("card_type")?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BankAccountTokenData {
     pub payment_method_type: api_enums::PaymentMethodType,
