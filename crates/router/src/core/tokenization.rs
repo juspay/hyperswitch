@@ -124,11 +124,14 @@ pub async fn delete_tokenized_data_core(
         .to_not_found_response(errors::ApiErrorResponse::TokenizationRecordNotFound)
         .attach_printable("Failed to get tokenization record")?;
 
-    when(tokenization_record.customer_id != payload.customer_id, || {
-        Err(errors::ApiErrorResponse::GenericNotFoundError {
-            message: "Tokenization record does not belong to the customer".to_string(),
-        })
-    })?;
+    when(
+        tokenization_record.customer_id != payload.customer_id,
+        || {
+            Err(errors::ApiErrorResponse::GenericNotFoundError {
+                message: "Tokenization record does not belong to the customer".to_string(),
+            })
+        },
+    )?;
 
     when(tokenization_record.is_disabled(), || {
         Err(errors::ApiErrorResponse::GenericNotFoundError {
@@ -139,30 +142,25 @@ pub async fn delete_tokenized_data_core(
     //fetch locker id
     let vault_id = domain::VaultId::generate(tokenization_record.locker_id.clone());
     //delete card from vault
-    pm_vault::delete_payment_method_data_from_vault_internal(
-        &state,
-        &merchant_context,
-        vault_id,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to delete payment method from vault")?;
+    pm_vault::delete_payment_method_data_from_vault_internal(&state, &merchant_context, vault_id)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to delete payment method from vault")?;
 
     //update the status with Disabled
     let tokenization_update = hyperswitch_domain_models::tokenization::TokenizationUpdate::Update {
         updated_at: Some(common_utils::date_time::now()),
         flag: Some(enums::TokenizationFlag::Disabled),
     };
-    db
-        .update_tokenization_record(
-            tokenization_record,
-            tokenization_update,
-            merchant_context.get_merchant_key_store(),
-            key_manager_state,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to update tokenization record")?;
+    db.update_tokenization_record(
+        tokenization_record,
+        tokenization_update,
+        merchant_context.get_merchant_key_store(),
+        key_manager_state,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to update tokenization record")?;
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         api_models::tokenization::DeleteTokenDataResponse {
