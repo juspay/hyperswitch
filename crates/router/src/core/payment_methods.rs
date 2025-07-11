@@ -3249,6 +3249,10 @@ async fn create_single_use_tokenization_flow(
         currency: api_models::enums::Currency::default(),
         amount: None,
         split_payments: None,
+        mandate_id: None,
+        setup_future_usage: None,
+        customer_acceptance: None,
+        setup_mandate_details: None,
     };
 
     let payment_method_session_address = types::PaymentAddress::new(
@@ -3317,12 +3321,12 @@ async fn create_single_use_tokenization_flow(
             is_payment_id_from_merchant: None,
         };
 
-    let payment_method_token_response = tokenization::add_token_for_payment_method(
+    let payment_method_token_response = Box::pin(tokenization::add_token_for_payment_method(
         &mut router_data,
         payment_method_data_request.clone(),
         state.clone(),
         &merchant_connector_account_details.clone(),
-    )
+    ))
     .await?;
 
     let token_response = payment_method_token_response.token.map_err(|err| {
