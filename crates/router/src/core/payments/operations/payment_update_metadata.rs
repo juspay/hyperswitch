@@ -131,6 +131,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsUpdateMe
             address: payments::PaymentAddress::new(None, None, None, None),
             confirm: None,
             payment_method_data: None,
+            payment_method_token: None,
             payment_method_info: None,
             force_sync: None,
             all_keys_required: None,
