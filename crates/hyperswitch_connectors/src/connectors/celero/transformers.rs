@@ -1,4 +1,4 @@
-use common_enums::{enums, Currency};
+use common_enums::{enums, Currency, FutureUsage};
 use common_utils::{pii::Email, types::MinorUnit};
 use hyperswitch_domain_models::{
     address::Address as DomainAddress,
@@ -12,7 +12,7 @@ use hyperswitch_domain_models::{
         refunds::{Execute, RSync},
     },
     router_request_types::{PaymentsCaptureData, ResponseId},
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefundSyncRouterData, RefundsRouterData,
@@ -25,7 +25,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        AddressDetailsData, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData as _,
+        self, AddressDetailsData, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData as _,
     },
 };
 
@@ -87,8 +87,64 @@ pub struct CeleroPaymentsRequest {
     shipping_address: Option<CeleroAddress>,
     #[serde(skip_serializing_if = "Option::is_none")]
     create_vault_record: Option<bool>,
+    #[serde(flatten)]
+    stored_credential: Option<CeleroStoredCredential>,
 }
 
+#[derive(Debug, Serialize, PartialEq)]
+pub struct CeleroStoredCredential {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    initiated_by: Option<InitiatedBy>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    initial_transaction_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    stored_credential_indicator: Option<StoredCredentialIndicator>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    billing_method: Option<CeleroBillingMethod>,
+}
+
+impl TryFrom<&PaymentsAuthorizeRouterData> for CeleroStoredCredential {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(router_data: &PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+        let setup_future_usage = router_data.request.setup_future_usage;
+        let mandate_id = router_data.request.mandate_id.clone();
+
+        let initiated_by: Option<InitiatedBy> = setup_future_usage.map(|s| s.into());
+
+        let (stored_credential_indicator, initial_transaction_id) = if mandate_id.is_some() {
+            (
+                Some(StoredCredentialIndicator::Used),
+                router_data.request.connector_mandate_id(),
+            )
+        } else if setup_future_usage.is_some() {
+            (Some(StoredCredentialIndicator::Stored), None)
+        } else {
+            (None, None)
+        };
+
+        if initiated_by.is_some() || stored_credential_indicator.is_some() {
+            Ok(Self {
+                initiated_by,
+                initial_transaction_id,
+                stored_credential_indicator,
+                billing_method: Some(CeleroBillingMethod::Recurring),
+            })
+        } else {
+            Err(errors::ConnectorError::MissingRequiredField {
+                field_name:
+                    "initiated_by or stored_credential_indicator to construct StoredCredential",
+            }
+            .into())
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum CeleroBillingMethod {
+    Straight,
+    Recurring,
+}
 #[derive(Debug, Serialize, PartialEq)]
 pub struct CeleroAddress {
     first_name: Option<Secret<String>>,
@@ -214,6 +270,8 @@ impl TryFrom<&CeleroRouterData<&PaymentsAuthorizeRouterData>> for CeleroPayments
             .get_optional_shipping()
             .and_then(|address| address.try_into().ok());
 
+        let stored_credential = CeleroStoredCredential::try_from(item.router_data).ok();
+
         let request = Self {
             idempotency_key: item.router_data.connector_request_reference_id.clone(),
             transaction_type,
@@ -225,6 +283,7 @@ impl TryFrom<&CeleroRouterData<&PaymentsAuthorizeRouterData>> for CeleroPayments
             billing_address,
             shipping_address,
             create_vault_record: Some(false),
+            stored_credential,
         };
 
         Ok(request)
@@ -293,6 +352,7 @@ impl From<CeleroTransactionStatus> for common_enums::AttemptStatus {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CeleroCardResponse {
+    pub id: String,
     pub status: CeleroTransactionStatus,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub auth_code: Option<String>,
@@ -314,18 +374,43 @@ pub enum TransactionType {
     Sale,
     Authorize,
 }
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum InitiatedBy {
+    Customer,
+    Merchant,
+}
+
+impl From<FutureUsage> for InitiatedBy {
+    fn from(item: FutureUsage) -> Self {
+        match item {
+            FutureUsage::OnSession => Self::Customer,
+            FutureUsage::OffSession => Self::Merchant,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum StoredCredentialIndicator {
+    Used,
+    Stored,
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct CeleroTransactionData {
     pub id: String,
     #[serde(rename = "type")]
     pub transaction_type: TransactionType,
-    pub amount: i64,
-    pub currency: String,
+    pub amount: MinorUnit,
+    pub currency: Currency,
     pub response: CeleroPaymentMethodResponse,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub billing_address: Option<CeleroAddressResponse>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub shipping_address: Option<CeleroAddressResponse>,
+    pub billing_method: Option<CeleroBillingMethod>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
@@ -396,12 +481,21 @@ impl<F, T> TryFrom<ResponseRouterData<F, CeleroPaymentsResponse, T, PaymentsResp
                                 )
                                 .map(ConnectorResponseData::with_additional_payment_method_data);
                             let final_status: enums::AttemptStatus = response.status.into();
+                            let mandate_reference = match data.billing_method {
+                                Some(CeleroBillingMethod::Recurring) => Some(MandateReference {
+                                    connector_mandate_id: Some(response.id.clone()), // Celero doenst mention any mandate id. this is the best we can get or order id. Need to verify once
+                                    payment_method_id: None,
+                                    mandate_metadata: None,
+                                    connector_mandate_request_reference_id: None,
+                                }),
+                                _ => None,
+                            };
                             Ok(Self {
                                 status: final_status,
                                 response: Ok(PaymentsResponseData::TransactionResponse {
                                     resource_id: ResponseId::ConnectorTransactionId(data.id),
                                     redirection_data: Box::new(None),
-                                    mandate_reference: Box::new(None),
+                                    mandate_reference: Box::new(mandate_reference),
                                     connector_metadata: None,
                                     network_txn_id: None,
                                     connector_response_reference_id: response.auth_code.clone(),
