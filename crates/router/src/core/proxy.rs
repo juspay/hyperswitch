@@ -23,28 +23,9 @@ pub async fn proxy_core(
             merchant_context.get_merchant_account().storage_scheme,
         )
         .await?;
-
-    let vault_id = proxy_record.get_vault_id()?;
-    let customer_id = proxy_record.get_customer_id()?;
-
-    let vault_response =
-        super::payment_methods::vault::retrieve_payment_method_from_vault_internal(
-            &state,
-            &merchant_context,
-            &vault_id,
-            &customer_id,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error while fetching data from vault")?;
-
-    let vault_data = vault_response
-        .data
-        .encode_to_value()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to serialize vault data")?;
-    let vault_data = req_wrapper
-        .get_vault_data(&state, merchant_context, &vault_id)
+    
+    let vault_data = proxy_record
+        .get_vault_data(&state, merchant_context)
         .await?;
 
     let processed_body =

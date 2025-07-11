@@ -58,41 +58,6 @@ impl ProxyRequestWrapper {
                 )))
             }
             proxy_api_models::TokenType::TokenizationId => {
-                Err(report!(errors::ApiErrorResponse::NotImplemented {
-                    message: NotImplementedMessage::Reason(
-                        "Proxy flow using tokenization id".to_string(),
-                    ),
-                }))
-            }
-        }
-    }
-
-    pub async fn get_customer_id(
-        &self,
-        state: &SessionState,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: common_enums::enums::MerchantStorageScheme,
-    ) -> RouterResult<id_type::GlobalCustomerId> {
-        let token = &self.0.token;
-
-        match self.0.token_type {
-            proxy_api_models::TokenType::PaymentMethodId => {
-                let pm_id = PaymentMethodId {
-                    payment_method_id: token.clone(),
-                };
-                let pm_id =
-                    id_type::GlobalPaymentMethodId::generate_from_string(pm_id.payment_method_id)
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Unable to generate GlobalPaymentMethodId")?;
-
-                Ok(state
-                    .store
-                    .find_payment_method(&((state).into()), key_store, &pm_id, storage_scheme)
-                    .await
-                    .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)?
-                    .customer_id)
-            }
-            proxy_api_models::TokenType::TokenizationId => {
                 let token_id = id_type::GlobalTokenId::from_string(token.clone().as_str())
                     .change_context(errors::ApiErrorResponse::InternalServerError)?;
                 let db = state.store.as_ref();
@@ -103,9 +68,9 @@ impl ProxyRequestWrapper {
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-                Ok(payment_methods::VaultId::generate(
-                    tokenization_record.locker_id,
-                ))
+                Ok(ProxyRecord::TokenizationRecord(Box::new(
+                    tokenization_record,
+                )))
             }
         }
     }
@@ -126,19 +91,42 @@ impl ProxyRequestWrapper {
     pub fn get_method(&self) -> common_utils::request::Method {
         self.0.method
     }
+}
+
+impl ProxyRecord {
+    fn get_vault_id(&self) -> RouterResult<payment_methods::VaultId> {
+        match self {
+            Self::PaymentMethodRecord(payment_method) => payment_method
+                .locker_id
+                .clone()
+                .get_required_value("vault_id")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Locker id not present in Payment Method Entry"),
+            Self::TokenizationRecord(tokenization_record) => Ok(payment_methods::VaultId::generate(
+                tokenization_record.locker_id.clone(),
+            )),
+        }
+    }
+
+    fn get_customer_id(&self) -> id_type::GlobalCustomerId {
+        match self {
+            Self::PaymentMethodRecord(payment_method) => payment_method.customer_id.clone(),
+            Self::TokenizationRecord(tokenization_record) => tokenization_record.customer_id.clone(),
+        }
+    }
 
     pub async fn get_vault_data(
         &self,
         state: &SessionState,
         merchant_context: domain::MerchantContext,
-        vault_id: &payment_methods::VaultId,
     ) -> RouterResult<Value> {
-        match self.0.token_type {
-            proxy_api_models::TokenType::PaymentMethodId => {
+        match self {
+            Self::PaymentMethodRecord(_) => {
                 let vault_resp = vault::retrieve_payment_method_from_vault_internal(
                     state,
                     &merchant_context,
-                    vault_id,
+                    &self.get_vault_id()?,
+                    &self.get_customer_id(),
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -150,10 +138,10 @@ impl ProxyRequestWrapper {
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to serialize vault data")?)
             }
-            proxy_api_models::TokenType::TokenizationId => {
+            Self::TokenizationRecord(_) => {
                 let vault_request = pm_types::VaultRetrieveRequest {
-                    entity_id: merchant_context.get_merchant_account().get_id().clone(),
-                    vault_id: vault_id.clone(),
+                    entity_id: self.get_customer_id(),
+                    vault_id: self.get_vault_id()?,
                 };
 
                 let vault_data = vault::retrieve_value_from_vault(state, vault_request)
@@ -163,35 +151,6 @@ impl ProxyRequestWrapper {
 
                 Ok(vault_data.get("data").cloned().unwrap_or(Value::Null))
             }
-        }
-    }
-}
-
-impl ProxyRecord {
-    pub fn get_vault_id(&self) -> RouterResult<payment_methods::VaultId> {
-        match self {
-            Self::PaymentMethodRecord(payment_method) => payment_method
-                .locker_id
-                .clone()
-                .get_required_value("vault_id")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Locker id not present in Payment Method Entry"),
-            Self::TokenizationRecord(_) => Err(report!(errors::ApiErrorResponse::NotImplemented {
-                message: NotImplementedMessage::Reason(
-                    "Proxy flow using tokenization id".to_string(),
-                ),
-            })),
-        }
-    }
-
-    pub fn get_customer_id(&self) -> RouterResult<id_type::GlobalCustomerId> {
-        match self {
-            Self::PaymentMethodRecord(payment_method) => Ok(payment_method.customer_id.clone()),
-            Self::TokenizationRecord(_) => Err(report!(errors::ApiErrorResponse::NotImplemented {
-                message: NotImplementedMessage::Reason(
-                    "Proxy flow using tokenization id".to_string(),
-                ),
-            })),
         }
     }
 }
