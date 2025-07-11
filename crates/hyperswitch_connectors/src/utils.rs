@@ -1672,13 +1672,10 @@ impl CustomerData for ConnectorCustomerData {
         self.email.clone().ok_or_else(missing_field_err("email"))
     }
     fn is_mandate_payment(&self) -> bool {
-        ((self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
-            && (self.setup_future_usage == Some(FutureUsage::OffSession)))
-            || self
-                .mandate_id
-                .as_ref()
-                .and_then(|mandate_ids| mandate_ids.mandate_reference_id.as_ref())
-                .is_some()
+        // We only need to check if the customer acceptance or setup mandate details are present and if the setup future usage is OffSession.
+        // mandate_reference_id is not needed here as we do not need to check for existing mandates.
+        (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
+            && (self.setup_future_usage == Some(FutureUsage::OffSession))
     }
 }
 
