@@ -8379,6 +8379,7 @@ dependencies = [
  "async-trait",
  "base64 0.22.1",
  "clap",
+ "common_enums",
  "masking",
  "rand 0.8.5",
  "regex",
