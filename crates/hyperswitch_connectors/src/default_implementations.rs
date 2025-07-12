@@ -1434,7 +1434,6 @@ default_imp_for_pre_processing_steps!(
     connectors::Netcetera,
     connectors::Nomupay,
     connectors::Noon,
-    connectors::Nordea,
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Opayo,

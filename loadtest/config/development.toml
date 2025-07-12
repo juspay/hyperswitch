@@ -546,6 +546,9 @@ paypal = { currency = "AUD,BRL,CAD,CHF,CNY,CZK,DKK,EUR,GBP,HKD,HUF,ILS,JPY,MXN,M
 credit = { country = "US, CA", currency = "CAD,USD" }
 debit = { country = "US, CA", currency = "CAD,USD" }
 
+[pm_filters.nordea]
+sepa = { country = "CH,DE,DK,EE,FI,GB,LT,LU,LV,NO,PL,RU,SE,SG,US", currency = "DKK,EUR,NOK,SEK,NOK" }
+
 [pm_filters.fiuu]
 duit_now = { country = "MY", currency = "MYR" }
 apple_pay = { country = "MY", currency = "MYR" }

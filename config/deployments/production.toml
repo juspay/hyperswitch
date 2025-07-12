@@ -96,7 +96,7 @@ nexixpay.base_url = "https://xpay.nexigroup.com/api/phoenix-0.0/psp/api/v1"
 nmi.base_url = "https://secure.nmi.com/"
 nomupay.base_url = "https://payout-api.nomupay.com"
 noon.base_url = "https://api.noonpayments.com/"
-nordea.base_url = "https://openapi.portal.nordea.com"
+nordea.base_url = "https://open.nordeaopenbanking.com"
 noon.key_mode = "Live"
 novalnet.base_url = "https://payport.novalnet.de/v2"
 nuvei.base_url = "https://secure.safecharge.com/"
@@ -611,6 +611,8 @@ red_pagos = { country = "UY", currency = "UYU" }
 [pm_filters.zsl]
 local_bank_transfer = { country = "CN", currency = "CNY" }
 
+[pm_filters.nordea]
+sepa = { country = "CH,DE,DK,EE,FI,GB,LT,LU,LV,NO,PL,RU,SE,SG,US", currency = "DKK,EUR,NOK,SEK,NOK" }
 
 [pm_filters.fiuu]
 duit_now = { country = "MY", currency = "MYR" }
