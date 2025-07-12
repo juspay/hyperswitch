@@ -8577,6 +8577,7 @@ pub async fn route_connector_v2_for_payments(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("failed eligibility analysis and fallback")?;
 
+    // logger::info!(connectors.length());
     connectors
         .first()
         .map(|conn| {
