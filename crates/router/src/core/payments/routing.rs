@@ -2100,13 +2100,13 @@ where
             "performing success_based_routing for profile {}",
             profile_id.get_string_repr()
         );
-        let client = state
+        let client = &state
             .grpc_client
             .dynamic_routing
-            .success_rate_client
             .as_ref()
             .ok_or(errors::RoutingError::SuccessRateClientInitializationError)
-            .attach_printable("success_rate gRPC client not found")?;
+            .attach_printable("dynamic routing gRPC client not found")?
+            .success_rate_client;
 
         let success_based_routing_configs = routing::helpers::fetch_dynamic_routing_configs::<
             api_routing::SuccessBasedRoutingConfig,
@@ -2284,13 +2284,13 @@ pub async fn perform_elimination_routing(
             "performing elimination_routing for profile {}",
             profile_id.get_string_repr()
         );
-        let client = state
+        let client = &state
             .grpc_client
             .dynamic_routing
-            .elimination_based_client
             .as_ref()
             .ok_or(errors::RoutingError::EliminationClientInitializationError)
-            .attach_printable("elimination routing's gRPC client not found")?;
+            .attach_printable("dynamic routing gRPC client not found")?
+            .elimination_based_client;
 
         let elimination_routing_config = routing::helpers::fetch_dynamic_routing_configs::<
             api_routing::EliminationRoutingConfig,
@@ -2484,13 +2484,13 @@ where
             "performing contract_based_routing for profile {}",
             profile_id.get_string_repr()
         );
-        let client = state
+        let client = &state
             .grpc_client
             .dynamic_routing
-            .contract_based_client
             .as_ref()
             .ok_or(errors::RoutingError::ContractRoutingClientInitializationError)
-            .attach_printable("contract routing gRPC client not found")?;
+            .attach_printable("dynamic routing gRPC client not found")?
+            .contract_based_client;
 
         let contract_based_routing_configs = routing::helpers::fetch_dynamic_routing_configs::<
             api_routing::ContractBasedRoutingConfig,
