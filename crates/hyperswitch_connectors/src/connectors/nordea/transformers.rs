@@ -1,30 +1,45 @@
+use std::collections::HashMap;
+
 use common_enums::enums;
-use common_utils::types::StringMinorUnit;
+use common_utils::{pii, request::Method, types::StringMajorUnit};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
-    router_data::{ConnectorAuthType, RouterData},
+    payment_method_data::{BankDebitData, PaymentMethodData},
+    router_data::{AccessToken, ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
-    types::{PaymentsAuthorizeRouterData, RefundsRouterData},
+    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
+    types::{
+        self, PaymentsAuthorizeRouterData, PaymentsPreProcessingRouterData, RefreshTokenRouterData,
+        RefundsRouterData,
+    },
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
-use serde::{Deserialize, Serialize};
+use masking::{ExposeInterface, Secret};
+use rand::distributions::DistString;
+use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
+    connectors::nordea::{
+        requests::{
+            AccessScope, AccountNumber, AccountType, CreditorAccount, CreditorAccountReference,
+            CreditorBank, DebitorAccount, GrantType, NordeaOAuthExchangeRequest,
+            NordeaOAuthRequest, NordeaPaymentsConfirmRequest, NordeaPaymentsRequest,
+            NordeaRefundRequest, NordeaRouterData, PaymentsUrgency,
+        },
+        responses::{
+            NordeaErrorBody, NordeaFailures, NordeaOAuthExchangeResponse, NordeaPaymentStatus,
+            NordeaPaymentsResponse, NordeaRefundResponse, NordeaRefundStatus,
+        },
+    },
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::PaymentsAuthorizeRequestData,
+    utils::{self, get_unimplemented_payment_method_error_message, RouterData as _},
 };
 
-//TODO: Fill the struct with respective fields
-pub struct NordeaRouterData<T> {
-    pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
-    pub router_data: T,
-}
+type Error = error_stack::Report<errors::ConnectorError>;
 
-impl<T> From<(StringMinorUnit, T)> for NordeaRouterData<T> {
-    fn from((amount, item): (StringMinorUnit, T)) -> Self {
+impl<T> From<(StringMajorUnit, T)> for NordeaRouterData<T> {
+    fn from((amount, item): (StringMajorUnit, T)) -> Self {
         //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Self {
             amount,
@@ -34,124 +49,412 @@ impl<T> From<(StringMinorUnit, T)> for NordeaRouterData<T> {
 }
 
 //TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, PartialEq)]
-pub struct NordeaPaymentsRequest {
-    amount: StringMinorUnit,
-    card: NordeaCard,
-}
-
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct NordeaCard {
-    number: cards::CardNumber,
-    expiry_month: Secret<String>,
-    expiry_year: Secret<String>,
-    cvc: Secret<String>,
-    complete: bool,
-}
-
-impl TryFrom<&NordeaRouterData<&PaymentsAuthorizeRouterData>> for NordeaPaymentsRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &NordeaRouterData<&PaymentsAuthorizeRouterData>,
-    ) -> Result<Self, Self::Error> {
-        match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(req_card) => {
-                let card = NordeaCard {
-                    number: req_card.card_number,
-                    expiry_month: req_card.card_exp_month,
-                    expiry_year: req_card.card_exp_year,
-                    cvc: req_card.card_cvc,
-                    complete: item.router_data.request.is_auto_capture()?,
-                };
-                Ok(Self {
-                    amount: item.amount.clone(),
-                    card,
-                })
-            }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
-        }
-    }
-}
-
-//TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct NordeaAuthType {
-    pub(super) api_key: Secret<String>,
+    pub(super) client_id: Secret<String>,
+    pub(super) client_secret: Secret<String>,
+    /// PEM format private key for eIDAS signing
+    pub(super) eidas_private_key: Secret<String>,
 }
 
 impl TryFrom<&ConnectorAuthType> for NordeaAuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_owned(),
+            ConnectorAuthType::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            } => Ok(Self {
+                client_id: key1.to_owned(),
+                client_secret: api_key.to_owned(),
+                eidas_private_key: api_secret.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
     }
 }
-// PaymentsResponse
-//TODO: Append the remaining status flags
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum NordeaPaymentStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct NordeaConnectorMetadataObject {
+    pub creditor_account_value: Secret<String>,
+    pub creditor_account_type: String,
+}
+
+impl TryFrom<&Option<pii::SecretSerdeValue>> for NordeaConnectorMetadataObject {
+    type Error = Error;
+    fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
+        let metadata: Self = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "merchant_connector_account.metadata",
+            })?;
+        Ok(metadata)
+    }
+}
+
+impl TryFrom<&RefreshTokenRouterData> for NordeaOAuthRequest {
+    type Error = Error;
+    fn try_from(item: &RefreshTokenRouterData) -> Result<Self, Self::Error> {
+        let country = item.get_billing_country()?;
+        // Set refresh_token maximum expiry duration to 180 days (259200 / 60 = 180)
+        // Minimum is 1 minute
+        let duration = Some(259200);
+        let maximum_transaction_history = Some(18);
+        let redirect_uri = "https://hyperswitch.io".to_string();
+        let scope = [
+            AccessScope::AccountsBasic,
+            AccessScope::AccountsDetails,
+            AccessScope::AccountsBalances,
+            AccessScope::AccountsTransactions,
+            AccessScope::PaymentsMultiple,
+        ]
+        .to_vec();
+        let state = rand::distributions::Alphanumeric.sample_string(&mut rand::thread_rng(), 15);
+
+        Ok(Self {
+            country,
+            duration,
+            maximum_transaction_history,
+            redirect_uri,
+            scope,
+            state: state.into(),
+        })
+    }
+}
+
+impl TryFrom<&types::PaymentsSessionRouterData> for NordeaOAuthExchangeRequest {
+    type Error = Error;
+    fn try_from(item: &types::PaymentsSessionRouterData) -> Result<Self, Self::Error> {
+        let code = item
+            .access_token
+            .as_ref()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "authorization_code",
+            })?
+            .token
+            .clone();
+        let grant_type = GrantType::AuthorizationCode;
+        let redirect_uri = Some("https://hyperswitch.io".to_string());
+
+        Ok(Self {
+            code: Some(code),
+            grant_type,
+            redirect_uri,
+            refresh_token: None, // We're not using refresh_token to generate new access_token
+        })
+    }
+}
+
+impl<F, T> TryFrom<ResponseRouterData<F, NordeaOAuthExchangeResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
+    type Error = Error;
+    fn try_from(
+        item: ResponseRouterData<F, NordeaOAuthExchangeResponse, T, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let access_token =
+            item.response
+                .access_token
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "access_token",
+                })?;
+
+        let expires_in = item.response.expires_in.unwrap_or(3600); // Default to 1 hour if not provided
+
+        // Store the access token in the router data
+        let mut data = item.data;
+        data.access_token = Some(AccessToken {
+            token: access_token.clone(),
+            expires: expires_in,
+        });
+
+        // i'm pretty skeptical about this part of code working9
+
+        // Create a session response with the access token
+        let response = Ok(PaymentsResponseData::SessionTokenResponse {
+            session_token: access_token.clone().expose(),
+        });
+
+        Ok(Self {
+            status: common_enums::AttemptStatus::AuthenticationSuccessful,
+            response,
+            // or, may be, override access token at this point?
+            // access_token: Some(AccessToken {
+            //     token: access_token.clone(),
+            //     expires: expires_in,
+            // }),
+            session_token: Some(access_token.clone().expose()),
+            ..data
+        })
+    }
+}
+
+impl TryFrom<&str> for AccountType {
+    type Error = Error;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value.to_uppercase().as_str() {
+            "IBAN" => Ok(Self::Iban),
+            "BBAN_SE" => Ok(Self::BbanSe),
+            "BBAN_DK" => Ok(Self::BbanDk),
+            "BBAN_NO" => Ok(Self::BbanNo),
+            "BGNR" => Ok(Self::Bgnr),
+            "PGNR" => Ok(Self::Pgnr),
+            "GIRO_DK" => Ok(Self::GiroDk),
+            "BBAN_OTHER" => Ok(Self::BbanOther),
+            _ => Err(errors::ConnectorError::InvalidConnectorConfig {
+                config: "account_type",
+            }
+            .into()),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for PaymentsUrgency {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?.to_lowercase();
+        match s.as_str() {
+            "standard" => Ok(Self::Standard),
+            "express" => Ok(Self::Express),
+            "sameday" => Ok(Self::Sameday),
+            _ => Err(serde::de::Error::unknown_variant(
+                &s,
+                &["standard", "express", "sameday"],
+            )),
+        }
+    }
+}
+
+fn get_creditor_account_from_metadata(
+    router_data: &PaymentsPreProcessingRouterData,
+) -> Result<CreditorAccount, Error> {
+    let metadata: NordeaConnectorMetadataObject =
+        utils::to_connector_meta_from_secret(router_data.connector_meta_data.clone())
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "merchant_connector_account.metadata",
+            })?;
+    let creditor_account = CreditorAccount {
+        account: AccountNumber {
+            account_type: AccountType::try_from(metadata.creditor_account_type.as_str())
+                .unwrap_or(AccountType::Iban),
+            currency: router_data.request.currency,
+            value: metadata.creditor_account_value,
+        },
+        country: router_data.get_optional_billing_country(),
+        // Merchant is the beneficiary in this case
+        name: None,
+        message: None,
+        bank: CreditorBank {
+            address: None,
+            bank_code: None,
+            bank_name: None,
+            business_identifier_code: None,
+            country: router_data.get_billing_country()?,
+        },
+        creditor_address: None,
+        // Reference is optional field in the examples given in the doc.
+        // It is considered as a required field in the api contract
+        reference: CreditorAccountReference {
+            creditor_reference_type: "RF".to_string(), // Assuming RF for SEPA payments
+            value: None,
+        },
+    };
+    Ok(creditor_account)
+}
+
+impl TryFrom<&NordeaRouterData<&PaymentsPreProcessingRouterData>> for NordeaPaymentsRequest {
+    type Error = Error;
+    fn try_from(
+        item: &NordeaRouterData<&PaymentsPreProcessingRouterData>,
+    ) -> Result<Self, Self::Error> {
+        match item.router_data.request.payment_method_data.clone() {
+            Some(PaymentMethodData::BankDebit(bank_debit_data)) => match bank_debit_data {
+                BankDebitData::SepaBankDebit { iban, .. } => {
+                    let creditor_account = get_creditor_account_from_metadata(item.router_data)?;
+                    let debitor_account = DebitorAccount {
+                        account: AccountNumber {
+                            account_type: AccountType::Iban,
+                            currency: item.router_data.request.currency,
+                            value: iban,
+                        },
+                        message: item.router_data.description.clone(),
+                    };
+
+                    let instructed_amount = super::requests::InstructedAmount {
+                        amount: item.amount.clone(),
+                        currency: item.router_data.request.currency.ok_or(
+                            errors::ConnectorError::MissingRequiredField {
+                                field_name: "amount",
+                            },
+                        )?,
+                    };
+
+                    Ok(Self {
+                        creditor_account,
+                        debitor_account,
+                        end_to_end_identification: None,
+                        external_id: Some(item.router_data.connector_request_reference_id.clone()),
+                        instructed_amount,
+                        recurring: None,
+                        request_availability_of_funds: None,
+                        requested_execution_date: None,
+                        tpp_messages: None,
+                        urgency: None,
+                    })
+                }
+                BankDebitData::AchBankDebit { .. }
+                | BankDebitData::BacsBankDebit { .. }
+                | BankDebitData::BecsBankDebit { .. } => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        get_unimplemented_payment_method_error_message("Nordea"),
+                    )
+                    .into())
+                }
+            },
+            Some(PaymentMethodData::CardRedirect(_))
+            | Some(PaymentMethodData::CardDetailsForNetworkTransactionId(_))
+            | Some(PaymentMethodData::Wallet(_))
+            | Some(PaymentMethodData::PayLater(_))
+            | Some(PaymentMethodData::BankRedirect(_))
+            | Some(PaymentMethodData::BankTransfer(_))
+            | Some(PaymentMethodData::Crypto(_))
+            | Some(PaymentMethodData::MandatePayment)
+            | Some(PaymentMethodData::Reward)
+            | Some(PaymentMethodData::RealTimePayment(_))
+            | Some(PaymentMethodData::MobilePayment(_))
+            | Some(PaymentMethodData::Upi(_))
+            | Some(PaymentMethodData::Voucher(_))
+            | Some(PaymentMethodData::GiftCard(_))
+            | Some(PaymentMethodData::OpenBanking(_))
+            | Some(PaymentMethodData::CardToken(_))
+            | Some(PaymentMethodData::NetworkToken(_))
+            | Some(PaymentMethodData::Card(_))
+            | None => {
+                Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
+            }
+        }
+    }
+}
+
+impl TryFrom<&NordeaRouterData<&PaymentsAuthorizeRouterData>> for NordeaPaymentsConfirmRequest {
+    type Error = Error;
+    fn try_from(
+        item: &NordeaRouterData<&PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let payment_ids = match &item.router_data.response {
+            Ok(response_data) => response_data
+                .get_connector_transaction_id()
+                .map_err(|_| errors::ConnectorError::MissingConnectorTransactionID)?,
+            Err(_) => return Err(errors::ConnectorError::ResponseDeserializationFailed.into()),
+        };
+
+        Ok(Self {
+            authentication_method: None,
+            language: None,
+            payments_ids: vec![payment_ids],
+            redirect_url: None,
+            state: None,
+        })
+    }
 }
 
 impl From<NordeaPaymentStatus> for common_enums::AttemptStatus {
     fn from(item: NordeaPaymentStatus) -> Self {
         match item {
-            NordeaPaymentStatus::Succeeded => Self::Charged,
-            NordeaPaymentStatus::Failed => Self::Failure,
-            NordeaPaymentStatus::Processing => Self::Authorizing,
+            NordeaPaymentStatus::Confirmed | NordeaPaymentStatus::Paid => Self::Charged,
+
+            NordeaPaymentStatus::PendingConfirmation
+            | NordeaPaymentStatus::PendingSecondConfirmation
+            | NordeaPaymentStatus::PendingUserApproval => Self::AuthenticationPending,
+
+            NordeaPaymentStatus::OnHold | NordeaPaymentStatus::Unknown => Self::Pending,
+
+            NordeaPaymentStatus::Rejected
+            | NordeaPaymentStatus::InsufficientFunds
+            | NordeaPaymentStatus::LimitExceeded
+            | NordeaPaymentStatus::UserApprovalFailed
+            | NordeaPaymentStatus::UserApprovalTimeout
+            | NordeaPaymentStatus::UserApprovalCancelled => Self::Failure,
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct NordeaPaymentsResponse {
-    status: NordeaPaymentStatus,
-    id: String,
+pub fn get_error_data(error_response: Option<&NordeaErrorBody>) -> Option<&NordeaFailures> {
+    error_response
+        .and_then(|error| error.nordea_failures.as_ref())
+        .and_then(|failures| failures.first())
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, NordeaPaymentsResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(
         item: ResponseRouterData<F, NordeaPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        let response = match &item.response.payments_response {
+            Some(payment_response) => {
+                let resource_id =
+                    ResponseId::ConnectorTransactionId(payment_response.payment_id.clone());
+
+                let redirection_data = payment_response
+                    .links
+                    .as_ref()
+                    .and_then(|links| {
+                        links.iter().find(|link| {
+                            link.rel
+                                .as_ref()
+                                .map(|rel| rel == "signing")
+                                .unwrap_or(false)
+                        })
+                    })
+                    .and_then(|link| link.href.clone())
+                    .map(|redirect_url| RedirectForm::Form {
+                        endpoint: redirect_url,
+                        method: Method::Get,
+                        form_fields: HashMap::new(),
+                    });
+
+                Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id,
+                    redirection_data: Box::new(redirection_data),
+                    mandate_reference: Box::new(None),
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: Some(payment_response.payment_id.clone()),
+                    incremental_authorization_allowed: None,
+                    charges: None,
+                })
+            }
+            None => Err(errors::ConnectorError::ResponseHandlingFailed)?,
+        };
+
+        let status = item
+            .response
+            .payments_response
+            .as_ref()
+            .map(|r| match r.payment_status {
+                NordeaPaymentStatus::PendingConfirmation
+                | NordeaPaymentStatus::PendingUserApproval => {
+                    common_enums::AttemptStatus::AuthenticationPending
+                }
+                _ => common_enums::AttemptStatus::from(r.payment_status.clone()),
+            })
+            .unwrap_or(common_enums::AttemptStatus::Failure);
+
         Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.status),
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.id),
-                redirection_data: Box::new(None),
-                mandate_reference: Box::new(None),
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
-                charges: None,
-            }),
+            status,
+            response,
             ..item.data
         })
     }
 }
 
-//TODO: Fill the struct with respective fields
-// REFUND :
-// Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
-pub struct NordeaRefundRequest {
-    pub amount: StringMinorUnit,
-}
-
 impl<F> TryFrom<&NordeaRouterData<&RefundsRouterData<F>>> for NordeaRefundRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(item: &NordeaRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: item.amount.to_owned(),
@@ -159,70 +462,45 @@ impl<F> TryFrom<&NordeaRouterData<&RefundsRouterData<F>>> for NordeaRefundReques
     }
 }
 
-// Type definition for Refund Response
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
-pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
+impl TryFrom<RefundsResponseRouterData<Execute, NordeaRefundResponse>>
+    for RefundsRouterData<Execute>
+{
+    type Error = Error;
+    fn try_from(
+        item: RefundsResponseRouterData<Execute, NordeaRefundResponse>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(RefundsResponseData {
+                connector_refund_id: item.response.id.to_string(),
+                refund_status: enums::RefundStatus::from(item.response.status),
+            }),
+            ..item.data
+        })
+    }
 }
 
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
+impl TryFrom<RefundsResponseRouterData<RSync, NordeaRefundResponse>> for RefundsRouterData<RSync> {
+    type Error = Error;
+    fn try_from(
+        item: RefundsResponseRouterData<RSync, NordeaRefundResponse>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(RefundsResponseData {
+                connector_refund_id: item.response.id.to_string(),
+                refund_status: enums::RefundStatus::from(item.response.status),
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl From<NordeaRefundStatus> for enums::RefundStatus {
+    fn from(item: NordeaRefundStatus) -> Self {
         match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
+            NordeaRefundStatus::Succeeded => Self::Success,
+            NordeaRefundStatus::Failed => Self::Failure,
+            NordeaRefundStatus::Processing => Self::Pending,
             //TODO: Review mapping
         }
     }
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {
-    id: String,
-    status: RefundStatus,
-}
-
-impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: RefundsResponseRouterData<Execute, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
-            ..item.data
-        })
-    }
-}
-
-impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouterData<RSync> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: RefundsResponseRouterData<RSync, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
-            ..item.data
-        })
-    }
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct NordeaErrorResponse {
-    pub status_code: u16,
-    pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
 }
