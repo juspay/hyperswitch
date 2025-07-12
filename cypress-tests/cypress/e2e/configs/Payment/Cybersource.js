@@ -448,15 +448,15 @@ export const connectorDetails = {
           amount: 8000,
           amount_capturable: 6000,
           amount_received: null,
-          incremental_authorizations: {
-            0: {
+          incremental_authorizations: [
+            {
               amount: 8000,
               previously_authorized_amount: 6000,
               status: "failure",
               error_code: "INVALID_DATA",
               error_message: "INVALID_DATA",
             },
-          },
+          ],
         },
       },
     },
