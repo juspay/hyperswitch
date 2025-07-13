@@ -798,7 +798,7 @@ impl TryFrom<router_data::ConnectorAuthType> for AccessTokenRequestData {
     }
 }
 
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, utoipa::ToSchema)]
 pub struct AcceptDisputeRequestData {
     pub dispute_id: String,
     pub connector_dispute_id: String,
