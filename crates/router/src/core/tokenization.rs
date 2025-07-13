@@ -121,7 +121,9 @@ pub async fn delete_tokenized_data_core(
             key_manager_state,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::TokenizationRecordNotFound)
+        .to_not_found_response(errors::ApiErrorResponse::TokenizationRecordNotFound{
+            id: token_id.get_string_repr().to_string(),
+        })
         .attach_printable("Failed to get tokenization record")?;
 
     when(
@@ -142,7 +144,7 @@ pub async fn delete_tokenized_data_core(
     //fetch locker id
     let vault_id = domain::VaultId::generate(tokenization_record.locker_id.clone());
     //delete card from vault
-    pm_vault::delete_payment_method_data_from_vault_internal(&state, &merchant_context, vault_id)
+    pm_vault::delete_payment_method_data_from_vault_internal(&state, &merchant_context, vault_id, &tokenization_record.customer_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to delete payment method from vault")?;
