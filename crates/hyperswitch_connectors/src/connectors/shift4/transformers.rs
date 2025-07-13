@@ -355,6 +355,7 @@ where
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::VaultPayment(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::ExternalProxyCardData(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
@@ -661,6 +662,7 @@ impl<T> TryFrom<&Shift4RouterData<&RouterData<T, CompleteAuthorizeData, Payments
             | Some(PaymentMethodData::Upi(_))
             | Some(PaymentMethodData::OpenBanking(_))
             | Some(PaymentMethodData::CardToken(_))
+            | Some(PaymentMethodData::VaultPayment(_))
             | Some(PaymentMethodData::NetworkToken(_))
             | Some(PaymentMethodData::ExternalProxyCardData(_))
             | Some(PaymentMethodData::CardDetailsForNetworkTransactionId(_))

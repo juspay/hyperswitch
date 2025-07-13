@@ -4937,6 +4937,9 @@ pub async fn get_additional_payment_data(
                 details: Some(card_token.to_owned().into()),
             },
         )),
+        domain::PaymentMethodData::VaultPayment(_) => Ok(Some(
+            api_models::payments::AdditionalPaymentData::VaultPayment {},
+        )),
         domain::PaymentMethodData::OpenBanking(open_banking) => Ok(Some(
             api_models::payments::AdditionalPaymentData::OpenBanking {
                 details: Some(open_banking.to_owned().into()),
@@ -6269,6 +6272,7 @@ pub fn get_key_params_for_surcharge_details(
             None,
         )),
         domain::PaymentMethodData::CardToken(_)
+        | domain::PaymentMethodData::VaultPayment(_)
         | domain::PaymentMethodData::NetworkToken(_)
         | domain::PaymentMethodData::ExternalProxyCardData(_)
         | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => None,
