@@ -658,7 +658,7 @@ impl Payments {
                         .route(web::post().to(payments::payment_confirm_intent)),
                 )
                 .service(
-                    web::resource("/list_attempts")
+                    web::resource("/list-attempts")
                         .route(web::get().to(payments::list_payment_attempts)),
                 )
                 .service(
@@ -882,7 +882,7 @@ pub struct Routing;
 #[cfg(all(feature = "olap", feature = "v2"))]
 impl Routing {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/v2/routing-algorithm")
+        web::scope("/v2/routing-algorithms")
             .app_data(web::Data::new(state.clone()))
             .service(
                 web::resource("").route(web::post().to(|state, req, payload| {
@@ -1238,7 +1238,7 @@ impl Refunds {
                         .route(web::post().to(refunds::refunds_retrieve_with_gateway_creds)),
                 )
                 .service(
-                    web::resource("/{id}/update_metadata")
+                    web::resource("/{id}/update-metadata")
                         .route(web::put().to(refunds::refunds_metadata_update)),
                 );
         }
@@ -1408,7 +1408,7 @@ pub struct PaymentMethodSession;
 #[cfg(all(feature = "v2", feature = "oltp"))]
 impl PaymentMethodSession {
     pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("/v2/payment-methods-session").app_data(web::Data::new(state));
+        let mut route = web::scope("/v2/payment-method-sessions").app_data(web::Data::new(state));
         route = route.service(
             web::resource("")
                 .route(web::post().to(payment_methods::payment_methods_session_create)),
@@ -1541,7 +1541,7 @@ impl Organization {
 #[cfg(all(feature = "v2", feature = "olap"))]
 impl Organization {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/v2/organization")
+        web::scope("/v2/organizations")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(admin::organization_create)))
             .service(
@@ -2253,10 +2253,10 @@ pub struct User;
 #[cfg(all(feature = "olap", feature = "v2"))]
 impl User {
     pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("/v2/user").app_data(web::Data::new(state));
+        let mut route = web::scope("/v2/users").app_data(web::Data::new(state));
 
         route = route.service(
-            web::resource("/create_merchant")
+            web::resource("/create-merchant")
                 .route(web::post().to(user::user_merchant_account_create)),
         );
         route = route.service(
@@ -2669,7 +2669,7 @@ pub struct ProcessTracker;
 impl ProcessTracker {
     pub fn server(state: AppState) -> Scope {
         use super::process_tracker::revenue_recovery;
-        web::scope("/v2/process_tracker/revenue_recovery_workflow")
+        web::scope("/v2/process-trackers/revenue-recovery-workflow")
             .app_data(web::Data::new(state.clone()))
             .service(
                 web::resource("/{revenue_recovery_id}")
