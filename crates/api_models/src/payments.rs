@@ -2597,7 +2597,7 @@ pub enum PaymentMethodData {
     #[schema(title = "MobilePayment")]
     MobilePayment(MobilePaymentData),
     #[schema(title = "VaultPayment")]
-    VaultPayment(VaultPaymentData)
+    VaultPayment(VaultPaymentData),
 }
 
 pub trait GetAddressFromPaymentMethodData {

@@ -1707,7 +1707,9 @@ impl From<api_models::payments::VaultPaymentData> for VaultPaymentData {
         match value {
             api_models::payments::VaultPaymentData::HyperswitchVault {
                 payment_method_token,
-            } => Self::HyperswitchVault { payment_method_token },
+            } => Self::HyperswitchVault {
+                payment_method_token,
+            },
         }
     }
 }
