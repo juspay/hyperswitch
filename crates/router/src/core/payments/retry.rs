@@ -59,6 +59,8 @@ where
     types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
     dyn api::Connector: services::api::ConnectorIntegration<F, FData, types::PaymentsResponseData>,
 {
+    use hyperswitch_domain_models::ext_traits::OptionExt;
+
     let mut retries = None;
 
     metrics::AUTO_RETRY_ELIGIBLE_REQUEST_COUNT.add(1, &[]);
@@ -174,6 +176,31 @@ where
 
                         (connector_routing_data.connector_data, routing_decision)
                     };
+
+                    match (
+                        payment_data.get_payment_intent().setup_future_usage,
+                        payment_data.get_payment_intent().off_session,
+                    ) {
+                        (Some(storage_enums::FutureUsage::OffSession), _) | (_, Some(true)) => {
+                            let current_connector_routing_data =
+                                super::get_connector_data(&mut connector_routing_data)?;
+                            let payment_method_info = payment_data
+                                .get_payment_method_info()
+                                .get_required_value("payment_method_info")?
+                                .clone();
+                            let mandate_reference_id = payments::get_mandate_reference_id(
+                                current_connector_routing_data.action_type.clone(),
+                                current_connector_routing_data,
+                                payment_data,
+                                &payment_method_info,
+                            )?;
+                            payment_data.set_mandate_id(api_models::payments::MandateIds {
+                                mandate_id: None,
+                                mandate_reference_id, //mandate_ref_id
+                            });
+                        }
+                        _ => (),
+                    }
 
                     router_data = do_retry(
                         &state.clone(),
