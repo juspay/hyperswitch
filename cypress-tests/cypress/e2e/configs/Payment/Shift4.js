@@ -857,16 +857,16 @@ export const connectorDetails = {
     },
   },
   wallet_pm: {
-    PaymentIntent: () => ({  
-      Request: {  
+    PaymentIntent: () => ({
+      Request: {
         currency: "CNY",
       },
-      Response: {  
-        status: 200,  
-        body: {  
-          status: "requires_payment_method",  
-        },  
-      },  
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
     }),
     WeChatPay: {
       Request: {
@@ -876,25 +876,25 @@ export const connectorDetails = {
           wallet: {
             we_chat_pay_redirect: {},
           },
-        },  
+        },
         billing: {
-            "address": {
-            "zip": "200001",
-            "first_name": "Sakil",
-            "last_name": "Mostak",
-            "line1": "No. 100, Nanjing East Road",
-            "country": "CN",
-            "line2": "Huangpu District",
-            "city": "Shanghai"
-            }
+          address: {
+            zip: "200001",
+            first_name: "Sakil",
+            last_name: "Mostak",
+            line1: "No. 100, Nanjing East Road",
+            country: "CN",
+            line2: "Huangpu District",
+            city: "Shanghai",
+          },
         },
       },
       Response: {
         status: 200,
         body: {
           status: "requires_customer_action",
-        }
-      }
+        },
+      },
     },
-  }
+  },
 };
