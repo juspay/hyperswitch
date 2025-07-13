@@ -44,7 +44,7 @@ describe("Wallet Payments", () => {
       cy.paymentMethodsCallTest(globalState);
     });
 
-    it("Confirm We Chat Pay", () => {
+    it("we_chat_pay-confirm-call-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "wallet_pm"
       ]["WeChatPay"];
@@ -69,7 +69,7 @@ describe("Wallet Payments", () => {
 
     it("create-payment-call-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
+        "wallet_pm"
       ]["PaymentIntent"]("Alipay");
 
       cy.createPaymentIntentTest(
@@ -79,17 +79,15 @@ describe("Wallet Payments", () => {
         "automatic",
         globalState
       );
-
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("payment_methods-call-test", () => {
       cy.paymentMethodsCallTest(globalState);
     });
 
-    it("Confirm Alipay", () => {
+    it("alipay-confirm-call-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
+        "wallet_pm"
       ]["Alipay"];
 
       cy.confirmWalletPaymentCallTest(
@@ -98,8 +96,6 @@ describe("Wallet Payments", () => {
         true,
         globalState
       );
-
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
   });
 });

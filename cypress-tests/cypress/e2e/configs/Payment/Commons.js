@@ -1734,20 +1734,20 @@ export const connectorDetails = {
         payment_method_type: "ali_pay",  
         payment_method_data: {  
           wallet: {  
-            ali_pay: {},  
+            ali_pay_redirect: {},  
           },  
         },  
         billing: {  
-          address: {  
-            line1: "1467",  
-            line2: "Harrison Street",  
-            line3: "Harrison Street",  
-            city: "Shanghai",  
-            state: "Shanghai",  
-            zip: "200000",  
-            country: "CN",  
-            first_name: "john",  
-            last_name: "doe",  
+          "address": {  
+            "line1": "1467",  
+            "line2": "Harrison Street",  
+            "line3": "Harrison Street",  
+            "city": "Shanghai",  
+            "state": "Shanghai",  
+            "zip": "200000",  
+            "country": "CN",
+            "first_name": "Sakil",               
+            "last_name": "Mostak",  
           },  
         },  
         currency: "CNY",  
