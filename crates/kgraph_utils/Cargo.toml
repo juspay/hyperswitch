@@ -15,9 +15,11 @@ v2 = ["api_models/v2", "common_utils/v2", "common_types/v2", "common_enums/v2"]
 api_models = { version = "0.1.0", path = "../api_models", package = "api_models" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
-common_types = {version = "0.1.0", path = "../common_types" }
+common_types = { version = "0.1.0", path = "../common_types" }
 euclid = { version = "0.1.0", path = "../euclid" }
-hyperswitch_constraint_graph = { version = "0.1.0", path = "../hyperswitch_constraint_graph", features = ["viz"] }
+hyperswitch_constraint_graph = { version = "0.1.0", path = "../hyperswitch_constraint_graph", features = [
+  "viz",
+] }
 masking = { version = "0.1.0", path = "../masking/" }
 
 # Third party crates

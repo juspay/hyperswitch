@@ -52,28 +52,28 @@ filter_unconventional = false
 split_commits = false
 # regex for preprocessing the commit messages
 commit_preprocessors = [
-    { pattern = "^ +", replace = "" }, # remove spaces at the beginning of the message
-    { pattern = " +", replace = " " }, # replace multiple spaces with a single space
-    { pattern = "\\(#([0-9]+)\\)", replace = "([#${1}](https://github.com/juspay/hyperswitch/pull/${1}))" }, # replace PR numbers with links
-    { pattern = "(\\n?Co-authored-by: .+ <.+@.+>\\n?)+", replace = "" }, # remove co-author information
-    { pattern = "(\\n?Signed-off-by: .+ <.+@.+>\\n?)+", replace = "" }, # remove sign-off information
+  { pattern = "^ +", replace = "" },                                                                       # remove spaces at the beginning of the message
+  { pattern = " +", replace = " " },                                                                       # replace multiple spaces with a single space
+  { pattern = "\\(#([0-9]+)\\)", replace = "([#${1}](https://github.com/juspay/hyperswitch/pull/${1}))" }, # replace PR numbers with links
+  { pattern = "(\\n?Co-authored-by: .+ <.+@.+>\\n?)+", replace = "" },                                     # remove co-author information
+  { pattern = "(\\n?Signed-off-by: .+ <.+@.+>\\n?)+", replace = "" },                                      # remove sign-off information
 ]
 # regex for parsing and grouping commits
 # the HTML comments (`<!-- N -->`) are a workaround to get sections in custom order, since `git-cliff` sorts sections in alphabetical order
 # reference: https://github.com/orhun/git-cliff/issues/9
 commit_parsers = [
-    { message = "^(?i)(feat)", group = "<!-- 0 -->Features" },
-    { message = "^(?i)(fix)", group = "<!-- 1 -->Bug Fixes" },
-    { message = "^(?i)(perf)", group = "<!-- 2 -->Performance" },
-    { body = ".*security", group = "<!-- 3 -->Security" },
-    { message = "^(?i)(refactor)", group = "<!-- 4 -->Refactors" },
-    { message = "^(?i)(test)", group = "<!-- 5 -->Testing" },
-    { message = "^(?i)(docs)", group = "<!-- 6 -->Documentation" },
-    { message = "^(?i)(chore\\(version\\)): (V|v)[\\d]+\\.[\\d]+\\.[\\d]+", skip = true },
-    { message = "^(?i)(chore\\(version\\)): [0-9]{4}\\.[0-9]{2}\\.[0-9]{2}(\\.[0-9]+)?(-.+)?", skip = true },
-    { message = "^(?i)(chore)", group = "<!-- 7 -->Miscellaneous Tasks" },
-    { message = "^(?i)(build)", group = "<!-- 8 -->Build System / Dependencies" },
-    { message = "^(?i)(ci)", skip = true },
+  { message = "^(?i)(feat)", group = "<!-- 0 -->Features" },
+  { message = "^(?i)(fix)", group = "<!-- 1 -->Bug Fixes" },
+  { message = "^(?i)(perf)", group = "<!-- 2 -->Performance" },
+  { body = ".*security", group = "<!-- 3 -->Security" },
+  { message = "^(?i)(refactor)", group = "<!-- 4 -->Refactors" },
+  { message = "^(?i)(test)", group = "<!-- 5 -->Testing" },
+  { message = "^(?i)(docs)", group = "<!-- 6 -->Documentation" },
+  { message = "^(?i)(chore\\(version\\)): (V|v)[\\d]+\\.[\\d]+\\.[\\d]+", skip = true },
+  { message = "^(?i)(chore\\(version\\)): [0-9]{4}\\.[0-9]{2}\\.[0-9]{2}(\\.[0-9]+)?(-.+)?", skip = true },
+  { message = "^(?i)(chore)", group = "<!-- 7 -->Miscellaneous Tasks" },
+  { message = "^(?i)(build)", group = "<!-- 8 -->Build System / Dependencies" },
+  { message = "^(?i)(ci)", skip = true },
 ]
 # protect breaking changes from being skipped due to matching a skipping commit_parser
 protect_breaking_commits = false

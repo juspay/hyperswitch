@@ -12,7 +12,10 @@ crate-type = ["cdylib"]
 [features]
 default = ["payouts"]
 release = ["payouts"]
-dummy_connector = ["kgraph_utils/dummy_connector", "connector_configs/dummy_connector"]
+dummy_connector = [
+  "kgraph_utils/dummy_connector",
+  "connector_configs/dummy_connector",
+]
 production = ["connector_configs/production"]
 sandbox = ["connector_configs/sandbox"]
 payouts = ["api_models/payouts", "common_enums/payouts", "euclid/payouts"]

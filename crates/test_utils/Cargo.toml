@@ -16,7 +16,12 @@ payouts = []
 anyhow = "1.0.98"
 async-trait = "0.1.88"
 base64 = "0.22.1"
-clap = { version = "4.5.38", default-features = false, features = ["std", "derive", "help", "usage"] }
+clap = { version = "4.5.38", default-features = false, features = [
+  "std",
+  "derive",
+  "help",
+  "usage",
+] }
 rand = "0.8.5"
 regex = "1.11.1"
 reqwest = { version = "0.11.27", features = ["native-tls"] }

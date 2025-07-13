@@ -23,7 +23,10 @@ common_utils = { version = "0.1.0", path = "../common_utils" }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_with = "3.12.0"
 toml = "0.8.22"
-utoipa = { version = "4.2.3", features = ["preserve_order", "preserve_path_order"] }
+utoipa = { version = "4.2.3", features = [
+  "preserve_order",
+  "preserve_path_order",
+] }
 
 [lints]
 workspace = true

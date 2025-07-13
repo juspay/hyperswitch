@@ -11,14 +11,19 @@ license.workspace = true
 release = ["vergen", "external_services/aws_kms"]
 vergen = ["router_env/vergen"]
 v1 = ["diesel_models/v1", "hyperswitch_interfaces/v1", "common_utils/v1"]
-v2 = ["diesel_models/v2", "hyperswitch_interfaces/v2", "common_utils/v2"] 
+v2 = ["diesel_models/v2", "hyperswitch_interfaces/v2", "common_utils/v2"]
 
 [dependencies]
 actix-web = "4.11.0"
 async-bb8-diesel = "0.2.1"
 async-trait = "0.1.88"
 bb8 = "0.8"
-clap = { version = "4.5.38", default-features = false, features = ["std", "derive", "help", "usage"] }
+clap = { version = "4.5.38", default-features = false, features = [
+  "std",
+  "derive",
+  "help",
+  "usage",
+] }
 config = { version = "0.14.1", features = ["toml"] }
 diesel = { version = "2.2.10", features = ["postgres"] }
 error-stack = "0.4.1"
@@ -31,13 +36,20 @@ thiserror = "1.0.69"
 tokio = { version = "1.45.1", features = ["macros", "rt-multi-thread"] }
 
 # First Party Crates
-common_utils = { version = "0.1.0", path = "../common_utils", features = ["signals"] }
-diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store"], default-features = false }
+common_utils = { version = "0.1.0", path = "../common_utils", features = [
+  "signals",
+] }
+diesel_models = { version = "0.1.0", path = "../diesel_models", features = [
+  "kv_store",
+], default-features = false }
 external_services = { version = "0.1.0", path = "../external_services" }
 hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces" }
 masking = { version = "0.1.0", path = "../masking" }
 redis_interface = { version = "0.1.0", path = "../redis_interface" }
-router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
+router_env = { version = "0.1.0", path = "../router_env", features = [
+  "log_extra_implicit_fields",
+  "log_custom_entries_to_extra",
+] }
 
 [build-dependencies]
 router_env = { version = "0.1.0", path = "../router_env", default-features = false }
