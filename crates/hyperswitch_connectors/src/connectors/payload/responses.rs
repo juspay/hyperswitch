@@ -38,6 +38,7 @@ pub struct PayloadCardsResponseData {
     #[serde(rename = "id")]
     pub transaction_id: String,
     pub payment_method_id: Option<Secret<String>>,
+    // Connector customer id
     pub processing_id: Option<String>,
     pub processing_method_id: Option<String>,
     pub ref_number: Option<String>,
@@ -84,6 +85,7 @@ pub struct PayloadRefundResponse {
     pub transaction_id: String,
     pub ledger: Vec<RefundsLedger>,
     pub payment_method_id: Option<Secret<String>>,
+    // Connector customer id
     pub processing_id: Option<String>,
     pub ref_number: Option<String>,
     pub status: RefundStatus,
@@ -98,4 +100,52 @@ pub struct PayloadErrorResponse {
     pub object: String,
     /// Payload returns arbitrary details in JSON format
     pub details: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum PayloadWebhooksTrigger {
+    Payment,
+    Processed,
+    Authorized,
+    Credit,
+    Refund,
+    Reversal,
+    Void,
+    AutomaticPayment,
+    Decline,
+    Deposit,
+    Reject,
+    #[serde(rename = "payment_activation:status")]
+    PaymentActivationStatus,
+    #[serde(rename = "payment_link:status")]
+    PaymentLinkStatus,
+    ProcessingStatus,
+    BankAccountReject,
+    Chargeback,
+    ChargebackReversal,
+    #[serde(rename = "transaction:operation")]
+    TransactionOperation,
+    #[serde(rename = "transaction:operation:clear")]
+    TransactionOperationClear,
+}
+
+// Webhook response structures
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PayloadWebhookEvent {
+    pub object: String, // Added to match actual webhook structure
+    pub trigger: PayloadWebhooksTrigger,
+    pub webhook_id: String,
+    pub triggered_at: String, // Added to match actual webhook structure
+    // Webhooks Payload
+    pub triggered_on: PayloadEventDetails,
+    pub url: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PayloadEventDetails {
+    #[serde(rename = "id")]
+    pub transaction_id: Option<String>,
+    pub object: String,
+    pub value: Option<serde_json::Value>, // Changed to handle any value type including null
 }
