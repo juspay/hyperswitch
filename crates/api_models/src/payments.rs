@@ -2596,6 +2596,8 @@ pub enum PaymentMethodData {
     OpenBanking(OpenBankingData),
     #[schema(title = "MobilePayment")]
     MobilePayment(MobilePaymentData),
+    #[schema(title = "VaultPayment")]
+    VaultPayment(VaultPaymentData),
 }
 
 pub trait GetAddressFromPaymentMethodData {
@@ -2622,7 +2624,8 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
             | Self::OpenBanking(_)
             | Self::MandatePayment
             | Self::ExternalProxyCardData(_)
-            | Self::MobilePayment(_) => None,
+            | Self::MobilePayment(_)
+            | Self::VaultPayment(_) => None,
         }
     }
 }
@@ -2662,7 +2665,7 @@ impl PaymentMethodData {
             Self::OpenBanking(_) => Some(api_enums::PaymentMethod::OpenBanking),
             Self::MobilePayment(_) => Some(api_enums::PaymentMethod::MobilePayment),
             Self::ExternalProxyCardData(_) => Some(api_enums::PaymentMethod::ExternalProxyCardData),
-            Self::CardToken(_) | Self::MandatePayment => None,
+            Self::VaultPayment(_) | Self::CardToken(_) | Self::MandatePayment => None,
         }
     }
 }
@@ -2986,6 +2989,7 @@ pub enum AdditionalPaymentData {
         #[serde(flatten)]
         details: Option<additional_info::CardTokenAdditionalData>,
     },
+    VaultPayment {},
     OpenBanking {
         #[serde(flatten)]
         details: Option<OpenBankingData>,
@@ -3845,6 +3849,16 @@ pub enum MobilePaymentData {
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
+pub enum VaultPaymentData {
+    HyperswitchVault {
+        /// Temporary token reference to the vaulted payment method
+        #[schema(value_type = String, example = "token_Dafmj9an9QORtSR2ZUlt")]
+        payment_method_token: Secret<String>,
+    },
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
 pub struct GooglePayWalletData {
     /// The type of payment method
     #[serde(rename = "type")]
@@ -4114,6 +4128,7 @@ where
                 | PaymentMethodDataResponse::Card(_)
                 | PaymentMethodDataResponse::CardRedirect(_)
                 | PaymentMethodDataResponse::CardToken(_)
+                | PaymentMethodDataResponse::VaultPayment {}
                 | PaymentMethodDataResponse::Crypto(_)
                 | PaymentMethodDataResponse::MandatePayment {}
                 | PaymentMethodDataResponse::GiftCard(_)
@@ -4155,6 +4170,7 @@ pub enum PaymentMethodDataResponse {
     GiftCard(Box<GiftCardResponse>),
     CardRedirect(Box<CardRedirectResponse>),
     CardToken(Box<CardTokenResponse>),
+    VaultPayment {},
     OpenBanking(Box<OpenBankingResponse>),
     MobilePayment(Box<MobilePaymentResponse>),
 }
@@ -6487,6 +6503,7 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
             AdditionalPaymentData::CardToken { details } => {
                 Self::CardToken(Box::new(CardTokenResponse { details }))
             }
+            AdditionalPaymentData::VaultPayment {} => Self::VaultPayment {},
             AdditionalPaymentData::OpenBanking { details } => {
                 Self::OpenBanking(Box::new(OpenBankingResponse { details }))
             }

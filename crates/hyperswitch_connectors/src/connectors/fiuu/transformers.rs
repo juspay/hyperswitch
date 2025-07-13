@@ -605,6 +605,7 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
                 | PaymentMethodData::Voucher(_)
                 | PaymentMethodData::GiftCard(_)
                 | PaymentMethodData::CardToken(_)
+                | PaymentMethodData::VaultPayment(_)
                 | PaymentMethodData::OpenBanking(_)
                 | PaymentMethodData::NetworkToken(_)
                 | PaymentMethodData::ExternalProxyCardData(_)

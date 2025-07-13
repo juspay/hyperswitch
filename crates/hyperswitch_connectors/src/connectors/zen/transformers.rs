@@ -709,6 +709,7 @@ impl TryFrom<&ZenRouterData<&types::PaymentsAuthorizeRouterData>> for ZenPayment
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::VaultPayment(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::ExternalProxyCardData(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {

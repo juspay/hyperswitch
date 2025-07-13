@@ -230,6 +230,7 @@ impl TryFrom<&SetupMandateRouterData> for WellsfargoZeroMandateRequest {
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::VaultPayment(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::ExternalProxyCardData(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
@@ -1305,6 +1306,7 @@ impl TryFrom<&WellsfargoRouterData<&PaymentsAuthorizeRouterData>> for Wellsfargo
                     | PaymentMethodData::GiftCard(_)
                     | PaymentMethodData::OpenBanking(_)
                     | PaymentMethodData::CardToken(_)
+                    | PaymentMethodData::VaultPayment(_)
                     | PaymentMethodData::NetworkToken(_)
                     | PaymentMethodData::ExternalProxyCardData(_)
                     | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {

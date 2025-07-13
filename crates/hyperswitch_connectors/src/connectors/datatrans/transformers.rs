@@ -318,6 +318,7 @@ impl TryFrom<&types::SetupMandateRouterData> for DatatransPaymentsRequest {
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::VaultPayment(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::ExternalProxyCardData(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
@@ -405,6 +406,7 @@ impl TryFrom<&DatatransRouterData<&types::PaymentsAuthorizeRouterData>>
             | PaymentMethodData::ExternalProxyCardData(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::VaultPayment(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(

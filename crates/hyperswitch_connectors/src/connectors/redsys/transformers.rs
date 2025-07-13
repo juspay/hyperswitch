@@ -384,6 +384,7 @@ impl TryFrom<&Option<PaymentMethodData>> for RedsysCardData {
             | Some(PaymentMethodData::Upi(..))
             | Some(PaymentMethodData::OpenBanking(_))
             | Some(PaymentMethodData::CardToken(..))
+            | Some(PaymentMethodData::VaultPayment(..))
             | Some(PaymentMethodData::NetworkToken(..))
             | Some(PaymentMethodData::ExternalProxyCardData(_))
             | Some(PaymentMethodData::CardDetailsForNetworkTransactionId(_))

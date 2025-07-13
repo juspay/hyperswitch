@@ -447,6 +447,7 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::VaultPayment(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::ExternalProxyCardData(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
@@ -694,6 +695,7 @@ impl TryFrom<&PaymentsAuthorizeRouterData> for PayRequest {
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::VaultPayment(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::ExternalProxyCardData(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
@@ -768,6 +770,7 @@ impl TryFrom<&PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
             | Some(PaymentMethodData::OpenBanking(_))
             | Some(PaymentMethodData::CardToken(_))
             | Some(PaymentMethodData::ExternalProxyCardData(_))
+            | Some(PaymentMethodData::VaultPayment(_))
             | Some(PaymentMethodData::NetworkToken(_))
             | Some(PaymentMethodData::CardDetailsForNetworkTransactionId(_))
             | None => {
@@ -811,6 +814,7 @@ impl TryFrom<&TokenizationRouterData> for CaptureBuyerRequest {
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::VaultPayment(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::ExternalProxyCardData(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {

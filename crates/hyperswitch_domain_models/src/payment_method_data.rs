@@ -46,6 +46,7 @@ pub enum PaymentMethodData {
     OpenBanking(OpenBankingData),
     NetworkToken(NetworkTokenData),
     MobilePayment(MobilePaymentData),
+    VaultPayment(VaultPaymentData),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -74,10 +75,10 @@ impl PaymentMethodData {
             Self::GiftCard(_) => Some(common_enums::PaymentMethod::GiftCard),
             Self::OpenBanking(_) => Some(common_enums::PaymentMethod::OpenBanking),
             Self::MobilePayment(_) => Some(common_enums::PaymentMethod::MobilePayment),
-            Self::CardToken(_) | Self::MandatePayment => None,
             Self::ExternalProxyCardData(_) => {
                 Some(common_enums::PaymentMethod::ExternalProxyCardData)
             }
+            Self::VaultPayment(_) | Self::CardToken(_) | Self::MandatePayment => None,
         }
     }
 
@@ -741,6 +742,15 @@ pub enum MobilePaymentData {
     },
 }
 
+#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum VaultPaymentData {
+    HyperswitchVault {
+        /// Temporary token referencing vaulted payment method data
+        payment_method_token: Secret<String>,
+    },
+}
+
 #[cfg(feature = "v2")]
 impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodData {
     type Error = error_stack::Report<common_utils::errors::ValidationError>;
@@ -829,6 +839,9 @@ impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
             api_models::payments::PaymentMethodData::ExternalProxyCardData(
                 external_proxy_card_data,
             ) => Self::ExternalProxyCardData(From::from(external_proxy_card_data)),
+            api_models::payments::PaymentMethodData::VaultPayment(vault_payment_data) => {
+                Self::VaultPayment(From::from(vault_payment_data))
+            }
         }
     }
 }
@@ -1685,6 +1698,18 @@ impl From<api_models::payments::MobilePaymentData> for MobilePaymentData {
                 msisdn,
                 client_uid,
             } => Self::DirectCarrierBilling { msisdn, client_uid },
+        }
+    }
+}
+
+impl From<api_models::payments::VaultPaymentData> for VaultPaymentData {
+    fn from(value: api_models::payments::VaultPaymentData) -> Self {
+        match value {
+            api_models::payments::VaultPaymentData::HyperswitchVault {
+                payment_method_token,
+            } => Self::HyperswitchVault {
+                payment_method_token,
+            },
         }
     }
 }

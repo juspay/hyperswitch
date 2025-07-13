@@ -5530,6 +5530,7 @@ pub enum PaymentMethodDataType {
     InstantBankTransferFinland,
     InstantBankTransferPoland,
     RevolutPay,
+    VaultPayment,
 }
 
 impl From<PaymentMethodData> for PaymentMethodDataType {
@@ -5719,6 +5720,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::GiftCardData::PaySafeCard {} => Self::PaySafeCar,
             },
             PaymentMethodData::CardToken(_) => Self::CardToken,
+            PaymentMethodData::VaultPayment(_) => Self::VaultPayment,
             PaymentMethodData::OpenBanking(data) => match data {
                 payment_method_data::OpenBankingData::OpenBankingPIS {} => Self::OpenBanking,
             },
