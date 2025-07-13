@@ -1725,10 +1725,9 @@ export const connectorDetails = {
             city: "Amsterdam",
           },
         },
-        currency: "EUR",
       },
     }),
-    AliPay: getCustomExchange({
+    Alipay: getCustomExchange({
       Request: {
         payment_method: "wallet",
         payment_method_type: "ali_pay",
@@ -1750,7 +1749,6 @@ export const connectorDetails = {
             last_name: "Mostak",
           },
         },
-        currency: "CNY",
       },
     }),
   },
