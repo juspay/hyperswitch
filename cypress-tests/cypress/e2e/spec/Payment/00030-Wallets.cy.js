@@ -26,7 +26,7 @@ describe("Wallet Payments", () => {
 
     it("create-payment-call-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
+        "wallet_pm"
       ]["PaymentIntent"]("WeChatPay");
 
       cy.createPaymentIntentTest(
@@ -46,7 +46,7 @@ describe("Wallet Payments", () => {
 
     it("Confirm We Chat Pay", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
+        "wallet_pm"
       ]["WeChatPay"];
 
       cy.confirmWalletPaymentCallTest(
@@ -55,8 +55,6 @@ describe("Wallet Payments", () => {
         true,
         globalState
       );
-
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
   });
 
