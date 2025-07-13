@@ -861,4 +861,34 @@ export const connectorDetails = {
       },
     },
   },
+  wallet_pm: {
+    PaymentIntent: () => ({  
+      Request: {  
+        currency: "EUR",
+      },
+      Response: {  
+        status: 200,  
+        body: {  
+          status: "requires_payment_method",  
+        },  
+      },  
+    }),
+    Alipay: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "ali_pay",
+        payment_method_data: {
+          wallet: {
+            ali_pay_redirect: {},
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        }
+      }
+    },
+  }
 };
