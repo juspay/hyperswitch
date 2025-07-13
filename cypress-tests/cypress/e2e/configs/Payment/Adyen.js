@@ -818,7 +818,6 @@ export const connectorDetails = {
       },
     },
   },
-
   upi_pm: {
     PaymentIntent: {
       Request: {
@@ -1087,6 +1086,29 @@ export const connectorDetails = {
           },
         ],
       },
+    },
+  },
+  wallet_pm: {
+    Alipay: {
+      Request: {
+        billing: {
+          address: {
+            zip: "", // Postal codes are generally not used in Hong Kong
+            first_name: "Joseph",
+            last_name: "Dough",
+            line1: "Flat 8B, Block 3",
+            country: "HK",
+            line2: "The Victoria Towers",
+            city: "Tsim Sha Tsui",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action"
+        }
+      }
     },
   },
 };

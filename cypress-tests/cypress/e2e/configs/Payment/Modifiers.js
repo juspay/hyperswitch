@@ -125,7 +125,9 @@ const CURRENCY_MAP = {
   Przelewy24: "EUR",
   Sofort: "EUR",
   WeChatPay: "EUR",
-  Alipay: "EUR",
+
+  // Chinese payment methods
+  Alipay: "CNY",
 };
 
 export const getCurrency = (paymentMethodType) => {
