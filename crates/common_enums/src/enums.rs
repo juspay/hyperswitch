@@ -29,7 +29,7 @@ pub mod diesel_exports {
         DbPaymentType as PaymentType, DbProcessTrackerStatus as ProcessTrackerStatus,
         DbRefundStatus as RefundStatus,
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
-        DbScaExemptionType as ScaExemptionType,
+        DbRoutingApproach as RoutingApproach, DbScaExemptionType as ScaExemptionType,
         DbSuccessBasedRoutingConclusiveState as SuccessBasedRoutingConclusiveState,
         DbTokenizationFlag as TokenizationFlag, DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
     };
@@ -1679,6 +1679,16 @@ pub enum FutureUsage {
     OnSession,
 }
 
+impl FutureUsage {
+    /// Indicates whether the payment method should be saved for future use or not
+    pub fn is_off_session(self) -> bool {
+        match self {
+            Self::OffSession => true,
+            Self::OnSession => false,
+        }
+    }
+}
+
 #[derive(
     Clone,
     Copy,
@@ -1939,6 +1949,8 @@ pub enum PaymentMethodType {
     OpenBankingPIS,
     DirectCarrierBilling,
     InstantBankTransfer,
+    InstantBankTransferFinland,
+    InstantBankTransferPoland,
     RevolutPay,
 }
 
@@ -1997,6 +2009,8 @@ impl PaymentMethodType {
             Self::Interac => "Interac",
             Self::Indomaret => "Indomaret",
             Self::InstantBankTransfer => "Instant Bank Transfer",
+            Self::InstantBankTransferFinland => "Instant Bank Transfer Finland",
+            Self::InstantBankTransferPoland => "Instant Bank Transfer Poland",
             Self::Klarna => "Klarna",
             Self::KakaoPay => "KakaoPay",
             Self::LocalBankRedirect => "Local Bank Redirect",
@@ -2278,6 +2292,7 @@ pub enum FrmTransactionType {
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
+    strum::EnumIter,
     strum::EnumString,
     ToSchema,
 )]
@@ -2412,7 +2427,7 @@ pub enum CardType {
 
 #[derive(Debug, Clone, Serialize, Deserialize, strum::EnumString, strum::Display)]
 #[serde(rename_all = "snake_case")]
-pub enum MerchantCategoryCode {
+pub enum DecisionEngineMerchantCategoryCode {
     #[serde(rename = "merchant_category_code_0001")]
     Mcc0001,
 }
@@ -2513,6 +2528,98 @@ pub enum DisputeStatus {
     DisputeWon,
     // dispute has been unsuccessfully challenged
     DisputeLost,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    strum::EnumIter,
+    strum::VariantNames,
+    ToSchema,
+)]
+pub enum MerchantCategory {
+    #[serde(rename = "Grocery Stores, Supermarkets (5411)")]
+    GroceryStoresSupermarkets,
+    #[serde(rename = "Lodging-Hotels, Motels, Resorts-not elsewhere classified (7011)")]
+    LodgingHotelsMotelsResorts,
+    #[serde(rename = "Agricultural Cooperatives (0763)")]
+    AgriculturalCooperatives,
+    #[serde(rename = "Attorneys, Legal Services (8111)")]
+    AttorneysLegalServices,
+    #[serde(rename = "Office and Commercial Furniture (5021)")]
+    OfficeAndCommercialFurniture,
+    #[serde(rename = "Computer Network/Information Services (4816)")]
+    ComputerNetworkInformationServices,
+    #[serde(rename = "Shoe Stores (5661)")]
+    ShoeStores,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    strum::EnumIter,
+    strum::VariantNames,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+pub enum MerchantCategoryCode {
+    #[serde(rename = "5411")]
+    #[strum(serialize = "5411")]
+    Mcc5411,
+    #[serde(rename = "7011")]
+    #[strum(serialize = "7011")]
+    Mcc7011,
+    #[serde(rename = "0763")]
+    #[strum(serialize = "0763")]
+    Mcc0763,
+    #[serde(rename = "8111")]
+    #[strum(serialize = "8111")]
+    Mcc8111,
+    #[serde(rename = "5021")]
+    #[strum(serialize = "5021")]
+    Mcc5021,
+    #[serde(rename = "4816")]
+    #[strum(serialize = "4816")]
+    Mcc4816,
+    #[serde(rename = "5661")]
+    #[strum(serialize = "5661")]
+    Mcc5661,
+}
+
+impl MerchantCategoryCode {
+    pub fn to_merchant_category_name(&self) -> MerchantCategory {
+        match self {
+            Self::Mcc5411 => MerchantCategory::GroceryStoresSupermarkets,
+            Self::Mcc7011 => MerchantCategory::LodgingHotelsMotelsResorts,
+            Self::Mcc0763 => MerchantCategory::AgriculturalCooperatives,
+            Self::Mcc8111 => MerchantCategory::AttorneysLegalServices,
+            Self::Mcc5021 => MerchantCategory::OfficeAndCommercialFurniture,
+            Self::Mcc4816 => MerchantCategory::ComputerNetworkInformationServices,
+            Self::Mcc5661 => MerchantCategory::ShoeStores,
+        }
+    }
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq)]
+pub struct MerchantCategoryCodeWithName {
+    pub code: MerchantCategoryCode,
+    pub name: MerchantCategory,
 }
 
 #[derive(
@@ -6853,6 +6960,7 @@ pub enum BrazilStatesAbbreviation {
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
+    strum::EnumIter,
     strum::EnumString,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
@@ -7879,7 +7987,9 @@ pub enum SuccessBasedRoutingConclusiveState {
 }
 
 /// Whether 3ds authentication is requested or not
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema,
+)]
 pub enum External3dsAuthenticationRequest {
     /// Request for 3ds authentication
     Enable,
@@ -7889,7 +7999,9 @@ pub enum External3dsAuthenticationRequest {
 }
 
 /// Whether payment link is requested to be enabled or not for this transaction
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema,
+)]
 pub enum EnablePaymentLinkRequest {
     /// Request for enabling payment link
     Enable,
@@ -7898,7 +8010,9 @@ pub enum EnablePaymentLinkRequest {
     Skip,
 }
 
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema,
+)]
 pub enum MitExemptionRequest {
     /// Request for applying MIT exemption
     Apply,
@@ -7908,7 +8022,9 @@ pub enum MitExemptionRequest {
 }
 
 /// Set to `present` to indicate that the customer is in your checkout flow during this payment, and therefore is able to authenticate. This parameter should be `absent` when merchant's doing merchant initiated payments and customer is not present while doing the payment.
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum PresenceOfCustomerDuringPayment {
     /// Customer is present during the payment. This is the default value
@@ -8379,4 +8495,67 @@ pub enum TokenDataType {
     MultiUseToken,
     /// Fetch network token for the given payment method
     NetworkToken,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RoutingApproach {
+    SuccessRateExploitation,
+    SuccessRateExploration,
+    ContractBasedRouting,
+    DebitRouting,
+    RuleBasedRouting,
+    VolumeBasedRouting,
+    StraightThroughRouting,
+    #[default]
+    DefaultFallback,
+}
+
+impl RoutingApproach {
+    pub fn from_decision_engine_approach(approach: &str) -> Self {
+        match approach {
+            "SR_SELECTION_V3_ROUTING" => Self::SuccessRateExploitation,
+            "SR_V3_HEDGING" => Self::SuccessRateExploration,
+            "NTW_BASED_ROUTING" => Self::DebitRouting,
+            "DEFAULT" => Self::StraightThroughRouting,
+            _ => Self::DefaultFallback,
+        }
+    }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    ToSchema,
+    strum::Display,
+    strum::EnumString,
+    Hash,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[router_derive::diesel_enum(storage_type = "text")]
+pub enum CallbackMapperIdType {
+    NetworkTokenRequestorReferenceID,
 }

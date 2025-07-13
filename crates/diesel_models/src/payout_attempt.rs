@@ -14,7 +14,7 @@ use crate::{enums as storage_enums, schema::payout_attempt};
 #[diesel(table_name = payout_attempt, primary_key(payout_attempt_id), check_for_backend(diesel::pg::Pg))]
 pub struct PayoutAttempt {
     pub payout_attempt_id: String,
-    pub payout_id: String,
+    pub payout_id: common_utils::id_type::PayoutId,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub address_id: Option<String>,
@@ -37,6 +37,7 @@ pub struct PayoutAttempt {
     pub unified_code: Option<UnifiedCode>,
     pub unified_message: Option<UnifiedMessage>,
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
+    pub merchant_order_reference_id: Option<String>,
 }
 
 #[derive(
@@ -53,7 +54,7 @@ pub struct PayoutAttempt {
 #[diesel(table_name = payout_attempt)]
 pub struct PayoutAttemptNew {
     pub payout_attempt_id: String,
-    pub payout_id: String,
+    pub payout_id: common_utils::id_type::PayoutId,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub address_id: Option<String>,
@@ -76,6 +77,7 @@ pub struct PayoutAttemptNew {
     pub unified_code: Option<UnifiedCode>,
     pub unified_message: Option<UnifiedMessage>,
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
+    pub merchant_order_reference_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -128,6 +130,7 @@ pub struct PayoutAttemptUpdateInternal {
     pub unified_code: Option<UnifiedCode>,
     pub unified_message: Option<UnifiedMessage>,
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
+    pub merchant_order_reference_id: Option<String>,
 }
 
 impl Default for PayoutAttemptUpdateInternal {
@@ -150,6 +153,7 @@ impl Default for PayoutAttemptUpdateInternal {
             unified_code: None,
             unified_message: None,
             additional_payout_method_data: None,
+            merchant_order_reference_id: None,
         }
     }
 }
@@ -231,6 +235,7 @@ impl PayoutAttemptUpdate {
             unified_code,
             unified_message,
             additional_payout_method_data,
+            merchant_order_reference_id,
         } = self.into();
         PayoutAttempt {
             payout_token: payout_token.or(source.payout_token),
@@ -251,6 +256,8 @@ impl PayoutAttemptUpdate {
             unified_message: unified_message.or(source.unified_message),
             additional_payout_method_data: additional_payout_method_data
                 .or(source.additional_payout_method_data),
+            merchant_order_reference_id: merchant_order_reference_id
+                .or(source.merchant_order_reference_id),
             ..source
         }
     }

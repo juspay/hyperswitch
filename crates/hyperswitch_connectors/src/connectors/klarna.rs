@@ -631,6 +631,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Lawson
                         | common_enums::PaymentMethodType::LocalBankTransfer
                         | common_enums::PaymentMethodType::InstantBankTransfer
+                        | common_enums::PaymentMethodType::InstantBankTransferFinland
+                        | common_enums::PaymentMethodType::InstantBankTransferPoland
                         | common_enums::PaymentMethodType::MiniStop
                         | common_enums::PaymentMethodType::FamilyMart
                         | common_enums::PaymentMethodType::Seicomart
@@ -746,6 +748,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Lawson
                         | common_enums::PaymentMethodType::LocalBankTransfer
                         | common_enums::PaymentMethodType::InstantBankTransfer
+                        | common_enums::PaymentMethodType::InstantBankTransferFinland
+                        | common_enums::PaymentMethodType::InstantBankTransferPoland
                         | common_enums::PaymentMethodType::MiniStop
                         | common_enums::PaymentMethodType::FamilyMart
                         | common_enums::PaymentMethodType::Seicomart
@@ -768,7 +772,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                     (
                         common_enums::PaymentExperience::RedirectToUrl,
                         common_enums::PaymentMethodType::Klarna,
-                    ) => Ok(format!("{endpoint}checkout/v3/orders",)),
+                    ) => Ok(format!("{endpoint}checkout/v3/orders")),
                     #[cfg(feature = "v1")]
                     (
                         common_enums::PaymentExperience::DisplayQrCode
@@ -868,6 +872,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Lawson
                         | common_enums::PaymentMethodType::LocalBankTransfer
                         | common_enums::PaymentMethodType::InstantBankTransfer
+                        | common_enums::PaymentMethodType::InstantBankTransferFinland
+                        | common_enums::PaymentMethodType::InstantBankTransferPoland
                         | common_enums::PaymentMethodType::MiniStop
                         | common_enums::PaymentMethodType::FamilyMart
                         | common_enums::PaymentMethodType::Seicomart
@@ -983,6 +989,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Lawson
                         | common_enums::PaymentMethodType::LocalBankTransfer
                         | common_enums::PaymentMethodType::InstantBankTransfer
+                        | common_enums::PaymentMethodType::InstantBankTransferFinland
+                        | common_enums::PaymentMethodType::InstantBankTransferPoland
                         | common_enums::PaymentMethodType::MiniStop
                         | common_enums::PaymentMethodType::FamilyMart
                         | common_enums::PaymentMethodType::Seicomart

@@ -1,6 +1,6 @@
 use api_models::{enums::FrmSuggestion, payments::PaymentsConfirmIntentRequest};
 use async_trait::async_trait;
-use common_utils::{ext_traits::Encode, fp_utils::when, types::keymanager::ToEncryptable};
+use common_utils::{ext_traits::Encode, fp_utils::when, id_type, types::keymanager::ToEncryptable};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentConfirmData;
 use hyperswitch_interfaces::api::ConnectorSpecifications;
@@ -151,7 +151,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
     async fn get_trackers<'a>(
         &'a self,
         state: &'a SessionState,
-        payment_id: &common_utils::id_type::GlobalPaymentId,
+        payment_id: &id_type::GlobalPaymentId,
         request: &PaymentsConfirmIntentRequest,
         merchant_context: &domain::MerchantContext,
         profile: &domain::Profile,
@@ -261,6 +261,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             Some(true),
         );
 
+        let merchant_connector_details = request.merchant_connector_details.clone();
+
         let payment_data = PaymentConfirmData {
             flow: std::marker::PhantomData,
             payment_intent,
@@ -269,6 +271,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             payment_address,
             mandate_data: None,
             payment_method: None,
+            merchant_connector_details,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };
@@ -296,7 +299,6 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                     .find_customer_by_global_id(
                         &state.into(),
                         &id,
-                        &payment_data.payment_intent.merchant_id,
                         merchant_key_store,
                         storage_scheme,
                     )
@@ -356,7 +358,6 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
         merchant_context: &domain::MerchantContext,
         business_profile: &domain::Profile,
         state: &SessionState,
-        // TODO: do not take the whole payment data here
         payment_data: &mut PaymentConfirmData<F>,
     ) -> CustomResult<ConnectorCallType, errors::ApiErrorResponse> {
         payments::connector_selection(
@@ -414,6 +415,15 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                             .ok_or(errors::ApiErrorResponse::InvalidDataValue {
                                 field_name: "card_cvc",
                             })
+                            .or(
+                                payment_methods::vault::retrieve_and_delete_cvc_from_payment_token(
+                                    state,
+                                    payment_token,
+                                    payment_data.payment_attempt.payment_method_type,
+                                    merchant_context.get_merchant_key_store().key.get_inner(),
+                                )
+                                .await,
+                            )
                             .attach_printable("card_cvc not provided")?,
                         card_token.card_holder_name.clone(),
                     )
@@ -506,6 +516,23 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
 
         Ok(())
     }
+
+    #[cfg(feature = "v2")]
+    async fn get_connector_from_request<'a>(
+        &'a self,
+        state: &SessionState,
+        request: &PaymentsConfirmIntentRequest,
+        payment_data: &mut PaymentConfirmData<F>,
+    ) -> CustomResult<api::ConnectorData, errors::ApiErrorResponse> {
+        let connector_data = helpers::get_connector_data_from_request(
+            state,
+            request.merchant_connector_details.clone(),
+        )
+        .await?;
+        payment_data
+            .set_connector_in_payment_attempt(Some(connector_data.connector_name.to_string()));
+        Ok(connector_data)
+    }
 }
 
 #[async_trait]
@@ -542,13 +569,19 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Connector is none when constructing response")?;
 
-        let merchant_connector_id = payment_data
-            .payment_attempt
-            .merchant_connector_id
-            .clone()
-            .get_required_value("merchant_connector_id")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Merchant connector id is none when constructing response")?;
+        // If `merchant_connector_details` are present in the payment request, `merchant_connector_id` will not be populated.
+        let merchant_connector_id = match &payment_data.merchant_connector_details {
+            Some(_details) => None,
+            None => Some(
+                payment_data
+                    .payment_attempt
+                    .merchant_connector_id
+                    .clone()
+                    .get_required_value("merchant_connector_id")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Merchant connector id is none when constructing response")?,
+            ),
+        };
 
         let payment_intent_update =
             hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::ConfirmIntent {
@@ -564,13 +597,22 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
             .connector_request_reference_id
             .clone();
 
+        let connector_response_reference_id = payment_data
+            .payment_attempt
+            .connector_response_reference_id
+            .clone();
+
         let payment_attempt_update = match &payment_data.payment_method {
+            // In the case of a tokenized payment method, we update the payment attempt with the tokenized payment method details.
             Some(payment_method) => {
                 hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntentTokenized {
                     status: attempt_status,
                     updated_by: storage_scheme.to_string(),
                     connector,
-                    merchant_connector_id,
+                    merchant_connector_id: merchant_connector_id.ok_or_else( || {
+                        error_stack::report!(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Merchant connector id is none when constructing response")
+                    })?,
                     authentication_type,
                     payment_method_id : payment_method.get_id().clone()
                 }
@@ -583,6 +625,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
                     merchant_connector_id,
                     authentication_type,
                     connector_request_reference_id,
+                    connector_response_reference_id,
                 }
             }
         };
@@ -624,7 +667,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
                     key_manager_state,
                     &customer_id,
                     customer,
-                    &customer_merchant_id,
                     updated_customer,
                     key_store,
                     storage_scheme,

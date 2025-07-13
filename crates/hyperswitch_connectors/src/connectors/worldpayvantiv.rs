@@ -2,14 +2,18 @@ pub mod transformers;
 
 use std::sync::LazyLock;
 
+use base64::Engine;
 use common_utils::{
+    consts::BASE64_ENGINE,
     errors::CustomResult,
+    ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
-use error_stack::report;
+use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    router_data::{AccessToken, ErrorResponse, RouterData},
+    payment_method_data::PaymentMethodData,
+    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
@@ -35,11 +39,13 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
+    consts::NO_ERROR_CODE,
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
     webhooks,
 };
+use masking::{Mask, PeekInterface};
 use transformers as worldpayvantiv;
 
 use crate::{constants::headers, types::ResponseRouterData, utils as connector_utils};
@@ -110,6 +116,20 @@ impl ConnectorCommon for Worldpayvantiv {
         connectors.worldpayvantiv.base_url.as_ref()
     }
 
+    fn get_auth_header(
+        &self,
+        auth_type: &ConnectorAuthType,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        let auth = worldpayvantiv::WorldpayvantivAuthType::try_from(auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let auth_key = format!("{}:{}", auth.user.peek(), auth.password.peek());
+        let auth_header = format!("Basic {}", BASE64_ENGINE.encode(auth_key));
+        Ok(vec![(
+            headers::AUTHORIZATION.to_string(),
+            auth_header.into_masked(),
+        )])
+    }
+
     fn build_error_response(
         &self,
         res: Response,
@@ -144,7 +164,15 @@ impl ConnectorCommon for Worldpayvantiv {
 }
 
 impl ConnectorValidation for Worldpayvantiv {
-    //TODO: implement functions when support enabled
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<api_models::enums::PaymentMethodType>,
+        pm_data: PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd =
+            std::collections::HashSet::from([connector_utils::PaymentMethodDataType::Card]);
+        connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
+    }
 }
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Worldpayvantiv {
@@ -246,6 +274,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
+        // For certification purposes, to be removed later
+        router_env::logger::info!(raw_connector_response=?res.response);
         let response: worldpayvantiv::CnpOnlineResponse =
             connector_utils::deserialize_xml_to_struct(&res.response)?;
         event_builder.map(|i| i.set_response_body(&response));
@@ -270,38 +300,28 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
     fn get_headers(
         &self,
         req: &PaymentsSyncRouterData,
-        connectors: &Connectors,
+        _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        self.get_auth_header(&req.connector_auth_type)
     }
 
     fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
+        "application/json"
     }
 
     fn get_url(
         &self,
-        _req: &PaymentsSyncRouterData,
+        req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(self.base_url(connectors).to_owned())
-    }
-
-    fn get_request_body(
-        &self,
-        req: &PaymentsSyncRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req_object = worldpayvantiv::CnpOnlineRequest::try_from(req)?;
-        router_env::logger::info!(raw_connector_request=?connector_req_object);
-        let connector_req = connector_utils::XmlSerializer::serialize_to_xml_bytes(
-            &connector_req_object,
-            worldpayvantiv::worldpayvantiv_constants::XML_VERSION,
-            Some(worldpayvantiv::worldpayvantiv_constants::XML_ENCODING),
-            None,
-            None,
-        )?;
-        Ok(RequestContent::RawBytes(connector_req))
+        Ok(format!(
+            "{}/reports/dtrPaymentStatus/{}",
+            connectors.worldpayvantiv.secondary_base_url.to_owned(),
+            req.request
+                .connector_transaction_id
+                .get_connector_transaction_id()
+                .change_context(errors::ConnectorError::MissingConnectorTransactionID)?
+        ))
     }
 
     fn build_request(
@@ -311,13 +331,10 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
-                .method(Method::Post)
+                .method(Method::Get)
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
-                .set_body(types::PaymentsSyncType::get_request_body(
-                    self, req, connectors,
-                )?)
                 .build(),
         ))
     }
@@ -328,8 +345,10 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: worldpayvantiv::CnpOnlineResponse =
-            connector_utils::deserialize_xml_to_struct(&res.response)?;
+        let response: worldpayvantiv::VantivSyncResponse = res
+            .response
+            .parse_struct("VantivSyncResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -344,7 +363,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
+        handle_vantiv_json_error_response(res, event_builder)
     }
 }
 
@@ -622,40 +641,25 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Worldpayv
     fn get_headers(
         &self,
         req: &RefundSyncRouterData,
-        connectors: &Connectors,
+        _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        self.get_auth_header(&req.connector_auth_type)
     }
 
     fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
+        "application/json"
     }
 
     fn get_url(
         &self,
-        _req: &RefundSyncRouterData,
+        req: &RefundSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(self.base_url(connectors).to_owned())
-    }
-
-    fn get_request_body(
-        &self,
-        req: &RefundSyncRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req_object = worldpayvantiv::CnpOnlineRequest::try_from(req)?;
-        router_env::logger::info!(raw_connector_request=?connector_req_object);
-
-        let connector_req = connector_utils::XmlSerializer::serialize_to_xml_bytes(
-            &connector_req_object,
-            worldpayvantiv::worldpayvantiv_constants::XML_VERSION,
-            Some(worldpayvantiv::worldpayvantiv_constants::XML_ENCODING),
-            None,
-            None,
-        )?;
-
-        Ok(RequestContent::RawBytes(connector_req))
+        Ok(format!(
+            "{}/reports/dtrPaymentStatus/{}",
+            connectors.worldpayvantiv.secondary_base_url.to_owned(),
+            req.request.connector_transaction_id
+        ))
     }
 
     fn build_request(
@@ -665,13 +669,10 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Worldpayv
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
-                .method(Method::Post)
+                .method(Method::Get)
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .set_body(types::RefundSyncType::get_request_body(
-                    self, req, connectors,
-                )?)
                 .build(),
         ))
     }
@@ -682,8 +683,11 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Worldpayv
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: worldpayvantiv::CnpOnlineResponse =
-            connector_utils::deserialize_xml_to_struct(&res.response)?;
+        let response: worldpayvantiv::VantivSyncResponse = res
+            .response
+            .parse_struct("VantivSyncResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -698,7 +702,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Worldpayv
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
+        handle_vantiv_json_error_response(res, event_builder)
     }
 }
 
@@ -749,7 +753,7 @@ static WORLDPAYVANTIV_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethod
             common_enums::PaymentMethod::Card,
             common_enums::PaymentMethodType::Credit,
             PaymentMethodDetails {
-                mandates: common_enums::FeatureStatus::NotSupported,
+                mandates: common_enums::FeatureStatus::Supported,
                 refunds: common_enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: Some(
@@ -768,7 +772,7 @@ static WORLDPAYVANTIV_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethod
             common_enums::PaymentMethod::Card,
             common_enums::PaymentMethodType::Debit,
             PaymentMethodDetails {
-                mandates: common_enums::FeatureStatus::NotSupported,
+                mandates: common_enums::FeatureStatus::Supported,
                 refunds: common_enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: Some(
@@ -804,5 +808,40 @@ impl ConnectorSpecifications for Worldpayvantiv {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::EventClass]> {
         Some(&WORLDPAYVANTIV_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}
+
+fn handle_vantiv_json_error_response(
+    res: Response,
+    event_builder: Option<&mut ConnectorEvent>,
+) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    let response: Result<worldpayvantiv::VantivSyncErrorResponse, _> = res
+        .response
+        .parse_struct("VantivSyncErrorResponse")
+        .change_context(errors::ConnectorError::ResponseDeserializationFailed);
+
+    match response {
+        Ok(response_data) => {
+            event_builder.map(|i| i.set_response_body(&response_data));
+            router_env::logger::info!(connector_response=?response_data);
+            let error_reason = response_data.error_messages.join(" & ");
+
+            Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: NO_ERROR_CODE.to_string(),
+                message: error_reason.clone(),
+                reason: Some(error_reason.clone()),
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+            })
+        }
+        Err(error_msg) => {
+            event_builder.map(|event| event.set_error(serde_json::json!({"error": res.response.escape_ascii().to_string(), "status_code": res.status_code})));
+            router_env::logger::error!(deserialization_error =? error_msg);
+            connector_utils::handle_json_response_deserialization_failure(res, "worldpayvantiv")
+        }
     }
 }

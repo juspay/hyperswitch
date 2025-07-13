@@ -1,26 +1,26 @@
-#[cfg(feature = "v1")]
-pub use api_models::payments::{
-    PaymentListFilterConstraints, PaymentListResponse, PaymentListResponseV2,
-};
 #[cfg(feature = "v2")]
 pub use api_models::payments::{
-    PaymentsConfirmIntentRequest, PaymentsCreateIntentRequest, PaymentsIntentResponse,
-    PaymentsUpdateIntentRequest,
+    PaymentAttemptListRequest, PaymentAttemptListResponse, PaymentsConfirmIntentRequest,
+    PaymentsCreateIntentRequest, PaymentsIntentResponse, PaymentsUpdateIntentRequest,
+};
+#[cfg(feature = "v1")]
+pub use api_models::payments::{
+    PaymentListFilterConstraints, PaymentListResponse, PaymentListResponseV2, PaymentRetrieveBody,
+    PaymentRetrieveBodyWithCredentials,
 };
 pub use api_models::{
     feature_matrix::{
         ConnectorFeatureMatrixResponse, FeatureMatrixListResponse, FeatureMatrixRequest,
     },
     payments::{
-        AcceptanceType, Address, AddressDetails, Amount, AuthenticationForStartResponse, Card,
-        CryptoData, CustomerAcceptance, CustomerDetails, CustomerDetailsResponse,
-        HyperswitchVaultSessionDetails, MandateAmountData, MandateData, MandateTransactionType,
-        MandateType, MandateValidationFields, NextActionType, OnlineMandate,
-        OpenBankingSessionToken, PayLaterData, PaymentIdType, PaymentListConstraints,
-        PaymentListFilters, PaymentListFiltersV2, PaymentMethodData, PaymentMethodDataRequest,
-        PaymentMethodDataResponse, PaymentOp, PaymentRetrieveBody,
-        PaymentRetrieveBodyWithCredentials, PaymentsAggregateResponse, PaymentsApproveRequest,
-        PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
+        Address, AddressDetails, Amount, ApplepayPaymentMethod, AuthenticationForStartResponse,
+        Card, CryptoData, CustomerDetails, CustomerDetailsResponse, HyperswitchVaultSessionDetails,
+        MandateAmountData, MandateData, MandateTransactionType, MandateType,
+        MandateValidationFields, NextActionType, OpenBankingSessionToken, PayLaterData,
+        PaymentIdType, PaymentListConstraints, PaymentListFilters, PaymentListFiltersV2,
+        PaymentMethodData, PaymentMethodDataRequest, PaymentMethodDataResponse, PaymentOp,
+        PaymentsAggregateResponse, PaymentsApproveRequest, PaymentsCancelRequest,
+        PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
         PaymentsDynamicTaxCalculationRequest, PaymentsDynamicTaxCalculationResponse,
         PaymentsExternalAuthenticationRequest, PaymentsIncrementalAuthorizationRequest,
         PaymentsManualUpdateRequest, PaymentsPostSessionTokensRequest,
@@ -32,6 +32,7 @@ pub use api_models::{
         VaultSessionDetails, VerifyRequest, VerifyResponse, VgsSessionDetails, WalletData,
     },
 };
+pub use common_types::payments::{AcceptanceType, CustomerAcceptance, OnlineMandate};
 use error_stack::ResultExt;
 pub use hyperswitch_domain_models::router_flow_types::payments::{
     Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture, CompleteAuthorize,
