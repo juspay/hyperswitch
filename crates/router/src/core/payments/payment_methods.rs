@@ -64,7 +64,7 @@ pub async fn list_payment_methods(
             .merge_and_transform()
             .get_required_fields(RequiredFieldsInput::new())
             .perform_surcharge_calculation()
-            .populate_extra_information(&state.conf.bank_config)
+            .populate_pm_subtype_specific_data(&state.conf.bank_config)
             .generate_response(customer_payment_methods);
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
@@ -192,6 +192,7 @@ impl RequiredFieldsForEnabledPaymentMethodTypes {
     fn perform_surcharge_calculation(
         self,
     ) -> RequiredFieldsAndSurchargeForEnabledPaymentMethodTypes {
+        // TODO: Perform surcharge calculation
         let details_with_surcharge = self
             .0
             .into_iter()
@@ -226,7 +227,7 @@ struct RequiredFieldsAndSurchargeForEnabledPaymentMethodTypes(
     Vec<RequiredFieldsAndSurchargeForEnabledPaymentMethodType>,
 );
 
-fn get_extra_info_from_state(
+fn get_pm_subtype_specific_data(
     bank_config: &settings::BankRedirectConfig,
     payment_method_type: common_enums::enums::PaymentMethod,
     payment_method_subtype: common_enums::enums::PaymentMethodType,
@@ -248,7 +249,7 @@ fn get_extra_info_from_state(
                                 connector_hash_set.banks.clone()
                             })
                             .or_else(|| {
-                                logger::error!("Could not find any configured connectors for payment_method -> {payment_method_subtype} for connector -> {connector}");
+                                logger::debug!("Could not find any configured connectors for payment_method -> {payment_method_subtype} for connector -> {connector}");
                                 None
                             })
                     })
@@ -260,7 +261,7 @@ fn get_extra_info_from_state(
                     },
                 )
             } else {
-                logger::error!("Could not find any configured banks for payment_method -> {payment_method_subtype}");
+                logger::debug!("Could not find any configured banks for payment_method -> {payment_method_subtype}");
                 None
             }
         }
@@ -279,7 +280,7 @@ fn get_extra_info_from_state(
 }
 
 impl RequiredFieldsAndSurchargeForEnabledPaymentMethodTypes {
-    fn populate_extra_information(
+    fn populate_pm_subtype_specific_data(
         self,
         bank_config: &settings::BankRedirectConfig,
     ) -> RequiredFieldsAndSurchargeWithExtraInfoForEnabledPaymentMethodTypes {
@@ -293,7 +294,7 @@ impl RequiredFieldsAndSurchargeForEnabledPaymentMethodTypes {
                     payment_experience: payment_methods_enabled.payment_experience,
                     required_field: payment_methods_enabled.required_field,
                     surcharge: payment_methods_enabled.surcharge,
-                    extra_information: get_extra_info_from_state(
+                    pm_subtype_specific_data: get_pm_subtype_specific_data(
                         bank_config,
                         payment_methods_enabled.payment_method_type,
                         payment_methods_enabled.payment_method_subtype,
@@ -316,7 +317,7 @@ struct RequiredFieldsAndSurchargeWithExtraInfoForEnabledPaymentMethodType {
     payment_method_type: common_enums::PaymentMethod,
     payment_experience: Option<Vec<common_enums::PaymentExperience>>,
     surcharge: Option<api_models::payment_methods::SurchargeDetailsResponse>,
-    extra_information: Option<api_models::payment_methods::PaymentMethodSubtypeSpecificData>,
+    pm_subtype_specific_data: Option<api_models::payment_methods::PaymentMethodSubtypeSpecificData>,
 }
 
 /// Container to hold the filtered payment methods enabled with required fields, surcharge and subtype specific data
@@ -341,7 +342,7 @@ impl RequiredFieldsAndSurchargeWithExtraInfoForEnabledPaymentMethodTypes {
                     payment_experience: payment_methods_enabled.payment_experience,
                     required_fields: payment_methods_enabled.required_field,
                     surcharge_details: payment_methods_enabled.surcharge,
-                    extra_information: payment_methods_enabled.extra_information,
+                    extra_information: payment_methods_enabled.pm_subtype_specific_data,
                 }
             })
             .collect();
