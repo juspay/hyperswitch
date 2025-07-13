@@ -107,7 +107,7 @@ impl Nordea {
                                 serde_json::Value::String(s) => s.to_string(),
                                 _ => v.to_string(),
                             };
-                            format!("{}={}", k, value)
+                            format!("{k}={value}")
                         })
                         .collect::<Vec<_>>()
                         .join("&")
@@ -239,7 +239,7 @@ where
             Url::parse(&full_url).change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let path = url_parsed.path();
         let path_with_query = if let Some(query) = url_parsed.query() {
-            format!("{}?{}", path, query)
+            format!("{path}?{query}")
         } else {
             path.to_string()
         };
@@ -749,7 +749,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
             ) => "/personal/v5/payments/cross-border-credit-transfers",
             _ => {
                 return Err(errors::ConnectorError::NotSupported {
-                    message: format!("Country {:?} is not supported by Nordea", country),
+                    message: format!("Country {country:?} is not supported by Nordea"),
                     connector: "Nordea",
                 }
                 .into())
