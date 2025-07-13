@@ -862,16 +862,16 @@ export const connectorDetails = {
     },
   },
   wallet_pm: {
-    PaymentIntent: () => ({  
-      Request: {  
+    PaymentIntent: () => ({
+      Request: {
         currency: "EUR",
       },
-      Response: {  
-        status: 200,  
-        body: {  
-          status: "requires_payment_method",  
-        },  
-      },  
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
     }),
     Alipay: {
       Request: {
@@ -887,8 +887,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
-        }
-      }
+        },
+      },
     },
-  }
+  },
 };
