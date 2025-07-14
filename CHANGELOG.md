@@ -4,6 +4,87 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.07.14.1
+
+### Features
+
+- **connector:** [AUTHORIZEDOTNET] Populated merchant required fields in setupmandate flow ([#8618](https://github.com/juspay/hyperswitch/pull/8618)) ([`cb8dff0`](https://github.com/juspay/hyperswitch/commit/cb8dff008c71586713973d350e7e3789e82085ec))
+
+**Full Changelog:** [`2025.07.14.0...2025.07.14.1`](https://github.com/juspay/hyperswitch/compare/2025.07.14.0...2025.07.14.1)
+
+- - -
+
+## 2025.07.14.0
+
+### Features
+
+- **connector:**
+  - [AIRWALLEX] - Added Paypal, Trustly, Klarna , Atome, Blik Payment Methods ([#8475](https://github.com/juspay/hyperswitch/pull/8475)) ([`d5f5527`](https://github.com/juspay/hyperswitch/commit/d5f5527499c11ab427bd07c326cc294fc354f342))
+  - [payload] add webhook support ([#8558](https://github.com/juspay/hyperswitch/pull/8558)) ([`2fe3132`](https://github.com/juspay/hyperswitch/commit/2fe3132da8eedea39018e5c6afec9ab4dd49ddd6))
+- **core:** Hyperswitch <|> UCS integration v2 ([#8439](https://github.com/juspay/hyperswitch/pull/8439)) ([`ae9feca`](https://github.com/juspay/hyperswitch/commit/ae9feca82cdc29ff442276284f2aeb4ad01e94ba))
+- **payments:** Propagate additional payment method data for apple pay during MIT ([#7170](https://github.com/juspay/hyperswitch/pull/7170)) ([`0f70fc5`](https://github.com/juspay/hyperswitch/commit/0f70fc512c90e4d5603af7b965c137465999b73c))
+
+### Refactors
+
+- **cypress:** Update skip logic and test flow for cypress incremental auth tests ([#8594](https://github.com/juspay/hyperswitch/pull/8594)) ([`3c49871`](https://github.com/juspay/hyperswitch/commit/3c498714e76b400657fc0fc25b7559ca3dca1908))
+
+**Full Changelog:** [`2025.07.11.0...2025.07.14.0`](https://github.com/juspay/hyperswitch/compare/2025.07.11.0...2025.07.14.0)
+
+- - -
+
+## 2025.07.11.0
+
+### Miscellaneous Tasks
+
+- Address Rust 1.88.0 clippy lints ([#8607](https://github.com/juspay/hyperswitch/pull/8607)) ([`b1c9be1`](https://github.com/juspay/hyperswitch/commit/b1c9be1600dbd897c32adcc2d8b98e77ec67c516))
+
+**Full Changelog:** [`2025.07.10.0...2025.07.11.0`](https://github.com/juspay/hyperswitch/compare/2025.07.10.0...2025.07.11.0)
+
+- - -
+
+## 2025.07.10.0
+
+### Refactors
+
+- **connector:** Move connector mappings and endpoints to dedicated modules ([#8562](https://github.com/juspay/hyperswitch/pull/8562)) ([`99885b6`](https://github.com/juspay/hyperswitch/commit/99885b699d7524e87697f78608e6f2b36c9d8a8e))
+
+**Full Changelog:** [`2025.07.09.0...2025.07.10.0`](https://github.com/juspay/hyperswitch/compare/2025.07.09.0...2025.07.10.0)
+
+- - -
+
+## 2025.07.09.0
+
+### Features
+
+- **connector:**
+  - [silverflow] template code ([#8553](https://github.com/juspay/hyperswitch/pull/8553)) ([`c322eb9`](https://github.com/juspay/hyperswitch/commit/c322eb9cabb2ca7a8ad0c3ed57192dde9bf7eaa4))
+  - [AUTHIPAY] Integrate cards non 3ds payments ([#8266](https://github.com/juspay/hyperswitch/pull/8266)) ([`ef42ad4`](https://github.com/juspay/hyperswitch/commit/ef42ad43120d8699876990718235b518fa5011ac))
+
+### Bug Fixes
+
+- **payment_method:** Update entity id used for Vault to global customer id ([#8380](https://github.com/juspay/hyperswitch/pull/8380)) ([`cf96c82`](https://github.com/juspay/hyperswitch/commit/cf96c826cad08ea84148238b73bd9ca2de8c0518))
+
+### Refactors
+
+- **routing:** Add conditional check for invoking DE routing flows ([#8559](https://github.com/juspay/hyperswitch/pull/8559)) ([`7508c80`](https://github.com/juspay/hyperswitch/commit/7508c801580f8d83b203b34165dacb6a3814d941))
+
+**Full Changelog:** [`2025.07.08.0...2025.07.09.0`](https://github.com/juspay/hyperswitch/compare/2025.07.08.0...2025.07.09.0)
+
+- - -
+
+## 2025.07.08.0
+
+### Features
+
+- **connector:** [Celero] add Connector Template Code ([#8489](https://github.com/juspay/hyperswitch/pull/8489)) ([`dfed2be`](https://github.com/juspay/hyperswitch/commit/dfed2be2900a53f62a4903376004a264f9da25a8))
+- **connectors:** [worldpayvantiv] add connector mandate support ([#8546](https://github.com/juspay/hyperswitch/pull/8546)) ([`de92973`](https://github.com/juspay/hyperswitch/commit/de92973b01c764474c52185842677e2d32058e8d))
+- **cypress:** [worldpayvantiv] add cypress test ([#8234](https://github.com/juspay/hyperswitch/pull/8234)) ([`102f278`](https://github.com/juspay/hyperswitch/commit/102f2785199a2f66d9cd3428678f54ba3f015ff7))
+- **payment-methods:** Create payment_token in vault confirm / do payment-confirm with temp token from session ([#8525](https://github.com/juspay/hyperswitch/pull/8525)) ([`4aca455`](https://github.com/juspay/hyperswitch/commit/4aca45531b1616a2a2cc028878a96793148dff7f))
+
+**Full Changelog:** [`2025.07.07.0...2025.07.08.0`](https://github.com/juspay/hyperswitch/compare/2025.07.07.0...2025.07.08.0)
+
+- - -
+
 ## 2025.07.07.0
 
 ### Features
