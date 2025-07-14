@@ -1,15 +1,19 @@
 use common_enums::{enums, AuthenticationConnectors};
+#[cfg(feature = "v1")]
+use common_utils::errors::{self, CustomResult};
 use common_utils::{
     events::{ApiEventMetric, ApiEventsType},
-    id_type
+    id_type,
 };
+#[cfg(feature = "v1")]
+use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-#[cfg(feature = "v1")]
-use crate::payments::BrowserInformation;
 use crate::payments::CustomerDetails;
+#[cfg(feature = "v1")]
+use crate::payments::{Address, BrowserInformation, PaymentMethodData};
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct AuthenticationCreateRequest {
@@ -54,7 +58,7 @@ pub struct AuthenticationCreateRequest {
     pub psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
 
     /// Profile Acquirer ID get from profile acquirer configuration
-    #[schema(value_type = id_type::ProfileAcquirerId)]
+    #[schema(value_type = String)]
     pub profile_acquirer_id: id_type::ProfileAcquirerId,
 }
 
@@ -132,7 +136,7 @@ pub struct AuthenticationResponse {
     pub acquirer_details: Option<AcquirerDetails>,
 
     /// Profile Acquirer ID get from profile acquirer configuration
-    #[schema(value_type = id_type::ProfileAcquirerId)]
+    #[schema(value_type = String)]
     pub profile_acquirer_id: id_type::ProfileAcquirerId,
 }
 
@@ -158,7 +162,7 @@ impl ApiEventMetric for AuthenticationResponse {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct AuthenticationEligibilityRequest {
     /// Payment method data
-    pub payment_method_data: crate::payments::PaymentMethodData,
+    pub payment_method_data: PaymentMethodData,
 
     /// Payment method
     pub payment_method: common_enums::PaymentMethod,
@@ -183,13 +187,21 @@ pub struct AuthenticationEligibilityRequest {
 
     /// Email
     #[schema(value_type = Option<pii::Email>)]
-    pub email: Option<pii::Email>,
+    pub email: Option<common_utils::pii::Email>,
 }
 
 #[cfg(feature = "v1")]
 impl AuthenticationEligibilityRequest {
-    pub fn get_next_action_api(&self, base_url: String, authentication_id: String) -> String {
-        format!("{base_url}/authentication/{authentication_id}/authenticate")
+    pub fn get_next_action_api(
+        &self,
+        base_url: String,
+        authentication_id: String,
+    ) -> CustomResult<NextAction, errors::ParsingError> {
+        let url = format!("{base_url}/authentication/{authentication_id}/authenticate");
+        Ok(NextAction {
+            url: url::Url::parse(&url).change_context(errors::ParsingError::UrlParsingError)?,
+            http_method: common_utils::request::Method::Post,
+        })
     }
 
     pub fn get_billing_address(&self) -> Option<Address> {
@@ -212,11 +224,50 @@ pub struct AuthenticationEligibilityResponse {
     #[schema(value_type = String, example = "auth_mbabizu24mvu3mela5njyhpit4")]
     pub authentication_id: id_type::AuthenticationId,
     /// The URL to which the user should be redirected after authentication.
-    #[schema(value_type = String, example = "https://example.com/redirect")]
-    pub next_api_action: String,
+    #[schema(value_type = NextAction)]
+    pub next_api_action: NextAction,
     /// The current status of the authentication (e.g., Started).
     #[schema(value_type = AuthenticationStatus)]
     pub status: common_enums::AuthenticationStatus,
+    /// The 3DS data for this authentication.
+    #[schema(value_type = Option<EligibilityResponseParams>)]
+    pub eligibility_response_params: Option<EligibilityResponseParams>,
+    /// The metadata for this authentication.
+    #[schema(value_type = serde_json::Value)]
+    pub connector_metadata: Option<serde_json::Value>,
+    /// The unique identifier for this authentication.
+    #[schema(value_type = String)]
+    pub profile_id: id_type::ProfileId,
+    /// The error message for this authentication.
+    #[schema(value_type = Option<String>)]
+    pub error_message: Option<String>,
+    /// The error code for this authentication.
+    #[schema(value_type = Option<String>)]
+    pub error_code: Option<String>,
+    /// The connector used for this authentication.
+    #[schema(value_type = Option<String>)]
+    pub authentication_connector: Option<String>,
+    /// Billing address
+    #[schema(value_type = Option<Address>)]
+    pub billing: Option<Address>,
+    /// Shipping address
+    #[schema(value_type = Option<Address>)]
+    pub shipping: Option<Address>,
+    /// Browser information
+    #[schema(value_type = Option<BrowserInformation>)]
+    pub browser_information: Option<BrowserInformation>,
+    /// Email
+    #[schema(value_type = Option<pii::Email>)]
+    pub email: common_utils::crypto::OptionalEncryptableEmail,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub enum EligibilityResponseParams {
+    ThreeDsData(ThreeDsData),
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct ThreeDsData {
     /// The unique identifier for this authentication from the 3DS server.
     #[schema(value_type = String)]
     pub threeds_server_transaction_id: Option<String>,
@@ -231,43 +282,23 @@ pub struct AuthenticationEligibilityResponse {
     pub three_ds_method_data: Option<String>,
     /// The URL to which the user should be redirected after authentication.
     #[schema(value_type = String, example = "https://example.com/redirect")]
-    pub three_ds_method_url: Option<String>,
+    pub three_ds_method_url: Option<url::Url>,
     /// The version of the message.
     #[schema(value_type = SemanticVersion)]
     pub message_version: Option<common_utils::types::SemanticVersion>,
-    /// The metadata for this authentication.
-    #[schema(value_type = serde_json::Value)]
-    pub connector_metadata: Option<serde_json::Value>,
     /// The unique identifier for this authentication.
     #[schema(value_type = String)]
     pub directory_server_id: Option<String>,
-    /// The unique identifier for this authentication.
-    #[schema(value_type = String)]
-    pub profile_id: id_type::ProfileId,
-    /// The error message for this authentication.
-    #[schema(value_type = String)]
-    pub error_message: Option<String>,
-    /// The error code for this authentication.
-    #[schema(value_type = String)]
-    pub error_code: Option<String>,
-    /// The connector used for this authentication.
-    #[schema(value_type = String)]
-    pub authentication_connector: Option<String>,
-    /// Billing address
-    #[schema(value_type = Option<Address>)]
-    pub billing: Option<Address>,
+}
 
-    /// Shipping address
-    #[schema(value_type = Option<Address>)]
-    pub shipping: Option<Address>,
-
-    /// Browser information
-    #[schema(value_type = Option<BrowserInformation>)]
-    pub browser_information: Option<BrowserInformation>,
-
-    /// Email
-    #[schema(value_type = Option<pii::Email>)]
-    pub email: common_utils::crypto::OptionalEncryptableEmail,
+#[derive(Debug, Serialize, ToSchema)]
+pub struct NextAction {
+    /// The URL for authenticatating the user.
+    #[schema(value_type = url::Url)]
+    pub url: url::Url,
+    /// The HTTP method to use for the request.
+    #[schema(value_type = common_utils::request::Method)]
+    pub http_method: common_utils::request::Method,
 }
 
 #[cfg(feature = "v1")]

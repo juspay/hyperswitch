@@ -7641,7 +7641,8 @@
             "nullable": true
           },
           "profile_acquirer_id": {
-            "$ref": "#/components/schemas/id_type.ProfileAcquirerId"
+            "type": "string",
+            "description": "Profile Acquirer ID get from profile acquirer configuration"
           }
         }
       },
@@ -7738,7 +7739,8 @@
             "nullable": true
           },
           "profile_acquirer_id": {
-            "$ref": "#/components/schemas/id_type.ProfileAcquirerId"
+            "type": "string",
+            "description": "Profile Acquirer ID get from profile acquirer configuration"
           }
         }
       },

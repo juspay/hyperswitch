@@ -9,6 +9,7 @@ use api_models::{
     authentication::{AcquirerDetails, AuthenticationCreateRequest, AuthenticationResponse},
     payments,
 };
+#[cfg(feature = "v1")]
 use common_utils::{ext_traits::ValueExt, types::keymanager::ToEncryptable};
 use diesel_models::authentication::{Authentication, AuthenticationNew};
 use error_stack::ResultExt;
@@ -48,7 +49,10 @@ use crate::{
     },
     db::domain,
     routes::SessionState,
-    types::{domain::types::AsyncLift, transformers::ForeignFrom},
+    types::{
+        domain::types::AsyncLift,
+        transformers::{ForeignFrom, ForeignTryFrom},
+    },
 };
 
 #[cfg(feature = "v1")]
@@ -783,9 +787,9 @@ impl
 
 #[cfg(feature = "v1")]
 impl
-    ForeignFrom<(
+    ForeignTryFrom<(
         Authentication,
-        String,
+        api_models::authentication::NextAction,
         common_utils::id_type::ProfileId,
         Option<payments::Address>,
         Option<payments::Address>,
@@ -793,7 +797,8 @@ impl
         common_utils::crypto::OptionalEncryptableEmail,
     )> for AuthenticationEligibilityResponse
 {
-    fn foreign_from(
+    type Error = error_stack::Report<ApiErrorResponse>;
+    fn foreign_try_from(
         (
             authentication,
             next_api_action,
@@ -804,26 +809,38 @@ impl
             email,
         ): (
             Authentication,
-            String,
+            api_models::authentication::NextAction,
             common_utils::id_type::ProfileId,
             Option<payments::Address>,
             Option<payments::Address>,
             Option<payments::BrowserInformation>,
             common_utils::crypto::OptionalEncryptableEmail,
         ),
-    ) -> Self {
-        Self {
-            authentication_id: authentication.authentication_id,
-            next_api_action,
-            status: authentication.authentication_status,
+    ) -> Result<Self, Self::Error> {
+        let three_ds_method_url = authentication
+            .three_ds_method_url
+            .map(|url| url::Url::parse(&url))
+            .transpose()
+            .map_err(error_stack::Report::from)
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse three_ds_method_url")?;
+
+        let three_ds_data = Some(api_models::authentication::ThreeDsData {
+            threeds_server_transaction_id: authentication.threeds_server_transaction_id,
             maximum_supported_3ds_version: authentication.maximum_supported_version,
             connector_authentication_id: authentication.connector_authentication_id,
             three_ds_method_data: authentication.three_ds_method_data,
-            three_ds_method_url: authentication.three_ds_method_url,
+            three_ds_method_url,
             message_version: authentication.message_version,
-            connector_metadata: authentication.connector_metadata,
             directory_server_id: authentication.directory_server_id,
-            threeds_server_transaction_id: authentication.threeds_server_transaction_id,
+        });
+        Ok(Self {
+            authentication_id: authentication.authentication_id,
+            next_api_action,
+            status: authentication.authentication_status,
+            eligibility_response_params: three_ds_data
+                .map(api_models::authentication::EligibilityResponseParams::ThreeDsData),
+            connector_metadata: authentication.connector_metadata,
             profile_id,
             error_message: authentication.error_message,
             error_code: authentication.error_code,
@@ -832,7 +849,7 @@ impl
             authentication_connector: authentication.authentication_connector,
             browser_information,
             email,
-        }
+        })
     }
 }
 
@@ -927,13 +944,9 @@ pub async fn authentication_eligibility_core(
         .transpose()
         .change_context(ApiErrorResponse::InternalServerError)?;
 
-    let merchant_country_code =
-        business_profile
-            .merchant_country_code
-            .map(|code| code)
-            .or(metadata
-                .clone()
-                .and_then(|metadata| metadata.merchant_country_code));
+    let merchant_country_code = business_profile.merchant_country_code.or(metadata
+        .clone()
+        .and_then(|metadata| metadata.merchant_country_code.clone()));
 
     let merchant_details = Some(hyperswitch_domain_models::router_request_types::unified_authentication_service::MerchantDetails {
         merchant_id: Some(authentication.merchant_id.get_string_repr().to_string()),
@@ -1072,18 +1085,20 @@ pub async fn authentication_eligibility_core(
     )
     .await?;
 
-    let response = AuthenticationEligibilityResponse::foreign_from((
+    let response = AuthenticationEligibilityResponse::foreign_try_from((
         updated_authentication,
         req.get_next_action_api(
             state.base_url,
             authentication_id.get_string_repr().to_string(),
-        ),
+        )
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to get next action api")?,
         profile_id,
         req.get_billing_address(),
         req.get_shipping_address(),
         req.get_browser_information(),
         email_encrypted,
-    ));
+    ))?;
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         response,
