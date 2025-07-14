@@ -3571,6 +3571,63 @@
           }
         ]
       }
+    },
+    "/v2/tokenize/{id}": {
+      "post": {
+        "tags": [
+          "Tokenization"
+        ],
+        "summary": "Tokenization - Delete",
+        "description": "Delete a token entry with customer_id and session_id",
+        "operationId": "delete_tokenized_data_api",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteTokenDataRequest"
+              },
+              "examples": {
+                "Delete a token entry with customer_id and session_id": {
+                  "value": {
+                    "customer_id": "12345_cus_0196d94b9c207333a297cbcf31f2e8c8",
+                    "session_id": "12345_pms_01926c58bc6e77c09e809964e72af8c8"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Token deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteTokenDataResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "ephemeral_key": []
+          },
+          {
+            "api_key": []
+          }
+        ]
+      }
     }
   },
   "components": {
