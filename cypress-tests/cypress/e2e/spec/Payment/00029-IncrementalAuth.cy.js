@@ -86,10 +86,10 @@ describe("[Payment] Incremental Auth", () => {
       ]["Capture"];
 
       const newData = {
-          ...data,
-          Request: { amount_to_capture: data.Request.amount_to_capture + 2000 },
-          Response: data.ResponseCustom || data.Response,
-        };
+        ...data,
+        Request: { amount_to_capture: data.Request.amount_to_capture + 2000 },
+        Response: data.ResponseCustom || data.Response,
+      };
 
       cy.captureCallTest(fixtures.captureBody, newData, globalState);
 
