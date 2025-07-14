@@ -25,7 +25,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        self, AddressDetailsData, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData as _,
+        AddressDetailsData, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData as _,
     },
 };
 
