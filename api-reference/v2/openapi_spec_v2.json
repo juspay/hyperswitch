@@ -15556,14 +15556,6 @@
             "description": "The amount of the payment attempt",
             "example": 6540
           },
-          "card_network": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CardNetwork"
-              }
-            ],
-            "nullable": true
-          },
           "error_details": {
             "allOf": [
               {
