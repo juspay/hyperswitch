@@ -738,7 +738,7 @@ function createTestDetails(test) {
   const details = [
     { label: "Connector", value: toPascalCase(test.connector) },
     { label: "File", value: test.file.split("/").pop() },
-    { label: "Duration", value: `${test.duration}ms` }
+    { label: "Duration", value: `${test.duration}ms` },
   ];
 
   details.forEach(({ label, value }) => {
@@ -787,7 +787,7 @@ function createMediaLinks(test) {
     noMediaSpan.textContent = "No media available";
     mediaDiv.appendChild(noMediaSpan);
   } else {
-    links.forEach(link => mediaDiv.appendChild(link));
+    links.forEach((link) => mediaDiv.appendChild(link));
   }
 
   return mediaDiv;
@@ -932,13 +932,6 @@ async function runIndividualTest() {
   } catch (error) {
     output.innerHTML = `<div style="color: red;">Error: ${error.message}</div>`;
   }
-}
-
-// Utility function to escape HTML
-function escapeHtml(text) {
-  const div = document.createElement("div");
-  div.textContent = text;
-  return div.innerHTML;
 }
 
 // Show error message
