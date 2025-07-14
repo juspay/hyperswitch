@@ -195,7 +195,7 @@ pub struct PaymentAttemptBatchNew {
     pub net_amount: Option<MinorUnit>,
     pub external_three_ds_authentication_attempted: Option<bool>,
     pub authentication_connector: Option<String>,
-    pub authentication_id: Option<String>,
+    pub authentication_id: Option<common_utils::id_type::AuthenticationId>,
     pub mandate_data: Option<MandateDetails>,
     pub payment_method_billing_address_id: Option<String>,
     pub fingerprint_id: Option<String>,
@@ -216,6 +216,8 @@ pub struct PaymentAttemptBatchNew {
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub created_by: Option<String>,
     pub setup_future_usage_applied: Option<common_enums::FutureUsage>,
+    pub routing_approach: Option<common_enums::RoutingApproach>,
+    pub connector_request_reference_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -301,6 +303,8 @@ impl PaymentAttemptBatchNew {
             processor_merchant_id: self.processor_merchant_id,
             created_by: self.created_by,
             setup_future_usage_applied: self.setup_future_usage_applied,
+            routing_approach: self.routing_approach,
+            connector_request_reference_id: self.connector_request_reference_id,
         }
     }
 }

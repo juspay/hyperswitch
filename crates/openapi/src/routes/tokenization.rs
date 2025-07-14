@@ -1,6 +1,9 @@
 use serde_json::json;
 use utoipa::OpenApi;
 
+/// Tokenization - Create
+///
+/// Create a token with customer_id
 #[cfg(feature = "v2")]
 #[utoipa::path(
     post,

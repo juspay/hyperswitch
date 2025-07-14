@@ -299,7 +299,6 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                     .find_customer_by_global_id(
                         &state.into(),
                         &id,
-                        &payment_data.payment_intent.merchant_id,
                         merchant_key_store,
                         storage_scheme,
                     )
@@ -416,6 +415,15 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                             .ok_or(errors::ApiErrorResponse::InvalidDataValue {
                                 field_name: "card_cvc",
                             })
+                            .or(
+                                payment_methods::vault::retrieve_and_delete_cvc_from_payment_token(
+                                    state,
+                                    payment_token,
+                                    payment_data.payment_attempt.payment_method_type,
+                                    merchant_context.get_merchant_key_store().key.get_inner(),
+                                )
+                                .await,
+                            )
                             .attach_printable("card_cvc not provided")?,
                         card_token.card_holder_name.clone(),
                     )
@@ -589,6 +597,11 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
             .connector_request_reference_id
             .clone();
 
+        let connector_response_reference_id = payment_data
+            .payment_attempt
+            .connector_response_reference_id
+            .clone();
+
         let payment_attempt_update = match &payment_data.payment_method {
             // In the case of a tokenized payment method, we update the payment attempt with the tokenized payment method details.
             Some(payment_method) => {
@@ -612,6 +625,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
                     merchant_connector_id,
                     authentication_type,
                     connector_request_reference_id,
+                    connector_response_reference_id,
                 }
             }
         };
@@ -653,7 +667,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
                     key_manager_state,
                     &customer_id,
                     customer,
-                    &customer_merchant_id,
                     updated_customer,
                     key_store,
                     storage_scheme,

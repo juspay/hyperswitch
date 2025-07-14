@@ -6,7 +6,7 @@ pub mod business_profile;
 pub mod callback_mapper;
 pub mod card_testing_guard_data;
 pub mod cards_info;
-pub mod configs;
+pub mod connector_endpoints;
 pub mod consts;
 pub mod customer;
 pub mod disputes;
@@ -36,6 +36,7 @@ pub mod router_response_types;
 pub mod routing;
 #[cfg(feature = "tokenization_v2")]
 pub mod tokenization;
+pub mod transformers;
 pub mod type_encryption;
 pub mod types;
 pub mod vault;

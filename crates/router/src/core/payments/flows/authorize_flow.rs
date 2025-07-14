@@ -1,9 +1,12 @@
 use async_trait::async_trait;
 use common_enums as enums;
+use common_types::payments as common_payments_types;
+use error_stack::ResultExt;
 use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentConfirmData;
 use masking::ExposeInterface;
+use unified_connector_service_client::payments as payments_grpc;
 
 // use router_env::tracing::Instrument;
 use super::{ConstructFlowSpecificData, Feature};
@@ -13,6 +16,10 @@ use crate::{
         mandate,
         payments::{
             self, access_token, customers, helpers, tokenization, transformers, PaymentData,
+        },
+        unified_connector_service::{
+            build_unified_connector_service_auth_metadata,
+            handle_unified_connector_service_response_for_payment_authorize,
         },
     },
     logger,
@@ -70,24 +77,23 @@ impl
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         connector: &api::ConnectorData,
     ) -> RouterResult<Option<types::MerchantRecipientData>> {
-        let payment_method = &self
+        let is_open_banking = &self
             .payment_attempt
             .get_payment_method()
-            .get_required_value("PaymentMethod")?;
+            .get_required_value("PaymentMethod")?
+            .eq(&enums::PaymentMethod::OpenBanking);
 
-        let data = if *payment_method == enums::PaymentMethod::OpenBanking {
+        if *is_open_banking {
             payments::get_merchant_bank_data_for_open_banking_connectors(
                 merchant_connector_account,
                 merchant_context,
                 connector,
                 state,
             )
-            .await?
+            .await
         } else {
-            None
-        };
-
-        Ok(data)
+            Ok(None)
+        }
     }
 }
 
@@ -139,24 +145,28 @@ impl
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         connector: &api::ConnectorData,
     ) -> RouterResult<Option<types::MerchantRecipientData>> {
-        let payment_method = &self
-            .payment_attempt
-            .get_payment_method()
-            .get_required_value("PaymentMethod")?;
+        match &self.payment_intent.is_payment_processor_token_flow {
+            Some(true) => Ok(None),
+            Some(false) | None => {
+                let is_open_banking = &self
+                    .payment_attempt
+                    .get_payment_method()
+                    .get_required_value("PaymentMethod")?
+                    .eq(&enums::PaymentMethod::OpenBanking);
 
-        let data = if *payment_method == enums::PaymentMethod::OpenBanking {
-            payments::get_merchant_bank_data_for_open_banking_connectors(
-                merchant_connector_account,
-                merchant_context,
-                connector,
-                state,
-            )
-            .await?
-        } else {
-            None
-        };
-
-        Ok(data)
+                Ok(if *is_open_banking {
+                    payments::get_merchant_bank_data_for_open_banking_connectors(
+                        merchant_connector_account,
+                        merchant_context,
+                        connector,
+                        state,
+                    )
+                    .await?
+                } else {
+                    None
+                })
+            }
+        }
     }
 }
 
@@ -170,7 +180,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         connector_request: Option<services::Request>,
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-        all_keys_required: Option<bool>,
+        return_raw_connector_response: Option<bool>,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::Authorize,
@@ -187,7 +197,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 &self,
                 call_connector_action.clone(),
                 connector_request,
-                all_keys_required,
+                return_raw_connector_response,
             )
             .await
             .to_payment_failed_response()?;
@@ -421,17 +431,142 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         state: &SessionState,
         connector: &api::ConnectorData,
         should_continue_payment: bool,
+    ) -> RouterResult<types::CreateOrderResult> {
+        if connector
+            .connector_name
+            .requires_order_creation_before_payment(self.payment_method)
+            && should_continue_payment
+        {
+            let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
+                api::CreateOrder,
+                types::CreateOrderRequestData,
+                types::PaymentsResponseData,
+            > = connector.connector.get_connector_integration();
+
+            let request_data = types::CreateOrderRequestData::try_from(self.request.clone())?;
+
+            let response_data: Result<types::PaymentsResponseData, types::ErrorResponse> =
+                Err(types::ErrorResponse::default());
+
+            let createorder_router_data =
+                helpers::router_data_type_conversion::<_, api::CreateOrder, _, _, _, _>(
+                    self.clone(),
+                    request_data,
+                    response_data,
+                );
+
+            let resp = services::execute_connector_processing_step(
+                state,
+                connector_integration,
+                &createorder_router_data,
+                payments::CallConnectorAction::Trigger,
+                None,
+                None,
+            )
+            .await
+            .to_payment_failed_response()?;
+
+            let create_order_resp = match resp.response {
+                Ok(res) => {
+                    if let types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id } =
+                        res
+                    {
+                        Ok(Some(order_id))
+                    } else {
+                        Err(error_stack::report!(ApiErrorResponse::InternalServerError)
+                            .attach_printable(format!(
+                                "Unexpected response format from connector: {res:?}",
+                            )))?
+                    }
+                }
+                Err(error) => Err(error),
+            };
+
+            Ok(types::CreateOrderResult {
+                create_order_result: create_order_resp,
+                is_create_order_performed: true,
+            })
+        } else {
+            Ok(types::CreateOrderResult {
+                create_order_result: Ok(None),
+                is_create_order_performed: false,
+            })
+        }
+    }
+
+    async fn update_router_data_with_create_order_result(
+        &mut self,
+        create_order_result: types::CreateOrderResult,
+        should_continue_further: bool,
     ) -> RouterResult<bool> {
-        let create_order_result =
-            create_order_at_connector(self, state, connector, should_continue_payment).await?;
+        if create_order_result.is_create_order_performed {
+            match create_order_result.create_order_result {
+                Ok(Some(order_id)) => {
+                    self.request.order_id = Some(order_id.clone());
+                    self.response =
+                        Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id });
+                    Ok(true)
+                }
+                Ok(None) => Err(error_stack::report!(ApiErrorResponse::InternalServerError)
+                    .attach_printable("Order Id not found."))?,
+                Err(err) => {
+                    self.response = Err(err.clone());
+                    Ok(false)
+                }
+            }
+        } else {
+            Ok(should_continue_further)
+        }
+    }
 
-        let should_continue_payment = update_router_data_with_create_order_result(
-            create_order_result,
-            self,
-            should_continue_payment,
-        )?;
+    async fn call_unified_connector_service<'a>(
+        &mut self,
+        state: &SessionState,
+        merchant_connector_account: helpers::MerchantConnectorAccountType,
+        merchant_context: &domain::MerchantContext,
+    ) -> RouterResult<()> {
+        let client = state
+            .grpc_client
+            .unified_connector_service_client
+            .clone()
+            .ok_or(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to fetch Unified Connector Service client")?;
 
-        Ok(should_continue_payment)
+        let payment_authorize_request =
+            payments_grpc::PaymentServiceAuthorizeRequest::foreign_try_from(self)
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to construct Payment Authorize Request")?;
+
+        let connector_auth_metadata = build_unified_connector_service_auth_metadata(
+            merchant_connector_account,
+            merchant_context,
+        )
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to construct request metadata")?;
+
+        let response = client
+            .payment_authorize(
+                payment_authorize_request,
+                connector_auth_metadata,
+                state.get_grpc_headers(),
+            )
+            .await
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to authorize payment")?;
+
+        let payment_authorize_response = response.into_inner();
+
+        let (status, router_data_response) =
+            handle_unified_connector_service_response_for_payment_authorize(
+                payment_authorize_response,
+            )
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to deserialize UCS response")?;
+
+        self.status = status;
+        self.response = router_data_response;
+
+        Ok(())
     }
 }
 
@@ -498,8 +633,8 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
     fn set_mandate_id(&mut self, new_mandate_id: Option<api_models::payments::MandateIds>) {
         self.mandate_id = new_mandate_id;
     }
-    fn get_customer_acceptance(&self) -> Option<api_models::payments::CustomerAcceptance> {
-        self.customer_acceptance.clone().map(From::from)
+    fn get_customer_acceptance(&self) -> Option<common_payments_types::CustomerAcceptance> {
+        self.customer_acceptance.clone()
     }
 }
 
@@ -717,104 +852,4 @@ async fn process_capture_flow(
     router_data.status = updated_status;
     router_data.response = Ok(updated_response);
     Ok(router_data)
-}
-
-async fn create_order_at_connector<F: Clone>(
-    router_data: &mut types::RouterData<
-        F,
-        types::PaymentsAuthorizeData,
-        types::PaymentsResponseData,
-    >,
-    state: &SessionState,
-    connector: &api::ConnectorData,
-    should_continue_payment: bool,
-) -> RouterResult<types::CreateOrderResult> {
-    if connector
-        .connector_name
-        .requires_order_creation_before_payment(router_data.payment_method)
-        && should_continue_payment
-    {
-        let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
-            api::CreateOrder,
-            types::CreateOrderRequestData,
-            types::PaymentsResponseData,
-        > = connector.connector.get_connector_integration();
-
-        let request_data = types::CreateOrderRequestData::try_from(router_data.request.clone())?;
-
-        let response_data: Result<types::PaymentsResponseData, types::ErrorResponse> =
-            Err(types::ErrorResponse::default());
-
-        let createorder_router_data =
-            helpers::router_data_type_conversion::<_, api::CreateOrder, _, _, _, _>(
-                router_data.clone(),
-                request_data,
-                response_data,
-            );
-
-        let resp = services::execute_connector_processing_step(
-            state,
-            connector_integration,
-            &createorder_router_data,
-            payments::CallConnectorAction::Trigger,
-            None,
-            None,
-        )
-        .await
-        .to_payment_failed_response()?;
-
-        let create_order_resp = match resp.response {
-            Ok(res) => {
-                if let types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id } = res {
-                    Ok(Some(order_id))
-                } else {
-                    Err(error_stack::report!(ApiErrorResponse::InternalServerError)
-                        .attach_printable(format!(
-                            "Unexpected response format from connector: {:?}",
-                            res
-                        )))?
-                }
-            }
-            Err(error) => Err(error),
-        };
-
-        Ok(types::CreateOrderResult {
-            create_order_result: create_order_resp,
-            is_create_order_performed: true,
-        })
-    } else {
-        Ok(types::CreateOrderResult {
-            create_order_result: Ok(None),
-            is_create_order_performed: false,
-        })
-    }
-}
-
-fn update_router_data_with_create_order_result<F>(
-    create_order_result: types::CreateOrderResult,
-    router_data: &mut types::RouterData<
-        F,
-        types::PaymentsAuthorizeData,
-        types::PaymentsResponseData,
-    >,
-    should_continue_further: bool,
-) -> RouterResult<bool> {
-    if create_order_result.is_create_order_performed {
-        match create_order_result.create_order_result {
-            Ok(Some(order_id)) => {
-                router_data.request.order_id = Some(order_id.clone());
-                router_data.response =
-                    Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id });
-                Ok(true)
-            }
-            Ok(None) => Err(error_stack::report!(ApiErrorResponse::InternalServerError)
-                .attach_printable("Order Id not found."))?,
-            Err(err) => {
-                router_data.response = Err(err.clone());
-                Ok(false)
-            }
-        }
-    } else {
-        Ok(should_continue_further)
-    }
 }

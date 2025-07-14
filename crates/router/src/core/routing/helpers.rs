@@ -54,7 +54,10 @@ use crate::{
 };
 #[cfg(feature = "v1")]
 use crate::{
-    core::payments::routing::utils::{self as routing_utils, DecisionEngineApiHandler},
+    core::payments::{
+        routing::utils::{self as routing_utils, DecisionEngineApiHandler},
+        OperationSessionGetters, OperationSessionSetters,
+    },
     services,
 };
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
@@ -72,6 +75,7 @@ pub const CONTRACT_BASED_DYNAMIC_ROUTING_ALGORITHM: &str =
 
 pub const DECISION_ENGINE_RULE_CREATE_ENDPOINT: &str = "rule/create";
 pub const DECISION_ENGINE_RULE_UPDATE_ENDPOINT: &str = "rule/update";
+pub const DECISION_ENGINE_RULE_GET_ENDPOINT: &str = "rule/get";
 pub const DECISION_ENGINE_RULE_DELETE_ENDPOINT: &str = "rule/delete";
 pub const DECISION_ENGINE_MERCHANT_BASE_ENDPOINT: &str = "merchant-account";
 pub const DECISION_ENGINE_MERCHANT_CREATE_ENDPOINT: &str = "merchant-account/create";
@@ -337,11 +341,7 @@ impl RoutingDecisionData {
     pub fn apply_routing_decision<F, D>(&self, payment_data: &mut D)
     where
         F: Send + Clone,
-        D: crate::core::payments::OperationSessionGetters<F>
-            + crate::core::payments::OperationSessionSetters<F>
-            + Send
-            + Sync
-            + Clone,
+        D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
     {
         match self {
             Self::DebitRouting(data) => data.apply_debit_routing_decision(payment_data),
@@ -363,11 +363,7 @@ impl DebitRoutingDecisionData {
     pub fn apply_debit_routing_decision<F, D>(&self, payment_data: &mut D)
     where
         F: Send + Clone,
-        D: crate::core::payments::OperationSessionGetters<F>
-            + crate::core::payments::OperationSessionSetters<F>
-            + Send
-            + Sync
-            + Clone,
+        D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
     {
         payment_data.set_card_network(self.card_network.clone());
         self.debit_routing_result
@@ -397,9 +393,7 @@ impl RoutingAlgorithmHelpers<'_> {
                 self.name_mca_id_set.0.contains(&(&connector_choice, mca_id.clone())),
                 errors::ApiErrorResponse::InvalidRequestData {
                     message: format!(
-                        "connector with name '{}' and merchant connector account id '{:?}' not found for the given profile",
-                        connector_choice,
-                        mca_id,
+                        "connector with name '{connector_choice}' and merchant connector account id '{mca_id:?}' not found for the given profile",
                     )
                 }
             );
@@ -409,8 +403,7 @@ impl RoutingAlgorithmHelpers<'_> {
                 self.name_set.0.contains(&connector_choice),
                 errors::ApiErrorResponse::InvalidRequestData {
                     message: format!(
-                        "connector with name '{}' not found for the given profile",
-                        connector_choice,
+                        "connector with name '{connector_choice}' not found for the given profile",
                     )
                 }
             );
@@ -1609,8 +1602,8 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                 .split_once(':')
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(format!(
-                    "unable to split connector_name and mca_id from the first connector {:?} obtained from dynamic routing service",
-                    first_contract_based_connector
+                    "unable to split connector_name and mca_id from the first connector {first_contract_based_connector:?} obtained from dynamic routing service",
+
                 ))?
                 .0, first_contract_based_connector.score, first_contract_based_connector.current_count );
 
@@ -1930,7 +1923,7 @@ pub async fn disable_dynamic_routing_algorithm(
         };
 
     // Call to DE here
-    if state.conf.open_router.enabled {
+    if state.conf.open_router.dynamic_routing_enabled {
         disable_decision_engine_dynamic_routing_setup(
             state,
             business_profile.get_id(),
@@ -2118,11 +2111,12 @@ pub async fn default_specific_dynamic_routing_setup(
     let timestamp = common_utils::date_time::now();
     let algo = match dynamic_routing_type {
         routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
-            let default_success_based_routing_config = if state.conf.open_router.enabled {
-                routing_types::SuccessBasedRoutingConfig::open_router_config_default()
-            } else {
-                routing_types::SuccessBasedRoutingConfig::default()
-            };
+            let default_success_based_routing_config =
+                if state.conf.open_router.dynamic_routing_enabled {
+                    routing_types::SuccessBasedRoutingConfig::open_router_config_default()
+                } else {
+                    routing_types::SuccessBasedRoutingConfig::default()
+                };
 
             routing_algorithm::RoutingAlgorithm {
                 algorithm_id: algorithm_id.clone(),
@@ -2139,11 +2133,12 @@ pub async fn default_specific_dynamic_routing_setup(
             }
         }
         routing_types::DynamicRoutingType::EliminationRouting => {
-            let default_elimination_routing_config = if state.conf.open_router.enabled {
-                routing_types::EliminationRoutingConfig::open_router_config_default()
-            } else {
-                routing_types::EliminationRoutingConfig::default()
-            };
+            let default_elimination_routing_config =
+                if state.conf.open_router.dynamic_routing_enabled {
+                    routing_types::EliminationRoutingConfig::open_router_config_default()
+                } else {
+                    routing_types::EliminationRoutingConfig::default()
+                };
             routing_algorithm::RoutingAlgorithm {
                 algorithm_id: algorithm_id.clone(),
                 profile_id: profile_id.clone(),
@@ -2169,7 +2164,7 @@ pub async fn default_specific_dynamic_routing_setup(
 
     // Call to DE here
     // Need to map out the cases if this call should always be made or not
-    if state.conf.open_router.enabled {
+    if state.conf.open_router.dynamic_routing_enabled {
         enable_decision_engine_dynamic_routing_setup(
             state,
             business_profile.get_id(),
@@ -2433,6 +2428,37 @@ pub async fn update_decision_engine_dynamic_routing_setup(
     Ok(())
 }
 
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+pub async fn get_decision_engine_active_dynamic_routing_algorithm(
+    state: &SessionState,
+    profile_id: &id_type::ProfileId,
+    dynamic_routing_type: open_router::DecisionEngineDynamicAlgorithmType,
+) -> RouterResult<Option<open_router::DecisionEngineConfigSetupRequest>> {
+    logger::debug!(
+        "decision_engine_euclid: GET api call for decision active {:?} routing algorithm",
+        dynamic_routing_type
+    );
+    let request = open_router::GetDecisionEngineConfigRequest {
+        merchant_id: profile_id.get_string_repr().to_owned(),
+        config: dynamic_routing_type,
+    };
+    let response: Option<open_router::DecisionEngineConfigSetupRequest> =
+        routing_utils::ConfigApiClient::send_decision_engine_request(
+            state,
+            services::Method::Post,
+            DECISION_ENGINE_RULE_GET_ENDPOINT,
+            Some(request),
+            None,
+            None,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get active dynamic algorithm from decision engine")?
+        .response;
+
+    Ok(response)
+}
+
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 #[instrument(skip_all)]
 pub async fn disable_decision_engine_dynamic_routing_setup(
@@ -2545,11 +2571,11 @@ pub async fn delete_decision_engine_merchant(
         DECISION_ENGINE_MERCHANT_BASE_ENDPOINT,
         profile_id.get_string_repr()
     );
-    routing_utils::ConfigApiClient::send_decision_engine_request_without_response_parsing::<()>(
+    routing_utils::ConfigApiClient::send_decision_engine_request::<_, String>(
         state,
         services::Method::Delete,
         &path,
-        None,
+        None::<id_type::ProfileId>,
         None,
         None,
     )

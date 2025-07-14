@@ -320,8 +320,7 @@ impl UserRoleInterface for MockDb {
         }
 
         Err(errors::StorageError::ValueNotFound(format!(
-            "No user role available for user_id = {} in the current token hierarchy",
-            user_id
+            "No user role available for user_id = {user_id} in the current token hierarchy",
         ))
         .into())
     }
