@@ -155,6 +155,7 @@ pub struct PaymentsIncrementalAuthorizationData {
     pub currency: storage_enums::Currency,
     pub reason: Option<String>,
     pub connector_transaction_id: String,
+    pub connector_meta: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -508,6 +509,7 @@ pub struct PaymentsSyncData {
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
     pub amount: MinorUnit,
     pub integrity_object: Option<SyncIntegrityObject>,
+    pub connector_reference_id: Option<String>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -991,6 +993,7 @@ pub struct SetupMandateRequestData {
     pub minor_amount: Option<MinorUnit>,
     pub shipping_cost: Option<MinorUnit>,
     pub connector_testing_data: Option<pii::SecretSerdeValue>,
+    pub customer_id: Option<id_type::CustomerId>,
 }
 
 #[derive(Debug, Clone)]

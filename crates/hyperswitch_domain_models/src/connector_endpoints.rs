@@ -12,6 +12,7 @@ use crate::errors::api_error_response;
 #[serde(default)]
 pub struct Connectors {
     pub aci: ConnectorParams,
+    pub authipay: ConnectorParams,
     pub adyen: AdyenParamsWithThreeBaseUrls,
     pub adyenplatform: ConnectorParams,
     pub airwallex: ConnectorParams,
@@ -29,7 +30,9 @@ pub struct Connectors {
     pub boku: ConnectorParams,
     pub braintree: ConnectorParams,
     pub cashtocode: ConnectorParams,
+    pub celero: ConnectorParams,
     pub chargebee: ConnectorParams,
+    pub checkbook: ConnectorParams,
     pub checkout: ConnectorParams,
     pub coinbase: ConnectorParams,
     pub coingate: ConnectorParams,
@@ -82,6 +85,7 @@ pub struct Connectors {
     pub opennode: ConnectorParams,
     pub paybox: ConnectorParamsWithSecondaryBaseUrl,
     pub payeezy: ConnectorParams,
+    pub payload: ConnectorParams,
     pub payme: ConnectorParams,
     pub payone: ConnectorParams,
     pub paypal: ConnectorParams,
@@ -98,6 +102,7 @@ pub struct Connectors {
     pub riskified: ConnectorParams,
     pub santander: ConnectorParams,
     pub shift4: ConnectorParams,
+    pub silverflow: ConnectorParams,
     pub signifyd: ConnectorParams,
     pub square: ConnectorParams,
     pub stax: ConnectorParams,

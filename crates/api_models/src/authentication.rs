@@ -1,7 +1,7 @@
 use common_enums::{enums, AuthenticationConnectors};
 use common_utils::{
     events::{ApiEventMetric, ApiEventsType},
-    id_type, pii,
+    id_type
 };
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -9,7 +9,7 @@ use utoipa::ToSchema;
 
 #[cfg(feature = "v1")]
 use crate::payments::BrowserInformation;
-use crate::payments::{Address, CustomerDetails};
+use crate::payments::CustomerDetails;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct AuthenticationCreateRequest {

@@ -927,12 +927,13 @@ pub async fn authentication_eligibility_core(
         .transpose()
         .change_context(ApiErrorResponse::InternalServerError)?;
 
-    let merchant_country_code = business_profile
-        .merchant_country_code
-        .map(|code| code.to_string())
-        .or(metadata
-            .clone()
-            .and_then(|metadata| metadata.merchant_country_code));
+    let merchant_country_code =
+        business_profile
+            .merchant_country_code
+            .map(|code| code)
+            .or(metadata
+                .clone()
+                .and_then(|metadata| metadata.merchant_country_code));
 
     let merchant_details = Some(hyperswitch_domain_models::router_request_types::unified_authentication_service::MerchantDetails {
         merchant_id: Some(authentication.merchant_id.get_string_repr().to_string()),
