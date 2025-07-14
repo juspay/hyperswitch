@@ -107,20 +107,20 @@ impl TryFrom<&PaymentsAuthorizeRouterData> for CeleroStoredCredential {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(router_data: &PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let setup_future_usage = router_data.request.setup_future_usage;
-        let mandate_id = router_data.request.mandate_id.clone();
 
         let initiated_by: Option<InitiatedBy> = setup_future_usage.map(|s| s.into());
 
-        let (stored_credential_indicator, initial_transaction_id) = if mandate_id.is_some() {
-            (
-                Some(StoredCredentialIndicator::Used),
-                router_data.request.connector_mandate_id(),
-            )
-        } else if setup_future_usage.is_some() {
-            (Some(StoredCredentialIndicator::Stored), None)
-        } else {
-            (None, None)
-        };
+        let (stored_credential_indicator, initial_transaction_id) =
+            if router_data.request.is_mandate_payment() {
+                (
+                    Some(StoredCredentialIndicator::Used),
+                    router_data.request.connector_mandate_id(),
+                )
+            } else if setup_future_usage.is_some() {
+                (Some(StoredCredentialIndicator::Stored), None)
+            } else {
+                (None, None)
+            };
 
         if initiated_by.is_some() || stored_credential_indicator.is_some() {
             Ok(Self {
