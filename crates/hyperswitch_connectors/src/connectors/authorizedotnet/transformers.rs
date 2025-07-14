@@ -824,7 +824,13 @@ impl
             }),
             profile: None,
             order: Order {
-                invoice_number: get_random_string(),
+                invoice_number: item
+                    .router_data
+                    .request
+                    .merchant_order_reference_id
+                    .clone()
+                    .unwrap_or_else(|| get_random_string()),
+
                 description: item.router_data.connector_request_reference_id.clone(),
             },
             customer: Some(CustomerDetails {
@@ -903,7 +909,13 @@ impl
                     })
                 }),
             order: Order {
-                invoice_number: get_random_string(),
+                invoice_number: item
+                    .router_data
+                    .request
+                    .merchant_order_reference_id
+                    .clone()
+                    .unwrap_or_else(|| get_random_string()),
+
                 description: item.router_data.connector_request_reference_id.clone(),
             },
             customer: Some(CustomerDetails {
@@ -974,7 +986,13 @@ impl
             })),
             profile,
             order: Order {
-                invoice_number: get_random_string(),
+                invoice_number: item
+                    .router_data
+                    .request
+                    .merchant_order_reference_id
+                    .clone()
+                    .unwrap_or_else(|| get_random_string()),
+
                 description: item.router_data.connector_request_reference_id.clone(),
             },
             customer,
@@ -1045,7 +1063,13 @@ impl
             )?),
             profile,
             order: Order {
-                invoice_number: get_random_string(),
+                invoice_number: item
+                    .router_data
+                    .request
+                    .merchant_order_reference_id
+                    .clone()
+                    .unwrap_or_else(|| get_random_string()),
+
                 description: item.router_data.connector_request_reference_id.clone(),
             },
             customer,
