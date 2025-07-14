@@ -103,9 +103,8 @@ pub struct CeleroStoredCredential {
     billing_method: Option<CeleroBillingMethod>,
 }
 
-impl TryFrom<&PaymentsAuthorizeRouterData> for CeleroStoredCredential {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(router_data: &PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+impl CeleroStoredCredential {
+    fn get_optional_stored_credentials(router_data: &PaymentsAuthorizeRouterData) -> Option<Self> {
         let setup_future_usage = router_data.request.setup_future_usage;
 
         let initiated_by: Option<InitiatedBy> = setup_future_usage.map(|s| s.into());
@@ -123,18 +122,14 @@ impl TryFrom<&PaymentsAuthorizeRouterData> for CeleroStoredCredential {
             };
 
         if initiated_by.is_some() || stored_credential_indicator.is_some() {
-            Ok(Self {
+            Some(Self {
                 initiated_by,
                 initial_transaction_id,
                 stored_credential_indicator,
                 billing_method: Some(CeleroBillingMethod::Recurring),
             })
         } else {
-            Err(errors::ConnectorError::MissingRequiredField {
-                field_name:
-                    "initiated_by or stored_credential_indicator to construct StoredCredential",
-            }
-            .into())
+            None
         }
     }
 }
@@ -270,7 +265,8 @@ impl TryFrom<&CeleroRouterData<&PaymentsAuthorizeRouterData>> for CeleroPayments
             .get_optional_shipping()
             .and_then(|address| address.try_into().ok());
 
-        let stored_credential = CeleroStoredCredential::try_from(item.router_data).ok();
+        let stored_credential =
+            CeleroStoredCredential::get_optional_stored_credentials(item.router_data);
 
         let request = Self {
             idempotency_key: item.router_data.connector_request_reference_id.clone(),
