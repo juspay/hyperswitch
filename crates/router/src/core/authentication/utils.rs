@@ -341,14 +341,12 @@ pub async fn get_authentication_connector_data(
 )> {
     let authentication_connector = if let Some(authentication_connector) = authentication_connector
     {
-        api_models::enums::convert_authentication_connector(&authentication_connector).ok_or(
-            errors::ApiErrorResponse::UnprocessableEntity {
-                message: format!(
-                    "Invalid authentication_connector found in request : {}",
-                    authentication_connector
-                ),
-            },
-        )?
+        api_models::enums::convert_authentication_connector(&authentication_connector)
+            .ok_or(errors::ApiErrorResponse::UnprocessableEntity {
+            message: format!(
+                "Invalid authentication_connector found in request : {authentication_connector}",
+            ),
+        })?
     } else {
         let authentication_details = business_profile
             .authentication_connector_details
