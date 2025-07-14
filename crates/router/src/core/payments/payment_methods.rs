@@ -1,9 +1,10 @@
 //! Contains functions of payment methods that are used in payments
 //! one of such functions is `list_payment_methods`
 
-use std::collections::{BTreeMap, HashSet};
-
-use std::{collections::HashSet, str::FromStr};
+use std::{
+    collections::{BTreeMap, HashSet},
+    str::FromStr,
+};
 
 use common_utils::{
     ext_traits::{OptionExt, ValueExt},
@@ -20,10 +21,8 @@ use crate::{
     configs::settings,
     core::{payment_methods, payments::helpers},
     db::errors::StorageErrorExt,
-    logger,
-    routes,
+    logger, routes,
     types::{self, api, domain, storage},
-    settings,
 };
 
 #[cfg(feature = "v2")]
@@ -74,7 +73,7 @@ pub async fn list_payment_methods(
     };
 
     let response =
-        hyperswitch_domain_models::merchant_connector_account::FlattenedPaymentMethodsEnabled::from_payment_connectors_list(payment_connector_accounts.clone())
+        FlattenedPaymentMethodsEnabled(hyperswitch_domain_models::merchant_connector_account::FlattenedPaymentMethodsEnabled::from_payment_connectors_list(payment_connector_accounts))
             .perform_filtering(
                 &state,
                 &merchant_context,
@@ -105,12 +104,6 @@ impl RequiredFieldsInput {
 struct FlattenedPaymentMethodsEnabled(
     hyperswitch_domain_models::merchant_connector_account::FlattenedPaymentMethodsEnabled,
 );
-
-impl FlattenedPaymentMethodsEnabled {
-    fn perform_filtering(self) -> FilteredPaymentMethodsEnabled {
-        FilteredPaymentMethodsEnabled(self.0.payment_methods_enabled)
-    }
-}
 
 /// Container for the filtered payment methods
 struct FilteredPaymentMethodsEnabled(
@@ -375,42 +368,7 @@ impl RequiredFieldsAndSurchargeWithExtraInfoForEnabledPaymentMethodTypes {
     }
 }
 
-impl RequiredFieldsForEnabledPaymentMethodTypes {
-    fn perform_surcharge_calculation(
-        self,
-    ) -> RequiredFieldsAndSurchargeForEnabledPaymentMethodTypes {
-        let details_with_surcharge = self
-            .0
-            .into_iter()
-            .map(
-                |payment_methods_enabled| RequiredFieldsAndSurchargeForEnabledPaymentMethodType {
-                    payment_method_type: payment_methods_enabled.payment_method_type,
-                    required_field: payment_methods_enabled.required_field,
-                    payment_method_subtype: payment_methods_enabled.payment_method_subtype,
-                    payment_experience: payment_methods_enabled.payment_experience,
-                    surcharge: None,
-                },
-            )
-            .collect();
-
-        RequiredFieldsAndSurchargeForEnabledPaymentMethodTypes(details_with_surcharge)
-    }
-}
-
-trait PerformFilteringOnPaymentMethodsEnabled {
-    async fn perform_filtering(
-        self,
-        state: &routes::SessionState,
-        merchant_context: &domain::MerchantContext,
-        profile_id: &id_type::ProfileId,
-        req: &api_models::payments::PaymentMethodsListRequest,
-        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
-    ) -> errors::RouterResult<FilteredPaymentMethodsEnabled>;
-}
-
-impl PerformFilteringOnPaymentMethodsEnabled
-    for hyperswitch_domain_models::merchant_connector_account::FlattenedPaymentMethodsEnabled
-{
+impl FlattenedPaymentMethodsEnabled {
     async fn perform_filtering(
         self,
         state: &routes::SessionState,
@@ -440,7 +398,7 @@ impl PerformFilteringOnPaymentMethodsEnabled
         if let Some(graph) = payment_methods::utils::get_merchant_pm_filter_graph(state, &key).await
         {
             // Derivation of PM_FILTER_CGRAPH from MokaCache successful
-            for payment_method_enabled_details in self.payment_methods_enabled {
+            for payment_method_enabled_details in self.0.payment_methods_enabled {
                 filter_payment_methods(
                     &graph,
                     payment_method_enabled_details,
@@ -456,7 +414,7 @@ impl PerformFilteringOnPaymentMethodsEnabled
             // No PM_FILTER_CGRAPH Cache present in MokaCache
             let mut builder = cgraph::ConstraintGraphBuilder::new();
 
-            for payment_method_enabled_details in &self.payment_methods_enabled {
+            for payment_method_enabled_details in &self.0.payment_methods_enabled {
                 let domain_id = builder.make_domain(
                     payment_method_enabled_details
                         .merchant_connector_id
@@ -495,7 +453,7 @@ impl PerformFilteringOnPaymentMethodsEnabled
                 payment_methods::utils::refresh_pm_filters_cache(state, &key, builder.build())
                     .await;
 
-            for payment_method_enabled_details in self.payment_methods_enabled {
+            for payment_method_enabled_details in self.0.payment_methods_enabled {
                 filter_payment_methods(
                     &graph,
                     payment_method_enabled_details,
