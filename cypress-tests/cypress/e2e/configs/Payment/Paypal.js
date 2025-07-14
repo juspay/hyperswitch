@@ -167,8 +167,7 @@ export const connectorDetails = {
         },
       },
     },
-    Capture: getCustomExchange
-    ({
+    Capture: getCustomExchange({
       Request: {
         amount_to_capture: 6000,
       },
@@ -186,10 +185,10 @@ export const connectorDetails = {
         body: {
           error: {
             code: "IR_06",
-            message: "amount_to_capture is greater than amount"
-          }
-        }
-      }
+            message: "amount_to_capture is greater than amount",
+          },
+        },
+      },
     }),
     PartialCapture: {
       Request: {
