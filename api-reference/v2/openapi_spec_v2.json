@@ -10012,6 +10012,25 @@
           "frictionless"
         ]
       },
+      "DeleteTokenDataRequest": {
+        "type": "object",
+        "required": [
+          "customer_id",
+          "session_id"
+        ],
+        "properties": {
+          "customer_id": {
+            "type": "string",
+            "description": "Customer ID for which the tokenization is requested",
+            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8"
+          },
+          "session_id": {
+            "type": "string",
+            "description": "Request for tokenization which contains the data to be tokenized",
+            "example": "12345_pms_01926c58bc6e77c09e809964e72af8c8"
+          }
+        }
+      },
       "DeleteTokenDataResponse": {
         "type": "object",
         "required": [
