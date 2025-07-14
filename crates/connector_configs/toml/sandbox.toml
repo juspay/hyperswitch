@@ -6302,8 +6302,7 @@ type="Text"
   payment_method_type = "Visa"
 [payload.connector_auth.HeaderKey]
 api_key="API Key"
-[payload.connector_webhook_details]
-merchant_secret="Source verification key"
+
 [silverflow]
 [silverflow.connector_auth.BodyKey]
 api_key="API Key"
