@@ -703,6 +703,96 @@ function createConnectorTable(connector, data) {
   return div;
 }
 
+// Create a failed test element
+function createFailedTestElement(test, index) {
+  const testDiv = document.createElement("div");
+  testDiv.className = "failed-test-item";
+
+  // Create header
+  const header = document.createElement("h4");
+  header.textContent = `${index + 1}. ${test.fullTitle}`;
+  testDiv.appendChild(header);
+
+  // Create test details
+  const details = createTestDetails(test);
+  testDiv.appendChild(details);
+
+  // Add error message if exists
+  if (test.error) {
+    const errorDiv = createErrorMessage(test.error);
+    testDiv.appendChild(errorDiv);
+  }
+
+  // Add media links
+  const mediaLinks = createMediaLinks(test);
+  testDiv.appendChild(mediaLinks);
+
+  return testDiv;
+}
+
+// Create test details section
+function createTestDetails(test) {
+  const detailsDiv = document.createElement("div");
+  detailsDiv.className = "failed-test-details";
+
+  const details = [
+    { label: "Connector", value: toPascalCase(test.connector) },
+    { label: "File", value: test.file.split("/").pop() },
+    { label: "Duration", value: `${test.duration}ms` }
+  ];
+
+  details.forEach(({ label, value }) => {
+    const detailDiv = document.createElement("div");
+    detailDiv.innerHTML = `<strong>${label}:</strong> <span>${value}</span>`;
+    detailsDiv.appendChild(detailDiv);
+  });
+
+  return detailsDiv;
+}
+
+// Create error message section
+function createErrorMessage(error) {
+  const errorDiv = document.createElement("div");
+  errorDiv.className = "error-message";
+  errorDiv.textContent = error.message || "No error message available";
+  return errorDiv;
+}
+
+// Create media links section
+function createMediaLinks(test) {
+  const mediaDiv = document.createElement("div");
+  mediaDiv.className = "media-links";
+
+  const links = [];
+
+  if (test.screenshot) {
+    const screenshotLink = document.createElement("a");
+    screenshotLink.href = test.screenshot;
+    screenshotLink.target = "_blank";
+    screenshotLink.textContent = "📸 View Screenshot";
+    links.push(screenshotLink);
+  }
+
+  if (test.video) {
+    const videoLink = document.createElement("a");
+    videoLink.href = test.video;
+    videoLink.target = "_blank";
+    videoLink.textContent = "🎥 View Video";
+    links.push(videoLink);
+  }
+
+  if (links.length === 0) {
+    const noMediaSpan = document.createElement("span");
+    noMediaSpan.style.color = "var(--text-secondary)";
+    noMediaSpan.textContent = "No media available";
+    mediaDiv.appendChild(noMediaSpan);
+  } else {
+    links.forEach(link => mediaDiv.appendChild(link));
+  }
+
+  return mediaDiv;
+}
+
 // Update failed tests section
 function updateFailedTests(connectorFilter, statusFilter) {
   const container = document.getElementById("failedTestsList");
@@ -736,32 +826,7 @@ function updateFailedTests(connectorFilter, statusFilter) {
     `(${filteredTests.length})`;
 
   filteredTests.forEach((test, index) => {
-    const testDiv = document.createElement("div");
-    testDiv.className = "failed-test-item";
-
-    testDiv.innerHTML = `
-            <h4>${index + 1}. ${test.fullTitle}</h4>
-            <div class="failed-test-details">
-                <div><strong>Connector:</strong> <span>${toPascalCase(test.connector)}</span></div>
-                <div><strong>File:</strong> <span>${test.file.split("/").pop()}</span></div>
-                <div><strong>Duration:</strong> <span>${test.duration}ms</span></div>
-            </div>
-            ${
-              test.error
-                ? `
-                <div class="error-message">
-                    ${escapeHtml(test.error.message || "No error message available")}
-                </div>
-            `
-                : ""
-            }
-            <div class="media-links">
-                ${test.screenshot ? `<a href="${test.screenshot}" target="_blank">📸 View Screenshot</a>` : ""}
-                ${test.video ? `<a href="${test.video}" target="_blank">🎥 View Video</a>` : ""}
-                ${!test.screenshot && !test.video ? '<span style="color: var(--text-secondary)">No media available</span>' : ""}
-            </div>
-        `;
-
+    const testDiv = createFailedTestElement(test, index);
     container.appendChild(testDiv);
   });
 }
