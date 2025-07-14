@@ -19,7 +19,7 @@ use utoipa::{schema, ToSchema};
 #[cfg(feature = "payouts")]
 use crate::payouts;
 use crate::{
-    admin, enums as api_enums,
+    admin, enums as api_enums, open_router,
     payments::{self, BankCodeResponse},
 };
 
@@ -937,14 +937,14 @@ pub struct PaymentMethodResponse {
     pub network_token: Option<NetworkTokenResponse>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub enum PaymentMethodsData {
     Card(CardDetailsPaymentMethod),
     BankDetails(PaymentMethodDataBankCreds),
     WalletDetails(PaymentMethodDataWalletInfo),
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CardDetailsPaymentMethod {
     pub last4_digits: Option<String>,
     pub issuer_country: Option<String>,
@@ -958,12 +958,33 @@ pub struct CardDetailsPaymentMethod {
     pub card_type: Option<String>,
     #[serde(default = "saved_in_locker_default")]
     pub saved_to_locker: bool,
-    pub co_badged_card_data: Option<CoBadgedCardData>,
+    pub co_badged_card_data: Option<CoBadgedCardDataToBeSaved>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+impl From<&CoBadgedCardData> for CoBadgedCardDataToBeSaved {
+    fn from(co_badged_card_data: &CoBadgedCardData) -> Self {
+        Self {
+            co_badged_card_networks: co_badged_card_data
+                .co_badged_card_networks_info
+                .get_card_networks(),
+            issuer_country_code: co_badged_card_data.issuer_country_code,
+            is_regulated: co_badged_card_data.is_regulated,
+            regulated_name: co_badged_card_data.regulated_name.clone(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CoBadgedCardData {
-    pub co_badged_card_networks: Vec<api_enums::CardNetwork>,
+    pub co_badged_card_networks_info: open_router::CoBadgedCardNetworks,
+    pub issuer_country_code: common_enums::CountryAlpha2,
+    pub is_regulated: bool,
+    pub regulated_name: Option<common_enums::RegulatedName>,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct CoBadgedCardDataToBeSaved {
+    pub co_badged_card_networks: Vec<common_enums::CardNetwork>,
     pub issuer_country_code: common_enums::CountryAlpha2,
     pub is_regulated: bool,
     pub regulated_name: Option<common_enums::RegulatedName>,
@@ -1029,6 +1050,35 @@ impl From<PaymentMethodDataWalletInfo> for payments::additional_info::WalletAddi
             card_network: item.card_network,
             card_type: item.card_type,
         }
+    }
+}
+
+impl From<payments::ApplepayPaymentMethod> for PaymentMethodDataWalletInfo {
+    fn from(item: payments::ApplepayPaymentMethod) -> Self {
+        Self {
+            last4: item
+                .display_name
+                .chars()
+                .rev()
+                .take(4)
+                .collect::<Vec<_>>()
+                .into_iter()
+                .rev()
+                .collect(),
+            card_network: item.network,
+            card_type: Some(item.pm_type),
+        }
+    }
+}
+
+impl TryFrom<PaymentMethodDataWalletInfo> for payments::ApplepayPaymentMethod {
+    type Error = error_stack::Report<errors::ValidationError>;
+    fn try_from(item: PaymentMethodDataWalletInfo) -> Result<Self, Self::Error> {
+        Ok(Self {
+            display_name: item.last4,
+            network: item.card_network,
+            pm_type: item.card_type.get_required_value("card_type")?,
+        })
     }
 }
 
@@ -1325,7 +1375,7 @@ impl From<(CardDetailFromLocker, Option<&CoBadgedCardData>)> for CardDetailsPaym
             card_network: item.card_network,
             card_type: item.card_type,
             saved_to_locker: item.saved_to_locker,
-            co_badged_card_data: co_badged_card_data.cloned(),
+            co_badged_card_data: co_badged_card_data.map(CoBadgedCardDataToBeSaved::from),
         }
     }
 }
@@ -3019,7 +3069,7 @@ pub struct PaymentMethodSessionResponse {
 
     /// The payment method that was created using this payment method session
     #[schema(value_type = Option<Vec<String>>)]
-    pub associated_payment_methods: Option<Vec<id_type::GlobalPaymentMethodId>>,
+    pub associated_payment_methods: Option<Vec<String>>,
 
     /// The token-id created if there is tokenization_data present
     #[schema(value_type = Option<String>, example = "12345_tok_01926c58bc6e77c09e809964e72af8c8")]
