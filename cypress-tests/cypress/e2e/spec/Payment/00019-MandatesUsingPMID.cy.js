@@ -164,6 +164,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
 
         cy.retrievePaymentCallTest(globalState, data);
       });
+
       it("Confirm No 3DS MIT", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"

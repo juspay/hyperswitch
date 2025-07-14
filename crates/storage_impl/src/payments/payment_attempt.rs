@@ -686,6 +686,10 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     created_by: payment_attempt.created_by.clone(),
                     setup_future_usage_applied: payment_attempt.setup_future_usage_applied,
                     routing_approach: payment_attempt.routing_approach,
+                    connector_request_reference_id: payment_attempt
+                        .connector_request_reference_id
+                        .clone(),
+                    debit_routing_savings: None,
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -1893,6 +1897,7 @@ impl DataModelExt for PaymentAttempt {
             connector_transaction_data: None,
             processor_merchant_id: Some(self.processor_merchant_id),
             created_by: self.created_by.map(|created_by| created_by.to_string()),
+            connector_request_reference_id: self.connector_request_reference_id,
         }
     }
 
@@ -1984,6 +1989,8 @@ impl DataModelExt for PaymentAttempt {
                 .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
             setup_future_usage_applied: storage_model.setup_future_usage_applied,
             routing_approach: storage_model.routing_approach,
+            connector_request_reference_id: storage_model.connector_request_reference_id,
+            debit_routing_savings: None,
         }
     }
 }
@@ -2074,6 +2081,7 @@ impl DataModelExt for PaymentAttemptNew {
             created_by: self.created_by.map(|created_by| created_by.to_string()),
             setup_future_usage_applied: self.setup_future_usage_applied,
             routing_approach: self.routing_approach,
+            connector_request_reference_id: self.connector_request_reference_id,
         }
     }
 
@@ -2157,6 +2165,7 @@ impl DataModelExt for PaymentAttemptNew {
                 .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
             setup_future_usage_applied: storage_model.setup_future_usage_applied,
             routing_approach: storage_model.routing_approach,
+            connector_request_reference_id: storage_model.connector_request_reference_id,
         }
     }
 }

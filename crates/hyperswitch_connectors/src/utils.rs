@@ -242,6 +242,12 @@ pub struct GooglePayPaymentMethodInfo {
     pub card_details: String,
 }
 
+#[derive(Debug, Serialize)]
+pub struct CardMandateInfo {
+    pub card_exp_month: Secret<String>,
+    pub card_exp_year: Secret<String>,
+}
+
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct GpayTokenizationData {
     #[serde(rename = "type")]
@@ -1703,6 +1709,7 @@ pub trait PaymentsAuthorizeRequestData {
     ) -> Result<enums::CardNetwork, Error>;
     fn get_connector_testing_data(&self) -> Option<pii::SecretSerdeValue>;
     fn get_order_id(&self) -> Result<String, errors::ConnectorError>;
+    fn get_card_mandate_info(&self) -> Result<CardMandateInfo, Error>;
 }
 
 impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
@@ -1936,6 +1943,27 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
         self.order_id
             .to_owned()
             .ok_or(errors::ConnectorError::RequestEncodingFailed)
+    }
+
+    fn get_card_mandate_info(&self) -> Result<CardMandateInfo, Error> {
+        match &self.additional_payment_method_data {
+            Some(payments::AdditionalPaymentData::Card(card_data)) => Ok(CardMandateInfo {
+                card_exp_month: card_data.card_exp_month.clone().ok_or_else(|| {
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "card_exp_month",
+                    }
+                })?,
+                card_exp_year: card_data.card_exp_year.clone().ok_or_else(|| {
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "card_exp_year",
+                    }
+                })?,
+            }),
+            _ => Err(errors::ConnectorError::MissingRequiredFields {
+                field_names: vec!["card_exp_month", "card_exp_year"],
+            }
+            .into()),
+        }
     }
 }
 
@@ -6215,7 +6243,8 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         connector_mandate_request_reference_id: data.connector_mandate_request_reference_id.clone(),
         authentication_id: data.authentication_id.clone(),
         psd2_sca_exemption_type: data.psd2_sca_exemption_type,
-        whole_connector_response: data.whole_connector_response.clone(),
+        raw_connector_response: data.raw_connector_response.clone(),
+        is_payment_id_from_merchant: data.is_payment_id_from_merchant,
     }
 }
 

@@ -10958,6 +10958,7 @@
       "Connector": {
         "type": "string",
         "enum": [
+          "authipay",
           "adyenplatform",
           "stripe_billing_test",
           "phonypay",
@@ -10982,6 +10983,7 @@
           "boku",
           "braintree",
           "cashtocode",
+          "celero",
           "chargebee",
           "checkout",
           "coinbase",
@@ -11029,6 +11031,7 @@
           "nuvei",
           "opennode",
           "paybox",
+          "payload",
           "payme",
           "payone",
           "paypal",
@@ -27968,6 +27971,7 @@
         "type": "string",
         "description": "RoutableConnectors are the subset of Connectors that are eligible for payments routing",
         "enum": [
+          "authipay",
           "adyenplatform",
           "stripe_billing_test",
           "phonypay",
@@ -27992,6 +27996,7 @@
           "boku",
           "braintree",
           "cashtocode",
+          "celero",
           "chargebee",
           "checkout",
           "coinbase",
@@ -28034,6 +28039,7 @@
           "opennode",
           "paybox",
           "payme",
+          "payload",
           "payone",
           "paypal",
           "paystack",
