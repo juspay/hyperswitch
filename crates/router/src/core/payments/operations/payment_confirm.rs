@@ -1145,6 +1145,15 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     .clone()
                     .and_then(|network| business_profile.get_acquirer_details_from_network(network))
             });
+            let country = business_profile
+                .merchant_country_code
+                .as_ref()
+                .map(|country_code| {
+                    country_code.validate_and_get_country_from_merchant_country_code()
+                })
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Error while parsing country from merchant country code")?;
             // get three_ds_decision_rule_output using algorithm_id and payment data
             let decision = three_ds_decision_rule::get_three_ds_decision_rule_output(
                 state,
@@ -1182,9 +1191,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     customer_device: None,
                     acquirer: acquirer_config.as_ref().map(|acquirer| {
                         api_models::three_ds_decision_rule::AcquirerData {
-                            country: Some(common_enums::Country::from_alpha2(
-                                acquirer.merchant_country_code,
-                            )),
+                            country,
                             fraud_rate: Some(acquirer.acquirer_fraud_rate),
                         }
                     }),
