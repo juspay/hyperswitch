@@ -878,6 +878,7 @@ static SANTANDER_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     description:
         "Santander is a leading private bank in Brazil, offering a wide range of financial services across retail and corporate segments. It is part of the global Santander Group, one of Europe’s largest financial institutions.",
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    integration_status: enums::IntegrationStatus::Sandbox,
 };
 
 static SANTANDER_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

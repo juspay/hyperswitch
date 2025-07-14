@@ -608,6 +608,7 @@ static SILVERFLOW_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Silverflow",
     description: "Silverflow connector",
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    integration_status: enums::IntegrationStatus::Alpha,
 };
 
 static SILVERFLOW_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
