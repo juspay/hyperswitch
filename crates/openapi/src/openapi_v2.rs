@@ -160,6 +160,7 @@ Never share your secret api keys. Keep them guarded and secure.
 
         // Route for tokenization
         routes::tokenization::create_token_vault_api,
+        routes::tokenization::delete_tokenized_data_api,
     ),
     components(schemas(
         common_utils::types::MinorUnit,
