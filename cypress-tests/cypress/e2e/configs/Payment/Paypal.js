@@ -185,7 +185,7 @@ export const connectorDetails = {
         body: {
           error: {
             code: "IR_06",
-            message: "amount_to_capture is greater than amount",
+            message: "amount_to_capture is greater than amount", // Incremental authorization is not allowed within 4 days of the initial authorization. Since the capture amount (8000) exceeds the authorized amount, this request fails.
           },
         },
       },
