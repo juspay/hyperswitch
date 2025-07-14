@@ -114,14 +114,14 @@ impl MerchantCountryCode {
                 field_name: "merchant_country_code",
             })
             .attach_printable_lazy(|| {
-                format!("Country code {} is negative or too large", country_code)
+                format!("Country code {country_code} is negative or too large")
             })?;
 
         common_enums::Country::from_numeric(code)
             .map_err(|_| errors::ValidationError::IncorrectValueProvided {
                 field_name: "merchant_country_code",
             })
-            .attach_printable_lazy(|| format!("Invalid country code {}", code))
+            .attach_printable_lazy(|| format!("Invalid country code {code}"))
     }
 }
 
