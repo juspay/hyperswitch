@@ -451,8 +451,8 @@ pub async fn payouts_update_core(
     if helpers::is_payout_terminal_state(status) || helpers::is_payout_initiated(status) {
         return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
             message: format!(
-                "Payout {:?} cannot be updated for status {}",
-                payout_id, status
+                "Payout {} cannot be updated for status {status}",
+                payout_id.get_string_repr()
             ),
         }));
     }
@@ -788,8 +788,7 @@ pub async fn payouts_list_core(
                         .await
                         .map_err(|err| {
                             let err_msg = format!(
-                                "failed while fetching customer for customer_id - {:?}",
-                                customer_id
+                                "failed while fetching customer for customer_id - {customer_id:?}",
                             );
                             logger::warn!(?err, err_msg);
                         })
@@ -961,8 +960,8 @@ pub async fn payouts_filtered_list_core(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
             format!(
-                "Failed to fetch total count of filtered payouts for the given constraints - {:?}",
-                filters
+                "Failed to fetch total count of filtered payouts for the given constraints - {filters:?}",
+
             )
         })?;
 
@@ -2701,7 +2700,7 @@ pub async fn payout_create_db_entries(
 
     let client_secret = utils::generate_id(
         consts::ID_LENGTH,
-        format!("payout_{payout_id:?}_secret").as_str(),
+        format!("payout_{}_secret", payout_id.get_string_repr()).as_str(),
     );
     let amount = MinorUnit::from(req.amount.unwrap_or(api::Amount::Zero));
     let status = if req.payout_method_data.is_some()
@@ -2915,8 +2914,7 @@ pub async fn make_payout_data(
             .map_err(|err| err.change_context(errors::ApiErrorResponse::InternalServerError))
             .attach_printable_lazy(|| {
                 format!(
-                    "Failed while fetching optional customer [id - {:?}] for payout [id - {:?}]",
-                    customer_id, payout_id
+                    "Failed while fetching optional customer [id - {customer_id:?}] for payout [id - {}]", payout_id.get_string_repr()
                 )
             })
         })
@@ -3177,20 +3175,21 @@ pub async fn create_payout_link(
     let base_url = profile_config
         .as_ref()
         .and_then(|c| c.config.domain_name.as_ref())
-        .map(|domain| format!("https://{}", domain))
+        .map(|domain| format!("https://{domain}"))
         .unwrap_or(state.base_url.clone());
     let session_expiry = req
         .session_expiry
         .as_ref()
         .map_or(default_config.expiry, |expiry| *expiry);
     let url = format!(
-        "{base_url}/payout_link/{}/{payout_id:?}?locale={}",
+        "{base_url}/payout_link/{}/{}?locale={}",
         merchant_id.get_string_repr(),
+        payout_id.get_string_repr(),
         locale
     );
     let link = url::Url::parse(&url)
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| format!("Failed to form payout link URL - {}", url))?;
+        .attach_printable_lazy(|| format!("Failed to form payout link URL - {url}"))?;
     let req_enabled_payment_methods = payout_link_config_req
         .as_ref()
         .and_then(|req| req.enabled_payment_methods.to_owned());

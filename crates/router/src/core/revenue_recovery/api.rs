@@ -31,7 +31,7 @@ pub async fn call_psync_api(
         force_sync: false,
         param: None,
         expand_attempts: true,
-        all_keys_required: None,
+        return_raw_connector_response: None,
         merchant_connector_details: None,
     };
     let merchant_context_from_revenue_recovery_data =
@@ -53,7 +53,7 @@ pub async fn call_psync_api(
         )
         .await?;
 
-    let (payment_data, _req, _, _, _) = Box::pin(payments::payments_operation_core::<
+    let (payment_data, _req, _, _, _, _) = Box::pin(payments::payments_operation_core::<
         api_types::PSync,
         _,
         _,
