@@ -1,7 +1,7 @@
 use common_enums::{enums, AuthenticationConnectors};
 use common_utils::{
     events::{ApiEventMetric, ApiEventsType},
-    id_type
+    id_type,
 };
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
