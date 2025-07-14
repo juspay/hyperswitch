@@ -277,11 +277,15 @@ export const connectorDetails = {
           amount: 8000,
           amount_capturable: 6000, // Incremental Authorization can be done atleast 4 days after the authorization in case of Paypal
           amount_received: null,
-          is_error_code_expected: true,
-          incremental_authorizations: [{
-            error_code: "REAUTHORIZATION_TOO_SOON",
-            error_message: "REAUTHORIZATION_TOO_SOON",
-          }],
+          incremental_authorizations: [
+            {
+              amount: 8000,
+              previously_authorized_amount: 6000,
+              status: "failure",
+              error_code: "REAUTHORIZATION_TOO_SOON",
+              error_message: "REAUTHORIZATION_TOO_SOON",
+            },
+          ],
         },
       },
     },
@@ -344,12 +348,6 @@ export const connectorDetails = {
       },
     },
     PaymentIntentOffSession: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          specName: ["incrementalAuth"],
-          value: "connector_2",
-        },
-      },
       Request: {
         currency: "USD",
         amount: 6000,

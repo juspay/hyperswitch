@@ -3967,16 +3967,38 @@ Cypress.Commands.add("incrementalAuth", (globalState, data) => {
             .to.have.property("amount")
             .to.be.a("number")
             .to.equal(resData.body.amount).and.not.be.null;
-            if (!resData.body.is_error_code_expected) {
-              expect(
-                response.body.incremental_authorizations[key],
-                "error_code"
-              ).to.have.property("error_code").to.be.null;
-              expect(
-                response.body.incremental_authorizations[key],
-                "error_message"
-              ).to.have.property("error_message").to.be.null;
-            }
+          if (
+            response.body.incremental_authorizations[key].status === "failure"
+          ) {
+            expect(response.body.incremental_authorizations[key], "error_code")
+              .to.have.property("error_code")
+              .to.be.equal(
+                resData.body.incremental_authorizations[key].error_code
+              );
+            expect(
+              response.body.incremental_authorizations[key],
+              "error_message"
+            )
+              .to.have.property("error_message")
+              .to.be.equal(
+                resData.body.incremental_authorizations[key].error_message
+              );
+            expect(response.body.incremental_authorizations[key], "status")
+              .to.have.property("status")
+              .to.equal("failure");
+          } else {
+            expect(
+              response.body.incremental_authorizations[key],
+              "error_code"
+            ).to.have.property("error_code").to.be.null;
+            expect(
+              response.body.incremental_authorizations[key],
+              "error_message"
+            ).to.have.property("error_message").to.be.null;
+            expect(response.body.incremental_authorizations[key], "status")
+              .to.have.property("status")
+              .to.equal("success");
+          }
           expect(
             response.body.incremental_authorizations[key],
             "previously_authorized_amount"
@@ -3987,15 +4009,6 @@ Cypress.Commands.add("incrementalAuth", (globalState, data) => {
               response.body.incremental_authorizations[key]
                 .previously_authorized_amount
             ).and.not.be.null;
-          if (resData.body.is_error_code_expected) {
-            expect(response.body.incremental_authorizations[key], "status")
-              .to.have.property("status")
-              .to.equal("failure");
-          } else {
-            expect(response.body.incremental_authorizations[key], "status")
-              .to.have.property("status")
-              .to.equal("success");
-          }
         }
       }
     });
