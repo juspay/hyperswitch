@@ -17,6 +17,7 @@ import { connectorDetails as checkoutConnectorDetails } from "./Checkout.js";
 import { connectorDetails as commonConnectorDetails } from "./Commons.js";
 import { connectorDetails as cybersourceConnectorDetails } from "./Cybersource.js";
 import { connectorDetails as datatransConnectorDetails } from "./Datatrans.js";
+import { connectorDetails as dlocalConnectorDetails } from "./Dlocal.js";
 import { connectorDetails as deutschebankConnectorDetails } from "./Deutschebank.js";
 import { connectorDetails as elavonConnectorDetails } from "./Elavon.js";
 import { connectorDetails as facilitapayConnectorDetails } from "./Facilitapay.js";
@@ -70,6 +71,7 @@ const connectorDetails = {
   checkout: checkoutConnectorDetails,
   commons: commonConnectorDetails,
   cybersource: cybersourceConnectorDetails,
+  dlocal: dlocalConnectorDetails,
   datatrans: datatransConnectorDetails,
   deutschebank: deutschebankConnectorDetails,
   elavon: elavonConnectorDetails,
@@ -388,6 +390,9 @@ export const CONNECTOR_LISTS = {
   // Inclusion lists (only run for these connectors)
   INCLUDE: {
     MANDATES_USING_NTID_PROXY: ["cybersource"],
+    INCREMENTAL_AUTH: [
+      // "cybersource"    // issues with MULTIPLE_CONNECTORS handling
+    ],
     // Add more inclusion lists
   },
 };
