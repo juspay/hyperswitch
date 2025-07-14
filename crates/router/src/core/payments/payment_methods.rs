@@ -239,7 +239,8 @@ fn get_pm_subtype_specific_data(
 
         common_enums::PaymentMethod::BankRedirect
         | common_enums::PaymentMethod::BankTransfer
-        | common_enums::PaymentMethod::BankDebit => {
+        | common_enums::PaymentMethod::BankDebit
+        | common_enums::PaymentMethod::OpenBanking => {
             if let Some(connector_bank_names) = bank_config.0.get(&payment_method_subtype) {
                 let bank_names = connectors
                     .iter()
@@ -274,7 +275,6 @@ fn get_pm_subtype_specific_data(
         | common_enums::PaymentMethod::Upi
         | common_enums::PaymentMethod::Voucher
         | common_enums::PaymentMethod::GiftCard
-        | common_enums::PaymentMethod::OpenBanking
         | common_enums::PaymentMethod::MobilePayment => None,
     }
 }
