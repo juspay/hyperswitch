@@ -2122,7 +2122,6 @@ where
                 .feature_metadata
                 .as_ref()
                 .map(api_models::payments::PaymentAttemptFeatureMetadata::foreign_from),
-            card_network: None,
             error_details: payment_attempt
                 .error
                 .map(api_models::payments::RecordAttemptErrorDetails::from),

@@ -1641,9 +1641,6 @@ pub struct PaymentAttemptRecordResponse {
     /// The amount of the payment attempt
     #[schema(value_type = i64, example = 6540)]
     pub amount: MinorUnit,
-    /// The card network used for the payment attempt
-    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
-    pub card_network: Option<api_enums::CardNetwork>,
     /// Error details for the payment attempt, if any.
     /// This includes fields like error code, network advice code, and network decline code.
     pub error_details: Option<RecordAttemptErrorDetails>,
