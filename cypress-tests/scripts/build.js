@@ -101,13 +101,4 @@ function build() {
 }
 
 // Main script logic
-const command = process.argv[2];
-
-if (command === "clean") {
-  if (fs.existsSync(DIST_DIR)) {
-    fs.rmSync(DIST_DIR, { recursive: true, force: true });
-    console.log("Cleaned dist directory");
-  }
-} else {
-  build();
-}
+build();
