@@ -478,7 +478,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         currency: payment_data.payment_intent.amount_details.currency,
         connector_transaction_id: connector
             .connector
-            .connector_transaction_id(payment_data.payment_attempt.clone())?
+            .connector_transaction_id(&payment_data.payment_attempt)?
             .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
         payment_amount: amount.get_amount_as_i64(), // This should be removed once we start moving to connector module
         minor_payment_amount: amount,
@@ -3875,6 +3875,43 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
     }
 }
 
+#[cfg(feature = "v1")]
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>>
+    for types::PaymentsIncrementalAuthorizationData
+{
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        let payment_data = additional_data.payment_data;
+        let payment_attempt = &payment_data.payment_attempt;
+        let connector = api::ConnectorData::get_connector_by_name(
+            &additional_data.state.conf.connectors,
+            &additional_data.connector_name,
+            api::GetToken::Connector,
+            payment_attempt.merchant_connector_id.clone(),
+        )?;
+        let incremental_details = payment_data
+            .incremental_authorization_details
+            .as_ref()
+            .ok_or(
+                report!(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("missing incremental_authorization_details in payment_data"),
+            )?;
+        Ok(Self {
+            total_amount: incremental_details.total_amount.get_amount_as_i64(),
+            additional_amount: incremental_details.additional_amount.get_amount_as_i64(),
+            reason: incremental_details.reason.clone(),
+            currency: payment_data.currency,
+            connector_transaction_id: connector
+                .connector
+                .connector_transaction_id(payment_attempt)?
+                .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
+            connector_meta: payment_attempt.connector_metadata.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>>
     for types::PaymentsIncrementalAuthorizationData
 {
@@ -3888,33 +3925,26 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>>
             api::GetToken::Connector,
             payment_data.payment_attempt.merchant_connector_id.clone(),
         )?;
-        let total_amount = payment_data
+        let incremental_details = payment_data
             .incremental_authorization_details
-            .clone()
-            .map(|details| details.total_amount)
-            .ok_or(
-                report!(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("missing incremental_authorization_details in payment_data"),
-            )?;
-        let additional_amount = payment_data
-            .incremental_authorization_details
-            .clone()
-            .map(|details| details.additional_amount)
+            .as_ref()
             .ok_or(
                 report!(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("missing incremental_authorization_details in payment_data"),
             )?;
         Ok(Self {
-            total_amount: total_amount.get_amount_as_i64(),
-            additional_amount: additional_amount.get_amount_as_i64(),
-            reason: payment_data
-                .incremental_authorization_details
-                .and_then(|details| details.reason),
+            total_amount: incremental_details.total_amount.get_amount_as_i64(),
+            additional_amount: incremental_details.additional_amount.get_amount_as_i64(),
+            reason: incremental_details.reason.clone(),
             currency: payment_data.currency,
             connector_transaction_id: connector
                 .connector
-                .connector_transaction_id(payment_data.payment_attempt.clone())?
+                .connector_transaction_id(&payment_data.payment_attempt)?
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
+            connector_meta: payment_data
+                .payment_attempt
+                .connector_metadata
+                .map(|secret| secret.expose()),
         })
     }
 }
@@ -3947,7 +3977,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             currency: payment_data.currency,
             connector_transaction_id: connector
                 .connector
-                .connector_transaction_id(payment_data.payment_attempt.clone())?
+                .connector_transaction_id(&payment_data.payment_attempt)?
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
             payment_amount: amount.get_amount_as_i64(), // This should be removed once we start moving to connector module
             minor_payment_amount: amount,
@@ -4015,7 +4045,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             currency: payment_data.currency,
             connector_transaction_id: connector
                 .connector
-                .connector_transaction_id(payment_data.payment_attempt.clone())?
+                .connector_transaction_id(&payment_data.payment_attempt)?
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
             payment_amount: amount.get_amount_as_i64(), // This should be removed once we start moving to connector module
             minor_payment_amount: amount,
@@ -4092,7 +4122,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             currency: Some(payment_data.currency),
             connector_transaction_id: connector
                 .connector
-                .connector_transaction_id(payment_data.payment_attempt.clone())?
+                .connector_transaction_id(&payment_data.payment_attempt)?
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
             cancellation_reason: payment_data.payment_attempt.cancellation_reason,
             connector_meta: payment_data.payment_attempt.connector_metadata,
@@ -4246,7 +4276,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsUpdateMe
                 .attach_printable("payment_intent.metadata not found")?,
             connector_transaction_id: connector
                 .connector
-                .connector_transaction_id(payment_data.payment_attempt.clone())?
+                .connector_transaction_id(&payment_data.payment_attempt)?
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
         })
     }

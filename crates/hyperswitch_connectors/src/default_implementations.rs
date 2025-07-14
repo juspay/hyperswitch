@@ -1086,7 +1086,6 @@ default_imp_for_incremental_authorization!(
     connectors::Payload,
     connectors::Payme,
     connectors::Payone,
-    connectors::Paypal,
     connectors::Paystack,
     connectors::Payu,
     connectors::Placetopay,
