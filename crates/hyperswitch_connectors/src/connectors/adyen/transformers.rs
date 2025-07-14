@@ -2210,8 +2210,8 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod
                 };
                 Ok(AdyenPaymentMethod::Gpay(Box::new(gpay_data)))
             }
-            WalletData::ApplePay(data) => match item.payment_method_token.clone() {
-                Some(PaymentMethodToken::ApplePayDecrypt(apple_pay_decrypte)) => {
+            WalletData::ApplePay(data) => {
+                if let Some(PaymentMethodToken::ApplePayDecrypt(apple_pay_decrypte)) = item.payment_method_token.clone() {
                     let expiry_year_4_digit = apple_pay_decrypte.get_four_digit_expiry_year()?;
                     let exp_month = apple_pay_decrypte.get_expiry_month()?;
                     let apple_pay_decrypted_data = AdyenApplePayDecryptData {
@@ -2224,18 +2224,13 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod
                     Ok(AdyenPaymentMethod::ApplePayDecrypt(Box::new(
                         apple_pay_decrypted_data,
                     )))
-                }
-                Some(PaymentMethodToken::Token(_)) => {
+                } else {
                     let apple_pay_data = AdyenApplePay {
                         apple_pay_token: Secret::new(data.payment_data.to_string()),
                     };
-
                     Ok(AdyenPaymentMethod::ApplePay(Box::new(apple_pay_data)))
                 }
-                _ => Err(errors::ConnectorError::InvalidWalletToken {
-                    wallet_name: "Apple Pay".to_string(),
-                })?,
-            },
+        },
             WalletData::PaypalRedirect(_) => Ok(AdyenPaymentMethod::AdyenPaypal),
             WalletData::AliPayRedirect(_) => Ok(AdyenPaymentMethod::AliPay),
             WalletData::AliPayHkRedirect(_) => Ok(AdyenPaymentMethod::AliPayHk),
