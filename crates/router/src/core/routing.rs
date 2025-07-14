@@ -5,7 +5,9 @@ use std::collections::HashSet;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use api_models::routing::DynamicRoutingAlgoAccessor;
 use api_models::{
-    enums, mandates as mandates_api, routing,
+    enums, mandates as mandates_api,
+    open_router::{DecideGatewayResponse, OpenRouterDecideGatewayRequest},
+    routing,
     routing::{
         self as routing_types, RoutingRetrieveQuery, RuleMigrationError, RuleMigrationResponse,
     },
@@ -13,6 +15,7 @@ use api_models::{
 use async_trait::async_trait;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use common_utils::ext_traits::AsyncExt;
+use common_utils::request::Method;
 use diesel_models::routing_algorithm::RoutingAlgorithm;
 use error_stack::ResultExt;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
@@ -2621,4 +2624,30 @@ pub async fn migrate_rules_for_profile(
         success: response_list,
         errors: error_list,
     })
+}
+
+pub async fn decide_gateway_open_router(
+    state: SessionState,
+    // merchant_context: domain::MerchantContext,
+    req_body: OpenRouterDecideGatewayRequest,
+) -> RouterResponse<DecideGatewayResponse> {
+    let response = SRApiClient::send_decision_engine_request(
+        &state,
+        Method::Post,
+        "decide-gateway",
+        Some(req_body),
+        None,
+        None,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to perform decide gateway call with open router")?;
+
+    let res: DecideGatewayResponse = serde_json::from_value(response.response.unwrap())
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to parse DecidedGateway from response")?;
+
+    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+        res,
+    ))
 }

@@ -1622,3 +1622,29 @@ async fn get_merchant_account(
         .to_not_found_response(ApiErrorResponse::MerchantAccountNotFound)?;
     Ok((key_store, merchant_account))
 }
+
+#[cfg(all(feature = "olap", feature = "v1", feature = "dynamic_routing"))]
+#[instrument(skip_all)]
+pub async fn call_decide_gateway_open_router(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Json<api_models::open_router::OpenRouterDecideGatewayRequest>,
+) -> impl Responder {
+    let flow = Flow::DecisionEngineDecideGatewayCall;
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload.clone(),
+        |state, _auth, payload, _| {
+            let payload_inner = payload.into();
+            routing::decide_gateway_open_router(state.clone(), payload_inner)
+        },
+        &auth::ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

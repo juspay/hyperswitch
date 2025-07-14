@@ -973,6 +973,13 @@ impl Routing {
                 })),
             );
 
+        #[cfg(feature = "dynamic_routing")]
+        {
+            route = route.service(web::resource("/evaluate").route(web::post().to(
+                |state, req, payload| routing::call_decide_gateway_open_router(state, req, payload),
+            )))
+        }
+
         #[cfg(feature = "payouts")]
         {
             route = route

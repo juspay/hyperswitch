@@ -608,6 +608,8 @@ pub enum Flow {
     ThreeDsDecisionRuleExecute,
     /// Incoming Network Token Webhook Receive
     IncomingNetworkTokenWebhookReceive,
+    /// Decision Engine Decide Gateway Call
+    DecisionEngineDecideGatewayCall,
 }
 
 /// Trait for providing generic behaviour to flow metric

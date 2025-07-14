@@ -26,6 +26,41 @@ pub struct OpenRouterDecideGatewayRequest {
     pub elimination_enabled: Option<bool>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DecideGatewayResponse {
+    pub decided_gateway: Option<String>,
+    pub gateway_priority_map: Option<serde_json::Value>,
+    pub filter_wise_gateways: Option<serde_json::Value>,
+    pub priority_logic_tag: Option<String>,
+    pub routing_approach: Option<String>,
+    pub gateway_before_evaluation: Option<String>,
+    pub priority_logic_output: Option<PLOutput>,
+    pub reset_approach: Option<String>,
+    pub routing_dimension: Option<String>,
+    pub routing_dimension_level: Option<String>,
+    pub is_scheduled_outage: Option<bool>,
+    pub is_dynamic_mga_enabled: Option<bool>,
+    pub gateway_mga_id_map: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PLOutput {
+    pub is_enforcement: Option<bool>,
+    pub gws: Option<Vec<String>>,
+    pub priority_logic_tag: Option<String>,
+    pub gateway_reference_ids: Option<HashMap<String, String>>,
+    pub primary_logic: Option<PLData>,
+    pub fallback_logic: Option<PLData>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PLData {
+    pub name: Option<String>,
+    pub status: Option<String>,
+    pub failure_reason: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum RankingAlgorithm {
