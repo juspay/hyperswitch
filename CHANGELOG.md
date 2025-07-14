@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.07.14.1
+
+### Features
+
+- **connector:** [AUTHORIZEDOTNET] Populated merchant required fields in setupmandate flow ([#8618](https://github.com/juspay/hyperswitch/pull/8618)) ([`cb8dff0`](https://github.com/juspay/hyperswitch/commit/cb8dff008c71586713973d350e7e3789e82085ec))
+
+**Full Changelog:** [`2025.07.14.0...2025.07.14.1`](https://github.com/juspay/hyperswitch/compare/2025.07.14.0...2025.07.14.1)
+
+- - -
+
 ## 2025.07.14.0
 
 ### Features
