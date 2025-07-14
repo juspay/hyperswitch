@@ -4,6 +4,24 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.07.14.0
+
+### Features
+
+- **connector:**
+  - [AIRWALLEX] - Added Paypal, Trustly, Klarna , Atome, Blik Payment Methods ([#8475](https://github.com/juspay/hyperswitch/pull/8475)) ([`d5f5527`](https://github.com/juspay/hyperswitch/commit/d5f5527499c11ab427bd07c326cc294fc354f342))
+  - [payload] add webhook support ([#8558](https://github.com/juspay/hyperswitch/pull/8558)) ([`2fe3132`](https://github.com/juspay/hyperswitch/commit/2fe3132da8eedea39018e5c6afec9ab4dd49ddd6))
+- **core:** Hyperswitch <|> UCS integration v2 ([#8439](https://github.com/juspay/hyperswitch/pull/8439)) ([`ae9feca`](https://github.com/juspay/hyperswitch/commit/ae9feca82cdc29ff442276284f2aeb4ad01e94ba))
+- **payments:** Propagate additional payment method data for apple pay during MIT ([#7170](https://github.com/juspay/hyperswitch/pull/7170)) ([`0f70fc5`](https://github.com/juspay/hyperswitch/commit/0f70fc512c90e4d5603af7b965c137465999b73c))
+
+### Refactors
+
+- **cypress:** Update skip logic and test flow for cypress incremental auth tests ([#8594](https://github.com/juspay/hyperswitch/pull/8594)) ([`3c49871`](https://github.com/juspay/hyperswitch/commit/3c498714e76b400657fc0fc25b7559ca3dca1908))
+
+**Full Changelog:** [`2025.07.11.0...2025.07.14.0`](https://github.com/juspay/hyperswitch/compare/2025.07.11.0...2025.07.14.0)
+
+- - -
+
 ## 2025.07.11.0
 
 ### Miscellaneous Tasks
