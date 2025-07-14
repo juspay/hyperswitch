@@ -1,5 +1,3 @@
-mod requests;
-mod responses;
 pub mod transformers;
 
 use std::sync::LazyLock;
@@ -7,15 +5,13 @@ use std::sync::LazyLock;
 use base64::Engine;
 use common_enums::enums;
 use common_utils::{
-    consts::BASE64_ENGINE,
-    errors::{CustomResult, ReportSwitchExt},
-    ext_traits::{ByteSliceExt, BytesExt},
+    errors::CustomResult,
+    ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -44,92 +40,133 @@ use hyperswitch_interfaces::{
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
-    types::{self, PaymentsVoidType, Response},
+    types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask, Secret};
-use transformers as payload;
+use masking::{ExposeInterface, Mask, PeekInterface};
+use transformers as authipay;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
-pub struct Payload {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+pub struct Authipay {
+    amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
 }
 
-impl Payload {
+impl Authipay {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &StringMajorUnitForConnector,
+            amount_converter: &FloatMajorUnitForConnector,
         }
+    }
+
+    pub fn generate_authorization_signature(
+        &self,
+        auth: authipay::AuthipayAuthType,
+        request_id: &str,
+        payload: &str,
+        timestamp: i128,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let authipay::AuthipayAuthType {
+            api_key,
+            api_secret,
+        } = auth;
+        let raw_signature = format!("{}{request_id}{timestamp}{payload}", api_key.peek());
+
+        let key = ring::hmac::Key::new(ring::hmac::HMAC_SHA256, api_secret.expose().as_bytes());
+        let signature_value = common_utils::consts::BASE64_ENGINE
+            .encode(ring::hmac::sign(&key, raw_signature.as_bytes()).as_ref());
+        Ok(signature_value)
     }
 }
 
-impl api::Payment for Payload {}
-impl api::PaymentSession for Payload {}
-impl api::ConnectorAccessToken for Payload {}
-impl api::MandateSetup for Payload {}
-impl api::PaymentAuthorize for Payload {}
-impl api::PaymentSync for Payload {}
-impl api::PaymentCapture for Payload {}
-impl api::PaymentVoid for Payload {}
-impl api::Refund for Payload {}
-impl api::RefundExecute for Payload {}
-impl api::RefundSync for Payload {}
-impl api::PaymentToken for Payload {}
+impl api::Payment for Authipay {}
+impl api::PaymentSession for Authipay {}
+impl api::ConnectorAccessToken for Authipay {}
+impl api::MandateSetup for Authipay {}
+impl api::PaymentAuthorize for Authipay {}
+impl api::PaymentSync for Authipay {}
+impl api::PaymentCapture for Authipay {}
+impl api::PaymentVoid for Authipay {}
+impl api::Refund for Authipay {}
+impl api::RefundExecute for Authipay {}
+impl api::RefundSync for Authipay {}
+impl api::PaymentToken for Authipay {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
-    for Payload
+    for Authipay
 {
     // Not Implemented (R)
 }
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Payload
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Authipay
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {
     fn build_headers(
         &self,
         req: &RouterData<Flow, Request, Response>,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            Self::common_get_content_type(self).to_string().into(),
-        )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
-        Ok(header)
+        let timestamp = time::OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000;
+        let auth: authipay::AuthipayAuthType =
+            authipay::AuthipayAuthType::try_from(&req.connector_auth_type)?;
+        let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
+
+        let authipay_req = self.get_request_body(req, connectors)?;
+
+        let client_request_id = uuid::Uuid::new_v4().to_string();
+        let hmac = self
+            .generate_authorization_signature(
+                auth,
+                &client_request_id,
+                authipay_req.get_inner_value().peek(),
+                timestamp,
+            )
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let mut headers = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                types::PaymentsAuthorizeType::get_content_type(self)
+                    .to_string()
+                    .into(),
+            ),
+            ("Client-Request-Id".to_string(), client_request_id.into()),
+            ("Auth-Token-Type".to_string(), "HMAC".to_string().into()),
+            (headers::TIMESTAMP.to_string(), timestamp.to_string().into()),
+            ("Message-Signature".to_string(), hmac.into_masked()),
+        ];
+        headers.append(&mut auth_header);
+        Ok(headers)
     }
 }
 
-impl ConnectorCommon for Payload {
+impl ConnectorCommon for Authipay {
     fn id(&self) -> &'static str {
-        "payload"
+        "authipay"
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        api::CurrencyUnit::Minor
+        api::CurrencyUnit::Base
     }
 
     fn common_get_content_type(&self) -> &'static str {
-        "application/x-www-form-urlencoded"
+        "application/json"
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
-        connectors.payload.base_url.as_ref()
+        connectors.authipay.base_url.as_ref()
     }
 
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let auth = payload::PayloadAuthType::try_from(auth_type)
+        let auth = authipay::AuthipayAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let encoded_api_key = BASE64_ENGINE.encode(format!("{}:", auth.api_key.expose()));
         Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            format!("Basic {encoded_api_key}").into_masked(),
+            headers::API_KEY.to_string(),
+            auth.api_key.into_masked(),
         )])
     }
 
@@ -138,77 +175,61 @@ impl ConnectorCommon for Payload {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: responses::PayloadErrorResponse = res
+        let response: authipay::AuthipayErrorResponse = res
             .response
-            .parse_struct("PayloadErrorResponse")
+            .parse_struct("AuthipayErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        event_builder.map(|i| i.set_error_response_body(&response));
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.error_type,
-            message: response.error_description,
-            reason: response
-                .details
-                .as_ref()
-                .map(|details_value| details_value.to_string()),
-            attempt_status: None,
-            connector_transaction_id: None,
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
-        })
+        let mut error_response = ErrorResponse::from(&response);
+
+        // Set status code from the response, or 400 if error code is a "404"
+        if let Some(error_code) = &response.error.code {
+            if error_code == "404" {
+                error_response.status_code = 404;
+            } else {
+                error_response.status_code = res.status_code;
+            }
+        } else {
+            error_response.status_code = res.status_code;
+        }
+
+        Ok(error_response)
     }
 }
 
-impl ConnectorValidation for Payload {
-    fn validate_mandate_payment(
+impl ConnectorValidation for Authipay {
+    fn validate_connector_against_payment_request(
         &self,
-        _pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
+        capture_method: Option<enums::CaptureMethod>,
+        _payment_method: enums::PaymentMethod,
+        _pmt: Option<enums::PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
-        match pm_data {
-            PaymentMethodData::Card(_) => Err(errors::ConnectorError::NotImplemented(
-                "validate_mandate_payment does not support cards".to_string(),
-            )
-            .into()),
-            _ => Ok(()),
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic
+            | enums::CaptureMethod::Manual
+            | enums::CaptureMethod::SequentialAutomatic => Ok(()),
+            enums::CaptureMethod::Scheduled | enums::CaptureMethod::ManualMultiple => Err(
+                utils::construct_not_implemented_error_report(capture_method, self.id()),
+            ),
         }
     }
-
-    fn validate_psync_reference_id(
-        &self,
-        _data: &PaymentsSyncData,
-        _is_three_ds: bool,
-        _status: enums::AttemptStatus,
-        _connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        Ok(())
-    }
 }
 
-impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Payload {
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Authipay {
     //TODO: implement sessions flow
 }
 
-impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Payload {}
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Authipay {}
 
-impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Payload {
-    fn build_request(
-        &self,
-        _req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
-        _connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Err(
-            errors::ConnectorError::NotImplemented("Setup Mandate flow for Payload".to_string())
-                .into(),
-        )
-    }
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
+    for Authipay
+{
 }
 
-impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Payload {
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Authipay {
     fn get_headers(
         &self,
         req: &PaymentsAuthorizeRouterData,
@@ -226,7 +247,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         _req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/transactions", self.base_url(connectors)))
+        Ok(format!("{}payments", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -240,10 +261,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             req.request.currency,
         )?;
 
-        let connector_router_data = payload::PayloadRouterData::from((amount, req));
-        let connector_req = requests::PayloadPaymentsRequest::try_from(&connector_router_data)?;
-
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+        let connector_router_data = authipay::AuthipayRouterData::from((amount, req));
+        let connector_req = authipay::AuthipayPaymentsRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -274,13 +294,11 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: responses::PayloadPaymentsResponse = res
+        let response: authipay::AuthipayPaymentsResponse = res
             .response
-            .parse_struct("PayloadPaymentsResponse")
+            .parse_struct("Authipay PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
         event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
 
         RouterData::try_from(ResponseRouterData {
             response,
@@ -298,7 +316,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     }
 }
 
-impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Payload {
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Authipay {
     fn get_headers(
         &self,
         req: &PaymentsSyncRouterData,
@@ -316,17 +334,24 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pay
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let payment_id = req
+        let connector_transaction_id = req
             .request
             .connector_transaction_id
             .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
-
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(format!(
-            "{}/transactions/{}",
+            "{}payments/{}",
             self.base_url(connectors),
-            payment_id
+            connector_transaction_id
         ))
+    }
+
+    fn get_request_body(
+        &self,
+        _req: &PaymentsSyncRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        Ok(RequestContent::RawBytes(Vec::new()))
     }
 
     fn build_request(
@@ -350,12 +375,12 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pay
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: responses::PayloadPaymentsResponse = res
+        let response: authipay::AuthipayPaymentsResponse = res
             .response
-            .parse_struct("PayloadPaymentsSyncResponse")
+            .parse_struct("authipay PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -372,7 +397,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pay
     }
 }
 
-impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Payload {
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Authipay {
     fn get_headers(
         &self,
         req: &PaymentsCaptureRouterData,
@@ -392,7 +417,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_transaction_id = req.request.connector_transaction_id.clone();
         Ok(format!(
-            "{}/transactions/{}",
+            "{}payments/{}",
             self.base_url(connectors),
             connector_transaction_id
         ))
@@ -409,10 +434,9 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             req.request.currency,
         )?;
 
-        let connector_router_data = payload::PayloadRouterData::from((amount, req));
-        let connector_req = requests::PayloadCaptureRequest::try_from(&connector_router_data)?;
-
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+        let connector_router_data = authipay::AuthipayRouterData::from((amount, req));
+        let connector_req = authipay::AuthipayCaptureRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -422,7 +446,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
-                .method(Method::Put)
+                .method(Method::Post)
                 .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsCaptureType::get_headers(
@@ -441,12 +465,12 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: responses::PayloadPaymentsResponse = res
+        let response: authipay::AuthipayPaymentsResponse = res
             .response
-            .parse_struct("PayloadPaymentsCaptureResponse")
+            .parse_struct("Authipay PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -463,7 +487,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     }
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Payload {
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Authipay {
     fn get_headers(
         &self,
         req: &PaymentsCancelRouterData,
@@ -481,12 +505,17 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Pa
         req: &PaymentsCancelRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let payment_id = &req.request.connector_transaction_id;
-        Ok(format!(
-            "{}/transactions/{}",
-            self.base_url(connectors),
-            payment_id
-        ))
+        // For void operations, Authipay requires using the /orders/{orderId} endpoint
+        // The orderId should be stored in connector_meta from the authorization response
+        let order_id = req
+            .request
+            .connector_meta
+            .as_ref()
+            .and_then(|meta| meta.get("order_id"))
+            .and_then(|v| v.as_str())
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+
+        Ok(format!("{}orders/{}", self.base_url(connectors), order_id))
     }
 
     fn get_request_body(
@@ -494,9 +523,11 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Pa
         req: &PaymentsCancelRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = payload::PayloadRouterData::from((Default::default(), req));
-        let connector_req = requests::PayloadCancelRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+        // For void, we don't need amount conversion since it's always full amount
+        let connector_router_data =
+            authipay::AuthipayRouterData::from((FloatMajorUnit::zero(), req));
+        let connector_req = authipay::AuthipayVoidRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -506,31 +537,28 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Pa
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
-                .method(Method::Put)
-                .url(&PaymentsVoidType::get_url(self, req, connectors)?)
+                .method(Method::Post)
+                .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(PaymentsVoidType::get_headers(self, req, connectors)?)
-                .set_body(PaymentsVoidType::get_request_body(self, req, connectors)?)
+                .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
+                .set_body(types::PaymentsVoidType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
 
     fn handle_response(
         &self,
-        data: &RouterData<Void, PaymentsCancelData, PaymentsResponseData>,
+        data: &PaymentsCancelRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<
-        RouterData<Void, PaymentsCancelData, PaymentsResponseData>,
-        errors::ConnectorError,
-    > {
-        let response: responses::PayloadPaymentsResponse = res
+    ) -> CustomResult<PaymentsCancelRouterData, errors::ConnectorError> {
+        let response: authipay::AuthipayPaymentsResponse = res
             .response
-            .parse_struct("PayloadPaymentsCancelResponse")
+            .parse_struct("Authipay PaymentsVoidResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
         event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
 
         RouterData::try_from(ResponseRouterData {
             response,
@@ -548,7 +576,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Pa
     }
 }
 
-impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Payload {
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Authipay {
     fn get_headers(
         &self,
         req: &RefundsRouterData<Execute>,
@@ -563,10 +591,15 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Payload
 
     fn get_url(
         &self,
-        _req: &RefundsRouterData<Execute>,
+        req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/transactions", self.base_url(connectors)))
+        let connector_payment_id = req.request.connector_transaction_id.clone();
+        Ok(format!(
+            "{}payments/{}",
+            self.base_url(connectors),
+            connector_payment_id
+        ))
     }
 
     fn get_request_body(
@@ -580,9 +613,9 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Payload
             req.request.currency,
         )?;
 
-        let connector_router_data = payload::PayloadRouterData::from((refund_amount, req));
-        let connector_req = requests::PayloadRefundRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+        let connector_router_data = authipay::AuthipayRouterData::from((refund_amount, req));
+        let connector_req = authipay::AuthipayRefundRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -610,13 +643,11 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Payload
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: responses::PayloadRefundResponse = res
+        let response: authipay::RefundResponse = res
             .response
-            .parse_struct("PayloadRefundResponse")
+            .parse_struct("authipay RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
         event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
 
         RouterData::try_from(ResponseRouterData {
             response,
@@ -634,7 +665,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Payload
     }
 }
 
-impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Payload {
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Authipay {
     fn get_headers(
         &self,
         req: &RefundSyncRouterData,
@@ -652,16 +683,24 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Payload {
         req: &RefundSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_refund_id = req
+        let refund_id = req
             .request
             .connector_refund_id
-            .as_ref()
-            .ok_or_else(|| errors::ConnectorError::MissingConnectorRefundID)?;
+            .clone()
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(format!(
-            "{}/transactions/{}",
+            "{}payments/{}",
             self.base_url(connectors),
-            connector_refund_id
+            refund_id
         ))
+    }
+
+    fn get_request_body(
+        &self,
+        _req: &RefundSyncRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        Ok(RequestContent::RawBytes(Vec::new()))
     }
 
     fn build_request(
@@ -675,9 +714,6 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Payload {
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .set_body(types::RefundSyncType::get_request_body(
-                    self, req, connectors,
-                )?)
                 .build(),
         ))
     }
@@ -688,12 +724,12 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Payload {
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: responses::PayloadRefundResponse = res
+        let response: authipay::RefundResponse = res
             .response
-            .parse_struct("PayloadRefundSyncResponse")
+            .parse_struct("authipay RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -711,174 +747,103 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Payload {
 }
 
 #[async_trait::async_trait]
-impl webhooks::IncomingWebhook for Payload {
-    async fn verify_webhook_source(
-        &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-        _merchant_id: &common_utils::id_type::MerchantId,
-        _connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
-        _connector_account_details: common_utils::crypto::Encryptable<Secret<serde_json::Value>>,
-        _connector_label: &str,
-    ) -> CustomResult<bool, errors::ConnectorError> {
-        // Payload does not support source verification
-        // It does, but the client id and client secret generation is not possible at present
-        // It requires OAuth connect which falls under Access Token flow and it also requires multiple calls to be made
-        // We return false just so that a PSync call is triggered internally
-        Ok(false)
-    }
-
+impl webhooks::IncomingWebhook for Authipay {
     fn get_webhook_object_reference_id(
         &self,
-        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        let webhook_body: responses::PayloadWebhookEvent = request
-            .body
-            .parse_struct("PayloadWebhookEvent")
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-
-        let reference_id = match webhook_body.trigger {
-            responses::PayloadWebhooksTrigger::Payment
-            | responses::PayloadWebhooksTrigger::Processed
-            | responses::PayloadWebhooksTrigger::Authorized
-            | responses::PayloadWebhooksTrigger::Credit
-            | responses::PayloadWebhooksTrigger::Reversal
-            | responses::PayloadWebhooksTrigger::Void
-            | responses::PayloadWebhooksTrigger::AutomaticPayment
-            | responses::PayloadWebhooksTrigger::Decline
-            | responses::PayloadWebhooksTrigger::Deposit
-            | responses::PayloadWebhooksTrigger::Reject
-            | responses::PayloadWebhooksTrigger::PaymentActivationStatus
-            | responses::PayloadWebhooksTrigger::PaymentLinkStatus
-            | responses::PayloadWebhooksTrigger::ProcessingStatus
-            | responses::PayloadWebhooksTrigger::BankAccountReject
-            | responses::PayloadWebhooksTrigger::Chargeback
-            | responses::PayloadWebhooksTrigger::ChargebackReversal
-            | responses::PayloadWebhooksTrigger::TransactionOperation
-            | responses::PayloadWebhooksTrigger::TransactionOperationClear => {
-                api_models::webhooks::ObjectReferenceId::PaymentId(
-                    api_models::payments::PaymentIdType::ConnectorTransactionId(
-                        webhook_body
-                            .triggered_on
-                            .transaction_id
-                            .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
-                    ),
-                )
-            }
-
-            responses::PayloadWebhooksTrigger::Refund => {
-                api_models::webhooks::ObjectReferenceId::RefundId(
-                    api_models::webhooks::RefundIdType::ConnectorRefundId(
-                        webhook_body
-                            .triggered_on
-                            .transaction_id
-                            .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
-                    ),
-                )
-            }
-        };
-
-        Ok(reference_id)
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_event_type(
         &self,
-        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        let webhook_body: responses::PayloadWebhookEvent =
-            request.body.parse_struct("PayloadWebhookEvent").switch()?;
-
-        Ok(api_models::webhooks::IncomingWebhookEvent::from(
-            webhook_body.trigger,
-        ))
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_resource_object(
         &self,
-        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        let webhook_body: responses::PayloadWebhookEvent = request
-            .body
-            .parse_struct("PayloadWebhookEvent")
-            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-        Ok(Box::new(webhook_body))
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
 
-static PAYLOAD_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
-    let mut payload_supported_payment_methods = SupportedPaymentMethods::new();
-    let supported_capture_methods = vec![
-        enums::CaptureMethod::Automatic,
-        enums::CaptureMethod::Manual,
-        enums::CaptureMethod::SequentialAutomatic,
-    ];
-    let supported_card_network = vec![
-        common_enums::CardNetwork::AmericanExpress,
-        common_enums::CardNetwork::Discover,
-        common_enums::CardNetwork::Mastercard,
-        common_enums::CardNetwork::Visa,
-    ];
+static AUTHIPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
+        let supported_capture_methods = vec![
+            enums::CaptureMethod::Automatic,
+            enums::CaptureMethod::SequentialAutomatic,
+            enums::CaptureMethod::Manual,
+        ];
 
-    payload_supported_payment_methods.add(
-        enums::PaymentMethod::Card,
-        enums::PaymentMethodType::Credit,
-        PaymentMethodDetails {
-            mandates: enums::FeatureStatus::NotSupported,
-            refunds: enums::FeatureStatus::Supported,
-            supported_capture_methods: supported_capture_methods.clone(),
-            specific_features: Some(
-                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
-                    api_models::feature_matrix::CardSpecificFeatures {
-                        three_ds: common_enums::FeatureStatus::NotSupported,
-                        no_three_ds: common_enums::FeatureStatus::Supported,
-                        supported_card_networks: supported_card_network.clone(),
-                    }
-                }),
-            ),
-        },
-    );
-    payload_supported_payment_methods.add(
-        enums::PaymentMethod::Card,
-        enums::PaymentMethodType::Debit,
-        PaymentMethodDetails {
-            mandates: enums::FeatureStatus::NotSupported,
-            refunds: enums::FeatureStatus::Supported,
-            supported_capture_methods: supported_capture_methods.clone(),
-            specific_features: Some(
-                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
-                    api_models::feature_matrix::CardSpecificFeatures {
-                        three_ds: common_enums::FeatureStatus::NotSupported,
-                        no_three_ds: common_enums::FeatureStatus::Supported,
-                        supported_card_networks: supported_card_network.clone(),
-                    }
-                }),
-            ),
-        },
-    );
-    payload_supported_payment_methods
-});
+        let supported_card_network = vec![
+            common_enums::CardNetwork::Visa,
+            common_enums::CardNetwork::Mastercard,
+        ];
 
-static PAYLOAD_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-    display_name: "Payload",
-    description: "Payload is an embedded finance solution for modern platforms and businesses, automating inbound and outbound payments with an industry-leading platform and driving innovation into the future.",
+        let mut authipay_supported_payment_methods = SupportedPaymentMethods::new();
+
+        authipay_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Credit,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::NotSupported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
+            },
+        );
+
+        authipay_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Debit,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::NotSupported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
+            },
+        );
+
+        authipay_supported_payment_methods
+    });
+
+static AUTHIPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Authipay",
+    description: "Authipay is a Fiserv-powered payment gateway for the EMEA region supporting Visa and Mastercard transactions. Features include flexible capture methods (automatic, manual, sequential), partial captures/refunds, payment tokenization, and secure HMAC SHA256 authentication.",
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
 };
 
-static PAYLOAD_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 3] = [
-    enums::EventClass::Disputes,
-    enums::EventClass::Payments,
-    enums::EventClass::Refunds,
-];
+static AUTHIPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
-impl ConnectorSpecifications for Payload {
+impl ConnectorSpecifications for Authipay {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&PAYLOAD_CONNECTOR_INFO)
+        Some(&AUTHIPAY_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
-        Some(&*PAYLOAD_SUPPORTED_PAYMENT_METHODS)
+        Some(&*AUTHIPAY_SUPPORTED_PAYMENT_METHODS)
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&PAYLOAD_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&AUTHIPAY_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

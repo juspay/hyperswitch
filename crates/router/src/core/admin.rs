@@ -1230,7 +1230,7 @@ pub async fn merchant_account_delete(
     // Call to DE here
     #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
     {
-        if state.conf.open_router.enabled && is_deleted {
+        if state.conf.open_router.dynamic_routing_enabled && is_deleted {
             merchant_account
                 .default_profile
                 .as_ref()
