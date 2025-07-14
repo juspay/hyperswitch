@@ -12,13 +12,20 @@ v2 = ["api_models/v2", "diesel_models/v2", "storage_impl/v2", "common_utils/v2"]
 
 [dependencies]
 # First party crates
-api_models = { version = "0.1.0", path = "../api_models", features = ["errors"] }
+api_models = { version = "0.1.0", path = "../api_models", features = [
+  "errors",
+] }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
-diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store"], default-features = false }
+diesel_models = { version = "0.1.0", path = "../diesel_models", features = [
+  "kv_store",
+], default-features = false }
 hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces", default-features = false }
 masking = { version = "0.1.0", path = "../masking" }
-router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
+router_env = { version = "0.1.0", path = "../router_env", features = [
+  "log_extra_implicit_fields",
+  "log_custom_entries_to_extra",
+] }
 storage_impl = { version = "0.1.0", path = "../storage_impl", default-features = false }
 currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
 
@@ -36,7 +43,13 @@ reqwest = { version = "0.11.27", features = ["serde_json"] }
 rust_decimal = "1.37"
 serde = { version = "1.0.219", features = ["derive", "rc"] }
 serde_json = "1.0.140"
-sqlx = { version = "0.8.6", features = ["postgres", "runtime-tokio", "runtime-tokio-native-tls", "time", "bigdecimal"] }
+sqlx = { version = "0.8.6", features = [
+  "postgres",
+  "runtime-tokio",
+  "runtime-tokio-native-tls",
+  "time",
+  "bigdecimal",
+] }
 strum = { version = "0.26.3", features = ["derive"] }
 thiserror = "1.0.69"
 time = { version = "0.3.41", features = ["serde", "serde-well-known", "std"] }

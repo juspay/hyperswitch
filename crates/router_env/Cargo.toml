@@ -12,31 +12,65 @@ cargo_metadata = "0.18.1"
 config = { version = "0.14.1", features = ["toml"] }
 error-stack = "0.4.1"
 gethostname = "0.4.3"
-opentelemetry = { version = "0.27.1", default-features = false, features = ["internal-logs", "metrics", "trace"] }
-opentelemetry-aws = { version = "0.15.0", default-features = false, features = ["internal-logs", "trace"] }
-opentelemetry-otlp = { version = "0.27.0", default-features = false, features = ["grpc-tonic", "metrics", "trace"] }
-opentelemetry_sdk = { version = "0.27.1", default-features = false, features = ["rt-tokio-current-thread", "metrics", "trace"] }
+opentelemetry = { version = "0.27.1", default-features = false, features = [
+  "internal-logs",
+  "metrics",
+  "trace",
+] }
+opentelemetry-aws = { version = "0.15.0", default-features = false, features = [
+  "internal-logs",
+  "trace",
+] }
+opentelemetry-otlp = { version = "0.27.0", default-features = false, features = [
+  "grpc-tonic",
+  "metrics",
+  "trace",
+] }
+opentelemetry_sdk = { version = "0.27.1", default-features = false, features = [
+  "rt-tokio-current-thread",
+  "metrics",
+  "trace",
+] }
 rustc-hash = "1.1"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 serde_path_to_error = "0.1.17"
 strum = { version = "0.26.3", features = ["derive"] }
-time = { version = "0.3.41", default-features = false, features = ["formatting"] }
+time = { version = "0.3.41", default-features = false, features = [
+  "formatting",
+] }
 tokio = { version = "1.45.1" }
 tracing = { workspace = true }
-tracing-actix-web = { version = "0.7.18", features = ["opentelemetry_0_27", "uuid_v7"], optional = true }
+tracing-actix-web = { version = "0.7.18", features = [
+  "opentelemetry_0_27",
+  "uuid_v7",
+], optional = true }
 tracing-appender = { version = "0.2.3" }
 tracing-attributes = "0.1.28"
 tracing-opentelemetry = { version = "0.28.0", default-features = false }
-tracing-subscriber = { version = "0.3.19", default-features = true, features = ["env-filter", "json", "registry"] }
-vergen = { version = "8.3.2", optional = true, features = ["cargo", "git", "git2", "rustc"] }
+tracing-subscriber = { version = "0.3.19", default-features = true, features = [
+  "env-filter",
+  "json",
+  "registry",
+] }
+vergen = { version = "8.3.2", optional = true, features = [
+  "cargo",
+  "git",
+  "git2",
+  "rustc",
+] }
 
 [dev-dependencies]
 tokio = { version = "1.45.1", features = ["macros", "rt-multi-thread"] }
 
 [build-dependencies]
 cargo_metadata = "0.18.1"
-vergen = { version = "8.3.2", features = ["cargo", "git", "git2", "rustc"], optional = true }
+vergen = { version = "8.3.2", features = [
+  "cargo",
+  "git",
+  "git2",
+  "rustc",
+], optional = true }
 
 [features]
 default = ["actix_web", "payouts"]

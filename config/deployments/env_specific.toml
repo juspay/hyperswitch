@@ -8,7 +8,7 @@ database_name = "clickhouse_db_name" # Clickhouse database name
 
 # Analytics configuration.
 [analytics]
-source = "sqlx" # The Analytics source/strategy to be used
+source = "sqlx"       # The Analytics source/strategy to be used
 forex_enabled = false # Boolean to enable or disable forex conversion
 
 [analytics.sqlx]
@@ -64,10 +64,10 @@ wildcard_origin = false                 # If true, allows any origin to make req
 
 # EmailClient configuration. Only applicable when the `email` feature flag is enabled.
 [email]
-sender_email = "example@example.com" # Sender email
-aws_region = ""                      # AWS region used by AWS SES
-allowed_unverified_days = 1          # Number of days the api calls ( with jwt token ) can be made without verifying the email
-active_email_client = "SES"          # The currently active email client
+sender_email = "example@example.com"                 # Sender email
+aws_region = ""                                      # AWS region used by AWS SES
+allowed_unverified_days = 1                          # Number of days the api calls ( with jwt token ) can be made without verifying the email
+active_email_client = "SES"                          # The currently active email client
 recon_recipient_email = "recon@example.com"          # Recipient email for recon request email
 prod_intent_recipient_email = "business@example.com" # Recipient email for prod intent email
 
@@ -105,11 +105,11 @@ bucket_name = "bucket"   # The AWS S3 bucket name for file storage
 
 # This section provides configs for currency conversion api
 [forex_api]
-api_key = ""                      # Api key for making request to foreign exchange Api
-fallback_api_key = ""             # Api key for the fallback service
-data_expiration_delay_in_seconds = 21600     # Expiration time for data in cache as well as redis in seconds
-redis_lock_timeout_in_seconds = 100        # Redis remains write locked for 100 s once the acquire_redis_lock is called
-redis_ttl_in_seconds = 172800     # Time to expire for forex data stored in Redis
+api_key = ""                             # Api key for making request to foreign exchange Api
+fallback_api_key = ""                    # Api key for the fallback service
+data_expiration_delay_in_seconds = 21600 # Expiration time for data in cache as well as redis in seconds
+redis_lock_timeout_in_seconds = 100      # Redis remains write locked for 100 s once the acquire_redis_lock is called
+redis_ttl_in_seconds = 172800            # Time to expire for forex data stored in Redis
 
 [jwekey] # 3 priv/pub key pair
 vault_encryption_key = ""       # public key in pem format, corresponding private key in rust locker
@@ -272,9 +272,9 @@ url = "http://localhost:5000" # URL of the encryption service
 
 # This section provides some secret values.
 [secrets]
-master_enc_key = "sample_key"            # Master Encryption key used to encrypt merchant wise encryption key. Should be 32-byte long.
-admin_api_key = "test_admin"             # admin API key for admin authentication.
-jwt_secret = "secret"                    # JWT secret used for user authentication.
+master_enc_key = "sample_key" # Master Encryption key used to encrypt merchant wise encryption key. Should be 32-byte long.
+admin_api_key = "test_admin"  # admin API key for admin authentication.
+jwt_secret = "secret"         # JWT secret used for user authentication.
 
 # Server configuration
 [server]
@@ -313,13 +313,13 @@ region = "kms_region" # The AWS region used by the KMS SDK for decrypting data.
 crm_manager = "hubspot_proxy" # Crm manager client to be used
 
 [crm.hubspot_proxy]
-form_id=""     # Form ID for Hubspot integration
-request_url="" # Request URL for Hubspot API
+form_id = ""     # Form ID for Hubspot integration
+request_url = "" # Request URL for Hubspot API
 
 
 [multitenancy]
 enabled = false
-global_tenant = { tenant_id = "global", schema = "public", redis_key_prefix = "", clickhouse_database = "default"}
+global_tenant = { tenant_id = "global", schema = "public", redis_key_prefix = "", clickhouse_database = "default" }
 
 [multitenancy.tenants.public]
 base_url = "http://localhost:8080"
@@ -329,7 +329,7 @@ redis_key_prefix = ""
 clickhouse_database = "default"
 
 [multitenancy.tenants.public.user]
-control_center_url =  "http://localhost:9000"
+control_center_url = "http://localhost:9000"
 
 [user_auth_methods]
 encryption_key = "user_auth_table_encryption_key" # Encryption key used for encrypting data in user_authentication_methods table
@@ -338,15 +338,15 @@ encryption_key = "user_auth_table_encryption_key" # Encryption key used for encr
 id = "12345" # Default CellID for Global Cell Information
 
 [network_tokenization_service] # Network Tokenization Service Configuration
-generate_token_url= ""        # base url to generate token
-fetch_token_url= ""           # base url to fetch token
-token_service_api_key= ""      # api key for token service
-public_key= ""                # public key to encrypt data for token service
-private_key= ""               # private key to decrypt  response payload from token service
-key_id= ""                    # key id to encrypt data for token service
-delete_token_url= ""          # base url to delete token from token service
-check_token_status_url= ""    # base url to check token status from token service
-webhook_source_verification_key= "" # webhook source verification key to verify the webhook payload from token service
+generate_token_url = ""              # base url to generate token
+fetch_token_url = ""                 # base url to fetch token
+token_service_api_key = ""           # api key for token service
+public_key = ""                      # public key to encrypt data for token service
+private_key = ""                     # private key to decrypt  response payload from token service
+key_id = ""                          # key id to encrypt data for token service
+delete_token_url = ""                # base url to delete token from token service
+check_token_status_url = ""          # base url to check token status from token service
+webhook_source_verification_key = "" # webhook source verification key to verify the webhook payload from token service
 
 [grpc_client.dynamic_routing_client] # Dynamic Routing Client Configuration
 host = "localhost" # Client Host
@@ -374,10 +374,10 @@ base_url = "http://localhost:8000" #base url to call unified authentication serv
 base_url = "http://localhost:8080" # base url to call hyperswitch vault service
 
 [clone_connector_allowlist]
-merchant_ids = "merchant_ids"           # Comma-separated list of allowed merchant IDs
-connector_names = "connector_names"     # Comma-separated list of allowed connector names
+merchant_ids = "merchant_ids"       # Comma-separated list of allowed merchant IDs
+connector_names = "connector_names" # Comma-separated list of allowed connector names
 
 [grpc_client.unified_connector_service]
-host = "localhost"                      # Unified Connector Service Client Host
-port = 8000                             # Unified Connector Service Client Port
-connection_timeout = 10                 # Connection Timeout Duration in Seconds
+host = "localhost"      # Unified Connector Service Client Host
+port = 8000             # Unified Connector Service Client Port
+connection_timeout = 10 # Connection Timeout Duration in Seconds
