@@ -280,15 +280,15 @@ pub struct GooglePayDetails {
 
 #[derive(Debug, Serialize)]
 pub struct PaypalDetails {
-    shopper_name: Option<Secret<String>>,
-    country_code: Option<enums::CountryAlpha2>,
+    shopper_name: Secret<String>,
+    country_code: enums::CountryAlpha2,
 }
 
 #[derive(Debug, Serialize)]
 pub struct SkrillDetails {
-    shopper_name: Option<Secret<String>>,
-    shopper_email: Option<Email>,
-    country_code: Option<enums::CountryAlpha2>,
+    shopper_name: Secret<String>,
+    shopper_email: Email,
+    country_code: enums::CountryAlpha2,
 }
 
 #[derive(Debug, Serialize)]
@@ -307,7 +307,7 @@ pub struct KlarnaData {
 
 #[derive(Debug, Serialize)]
 pub struct KlarnaDetails {
-    country_code: Option<enums::CountryAlpha2>,
+    country_code: enums::CountryAlpha2,
     language: Option<String>,
     billing: Billing,
 }
@@ -339,7 +339,7 @@ pub struct AtomeData {
 
 #[derive(Debug, Serialize)]
 pub struct AtomeDetails {
-    shopper_phone: Option<Secret<String>>,
+    shopper_phone: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -357,10 +357,10 @@ pub struct IndonesianBankTransferData {
 
 #[derive(Debug, Serialize)]
 pub struct IndonesianBankTransferDetails {
-    shopper_name: Option<Secret<String>>,
-    shopper_email: Option<Email>,
-    bank_name: Option<common_enums::BankNames>,
-    country_code: Option<enums::CountryAlpha2>,
+    shopper_name: Secret<String>,
+    shopper_email: Email,
+    bank_name: common_enums::BankNames,
+    country_code: enums::CountryAlpha2,
 }
 
 #[derive(Debug, Serialize)]
@@ -380,8 +380,8 @@ pub struct TrustlyData {
 
 #[derive(Debug, Serialize)]
 pub struct TrustlyDetails {
-    shopper_name: Option<Secret<String>>,
-    country_code: Option<enums::CountryAlpha2>,
+    shopper_name: Secret<String>,
+    country_code: enums::CountryAlpha2,
 }
 
 #[derive(Debug, Serialize)]
@@ -393,7 +393,7 @@ pub struct BlikData {
 
 #[derive(Debug, Serialize)]
 pub struct BlikDetails {
-    shopper_name: Option<Secret<String>>,
+    shopper_name: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -597,10 +597,23 @@ fn get_banktransfer_details(
             AirwallexPaymentMethod::BankTransfer(AirwallexBankTransferData::IndonesianBankTransfer(
                 IndonesianBankTransferData {
                     bank_transfer: IndonesianBankTransferDetails {
-                        shopper_name: item.router_data.get_optional_billing_full_name(),
-                        shopper_email: item.router_data.get_optional_billing_email(),
-                        bank_name: *bank_name,
-                        country_code: item.router_data.get_optional_billing_country(),
+                        shopper_name: item.router_data.get_billing_full_name()
+                            .map_err(|_| errors::ConnectorError::MissingRequiredField {
+                                field_name: "shopper_name",
+                            })?,
+                        shopper_email: item.router_data.get_billing_email()
+                            .map_err(|_| errors::ConnectorError::MissingRequiredField {
+                                field_name: "shopper_email",
+                            })?,
+                        bank_name: bank_name.ok_or(
+                            errors::ConnectorError::MissingRequiredField {
+                                field_name: "bank_name",
+                            },
+                        )?,
+                        country_code: item.router_data.get_billing_country()
+                            .map_err(|_| errors::ConnectorError::MissingRequiredField {
+                                field_name: "country_code",
+                            })?,
                     },
                     payment_method_type: AirwallexPaymentType::BankTransfer,
                 },
@@ -624,7 +637,9 @@ fn get_paylater_details(
         PayLaterData::KlarnaRedirect {} => {
             AirwallexPaymentMethod::PayLater(AirwallexPayLaterData::Klarna(Box::new(KlarnaData {
                 klarna: KlarnaDetails {
-                    country_code: item.router_data.get_optional_billing_country(),
+                    country_code: item.router_data.get_billing_country().map_err(|_| errors::ConnectorError::MissingRequiredField {
+                                field_name: "country_code",
+                            })?,
                     language: item
                         .router_data
                         .request
@@ -652,8 +667,13 @@ fn get_paylater_details(
                     shopper_phone: item
                         .router_data
                         .get_billing_phone()
-                        .ok()
-                        .and_then(|phone| phone.get_number_with_country_code().ok()),
+                        .map_err(|_| errors::ConnectorError::MissingRequiredField {
+                            field_name: "shopper_phone",
+                        })?
+                        .get_number_with_country_code()
+                        .map_err(|_| errors::ConnectorError::MissingRequiredField {
+                            field_name: "country_code",
+                        })?,
                 },
                 payment_method_type: AirwallexPaymentType::Atome,
             }))
@@ -673,8 +693,12 @@ fn get_bankredirect_details(
         BankRedirectData::Trustly { .. } => {
             AirwallexPaymentMethod::BankRedirect(AirwallexBankRedirectData::Trustly(TrustlyData {
                 trustly: TrustlyDetails {
-                    shopper_name: item.router_data.get_optional_billing_full_name(),
-                    country_code: item.router_data.get_optional_billing_country(),
+                    shopper_name: item.router_data.get_billing_full_name().map_err(|_| errors::ConnectorError::MissingRequiredField {
+                                field_name: "shopper_name",
+                            })?,
+                    country_code: item.router_data.get_billing_country().map_err(|_| errors::ConnectorError::MissingRequiredField {
+                                field_name: "country_code",
+                            })?,
                 },
                 payment_method_type: AirwallexPaymentType::Trustly,
             }))
@@ -682,7 +706,10 @@ fn get_bankredirect_details(
         BankRedirectData::Blik { .. } => {
             AirwallexPaymentMethod::BankRedirect(AirwallexBankRedirectData::Blik(BlikData {
                 blik: BlikDetails {
-                    shopper_name: item.router_data.get_optional_billing_full_name(),
+                    shopper_name: item.router_data.get_billing_full_name()
+                        .map_err(|_| errors::ConnectorError::MissingRequiredField {
+                            field_name: "shopper_name",
+                        })?,
                 },
                 payment_method_type: AirwallexPaymentType::Blik,
             }))
@@ -721,8 +748,18 @@ fn get_wallet_details(
         WalletData::PaypalRedirect(_paypal_details) => {
             AirwallexPaymentMethod::Wallets(AirwallexWalletData::Paypal(PaypalData {
                 paypal: PaypalDetails {
-                    shopper_name: item.router_data.request.customer_name.clone(),
-                    country_code: item.router_data.get_optional_billing_country(),
+                    shopper_name: item.router_data.request.customer_name
+                    .as_ref()
+                    .cloned()
+                    .or_else(|| item.router_data.get_billing_full_name().ok())
+                    .ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "shopper_name",
+                        },
+                    )?,
+                    country_code: item.router_data.get_billing_country().map_err(|_| errors::ConnectorError::MissingRequiredField {
+                                field_name: "country_code",
+                            })?,
                 },
                 payment_method_type: AirwallexPaymentType::Paypal,
             }))
@@ -730,9 +767,27 @@ fn get_wallet_details(
         WalletData::SkrillRedirect(skrill_details) => {
             AirwallexPaymentMethod::Wallets(AirwallexWalletData::Skrill(SkrillData {
                 skrill: SkrillDetails {
-                    shopper_name: item.router_data.request.customer_name.clone(),
-                    shopper_email: skrill_details.email.clone(),
-                    country_code: item.router_data.get_optional_billing_country(),
+                    shopper_name: item.router_data.request.customer_name
+                    .as_ref()
+                    .cloned()
+                    .or_else(|| item.router_data.get_billing_full_name().ok())
+                    .ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "shopper_name",
+                        },
+                    )?,
+                    shopper_email: skrill_details.email
+                        .as_ref()
+                        .cloned()
+                        .or_else(|| item.router_data.get_billing_email().ok())
+                        .ok_or(
+                            errors::ConnectorError::MissingRequiredField {
+                                field_name: "shopper_email",
+                            },
+                        )?,
+                    country_code: item.router_data.get_billing_country().map_err(|_| errors::ConnectorError::MissingRequiredField {
+                                field_name: "country_code",
+                            })?,
                 },
                 payment_method_type: AirwallexPaymentType::Skrill,
             }))
