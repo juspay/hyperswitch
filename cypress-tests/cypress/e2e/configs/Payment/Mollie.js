@@ -277,7 +277,7 @@ export const connectorDetails = {
           error: {
             type: "invalid_request",
             message:
-              "No eligible connector was found for the current payment method configuration",
+              "This payment method is not implemented for Mollie",
           },
         },
       },
