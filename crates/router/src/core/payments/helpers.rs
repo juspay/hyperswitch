@@ -2037,18 +2037,18 @@ pub fn decide_payment_method_retrieval_action(
     }
 }
 
-pub async fn is_kill_switch_active(state: &SessionState, config_key: &str) -> RouterResult<bool> {
+pub async fn is_ucs_enabled(state: &SessionState, config_key: &str) -> RouterResult<bool> {
     let db = state.store.as_ref();
     match db.find_config_by_key(config_key).await {
         Ok(rollout_config) => match rollout_config.config.parse::<bool>() {
-            Ok(is_active) => Ok(is_active),
+            Ok(is_enabled) => Ok(is_enabled),
             Err(err) => {
-                logger::error!(error = ?err, "Failed to parse {config_key:?} kill switch config");
+                logger::error!(error = ?err, "Failed to parse {config_key:?} UCS enabled config");
                 Ok(false)
             }
         },
         Err(err) => {
-            logger::error!(error = ?err, "Failed to fetch {config_key:?} kill switch config from DB");
+            logger::error!(error = ?err, "Failed to fetch {config_key:?} UCS enabled config from DB");
             Ok(false)
         }
     }

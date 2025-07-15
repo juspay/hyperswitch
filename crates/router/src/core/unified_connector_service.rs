@@ -23,7 +23,7 @@ use crate::{
     core::{
         errors::RouterResult,
         payments::helpers::{
-            is_kill_switch_active, should_execute_based_on_rollout, MerchantConnectorAccountType,
+            is_ucs_enabled, should_execute_based_on_rollout, MerchantConnectorAccountType,
         },
         utils::get_flow_name,
     },
@@ -42,9 +42,9 @@ pub async fn should_call_unified_connector_service<F: Clone, T>(
         return Ok(false);
     }
 
-    let kill_switch_config_key = consts::UCS_KILL_SWITCH_ACTIVE;
+    let ucs_config_key = consts::UCS_ENABLED;
 
-    if is_kill_switch_active(state, kill_switch_config_key).await? {
+    if !is_ucs_enabled(state, ucs_config_key).await? {
         return Ok(false);
     }
 
