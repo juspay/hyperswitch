@@ -40,7 +40,7 @@ pub async fn create_token_vault_api() {}
 /// Delete a token entry with customer_id and session_id
 #[cfg(feature = "v2")]
 #[utoipa::path(
-    post,
+    delete,
     path = "/v2/tokenize/{id}",
     request_body(
         content = DeleteTokenDataRequest,
