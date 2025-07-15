@@ -22,6 +22,7 @@ mod billwerk;
 mod bitpay;
 mod bluesnap;
 mod boku;
+mod breadpay;
 mod cashtocode;
 mod celero;
 mod chargebee;
