@@ -2037,6 +2037,23 @@ pub fn decide_payment_method_retrieval_action(
     }
 }
 
+pub async fn is_kill_switch_active(state: &SessionState, config_key: &str) -> RouterResult<bool> {
+    let db = state.store.as_ref();
+    match db.find_config_by_key(config_key).await {
+        Ok(rollout_config) => match rollout_config.config.parse::<bool>() {
+            Ok(is_active) => Ok(is_active),
+            Err(err) => {
+                logger::error!(error = ?err, "Failed to parse {config_key:?} kill switch config");
+                Ok(false)
+            }
+        },
+        Err(err) => {
+            logger::error!(error = ?err, "Failed to fetch {config_key:?} kill switch config from DB");
+            Ok(false)
+        }
+    }
+}
+
 pub async fn should_execute_based_on_rollout(
     state: &SessionState,
     config_key: &str,

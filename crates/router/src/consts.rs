@@ -311,6 +311,9 @@ pub const PSD2_COUNTRIES: [Country; 27] = [
 // Rollout percentage config prefix
 pub const UCS_ROLLOUT_PERCENT_CONFIG_PREFIX: &str = "UCS_ROLLOUT_CONFIG";
 
+// UCS feature kill switch config
+pub const UCS_KILL_SWITCH_ACTIVE: &str = "UCS_KILL_SWITCH_ACTIVE";
+
 /// Header value indicating that signature-key-based authentication is used.
 pub const UCS_AUTH_SIGNATURE_KEY: &str = "signature-key";
 
