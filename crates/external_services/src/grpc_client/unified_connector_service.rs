@@ -84,6 +84,10 @@ pub enum UnifiedConnectorServiceError {
     /// Failed to perform Payment Authorize from gRPC Server
     #[error("Failed to perform Payment Authorize from gRPC Server")]
     PaymentAuthorizeFailure,
+
+    /// Failed to perform Payment Get from gRPC Server
+    #[error("Failed to perform Payment Get from gRPC Server")]
+    PaymentGetFailure,
 }
 
 /// Result type for Dynamic Routing
@@ -189,6 +193,28 @@ impl UnifiedConnectorServiceClient {
             .authorize(request)
             .await
             .change_context(UnifiedConnectorServiceError::PaymentAuthorizeFailure)
+            .inspect_err(|error| logger::error!(?error))
+    }
+
+    /// Performs Payment Sync/Get
+    pub async fn payment_get(
+        &self,
+        payment_get_request: payments_grpc::PaymentServiceGetRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeaders,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::PaymentServiceGetResponse>>
+    {
+        let mut request = tonic::Request::new(payment_get_request);
+
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+
+        self.client
+            .clone()
+            .get(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::PaymentGetFailure)
             .inspect_err(|error| logger::error!(?error))
     }
 }
