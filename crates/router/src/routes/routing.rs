@@ -5,7 +5,7 @@
 
 use actix_web::{web, HttpRequest, Responder};
 use api_models::{
-    enums, routing as routing_types,
+    enums,
     routing::{self as routing_types, RoutingRetrieveQuery},
 };
 use error_stack::ResultExt;
@@ -18,9 +18,10 @@ use router_env::{
 
 use crate::{
     core::{
-        api_locking, conditional_config, errors,
+        api_locking, conditional_config,
         payments::routing::utils::{
             DecisionEngineApiHandler, EuclidApiClient, RoutingEvaluateRequest,
+            RoutingEvaluateResponse,
         },
         routing, surcharge_decision_config,
     },
@@ -1588,16 +1589,20 @@ pub async fn evaluate_routing_rule(
         &req,
         json_payload.clone(),
         |state, _auth: auth::AuthenticationData, payload, _| async move {
-            let euclid_response: serde_json::Value = EuclidApiClient::send_decision_engine_request(
-                &state,
-                services::Method::Post,
-                "routing/evaluate",
-                Some(payload),
-                Some(EUCLID_API_TIMEOUT),
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to evaluate routing rule")?;
+            let euclid_response: RoutingEvaluateResponse =
+                EuclidApiClient::send_decision_engine_request(
+                    &state,
+                    services::Method::Post,
+                    "routing/evaluate",
+                    Some(payload),
+                    Some(EUCLID_API_TIMEOUT),
+                    None,
+                )
+                .await
+                .change_context(ApiErrorResponse::InternalServerError)?
+                .response
+                .ok_or(ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to evaluate routing rule")?;
 
             Ok(services::ApplicationResponse::Json(euclid_response))
         },
@@ -1636,7 +1641,7 @@ pub async fn migrate_routing_rules_for_profile(
                 query_params,
             ))
             .await?;
-            Ok(crate::services::ApplicationResponse::Json(res))
+            Ok(services::ApplicationResponse::Json(res))
         },
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,

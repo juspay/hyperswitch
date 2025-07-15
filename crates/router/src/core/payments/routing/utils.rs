@@ -701,7 +701,7 @@ pub struct RoutingEvaluateResponse {
     #[serde(deserialize_with = "deserialize_connector_choices")]
     pub eligible_connectors: Vec<RoutableConnectorChoice>,
 }
-
+impl common_utils::events::ApiEventMetric for RoutingEvaluateResponse {}
 /// Routable Connector chosen for a payment
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct DeRoutableConnectorChoice {
