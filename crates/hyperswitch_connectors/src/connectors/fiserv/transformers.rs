@@ -1,9 +1,16 @@
+use api_models::payments::{
+    ApplePayCombinedMetadata, ApplepayCombinedSessionTokenData, ApplepaySessionTokenData,
+    ApplepaySessionTokenMetadata,
+};
+use base64::Engine;
 use common_enums::{enums, Currency};
-use common_utils::{ext_traits::ValueExt, pii, request::Method, types::FloatMajorUnit};
+use common_utils::{
+    consts::BASE64_ENGINE, ext_traits::ValueExt, pii, request::Method, types::FloatMajorUnit,
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{PaymentMethodData, WalletData},
-    router_data::{ConnectorAuthType, RouterData},
+    router_data::{ConnectorAuthType, PaymentMethodToken, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
@@ -16,7 +23,7 @@ use serde::{ser::Serializer, Deserialize, Serialize};
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        self, CardData as CardDataUtil, PaymentsCancelRequestData, PaymentsSyncRequestData,
+        self, ApplePayDecrypt, CardData as _, PaymentsCancelRequestData, PaymentsSyncRequestData,
         RouterData as _,
     },
 };
@@ -67,27 +74,19 @@ pub enum FiservCheckoutChargesRequest {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CheckoutPaymentsRequest {
-    order: FiservOrder,
-    payment_method: FiservPaymentMethod,
-    interactions: FiservInteractions,
+pub struct ChargesPaymentRequest {
+    source: Source,
+    transaction_interaction: Option<TransactionInteraction>,
     transaction_details: TransactionDetails,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct FiservInteractions {
-    channel: String,
-    customer_confirmation: String,
-    payment_initiator: String,
-    return_urls: FiservReturnUrls,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FiservReturnUrls {
-    success_url: String,
-    cancel_url: String,
+pub struct CheckoutPaymentsRequest {
+    order: FiservOrder,
+    payment_method: FiservPaymentMethod,
+    interactions: FiservInteractions,
+    transaction_details: TransactionDetails,
 }
 
 #[derive(Debug, Serialize)]
@@ -104,18 +103,13 @@ pub struct FiservOrder {
     intent: FiservIntent,
 }
 
-#[derive(Debug, Serialize, Clone, Deserialize)]
-#[serde(rename_all = "UPPERCASE")]
-pub enum FiservIntent {
-    Authorize,
-}
-
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ChargesPaymentRequest {
-    source: Source,
-    transaction_interaction: Option<TransactionInteraction>,
-    transaction_details: TransactionDetails,
+pub struct FiservInteractions {
+    channel: String,
+    customer_confirmation: String,
+    payment_initiator: String,
+    return_urls: FiservReturnUrls,
 }
 
 #[derive(Debug, Serialize)]
@@ -126,6 +120,50 @@ pub enum Source {
 
     #[serde(rename = "PaymentCard")]
     PaymentCard { card: CardData },
+    #[serde(rename = "ApplePay")]
+    ApplePay(ApplePayWalletDetails),
+    #[serde(rename = "DecryptedWallet")]
+    DecryptedWallet(DecryptedWalletDetails),
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplePayWalletDetails {
+    pub data: Secret<String>,
+    pub header: ApplePayHeader,
+    pub signature: Secret<String>,
+    pub version: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub application_data: Option<Secret<String>>,
+    pub apple_pay_merchant_id: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplePayHeader {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub application_data_hash: Option<Secret<String>>,
+    pub ephemeral_public_key: Secret<String>,
+    pub public_key_hash: Secret<String>,
+    pub transaction_id: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DecryptedWalletDetails {
+    pub card: WalletCardData,
+    #[serde(rename = "cavv")]
+    pub cryptogram: Secret<String>,
+    #[serde(rename = "xid")]
+    pub transaction_id: Secret<String>,
+    pub wallet_type: FiservWalletType,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum FiservWalletType {
+    ApplePay,
+    GooglePay,
 }
 
 #[derive(Debug, Serialize)]
@@ -145,6 +183,14 @@ pub struct CardData {
     expiration_year: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     security_code: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WalletCardData {
+    card_data: Secret<String>,
+    expiration_month: Secret<String>,
+    expiration_year: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -208,6 +254,13 @@ pub enum TransactionInteractionPosConditionCode {
     CardNotPresentEcom,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FiservReturnUrls {
+    success_url: String,
+    cancel_url: String,
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IntermediateSigningKey {
@@ -251,6 +304,14 @@ pub struct RawGooglePayToken {
     pub intermediate_signing_key: IntermediateSigningKey,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ApplePayDecryptedData {
+    pub data: Secret<String>,
+    pub signature: Secret<String>,
+    pub version: Secret<String>,
+    pub header: ApplePayHeader,
+}
+
 pub fn parse_googlepay_token_safely(token_json_str: &str) -> FullyParsedGooglePayToken {
     let mut result = FullyParsedGooglePayToken::default();
 
@@ -285,6 +346,7 @@ pub fn parse_googlepay_token_safely(token_json_str: &str) -> FullyParsedGooglePa
 
 impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
+
     fn try_from(
         item: &FiservRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
@@ -346,7 +408,7 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
             }
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 WalletData::GooglePay(data) => {
-                    let token_string = data.tokenization_data.token.to_owned();
+                    let token_string = data.tokenization_data.token.to_owned(); // Secret<String>
 
                     let parsed = parse_googlepay_token_safely(&token_string);
 
@@ -431,34 +493,150 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
                         },
                     ))
                 }
+                WalletData::ApplePay(apple_pay_data) => match item
+                    .router_data
+                    .payment_method_token
+                    .clone()
+                {
+                    Some(PaymentMethodToken::ApplePayDecrypt(pre_decrypt_data)) => Ok(
+                        FiservCheckoutChargesRequest::Charges(ChargesPaymentRequest {
+                            source: Source::DecryptedWallet(DecryptedWalletDetails {
+                                wallet_type: FiservWalletType::ApplePay,
+                                cryptogram: pre_decrypt_data
+                                    .payment_data
+                                    .online_payment_cryptogram
+                                    .clone(),
+                                transaction_id: Secret::new(apple_pay_data.transaction_identifier),
+                                card: WalletCardData {
+                                    card_data: pre_decrypt_data
+                                        .application_primary_account_number
+                                        .clone(),
+                                    expiration_month: pre_decrypt_data.get_expiry_month()?,
+                                    expiration_year: pre_decrypt_data
+                                        .get_four_digit_expiry_year()?,
+                                },
+                            }),
+                            transaction_details: TransactionDetails {
+                                capture_flag: Some(matches!(
+                                    item.router_data.request.capture_method,
+                                    Some(enums::CaptureMethod::Automatic)
+                                        | Some(enums::CaptureMethod::SequentialAutomatic)
+                                        | None
+                                )),
+                                reversal_reason_code: None,
+                                merchant_transaction_id: Some(
+                                    item.router_data.connector_request_reference_id.clone(),
+                                ),
+                                operation_type: None,
+                            },
+                            transaction_interaction: None,
+                        }),
+                    ),
+                    _ => {
+                        let decoded_bytes = BASE64_ENGINE
+                            .decode(apple_pay_data.payment_data)
+                            .change_context(errors::ConnectorError::ParsingFailed)?;
+
+                        let payment_data_decoded: ApplePayDecryptedData =
+                            serde_json::from_slice(&decoded_bytes)
+                                .change_context(errors::ConnectorError::ParsingFailed)?;
+
+                        let data = payment_data_decoded.data;
+                        let signature = payment_data_decoded.signature;
+                        let version = payment_data_decoded.version;
+
+                        let header = ApplePayHeader {
+                            ephemeral_public_key: payment_data_decoded.header.ephemeral_public_key,
+                            public_key_hash: payment_data_decoded.header.public_key_hash,
+                            transaction_id: payment_data_decoded.header.transaction_id,
+                            application_data_hash: None,
+                        };
+
+                        let apple_pay_metadata = item.router_data.get_connector_meta()?.expose();
+                        let applepay_metadata = apple_pay_metadata
+                            .clone()
+                            .parse_value::<ApplepayCombinedSessionTokenData>(
+                                "ApplepayCombinedSessionTokenData",
+                            )
+                            .map(|combined_metadata| {
+                                ApplepaySessionTokenMetadata::ApplePayCombined(
+                                    combined_metadata.apple_pay_combined,
+                                )
+                            })
+                            .or_else(|_| {
+                                apple_pay_metadata
+                                    .parse_value::<ApplepaySessionTokenData>(
+                                        "ApplepaySessionTokenData",
+                                    )
+                                    .map(|old_metadata| {
+                                        ApplepaySessionTokenMetadata::ApplePay(
+                                            old_metadata.apple_pay,
+                                        )
+                                    })
+                            })
+                            .change_context(errors::ConnectorError::ParsingFailed)?;
+
+                        let merchant_identifier = match applepay_metadata {
+                            ApplepaySessionTokenMetadata::ApplePayCombined(ref combined) => {
+                                match combined {
+                                    ApplePayCombinedMetadata::Simplified { .. } => {
+                                        return Err(
+                                            errors::ConnectorError::MissingApplePayTokenData.into(),
+                                        )
+                                    }
+                                    ApplePayCombinedMetadata::Manual {
+                                        session_token_data, ..
+                                    } => &session_token_data.merchant_identifier,
+                                }
+                            }
+                            ApplepaySessionTokenMetadata::ApplePay(ref data) => {
+                                &data.session_token_data.merchant_identifier
+                            }
+                        };
+
+                        Ok(FiservCheckoutChargesRequest::Charges(
+                            ChargesPaymentRequest {
+                                source: Source::ApplePay(ApplePayWalletDetails {
+                                    data,
+                                    header,
+                                    signature,
+                                    version,
+                                    application_data: None,
+                                    apple_pay_merchant_id: Secret::new(
+                                        merchant_identifier.to_owned(),
+                                    ),
+                                }),
+                                transaction_details: TransactionDetails {
+                                    capture_flag: Some(matches!(
+                                        item.router_data.request.capture_method,
+                                        Some(enums::CaptureMethod::Automatic)
+                                            | Some(enums::CaptureMethod::SequentialAutomatic)
+                                            | None
+                                    )),
+                                    reversal_reason_code: None,
+                                    merchant_transaction_id: Some(
+                                        item.router_data.connector_request_reference_id.clone(),
+                                    ),
+                                    operation_type: None,
+                                },
+                                transaction_interaction: None,
+                            },
+                        ))
+                    }
+                },
                 _ => Err(error_stack::report!(
                     errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("fiserv"),
                     )
                 )),
             },
-            PaymentMethodData::PayLater(_)
-            | PaymentMethodData::BankRedirect(_)
-            | PaymentMethodData::BankDebit(_)
-            | PaymentMethodData::CardRedirect(_)
-            | PaymentMethodData::BankTransfer(_)
-            | PaymentMethodData::Crypto(_)
-            | PaymentMethodData::MandatePayment
-            | PaymentMethodData::Reward
-            | PaymentMethodData::RealTimePayment(_)
-            | PaymentMethodData::Upi(_)
-            | PaymentMethodData::MobilePayment(_)
-            | PaymentMethodData::Voucher(_)
-            | PaymentMethodData::GiftCard(_)
-            | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::CardToken(_)
-            | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => Err(
-                error_stack::report!(errors::ConnectorError::NotImplemented(
+            _ => Err(error_stack::report!(
+                errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("fiserv"),
-                )),
-            ),
+                )
+            )),
         }?;
+
         Ok(Self {
             amount,
             checkout_charges_request,
@@ -673,6 +851,13 @@ pub struct FiservResponseActions {
     #[serde(rename = "type")]
     action_type: String,
     url: url::Url,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum FiservIntent {
+    Create,
+    Authorize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
