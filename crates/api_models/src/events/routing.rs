@@ -193,7 +193,7 @@ impl ApiEventMetric for crate::open_router::OpenRouterDecideGatewayRequest {
 
 impl ApiEventMetric for crate::open_router::UpdateScorePayload {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
-       Some(ApiEventsType::Routing) 
+        Some(ApiEventsType::Routing)
     }
 }
 

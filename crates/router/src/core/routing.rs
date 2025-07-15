@@ -6,7 +6,10 @@ use std::collections::HashSet;
 use api_models::routing::DynamicRoutingAlgoAccessor;
 use api_models::{
     enums, mandates as mandates_api,
-    open_router::{DecideGatewayResponse, OpenRouterDecideGatewayRequest, UpdateScorePayload, UpdateScoreResponse},
+    open_router::{
+        DecideGatewayResponse, OpenRouterDecideGatewayRequest, UpdateScorePayload,
+        UpdateScoreResponse,
+    },
     routing,
     routing::{
         self as routing_types, RoutingRetrieveQuery, RuleMigrationError, RuleMigrationResponse,
@@ -2654,19 +2657,19 @@ pub async fn decide_gateway_open_router(
 
 pub async fn update_gateway_score_open_router(
     state: SessionState,
-    req_body: UpdateScorePayload
+    req_body: UpdateScorePayload,
 ) -> RouterResponse<UpdateScoreResponse> {
     let response = SRApiClient::send_decision_engine_request(
-            &state,
-            Method::Post,
-            "update-gateway-score",
-            Some(req_body),
-            None,
-            None
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to perform update gateway score call with open router")?;
+        &state,
+        Method::Post,
+        "update-gateway-score",
+        Some(req_body),
+        None,
+        None,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to perform update gateway score call with open router")?;
 
     let res: UpdateScoreResponse = serde_json::from_value(response.response.unwrap())
         .change_context(errors::ApiErrorResponse::InternalServerError)
