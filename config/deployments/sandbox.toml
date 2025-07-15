@@ -702,6 +702,8 @@ we_chat_pay = { country = "CN", currency = "CNY" }
 klarna = { currency = "EUR,GBP,CHF,SEK" }
 blik = { country = "PL", currency = "PLN" }
 crypto_currency = { currency = "USD,GBP,AED" }
+paysera = { currency = "EUR" }
+skrill = { currency = "USD" }
 
 [pm_filters.placetopay]
 credit = { country = "BE,CH,CO,CR,EC,HN,MX,PA,PR,UY", currency = "CLP,COP,USD"}

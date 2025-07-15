@@ -1070,6 +1070,8 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                 | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
                 | WalletData::AmazonPayRedirect(_)
+                | WalletData::Paysera(_)
+                | WalletData::Skrill(_)
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -1169,6 +1171,8 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::AliPayHk
                     | enums::PaymentMethodType::Alma
                     | enums::PaymentMethodType::AmazonPay
+                    | enums::PaymentMethodType::Paysera
+                    | enums::PaymentMethodType::Skrill
                     | enums::PaymentMethodType::ApplePay
                     | enums::PaymentMethodType::Atome
                     | enums::PaymentMethodType::Bacs
