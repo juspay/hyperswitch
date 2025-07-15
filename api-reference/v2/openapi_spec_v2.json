@@ -10083,7 +10083,7 @@
           },
           "session_id": {
             "type": "string",
-            "description": "Request for tokenization which contains the data to be tokenized",
+            "description": "Session ID associated with the tokenization request",
             "example": "12345_pms_01926c58bc6e77c09e809964e72af8c8"
           }
         }
