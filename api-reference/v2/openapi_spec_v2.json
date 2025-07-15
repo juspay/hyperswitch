@@ -3573,7 +3573,7 @@
       }
     },
     "/v2/tokenize/{id}": {
-      "post": {
+      "delete": {
         "tags": [
           "Tokenization"
         ],
