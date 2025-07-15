@@ -2646,7 +2646,13 @@ pub async fn decide_gateway_open_router(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to perform decide gateway call with open router")?;
 
-    let res: DecideGatewayResponse = serde_json::from_value(response.response.unwrap())
+    let response_value: serde_json::Value = response
+        .response
+        .get_required_value("response")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Response from decision engine not obtained")?;
+    let res: DecideGatewayResponse = response_value
+        .parse_value("DecideGatewayResponse")
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to parse DecidedGateway from response")?;
 
@@ -2671,7 +2677,14 @@ pub async fn update_gateway_score_open_router(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to perform update gateway score call with open router")?;
 
-    let res: UpdateScoreResponse = serde_json::from_value(response.response.unwrap())
+    let response_value: serde_json::Value = response
+        .response
+        .get_required_value("response")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Response from decision engine not obtained")?;
+
+    let res: UpdateScoreResponse = response_value
+        .parse_value("UpdateScoreResponse")
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to parse UpdateScoreResponse from response")?;
 

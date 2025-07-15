@@ -1636,10 +1636,7 @@ pub async fn call_decide_gateway_open_router(
         state,
         &req,
         payload.clone(),
-        |state, _auth, payload, _| {
-            let payload_inner = payload.into();
-            routing::decide_gateway_open_router(state.clone(), payload_inner)
-        },
+        |state, _auth, payload, _| routing::decide_gateway_open_router(state.clone(), payload),
         &auth::ApiKeyAuth {
             is_connected_allowed: false,
             is_platform_allowed: false,
@@ -1663,8 +1660,7 @@ pub async fn call_update_gateway_score_open_router(
         &req,
         payload.clone(),
         |state, _auth, payload, _| {
-            let payload_inner = payload.into();
-            routing::update_gateway_score_open_router(state.clone(), payload_inner)
+            routing::update_gateway_score_open_router(state.clone(), payload)
         },
         &auth::ApiKeyAuth {
             is_connected_allowed: false,
