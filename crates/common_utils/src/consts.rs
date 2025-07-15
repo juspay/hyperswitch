@@ -191,3 +191,6 @@ pub const METRICS_HOST_TAG_NAME: &str = "host";
 
 /// API client request timeout (in seconds)
 pub const REQUEST_TIME_OUT: u64 = 30;
+
+/// API client request timeout for ai service(in seconds)
+pub const REQUEST_TIME_OUT_FOR_AI_SERVICE: u64 = 120;
