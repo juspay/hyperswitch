@@ -4,6 +4,32 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.07.15.0
+
+### Features
+
+- **business_profile:** Added merchant country code in business profile ([#8529](https://github.com/juspay/hyperswitch/pull/8529)) ([`44f8964`](https://github.com/juspay/hyperswitch/commit/44f8964a05dcc61026988b19d7297ca1287e7b9f))
+- **connector:**
+  - [Multisafepay] Integrate EPS, MBWAY and SOFORT ([#8506](https://github.com/juspay/hyperswitch/pull/8506)) ([`8a9d7d2`](https://github.com/juspay/hyperswitch/commit/8a9d7d22108b649ea998b84995603d61915fde2a))
+  - Add Incremental Authorization flow for Paypal ([#8517](https://github.com/juspay/hyperswitch/pull/8517)) ([`fd6de7c`](https://github.com/juspay/hyperswitch/commit/fd6de7cc24850cda2c97ca01e5bf69e341790bdb))
+- **router:** Deduplicate PML response and populate bank details (V2) ([#8583](https://github.com/juspay/hyperswitch/pull/8583)) ([`7d54ce8`](https://github.com/juspay/hyperswitch/commit/7d54ce87f0dbf66b774a08545cae48bcfc606512))
+
+### Bug Fixes
+
+- **users:** Fallback to fresh lineage context if cached role_id no longer matches ([#8593](https://github.com/juspay/hyperswitch/pull/8593)) ([`aaa4fca`](https://github.com/juspay/hyperswitch/commit/aaa4fca58d8eaab0eb0163aad226427eebf7c7cd))
+
+### Refactors
+
+- **dynamic_routing:** Make the dynamo configs optional ([#8589](https://github.com/juspay/hyperswitch/pull/8589)) ([`4048aa1`](https://github.com/juspay/hyperswitch/commit/4048aa16cadd98605b81aebc7543da50c36454b9))
+
+### Miscellaneous Tasks
+
+- **stripe:** Eps bank_name should be mandatory ([#8577](https://github.com/juspay/hyperswitch/pull/8577)) ([`fffaa53`](https://github.com/juspay/hyperswitch/commit/fffaa53a5fe4859bea607f2eb6bf866b4a20b949))
+
+**Full Changelog:** [`2025.07.14.1...2025.07.15.0`](https://github.com/juspay/hyperswitch/compare/2025.07.14.1...2025.07.15.0)
+
+- - -
+
 ## 2025.07.14.1
 
 ### Features
