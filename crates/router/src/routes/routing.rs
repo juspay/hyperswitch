@@ -4,12 +4,11 @@
 //! of Routing configs.
 
 use actix_web::{web, HttpRequest, Responder};
-use api_models::{enums, routing as routing_types, routing::RoutingRetrieveQuery};
-use error_stack::ResultExt;
 use api_models::{
-    enums,
+    enums, routing as routing_types,
     routing::{self as routing_types, RoutingRetrieveQuery},
 };
+use error_stack::ResultExt;
 use hyperswitch_domain_models::merchant_context::MerchantKeyStore;
 use payment_methods::core::errors::ApiErrorResponse;
 use router_env::{
@@ -25,7 +24,6 @@ use crate::{
         },
         routing, surcharge_decision_config,
     },
-    core::{api_locking, conditional_config, routing, surcharge_decision_config},
     db::errors::StorageErrorExt,
     routes::AppState,
     services,
