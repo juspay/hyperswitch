@@ -7,8 +7,8 @@ use error_stack::ResultExt;
 use external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceError;
 use hyperswitch_domain_models::{
     router_data::RouterData,
-    router_flow_types::payments::Authorize,
-    router_request_types::{AuthenticationData, PaymentsAuthorizeData},
+    router_flow_types::payments::{Authorize, PSync},
+    router_request_types::{AuthenticationData, PaymentsAuthorizeData, PaymentsSyncData},
     router_response_types::{PaymentsResponseData, RedirectForm},
 };
 use masking::{ExposeInterface, PeekInterface};
@@ -18,6 +18,37 @@ use crate::{
     core::unified_connector_service::build_unified_connector_service_payment_method,
     types::transformers::ForeignTryFrom,
 };
+impl ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
+    for payments_grpc::PaymentServiceGetRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        router_data: &RouterData<PSync, PaymentsSyncData, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let connector_transaction_id = router_data
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .map(|id| Identifier {
+                id_type: Some(payments_grpc::identifier::IdType::Id(id)),
+            })
+            .ok();
+
+        let connector_ref_id = router_data
+            .request
+            .connector_reference_id
+            .clone()
+            .map(|id| Identifier {
+                id_type: Some(payments_grpc::identifier::IdType::Id(id)),
+            });
+
+        Ok(Self {
+            transaction_id: connector_transaction_id,
+            request_ref_id: connector_ref_id,
+        })
+    }
+}
 
 impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>>
     for payments_grpc::PaymentServiceAuthorizeRequest
@@ -113,7 +144,7 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
                 .map(|shipping_cost| shipping_cost.get_amount_as_i64()),
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
-                    router_data.payment_id.clone(),
+                    router_data.connector_request_reference_id.clone(),
                 )),
             }),
             connector_customer_id: router_data
@@ -181,89 +212,115 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
     fn foreign_try_from(
         payment_address: hyperswitch_domain_models::payment_address::PaymentAddress,
     ) -> Result<Self, Self::Error> {
-        let shipping = payment_address.get_shipping().and_then(|address| {
-            let details = address.address.as_ref()?;
+        let shipping = payment_address.get_shipping().map(|address| {
+            let details = address.address.as_ref();
 
             let get_str =
                 |opt: &Option<masking::Secret<String>>| opt.as_ref().map(|s| s.peek().to_owned());
 
             let get_plain = |opt: &Option<String>| opt.clone();
 
-            let country = details
-                .country
-                .as_ref()
-                .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
-                .ok_or_else(|| {
-                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                        "Invalid country code".to_string(),
-                    )
-                })
-                .attach_printable("Invalid country code")
-                .ok()? // Return None if invalid
-                .into();
+            let country = details.and_then(|details| {
+                details
+                    .country
+                    .as_ref()
+                    .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
+                    .map(|country| country.into())
+            });
 
-            Some(payments_grpc::Address {
-                first_name: get_str(&details.first_name),
-                last_name: get_str(&details.last_name),
-                line1: get_str(&details.line1),
-                line2: get_str(&details.line2),
-                line3: get_str(&details.line3),
-                city: get_plain(&details.city),
-                state: get_str(&details.state),
-                zip_code: get_str(&details.zip),
-                country_alpha2_code: Some(country),
+            payments_grpc::Address {
+                first_name: get_str(&details.and_then(|d| d.first_name.clone())),
+                last_name: get_str(&details.and_then(|d| d.last_name.clone())),
+                line1: get_str(&details.and_then(|d| d.line1.clone())),
+                line2: get_str(&details.and_then(|d| d.line2.clone())),
+                line3: get_str(&details.and_then(|d| d.line3.clone())),
+                city: get_plain(&details.and_then(|d| d.city.clone())),
+                state: get_str(&details.and_then(|d| d.state.clone())),
+                zip_code: get_str(&details.and_then(|d| d.zip.clone())),
+                country_alpha2_code: country,
                 email: address.email.as_ref().map(|e| e.peek().to_string()),
                 phone_number: address
                     .phone
                     .as_ref()
                     .and_then(|phone| phone.number.as_ref().map(|n| n.peek().to_string())),
                 phone_country_code: address.phone.as_ref().and_then(|p| p.country_code.clone()),
-            })
+            }
         });
 
-        let billing = payment_address.get_payment_billing().and_then(|address| {
-            let details = address.address.as_ref()?;
+        let billing = payment_address.get_payment_billing().map(|address| {
+            let details = address.address.as_ref();
 
             let get_str =
                 |opt: &Option<masking::Secret<String>>| opt.as_ref().map(|s| s.peek().to_owned());
 
             let get_plain = |opt: &Option<String>| opt.clone();
 
-            let country = details
-                .country
-                .as_ref()
-                .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
-                .ok_or_else(|| {
-                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                        "Invalid country code".to_string(),
-                    )
-                })
-                .attach_printable("Invalid country code")
-                .ok()? // Return None if invalid
-                .into();
+            let country = details.and_then(|details| {
+                details
+                    .country
+                    .as_ref()
+                    .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
+                    .map(|country| country.into())
+            });
 
-            Some(payments_grpc::Address {
-                first_name: get_str(&details.first_name),
-                last_name: get_str(&details.last_name),
-                line1: get_str(&details.line1),
-                line2: get_str(&details.line2),
-                line3: get_str(&details.line3),
-                city: get_plain(&details.city),
-                state: get_str(&details.state),
-                zip_code: get_str(&details.zip),
-                country_alpha2_code: Some(country),
+            payments_grpc::Address {
+                first_name: get_str(&details.and_then(|d| d.first_name.clone())),
+                last_name: get_str(&details.and_then(|d| d.last_name.clone())),
+                line1: get_str(&details.and_then(|d| d.line1.clone())),
+                line2: get_str(&details.and_then(|d| d.line2.clone())),
+                line3: get_str(&details.and_then(|d| d.line3.clone())),
+                city: get_plain(&details.and_then(|d| d.city.clone())),
+                state: get_str(&details.and_then(|d| d.state.clone())),
+                zip_code: get_str(&details.and_then(|d| d.zip.clone())),
+                country_alpha2_code: country,
                 email: address.email.as_ref().map(|e| e.peek().to_string()),
                 phone_number: address
                     .phone
                     .as_ref()
                     .and_then(|phone| phone.number.as_ref().map(|n| n.peek().to_string())),
                 phone_country_code: address.phone.as_ref().and_then(|p| p.country_code.clone()),
-            })
+            }
         });
 
+        let unified_payment_method_billing =
+            payment_address.get_payment_method_billing().map(|address| {
+                let details = address.address.as_ref();
+
+                let get_str = |opt: &Option<masking::Secret<String>>| {
+                    opt.as_ref().map(|s| s.peek().to_owned())
+                };
+
+                let get_plain = |opt: &Option<String>| opt.clone();
+
+                let country = details.and_then(|details| {
+                    details
+                        .country
+                        .as_ref()
+                        .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
+                        .map(|country| country.into())
+                });
+
+                payments_grpc::Address {
+                    first_name: get_str(&details.and_then(|d| d.first_name.clone())),
+                    last_name: get_str(&details.and_then(|d| d.last_name.clone())),
+                    line1: get_str(&details.and_then(|d| d.line1.clone())),
+                    line2: get_str(&details.and_then(|d| d.line2.clone())),
+                    line3: get_str(&details.and_then(|d| d.line3.clone())),
+                    city: get_plain(&details.and_then(|d| d.city.clone())),
+                    state: get_str(&details.and_then(|d| d.state.clone())),
+                    zip_code: get_str(&details.and_then(|d| d.zip.clone())),
+                    country_alpha2_code: country,
+                    email: address.email.as_ref().map(|e| e.peek().to_string()),
+                    phone_number: address
+                        .phone
+                        .as_ref()
+                        .and_then(|phone| phone.number.as_ref().map(|n| n.peek().to_string())),
+                    phone_country_code: address.phone.as_ref().and_then(|p| p.country_code.clone()),
+                }
+            });
         Ok(Self {
-            shipping_address: shipping,
-            billing_address: billing,
+            shipping_address: shipping.or(unified_payment_method_billing.clone()),
+            billing_address: billing.or(unified_payment_method_billing),
         })
     }
 }
@@ -391,6 +448,12 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
             Some(payments_grpc::redirect_form::FormType::Html(html)) => Ok(Self::Html {
                 html_data: html.html_data,
             }),
+            Some(payments_grpc::redirect_form::FormType::Uri(_)) => Err(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                    "URI form type is not implemented".to_string(),
+                )
+                .into(),
+            ),
             None => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "Missing form type".to_string(),

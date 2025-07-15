@@ -5,26 +5,40 @@ import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 let connector;
 let globalState;
 
-describe.skip("[Payment] Incremental Auth", () => {
-  before("seed global state", () => {
-    cy.task("getGlobalState").then((state) => {
-      globalState = new State(state);
-      connector = globalState.get("connectorId");
-    });
+describe("[Payment] Incremental Auth", () => {
+  before(function () {
+    // Changed to regular function instead of arrow function
+    let skip = false;
+
+    cy.task("getGlobalState")
+      .then((state) => {
+        globalState = new State(state);
+        connector = globalState.get("connectorId");
+
+        // Skip the test if the connector is not in the inclusion list
+        // This is done because only cybersource is known to support at present
+        if (
+          utils.shouldIncludeConnector(
+            connector,
+            utils.CONNECTOR_LISTS.INCLUDE.INCREMENTAL_AUTH
+          )
+        ) {
+          skip = true;
+        }
+      })
+      .then(() => {
+        if (skip) {
+          this.skip();
+        }
+      });
   });
 
-  after("flush global state", () => {
+  afterEach("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
   context("[Payment] Incremental Pre-Auth", () => {
     let shouldContinue = true;
-
-    beforeEach(function () {
-      if (!shouldContinue || connector !== "cybersource") {
-        this.skip();
-      }
-    });
 
     it("[Payment] Create Payment Intent", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -71,7 +85,13 @@ describe.skip("[Payment] Incremental Auth", () => {
         "card_pm"
       ]["Capture"];
 
-      cy.captureCallTest(fixtures.captureBody, data, globalState);
+      const newData = {
+        ...data,
+        Request: { amount_to_capture: data.Request.amount_to_capture + 2000 },
+        Response: data.ResponseCustom || data.Response,
+      };
+
+      cy.captureCallTest(fixtures.captureBody, newData, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
