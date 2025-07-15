@@ -34,7 +34,7 @@ pub struct DecideGatewayResponse {
     pub priority_logic_tag: Option<String>,
     pub routing_approach: Option<String>,
     pub gateway_before_evaluation: Option<String>,
-    pub priority_logic_output: Option<PLOutput>,
+    pub priority_logic_output: Option<PriorityLogicOutput>,
     pub reset_approach: Option<String>,
     pub routing_dimension: Option<String>,
     pub routing_dimension_level: Option<String>,
@@ -45,17 +45,17 @@ pub struct DecideGatewayResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct PLOutput {
+pub struct PriorityLogicOutput {
     pub is_enforcement: Option<bool>,
     pub gws: Option<Vec<String>>,
     pub priority_logic_tag: Option<String>,
     pub gateway_reference_ids: Option<HashMap<String, String>>,
-    pub primary_logic: Option<PLData>,
-    pub fallback_logic: Option<PLData>,
+    pub primary_logic: Option<PriorityLogicData>,
+    pub fallback_logic: Option<PriorityLogicData>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PLData {
+pub struct PriorityLogicData {
     pub name: Option<String>,
     pub status: Option<String>,
     pub failure_reason: Option<String>,

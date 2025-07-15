@@ -2642,21 +2642,13 @@ pub async fn decide_gateway_open_router(
         None,
     )
     .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .change_context(errors::ApiErrorResponse::InternalServerError)?
+    .response
+    .ok_or(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to perform decide gateway call with open router")?;
 
-    let response_value: serde_json::Value = response
-        .response
-        .get_required_value("response")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Response from decision engine not obtained")?;
-    let res: DecideGatewayResponse = response_value
-        .parse_value("DecideGatewayResponse")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to parse DecidedGateway from response")?;
-
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
-        res,
+        response,
     ))
 }
 
@@ -2664,7 +2656,7 @@ pub async fn update_gateway_score_open_router(
     state: SessionState,
     req_body: UpdateScorePayload,
 ) -> RouterResponse<UpdateScoreResponse> {
-    let response = SRApiClient::send_decision_engine_request(
+    let response: UpdateScoreResponse = SRApiClient::send_decision_engine_request(
         &state,
         Method::Post,
         "update-gateway-score",
@@ -2673,21 +2665,12 @@ pub async fn update_gateway_score_open_router(
         None,
     )
     .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .change_context(errors::ApiErrorResponse::InternalServerError)?
+    .response
+    .ok_or(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to perform update gateway score call with open router")?;
 
-    let response_value: serde_json::Value = response
-        .response
-        .get_required_value("response")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Response from decision engine not obtained")?;
-
-    let res: UpdateScoreResponse = response_value
-        .parse_value("UpdateScoreResponse")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to parse UpdateScoreResponse from response")?;
-
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
-        res,
+        response,
     ))
 }
