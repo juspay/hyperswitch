@@ -325,8 +325,8 @@ export const connectorDetails = {
         body: {
           type: "invalid_request",
           message:
-            "No eligible connector was found for the current payment method configuration",
-          code: "IR_39",
+            "This payment method is not implemented for Placetopay",
+          code: "IR_00",
         },
       },
     },
