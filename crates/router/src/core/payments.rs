@@ -4386,7 +4386,7 @@ where
             Err(
                 errors::ApiErrorResponse::InternalServerError
             )
-            .attach_printable("Unified connector service is down and traditional connector service fallback is not implemented");
+            .attach_printable("Unified connector service is down and traditional connector service fallback is not implemented")
         }
     })
     .await
