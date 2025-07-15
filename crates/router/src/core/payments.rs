@@ -4383,7 +4383,7 @@ where
 
             Ok(router_data)
         } else {
-            return Err(
+            Err(
                 errors::ApiErrorResponse::InternalServerError
             )
             .attach_printable("Unified connector service is down and traditional connector service fallback is not implemented");
