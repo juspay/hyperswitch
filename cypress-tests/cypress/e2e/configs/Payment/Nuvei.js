@@ -332,7 +332,7 @@ export const connectorDetails = {
         status: 501,
         error: {
           type: "invalid_request",
-          message: "Setup Mandate flow for Dlocal is not implemented",
+          message: "Setup Mandate flow for Nuvei is not implemented",
           code: "IR_00",
         },
       },
