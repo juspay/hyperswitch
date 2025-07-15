@@ -829,7 +829,7 @@ impl
                     .request
                     .merchant_order_reference_id
                     .clone()
-                    .unwrap_or_else(|| get_random_string()),
+                    .unwrap_or_else(get_random_string),
 
                 description: item.router_data.connector_request_reference_id.clone(),
             },
@@ -914,7 +914,7 @@ impl
                     .request
                     .merchant_order_reference_id
                     .clone()
-                    .unwrap_or_else(|| get_random_string()),
+                    .unwrap_or_else(get_random_string),
 
                 description: item.router_data.connector_request_reference_id.clone(),
             },
@@ -991,7 +991,7 @@ impl
                     .request
                     .merchant_order_reference_id
                     .clone()
-                    .unwrap_or_else(|| get_random_string()),
+                    .unwrap_or_else(get_random_string),
 
                 description: item.router_data.connector_request_reference_id.clone(),
             },
@@ -1068,7 +1068,7 @@ impl
                     .request
                     .merchant_order_reference_id
                     .clone()
-                    .unwrap_or_else(|| get_random_string()),
+                    .unwrap_or_else(get_random_string),
 
                 description: item.router_data.connector_request_reference_id.clone(),
             },
