@@ -2128,7 +2128,6 @@ impl Profile {
                             )),
                     ),
             );
-
         }
 
         route = route.service(

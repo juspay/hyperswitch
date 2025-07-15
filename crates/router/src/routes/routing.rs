@@ -5,21 +5,24 @@
 
 use actix_web::{web, HttpRequest, Responder};
 use api_models::{enums, routing as routing_types, routing::RoutingRetrieveQuery};
+use error_stack::ResultExt;
 use router_env::{
     tracing::{self, instrument},
     Flow,
 };
 
 use crate::{
-    core::{api_locking, conditional_config, routing, surcharge_decision_config},
+    core::{
+        api_locking, conditional_config, errors,
+        payments::routing::utils::{
+            DecisionEngineApiHandler, EuclidApiClient, RoutingEvaluateRequest,
+        },
+        routing, surcharge_decision_config,
+    },
     routes::AppState,
+    services,
     services::{api as oss_api, authentication as auth, authorization::permissions::Permission},
     types::domain,
-};
-use error_stack::ResultExt;
-use crate::{
-    core::{errors, payments::routing::utils::{DecisionEngineApiHandler, EuclidApiClient, RoutingEvaluateRequest}},
-    services,
 };
 #[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all)]
@@ -1571,7 +1574,6 @@ pub async fn evaluate_routing_rule(
     req: HttpRequest,
     json_payload: web::Json<RoutingEvaluateRequest>,
 ) -> impl Responder {
-    
     let json_payload = json_payload.into_inner();
     let flow = Flow::RoutingEvaluateRule;
     Box::pin(oss_api::server_wrap(
@@ -1601,4 +1603,3 @@ pub async fn evaluate_routing_rule(
     ))
     .await
 }
-
