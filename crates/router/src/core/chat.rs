@@ -49,11 +49,11 @@ pub async fn get_data_from_hyperswitch_ai_workflow(
     )
     .await
     .change_context(ChatErrors::InternalServerError)
-        .attach_printable("Error in send request")?
-        .json::<chat_api::ChatResponse>()
-        .await
-        .change_context(ChatErrors::InternalServerError)
-        .attach_printable("Error in deserializing response")?;
+    .attach_printable("Error in send request")?
+    .json::<chat_api::ChatResponse>()
+    .await
+    .change_context(ChatErrors::InternalServerError)
+    .attach_printable("Error in deserializing response")?;
 
     logger::info!("Response from AI service: {:?}", response);
     Ok(ApplicationResponse::Json(response))
