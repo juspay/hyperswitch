@@ -16,6 +16,11 @@ use crate::{
     services::{api as oss_api, authentication as auth, authorization::permissions::Permission},
     types::domain,
 };
+use error_stack::ResultExt;
+use crate::{
+    core::{errors, payments::routing::utils::{DecisionEngineApiHandler, EuclidApiClient, RoutingEvaluateRequest}},
+    services,
+};
 #[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all)]
 pub async fn routing_create_config(
@@ -1558,3 +1563,42 @@ pub async fn get_dynamic_routing_volume_split(
     ))
     .await
 }
+const EUCLID_API_TIMEOUT: u64 = 5;
+#[cfg(all(feature = "olap", feature = "v1"))]
+#[instrument(skip_all)]
+pub async fn evaluate_routing_rule(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<RoutingEvaluateRequest>,
+) -> impl Responder {
+    
+    let json_payload = json_payload.into_inner();
+    let flow = Flow::RoutingEvaluateRule;
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.clone(),
+        |state, _auth: auth::AuthenticationData, payload, _| async move {
+            let euclid_response: serde_json::Value = EuclidApiClient::send_decision_engine_request(
+                &state,
+                services::Method::Post,
+                "routing/evaluate",
+                Some(payload),
+                Some(EUCLID_API_TIMEOUT),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to evaluate routing rule")?;
+
+            Ok(services::ApplicationResponse::Json(euclid_response))
+        },
+        &auth::ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+

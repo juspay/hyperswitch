@@ -494,6 +494,7 @@ pub struct RoutingEvaluateRequest {
     pub created_by: String,
     pub parameters: HashMap<String, Option<ValueType>>,
 }
+impl common_utils::events::ApiEventMetric for RoutingEvaluateRequest {}
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct RoutingEvaluateResponse {
