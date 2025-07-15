@@ -1648,3 +1648,29 @@ pub async fn call_decide_gateway_open_router(
     ))
     .await
 }
+
+#[cfg(all(feature = "olap", feature = "v1", feature = "dynamic_routing"))]
+#[instrument(skip_all)]
+pub async fn call_update_gateway_score_open_router(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Json<api_models::open_router::UpdateScorePayload>,
+) -> impl Responder {
+    let flow = Flow::DecisionEngineDecideGatewayCall;
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload.clone(),
+        |state, _auth, payload, _| {
+            let payload_inner = payload.into();
+            routing::update_gateway_score_open_router(state.clone(), payload_inner)
+        },
+        &auth::ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
