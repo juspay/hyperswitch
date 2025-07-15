@@ -16,19 +16,23 @@ pub async fn proxy_core(
     req: proxy_api_models::ProxyRequest,
 ) -> RouterResponse<proxy_api_models::ProxyResponse> {
     let req_wrapper = utils::ProxyRequestWrapper(req.clone());
-    let vault_id = req_wrapper
-        .get_vault_id(
+    let proxy_record = req_wrapper
+        .get_proxy_record(
             &state,
             merchant_context.get_merchant_key_store(),
             merchant_context.get_merchant_account().storage_scheme,
         )
         .await?;
 
+    let vault_id = proxy_record.get_vault_id()?;
+    let customer_id = proxy_record.get_customer_id()?;
+
     let vault_response =
         super::payment_methods::vault::retrieve_payment_method_from_vault_internal(
             &state,
             &merchant_context,
             &vault_id,
+            &customer_id,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)

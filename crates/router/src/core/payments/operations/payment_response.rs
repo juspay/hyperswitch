@@ -2167,7 +2167,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 );
             tokio::spawn(
                 async move {
-                    let should_route_to_open_router = state.conf.open_router.enabled;
+                    let should_route_to_open_router =
+                        state.conf.open_router.dynamic_routing_enabled;
 
                     if should_route_to_open_router {
                         routing_helpers::update_gateway_score_helper_with_open_router(

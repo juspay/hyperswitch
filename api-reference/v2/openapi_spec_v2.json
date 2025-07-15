@@ -8123,6 +8123,7 @@
       "Connector": {
         "type": "string",
         "enum": [
+          "authipay",
           "adyenplatform",
           "stripe_billing_test",
           "phonypay",
@@ -11096,6 +11097,28 @@
             ]
           },
           {
+            "type": "object",
+            "required": [
+              "user_bank_options"
+            ],
+            "properties": {
+              "user_bank_options": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
             "type": "string",
             "enum": [
               "user_bank_account_number"
@@ -13800,6 +13823,10 @@
           }
         },
         "additionalProperties": false
+      },
+      "MerchantCountryCode": {
+        "type": "string",
+        "description": "A wrapper type for merchant country codes that provides validation and conversion functionality.\n\nThis type stores a country code as a string and provides methods to validate it\nand convert it to a `Country` enum variant."
       },
       "MerchantDetails": {
         "type": "object",
@@ -17618,10 +17645,7 @@
             ],
             "properties": {
               "bank_names": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/BankCodeResponse"
-                }
+                "$ref": "#/components/schemas/BankNames"
               }
             }
           }
@@ -21215,6 +21239,14 @@
               }
             ],
             "nullable": true
+          },
+          "merchant_country_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantCountryCode"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -21489,6 +21521,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/MerchantCategoryCode"
+              }
+            ],
+            "nullable": true
+          },
+          "merchant_country_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantCountryCode"
               }
             ],
             "nullable": true
@@ -22328,11 +22368,11 @@
                 "$ref": "#/components/schemas/PaymentMethodType"
               },
               "payment_experience": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/PaymentExperience"
-                  }
-                ],
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PaymentExperience"
+                },
+                "description": "The payment experience for the payment method",
                 "nullable": true
               },
               "required_fields": {
@@ -22643,6 +22683,7 @@
         "type": "string",
         "description": "RoutableConnectors are the subset of Connectors that are eligible for payments routing",
         "enum": [
+          "authipay",
           "adyenplatform",
           "stripe_billing_test",
           "phonypay",

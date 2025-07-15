@@ -431,7 +431,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         state: &SessionState,
         connector: &api::ConnectorData,
         should_continue_payment: bool,
-    ) -> RouterResult<types::CreateOrderResult> {
+    ) -> RouterResult<Option<types::CreateOrderResult>> {
         if connector
             .connector_name
             .requires_order_creation_before_payment(self.payment_method)
@@ -471,7 +471,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     if let types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id } =
                         res
                     {
-                        Ok(Some(order_id))
+                        Ok(order_id)
                     } else {
                         Err(error_stack::report!(ApiErrorResponse::InternalServerError)
                             .attach_printable(format!(
@@ -482,47 +482,37 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 Err(error) => Err(error),
             };
 
-            Ok(types::CreateOrderResult {
+            Ok(Some(types::CreateOrderResult {
                 create_order_result: create_order_resp,
-                is_create_order_performed: true,
-            })
+            }))
         } else {
-            Ok(types::CreateOrderResult {
-                create_order_result: Ok(None),
-                is_create_order_performed: false,
-            })
+            // If the connector does not require order creation, return None
+            Ok(None)
         }
     }
 
-    async fn update_router_data_with_create_order_result(
+    fn update_router_data_with_create_order_response(
         &mut self,
         create_order_result: types::CreateOrderResult,
-        should_continue_further: bool,
-    ) -> RouterResult<bool> {
-        if create_order_result.is_create_order_performed {
-            match create_order_result.create_order_result {
-                Ok(Some(order_id)) => {
-                    self.request.order_id = Some(order_id.clone());
-                    self.response =
-                        Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id });
-                    Ok(true)
-                }
-                Ok(None) => Err(error_stack::report!(ApiErrorResponse::InternalServerError)
-                    .attach_printable("Order Id not found."))?,
-                Err(err) => {
-                    self.response = Err(err.clone());
-                    Ok(false)
-                }
+    ) {
+        match create_order_result.create_order_result {
+            Ok(order_id) => {
+                self.request.order_id = Some(order_id.clone()); // ? why this is assigned here and ucs also wants this to populate data
+                self.response =
+                    Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id });
             }
-        } else {
-            Ok(should_continue_further)
+            Err(err) => {
+                self.response = Err(err.clone());
+            }
         }
     }
 
     async fn call_unified_connector_service<'a>(
         &mut self,
         state: &SessionState,
-        merchant_connector_account: helpers::MerchantConnectorAccountType,
+        #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
+        #[cfg(feature = "v2")]
+        merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         merchant_context: &domain::MerchantContext,
     ) -> RouterResult<()> {
         let client = state
@@ -558,13 +548,14 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
         let (status, router_data_response) =
             handle_unified_connector_service_response_for_payment_authorize(
-                payment_authorize_response,
+                payment_authorize_response.clone(),
             )
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to deserialize UCS response")?;
 
         self.status = status;
         self.response = router_data_response;
+        self.raw_connector_response = payment_authorize_response.raw_connector_response;
 
         Ok(())
     }
