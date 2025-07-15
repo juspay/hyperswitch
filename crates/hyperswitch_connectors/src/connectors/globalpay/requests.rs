@@ -284,7 +284,7 @@ pub enum UsageMode {
     Single,
     /// When creating the payment method token, this indicates it is permanent and can be used to create many transactions.
     Multiple,
-    /// When using the payment method token to transaction process, this indicates to use the card number also known as the PAN or FPAN when bothe the card number and the network token are available.
+    /// When using the payment method token to transaction process, this indicates to use the card number also known as the PAN or FPAN when both the card number and the network token are available.
     UseCardNumber,
     /// When using the payment method token to transaction process, this indicates to use the network token instead of the card number if both are available.
     UseNetworkToken,

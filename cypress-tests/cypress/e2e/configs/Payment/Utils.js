@@ -374,6 +374,7 @@ export const CONNECTOR_LISTS = {
       "facilitapay",
       "fiserv",
       "fiuu",
+      "globalpay",
       "jpmorgan",
       "nexinets",
       "payload",
@@ -381,6 +382,7 @@ export const CONNECTOR_LISTS = {
       "stax",
       "wellsfargo",
       "worldpayxml",
+
     ],
     // Add more exclusion lists
   },
