@@ -6708,7 +6708,6 @@
         "required": [
           "acquirer_assigned_merchant_id",
           "merchant_name",
-          "merchant_country_code",
           "network",
           "acquirer_bin",
           "acquirer_fraud_rate"
@@ -6723,11 +6722,6 @@
             "type": "string",
             "description": "merchant name",
             "example": "NewAge Retailer"
-          },
-          "merchant_country_code": {
-            "type": "string",
-            "description": "Merchant country code assigned by acquirer",
-            "example": "US"
           },
           "network": {
             "type": "string",
@@ -14282,6 +14276,28 @@
             ]
           },
           {
+            "type": "object",
+            "required": [
+              "user_bank_options"
+            ],
+            "properties": {
+              "user_bank_options": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
             "type": "string",
             "enum": [
               "user_bank_account_number"
@@ -17440,6 +17456,10 @@
         },
         "additionalProperties": false
       },
+      "MerchantCountryCode": {
+        "type": "string",
+        "description": "A wrapper type for merchant country codes that provides validation and conversion functionality.\n\nThis type stores a country code as a string and provides methods to validate it\nand convert it to a `Country` enum variant."
+      },
       "MerchantDetails": {
         "type": "object",
         "properties": {
@@ -20563,6 +20583,8 @@
           "ali_pay_hk",
           "alma",
           "amazon_pay",
+          "skrill",
+          "paysera",
           "apple_pay",
           "atome",
           "bacs",
@@ -25810,6 +25832,9 @@
           }
         }
       },
+      "PayseraData": {
+        "type": "object"
+      },
       "PazeSessionTokenResponse": {
         "type": "object",
         "required": [
@@ -26067,7 +26092,6 @@
         "required": [
           "acquirer_assigned_merchant_id",
           "merchant_name",
-          "merchant_country_code",
           "network",
           "acquirer_bin",
           "acquirer_fraud_rate",
@@ -26083,11 +26107,6 @@
             "type": "string",
             "description": "merchant name",
             "example": "NewAge Retailer"
-          },
-          "merchant_country_code": {
-            "type": "string",
-            "description": "Merchant country code assigned by acquirer",
-            "example": "US"
           },
           "network": {
             "type": "string",
@@ -26124,7 +26143,6 @@
           "profile_acquirer_id",
           "acquirer_assigned_merchant_id",
           "merchant_name",
-          "merchant_country_code",
           "network",
           "acquirer_bin",
           "acquirer_fraud_rate",
@@ -26145,11 +26163,6 @@
             "type": "string",
             "description": "Merchant name",
             "example": "NewAge Retailer"
-          },
-          "merchant_country_code": {
-            "type": "string",
-            "description": "Merchant country code assigned by acquirer",
-            "example": "US"
           },
           "network": {
             "type": "string",
@@ -26191,11 +26204,6 @@
           "merchant_name": {
             "type": "string",
             "example": "Updated Retailer Name",
-            "nullable": true
-          },
-          "merchant_country_code": {
-            "type": "string",
-            "example": "CA",
             "nullable": true
           },
           "network": {
@@ -26464,6 +26472,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/MerchantCategoryCode"
+              }
+            ],
+            "nullable": true
+          },
+          "merchant_country_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantCountryCode"
               }
             ],
             "nullable": true
@@ -26770,6 +26786,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/MerchantCategoryCode"
+              }
+            ],
+            "nullable": true
+          },
+          "merchant_country_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantCountryCode"
               }
             ],
             "nullable": true
@@ -28980,6 +29004,9 @@
           "contain"
         ]
       },
+      "SkrillData": {
+        "type": "object"
+      },
       "SplitPaymentsRequest": {
         "oneOf": [
           {
@@ -30558,6 +30585,28 @@
             "properties": {
               "amazon_pay_redirect": {
                 "$ref": "#/components/schemas/AmazonPayRedirectData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "skrill"
+            ],
+            "properties": {
+              "skrill": {
+                "$ref": "#/components/schemas/SkrillData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "paysera"
+            ],
+            "properties": {
+              "paysera": {
+                "$ref": "#/components/schemas/PayseraData"
               }
             }
           },
