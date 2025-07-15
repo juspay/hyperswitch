@@ -2176,6 +2176,10 @@ pub struct ProfileCreate {
     /// Four-digit code assigned based on business type to determine processing fees and risk level
     #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
+
+    /// Time interval (in hours) for polling the connector to check dispute statuses
+    #[schema(value_type = Option<i32>, example = 2)]
+    pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
 }
 
 #[nutype::nutype(
@@ -2497,6 +2501,9 @@ pub struct ProfileResponse {
     /// Four-digit code assigned based on business type to determine processing fees and risk level
     #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
+
+    #[schema(value_type = Option<u32>, example = 2)]
+    pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
 }
 
 #[cfg(feature = "v2")]
@@ -2811,6 +2818,9 @@ pub struct ProfileUpdate {
     /// Four-digit code assigned based on business type to determine processing fees and risk level
     #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
+
+    #[schema(value_type = Option<u32>, example = 2)]
+    pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
 }
 
 #[cfg(feature = "v2")]

@@ -230,6 +230,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             .into(),
             is_iframe_redirection_enabled: item.is_iframe_redirection_enabled,
             merchant_category_code: item.merchant_category_code,
+            dispute_polling_interval: item.dispute_polling_interval,
         })
     }
 }
@@ -483,5 +484,7 @@ pub async fn create_profile_from_merchant_account(
             .is_pre_network_tokenization_enabled
             .unwrap_or_default(),
         merchant_category_code: request.merchant_category_code,
+        dispute_polling_interval: request
+            .dispute_polling_interval,
     }))
 }
