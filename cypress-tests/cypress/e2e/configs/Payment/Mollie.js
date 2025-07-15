@@ -276,8 +276,7 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message:
-              "This payment method is not implemented for Mollie",
+            message: "This payment method is not implemented for Mollie",
           },
         },
       },
