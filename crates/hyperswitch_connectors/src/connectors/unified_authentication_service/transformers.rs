@@ -1,4 +1,5 @@
 use common_enums::{enums, MerchantCategoryCode};
+use common_types::payments::MerchantCountryCode;
 use common_utils::{ext_traits::OptionExt, types::FloatMajorUnit};
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, RouterData},
@@ -11,7 +12,8 @@ use hyperswitch_domain_models::{
     },
     types::{
         UasAuthenticationConfirmationRouterData, UasAuthenticationRouterData,
-        UasPostAuthenticationRouterData, UasPreAuthenticationRouterData, UasProcessWebhookRouterData,
+        UasPostAuthenticationRouterData, UasPreAuthenticationRouterData,
+        UasProcessWebhookRouterData,
     },
 };
 use hyperswitch_interfaces::errors;
@@ -147,7 +149,7 @@ pub struct ThreeDSData {
 pub struct Acquirer {
     pub acquirer_merchant_id: Option<String>,
     pub acquirer_bin: Option<String>,
-    pub acquirer_country_code: Option<String>,
+    pub acquirer_country_code: Option<MerchantCountryCode>,
 }
 
 #[derive(Default, Debug, Serialize, PartialEq, Clone, Deserialize)]
@@ -194,7 +196,7 @@ pub struct MerchantDetails {
     pub three_ds_requestor_url: Option<String>,
     pub three_ds_requestor_id: Option<String>,
     pub three_ds_requestor_name: Option<String>,
-    pub merchant_country_code: Option<String>,
+    pub merchant_country_code: Option<MerchantCountryCode>,
 }
 
 #[derive(Default, Clone, Debug, Serialize, PartialEq, Deserialize)]
@@ -1017,7 +1019,6 @@ impl<F, T>
         })
     }
 }
-
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ProcessWebhookRequest {

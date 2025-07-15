@@ -167,5 +167,3 @@ pub struct AuthenticationStore {
     pub cavv: Option<masking::Secret<String>>,
     pub authentication: diesel_models::authentication::Authentication,
 }
-
-

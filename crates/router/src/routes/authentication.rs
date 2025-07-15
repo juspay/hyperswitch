@@ -4,7 +4,6 @@ use api_models::authentication::{AuthenticationAuthenticateRequest, Authenticati
 use api_models::authentication::{AuthenticationEligibilityRequest, AuthenticationSyncRequest};
 use router_env::{instrument, tracing, Flow};
 
-
 use crate::{
     core::{api_locking, unified_authentication_service},
     routes::app::{self},
@@ -166,4 +165,3 @@ pub async fn authentication_sync(
     ))
     .await
 }
-

@@ -9,10 +9,12 @@ use hyperswitch_domain_models::{
     payment_address::PaymentAddress,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_data_v2::UasFlowData,
-    router_request_types::unified_authentication_service::{UasAuthenticationResponseData,UasWebhookRequestData}
+    router_request_types::unified_authentication_service::{
+        UasAuthenticationResponseData, UasWebhookRequestData,
+    },
 };
-use masking::ExposeInterface;
 use hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails;
+use masking::ExposeInterface;
 
 use super::types::{
     IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW,
@@ -126,7 +128,8 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
         connector_mandate_request_reference_id: None,
         authentication_id,
         psd2_sca_exemption_type: None,
-        whole_connector_response: None,
+        raw_connector_response: None,
+        is_payment_id_from_merchant: None,
     })
 }
 
@@ -188,10 +191,10 @@ pub fn construct_uas_webhook_router_data<F: Clone, Req, Res>(
         authentication_id: None,
         psd2_sca_exemption_type: None,
         tenant_id: state.tenant.tenant_id.clone(),
-        whole_connector_response: None,
+        raw_connector_response: None,
+        is_payment_id_from_merchant: None,
     })
 }
-
 
 #[allow(clippy::too_many_arguments)]
 pub async fn external_authentication_update_trackers<F: Clone, Req>(
@@ -335,42 +338,46 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                         eci: authentication_details.eci,
                     },
                 )
-            },
+            }
             UasAuthenticationResponseData::Webhook {
                 trans_status,
                 authentication_value,
                 eci,
                 three_ds_server_transaction_id: _,
             } => {
-                authentication_value.map(ExposeInterface::expose).async_map(|auth_val| {
-                    crate::core::payment_methods::vault::create_tokenize(
-                        state,
-                        auth_val,
-                        None,
-                        authentication
-                            .authentication_id
-                            .get_string_repr()
-                            .to_string(),
-                        merchant_key_store.key.get_inner(),
-                    )
-                }).await
-                .transpose()?;
+                authentication_value
+                    .map(ExposeInterface::expose)
+                    .async_map(|auth_val| {
+                        crate::core::payment_methods::vault::create_tokenize(
+                            state,
+                            auth_val,
+                            None,
+                            authentication
+                                .authentication_id
+                                .get_string_repr()
+                                .to_string(),
+                            merchant_key_store.key.get_inner(),
+                        )
+                    })
+                    .await
+                    .transpose()?;
 
-                let authentication_status = common_enums::AuthenticationStatus::foreign_from(
-                    trans_status.clone(),
-                );
-            
-                Ok(diesel_models::authentication::AuthenticationUpdate::PostAuthenticationUpdate {
-                    trans_status,
-                    authentication_status,
-                    eci,
-                })
+                let authentication_status =
+                    common_enums::AuthenticationStatus::foreign_from(trans_status.clone());
+
+                Ok(
+                    diesel_models::authentication::AuthenticationUpdate::PostAuthenticationUpdate {
+                        trans_status,
+                        authentication_status,
+                        eci,
+                    },
+                )
             }
-           
-        UasAuthenticationResponseData::Confirmation { .. } => Err(
-            ApiErrorResponse::InternalServerError,
-        )
-        .attach_printable("unexpected api confirmation in external authentication flow."),
+
+            UasAuthenticationResponseData::Confirmation { .. } => Err(
+                ApiErrorResponse::InternalServerError,
+            )
+            .attach_printable("unexpected api confirmation in external authentication flow."),
         },
         Err(error) => Ok(
             diesel_models::authentication::AuthenticationUpdate::ErrorUpdate {

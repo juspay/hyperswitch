@@ -11,11 +11,12 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse},
     router_data_v2::UasFlowData,
     router_flow_types::unified_authentication_service::{
-        Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,ProcessIncomingWebhook
+        Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
+        ProcessIncomingWebhook,
     },
     router_request_types::unified_authentication_service::{
         UasAuthenticationRequestData, UasAuthenticationResponseData, UasConfirmationRequestData,
-        UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,UasWebhookRequestData
+        UasPostAuthenticationRequestData, UasPreAuthenticationRequestData, UasWebhookRequestData,
     },
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
@@ -132,7 +133,14 @@ impl
     //TODO: implement sessions flow
 }
 
-impl ConnectorIntegrationV2<ProcessIncomingWebhook, UasFlowData, UasWebhookRequestData, UasAuthenticationResponseData> for Recurly {
+impl
+    ConnectorIntegrationV2<
+        ProcessIncomingWebhook,
+        UasFlowData,
+        UasWebhookRequestData,
+        UasAuthenticationResponseData,
+    > for Recurly
+{
 }
 
 impl api::revenue_recovery_v2::RevenueRecoveryV2 for Recurly {}

@@ -71,7 +71,7 @@ where
     ErrRes: serde::de::DeserializeOwned + std::fmt::Debug + Clone + DecisionEngineErrorsInterface,
 {
     let decision_engine_base_url = &state.conf.open_router.url;
-    let url = format!("{}/{}", decision_engine_base_url, path);
+    let url = format!("{decision_engine_base_url}/{path}");
     logger::debug!(decision_engine_api_call_url = %url, decision_engine_request_path = %path, http_method = ?http_method, "decision_engine: Initiating decision_engine API call ({})", context_message);
 
     let mut request_builder = services::RequestBuilder::new()
@@ -298,12 +298,21 @@ pub async fn perform_decision_euclid_routing(
     input: BackendInput,
     created_by: String,
     events_wrapper: RoutingEventsWrapper<RoutingEvaluateRequest>,
+    fallback_output: Vec<RoutableConnectorChoice>,
 ) -> RoutingResult<Vec<RoutableConnectorChoice>> {
     logger::debug!("decision_engine_euclid: evaluate api call for euclid routing evaluation");
 
     let mut events_wrapper = events_wrapper;
+    let fallback_output = fallback_output
+        .into_iter()
+        .map(|c| DeRoutableConnectorChoice {
+            gateway_name: c.connector,
+            gateway_id: c.merchant_connector_id,
+        })
+        .collect::<Vec<_>>();
 
-    let routing_request = convert_backend_input_to_routing_eval(created_by, input)?;
+    let routing_request =
+        convert_backend_input_to_routing_eval(created_by, input, fallback_output)?;
     events_wrapper.set_request_body(routing_request.clone());
 
     let event_response = EuclidApiClient::send_decision_engine_request(
@@ -334,8 +343,6 @@ pub async fn perform_decision_euclid_routing(
     routing_event.set_routing_approach(RoutingApproach::StaticRouting.to_string());
     routing_event.set_routable_connectors(euclid_response.evaluated_output.clone());
     state.event_handler.log_event(&routing_event);
-
-    // Need to log euclid response event here
 
     logger::debug!(decision_engine_euclid_response=?euclid_response,"decision_engine_euclid");
     logger::debug!(decision_engine_euclid_selected_connector=?euclid_response.evaluated_output,"decision_engine_euclid");
@@ -517,6 +524,7 @@ pub struct ListRountingAlgorithmsRequest {
 pub fn convert_backend_input_to_routing_eval(
     created_by: String,
     input: BackendInput,
+    fallback_output: Vec<DeRoutableConnectorChoice>,
 ) -> RoutingResult<RoutingEvaluateRequest> {
     let mut params: HashMap<String, Option<ValueType>> = HashMap::new();
 
@@ -633,6 +641,7 @@ pub fn convert_backend_input_to_routing_eval(
     Ok(RoutingEvaluateRequest {
         created_by,
         parameters: params,
+        fallback_output,
     })
 }
 
@@ -679,6 +688,7 @@ impl DecisionEngineErrorsInterface for or_types::ErrorResponse {
 pub struct RoutingEvaluateRequest {
     pub created_by: String,
     pub parameters: HashMap<String, Option<ValueType>>,
+    pub fallback_output: Vec<DeRoutableConnectorChoice>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
@@ -692,7 +702,7 @@ pub struct RoutingEvaluateResponse {
 }
 
 /// Routable Connector chosen for a payment
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct DeRoutableConnectorChoice {
     pub gateway_name: common_enums::RoutableConnectors,
     pub gateway_id: Option<id_type::MerchantConnectorAccountId>,

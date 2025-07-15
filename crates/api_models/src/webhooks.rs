@@ -10,9 +10,9 @@ use crate::{disputes, enums as api_enums, mandates, payments, refunds};
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum IncomingWebhookEvent {
-    /// Authorization + Capture success
-    PaymentIntentFailure,
     /// Authorization + Capture failure
+    PaymentIntentFailure,
+    /// Authorization + Capture success
     PaymentIntentSuccess,
     PaymentIntentProcessing,
     PaymentIntentPartiallyFunded,
@@ -65,7 +65,7 @@ pub enum IncomingWebhookEvent {
     RecoveryPaymentPending,
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     RecoveryInvoiceCancel,
-    ModularAuthentication,
+    // ModularAuthentication,
 }
 
 pub enum WebhookFlow {
@@ -82,7 +82,7 @@ pub enum WebhookFlow {
     FraudCheck,
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     Recovery,
-    ModularAuthentication,
+    // ModularAuthentication,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -236,7 +236,6 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             | IncomingWebhookEvent::RecoveryPaymentFailure
             | IncomingWebhookEvent::RecoveryPaymentPending
             | IncomingWebhookEvent::RecoveryPaymentSuccess => Self::Recovery,
-            IncomingWebhookEvent::ModularAuthentication => Self::ModularAuthentication,
         }
     }
 }
