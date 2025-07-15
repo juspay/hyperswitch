@@ -19,7 +19,6 @@ impl tokenization_diesel::Tokenization {
         conn: &PgPooledConn,
         id: &common_utils::id_type::GlobalTokenId,
     ) -> StorageResult<Self> {
-
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             tokenization::dsl::id.eq(id.to_owned()),
@@ -32,7 +31,6 @@ impl tokenization_diesel::Tokenization {
         conn: &PgPooledConn,
         tokenization_record: tokenization_diesel::TokenizationUpdateInternal,
     ) -> StorageResult<Self> {
-
         match generics::generic_update_with_unique_predicate_get_result::<
             <Self as HasTable>::Table,
             _,

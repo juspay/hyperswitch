@@ -1,6 +1,8 @@
 use common_enums;
 use common_utils::{
-    self, date_time, errors::{CustomResult, ValidationError}, types::keymanager
+    self, date_time,
+    errors::{CustomResult, ValidationError},
+    types::keymanager,
 };
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -116,7 +118,10 @@ impl From<TokenizationUpdate> for diesel_models::tokenization::TokenizationUpdat
     fn from(value: TokenizationUpdate) -> Self {
         let now = date_time::now();
         match value {
-            TokenizationUpdate::DeleteTokenizationRecordUpdate {  flag } => Self { updated_at: now, flag },
+            TokenizationUpdate::DeleteTokenizationRecordUpdate { flag } => Self {
+                updated_at: now,
+                flag,
+            },
         }
     }
 }
