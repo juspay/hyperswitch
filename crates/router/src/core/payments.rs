@@ -559,7 +559,7 @@ where
     )
     .await?;
 
-    payment_data.set_payment_method_token(payment_method_token.clone());
+    payment_method_token.map(|token| payment_data.set_payment_method_token(Some(token)));
 
     let (connector, debit_routing_output) = debit_routing::perform_debit_routing(
         &operation,
@@ -3504,16 +3504,18 @@ where
             )
             .await?;
 
-        let decide_wallet_flow =
-            &wallet.decide_wallet_flow(state, payment_data, &merchant_connector_account);
-
-        if decide_wallet_flow.is_decrypt_flow() {
-            wallet
-                .decrypt_wallet_token(decide_wallet_flow, payment_data)
-                .await
-        } else {
-            Ok(None)
-        }
+        let decide_wallet_flow = &wallet
+            .decide_wallet_flow(state, payment_data, &merchant_connector_account)
+            .attach_printable("Failed to decide wallet flow")?
+            .async_map(|payment_proce_data| async move {
+                wallet
+                    .decrypt_wallet_token(&payment_proce_data, payment_data)
+                    .await
+            })
+            .await
+            .transpose()
+            .attach_printable("Failed to decrypt Wallet token")?;
+        Ok(decide_wallet_flow.clone())
     } else {
         Ok(None)
     }
@@ -4648,13 +4650,13 @@ where
         state: &SessionState,
         payment_data: &D,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
-    ) -> DecideWalletFlow;
+    ) -> CustomResult<Option<DecideWalletFlow>, errors::ApiErrorResponse>;
 
     async fn decrypt_wallet_token(
         &self,
         wallet_flow: &DecideWalletFlow,
         payment_data: &D,
-    ) -> CustomResult<Option<PaymentMethodToken>, errors::ApiErrorResponse>;
+    ) -> CustomResult<PaymentMethodToken, errors::ApiErrorResponse>;
 }
 
 #[async_trait::async_trait]
@@ -4668,28 +4670,26 @@ where
         state: &SessionState,
         _payment_data: &D,
         _merchant_connector_account: &helpers::MerchantConnectorAccountType,
-    ) -> DecideWalletFlow {
-        state
+    ) -> CustomResult<Option<DecideWalletFlow>, errors::ApiErrorResponse> {
+        let paze_keys = state
             .conf
             .paze_decrypt_keys
             .as_ref()
-            .map(|paze_keys| {
-                DecideWalletFlow::PazeDecrypt(PazePaymentProcessingDetails {
-                    paze_private_key: paze_keys.get_inner().paze_private_key.clone(),
-                    paze_private_key_passphrase: paze_keys
-                        .get_inner()
-                        .paze_private_key_passphrase
-                        .clone(),
-                })
-            })
-            .unwrap_or(DecideWalletFlow::SkipDecryption)
+            .get_required_value("Paze decrypt keys")
+            .attach_printable("Paze decrypt keys not found in the configuration")?;
+
+        let wallet_flow = DecideWalletFlow::PazeDecrypt(PazePaymentProcessingDetails {
+            paze_private_key: paze_keys.get_inner().paze_private_key.clone(),
+            paze_private_key_passphrase: paze_keys.get_inner().paze_private_key_passphrase.clone(),
+        });
+        Ok(Some(wallet_flow))
     }
 
     async fn decrypt_wallet_token(
         &self,
         wallet_flow: &DecideWalletFlow,
         payment_data: &D,
-    ) -> CustomResult<Option<PaymentMethodToken>, errors::ApiErrorResponse> {
+    ) -> CustomResult<PaymentMethodToken, errors::ApiErrorResponse> {
         let paze_payment_processing_details = wallet_flow
             .get_paze_payment_processing_details()
             .get_required_value("Paze payment processing details")
@@ -4721,9 +4721,9 @@ where
             )
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("failed to parse PazeDecryptedData")?;
-        Ok(Some(PaymentMethodToken::PazeDecrypt(Box::new(
+        Ok(PaymentMethodToken::PazeDecrypt(Box::new(
             paze_decrypted_data,
-        ))))
+        )))
     }
 }
 
@@ -4738,7 +4738,7 @@ where
         state: &SessionState,
         payment_data: &D,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
-    ) -> DecideWalletFlow {
+    ) -> CustomResult<Option<DecideWalletFlow>, errors::ApiErrorResponse> {
         let apple_pay_metadata = check_apple_pay_metadata(state, Some(merchant_connector_account));
 
         add_apple_pay_flow_metrics(
@@ -4747,19 +4747,20 @@ where
             payment_data.get_payment_attempt().merchant_id.clone(),
         );
 
-        match apple_pay_metadata {
-            Some(domain::ApplePayFlow::Simplified(payment_processing_details)) => {
-                DecideWalletFlow::ApplePayDecrypt(payment_processing_details)
-            }
-            Some(domain::ApplePayFlow::Manual) | None => DecideWalletFlow::SkipDecryption,
-        }
+        let wallet_flow = match apple_pay_metadata {
+            Some(domain::ApplePayFlow::Simplified(payment_processing_details)) => Some(
+                DecideWalletFlow::ApplePayDecrypt(payment_processing_details),
+            ),
+            Some(domain::ApplePayFlow::Manual) | None => None,
+        };
+        Ok(wallet_flow)
     }
 
     async fn decrypt_wallet_token(
         &self,
         wallet_flow: &DecideWalletFlow,
         payment_data: &D,
-    ) -> CustomResult<Option<PaymentMethodToken>, errors::ApiErrorResponse> {
+    ) -> CustomResult<PaymentMethodToken, errors::ApiErrorResponse> {
         let apple_pay_payment_processing_details = wallet_flow
             .get_apple_pay_payment_processing_details()
             .get_required_value("Apple Pay payment processing details")
@@ -4794,9 +4795,9 @@ where
                 "failed to parse decrypted apple pay response to ApplePayPredecryptData",
             )?;
 
-        Ok(Some(PaymentMethodToken::ApplePayDecrypt(Box::new(
+        Ok(PaymentMethodToken::ApplePayDecrypt(Box::new(
             apple_pay_predecrypt,
-        ))))
+        )))
     }
 }
 
@@ -4811,17 +4812,18 @@ where
         state: &SessionState,
         _payment_data: &D,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
-    ) -> DecideWalletFlow {
-        get_google_pay_connector_wallet_details(state, merchant_connector_account)
-            .map(DecideWalletFlow::GooglePayDecrypt)
-            .unwrap_or(DecideWalletFlow::SkipDecryption)
+    ) -> CustomResult<Option<DecideWalletFlow>, errors::ApiErrorResponse> {
+        Ok(
+            get_google_pay_connector_wallet_details(state, merchant_connector_account)
+                .map(DecideWalletFlow::GooglePayDecrypt),
+        )
     }
 
     async fn decrypt_wallet_token(
         &self,
         wallet_flow: &DecideWalletFlow,
         payment_data: &D,
-    ) -> CustomResult<Option<PaymentMethodToken>, errors::ApiErrorResponse> {
+    ) -> CustomResult<PaymentMethodToken, errors::ApiErrorResponse> {
         let google_pay_payment_processing_details = wallet_flow
             .get_google_pay_payment_processing_details()
             .get_required_value("Google Pay payment processing details")
@@ -4860,9 +4862,9 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("failed to decrypt google pay token")?;
 
-        Ok(Some(PaymentMethodToken::GooglePayDecrypt(Box::new(
+        Ok(PaymentMethodToken::GooglePayDecrypt(Box::new(
             google_pay_data,
-        ))))
+        )))
     }
 }
 
@@ -4875,10 +4877,6 @@ pub enum DecideWalletFlow {
 }
 
 impl DecideWalletFlow {
-    fn is_decrypt_flow(&self) -> bool {
-        !matches!(self, Self::SkipDecryption)
-    }
-
     fn get_paze_payment_processing_details(&self) -> Option<&PazePaymentProcessingDetails> {
         if let Self::PazeDecrypt(details) = self {
             Some(details)
