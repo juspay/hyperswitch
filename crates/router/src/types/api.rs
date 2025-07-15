@@ -104,6 +104,7 @@ impl From<ConnectorData> for ConnectorRoutingData {
         Self {
             connector_data,
             network: None,
+            action_type: None,
         }
     }
 }
