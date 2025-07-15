@@ -11,7 +11,7 @@ use hyperswitch_domain_models::{
     },
     types::{
         UasAuthenticationConfirmationRouterData, UasAuthenticationRouterData,
-        UasPostAuthenticationRouterData, UasPreAuthenticationRouterData,
+        UasPostAuthenticationRouterData, UasPreAuthenticationRouterData, UasProcessWebhookRouterData,
     },
 };
 use hyperswitch_interfaces::errors;
@@ -1013,6 +1013,53 @@ impl<F, T>
 
         Ok(Self {
             response,
+            ..item.data
+        })
+    }
+}
+
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ProcessWebhookRequest {
+    pub authenticate_by: String,
+    pub body: Vec<u8>,
+}
+
+impl From<&UasProcessWebhookRouterData> for ProcessWebhookRequest {
+    fn from(item: &UasProcessWebhookRouterData) -> Self {
+        Self {
+            authenticate_by: item.connector.clone(),
+            body: item.request.body.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct WebhookResponse {
+    /// trans_status
+    pub trans_status: common_enums::TransactionStatus,
+    /// authentication_value
+    pub authentication_value: Option<Secret<String>>,
+    /// eci
+    pub eci: Option<String>,
+    /// three_ds server transaction id
+    pub three_ds_server_transaction_id: Option<String>,
+}
+
+impl<F, T> TryFrom<ResponseRouterData<F, WebhookResponse, T, UasAuthenticationResponseData>>
+    for RouterData<F, T, UasAuthenticationResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, WebhookResponse, T, UasAuthenticationResponseData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(UasAuthenticationResponseData::Webhook {
+                trans_status: item.response.trans_status,
+                authentication_value: item.response.authentication_value,
+                eci: item.response.eci,
+                three_ds_server_transaction_id: item.response.three_ds_server_transaction_id,
+            }),
             ..item.data
         })
     }

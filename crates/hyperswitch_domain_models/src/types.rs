@@ -10,7 +10,7 @@ use crate::{
         CompleteAuthorize, CreateConnectorCustomer, CreateOrder, Execute, IncrementalAuthorization,
         PSync, PaymentMethodToken, PostAuthenticate, PostSessionTokens, PreAuthenticate,
         PreProcessing, RSync, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata,
-        VerifyWebhookSource, Void,
+        VerifyWebhookSource, Void, ProcessIncomingWebhook
     },
     router_request_types::{
         revenue_recovery::{
@@ -20,7 +20,7 @@ use crate::{
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData,
+            UasPreAuthenticationRequestData, UasWebhookRequestData
         },
         AccessTokenRequestData, AuthorizeSessionTokenData, CompleteAuthorizeData,
         ConnectorCustomerData, CreateOrderRequestData, MandateRevokeRequestData,
@@ -154,3 +154,6 @@ pub type VaultRouterDataV2<F> = RouterDataV2<
     VaultRequestData,
     VaultResponseData,
 >;
+
+pub type UasProcessWebhookRouterData =
+    RouterData<ProcessIncomingWebhook, UasWebhookRequestData, UasAuthenticationResponseData>;

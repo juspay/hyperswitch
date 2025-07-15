@@ -57,14 +57,14 @@ use hyperswitch_domain_models::{
         },
         webhooks::VerifyWebhookSource,
         Authenticate, AuthenticationConfirmation, ExternalVaultCreateFlow, ExternalVaultDeleteFlow,
-        ExternalVaultInsertFlow, ExternalVaultRetrieveFlow, PostAuthenticate, PreAuthenticate,
+        ExternalVaultInsertFlow, ExternalVaultRetrieveFlow, PostAuthenticate, PreAuthenticate, ProcessIncomingWebhook
     },
     router_request_types::{
         authentication,
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData,
+            UasPreAuthenticationRequestData, UasWebhookRequestData,
         },
         AcceptDisputeRequestData, AuthorizeSessionTokenData, CompleteAuthorizeData,
         ConnectorCustomerData, CreateOrderRequestData, DefendDisputeRequestData,
@@ -121,7 +121,7 @@ use hyperswitch_interfaces::{
         },
         ConnectorIntegration, ConnectorMandateRevoke, ConnectorRedirectResponse,
         ConnectorTransactionId, UasAuthentication, UasAuthenticationConfirmation,
-        UasPostAuthentication, UasPreAuthentication, UnifiedAuthenticationService,
+        UasPostAuthentication, UasPreAuthentication, UnifiedAuthenticationService,UasAuthenticationWebhook
     },
     errors::ConnectorError,
 };
@@ -6637,6 +6637,16 @@ impl<const T: u8>
 }
 
 #[cfg(feature = "dummy_connector")]
+impl<const T: u8> UasAuthenticationWebhook for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<ProcessIncomingWebhook, UasWebhookRequestData, UasAuthenticationResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+
+#[cfg(feature = "dummy_connector")]
 impl<const T: u8> UasAuthentication for connectors::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
@@ -6644,6 +6654,7 @@ impl<const T: u8>
     for connectors::DummyConnector<T>
 {
 }
+
 
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> RevenueRecovery for connectors::DummyConnector<T> {}
@@ -6731,3 +6742,126 @@ impl<const T: u8> ConnectorIntegration<ExternalVaultCreateFlow, VaultRequestData
     for connectors::DummyConnector<T>
 {
 }
+
+
+macro_rules! default_imp_for_uas_webhook {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl UasAuthenticationWebhook for $path::$connector {}
+            impl
+            ConnectorIntegration<
+            ProcessIncomingWebhook,
+            UasWebhookRequestData,
+            UasAuthenticationResponseData
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+default_imp_for_uas_webhook!(
+    connectors::Aci,
+    connectors::Adyen,
+    connectors::Adyenplatform,
+    connectors::Airwallex,
+    connectors::Amazonpay,
+    connectors::Archipel,
+    connectors::Authorizedotnet,
+    connectors::Bambora,
+    connectors::Bamboraapac,
+    connectors::Bankofamerica,
+    connectors::Barclaycard,
+    connectors::Billwerk,
+    connectors::Bitpay,
+    connectors::Bluesnap,
+    connectors::Braintree,
+    connectors::Boku,
+    connectors::Cashtocode,
+    connectors::Chargebee,
+    connectors::Checkout,
+    connectors::Coinbase,
+    connectors::Coingate,
+    connectors::Cryptopay,
+    connectors::CtpMastercard,
+    connectors::Cybersource,
+    connectors::Datatrans,
+    connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
+    connectors::Dwolla,
+    connectors::Ebanx,
+    connectors::Elavon,
+    connectors::Facilitapay,
+    connectors::Fiserv,
+    connectors::Fiservemea,
+    connectors::Fiuu,
+    connectors::Forte,
+    connectors::Getnet,
+    connectors::Globalpay,
+    connectors::Globepay,
+    connectors::Gocardless,
+    connectors::Gpayments,
+    connectors::Helcim,
+    connectors::Hipay,
+    connectors::HyperswitchVault,
+    connectors::Iatapay,
+    connectors::Inespay,
+    connectors::Itaubank,
+    connectors::Jpmorgan,
+    connectors::Klarna,
+    connectors::Netcetera,
+    connectors::Nmi,
+    connectors::Nomupay,
+    connectors::Nordea,
+    connectors::Novalnet,
+    connectors::Nexinets,
+    connectors::Nexixpay,
+    connectors::Nuvei,
+    connectors::Payeezy,
+    connectors::Paypal,
+    connectors::Paystack,
+    connectors::Payu,
+    connectors::Powertranz,
+    connectors::Prophetpay,
+    connectors::Mifinity,
+    connectors::Mollie,
+    connectors::Moneris,
+    connectors::Multisafepay,
+    connectors::Noon,
+    connectors::Opayo,
+    connectors::Opennode,
+    connectors::Paybox,
+    connectors::Payme,
+    connectors::Payone,
+    connectors::Placetopay,
+    connectors::Plaid,
+    connectors::Rapyd,
+    connectors::Razorpay,
+    connectors::Recurly,
+    connectors::Redsys,
+    connectors::Riskified,
+    connectors::Santander,
+    connectors::Shift4,
+    connectors::Signifyd,
+    connectors::Stax,
+    connectors::Square,
+    connectors::Stripe,
+    connectors::Stripebilling,
+    connectors::Taxjar,
+    connectors::Threedsecureio,
+    connectors::Thunes,
+    connectors::Tokenio,
+    connectors::Trustpay,
+    connectors::Tsys,
+    connectors::Wise,
+    connectors::Wellsfargo,
+    connectors::Vgs,
+    connectors::Wellsfargopayout,
+    connectors::Worldline,
+    connectors::Worldpay,
+    connectors::Worldpayvantiv,
+    connectors::Worldpayxml,
+    connectors::Volt,
+    connectors::Xendit,
+    connectors::Zen,
+    connectors::Zsl
+);

@@ -24,7 +24,7 @@ use hyperswitch_domain_models::{
             ExternalVaultRetrieveFlow,
         },
         webhooks::VerifyWebhookSource,
-        BillingConnectorInvoiceSync,
+        BillingConnectorInvoiceSync, ProcessIncomingWebhook,
     },
     router_request_types::{
         revenue_recovery::{
@@ -34,7 +34,7 @@ use hyperswitch_domain_models::{
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData,
+            UasPreAuthenticationRequestData, UasWebhookRequestData,
         },
         AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
         CompleteAuthorizeData, ConnectorCustomerData, CreateOrderRequestData,
@@ -332,3 +332,10 @@ impl Default for Proxy {
         }
     }
 }
+
+/// Type alias for `ConnectorIntegration<ProcessIncomingWebhook, UasWebhookRequestData, UasAuthenticationResponseData>`
+pub type UasProcessWebhookType = dyn ConnectorIntegration<
+    ProcessIncomingWebhook,
+    UasWebhookRequestData,
+    UasAuthenticationResponseData,
+>;

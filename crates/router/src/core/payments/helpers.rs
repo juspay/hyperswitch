@@ -7221,6 +7221,7 @@ pub async fn is_merchant_eligible_authentication_service(
     Ok(auth_eligible_array.contains(&merchant_id.get_string_repr().to_owned()))
 }
 
+
 #[cfg(feature = "v1")]
 pub async fn validate_allowed_payment_method_types_request(
     state: &SessionState,

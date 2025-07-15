@@ -1328,6 +1328,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             Ok(unified_authentication_service::UasAuthenticationResponseData::PreAuthentication { .. })
                             | Ok(unified_authentication_service::UasAuthenticationResponseData::Confirmation {})
                             | Ok(unified_authentication_service::UasAuthenticationResponseData::Authentication { .. }) => Err(errors::ApiErrorResponse::InternalServerError).attach_printable("unexpected response received from unified authentication service")?,
+                            Ok(unified_authentication_service::UasAuthenticationResponseData::Webhook { .. }) => Err(errors::ApiErrorResponse::InternalServerError).attach_printable("unexpected webhook response received from unified authentication service")?,
                             Err(_) => (None, common_enums::AuthenticationStatus::Failed)
                         };
                         payment_data.payment_attempt.payment_method =

@@ -65,6 +65,7 @@ pub enum IncomingWebhookEvent {
     RecoveryPaymentPending,
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     RecoveryInvoiceCancel,
+    ModularAuthentication,
 }
 
 pub enum WebhookFlow {
@@ -81,6 +82,7 @@ pub enum WebhookFlow {
     FraudCheck,
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     Recovery,
+    ModularAuthentication,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -234,6 +236,7 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             | IncomingWebhookEvent::RecoveryPaymentFailure
             | IncomingWebhookEvent::RecoveryPaymentPending
             | IncomingWebhookEvent::RecoveryPaymentSuccess => Self::Recovery,
+            IncomingWebhookEvent::ModularAuthentication => Self::ModularAuthentication,
         }
     }
 }

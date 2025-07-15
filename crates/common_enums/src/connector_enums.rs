@@ -536,6 +536,15 @@ impl Connector {
                 | Self::DummyConnector7
         ) && !is_dummy_connector_enabled
     }
+
+    pub fn is_uas_enabled_authentication_connector(self) -> bool {
+        match self {
+            Self::Netcetera
+            | Self::CtpMastercard
+            | Self::CtpVisa => true,
+            _ => false,
+        }
+    }
 }
 
 /// Convert the RoutableConnectors to Connector

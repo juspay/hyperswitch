@@ -13,13 +13,13 @@ use hyperswitch_domain_models::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
-        Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
+        Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate, ProcessIncomingWebhook
     },
     router_request_types::{
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData,
+            UasPreAuthenticationRequestData,UasWebhookRequestData
         },
         AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
@@ -77,6 +77,7 @@ impl api::UasPreAuthentication for Juspaythreedsserver {}
 impl api::UasPostAuthentication for Juspaythreedsserver {}
 impl api::UasAuthenticationConfirmation for Juspaythreedsserver {}
 impl api::UasAuthentication for Juspaythreedsserver {}
+impl api::UasAuthenticationWebhook for Juspaythreedsserver {}
 
 impl
     ConnectorIntegration<
@@ -114,6 +115,11 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
     for Juspaythreedsserver
 {
     // Not Implemented (R)
+}
+
+impl ConnectorIntegration<ProcessIncomingWebhook, UasWebhookRequestData, UasAuthenticationResponseData>
+    for Juspaythreedsserver
+{
 }
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Juspaythreedsserver

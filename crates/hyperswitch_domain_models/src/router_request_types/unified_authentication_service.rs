@@ -103,6 +103,12 @@ pub enum UasAuthenticationResponseData {
         authentication_details: PostAuthenticationDetails,
     },
     Confirmation {},
+    Webhook {
+        trans_status: common_enums::TransactionStatus,
+        authentication_value: Option<Secret<String>>,
+        eci: Option<String>,
+        three_ds_server_transaction_id: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -178,4 +184,23 @@ pub struct ThreeDsMetaData {
     pub three_ds_requestor_name: Option<String>,
     pub three_ds_requestor_id: Option<String>,
     pub merchant_configuration_id: Option<String>,
+}
+
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+pub struct UasWebhookRequestData {
+    pub body: Vec<u8>,
+}
+
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+pub struct WebhookResponse {
+    /// trans_status
+    pub trans_status: common_enums::TransactionStatus,
+    /// authentication_value
+    pub authentication_value: Option<Secret<String>>,
+    /// eci
+    pub eci: Option<String>,
+    /// three_ds server transaction id
+    pub three_ds_server_transaction_id: Option<String>,
 }
