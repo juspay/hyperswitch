@@ -41,6 +41,8 @@ impl From<enums::WalletType> for global_enums::PaymentMethodType {
         match value {
             enums::WalletType::GooglePay => Self::GooglePay,
             enums::WalletType::AmazonPay => Self::AmazonPay,
+            enums::WalletType::Skrill => Self::Skrill,
+            enums::WalletType::Paysera => Self::Paysera,
             enums::WalletType::ApplePay => Self::ApplePay,
             enums::WalletType::Paypal => Self::Paypal,
             enums::WalletType::AliPay => Self::AliPay,
@@ -125,6 +127,8 @@ impl From<enums::BankTransferType> for global_enums::PaymentMethodType {
             enums::BankTransferType::PermataBankTransfer => Self::PermataBankTransfer,
             enums::BankTransferType::LocalBankTransfer => Self::LocalBankTransfer,
             enums::BankTransferType::InstantBankTransfer => Self::InstantBankTransfer,
+            enums::BankTransferType::InstantBankTransferFinland => Self::InstantBankTransferFinland,
+            enums::BankTransferType::InstantBankTransferPoland => Self::InstantBankTransferPoland,
         }
     }
 }

@@ -29,7 +29,7 @@ pub trait MandateInterface {
     ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError>;
 
     // Fix this function once we move to mandate v2
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_mandate_by_global_customer_id(
         &self,
         id: &id_type::GlobalCustomerId,
@@ -110,7 +110,7 @@ mod storage {
                         merchant_id,
                         mandate_id,
                     };
-                    let field = format!("mandate_{}", mandate_id);
+                    let field = format!("mandate_{mandate_id}");
 
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
@@ -199,7 +199,7 @@ mod storage {
                 .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
-        #[cfg(all(feature = "v2", feature = "customer_v2"))]
+        #[cfg(feature = "v2")]
         #[instrument(skip_all)]
         async fn find_mandate_by_global_customer_id(
             &self,
@@ -225,7 +225,7 @@ mod storage {
                 merchant_id,
                 mandate_id,
             };
-            let field = format!("mandate_{}", mandate_id);
+            let field = format!("mandate_{mandate_id}");
             let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_models::Mandate>(
                 self,
                 storage_scheme,
@@ -342,7 +342,7 @@ mod storage {
                         mandate_id: mandate_id.as_str(),
                     };
                     let key_str = key.to_string();
-                    let field = format!("mandate_{}", mandate_id);
+                    let field = format!("mandate_{mandate_id}");
 
                     let storage_mandate = storage_types::Mandate::from(&mandate);
 
@@ -457,7 +457,7 @@ mod storage {
         }
 
         // Need to fix this once we start moving to mandate v2
-        #[cfg(all(feature = "v2", feature = "customer_v2"))]
+        #[cfg(feature = "v2")]
         #[instrument(skip_all)]
         async fn find_mandate_by_global_customer_id(
             &self,
@@ -571,7 +571,7 @@ impl MandateInterface for MockDb {
     }
 
     // Need to fix this once we move to v2 mandate
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_mandate_by_global_customer_id(
         &self,
         id: &id_type::GlobalCustomerId,

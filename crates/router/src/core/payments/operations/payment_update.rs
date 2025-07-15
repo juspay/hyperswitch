@@ -129,7 +129,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        let customer_acceptance = request.customer_acceptance.clone().map(From::from);
+        let customer_acceptance = request.customer_acceptance.clone();
         let recurring_details = request.recurring_details.clone();
 
         let mandate_type = m_helpers::get_mandate_type(
@@ -707,7 +707,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
 #[async_trait]
 impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentUpdate {
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -727,7 +727,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         todo!()
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -941,6 +941,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     is_iframe_redirection_enabled: payment_data
                         .payment_intent
                         .is_iframe_redirection_enabled,
+                    is_confirm_operation: false, // this is not a confirm operation
                 })),
                 key_store,
                 storage_scheme,

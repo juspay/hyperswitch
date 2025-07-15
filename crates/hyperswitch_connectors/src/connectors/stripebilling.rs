@@ -47,8 +47,6 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-use masking::ExposeInterface;
 use masking::{Mask, PeekInterface};
 use stripebilling::auth_headers;
 use transformers as stripebilling;

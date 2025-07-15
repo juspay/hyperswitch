@@ -66,6 +66,7 @@ Never share your secret api keys. Keep them guarded and secure.
         (name = "payment link", description = "Create payment link"),
         (name = "Routing", description = "Create and manage routing configurations"),
         (name = "Event", description = "Manage events"),
+        (name = "Authentication", description = "Create and manage authentication")
     ),
     // The paths will be displayed in the same order as they are registered here
     paths(
@@ -203,8 +204,15 @@ Never share your secret api keys. Keep them guarded and secure.
         // Routes for poll apis
         routes::poll::retrieve_poll_status,
 
+        // Routes for profile acquirer account
+        routes::profile_acquirer::profile_acquirer_create,
+        routes::profile_acquirer::profile_acquirer_update,
+
         // Routes for 3DS Decision Rule
         routes::three_ds_decision_rule::three_ds_decision_rule_execute,
+
+        // Routes for authentication
+        routes::authentication::authentication_create,
     ),
     components(schemas(
         common_utils::types::MinorUnit,
@@ -226,6 +234,9 @@ Never share your secret api keys. Keep them guarded and secure.
         common_types::payments::StripeSplitPaymentRequest,
         common_types::domain::AdyenSplitData,
         common_types::domain::AdyenSplitItem,
+        common_types::payments::AcceptanceType,
+        common_types::payments::CustomerAcceptance,
+        common_types::payments::OnlineMandate,
         common_types::payments::XenditSplitRequest,
         common_types::payments::XenditSplitRoute,
         common_types::payments::XenditChargeResponseData,
@@ -239,6 +250,7 @@ Never share your secret api keys. Keep them guarded and secure.
         common_types::payments::StripeChargeResponseData,
         common_types::three_ds_decision_rule_engine::ThreeDSDecisionRule,
         common_types::three_ds_decision_rule_engine::ThreeDSDecision,
+        common_types::payments::MerchantCountryCode,
         api_models::three_ds_decision_rule::ThreeDsDecisionRuleExecuteRequest,
         api_models::three_ds_decision_rule::ThreeDsDecisionRuleExecuteResponse,
         api_models::three_ds_decision_rule::PaymentData,
@@ -274,6 +286,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::PaymentMethodResponse,
         api_models::payment_methods::CustomerPaymentMethod,
         common_types::three_ds_decision_rule_engine::ThreeDSDecisionRule,
+        common_types::domain::AcquirerConfigMap,
+        common_types::domain::AcquirerConfig,
         api_models::payment_methods::PaymentMethodListResponse,
         api_models::payment_methods::ResponsePaymentMethodsEnabled,
         api_models::payment_methods::ResponsePaymentMethodTypes,
@@ -319,6 +333,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::BankType,
         api_models::enums::BankHolderType,
         api_models::enums::CardNetwork,
+        api_models::enums::MerchantCategoryCode,
         api_models::enums::DisputeStage,
         api_models::enums::DisputeStatus,
         api_models::enums::CountryAlpha2,
@@ -439,13 +454,10 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentMethodData,
         api_models::payments::PaymentMethodDataRequest,
         api_models::payments::MandateType,
-        api_models::payments::AcceptanceType,
         api_models::payments::MandateAmountData,
-        api_models::payments::OnlineMandate,
         api_models::payments::Card,
         api_models::payments::CardRedirectData,
         api_models::payments::CardToken,
-        api_models::payments::CustomerAcceptance,
         api_models::payments::PaymentsRequest,
         api_models::payments::PaymentsCreateRequest,
         api_models::payments::PaymentsUpdateRequest,
@@ -460,6 +472,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PazeWalletData,
         api_models::payments::SessionToken,
         api_models::payments::ApplePaySessionResponse,
+        api_models::payments::NullObject,
         api_models::payments::ThirdPartySdkSessionResponse,
         api_models::payments::NoThirdPartySdkSessionResponse,
         api_models::payments::SecretInfoToInitiateSdk,
@@ -525,6 +538,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::MultibancoTransferInstructions,
         api_models::payments::DokuBankTransferInstructions,
         api_models::payments::AmazonPayRedirectData,
+        api_models::payments::SkrillData,
+        api_models::payments::PayseraData,
         api_models::payments::ApplePayRedirectData,
         api_models::payments::ApplePayThirdPartySdkData,
         api_models::payments::GooglePayRedirectData,
@@ -560,6 +575,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::ThreeDsData,
         api_models::payments::ThreeDsMethodData,
         api_models::payments::PollConfigResponse,
+        api_models::payments::PollConfig,
         api_models::payments::ExternalAuthenticationDetailsResponse,
         api_models::payments::ExtendedCardInfo,
         api_models::payment_methods::RequiredFieldInfo,
@@ -773,9 +789,15 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::open_router::DecisionEngineGatewayWiseExtraScore,
         api_models::open_router::DecisionEngineSRSubLevelInputConfig,
         api_models::open_router::DecisionEngineEliminationData,
+        api_models::profile_acquirer::ProfileAcquirerCreate,
+        api_models::profile_acquirer::ProfileAcquirerUpdate,
+        api_models::profile_acquirer::ProfileAcquirerResponse,
         euclid::frontend::dir::enums::CustomerDevicePlatform,
         euclid::frontend::dir::enums::CustomerDeviceType,
         euclid::frontend::dir::enums::CustomerDeviceDisplaySize,
+        api_models::authentication::AuthenticationCreateRequest,
+        api_models::authentication::AuthenticationResponse,
+        api_models::authentication::AcquirerDetails,
     )),
     modifiers(&SecurityAddon)
 )]
@@ -787,7 +809,9 @@ struct SecurityAddon;
 
 impl utoipa::Modify for SecurityAddon {
     fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
-        use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
+        use utoipa::openapi::security::{
+            ApiKey, ApiKeyValue, HttpAuthScheme, HttpBuilder, SecurityScheme,
+        };
 
         if let Some(components) = openapi.components.as_mut() {
             components.add_security_schemes_from_iter([
@@ -822,6 +846,10 @@ impl utoipa::Modify for SecurityAddon {
                         to a single customer object for a short period of time."
                     ))),
                 ),
+                (
+                    "jwt_key",
+                    SecurityScheme::Http(HttpBuilder::new().scheme(HttpAuthScheme::Bearer).bearer_format("JWT").build())
+                )
             ]);
         }
     }

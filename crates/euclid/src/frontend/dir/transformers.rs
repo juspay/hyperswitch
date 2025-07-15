@@ -22,6 +22,8 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
                 Ok(dirval!(PayLaterType = AfterpayClearpay))
             }
             global_enums::PaymentMethodType::AmazonPay => Ok(dirval!(WalletType = AmazonPay)),
+            global_enums::PaymentMethodType::Skrill => Ok(dirval!(WalletType = Skrill)),
+            global_enums::PaymentMethodType::Paysera => Ok(dirval!(WalletType = Paysera)),
             global_enums::PaymentMethodType::GooglePay => Ok(dirval!(WalletType = GooglePay)),
             global_enums::PaymentMethodType::ApplePay => Ok(dirval!(WalletType = ApplePay)),
             global_enums::PaymentMethodType::Paypal => Ok(dirval!(WalletType = Paypal)),
@@ -158,6 +160,12 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
             }
             global_enums::PaymentMethodType::InstantBankTransfer => {
                 Ok(dirval!(BankTransferType = InstantBankTransfer))
+            }
+            global_enums::PaymentMethodType::InstantBankTransferFinland => {
+                Ok(dirval!(BankTransferType = InstantBankTransferFinland))
+            }
+            global_enums::PaymentMethodType::InstantBankTransferPoland => {
+                Ok(dirval!(BankTransferType = InstantBankTransferPoland))
             }
             global_enums::PaymentMethodType::PermataBankTransfer => {
                 Ok(dirval!(BankTransferType = PermataBankTransfer))

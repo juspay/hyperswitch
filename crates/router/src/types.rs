@@ -8,6 +8,7 @@
 
 pub mod api;
 pub mod authentication;
+pub mod connector_transformers;
 pub mod domain;
 #[cfg(feature = "frm")]
 pub mod fraud_check;
@@ -36,9 +37,9 @@ use hyperswitch_domain_models::router_flow_types::{
     mandate_revoke::MandateRevoke,
     payments::{
         Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture,
-        CompleteAuthorize, CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync,
-        PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
-        SetupMandate, UpdateMetadata, Void,
+        CompleteAuthorize, CreateConnectorCustomer, CreateOrder, IncrementalAuthorization,
+        InitPayment, PSync, PostProcessing, PostSessionTokens, PreProcessing, Reject,
+        SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
     },
     refunds::{Execute, RSync},
     webhooks::VerifyWebhookSource,
@@ -68,10 +69,10 @@ pub use hyperswitch_domain_models::{
         },
         AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
         BrowserInformation, ChargeRefunds, ChargeRefundsOptions, CompleteAuthorizeData,
-        CompleteAuthorizeRedirectResponse, ConnectorCustomerData, DefendDisputeRequestData,
-        DestinationChargeRefund, DirectChargeRefund, MandateRevokeRequestData,
-        MultipleCaptureRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        CompleteAuthorizeRedirectResponse, ConnectorCustomerData, CreateOrderRequestData,
+        DefendDisputeRequestData, DestinationChargeRefund, DirectChargeRefund,
+        MandateRevokeRequestData, MultipleCaptureRequestData, PaymentMethodTokenizationData,
+        PaymentsApproveData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
         PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
         PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
@@ -149,6 +150,9 @@ pub type PaymentsIncrementalAuthorizationRouterData = RouterData<
 >;
 pub type PaymentsTaxCalculationRouterData =
     RouterData<CalculateTax, PaymentsTaxCalculationData, TaxCalculationResponseData>;
+
+pub type CreateOrderRouterData =
+    RouterData<CreateOrder, CreateOrderRequestData, PaymentsResponseData>;
 
 pub type SdkSessionUpdateRouterData =
     RouterData<SdkSessionUpdate, SdkPaymentsSessionUpdateData, PaymentsResponseData>;
@@ -297,7 +301,7 @@ impl Capturable for PaymentsAuthorizeData {
                 match intent_status {
                     common_enums::IntentStatus::Succeeded
                     | common_enums::IntentStatus::Failed
-                    | common_enums::IntentStatus::Processing => Some(0),
+                    | common_enums::IntentStatus::Processing | common_enums::IntentStatus::Conflicted => Some(0),
                     common_enums::IntentStatus::Cancelled
                     | common_enums::IntentStatus::PartiallyCaptured
                     | common_enums::IntentStatus::RequiresCustomerAction
@@ -336,7 +340,8 @@ impl Capturable for PaymentsCaptureData {
         let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
         match intent_status {
             common_enums::IntentStatus::Succeeded
-            | common_enums::IntentStatus::PartiallyCaptured => Some(0),
+            | common_enums::IntentStatus::PartiallyCaptured
+            | common_enums::IntentStatus::Conflicted => Some(0),
             common_enums::IntentStatus::Processing
             | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::Failed
@@ -380,9 +385,8 @@ impl Capturable for CompleteAuthorizeData {
                 match intent_status {
                     common_enums::IntentStatus::Succeeded|
                     common_enums::IntentStatus::Failed|
-                    common_enums::IntentStatus::Processing => Some(0),
-                    common_enums::IntentStatus::Cancelled
-                    | common_enums::IntentStatus::PartiallyCaptured
+                    common_enums::IntentStatus::Processing | common_enums::IntentStatus::Conflicted => Some(0),
+                    common_enums::IntentStatus::Cancelled | common_enums::IntentStatus::PartiallyCaptured
                     | common_enums::IntentStatus::RequiresCustomerAction
                     | common_enums::IntentStatus::RequiresMerchantAction
                     | common_enums::IntentStatus::RequiresPaymentMethod
@@ -428,7 +432,8 @@ impl Capturable for PaymentsCancelData {
         match intent_status {
             common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::Processing
-            | common_enums::IntentStatus::PartiallyCaptured => Some(0),
+            | common_enums::IntentStatus::PartiallyCaptured
+            | common_enums::IntentStatus::Conflicted => Some(0),
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::RequiresCustomerAction
@@ -507,6 +512,11 @@ pub struct PaymentMethodTokenResult {
     pub payment_method_token_result: Result<Option<String>, ErrorResponse>,
     pub is_payment_method_tokenization_performed: bool,
     pub connector_response: Option<ConnectorResponseData>,
+}
+
+#[derive(Clone)]
+pub struct CreateOrderResult {
+    pub create_order_result: Result<String, ErrorResponse>,
 }
 
 pub struct PspTokenResult {
@@ -1080,6 +1090,7 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             merchant_account_id: None,
             merchant_config_currency: None,
             connector_testing_data: data.request.connector_testing_data.clone(),
+            order_id: None,
         }
     }
 }
@@ -1141,7 +1152,8 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
                 .clone(),
             authentication_id: data.authentication_id.clone(),
             psd2_sca_exemption_type: data.psd2_sca_exemption_type,
-            whole_connector_response: data.whole_connector_response.clone(),
+            raw_connector_response: data.raw_connector_response.clone(),
+            is_payment_id_from_merchant: data.is_payment_id_from_merchant,
         }
     }
 }
@@ -1209,7 +1221,8 @@ impl<F1, F2>
             psd2_sca_exemption_type: None,
             additional_merchant_data: data.additional_merchant_data.clone(),
             connector_mandate_request_reference_id: None,
-            whole_connector_response: None,
+            raw_connector_response: None,
+            is_payment_id_from_merchant: data.is_payment_id_from_merchant,
         }
     }
 }

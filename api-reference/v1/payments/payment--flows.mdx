@@ -1,0 +1,258 @@
+---
+tags: [Payments]
+sidebarTitle: "Payment Flows"
+icon: "arrows-retweet"
+iconType: "solid"
+---
+Hyperswitch provides flexible payment processing with multiple flow patterns to accommodate different business needs. The system supports one-time payments, saved payment methods, and recurring billing through a comprehensive API design.
+
+```mermaid
+graph TD
+    A["Payment Request"] --> B{"Payment Type"}
+    B -->|One-time| C["One-time Payment Flows"]
+    B -->|Save for Future| D["Payment Method Storage"]
+    B -->|Recurring| E["Recurring Payment Flows"]
+    
+    C --> C1["Instant Payment"]
+    C --> C2["Manual Capture"]
+    C --> C3["Decoupled Flow"]
+    C --> C4["3DS Authentication"]
+    
+    D --> D1["Save During Payment"]
+    D --> D2["List Saved Methods"]
+    
+    E --> E1["Setup (CIT)"]
+    E --> E2["Execute (MIT)"]
+```
+
+## One-Time Payment Patterns
+
+### 1. Instant Payment (Automatic Capture)
+**Use Case:** Simple, immediate payment processing
+
+**Endpoint:**
+`POST /payments`
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Hyperswitch
+    participant Processor
+    
+    Client->>Hyperswitch: POST /payments<br/>{confirm: true, capture_method: "automatic"}
+    Hyperswitch->>Processor: Authorize + Capture
+    Processor-->>Hyperswitch: Payment Complete
+    Hyperswitch-->>Client: Status: succeeded
+```
+
+**Required Fields:**
+- `confirm: true`
+- `capture_method: "automatic"`
+- `payment_method`
+
+**Final Status:** `succeeded`
+
+### 2. Two-Step Manual Capture
+**Use Case:** Deferred settlement (e.g., ship before charging)
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Hyperswitch
+    participant Processor
+    
+    Client->>Hyperswitch: POST /payments<br/>{confirm: true, capture_method: "manual"}
+    Hyperswitch->>Processor: Authorize Only
+    Processor-->>Hyperswitch: Authorization Hold
+    Hyperswitch-->>Client: Status: requires_capture
+    
+    Note over Client: Ship goods, then capture
+    
+    Client->>Hyperswitch: POST /payments/{id}/capture
+    Hyperswitch->>Processor: Capture Funds
+    Processor-->>Hyperswitch: Capture Complete
+    Hyperswitch-->>Client: Status: succeeded
+```
+
+**Flow:**
+1. **Authorize:** `POST /payments` with `capture_method: "manual"`
+2. **Status:** `requires_capture`
+3. **Capture:** `POST /payments/{payment_id}/capture`
+4. **Final Status:** `succeeded`
+
+### 3. Fully Decoupled Flow
+**Use Case:** Complex checkout journeys with multiple modification steps. Useful in headless checkout or B2B portals where data is filled progressively.
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Hyperswitch
+    
+    Client->>Hyperswitch: POST /payments<br/>(Create Intent)
+    Hyperswitch-->>Client: payment_id + client_secret
+    
+    Client->>Hyperswitch: POST /payments/{id}<br/>(Update: customer, amount, etc.)
+    Hyperswitch-->>Client: Updated Intent
+    
+    Client->>Hyperswitch: POST /payments/{id}/confirm<br/>(Final Confirmation)
+    Hyperswitch-->>Client: Status: succeeded/requires_capture
+    
+    opt Manual Capture
+        Client->>Hyperswitch: POST /payments/{id}/capture
+        Hyperswitch-->>Client: Status: succeeded
+    end
+```
+
+**Endpoints:**
+- **Create:**
+  `POST /payments`
+- **Update:**
+  `POST /payments/{payment_id}`
+- **Confirm:**
+  `POST /payments/{payment_id}/confirm`
+- **Capture:**
+  `POST /payments/{payment_id}/capture` (if manual)
+
+### 4. 3D Secure Authentication Flow
+**Use Case:** Enhanced security with customer authentication
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Hyperswitch
+    participant Customer
+    participant Bank
+    
+    Client->>Hyperswitch: POST /payments<br/>{authentication_type: "three_ds"}
+    Hyperswitch-->>Client: Status: requires_customer_action<br/>+ redirect_url
+    
+    Client->>Customer: Redirect to 3DS page
+    Customer->>Bank: Complete 3DS Challenge
+    Bank-->>Hyperswitch: Authentication Result
+    Hyperswitch->>Hyperswitch: Resume Payment Processing
+    Hyperswitch-->>Client: Status: succeeded
+```
+
+**Additional Fields:**
+- `authentication_type: "three_ds"`
+
+**Status Progression:** `processing` → `requires_customer_action` → `succeeded`
+
+## Payment Method Management
+
+### 1. Saving Payment Methods
+
+```mermaid
+graph LR
+    A["Payment Request"] --> B["Add setup_future_usage"]
+    B --> C{"Usage Type"}
+    C -->|"off_session"| D["For Recurring/MIT"]
+    C -->|"on_session"| E["For Customer-Present"]
+    D --> F["payment_method_id Returned"]
+    E --> F
+```
+
+**During Payment Creation:**
+- Add `setup_future_usage: "off_session"` or `"on_session"`
+- Include `customer_id`
+- **Result:** `payment_method_id` returned on success
+
+**Understanding `setup_future_usage`:**
+- **`on_session`**: Use when the customer is actively present during the transaction. This is typical for scenarios like saving card details for faster checkouts in subsequent sessions where the customer will still be present to initiate the payment (e.g., card vaulting for e-commerce sites).
+- **`off_session`**: Use when you intend to charge the customer later without their active involvement at the time of charge. This is suitable for subscriptions, recurring billing, or merchant-initiated transactions (MITs) where the customer has pre-authorized future charges.
+
+### 2. Using Saved Payment Methods
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Hyperswitch
+    
+    Client->>Hyperswitch: POST /payments/create<br/>{customer_id}
+    Hyperswitch-->>Client: client_secret
+    
+    Client->>Hyperswitch: GET /customers/payment_methods<br/>{client_secret, publishable_key}
+    Hyperswitch-->>Client: List of payment_tokens
+    
+    Client->>Hyperswitch: POST /payments/{id}/confirm<br/>{payment_token}
+    Hyperswitch-->>Client: Payment Result
+```
+
+**Steps:**
+1. **Initiate:** Create payment with `customer_id`
+2. **List:** Get saved cards via `GET /customers/payment_methods`
+3. **Confirm:** Use selected `payment_token` in confirm call
+
+### PCI Compliance and `payment_method_id`
+Storing `payment_method_id` (which is a token representing the actual payment instrument, which could be a payment token, network token, or payment processor token) significantly reduces your PCI DSS scope. Hyperswitch securely stores the sensitive card details and provides you with this token. While you still need to ensure your systems handle `payment_method_id` and related customer data securely, you avoid the complexities of storing raw card numbers. Always consult with a PCI QSA to understand your specific compliance obligations.
+
+## Recurring Payment Flows
+
+### 3. Customer-Initiated Transaction (CIT) Setup
+
+```mermaid
+graph TD
+    A["CIT Setup"] --> B{"Setup Type"}
+    B -->|"With Charge"| C["Amount > 0<br/>setup_future_usage: off_session"]
+    B -->|"Zero Dollar Auth"| D["Amount: 0<br/>payment_type: setup_mandate"]
+    C --> E["payment_method_id"]
+    D --> E
+```
+
+**Option 1 - Setup with Charge:**
+- `setup_future_usage: "off_session"`
+- `amount > 0`
+
+**Option 2 - Zero Dollar Authorization:**
+- `setup_future_usage: "off_session"`
+- `amount: 0`
+- `payment_type: "setup_mandate"`
+
+### 4. Merchant-Initiated Transaction (MIT) Execution
+
+```mermaid
+sequenceDiagram
+    participant Merchant
+    participant Hyperswitch
+    participant Processor
+    
+    Note over Merchant: Subscription billing trigger
+    
+    Merchant->>Hyperswitch: POST /payments<br/>{off_session: true, recurring_details}
+    Hyperswitch->>Processor: Process with saved payment_method_id
+    Processor-->>Hyperswitch: Payment Result
+    Hyperswitch-->>Merchant: Status: succeeded
+```
+
+**Required Fields:**
+- `off_session: true`
+- `recurring_details: {
+        "type": "payment_method_id",
+        "data": "<from_setup>"}`
+
+**Use Case:** Subscription charges, scheduled billing without customer interaction
+
+## Status Flow Summary
+
+```mermaid
+stateDiagram-v2
+    [*] --> RequiresConfirmation
+    RequiresConfirmation --> Processing: confirm=true
+    Processing --> RequiresCustomerAction: 3DS needed
+    RequiresCustomerAction --> Processing: 3DS complete
+    Processing --> RequiresCapture: manual capture
+    Processing --> Succeeded: automatic capture
+    RequiresCapture --> Succeeded: capture API call
+    RequiresCapture --> PartiallyCaptured: partial capture
+    PartiallyCaptured --> [*]
+    Succeeded --> [*]
+    Processing --> Failed: payment failed
+    Failed --> [*]
+```
+
+## Notes
+
+- **Terminal States:** `succeeded`, `failed`, `cancelled`, `partially_captured` are terminal states requiring no further action
+- **Capture Methods:** System supports `automatic` (funds captured immediately), `manual` (funds captured in a separate step), `manual_multiple` (funds captured in multiple partial amounts via separate steps), and `scheduled` (funds captured automatically at a future predefined time) capture methods.
+- **Authentication:** 3DS authentication automatically resumes payment processing after customer completion
+- **MIT Compliance:** Off-session recurring payments follow industry standards for merchant-initiated transactions

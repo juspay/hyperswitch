@@ -73,3 +73,9 @@ pub struct RecordAttempt;
 
 #[derive(Debug, Clone)]
 pub struct UpdateMetadata;
+
+#[derive(Debug, Clone)]
+pub struct CreateOrder;
+
+#[derive(Debug, Clone)]
+pub struct PaymentGetListAttempts;

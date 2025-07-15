@@ -5,6 +5,7 @@ use api_models::{
     payments::GetAddressFromPaymentMethodData,
 };
 use async_trait::async_trait;
+use common_types::payments as common_payments_types;
 use common_utils::{
     ext_traits::{AsyncExt, Encode, ValueExt},
     type_name,
@@ -143,7 +144,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 id: profile_id.get_string_repr().to_owned(),
             })?
         };
-        let customer_acceptance = request.customer_acceptance.clone().map(From::from);
+        let customer_acceptance = request.customer_acceptance.clone();
 
         let recurring_details = request.recurring_details.clone();
 
@@ -310,6 +311,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             profile_id.clone(),
             session_expiry,
             &business_profile,
+            request.is_payment_id_from_merchant,
         )
         .await?;
 
@@ -879,6 +881,8 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .as_ref()
             .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount);
 
+        let routing_approach = payment_data.payment_attempt.routing_approach;
+
         payment_data.payment_attempt = state
             .store
             .update_payment_attempt_with_attempt_id(
@@ -895,6 +899,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     tax_amount,
                     updated_by: storage_scheme.to_string(),
                     merchant_connector_id,
+                    routing_approach,
                 },
                 storage_scheme,
             )
@@ -1073,7 +1078,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
 }
 
 impl PaymentCreate {
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     #[allow(clippy::too_many_arguments)]
     pub async fn make_payment_attempt(
@@ -1099,10 +1104,7 @@ impl PaymentCreate {
         todo!()
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     #[allow(clippy::too_many_arguments)]
     pub async fn make_payment_attempt(
@@ -1119,7 +1121,7 @@ impl PaymentCreate {
         payment_method_info: &Option<domain::PaymentMethod>,
         key_store: &domain::MerchantKeyStore,
         profile_id: common_utils::id_type::ProfileId,
-        customer_acceptance: &Option<payments::CustomerAcceptance>,
+        customer_acceptance: &Option<common_payments_types::CustomerAcceptance>,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         storage::PaymentAttemptNew,
@@ -1179,6 +1181,22 @@ impl PaymentCreate {
                             )))
                         }
                         PaymentMethodsData::WalletDetails(wallet) => match payment_method_type {
+                            Some(enums::PaymentMethodType::ApplePay) => {
+                                Some(api_models::payments::AdditionalPaymentData::Wallet {
+                                    apple_pay: api::payments::ApplepayPaymentMethod::try_from(
+                                        wallet,
+                                    )
+                                    .inspect_err(|err| {
+                                        logger::error!(
+                                            "Unable to transform PaymentMethodDataWalletInfo to ApplepayPaymentMethod: {:?}",
+                                            err
+                                        )
+                                    })
+                                    .ok(),
+                                    google_pay: None,
+                                    samsung_pay: None,
+                                })
+                            }
                             Some(enums::PaymentMethodType::GooglePay) => {
                                 Some(api_models::payments::AdditionalPaymentData::Wallet {
                                     apple_pay: None,
@@ -1365,6 +1383,8 @@ impl PaymentCreate {
                 processor_merchant_id: merchant_id.to_owned(),
                 created_by: None,
                 setup_future_usage_applied: request.setup_future_usage,
+                routing_approach: Some(common_enums::RoutingApproach::default()),
+                connector_request_reference_id: None,
             },
             additional_pm_data,
 
@@ -1386,6 +1406,7 @@ impl PaymentCreate {
         profile_id: common_utils::id_type::ProfileId,
         session_expiry: PrimitiveDateTime,
         business_profile: &domain::Profile,
+        is_payment_id_from_merchant: bool,
     ) -> RouterResult<storage::PaymentIntent> {
         let created_at @ modified_at @ last_synced = common_utils::date_time::now();
 
@@ -1598,6 +1619,7 @@ impl PaymentCreate {
             is_iframe_redirection_enabled: request
                 .is_iframe_redirection_enabled
                 .or(business_profile.is_iframe_redirection_enabled),
+            is_payment_id_from_merchant: Some(is_payment_id_from_merchant),
         })
     }
 

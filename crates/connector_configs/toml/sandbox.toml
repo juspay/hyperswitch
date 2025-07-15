@@ -284,7 +284,7 @@ label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
 required=true
 type="Radio"
-options=["Connector"]
+options=["Connector", "Hyperswitch"]
 
 [[adyen.metadata.google_pay]]
 name="merchant_name"
@@ -365,6 +365,14 @@ required=true
 type="Text"
 
 [adyenplatform_payout]
+[[adyenplatform_payout.credit]]
+  payment_method_type = "Mastercard"
+[[adyenplatform_payout.credit]]
+  payment_method_type = "Visa"
+[[adyenplatform_payout.debit]]
+  payment_method_type = "Mastercard"
+[[adyenplatform_payout.debit]]
+  payment_method_type = "Visa"
 [[adyenplatform_payout.bank_transfer]]
   payment_method_type = "sepa"
 [adyenplatform_payout.connector_auth.HeaderKey]
@@ -495,7 +503,21 @@ required=true
 type="MultiSelect"
 options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
-
+[authipay]
+[[authipay.credit]]
+  payment_method_type = "Mastercard"
+[[authipay.credit]]
+  payment_method_type = "Visa"
+[[authipay.debit]]
+  payment_method_type = "Mastercard"
+[[authipay.debit]]
+  payment_method_type = "Visa"
+[authipay.connector_auth.SignatureKey]
+api_key="API Key"
+api_secret="API Secret"
+key1="Merchant ID"
+[authipay.connector_webhook_details]
+merchant_secret="Source verification key"
 
 [authorizedotnet]
 [[authorizedotnet.credit]]
@@ -4284,6 +4306,10 @@ merchant_secret="Source verification key"
   payment_method_type = "sepa_bank_transfer"
 [[trustpay.bank_transfer]]
   payment_method_type = "instant_bank_transfer"
+[[trustpay.bank_transfer]]
+  payment_method_type = "instant_bank_transfer_finland"
+[[trustpay.bank_transfer]]
+  payment_method_type = "instant_bank_transfer_poland"
 [trustpay.connector_auth.SignatureKey]
 api_key="API Key"
 key1="Project ID"
@@ -4557,11 +4583,10 @@ merchant_secret="Source verification key"
   payment_method_type = "google_pay"
 [[worldpay.wallet]]
   payment_method_type = "apple_pay"
-[worldpay.connector_auth.MultiAuthKey]
+[worldpay.connector_auth.SignatureKey]
 key1="Username"
 api_key="Password"
 api_secret="Merchant Identifier"
-key2="Worldpay's CA Certificate"
 [worldpay.connector_webhook_details]
 merchant_secret="Source verification key"
 [worldpay.metadata.merchant_name]
@@ -5084,6 +5109,24 @@ label="Pull Mechanism Enabled"
 placeholder="Enter Pull Mechanism Enabled"
 required=false
 type="Toggle"
+[threedsecureio.metadata.acquirer_bin]
+name="acquirer_bin"
+label="Acquirer BIN"
+placeholder="Enter Acquirer BIN"
+required=true
+type="Text"
+[threedsecureio.metadata.acquirer_merchant_id]
+name="acquirer_merchant_id"
+label="Acquirer Merchant ID"
+placeholder="Enter Acquirer Merchant ID"
+required=true
+type="Text"
+[threedsecureio.metadata.acquirer_country_code]
+name="acquirer_country_code"
+label="Acquirer Country Code"
+placeholder="Enter Acquirer Country Code"
+required=false
+type="Text"
 
 [netcetera]
 [netcetera.connector_auth.CertificateAuth]
@@ -5524,145 +5567,145 @@ required=true
 type="Select"
 options=["iban","bacs","faster_payments","sepa","sepa_instant","elixir","bankgiro","plusgiro"]
 
-[tokenio.additional_merchant_data.iban]
-name="iban"
-label="IBAN"
-placeholder="Enter IBAN"
-required=true
-type="Text"
+[[tokenio.additional_merchant_data.iban]]
+name = "iban"
+label = "IBAN"
+placeholder = "Enter IBAN"
+required = true
+type = "Text"
 
-[tokenio.additional_merchant_data.iban_name]
-name="iban.name"
-label="Account Holder Name"
-placeholder="Enter account holder name"
-required=true
-type="Text"
+[[tokenio.additional_merchant_data.iban]]
+name = "iban_name"
+label = "Account Holder Name"
+placeholder = "Enter account holder name"
+required = true
+type = "Text"
 
-# BACS Configuration
-[tokenio.additional_merchant_data.bacs_sort_code]
-name="bacs.sort_code"
-label="Sort Code"
-placeholder="Enter sort code (e.g., 12-34-56)"
-required=true
-type="Text"
+# BACS Configuration (array of InputData)
+[[tokenio.additional_merchant_data.bacs]]
+name = "bacs_sort_code"
+label = "Sort Code"
+placeholder = "Enter sort code (e.g., 12-34-56)"
+required = true
+type = "Text"
 
-[tokenio.additional_merchant_data.bacs_account_number]
-name="bacs.account_number"
-label="Account Number"
-placeholder="Enter account number"
-required=true
-type="Text"
+[[tokenio.additional_merchant_data.bacs]]
+name = "bacs_account_number"
+label = "Account Number"
+placeholder = "Enter account number"
+required = true
+type = "Text"
 
-[tokenio.additional_merchant_data.bacs_name]
-name="bacs.name"
-label="Account Holder Name"
-placeholder="Enter account holder name"
-required=true
-type="Text"
+[[tokenio.additional_merchant_data.bacs]]
+name = "bacs_name"
+label = "Account Holder Name"
+placeholder = "Enter account holder name"
+required = true
+type = "Text"
 
-# Faster Payments Configuration
-[tokenio.additional_merchant_data.faster_payments_sort_code]
-name="faster_payments.sort_code"
-label="Sort Code"
-placeholder="Enter sort code (e.g., 12-34-56)"
-required=true
-type="Text"
+# Faster Payments Configuration (array of InputData)
+[[tokenio.additional_merchant_data.faster_payments]]
+name = "faster_payments_sort_code"
+label = "Sort Code"
+placeholder = "Enter sort code (e.g., 12-34-56)"
+required = true
+type = "Text"
 
-[tokenio.additional_merchant_data.faster_payments_account_number]
-name="faster_payments.account_number"
-label="Account Number"
-placeholder="Enter account number"
-required=true
-type="Text"
+[[tokenio.additional_merchant_data.faster_payments]]
+name = "faster_payments_account_number"
+label = "Account Number"
+placeholder = "Enter account number"
+required = true
+type = "Text"
 
-[tokenio.additional_merchant_data.faster_payments_name]
-name="faster_payments.name"
-label="Account Holder Name"
-placeholder="Enter account holder name"
-required=true
-type="Text"
+[[tokenio.additional_merchant_data.faster_payments]]
+name = "faster_payments_name"
+label = "Account Holder Name"
+placeholder = "Enter account holder name"
+required = true
+type = "Text"
 
-# SEPA Configuration
-[tokenio.additional_merchant_data.sepa_iban]
-name="sepa.iban"
-label="IBAN"
-placeholder="Enter IBAN"
-required=true
-type="Text"
+# SEPA Configuration (array of InputData)
+[[tokenio.additional_merchant_data.sepa]]
+name = "sepa_iban"
+label = "IBAN"
+placeholder = "Enter IBAN"
+required = true
+type = "Text"
 
-[tokenio.additional_merchant_data.sepa_name]
-name="sepa.name"
-label="Account Holder Name"
-placeholder="Enter account holder name"
-required=true
-type="Text"
+[[tokenio.additional_merchant_data.sepa]]
+name = "sepa_name"
+label = "Account Holder Name"
+placeholder = "Enter account holder name"
+required = true
+type = "Text"
 
-# SEPA Instant Configuration
-[tokenio.additional_merchant_data.sepa_instant_iban]
-name="sepa_instant.iban"
-label="IBAN"
-placeholder="Enter IBAN"
-required=true
-type="Text"
+# SEPA Instant Configuration (array of InputData)
+[[tokenio.additional_merchant_data.sepa_instant]]
+name = "sepa_instant_iban"
+label = "IBAN"
+placeholder = "Enter IBAN"
+required = true
+type = "Text"
 
-[tokenio.additional_merchant_data.sepa_instant_name]
-name="sepa_instant.name"
-label="Account Holder Name"
-placeholder="Enter account holder name"
-required=true
-type="Text"
+[[tokenio.additional_merchant_data.sepa_instant]]
+name = "sepa_instant_name"
+label = "Account Holder Name"
+placeholder = "Enter account holder name"
+required = true
+type = "Text"
 
-# Elixir Configuration
-[tokenio.additional_merchant_data.elixir_account_number]
-name="elixir.account_number"
-label="Account Number"
-placeholder="Enter account number"
-required=true
-type="Text"
+# Elixir Configuration (array of InputData)
+[[tokenio.additional_merchant_data.elixir]]
+name = "elixir_account_number"
+label = "Account Number"
+placeholder = "Enter account number"
+required = true
+type = "Text"
 
-[tokenio.additional_merchant_data.elixir_iban]
-name="elixir.iban"
-label="IBAN"
-placeholder="Enter IBAN"
-required=true
-type="Text"
+[[tokenio.additional_merchant_data.elixir]]
+name = "elixir_iban"
+label = "IBAN"
+placeholder = "Enter IBAN"
+required = true
+type = "Text"
 
-[tokenio.additional_merchant_data.elixir_name]
-name="elixir.name"
-label="Account Holder Name"
-placeholder="Enter account holder name"
-required=true
-type="Text"
+[[tokenio.additional_merchant_data.elixir]]
+name = "elixir_name"
+label = "Account Holder Name"
+placeholder = "Enter account holder name"
+required = true
+type = "Text"
 
-# Bankgiro Configuration
-[tokenio.additional_merchant_data.bankgiro_number]
-name="bankgiro.number"
-label="Bankgiro Number"
-placeholder="Enter bankgiro number"
-required=true
-type="Text"
+# Bankgiro Configuration (array of InputData)
+[[tokenio.additional_merchant_data.bankgiro]]
+name = "bankgiro_number"
+label = "Bankgiro Number"
+placeholder = "Enter bankgiro number"
+required = true
+type = "Text"
 
-[tokenio.additional_merchant_data.bankgiro_name]
-name="bankgiro.name"
-label="Account Holder Name"
-placeholder="Enter account holder name"
-required=true
-type="Text"
+[[tokenio.additional_merchant_data.bankgiro]]
+name = "bankgiro_name"
+label = "Account Holder Name"
+placeholder = "Enter account holder name"
+required = true
+type = "Text"
 
-# Plusgiro Configuration
-[tokenio.additional_merchant_data.plusgiro_number]
-name="plusgiro.number"
-label="Plusgiro Number"
-placeholder="Enter plusgiro number"
-required=true
-type="Text"
+# Plusgiro Configuration (array of InputData)
+[[tokenio.additional_merchant_data.plusgiro]]
+name = "plusgiro_number"
+label = "Plusgiro Number"
+placeholder = "Enter plusgiro number"
+required = true
+type = "Text"
 
-[tokenio.additional_merchant_data.plusgiro_name]
-name="plusgiro.name"
-label="Account Holder Name"
-placeholder="Enter account holder name"
-required=true
-type="Text"
+[[tokenio.additional_merchant_data.plusgiro]]
+name = "plusgiro_name"
+label = "Account Holder Name"
+placeholder = "Enter account holder name"
+required = true
+type = "Text"
 
 [elavon]
 [[elavon.credit]]
@@ -6200,3 +6243,67 @@ placeholder="Enter Currency"
 required=true
 type="Select"
 options=[]
+
+[santander.connector_auth.BodyKey]
+api_key="Client ID"
+key1="Client Secret"
+
+[santander.metadata.pix_key]
+name="pix_key"
+label="Chave Key"
+placeholder="Enter your Chave/Pix Key"
+required=true
+type="Text"
+
+[santander.metadata.expiration_time]
+name="expiration_time"
+label="Expiration Time"
+placeholder="Enter your Pix QR Code Expiration Time"
+required=true
+type="Number"
+
+[santander.metadata.cpf]
+name="cpf"
+label="Cpf"
+placeholder="Enter your cpf number"
+required=true
+type="Text"
+
+[santander.metadata.merchant_city]
+name="merchant_city"
+label="Merchant City"
+placeholder="Enter the city the merchant is based in"
+required=true
+type="Text"
+
+[santander.metadata.merchant_name]
+name="merchant_name"
+label="Merchant Name"
+placeholder="Enter the merchant name"
+required=true
+type="Text"
+
+[payload]
+[[payload.credit]]
+  payment_method_type = "AmericanExpress"
+[[payload.credit]]
+  payment_method_type = "Discover"
+[[payload.credit]]
+  payment_method_type = "Mastercard"
+[[payload.credit]]
+  payment_method_type = "Visa"
+[[payload.debit]]
+  payment_method_type = "AmericanExpress"
+[[payload.debit]]
+  payment_method_type = "Discover"
+[[payload.debit]]
+  payment_method_type = "Mastercard"
+[[payload.debit]]
+  payment_method_type = "Visa"
+[payload.connector_auth.HeaderKey]
+api_key="API Key"
+
+[silverflow]
+[silverflow.connector_auth.BodyKey]
+api_key="API Key"
+key1="Secret Key"

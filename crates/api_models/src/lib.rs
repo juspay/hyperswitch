@@ -2,6 +2,7 @@ pub mod admin;
 pub mod analytics;
 pub mod api_keys;
 pub mod apple_pay_certificates_migration;
+pub mod authentication;
 pub mod blocklist;
 pub mod cards_info;
 pub mod conditional_configs;
@@ -32,7 +33,8 @@ pub mod payouts;
 pub mod pm_auth;
 pub mod poll;
 pub mod process_tracker;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub mod profile_acquirer;
+#[cfg(feature = "v2")]
 pub mod proxy;
 #[cfg(feature = "recon")]
 pub mod recon;

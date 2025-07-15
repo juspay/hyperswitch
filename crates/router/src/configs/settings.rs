@@ -175,7 +175,8 @@ pub struct DebitRoutingConfig {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct OpenRouter {
-    pub enabled: bool,
+    pub dynamic_routing_enabled: bool,
+    pub static_routing_enabled: bool,
     pub url: String,
 }
 
@@ -601,6 +602,7 @@ pub struct NetworkTokenizationService {
     pub key_id: String,
     pub delete_token_url: url::Url,
     pub check_token_status_url: url::Url,
+    pub webhook_source_verification_key: Secret<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -1079,6 +1081,8 @@ impl Settings<SecuredSecret> {
 
         self.platform.validate()?;
 
+        self.open_router.validate()?;
+
         Ok(())
     }
 }
@@ -1319,10 +1323,7 @@ fn deserialize_merchant_ids_inner(
         .map(|s| {
             let trimmed = s.trim();
             id_type::MerchantId::wrap(trimmed.to_owned()).map_err(|error| {
-                format!(
-                    "Unable to deserialize `{}` as `MerchantId`: {error}",
-                    trimmed
-                )
+                format!("Unable to deserialize `{trimmed}` as `MerchantId`: {error}")
             })
         })
         .fold(
