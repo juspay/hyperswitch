@@ -4383,22 +4383,10 @@ where
 
             Ok(router_data)
         } else {
-            let router_data = if should_continue_further {
-                router_data
-                    .decide_flows(
-                        state,
-                        &connector,
-                        call_connector_action,
-                        connector_request,
-                        business_profile,
-                        header_payload.clone(),
-                        return_raw_connector_response,
-                    )
-                    .await
-            } else {
-                Ok(router_data)
-            }?;
-            Ok(router_data)
+            return Err(
+                errors::ApiErrorResponse::InternalServerError
+            )
+            .attach_printable("Unified connector service is down and traditional connector service fallback is not implemented");
         }
     })
     .await
