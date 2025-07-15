@@ -44,6 +44,6 @@ pub struct TokenizationNew {
 #[derive(Clone, Debug, AsChangeset)]
 #[diesel(table_name = tokenization)]
 pub struct TokenizationUpdateInternal {
-    pub updated_at: Option<PrimitiveDateTime>,
+    pub updated_at: PrimitiveDateTime,
     pub flag: Option<common_enums::enums::TokenizationFlag>,
 }

@@ -34,7 +34,7 @@ pub struct DeleteTokenDataRequest {
     /// Customer ID for which the tokenization is requested
     #[schema(value_type = String, example = "12345_cus_01926c58bc6e77c09e809964e72af8c8")]
     pub customer_id: id_type::GlobalCustomerId,
-    /// Request for tokenization which contains the data to be tokenized
+    /// Session ID associated with the tokenization request
     #[schema(value_type = String, example = "12345_pms_01926c58bc6e77c09e809964e72af8c8")]
     pub session_id: id_type::GlobalPaymentMethodSessionId,
 }

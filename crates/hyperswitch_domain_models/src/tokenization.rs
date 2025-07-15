@@ -1,8 +1,6 @@
 use common_enums;
 use common_utils::{
-    self,
-    errors::{CustomResult, ValidationError},
-    types::keymanager,
+    self, date_time, errors::{CustomResult, ValidationError}, types::keymanager
 };
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -59,8 +57,7 @@ impl From<Tokenization> for TokenizationResponse {
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum TokenizationUpdate {
-    Update {
-        updated_at: Option<PrimitiveDateTime>,
+    DeleteTokenizationRecordUpdate {
         flag: Option<common_enums::enums::TokenizationFlag>,
     },
 }
@@ -117,8 +114,9 @@ impl super::behaviour::Conversion for Tokenization {
 
 impl From<TokenizationUpdate> for diesel_models::tokenization::TokenizationUpdateInternal {
     fn from(value: TokenizationUpdate) -> Self {
+        let now = date_time::now();
         match value {
-            TokenizationUpdate::Update { updated_at, flag } => Self { updated_at, flag },
+            TokenizationUpdate::DeleteTokenizationRecordUpdate {  flag } => Self { updated_at: now, flag },
         }
     }
 }

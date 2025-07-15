@@ -129,7 +129,7 @@ pub async fn delete_tokenized_data_core(
     when(
         tokenization_record.customer_id != payload.customer_id,
         || {
-            Err(errors::ApiErrorResponse::GenericNotFoundError {
+            Err(errors::ApiErrorResponse::UnprocessableEntity {
                 message: "Tokenization record does not belong to the customer".to_string(),
             })
         },
@@ -155,8 +155,7 @@ pub async fn delete_tokenized_data_core(
     .attach_printable("Failed to delete payment method from vault")?;
 
     //update the status with Disabled
-    let tokenization_update = hyperswitch_domain_models::tokenization::TokenizationUpdate::Update {
-        updated_at: Some(common_utils::date_time::now()),
+    let tokenization_update = hyperswitch_domain_models::tokenization::TokenizationUpdate::DeleteTokenizationRecordUpdate {
         flag: Some(enums::TokenizationFlag::Disabled),
     };
     db.update_tokenization_record(
