@@ -324,8 +324,7 @@ export const connectorDetails = {
         status: 400,
         body: {
           type: "invalid_request",
-          message:
-            "This payment method is not implemented for Placetopay",
+          message: "This payment method is not implemented for Placetopay",
           code: "IR_00",
         },
       },
