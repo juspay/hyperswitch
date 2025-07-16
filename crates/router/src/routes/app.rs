@@ -657,6 +657,11 @@ impl Payments {
                     web::resource("/confirm-intent")
                         .route(web::post().to(payments::payment_confirm_intent)),
                 )
+                // TODO: Deprecated. Remove this in favour of /list-attempts
+                .service(
+                    web::resource("/list_attempts")
+                        .route(web::get().to(payments::list_payment_attempts)),
+                )
                 .service(
                     web::resource("/list-attempts")
                         .route(web::get().to(payments::list_payment_attempts)),
@@ -2253,6 +2258,50 @@ pub struct User;
 #[cfg(all(feature = "olap", feature = "v2"))]
 impl User {
     pub fn server(state: AppState) -> Scope {
+        // TODO: Deprecated. Remove this in favour of /v2/users
+        let mut route = web::scope("/v2/user").app_data(web::Data::new(state));
+
+        route = route.service(
+            web::resource("/create_merchant")
+                .route(web::post().to(user::user_merchant_account_create)),
+        );
+        route = route.service(
+            web::scope("/list")
+                .service(
+                    web::resource("/merchant")
+                        .route(web::get().to(user::list_merchants_for_user_in_org)),
+                )
+                .service(
+                    web::resource("/profile")
+                        .route(web::get().to(user::list_profiles_for_user_in_org_and_merchant)),
+                ),
+        );
+
+        route = route.service(
+            web::scope("/switch")
+                .service(
+                    web::resource("/merchant")
+                        .route(web::post().to(user::switch_merchant_for_user_in_org)),
+                )
+                .service(
+                    web::resource("/profile")
+                        .route(web::post().to(user::switch_profile_for_user_in_org_and_merchant)),
+                ),
+        );
+
+        route = route.service(
+            web::resource("/data")
+                .route(web::get().to(user::get_multiple_dashboard_metadata))
+                .route(web::post().to(user::set_dashboard_metadata)),
+        );
+
+        route
+    }
+}
+
+#[cfg(all(feature = "olap", feature = "v2"))]
+impl User {
+    pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/v2/users").app_data(web::Data::new(state));
 
         route = route.service(
@@ -2664,6 +2713,20 @@ impl FeatureMatrix {
 
 #[cfg(feature = "olap")]
 pub struct ProcessTracker;
+
+#[cfg(all(feature = "olap", feature = "v2"))]
+impl ProcessTracker {
+    pub fn server(state: AppState) -> Scope {
+        use super::process_tracker::revenue_recovery;
+        // TODO: Deprecated. Remove this in favour of /v2/process-trackers
+        web::scope("/v2/process_tracker/revenue_recovery_workflow")
+            .app_data(web::Data::new(state.clone()))
+            .service(
+                web::resource("/{revenue_recovery_id}")
+                    .route(web::get().to(revenue_recovery::revenue_recovery_pt_retrieve_api)),
+            )
+    }
+}
 
 #[cfg(all(feature = "olap", feature = "v2"))]
 impl ProcessTracker {
