@@ -49,10 +49,7 @@ use transformers as fiserv;
 use uuid::Uuid;
 
 use crate::{
-    constants::headers,
-    types::ResponseRouterData,
-    utils as connector_utils,
-    utils::{construct_not_implemented_error_report, convert_amount},
+    constants::headers, types::ResponseRouterData, utils as connector_utils, utils::convert_amount,
 };
 
 #[derive(Clone)]
@@ -212,6 +209,8 @@ impl api::ConnectorAccessToken for Fiserv {}
 impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Fiserv {
     // Not Implemented (R)
 }
+
+impl ConnectorValidation for Fiserv {}
 
 impl api::Payment for Fiserv {}
 
