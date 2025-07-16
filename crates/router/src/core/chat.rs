@@ -7,7 +7,7 @@ use common_utils::{
 use error_stack::ResultExt;
 use external_services::http_client;
 use hyperswitch_domain_models::chat as chat_domain;
-use router_env::logger;
+use router_env::{instrument, logger, tracing};
 
 use crate::{
     db::errors::chat::ChatErrors,
@@ -15,16 +15,15 @@ use crate::{
     services::{authentication as auth, ApplicationResponse},
 };
 
+#[instrument(skip_all)]
 pub async fn get_data_from_hyperswitch_ai_workflow(
     state: SessionState,
     user_from_token: auth::UserFromToken,
     req: chat_api::ChatRequest,
 ) -> CustomResult<ApplicationResponse<chat_api::ChatResponse>, ChatErrors> {
-    logger::debug!("Getting data from hyperswitch ai workflow");
     let url = format!("{}/webhook", state.conf.chat.hyperswitch_ai_host);
-    logger::info!("Hyperswitch AI URL: {}", url);
 
-    let request_body = chat_domain::EmbeddedAiDataRequest {
+    let request_body = chat_domain::HyperswitchAiDataRequest {
         query: chat_domain::GetDataMessage {
             message: req.message,
         },
@@ -32,15 +31,14 @@ pub async fn get_data_from_hyperswitch_ai_workflow(
         merchant_id: user_from_token.merchant_id,
         profile_id: user_from_token.profile_id,
     };
-    logger::info!("Request body for AI service: {:?}", request_body);
+    logger::info!("Request for AI service: {:?}", request_body);
 
     let request = RequestBuilder::new()
         .method(Method::Post)
         .url(&url)
         .attach_default_headers()
-        .set_body(RequestContent::Json(Box::new(request_body)))
+        .set_body(RequestContent::Json(Box::new(request_body.clone())))
         .build();
-    logger::info!("Request: {:?}", request);
 
     let response = http_client::send_request(
         &state.conf.proxy,
@@ -49,12 +47,11 @@ pub async fn get_data_from_hyperswitch_ai_workflow(
     )
     .await
     .change_context(ChatErrors::InternalServerError)
-    .attach_printable("Error in send request")?
-    .json::<chat_api::ChatResponse>()
+    .attach_printable("Error when sending request to AI service")?
+    .json::<_>()
     .await
     .change_context(ChatErrors::InternalServerError)
-    .attach_printable("Error in deserializing response")?;
+    .attach_printable("Error when deserializing response from AI service")?;
 
-    logger::info!("Response from AI service: {:?}", response);
     Ok(ApplicationResponse::Json(response))
 }

@@ -1,12 +1,13 @@
 use common_utils::id_type;
+use masking::Secret;
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct GetDataMessage {
-    pub message: String,
+    pub message: Secret<String>,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct EmbeddedAiDataRequest {
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct HyperswitchAiDataRequest {
     pub merchant_id: id_type::MerchantId,
     pub profile_id: id_type::ProfileId,
     pub org_id: id_type::OrganizationId,

@@ -1024,6 +1024,7 @@ impl Settings<SecuredSecret> {
         self.secrets.get_inner().validate()?;
         self.locker.validate()?;
         self.connectors.validate("connectors")?;
+        self.chat.validate()?;
 
         self.cors.validate()?;
 
