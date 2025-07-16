@@ -384,4 +384,4 @@ connection_timeout = 10                 # Connection Timeout Duration in Seconds
 
 [chat]
 enabled = false                                # Enable or disable chat features
-hyperswitch_ai_host = "http://0.0.0.0:8000" # Embedded workflow host
+hyperswitch_ai_host = "http://0.0.0.0:8000"    # Hyperswitch ai workflow host
