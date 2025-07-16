@@ -165,7 +165,7 @@ pub struct AuthenticationEligibilityRequest {
     /// This holds the raw information required to process the payment method.
     pub payment_method_data: PaymentMethodData,
 
-    /// Enum representing the type of payment method being used 
+    /// Enum representing the type of payment method being used
     /// (e.g., Card, Wallet, UPI, BankTransfer, etc.).
     pub payment_method: common_enums::PaymentMethod,
 
@@ -198,7 +198,6 @@ pub struct AuthenticationEligibilityRequest {
     #[schema(value_type = Option<pii::Email>)]
     pub email: Option<common_utils::pii::Email>,
 }
-
 
 #[cfg(feature = "v1")]
 impl AuthenticationEligibilityRequest {
