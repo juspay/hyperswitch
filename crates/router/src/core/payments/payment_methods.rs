@@ -8,7 +8,8 @@ use error_stack::ResultExt;
 
 use super::errors;
 use crate::{
-    configs::settings, core::payment_methods, db::errors::StorageErrorExt, logger, routes, settings, types::domain,
+    configs::settings, core::payment_methods, db::errors::StorageErrorExt, logger, routes,
+    types::domain,
 };
 
 #[cfg(feature = "v2")]
@@ -62,7 +63,7 @@ pub async fn list_payment_methods(
     FlattenedPaymentMethodsEnabled(hyperswitch_domain_models::merchant_connector_account::FlattenedPaymentMethodsEnabled::from_payment_connectors_list(payment_connector_accounts))
             .perform_filtering()
             .merge_and_transform()
-            .get_required_fields(RequiredFieldsInput::new(state.conf.required_fields.clone()))
+            .get_required_fields(RequiredFieldsInput::new(state.conf.required_fields.clone(), payment_intent.setup_future_usage))
             .perform_surcharge_calculation()
             .populate_pm_subtype_specific_data(&state.conf.bank_config)
             .generate_response(customer_payment_methods);
@@ -75,12 +76,17 @@ pub async fn list_payment_methods(
 /// Container for the inputs required for the required fields
 struct RequiredFieldsInput {
     required_fields_config: settings::RequiredFields,
+    setup_future_usage: common_enums::FutureUsage,
 }
 
 impl RequiredFieldsInput {
-    fn new(required_fields_config: settings::RequiredFields) -> Self {
+    fn new(
+        required_fields_config: settings::RequiredFields,
+        setup_future_usage: common_enums::FutureUsage,
+    ) -> Self {
         Self {
             required_fields_config,
+            setup_future_usage,
         }
     }
 }
@@ -88,36 +94,29 @@ impl RequiredFieldsInput {
 trait GetRequiredFields {
     fn get_required_fields(
         &self,
-        payment_method_enabled: &hyperswitch_domain_models::merchant_connector_account::PaymentMethodsEnabledForConnector,
+        payment_method_enabled: &MergedEnabledPaymentMethod,
     ) -> Option<&settings::RequiredFieldFinal>;
 }
 
 impl GetRequiredFields for settings::RequiredFields {
     fn get_required_fields(
         &self,
-        payment_method_enabled: &hyperswitch_domain_models::merchant_connector_account::PaymentMethodsEnabledForConnector,
+        payment_method_enabled: &MergedEnabledPaymentMethod,
     ) -> Option<&settings::RequiredFieldFinal> {
         self.0
-            .get(&payment_method_enabled.payment_method)
+            .get(&payment_method_enabled.payment_method_type)
             .and_then(|required_fields_for_payment_method| {
-                required_fields_for_payment_method.0.get(
-                    &payment_method_enabled
-                        .payment_methods_enabled
-                        .payment_method_subtype,
-                )
+                required_fields_for_payment_method
+                    .0
+                    .get(&payment_method_enabled.payment_method_subtype)
             })
             .map(|connector_fields| &connector_fields.fields)
-            .and_then(|connector_hashmap| connector_hashmap.get(&payment_method_enabled.connector))
-    }
-}
-
-struct FlattenedPaymentMethodsEnabled(
-    hyperswitch_domain_models::merchant_connector_account::FlattenedPaymentMethodsEnabled,
-);
-
-impl FlattenedPaymentMethodsEnabled {
-    fn perform_filtering(self) -> FilteredPaymentMethodsEnabled {
-        FilteredPaymentMethodsEnabled(self.0.payment_methods_enabled)
+            .and_then(|connector_hashmap| {
+                payment_method_enabled
+                    .connectors
+                    .first()
+                    .and_then(|connector| connector_hashmap.get(connector))
+            })
     }
 }
 
@@ -199,6 +198,7 @@ impl MergedEnabledPaymentMethodTypes {
         input: RequiredFieldsInput,
     ) -> RequiredFieldsForEnabledPaymentMethodTypes {
         let required_fields_config = input.required_fields_config;
+        let is_cit_transaction = input.setup_future_usage == common_enums::FutureUsage::OffSession;
 
         let required_fields_info = self
             .0
@@ -222,22 +222,32 @@ impl MergedEnabledPaymentMethodTypes {
                             .flatten()
                             .map(ToOwned::to_owned);
 
-                        // Combine both common and mandate required fields
-                        common_required_fields
-                            .chain(mandate_required_fields)
-                            .collect::<Vec<_>>()
+                        // Collect non-mandate required fields because this is for zero auth mandates only
+                        let non_mandate_required_fields = required_fields
+                            .non_mandate
+                            .iter()
+                            .flatten()
+                            .map(ToOwned::to_owned);
+
+                        // Combine mandate and non-mandate required fields based on setup_future_usage
+                        if is_cit_transaction {
+                            common_required_fields
+                                .chain(non_mandate_required_fields)
+                                .collect::<Vec<_>>()
+                        } else {
+                            common_required_fields
+                                .chain(mandate_required_fields)
+                                .collect::<Vec<_>>()
+                        }
                     })
                     .unwrap_or_default();
 
                 RequiredFieldsForEnabledPaymentMethod {
                     required_fields,
-                    payment_method_type: payment_methods_enabled.payment_method,
-                    payment_method_subtype: payment_methods_enabled
-                        .payment_methods_enabled
-                        .payment_method_subtype,
-                    payment_experience: payment_methods_enabled
-                        .payment_methods_enabled
-                        .payment_experience,
+                    payment_method_type: payment_methods_enabled.payment_method_type,
+                    payment_method_subtype: payment_methods_enabled.payment_method_subtype,
+                    payment_experience: payment_methods_enabled.payment_experience,
+                    connectors: payment_methods_enabled.connectors,
                 }
             })
             .collect();
@@ -269,7 +279,7 @@ impl RequiredFieldsForEnabledPaymentMethodTypes {
             .map(
                 |payment_methods_enabled| RequiredFieldsAndSurchargeForEnabledPaymentMethodType {
                     payment_method_type: payment_methods_enabled.payment_method_type,
-                    required_field: payment_methods_enabled.required_field,
+                    required_fields: payment_methods_enabled.required_fields,
                     payment_method_subtype: payment_methods_enabled.payment_method_subtype,
                     payment_experience: payment_methods_enabled.payment_experience,
                     surcharge: None,
@@ -342,6 +352,7 @@ fn get_pm_subtype_specific_data(
         | common_enums::PaymentMethod::Crypto
         | common_enums::PaymentMethod::Reward
         | common_enums::PaymentMethod::RealTimePayment
+        | common_enums::PaymentMethod::ExternalProxyCardData
         | common_enums::PaymentMethod::Upi
         | common_enums::PaymentMethod::Voucher
         | common_enums::PaymentMethod::GiftCard
@@ -362,7 +373,7 @@ impl RequiredFieldsAndSurchargeForEnabledPaymentMethodTypes {
                     payment_method_type: payment_methods_enabled.payment_method_type,
                     payment_method_subtype: payment_methods_enabled.payment_method_subtype,
                     payment_experience: payment_methods_enabled.payment_experience,
-                    required_field: payment_methods_enabled.required_field,
+                    required_fields: payment_methods_enabled.required_fields,
                     surcharge: payment_methods_enabled.surcharge,
                     pm_subtype_specific_data: get_pm_subtype_specific_data(
                         bank_config,
@@ -382,7 +393,7 @@ impl RequiredFieldsAndSurchargeForEnabledPaymentMethodTypes {
 
 /// Element Container to hold the filtered payment methods enabled with required fields, surcharge and subtype specific data
 struct RequiredFieldsAndSurchargeWithExtraInfoForEnabledPaymentMethodType {
-    required_field: Option<Vec<api_models::payment_methods::RequiredFieldInfo>>,
+    required_fields: Vec<api_models::payment_methods::RequiredFieldInfo>,
     payment_method_subtype: common_enums::PaymentMethodType,
     payment_method_type: common_enums::PaymentMethod,
     payment_experience: Option<Vec<common_enums::PaymentExperience>>,
