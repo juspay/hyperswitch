@@ -284,7 +284,7 @@ label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
 required=true
 type="Radio"
-options=["Connector"]
+options=["Connector", "Hyperswitch"]
 
 [[adyen.metadata.google_pay]]
 name="merchant_name"
@@ -503,7 +503,21 @@ required=true
 type="MultiSelect"
 options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
-
+[authipay]
+[[authipay.credit]]
+  payment_method_type = "Mastercard"
+[[authipay.credit]]
+  payment_method_type = "Visa"
+[[authipay.debit]]
+  payment_method_type = "Mastercard"
+[[authipay.debit]]
+  payment_method_type = "Visa"
+[authipay.connector_auth.SignatureKey]
+api_key="API Key"
+api_secret="API Secret"
+key1="Merchant ID"
+[authipay.connector_webhook_details]
+merchant_secret="Source verification key"
 
 [authorizedotnet]
 [[authorizedotnet.credit]]
@@ -6288,5 +6302,8 @@ type="Text"
   payment_method_type = "Visa"
 [payload.connector_auth.HeaderKey]
 api_key="API Key"
-[payload.connector_webhook_details]
-merchant_secret="Source verification key"
+
+[silverflow]
+[silverflow.connector_auth.BodyKey]
+api_key="API Key"
+key1="Secret Key"

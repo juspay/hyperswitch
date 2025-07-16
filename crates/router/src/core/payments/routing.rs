@@ -442,22 +442,24 @@ pub async fn perform_static_routing_v1(
     Vec<routing_types::RoutableConnectorChoice>,
     Option<common_enums::RoutingApproach>,
 )> {
-    let algorithm_id = if let Some(id) = algorithm_id {
-        id
-    } else {
+    let get_merchant_fallback_config = || async {
         #[cfg(feature = "v1")]
-        let fallback_config = routing::helpers::get_merchant_default_config(
+        return routing::helpers::get_merchant_default_config(
             &*state.clone().store,
             business_profile.get_id().get_string_repr(),
             &api_enums::TransactionType::from(transaction_data),
         )
         .await
-        .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
+        .change_context(errors::RoutingError::FallbackConfigFetchFailed);
         #[cfg(feature = "v2")]
-        let fallback_config = admin::ProfileWrapper::new(business_profile.clone())
+        return admin::ProfileWrapper::new(business_profile.clone())
             .get_default_fallback_list_of_connector_under_profile()
-            .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
-
+            .change_context(errors::RoutingError::FallbackConfigFetchFailed);
+    };
+    let algorithm_id = if let Some(id) = algorithm_id {
+        id
+    } else {
+        let fallback_config = get_merchant_fallback_config().await?;
         return Ok((fallback_config, None));
     };
     let cached_algorithm = ensure_algorithm_cached_v1(
@@ -490,29 +492,34 @@ pub async fn perform_static_routing_v1(
             .to_string(),
     };
 
-    let routing_events_wrapper = utils::RoutingEventsWrapper::new(
-        state.tenant.tenant_id.clone(),
-        state.request_id,
-        payment_id,
-        business_profile.get_id().to_owned(),
-        business_profile.merchant_id.to_owned(),
-        "DecisionEngine: Euclid Static Routing".to_string(),
-        None,
-        true,
-        false,
-    );
+    let de_euclid_connectors = if state.conf.open_router.static_routing_enabled {
+        let routing_events_wrapper = utils::RoutingEventsWrapper::new(
+            state.tenant.tenant_id.clone(),
+            state.request_id,
+            payment_id,
+            business_profile.get_id().to_owned(),
+            business_profile.merchant_id.to_owned(),
+            "DecisionEngine: Euclid Static Routing".to_string(),
+            None,
+            true,
+            false,
+        );
 
-    let de_euclid_connectors = perform_decision_euclid_routing(
-        state,
-        backend_input.clone(),
-        business_profile.get_id().get_string_repr().to_string(),
-        routing_events_wrapper
-    )
-    .await
-    .map_err(|e|
-        // errors are ignored as this is just for diff checking as of now (optional flow).
-        logger::error!(decision_engine_euclid_evaluate_error=?e, "decision_engine_euclid: error in evaluation of rule")
-    ).unwrap_or_default();
+        perform_decision_euclid_routing(
+            state,
+            backend_input.clone(),
+            business_profile.get_id().get_string_repr().to_string(),
+            routing_events_wrapper,
+            get_merchant_fallback_config().await?,
+        )
+        .await
+        .map_err(|e|
+            // errors are ignored as this is just for diff checking as of now (optional flow).
+            logger::error!(decision_engine_euclid_evaluate_error=?e, "decision_engine_euclid: error in evaluation of rule")
+        ).unwrap_or_default()
+    } else {
+        Vec::default()
+    };
 
     let (routable_connectors, routing_approach) = match cached_algorithm.as_ref() {
         CachedAlgorithm::Single(conn) => (
@@ -2096,13 +2103,13 @@ where
             "performing success_based_routing for profile {}",
             profile_id.get_string_repr()
         );
-        let client = state
+        let client = &state
             .grpc_client
             .dynamic_routing
-            .success_rate_client
             .as_ref()
             .ok_or(errors::RoutingError::SuccessRateClientInitializationError)
-            .attach_printable("success_rate gRPC client not found")?;
+            .attach_printable("dynamic routing gRPC client not found")?
+            .success_rate_client;
 
         let success_based_routing_configs = routing::helpers::fetch_dynamic_routing_configs::<
             api_routing::SuccessBasedRoutingConfig,
@@ -2280,13 +2287,13 @@ pub async fn perform_elimination_routing(
             "performing elimination_routing for profile {}",
             profile_id.get_string_repr()
         );
-        let client = state
+        let client = &state
             .grpc_client
             .dynamic_routing
-            .elimination_based_client
             .as_ref()
             .ok_or(errors::RoutingError::EliminationClientInitializationError)
-            .attach_printable("elimination routing's gRPC client not found")?;
+            .attach_printable("dynamic routing gRPC client not found")?
+            .elimination_based_client;
 
         let elimination_routing_config = routing::helpers::fetch_dynamic_routing_configs::<
             api_routing::EliminationRoutingConfig,
@@ -2480,13 +2487,13 @@ where
             "performing contract_based_routing for profile {}",
             profile_id.get_string_repr()
         );
-        let client = state
+        let client = &state
             .grpc_client
             .dynamic_routing
-            .contract_based_client
             .as_ref()
             .ok_or(errors::RoutingError::ContractRoutingClientInitializationError)
-            .attach_printable("contract routing gRPC client not found")?;
+            .attach_printable("dynamic routing gRPC client not found")?
+            .contract_based_client;
 
         let contract_based_routing_configs = routing::helpers::fetch_dynamic_routing_configs::<
             api_routing::ContractBasedRoutingConfig,

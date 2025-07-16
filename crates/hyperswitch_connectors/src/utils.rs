@@ -242,6 +242,12 @@ pub struct GooglePayPaymentMethodInfo {
     pub card_details: String,
 }
 
+#[derive(Debug, Serialize)]
+pub struct CardMandateInfo {
+    pub card_exp_month: Secret<String>,
+    pub card_exp_year: Secret<String>,
+}
+
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct GpayTokenizationData {
     #[serde(rename = "type")]
@@ -505,6 +511,7 @@ pub trait RouterData {
 
     fn get_optional_billing_full_name(&self) -> Option<Secret<String>>;
     fn get_optional_billing_line1(&self) -> Option<Secret<String>>;
+    fn get_optional_billing_line3(&self) -> Option<Secret<String>>;
     fn get_optional_billing_line2(&self) -> Option<Secret<String>>;
     fn get_optional_billing_city(&self) -> Option<String>;
     fn get_optional_billing_country(&self) -> Option<enums::CountryAlpha2>;
@@ -816,6 +823,17 @@ impl<Flow, Request, Response> RouterData
                     .clone()
                     .address
                     .and_then(|billing_details| billing_details.line2)
+            })
+    }
+
+    fn get_optional_billing_line3(&self) -> Option<Secret<String>> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_details| billing_details.line3)
             })
     }
 
@@ -1703,6 +1721,7 @@ pub trait PaymentsAuthorizeRequestData {
     ) -> Result<enums::CardNetwork, Error>;
     fn get_connector_testing_data(&self) -> Option<pii::SecretSerdeValue>;
     fn get_order_id(&self) -> Result<String, errors::ConnectorError>;
+    fn get_card_mandate_info(&self) -> Result<CardMandateInfo, Error>;
 }
 
 impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
@@ -1936,6 +1955,27 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
         self.order_id
             .to_owned()
             .ok_or(errors::ConnectorError::RequestEncodingFailed)
+    }
+
+    fn get_card_mandate_info(&self) -> Result<CardMandateInfo, Error> {
+        match &self.additional_payment_method_data {
+            Some(payments::AdditionalPaymentData::Card(card_data)) => Ok(CardMandateInfo {
+                card_exp_month: card_data.card_exp_month.clone().ok_or_else(|| {
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "card_exp_month",
+                    }
+                })?,
+                card_exp_year: card_data.card_exp_year.clone().ok_or_else(|| {
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "card_exp_year",
+                    }
+                })?,
+            }),
+            _ => Err(errors::ConnectorError::MissingRequiredFields {
+                field_names: vec!["card_exp_month", "card_exp_year"],
+            }
+            .into()),
+        }
     }
 }
 
@@ -5399,6 +5439,8 @@ pub enum PaymentMethodDataType {
     AliPayRedirect,
     AliPayHkRedirect,
     AmazonPayRedirect,
+    Skrill,
+    Paysera,
     MomoRedirect,
     KakaoPayRedirect,
     GoPayRedirect,
@@ -5523,6 +5565,8 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::WalletData::AliPayRedirect(_) => Self::AliPayRedirect,
                 payment_method_data::WalletData::AliPayHkRedirect(_) => Self::AliPayHkRedirect,
                 payment_method_data::WalletData::AmazonPayRedirect(_) => Self::AmazonPayRedirect,
+                payment_method_data::WalletData::Skrill(_) => Self::Skrill,
+                payment_method_data::WalletData::Paysera(_) => Self::Paysera,
                 payment_method_data::WalletData::MomoRedirect(_) => Self::MomoRedirect,
                 payment_method_data::WalletData::KakaoPayRedirect(_) => Self::KakaoPayRedirect,
                 payment_method_data::WalletData::GoPayRedirect(_) => Self::GoPayRedirect,
