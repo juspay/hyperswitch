@@ -1112,10 +1112,13 @@ mod tests {
     use futures::future::join_all;
     use tokio::time::{timeout, Duration};
 
+    #[cfg(feature = "v1")]
+    #[allow(clippy::panic_in_result_fn)]
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-    async fn test_concurrent_webhook_insertion_with_redis_lock() {
+    async fn test_concurrent_webhook_insertion_with_redis_lock(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         // Test concurrent webhook insertion with a Redis lock to prevent race conditions
-        let conf = Settings::new().unwrap();
+        let conf = Settings::new()?;
         let tx: tokio::sync::oneshot::Sender<()> = tokio::sync::oneshot::channel().0;
 
         let app_state = Box::pin(routes::AppState::with_storage(
@@ -1126,20 +1129,20 @@ mod tests {
         ))
         .await;
 
-        let state = &Arc::new(app_state)
-            .get_session_state(
-                &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
-                None,
-                || {},
-            )
-            .unwrap();
+        let tenant_id = common_utils::id_type::TenantId::try_from_string("public".to_string())?;
+
+        let state = Arc::new(app_state)
+            .get_session_state(&tenant_id, None, || {})
+            .map_err(|_| "failed to get session state")?;
+
         let merchant_id =
-            common_utils::id_type::MerchantId::try_from(std::borrow::Cow::from("juspay_merchant"))
-                .unwrap();
+            common_utils::id_type::MerchantId::try_from(std::borrow::Cow::from("juspay_merchant"))?;
         let business_profile_id =
-            common_utils::id_type::ProfileId::try_from(std::borrow::Cow::from("profile1")).unwrap();
-        let key_manager_state = &(&(*state)).into();
+            common_utils::id_type::ProfileId::try_from(std::borrow::Cow::from("profile1"))?;
+        let key_manager_state = &(&state).into();
         let master_key = state.store.get_master_key();
+
+        let aes_key = services::generate_aes256_key()?;
 
         let merchant_key_store = state
             .store
@@ -1150,21 +1153,17 @@ mod tests {
                     key: domain::types::crypto_operation(
                         key_manager_state,
                         type_name!(domain::MerchantKeyStore),
-                        domain::types::CryptoOperation::Encrypt(
-                            services::generate_aes256_key().unwrap().to_vec().into(),
-                        ),
+                        domain::types::CryptoOperation::Encrypt(aes_key.to_vec().into()),
                         Identifier::Merchant(merchant_id.to_owned()),
                         master_key,
                     )
-                    .await
-                    .and_then(|val| val.try_into_operation())
-                    .unwrap(),
+                    .await?
+                    .try_into_operation()?,
                     created_at: datetime!(2023-02-01 0:00),
                 },
                 &master_key.to_vec().into(),
             )
-            .await
-            .unwrap();
+            .await?;
 
         let merchant_account_to_insert = MerchantAccount::from(MerchantAccountSetter {
             merchant_id: merchant_id.clone(),
@@ -1219,8 +1218,7 @@ mod tests {
                 merchant_account_to_insert,
                 &merchant_key_store,
             )
-            .await
-            .unwrap();
+            .await?;
 
         let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
             merchant_account,
@@ -1299,8 +1297,7 @@ mod tests {
                 &merchant_key_store.clone(),
                 business_profile_to_insert,
             )
-            .await
-            .unwrap();
+            .await?;
 
         // Same inputs for all threads
         let event_type = enums::EventType::PaymentSucceeded;
@@ -1309,8 +1306,8 @@ mod tests {
         let primary_object_type = enums::EventObjectType::PaymentDetails;
         let payment_id = common_utils::id_type::PaymentId::try_from(std::borrow::Cow::Borrowed(
             "pay_mbabizu24mvu3mela5njyhpit10",
-        ))
-        .unwrap();
+        ))?;
+
         let primary_object_created_at = Some(common_utils::date_time::now());
         let expected_response = api::PaymentsResponse {
             payment_id,
@@ -1429,7 +1426,7 @@ mod tests {
                     primary_object_created_at,
                 )
                 .await
-                .expect("create_event_and_trigger_outgoing_webhook should not fail");
+                .map_err(|e| format!("create_event_and_trigger_outgoing_webhook failed: {e}"))
             });
 
             handles.push(handle);
@@ -1439,11 +1436,11 @@ mod tests {
         // We give the whole batch 20 s; if they don't finish something is wrong.
         let results = timeout(Duration::from_secs(20), join_all(handles))
             .await
-            .expect("tasks hung for >20 s – possible dead-lock / endless retry");
+            .map_err(|_| "tasks hung for >20 s – possible dead-lock / endless retry")?;
 
         for res in results {
             // Any task that panicked or returned Err will make the test fail here.
-            res.expect("task panicked");
+            let _ = res.map_err(|e| format!("task panicked: {e}"))?;
         }
 
         // Collect all initial-attempt events for this payment
@@ -1453,10 +1450,9 @@ mod tests {
                 key_manager_state,
                 &business_profile.merchant_id,
                 &primary_object_id.clone(),
-                &merchant_context.get_merchant_key_store(),
+                merchant_context.get_merchant_key_store(),
             )
-            .await
-            .unwrap();
+            .await?;
 
         assert_eq!(
             events.len(),
@@ -1464,5 +1460,6 @@ mod tests {
             "Expected exactly 1 row in events table, found {}",
             events.len()
         );
+        Ok(())
     }
 }
