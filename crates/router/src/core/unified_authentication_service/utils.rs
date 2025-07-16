@@ -125,7 +125,8 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
         connector_mandate_request_reference_id: None,
         authentication_id,
         psd2_sca_exemption_type: None,
-        whole_connector_response: None,
+        raw_connector_response: None,
+        is_payment_id_from_merchant: None,
     })
 }
 

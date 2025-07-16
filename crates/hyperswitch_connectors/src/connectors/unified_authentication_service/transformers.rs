@@ -1,6 +1,8 @@
 use common_enums::{enums, MerchantCategoryCode};
-use common_utils::{ext_traits::OptionExt, types::FloatMajorUnit};
+use common_types::payments::MerchantCountryCode;
+use common_utils::types::FloatMajorUnit;
 use hyperswitch_domain_models::{
+    ext_traits::OptionExt,
     router_data::{ConnectorAuthType, RouterData},
     router_request_types::{
         authentication::{AuthNFlowType, ChallengeParams},
@@ -194,7 +196,7 @@ pub struct MerchantDetails {
     pub three_ds_requestor_url: Option<String>,
     pub three_ds_requestor_id: Option<String>,
     pub three_ds_requestor_name: Option<String>,
-    pub merchant_country_code: Option<String>,
+    pub merchant_country_code: Option<MerchantCountryCode>,
 }
 
 #[derive(Default, Clone, Debug, Serialize, PartialEq, Deserialize)]
@@ -581,7 +583,9 @@ impl TryFrom<&UasPreAuthenticationRouterData>
         let acquirer = Acquirer {
             acquirer_bin: item.request.acquirer_bin.clone(),
             acquirer_merchant_id: item.request.acquirer_merchant_id.clone(),
-            acquirer_country_code: merchant_data.merchant_country_code.clone(),
+            acquirer_country_code: merchant_data
+                .merchant_country_code
+                .map(|code| code.get_country_code()),
         };
 
         let service_details = Some(CtpServiceDetails {

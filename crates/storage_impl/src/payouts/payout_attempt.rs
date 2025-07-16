@@ -732,7 +732,7 @@ async fn add_connector_payout_id_to_reverse_lookup<T: DatabaseStore>(
     connector_payout_id: &str,
     storage_scheme: MerchantStorageScheme,
 ) -> CustomResult<ReverseLookup, errors::StorageError> {
-    let field = format!("poa_{}", updated_attempt_attempt_id);
+    let field = format!("poa_{updated_attempt_attempt_id}");
     let reverse_lookup_new = ReverseLookupNew {
         lookup_id: format!(
             "po_conn_payout_{}_{}",

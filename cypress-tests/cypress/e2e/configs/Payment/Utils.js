@@ -6,6 +6,7 @@ import { connectorDetails as aciConnectorDetails } from "./Aci.js";
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
 import { connectorDetails as airwallexConnectorDetails } from "./Airwallex.js";
 import { connectorDetails as archipelConnectorDetails } from "./Archipel.js";
+import { connectorDetails as authipayConnectorDetails } from "./Authipay.js";
 import { connectorDetails as bamboraConnectorDetails } from "./Bambora.js";
 import { connectorDetails as bamboraapacConnectorDetails } from "./Bamboraapac.js";
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
@@ -16,6 +17,7 @@ import { connectorDetails as checkoutConnectorDetails } from "./Checkout.js";
 import { connectorDetails as commonConnectorDetails } from "./Commons.js";
 import { connectorDetails as cybersourceConnectorDetails } from "./Cybersource.js";
 import { connectorDetails as datatransConnectorDetails } from "./Datatrans.js";
+import { connectorDetails as dlocalConnectorDetails } from "./Dlocal.js";
 import { connectorDetails as deutschebankConnectorDetails } from "./Deutschebank.js";
 import { connectorDetails as elavonConnectorDetails } from "./Elavon.js";
 import { connectorDetails as facilitapayConnectorDetails } from "./Facilitapay.js";
@@ -31,20 +33,26 @@ import { connectorDetails as itaubankConnectorDetails } from "./ItauBank.js";
 import { connectorDetails as jpmorganConnectorDetails } from "./Jpmorgan.js";
 import { connectorDetails as monerisConnectorDetails } from "./Moneris.js";
 import { connectorDetails as multisafepayConnectorDetails } from "./Multisafepay.js";
+import { connectorDetails as nexinetsConnectorDetails } from "./Nexinets.js";
 import { connectorDetails as nexixpayConnectorDetails } from "./Nexixpay.js";
 import { connectorDetails as nmiConnectorDetails } from "./Nmi.js";
 import { connectorDetails as noonConnectorDetails } from "./Noon.js";
 import { connectorDetails as novalnetConnectorDetails } from "./Novalnet.js";
 import { connectorDetails as payboxConnectorDetails } from "./Paybox.js";
+import { connectorDetails as payloadConnectorDetails } from "./Payload.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
+import { connectorDetails as payuConnectorDetails } from "./Payu.js";
 import { connectorDetails as powertranzConnectorDetails } from "./PowerTranz.js";
 import { connectorDetails as redsysConnectorDetails } from "./Redsys.js";
-import { connectorDetails as staxConnectorDetails } from "./Stax.js";
 import { connectorDetails as shift4ConnectorDetails } from "./Shift4.js";
+import { connectorDetails as squareConnectorDetails } from "./Square.js";
+import { connectorDetails as staxConnectorDetails } from "./Stax.js";
 import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
+import { connectorDetails as tsysConnectorDetails } from "./Tsys.js";
 import { connectorDetails as wellsfargoConnectorDetails } from "./WellsFargo.js";
 import { connectorDetails as worldpayConnectorDetails } from "./WorldPay.js";
+import { connectorDetails as worldpayvantivConnectorDetails } from "./Worldpayvantiv.js";
 import { connectorDetails as worldpayxmlConnectorDetails } from "./Worldpayxml.js";
 import { connectorDetails as xenditConnectorDetails } from "./Xendit.js";
 
@@ -53,6 +61,7 @@ const connectorDetails = {
   adyen: adyenConnectorDetails,
   airwallex: airwallexConnectorDetails,
   archipel: archipelConnectorDetails,
+  authipay: authipayConnectorDetails,
   bambora: bamboraConnectorDetails,
   bamboraapac: bamboraapacConnectorDetails,
   bankofamerica: bankOfAmericaConnectorDetails,
@@ -62,6 +71,7 @@ const connectorDetails = {
   checkout: checkoutConnectorDetails,
   commons: commonConnectorDetails,
   cybersource: cybersourceConnectorDetails,
+  dlocal: dlocalConnectorDetails,
   datatrans: datatransConnectorDetails,
   deutschebank: deutschebankConnectorDetails,
   elavon: elavonConnectorDetails,
@@ -78,20 +88,26 @@ const connectorDetails = {
   jpmorgan: jpmorganConnectorDetails,
   moneris: monerisConnectorDetails,
   multisafepay: multisafepayConnectorDetails,
+  nexinets: nexinetsConnectorDetails,
   nexixpay: nexixpayConnectorDetails,
   nmi: nmiConnectorDetails,
   noon: noonConnectorDetails,
   novalnet: novalnetConnectorDetails,
   paybox: payboxConnectorDetails,
+  payload: payloadConnectorDetails,
   paypal: paypalConnectorDetails,
+  payu: payuConnectorDetails,
   powertranz: powertranzConnectorDetails,
   redsys: redsysConnectorDetails,
+  shift4: shift4ConnectorDetails,
+  square: squareConnectorDetails,
   stax: staxConnectorDetails,
   stripe: stripeConnectorDetails,
-  shift4: shift4ConnectorDetails,
   trustpay: trustpayConnectorDetails,
+  tsys: tsysConnectorDetails,
   wellsfargo: wellsfargoConnectorDetails,
   worldpay: worldpayConnectorDetails,
+  worldpayvantiv: worldpayvantivConnectorDetails,
   worldpayxml: worldpayxmlConnectorDetails,
   xendit: xenditConnectorDetails,
 };
@@ -358,11 +374,15 @@ export const CONNECTOR_LISTS = {
       "billwerk",
       "braintree",
       "facilitapay",
-      "fiuu",
       "fiserv",
+      "fiuu",
       "jpmorgan",
+      "nexinets",
+      "payload",
       "paypal",
       "stax",
+      "wellsfargo",
+      "worldpayxml",
     ],
     // Add more exclusion lists
   },
@@ -370,6 +390,10 @@ export const CONNECTOR_LISTS = {
   // Inclusion lists (only run for these connectors)
   INCLUDE: {
     MANDATES_USING_NTID_PROXY: ["cybersource"],
+    INCREMENTAL_AUTH: [
+      // "cybersource"    // issues with MULTIPLE_CONNECTORS handling
+      "paypal",
+    ],
     // Add more inclusion lists
   },
 };

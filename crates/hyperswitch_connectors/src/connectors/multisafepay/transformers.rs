@@ -66,6 +66,14 @@ pub enum Gateway {
     Paypal,
     Ideal,
     Giropay,
+    Trustly,
+    Alipay,
+    #[serde(rename = "WECHAT")]
+    WeChatPay,
+    Eps,
+    MbWay,
+    #[serde(rename = "DIRECTBANK")]
+    Sofort,
 }
 
 #[serde_with::skip_serializing_none]
@@ -183,14 +191,35 @@ pub enum GatewayInfo {
 #[serde(untagged)]
 pub enum WalletInfo {
     GooglePay(GpayInfo),
+    Alipay(AlipayInfo),
+    WeChatPay(WeChatPayInfo),
+    MbWay(MbWayInfo),
 }
+
+#[derive(Debug, Clone, Serialize, Eq, PartialEq)]
+pub struct MbWayInfo {}
+
+#[derive(Debug, Clone, Serialize, Eq, PartialEq)]
+pub struct WeChatPayInfo {}
+#[derive(Debug, Clone, Serialize, Eq, PartialEq)]
+pub struct AlipayInfo {}
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum BankRedirectInfo {
     Ideal(IdealInfo),
+    Trustly(TrustlyInfo),
+    Eps(EpsInfo),
+    Sofort(SofortInfo),
 }
 
+#[derive(Debug, Clone, Serialize, Eq, PartialEq)]
+pub struct SofortInfo {}
+
+#[derive(Debug, Clone, Serialize, Eq, PartialEq)]
+pub struct EpsInfo {}
+#[derive(Debug, Clone, Serialize, Eq, PartialEq)]
+pub struct TrustlyInfo {}
 #[derive(Debug, Clone, Serialize, Eq, PartialEq)]
 pub struct IdealInfo {
     pub issuer_id: MultisafepayBankNames,
@@ -490,8 +519,10 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
             PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
                 WalletData::GooglePay(_) => Type::Direct,
                 WalletData::PaypalRedirect(_) => Type::Redirect,
+                WalletData::AliPayRedirect(_) => Type::Redirect,
+                WalletData::WeChatPayRedirect(_) => Type::Redirect,
+                WalletData::MbWayRedirect(_) => Type::Redirect,
                 WalletData::AliPayQr(_)
-                | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::MomoRedirect(_)
@@ -504,7 +535,6 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | WalletData::DanaRedirect {}
                 | WalletData::GooglePayRedirect(_)
                 | WalletData::GooglePayThirdPartySdk(_)
-                | WalletData::MbWayRedirect(_)
                 | WalletData::MobilePayRedirect(_)
                 | WalletData::PaypalSdk(_)
                 | WalletData::Paze(_)
@@ -512,7 +542,6 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | WalletData::TwintRedirect {}
                 | WalletData::VippsRedirect {}
                 | WalletData::TouchNGoRedirect(_)
-                | WalletData::WeChatPayRedirect(_)
                 | WalletData::WeChatPayQr(_)
                 | WalletData::CashappQr(_)
                 | WalletData::SwishQr(_)
@@ -524,11 +553,13 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
             PaymentMethodData::BankRedirect(ref bank_data) => match bank_data {
                 BankRedirectData::Giropay { .. } => Type::Redirect,
                 BankRedirectData::Ideal { .. } => Type::Direct,
+                BankRedirectData::Trustly { .. } => Type::Redirect,
+                BankRedirectData::Eps { .. } => Type::Redirect,
+                BankRedirectData::Sofort { .. } => Type::Redirect,
                 BankRedirectData::BancontactCard { .. }
                 | BankRedirectData::Bizum { .. }
                 | BankRedirectData::Blik { .. }
                 | BankRedirectData::Eft { .. }
-                | BankRedirectData::Eps { .. }
                 | BankRedirectData::Interac { .. }
                 | BankRedirectData::OnlineBankingCzechRepublic { .. }
                 | BankRedirectData::OnlineBankingFinland { .. }
@@ -536,8 +567,6 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | BankRedirectData::OnlineBankingSlovakia { .. }
                 | BankRedirectData::OpenBankingUk { .. }
                 | BankRedirectData::Przelewy24 { .. }
-                | BankRedirectData::Sofort { .. }
-                | BankRedirectData::Trustly { .. }
                 | BankRedirectData::OnlineBankingFpx { .. }
                 | BankRedirectData::OnlineBankingThailand { .. }
                 | BankRedirectData::LocalBankRedirect {} => {
@@ -557,8 +586,10 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
             PaymentMethodData::Wallet(ref wallet_data) => Some(match wallet_data {
                 WalletData::GooglePay(_) => Gateway::Googlepay,
                 WalletData::PaypalRedirect(_) => Gateway::Paypal,
+                WalletData::AliPayRedirect(_) => Gateway::Alipay,
+                WalletData::WeChatPayRedirect(_) => Gateway::WeChatPay,
+                WalletData::MbWayRedirect(_) => Gateway::MbWay,
                 WalletData::AliPayQr(_)
-                | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::MomoRedirect(_)
@@ -571,7 +602,6 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | WalletData::DanaRedirect {}
                 | WalletData::GooglePayRedirect(_)
                 | WalletData::GooglePayThirdPartySdk(_)
-                | WalletData::MbWayRedirect(_)
                 | WalletData::MobilePayRedirect(_)
                 | WalletData::PaypalSdk(_)
                 | WalletData::Paze(_)
@@ -579,7 +609,6 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | WalletData::TwintRedirect {}
                 | WalletData::VippsRedirect {}
                 | WalletData::TouchNGoRedirect(_)
-                | WalletData::WeChatPayRedirect(_)
                 | WalletData::WeChatPayQr(_)
                 | WalletData::CashappQr(_)
                 | WalletData::SwishQr(_)
@@ -591,11 +620,13 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
             PaymentMethodData::BankRedirect(ref bank_data) => Some(match bank_data {
                 BankRedirectData::Giropay { .. } => Gateway::Giropay,
                 BankRedirectData::Ideal { .. } => Gateway::Ideal,
+                BankRedirectData::Trustly { .. } => Gateway::Trustly,
+                BankRedirectData::Eps { .. } => Gateway::Eps,
+                BankRedirectData::Sofort { .. } => Gateway::Sofort,
                 BankRedirectData::BancontactCard { .. }
                 | BankRedirectData::Bizum { .. }
                 | BankRedirectData::Blik { .. }
                 | BankRedirectData::Eft { .. }
-                | BankRedirectData::Eps { .. }
                 | BankRedirectData::Interac { .. }
                 | BankRedirectData::OnlineBankingCzechRepublic { .. }
                 | BankRedirectData::OnlineBankingFinland { .. }
@@ -603,8 +634,6 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | BankRedirectData::OnlineBankingSlovakia { .. }
                 | BankRedirectData::OpenBankingUk { .. }
                 | BankRedirectData::Przelewy24 { .. }
-                | BankRedirectData::Sofort { .. }
-                | BankRedirectData::Trustly { .. }
                 | BankRedirectData::OnlineBankingFpx { .. }
                 | BankRedirectData::OnlineBankingThailand { .. }
                 | BankRedirectData::LocalBankRedirect {} => {
@@ -718,9 +747,17 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                         }
                     })))
                 }
+                WalletData::AliPayRedirect(_) => {
+                    Some(GatewayInfo::Wallet(WalletInfo::Alipay(AlipayInfo {})))
+                }
                 WalletData::PaypalRedirect(_) => None,
+                WalletData::WeChatPayRedirect(_) => {
+                    Some(GatewayInfo::Wallet(WalletInfo::WeChatPay(WeChatPayInfo {})))
+                }
+                WalletData::MbWayRedirect(_) => {
+                    Some(GatewayInfo::Wallet(WalletInfo::MbWay(MbWayInfo {})))
+                }
                 WalletData::AliPayQr(_)
-                | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::MomoRedirect(_)
@@ -733,7 +770,6 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | WalletData::DanaRedirect {}
                 | WalletData::GooglePayRedirect(_)
                 | WalletData::GooglePayThirdPartySdk(_)
-                | WalletData::MbWayRedirect(_)
                 | WalletData::MobilePayRedirect(_)
                 | WalletData::PaypalSdk(_)
                 | WalletData::Paze(_)
@@ -741,7 +777,6 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | WalletData::TwintRedirect {}
                 | WalletData::VippsRedirect {}
                 | WalletData::TouchNGoRedirect(_)
-                | WalletData::WeChatPayRedirect(_)
                 | WalletData::WeChatPayQr(_)
                 | WalletData::CashappQr(_)
                 | WalletData::SwishQr(_)
@@ -780,11 +815,19 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                         )?)?,
                     }),
                 )),
+                BankRedirectData::Trustly { .. } => Some(GatewayInfo::BankRedirect(
+                    BankRedirectInfo::Trustly(TrustlyInfo {}),
+                )),
+                BankRedirectData::Eps { .. } => {
+                    Some(GatewayInfo::BankRedirect(BankRedirectInfo::Eps(EpsInfo {})))
+                }
+                BankRedirectData::Sofort { .. } => Some(GatewayInfo::BankRedirect(
+                    BankRedirectInfo::Sofort(SofortInfo {}),
+                )),
                 BankRedirectData::BancontactCard { .. }
                 | BankRedirectData::Bizum { .. }
                 | BankRedirectData::Blik { .. }
                 | BankRedirectData::Eft { .. }
-                | BankRedirectData::Eps { .. }
                 | BankRedirectData::Giropay { .. }
                 | BankRedirectData::Interac { .. }
                 | BankRedirectData::OnlineBankingCzechRepublic { .. }
@@ -793,8 +836,6 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | BankRedirectData::OnlineBankingSlovakia { .. }
                 | BankRedirectData::OpenBankingUk { .. }
                 | BankRedirectData::Przelewy24 { .. }
-                | BankRedirectData::Sofort { .. }
-                | BankRedirectData::Trustly { .. }
                 | BankRedirectData::OnlineBankingFpx { .. }
                 | BankRedirectData::OnlineBankingThailand { .. }
                 | BankRedirectData::LocalBankRedirect {} => None,

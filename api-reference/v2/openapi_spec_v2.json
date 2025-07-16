@@ -8123,6 +8123,7 @@
       "Connector": {
         "type": "string",
         "enum": [
+          "authipay",
           "adyenplatform",
           "stripe_billing_test",
           "phonypay",
@@ -8147,6 +8148,7 @@
           "boku",
           "braintree",
           "cashtocode",
+          "celero",
           "chargebee",
           "checkout",
           "coinbase",
@@ -8194,6 +8196,7 @@
           "nuvei",
           "opennode",
           "paybox",
+          "payload",
           "payme",
           "payone",
           "paypal",
@@ -11094,6 +11097,28 @@
             ]
           },
           {
+            "type": "object",
+            "required": [
+              "user_bank_options"
+            ],
+            "properties": {
+              "user_bank_options": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
             "type": "string",
             "enum": [
               "user_bank_account_number"
@@ -13798,6 +13823,10 @@
           }
         },
         "additionalProperties": false
+      },
+      "MerchantCountryCode": {
+        "type": "string",
+        "description": "A wrapper type for merchant country codes that provides validation and conversion functionality.\n\nThis type stores a country code as a string and provides methods to validate it\nand convert it to a `Country` enum variant."
       },
       "MerchantDetails": {
         "type": "object",
@@ -17616,10 +17645,7 @@
             ],
             "properties": {
               "bank_names": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/BankCodeResponse"
-                }
+                "$ref": "#/components/schemas/BankNames"
               }
             }
           }
@@ -17881,41 +17907,6 @@
           "propertyName": "payment_processing_details_at"
         }
       },
-      "PaymentRetrieveBody": {
-        "type": "object",
-        "properties": {
-          "merchant_id": {
-            "type": "string",
-            "description": "The identifier for the Merchant Account.",
-            "nullable": true
-          },
-          "force_sync": {
-            "type": "boolean",
-            "description": "Decider to enable or disable the connector call for retrieve request",
-            "nullable": true
-          },
-          "client_secret": {
-            "type": "string",
-            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
-            "nullable": true
-          },
-          "expand_captures": {
-            "type": "boolean",
-            "description": "If enabled provides list of captures linked to latest attempt",
-            "nullable": true
-          },
-          "expand_attempts": {
-            "type": "boolean",
-            "description": "If enabled provides list of attempts linked to payment intent",
-            "nullable": true
-          },
-          "all_keys_required": {
-            "type": "boolean",
-            "description": "If enabled, provides whole connector response",
-            "nullable": true
-          }
-        }
-      },
       "PaymentRevenueRecoveryMetadata": {
         "type": "object",
         "required": [
@@ -18127,6 +18118,11 @@
                 "$ref": "#/components/schemas/MerchantConnectorAuthDetails"
               }
             ],
+            "nullable": true
+          },
+          "return_raw_connector_response": {
+            "type": "boolean",
+            "description": "If true, returns stringified connector raw response body",
             "nullable": true
           }
         },
@@ -19127,6 +19123,11 @@
               }
             ],
             "nullable": true
+          },
+          "return_raw_connector_response": {
+            "type": "boolean",
+            "description": "Stringified connector raw response body. Only returned if `return_raw_connector_response` is true",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -19311,6 +19312,11 @@
             "nullable": true,
             "maxLength": 30,
             "minLength": 30
+          },
+          "raw_connector_response": {
+            "type": "string",
+            "description": "Stringified connector raw response body. Only returned if `return_raw_connector_response` is true",
+            "nullable": true
           }
         }
       },
@@ -19331,9 +19337,9 @@
             "description": "These are the query params that are sent in case of redirect response.\nThese can be ingested by the connector to take necessary actions.",
             "nullable": true
           },
-          "all_keys_required": {
+          "return_raw_connector_response": {
             "type": "boolean",
-            "description": "If enabled, provides whole connector response",
+            "description": "If true, returns stringified connector raw response body",
             "nullable": true
           },
           "merchant_connector_details": {
@@ -19394,9 +19400,9 @@
             "description": "These are the query params that are sent in case of redirect response.\nThese can be ingested by the connector to take necessary actions.",
             "nullable": true
           },
-          "all_keys_required": {
+          "return_raw_connector_response": {
             "type": "boolean",
-            "description": "If enabled, provides whole connector response",
+            "description": "If true, returns stringified connector raw response body",
             "nullable": true
           }
         }
@@ -21235,9 +21241,11 @@
             "nullable": true
           },
           "merchant_country_code": {
-            "type": "string",
-            "description": "Merchant country code.\nThis is a 3-digit ISO 3166-1 numeric country code that represents the country in which the merchant is registered or operates.\nMerchants typically receive this value based on their business registration information or during onboarding via payment processors or acquiring banks.\nIt is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior.",
-            "example": "840",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantCountryCode"
+              }
+            ],
             "nullable": true
           }
         },
@@ -21518,9 +21526,11 @@
             "nullable": true
           },
           "merchant_country_code": {
-            "type": "string",
-            "description": "Merchant country code.\nThis is a 3-digit ISO 3166-1 numeric country code that represents the country in which the merchant is registered or operates.\nMerchants typically receive this value based on their business registration information or during onboarding via payment processors or acquiring banks.\nIt is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior.",
-            "example": "840",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantCountryCode"
+              }
+            ],
             "nullable": true
           }
         }
@@ -22358,11 +22368,11 @@
                 "$ref": "#/components/schemas/PaymentMethodType"
               },
               "payment_experience": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/PaymentExperience"
-                  }
-                ],
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PaymentExperience"
+                },
+                "description": "The payment experience for the payment method",
                 "nullable": true
               },
               "required_fields": {
@@ -22673,6 +22683,7 @@
         "type": "string",
         "description": "RoutableConnectors are the subset of Connectors that are eligible for payments routing",
         "enum": [
+          "authipay",
           "adyenplatform",
           "stripe_billing_test",
           "phonypay",
@@ -22697,6 +22708,7 @@
           "boku",
           "braintree",
           "cashtocode",
+          "celero",
           "chargebee",
           "checkout",
           "coinbase",
@@ -22739,6 +22751,7 @@
           "opennode",
           "paybox",
           "payme",
+          "payload",
           "payone",
           "paypal",
           "paystack",

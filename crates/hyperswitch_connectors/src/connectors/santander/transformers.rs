@@ -128,7 +128,7 @@ pub fn generate_emv_string(
     // Compute CRC16-CCITT (False) checksum
     let crc = Crc::<u16>::new(&CRC_16_CCITT_FALSE);
     let checksum = crc.checksum(emv.as_bytes());
-    emv += &format!("{:04X}", checksum);
+    emv += &format!("{checksum:04X}");
 
     emv
 }
