@@ -610,6 +610,8 @@ pub enum Flow {
     IncomingNetworkTokenWebhookReceive,
     /// Decision Engine Decide Gateway Call
     DecisionEngineDecideGatewayCall,
+    /// Decision Engine Gateway Feedback Call
+    DecisionEngineGatewayFeedbackCall,
 }
 
 /// Trait for providing generic behaviour to flow metric

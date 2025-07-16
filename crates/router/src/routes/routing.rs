@@ -1653,7 +1653,7 @@ pub async fn call_update_gateway_score_open_router(
     req: HttpRequest,
     payload: web::Json<api_models::open_router::UpdateScorePayload>,
 ) -> impl Responder {
-    let flow = Flow::DecisionEngineDecideGatewayCall;
+    let flow = Flow::DecisionEngineGatewayFeedbackCall;
     Box::pin(oss_api::server_wrap(
         flow,
         state,
