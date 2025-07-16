@@ -28,7 +28,7 @@ pub struct RevenueRecovery<'a> {
     pub payment_method_subtype: Option<&'a common_enums::PaymentMethodType>,
     pub card_network: Option<&'a common_enums::CardNetwork>,
     pub card_issuer: Option<String>,
-    pub retry_count: Option<u16>,
+    pub retry_count: Option<i32>,
     pub payment_gateway: Option<common_enums::connector_enums::Connector>,
 }
 

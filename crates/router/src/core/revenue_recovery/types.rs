@@ -117,6 +117,8 @@ impl RevenueRecoveryPaymentsAttemptStatus {
             &recovery_payment_attempt,
         );
 
+        let retry_count = process_tracker.retry_count;
+
         match self {
             Self::Succeeded => {
                 // finish psync task as the payment was a success
@@ -130,6 +132,7 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                 if let Err(e) = recovery_incoming_flow::RecoveryPaymentTuple::publish_revenue_recovery_event_to_kafka(
                     state,
                     &recovery_payment_tuple,
+                    Some(retry_count+1)
                 )
                 .await{
                     router_env::logger::error!(
@@ -162,6 +165,7 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                 if let Err(e) = recovery_incoming_flow::RecoveryPaymentTuple::publish_revenue_recovery_event_to_kafka(
                     state,
                     &recovery_payment_tuple,
+                    Some(retry_count+1)
                 )
                 .await{
                     router_env::logger::error!(
@@ -352,6 +356,7 @@ impl Action {
                     if let Err(e) = recovery_incoming_flow::RecoveryPaymentTuple::publish_revenue_recovery_event_to_kafka(
                     state,
                     &recovery_payment_tuple,
+                    Some(process.retry_count+1)
                 )
                 .await{
                     router_env::logger::error!(
@@ -379,6 +384,7 @@ impl Action {
                     if let Err(e) = recovery_incoming_flow::RecoveryPaymentTuple::publish_revenue_recovery_event_to_kafka(
                         state,
                         &recovery_payment_tuple,
+                        Some(process.retry_count+1)
                     )
                     .await{
                         router_env::logger::error!(
