@@ -801,7 +801,7 @@ impl
     fn foreign_try_from(
         (
             authentication,
-            next_api_action,
+            next_action,
             profile_id,
             billing,
             shipping,
@@ -836,7 +836,7 @@ impl
         });
         Ok(Self {
             authentication_id: authentication.authentication_id,
-            next_api_action,
+            next_action,
             status: authentication.authentication_status,
             eligibility_response_params: three_ds_data
                 .map(api_models::authentication::EligibilityResponseParams::ThreeDsData),

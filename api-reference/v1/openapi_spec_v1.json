@@ -7657,14 +7657,11 @@
             "$ref": "#/components/schemas/PaymentMethodData"
           },
           "payment_method": {
-            "$ref": "#/components/schemas/common_enums.PaymentMethod"
+            "$ref": "#/components/schemas/PaymentMethod"
           },
           "client_secret": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/masking.Secret"
-              }
-            ],
+            "type": "string",
+            "description": "Optional secret value used to identify and authorize the client making the request.\nThis can help ensure that the payment session is secure and valid.",
             "nullable": true
           },
           "profile_id": {
@@ -7710,7 +7707,7 @@
         "type": "object",
         "required": [
           "authentication_id",
-          "next_api_action",
+          "next_action",
           "status",
           "connector_metadata",
           "profile_id"
@@ -7721,7 +7718,7 @@
             "description": "The unique identifier for this authentication.",
             "example": "auth_mbabizu24mvu3mela5njyhpit4"
           },
-          "next_api_action": {
+          "next_action": {
             "$ref": "#/components/schemas/NextAction"
           },
           "status": {

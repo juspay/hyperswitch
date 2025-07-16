@@ -163,14 +163,17 @@ impl ApiEventMetric for AuthenticationResponse {
 pub struct AuthenticationEligibilityRequest {
     /// Payment method-specific data such as card details, wallet info, etc.
     /// This holds the raw information required to process the payment method.
+    #[schema(value_type = PaymentMethodData)]
     pub payment_method_data: PaymentMethodData,
 
     /// Enum representing the type of payment method being used
     /// (e.g., Card, Wallet, UPI, BankTransfer, etc.).
+    #[schema(value_type = PaymentMethod)]
     pub payment_method: common_enums::PaymentMethod,
 
     /// Optional secret value used to identify and authorize the client making the request.
     /// This can help ensure that the payment session is secure and valid.
+    #[schema(value_type = Option<String>)]
     pub client_secret: Option<masking::Secret<String>>,
 
     /// Optional identifier for the business profile associated with the payment.
@@ -234,7 +237,7 @@ pub struct AuthenticationEligibilityResponse {
     pub authentication_id: id_type::AuthenticationId,
     /// The URL to which the user should be redirected after authentication.
     #[schema(value_type = NextAction)]
-    pub next_api_action: NextAction,
+    pub next_action: NextAction,
     /// The current status of the authentication (e.g., Started).
     #[schema(value_type = AuthenticationStatus)]
     pub status: common_enums::AuthenticationStatus,
