@@ -4,9 +4,7 @@ use std::str::FromStr;
 use api_models::{
     mandates,
     payment_methods::{self},
-    payments::{
-        additional_info as payment_additional_types, AmazonPayRedirectData, ExtendedCardInfo,
-    },
+    payments::{additional_info as payment_additional_types, ExtendedCardInfo},
 };
 use common_enums::enums as api_enums;
 #[cfg(feature = "v2")]
@@ -234,7 +232,9 @@ pub enum WalletData {
     AliPayQr(Box<AliPayQr>),
     AliPayRedirect(AliPayRedirection),
     AliPayHkRedirect(AliPayHkRedirection),
-    AmazonPayRedirect(Box<AmazonPayRedirectData>),
+    AmazonPayRedirect(Box<AmazonPayRedirect>),
+    Paysera(Box<PayseraData>),
+    Skrill(Box<SkrillData>),
     MomoRedirect(MomoRedirection),
     KakaoPayRedirect(KakaoPayRedirection),
     GoPayRedirect(GoPayRedirection),
@@ -355,6 +355,15 @@ pub struct AliPayRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct AliPayHkRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct AmazonPayRedirect {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct PayseraData {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct SkrillData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct MomoRedirection {}
@@ -937,8 +946,10 @@ impl From<api_models::payments::WalletData> for WalletData {
                 Self::AliPayHkRedirect(AliPayHkRedirection {})
             }
             api_models::payments::WalletData::AmazonPayRedirect(_) => {
-                Self::AmazonPayRedirect(Box::new(AmazonPayRedirectData {}))
+                Self::AmazonPayRedirect(Box::new(AmazonPayRedirect {}))
             }
+            api_models::payments::WalletData::Skrill(_) => Self::Skrill(Box::new(SkrillData {})),
+            api_models::payments::WalletData::Paysera(_) => Self::Paysera(Box::new(PayseraData {})),
             api_models::payments::WalletData::MomoRedirect(_) => {
                 Self::MomoRedirect(MomoRedirection {})
             }
@@ -1760,6 +1771,8 @@ impl GetPaymentMethodType for WalletData {
             Self::AliPayQr(_) | Self::AliPayRedirect(_) => api_enums::PaymentMethodType::AliPay,
             Self::AliPayHkRedirect(_) => api_enums::PaymentMethodType::AliPayHk,
             Self::AmazonPayRedirect(_) => api_enums::PaymentMethodType::AmazonPay,
+            Self::Skrill(_) => api_enums::PaymentMethodType::Skrill,
+            Self::Paysera(_) => api_enums::PaymentMethodType::Paysera,
             Self::MomoRedirect(_) => api_enums::PaymentMethodType::Momo,
             Self::KakaoPayRedirect(_) => api_enums::PaymentMethodType::KakaoPay,
             Self::GoPayRedirect(_) => api_enums::PaymentMethodType::GoPay,

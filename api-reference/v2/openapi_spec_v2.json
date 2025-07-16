@@ -17645,10 +17645,7 @@
             ],
             "properties": {
               "bank_names": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/BankCodeResponse"
-                }
+                "$ref": "#/components/schemas/BankNames"
               }
             }
           }
@@ -17666,6 +17663,8 @@
           "ali_pay_hk",
           "alma",
           "amazon_pay",
+          "skrill",
+          "paysera",
           "apple_pay",
           "atome",
           "bacs",
@@ -20746,6 +20745,9 @@
           }
         }
       },
+      "PayseraData": {
+        "type": "object"
+      },
       "PazeSessionTokenResponse": {
         "type": "object",
         "required": [
@@ -22371,11 +22373,11 @@
                 "$ref": "#/components/schemas/PaymentMethodType"
               },
               "payment_experience": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/PaymentExperience"
-                  }
-                ],
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PaymentExperience"
+                },
+                "description": "The payment experience for the payment method",
                 "nullable": true
               },
               "required_fields": {
@@ -23726,6 +23728,9 @@
           "cover",
           "contain"
         ]
+      },
+      "SkrillData": {
+        "type": "object"
       },
       "SortBy": {
         "type": "string",
@@ -25345,6 +25350,28 @@
             "properties": {
               "amazon_pay_redirect": {
                 "$ref": "#/components/schemas/AmazonPayRedirectData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "skrill"
+            ],
+            "properties": {
+              "skrill": {
+                "$ref": "#/components/schemas/SkrillData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "paysera"
+            ],
+            "properties": {
+              "paysera": {
+                "$ref": "#/components/schemas/PayseraData"
               }
             }
           },
