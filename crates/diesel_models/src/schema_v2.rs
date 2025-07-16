@@ -247,10 +247,10 @@ diesel::table! {
         default_fallback_routing -> Nullable<Jsonb>,
         three_ds_decision_manager_config -> Nullable<Jsonb>,
         should_collect_cvv_during_payment -> Nullable<Bool>,
-        is_external_vault_enabled -> Nullable<Bool>,
-        external_vault_connector_details -> Nullable<Jsonb>,
         revenue_recovery_retry_algorithm_type -> Nullable<RevenueRecoveryAlgorithmType>,
         revenue_recovery_retry_algorithm_data -> Nullable<Jsonb>,
+        is_external_vault_enabled -> Nullable<Bool>,
+        external_vault_connector_details -> Nullable<Jsonb>,
     }
 }
 
@@ -903,6 +903,8 @@ diesel::table! {
         processor_merchant_id -> Nullable<Varchar>,
         #[max_length = 255]
         created_by -> Nullable<Varchar>,
+        #[max_length = 255]
+        connector_request_reference_id -> Nullable<Varchar>,
         payment_method_type_v2 -> Varchar,
         #[max_length = 128]
         connector_payment_id -> Nullable<Varchar>,
@@ -925,8 +927,6 @@ diesel::table! {
         #[max_length = 32]
         network_decline_code -> Nullable<Varchar>,
         network_error_message -> Nullable<Text>,
-        #[max_length = 255]
-        connector_request_reference_id -> Nullable<Varchar>,
     }
 }
 
