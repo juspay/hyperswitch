@@ -799,15 +799,7 @@ impl
 {
     type Error = error_stack::Report<ApiErrorResponse>;
     fn foreign_try_from(
-        (
-            authentication,
-            next_action,
-            profile_id,
-            billing,
-            shipping,
-            browser_information,
-            email,
-        ): (
+        (authentication, next_action, profile_id, billing, shipping, browser_information, email): (
             Authentication,
             api_models::authentication::NextAction,
             common_utils::id_type::ProfileId,
