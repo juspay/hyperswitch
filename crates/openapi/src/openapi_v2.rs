@@ -213,6 +213,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::organization::OrganizationCreateRequest,
         api_models::organization::OrganizationUpdateRequest,
         api_models::organization::OrganizationResponse,
+        api_models::organization::OrganizationType,
         api_models::admin::MerchantAccountCreateWithoutOrgId,
         api_models::admin::MerchantAccountUpdate,
         api_models::admin::MerchantAccountDeleteResponse,
