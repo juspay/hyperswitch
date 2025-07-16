@@ -163,6 +163,7 @@ pub enum RoutableConnectors {
     Zen,
     Plaid,
     Zsl,
+    Mpgs,
 }
 
 // A connector is an integration to fulfill payments
@@ -274,6 +275,7 @@ pub enum Connector {
     Mifinity,
     Mollie,
     Moneris,
+    Mpgs,
     Multisafepay,
     Netcetera,
     Nexinets,
@@ -456,6 +458,7 @@ impl Connector {
             | Self::Mifinity
             | Self::Mollie
             | Self::Moneris
+            | Self::Mpgs
             | Self::Multisafepay
             | Self::Nexinets
             | Self::Nexixpay
@@ -512,7 +515,7 @@ impl Connector {
             | Self::Tokenio
             | Self::Stripe
             | Self::Datatrans => false,
-            Self::Checkout | Self::Nmi |Self::Cybersource | Self::Archipel => true,
+            Self::Checkout | Self::Nmi | Self::Cybersource | Self::Archipel => true,
         }
     }
 
@@ -668,6 +671,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Inespay => Self::Inespay,
             RoutableConnectors::Coingate => Self::Coingate,
             RoutableConnectors::Hipay => Self::Hipay,
+            RoutableConnectors::Mpgs => Self::Mpgs,
         }
     }
 }
@@ -741,6 +745,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Mifinity => Ok(Self::Mifinity),
             Connector::Mollie => Ok(Self::Mollie),
             Connector::Moneris => Ok(Self::Moneris),
+            Connector::Mpgs => Ok(Self::Mpgs),
             Connector::Multisafepay => Ok(Self::Multisafepay),
             Connector::Nexinets => Ok(Self::Nexinets),
             Connector::Nexixpay => Ok(Self::Nexixpay),
