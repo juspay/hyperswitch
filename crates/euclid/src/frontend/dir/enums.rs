@@ -77,6 +77,8 @@ pub enum PayLaterType {
 pub enum WalletType {
     GooglePay,
     AmazonPay,
+    Skrill,
+    Paysera,
     ApplePay,
     Paypal,
     AliPay,

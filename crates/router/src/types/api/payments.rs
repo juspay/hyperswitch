@@ -13,8 +13,8 @@ pub use api_models::{
         ConnectorFeatureMatrixResponse, FeatureMatrixListResponse, FeatureMatrixRequest,
     },
     payments::{
-        Address, AddressDetails, Amount, AuthenticationForStartResponse, Card, CryptoData,
-        CustomerDetails, CustomerDetailsResponse, HyperswitchVaultSessionDetails,
+        Address, AddressDetails, Amount, ApplepayPaymentMethod, AuthenticationForStartResponse,
+        Card, CryptoData, CustomerDetails, CustomerDetailsResponse, HyperswitchVaultSessionDetails,
         MandateAmountData, MandateData, MandateTransactionType, MandateType,
         MandateValidationFields, NextActionType, OpenBankingSessionToken, PayLaterData,
         PaymentIdType, PaymentListConstraints, PaymentListFilters, PaymentListFiltersV2,

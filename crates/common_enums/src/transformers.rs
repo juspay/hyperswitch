@@ -1802,6 +1802,8 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::AliPayHk => Self::Wallet,
             PaymentMethodType::Alma => Self::PayLater,
             PaymentMethodType::AmazonPay => Self::Wallet,
+            PaymentMethodType::Paysera => Self::Wallet,
+            PaymentMethodType::Skrill => Self::Wallet,
             PaymentMethodType::ApplePay => Self::Wallet,
             PaymentMethodType::Bacs => Self::BankDebit,
             PaymentMethodType::BancontactCard => Self::BankRedirect,
