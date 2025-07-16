@@ -7559,11 +7559,12 @@ options=["CRYPTOGRAM_3DS"]
 [zift]
 [zift.connector_auth.HeaderKey]
 api_key = "API Key"
+key1 = "TokenEx ID"
 
-[payjustnow]
-[payjustnow.connector_auth.BodyKey]
-api_key = "Signing Key"
-key1 = "Merchant Account Id"
+[gigadat]
+[gigadat.connector_auth.HeaderKey]
+api_key = "API Key"
 
-[[payjustnow.pay_later]]
-  payment_method_type = "payjustnow"
+[trustpayments]
+[trustpayments.connector_auth.HeaderKey]
+api_key = "API Key"
