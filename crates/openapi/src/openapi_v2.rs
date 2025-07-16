@@ -693,8 +693,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::routing::ProgramThreeDsDecisionRule,
         api_models::routing::RuleThreeDsDecisionRule,
         api_models::enums::RoutableConnectors,
-        api_models::routing::ast::ProgramConnectorSelection,
-        api_models::routing::ast::RuleConnectorSelection,
         api_models::routing::ast::IfStatement,
         api_models::routing::ast::Comparison,
         api_models::routing::ast::ComparisonType,

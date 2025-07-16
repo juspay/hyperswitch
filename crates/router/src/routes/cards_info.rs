@@ -1,6 +1,6 @@
 use actix_multipart::form::MultipartForm;
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
-use api_models::cards_info as cards_info_api_types;
+use api_models::cards_info::{self as cards_info_api_types, CardInfoResponse};
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;

@@ -1,3 +1,7 @@
+use api_models::three_ds_decision_rule::{
+    ThreeDsDecisionRuleExecuteRequest, ThreeDsDecisionRuleExecuteResponse,
+};
+
 /// 3DS Decision - Execute
 #[utoipa::path(
     post,

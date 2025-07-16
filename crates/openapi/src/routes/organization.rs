@@ -1,3 +1,8 @@
+use api_models::{
+    admin::MerchantAccountResponse,
+    organization::{OrganizationCreateRequest, OrganizationResponse, OrganizationUpdateRequest},
+};
+
 #[cfg(feature = "v1")]
 /// Organization - Create
 ///

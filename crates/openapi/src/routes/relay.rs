@@ -1,3 +1,5 @@
+use api_models::relay::{RelayRequest, RelayResponse};
+
 /// Relay - Create
 ///
 /// Creates a relay request.

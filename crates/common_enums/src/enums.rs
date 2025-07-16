@@ -2202,6 +2202,7 @@ pub enum CtpServiceProvider {
     strum::EnumIter,
     serde::Serialize,
     serde::Deserialize,
+    ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[strum(serialize_all = "snake_case")]
@@ -8147,7 +8148,15 @@ pub enum ConnectorMandateStatus {
 
 /// Connector Mandate Status
 #[derive(
-    Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, strum::Display,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    ToSchema,
 )]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]

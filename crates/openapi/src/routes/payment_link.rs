@@ -1,3 +1,5 @@
+use api_models::payments::RetrievePaymentLinkResponse;
+
 /// Payments Link - Retrieve
 ///
 /// To retrieve the properties of a Payment Link. This may be used to get the status of a previously initiated payment or next action for an ongoing payment

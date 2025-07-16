@@ -140,7 +140,7 @@ where
     }
 }
 
-#[derive(Serialize, serde::Deserialize, Debug, Clone, FromSqlRow, AsExpression, ToSchema)]
+#[derive(Serialize, serde::Deserialize, Debug, Clone, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Jsonb)]
 /// Payout link object
 pub struct PayoutLinkData {
@@ -211,11 +211,9 @@ pub struct GenericLinkUiConfigFormData {
 #[derive(Clone, Debug, Serialize, serde::Deserialize, ToSchema)]
 pub struct EnabledPaymentMethod {
     /// Payment method (banks, cards, wallets) enabled for the operation
-    #[schema(value_type = PaymentMethod)]
     pub payment_method: enums::PaymentMethod,
 
     /// An array of associated payment method types
-    #[schema(value_type = HashSet<PaymentMethodType>)]
     pub payment_method_types: HashSet<enums::PaymentMethodType>,
 }
 

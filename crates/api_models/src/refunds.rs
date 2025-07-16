@@ -53,11 +53,9 @@ pub struct RefundRequest {
     pub metadata: Option<pii::SecretSerdeValue>,
 
     /// Merchant connector details used to make payments.
-    #[schema(value_type = Option<MerchantConnectorDetailsWrap>)]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 
     /// Charge specific fields for controlling the revert of funds from either platform or connected account
-    #[schema(value_type = Option<SplitRefund>)]
     pub split_refunds: Option<common_types::refunds::SplitRefund>,
 }
 
@@ -104,7 +102,6 @@ pub struct RefundsCreateRequest {
     pub metadata: Option<pii::SecretSerdeValue>,
 
     /// Merchant connector details used to make payments.
-    #[schema(value_type = Option<MerchantConnectorAuthDetails>)]
     pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
 }
 
@@ -154,6 +151,7 @@ pub struct RefundsRetrieveRequest {
 pub struct RefundsRetrieveRequest {
     /// Unique Identifier for the Refund. This is to ensure idempotency for multiple partial refund initiated against the same payment. If the identifiers is not defined by the merchant, this filed shall be auto generated and provide in the API response. It is recommended to generate uuid(v4) as the refund_id.
     #[schema(
+        value_type = String,
         max_length = 30,
         min_length = 30,
         example = "ref_mbabizu24mvu3mela5njyhpit4"
@@ -165,7 +163,6 @@ pub struct RefundsRetrieveRequest {
     pub force_sync: Option<bool>,
 
     /// Merchant connector details used to make payments.
-    #[schema(value_type = Option<MerchantConnectorAuthDetails>)]
     pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
 }
 
@@ -280,7 +277,6 @@ pub struct RefundResponse {
     #[schema(value_type = Option<String>)]
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     /// Charge specific fields for controlling the revert of funds from either platform or connected account
-    #[schema(value_type = Option<SplitRefund>,)]
     pub split_refunds: Option<common_types::refunds::SplitRefund>,
     /// Error code received from the issuer in case of failed refunds
     pub issuer_error_code: Option<String>,
@@ -316,7 +312,6 @@ pub struct RefundResponse {
     #[schema(value_type = i64 , minimum = 100, example = 6540)]
     pub amount: MinorUnit,
     /// The three-letter ISO currency code
-    #[schema(value_type = Currency)]
     pub currency: common_enums::Currency,
     /// The status for refund
     pub status: RefundStatus,
@@ -334,7 +329,7 @@ pub struct RefundResponse {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub updated_at: PrimitiveDateTime,
     /// The connector used for the refund and the corresponding payment
-    #[schema(example = "stripe", value_type = Connector)]
+    #[schema(example = "stripe")]
     pub connector: enums::Connector,
     /// The id of business profile for this refund
     #[schema(value_type = String)]
@@ -386,10 +381,8 @@ pub struct RefundListRequest {
     #[schema(value_type = Option<Vec<String>>)]
     pub merchant_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
     /// The list of currencies to filter refunds list
-    #[schema(value_type = Option<Vec<Currency>>)]
     pub currency: Option<Vec<enums::Currency>>,
     /// The list of refund statuses to filter refunds list
-    #[schema(value_type = Option<Vec<RefundStatus>>)]
     pub refund_status: Option<Vec<enums::RefundStatus>>,
 }
 #[cfg(feature = "v2")]
@@ -416,10 +409,8 @@ pub struct RefundListRequest {
     #[schema(value_type = Option<Vec<String>>)]
     pub connector_id_list: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
     /// The list of currencies to filter refunds list
-    #[schema(value_type = Option<Vec<Currency>>)]
     pub currency: Option<Vec<enums::Currency>>,
     /// The list of refund statuses to filter refunds list
-    #[schema(value_type = Option<Vec<RefundStatus>>)]
     pub refund_status: Option<Vec<enums::RefundStatus>>,
 }
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, ToSchema)]
@@ -437,10 +428,8 @@ pub struct RefundListMetaData {
     /// The list of available connector filters
     pub connector: Vec<String>,
     /// The list of available currency filters
-    #[schema(value_type = Vec<Currency>)]
     pub currency: Vec<enums::Currency>,
     /// The list of available refund status filters
-    #[schema(value_type = Vec<RefundStatus>)]
     pub refund_status: Vec<enums::RefundStatus>,
 }
 
@@ -449,10 +438,8 @@ pub struct RefundListFilters {
     /// The map of available connector filters, where the key is the connector name and the value is a list of MerchantConnectorInfo instances
     pub connector: HashMap<String, Vec<MerchantConnectorInfo>>,
     /// The list of available currency filters
-    #[schema(value_type = Vec<Currency>)]
     pub currency: Vec<enums::Currency>,
     /// The list of available refund status filters
-    #[schema(value_type = Vec<RefundStatus>)]
     pub refund_status: Vec<enums::RefundStatus>,
 }
 

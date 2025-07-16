@@ -1,3 +1,22 @@
+use api_models::payments::{
+    PaymentListResponse, PaymentsCompleteAuthorizeRequest, PaymentsDynamicTaxCalculationRequest,
+    PaymentsDynamicTaxCalculationResponse, PaymentsExternalAuthenticationRequest,
+    PaymentsExternalAuthenticationResponse, PaymentsIncrementalAuthorizationRequest,
+    PaymentsPostSessionTokensRequest, PaymentsPostSessionTokensResponse, PaymentsRequest,
+    PaymentsResponse, PaymentsSessionRequest, PaymentsSessionResponse,
+    PaymentsUpdateMetadataRequest, PaymentsUpdateMetadataResponse,
+};
+#[cfg(feature = "v2")]
+use api_models::payments::{
+    PaymentMethodListResponseForPayments, PaymentsConfirmIntentRequest,
+    PaymentsCreateIntentRequest, PaymentsIntentResponse, PaymentsUpdateIntentRequest,
+};
+#[cfg(feature = "v1")]
+use api_models::payments::{
+    PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsConfirmRequest, PaymentsCreateRequest,
+    PaymentsCreateResponseOpenApi, PaymentsUpdateRequest,
+};
+
 /// Payments - Create
 ///
 /// Creates a payment resource, which represents a customer's intent to pay.
@@ -562,6 +581,7 @@
     operation_id = "Create a Payment",
     security(("api_key" = [])),
 )]
+#[cfg(feature = "v1")]
 pub fn payments_create() {}
 
 /// Payments - Retrieve
@@ -585,6 +605,7 @@ pub fn payments_create() {}
     operation_id = "Retrieve a Payment",
     security(("api_key" = []), ("publishable_key" = []))
 )]
+#[cfg(feature = "v1")]
 pub fn payments_retrieve() {}
 
 /// Payments - Update
@@ -642,6 +663,7 @@ pub fn payments_retrieve() {}
     operation_id = "Update a Payment",
     security(("api_key" = []), ("publishable_key" = []))
 )]
+#[cfg(feature = "v1")]
 pub fn payments_update() {}
 
 /// Payments - Confirm
@@ -697,6 +719,7 @@ pub fn payments_update() {}
     operation_id = "Confirm a Payment",
     security(("api_key" = []), ("publishable_key" = []))
 )]
+#[cfg(feature = "v1")]
 pub fn payments_confirm() {}
 
 /// Payments - Capture
@@ -737,6 +760,7 @@ pub fn payments_confirm() {}
     operation_id = "Capture a Payment",
     security(("api_key" = []))
 )]
+#[cfg(feature = "v1")]
 pub fn payments_capture() {}
 
 #[cfg(feature = "v1")]
@@ -810,6 +834,7 @@ pub fn payments_connector_session() {}
     operation_id = "Cancel a Payment",
     security(("api_key" = []))
 )]
+#[cfg(feature = "v1")]
 pub fn payments_cancel() {}
 
 /// Payments - List

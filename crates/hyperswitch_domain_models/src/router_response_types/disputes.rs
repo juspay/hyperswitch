@@ -1,4 +1,4 @@
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Clone, Debug, utoipa::ToSchema)]
 pub struct AcceptDisputeResponse {
     pub dispute_status: api_models::enums::DisputeStatus,
     pub connector_status: Option<String>,

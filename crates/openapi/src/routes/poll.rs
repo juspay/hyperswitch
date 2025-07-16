@@ -1,3 +1,5 @@
+use api_models::poll::PollResponse;
+
 /// Poll - Retrieve Poll Status
 #[utoipa::path(
     get,

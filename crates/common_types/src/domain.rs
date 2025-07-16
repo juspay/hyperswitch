@@ -35,7 +35,7 @@ pub struct AdyenSplitItem {
     #[schema(value_type = i64, example = 6540)]
     pub amount: Option<MinorUnit>,
     /// Defines type of split item
-    #[schema(value_type = AdyenSplitType, example = "BalanceAccount")]
+    #[schema(example = "BalanceAccount")]
     pub split_type: enums::AdyenSplitType,
     /// The unique identifier of the account to which the split amount is allocated.
     pub account: Option<String>,
@@ -81,7 +81,7 @@ pub struct AcquirerConfig {
     pub acquirer_fraud_rate: f64,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, FromSqlRow, AsExpression, ToSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Jsonb)]
 /// Acquirer configs
 pub struct AcquirerConfigMap(pub HashMap<common_utils::id_type::ProfileAcquirerId, AcquirerConfig>);
@@ -93,7 +93,6 @@ impl_to_sql_from_sql_json!(AcquirerConfigMap);
 #[cfg(feature = "v2")]
 pub struct MerchantConnectorAuthDetails {
     /// The connector used for the payment
-    #[schema(value_type = Connector)]
     pub connector_name: common_enums::connector_enums::Connector,
 
     /// The merchant connector credentials used for the payment

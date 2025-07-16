@@ -118,6 +118,7 @@ pub type IfCondition = Vec<Comparison>;
 pub struct IfStatement {
     #[schema(value_type=Vec<Comparison>)]
     pub condition: IfCondition,
+    #[schema(no_recursion)]
     pub nested: Option<Vec<IfStatement>>,
 }
 
@@ -137,7 +138,6 @@ pub struct IfStatement {
 /// ```
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-#[aliases(RuleConnectorSelection = Rule<ConnectorSelection>)]
 pub struct Rule<O> {
     pub name: String,
     #[serde(alias = "routingOutput")]
@@ -149,12 +149,11 @@ pub struct Rule<O> {
 /// a bunch of rules. Also can hold arbitrary metadata.
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-#[aliases(ProgramConnectorSelection = Program<ConnectorSelection>)]
 pub struct Program<O> {
     pub default_selection: O,
-    #[schema(value_type=RuleConnectorSelection)]
+    #[schema(value_type=Rule<ConnectorSelection>)]
     pub rules: Vec<Rule<O>>,
-    #[schema(value_type=HashMap<String, serde_json::Value>)]
+    #[schema(value_type = HashMap<String, serde_json::Value>)]
     pub metadata: Metadata,
 }
 
@@ -163,6 +162,7 @@ pub struct RoutableConnectorChoice {
     #[serde(skip)]
     pub choice_kind: RoutableChoiceKind,
     pub connector: RoutableConnectors,
+    #[schema(value_type = String)]
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 

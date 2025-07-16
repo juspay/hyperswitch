@@ -10,7 +10,6 @@ pub struct PaymentData {
     #[schema(value_type = i64)]
     pub amount: common_utils::types::MinorUnit,
     /// The currency of the payment.
-    #[schema(value_type = Currency)]
     pub currency: common_enums::Currency,
 }
 
@@ -18,7 +17,6 @@ pub struct PaymentData {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct PaymentMethodMetaData {
     /// The card network (e.g., Visa, Mastercard) if the payment method is a card.
-    #[schema(value_type = CardNetwork)]
     pub card_network: Option<common_enums::CardNetwork>,
 }
 
@@ -39,7 +37,6 @@ pub struct IssuerData {
     /// The name of the issuer.
     pub name: Option<String>,
     /// The country of the issuer.
-    #[schema(value_type = Country)]
     pub country: Option<common_enums::Country>,
 }
 
@@ -47,7 +44,6 @@ pub struct IssuerData {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct AcquirerData {
     /// The country of the acquirer.
-    #[schema(value_type = Country)]
     pub country: Option<common_enums::Country>,
     /// The fraud rate associated with the acquirer.
     pub fraud_rate: Option<f64>,
@@ -76,7 +72,6 @@ pub struct ThreeDsDecisionRuleExecuteRequest {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ThreeDsDecisionRuleExecuteResponse {
     /// The decision made by the 3DS decision rule engine.
-    #[schema(value_type = ThreeDSDecision)]
     pub decision: common_types::three_ds_decision_rule_engine::ThreeDSDecision,
 }
 
