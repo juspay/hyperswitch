@@ -270,3 +270,4 @@ creds.json
 
 # Nix services data
 /data
+.pre-commit-config.yaml

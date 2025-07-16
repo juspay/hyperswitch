@@ -69,6 +69,16 @@ impl TryFrom<&ConnectorAuthType> for WorldpayvantivAuthType {
     }
 }
 
+#[derive(Debug, strum::Display, Serialize, Deserialize, PartialEq, Clone, Copy)]
+#[strum(serialize_all = "lowercase")]
+pub enum OperationId {
+    Sale,
+    Auth,
+    Capture,
+    Void,
+    Refund,
+}
+
 // Represents the payment metadata for Worldpay Vantiv.
 // The `report_group` field is an Option<String> to account for cases where the report group might not be provided in the metadata.
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -150,6 +160,8 @@ pub struct Capture {
 pub struct BillToAddressData {
     pub name: Option<Secret<String>>,
     pub address_line1: Option<Secret<String>>,
+    pub address_line2: Option<Secret<String>>,
+    pub address_line3: Option<Secret<String>>,
     pub city: Option<String>,
     pub state: Option<Secret<String>>,
     pub zip: Option<Secret<String>>,
@@ -358,7 +370,7 @@ impl<F> TryFrom<ResponseRouterData<F, VantivSyncResponse, PaymentsSyncData, Paym
     fn try_from(
         item: ResponseRouterData<F, VantivSyncResponse, PaymentsSyncData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let status = get_attempt_status_for_psync(item.response.payment_status, item.data.status)?;
+        let status = determine_attempt_status(&item)?;
 
         if connector_utils::is_payment_failure(status) {
             let error_code = item
@@ -372,7 +384,7 @@ impl<F> TryFrom<ResponseRouterData<F, VantivSyncResponse, PaymentsSyncData, Paym
                 .payment_detail
                 .as_ref()
                 .and_then(|detail| detail.response_reason_message.clone())
-                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string());
+                .unwrap_or(item.response.payment_status.to_string());
 
             Ok(Self {
                 status,
@@ -419,6 +431,8 @@ fn get_bill_to_address(item: &PaymentsAuthorizeRouterData) -> Option<BillToAddre
             .map(|address| BillToAddressData {
                 name: address.get_optional_full_name(),
                 address_line1: item.get_optional_billing_line1(),
+                address_line2: item.get_optional_billing_line2(),
+                address_line3: item.get_optional_billing_line3(),
                 city: item.get_optional_billing_city(),
                 state: item.get_optional_billing_state(),
                 zip: item.get_optional_billing_zip(),
@@ -472,12 +486,6 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
             user: worldpayvantiv_auth_type.user,
             password: worldpayvantiv_auth_type.password,
         };
-        let api_call_id =
-            if item.router_data.attempt_id.len() < worldpayvantiv_constants::MAX_ID_LENGTH {
-                item.router_data.attempt_id.clone()
-            } else {
-                format!("auth_{:?}", connector_utils::generate_12_digit_number())
-            };
 
         let customer_id = item
             .router_data
@@ -491,10 +499,14 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
             (
                 None,
                 Some(Sale {
-                    id: api_call_id.clone(),
+                    id: format!(
+                        "{}_{}",
+                        OperationId::Sale,
+                        item.router_data.connector_request_reference_id
+                    ),
                     report_group: report_group.clone(),
                     customer_id,
-                    order_id: item.router_data.payment_id.clone(),
+                    order_id: item.router_data.connector_request_reference_id.clone(),
                     amount: item.amount,
                     order_source: OrderSource::Ecommerce,
                     bill_to_address,
@@ -507,10 +519,14 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
         } else {
             (
                 Some(Authorization {
-                    id: api_call_id.clone(),
+                    id: format!(
+                        "{}_{}",
+                        OperationId::Auth,
+                        item.router_data.connector_request_reference_id
+                    ),
                     report_group: report_group.clone(),
                     customer_id,
-                    order_id: item.router_data.payment_id.clone(),
+                    order_id: item.router_data.connector_request_reference_id.clone(),
                     amount: item.amount,
                     order_source: OrderSource::Ecommerce,
                     bill_to_address,
@@ -570,7 +586,7 @@ fn get_processing_info(
                             .ok_or(errors::ConnectorError::MissingConnectorMandateID)?
                             .into(),
                         exp_date: format!(
-                            "{}{}",
+                            "{}_{}",
                             card_mandate_data.card_exp_month.peek(),
                             card_mandate_data.card_exp_year.peek()
                         )
@@ -599,9 +615,12 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsCaptureRouterData>> for CnpOnlin
                 "Failed to obtain report_group from metadata".to_string(),
             ),
         )?;
-        let api_call_id = format!("capture_{:?}", connector_utils::generate_12_digit_number());
         let capture = Some(Capture {
-            id: api_call_id,
+            id: format!(
+                "{}_{}",
+                OperationId::Capture,
+                item.router_data.connector_request_reference_id
+            ),
             report_group,
             cnp_txn_id: item.router_data.request.connector_transaction_id.clone(),
             amount: item.amount,
@@ -650,9 +669,12 @@ impl<F> TryFrom<&WorldpayvantivRouterData<&RefundsRouterData<F>>> for CnpOnlineR
             .clone()
             .map(|customer_id| customer_id.get_string_repr().to_string());
 
-        let api_call_id = format!("ref_{:?}", connector_utils::generate_12_digit_number());
         let credit = Some(RefundRequest {
-            id: api_call_id,
+            id: format!(
+                "{}_{}",
+                OperationId::Refund,
+                item.router_data.connector_request_reference_id
+            ),
             report_group,
             customer_id,
             cnp_txn_id: item.router_data.request.connector_transaction_id.clone(),
@@ -732,7 +754,7 @@ pub struct PaymentDetail {
     pub reporting_group: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, strum::Display, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PaymentStatus {
     NotYetProcessed,
@@ -1028,9 +1050,12 @@ impl TryFrom<&PaymentsCancelRouterData> for CnpOnlineRequest {
                 "Failed to obtain report_group from metadata".to_string(),
             ),
         )?;
-        let api_call_id = format!("void_{:?}", connector_utils::generate_12_digit_number());
         let auth_reversal = Some(AuthReversal {
-            id: api_call_id,
+            id: format!(
+                "{}_{}",
+                OperationId::Void,
+                item.connector_request_reference_id
+            ),
             report_group,
             cnp_txn_id: item.request.connector_transaction_id.clone(),
         });
@@ -1230,31 +1255,39 @@ impl TryFrom<RefundsResponseRouterData<RSync, VantivSyncResponse>> for RefundsRo
     }
 }
 
-fn get_attempt_status_for_psync(
-    vantiv_status: PaymentStatus,
-    previous_status: common_enums::AttemptStatus,
+fn determine_attempt_status<F>(
+    item: &ResponseRouterData<F, VantivSyncResponse, PaymentsSyncData, PaymentsResponseData>,
 ) -> Result<common_enums::AttemptStatus, errors::ConnectorError> {
-    match vantiv_status {
-        PaymentStatus::ProcessedSuccessfully => {
-            if previous_status == common_enums::AttemptStatus::Authorizing {
-                Ok(common_enums::AttemptStatus::Authorized)
-            } else if previous_status == common_enums::AttemptStatus::VoidInitiated {
-                Ok(common_enums::AttemptStatus::Voided)
-            } else {
-                Ok(common_enums::AttemptStatus::Charged)
-            }
+    if let Some(merchant_txn_id) = item
+        .response
+        .payment_detail
+        .as_ref()
+        .and_then(|payment_detail| payment_detail.merchant_txn_id.clone())
+    {
+        let flow_type = get_payment_flow_type(&merchant_txn_id)?;
+        match item.response.payment_status {
+            PaymentStatus::ProcessedSuccessfully => match flow_type {
+                WorldpayvantivPaymentFlow::Sale | WorldpayvantivPaymentFlow::Capture => {
+                    Ok(common_enums::AttemptStatus::Charged)
+                }
+                WorldpayvantivPaymentFlow::Auth => Ok(common_enums::AttemptStatus::Authorized),
+                WorldpayvantivPaymentFlow::Void => Ok(common_enums::AttemptStatus::Voided),
+            },
+            PaymentStatus::TransactionDeclined => match flow_type {
+                WorldpayvantivPaymentFlow::Sale | WorldpayvantivPaymentFlow::Capture => {
+                    Ok(common_enums::AttemptStatus::Failure)
+                }
+                WorldpayvantivPaymentFlow::Auth => {
+                    Ok(common_enums::AttemptStatus::AuthorizationFailed)
+                }
+                WorldpayvantivPaymentFlow::Void => Ok(common_enums::AttemptStatus::VoidFailed),
+            },
+            PaymentStatus::PaymentStatusNotFound
+            | PaymentStatus::NotYetProcessed
+            | PaymentStatus::StatusUnavailable => Ok(item.data.status),
         }
-        PaymentStatus::TransactionDeclined => {
-            if previous_status == common_enums::AttemptStatus::Authorizing {
-                Ok(common_enums::AttemptStatus::AuthorizationFailed)
-            } else if previous_status == common_enums::AttemptStatus::VoidInitiated {
-                Ok(common_enums::AttemptStatus::VoidFailed)
-            } else {
-                Ok(common_enums::AttemptStatus::Failure)
-            }
-        }
-        PaymentStatus::PaymentStatusNotFound => Ok(common_enums::AttemptStatus::Unresolved),
-        PaymentStatus::NotYetProcessed | PaymentStatus::StatusUnavailable => Ok(previous_status),
+    } else {
+        Ok(item.data.status)
     }
 }
 
@@ -1264,10 +1297,9 @@ fn get_refund_status_for_rsync(
     match vantiv_status {
         PaymentStatus::ProcessedSuccessfully => Ok(common_enums::RefundStatus::Success),
         PaymentStatus::TransactionDeclined => Ok(common_enums::RefundStatus::Failure),
-        PaymentStatus::PaymentStatusNotFound => Ok(common_enums::RefundStatus::ManualReview),
-        PaymentStatus::NotYetProcessed | PaymentStatus::StatusUnavailable => {
-            Ok(common_enums::RefundStatus::Pending)
-        }
+        PaymentStatus::NotYetProcessed
+        | PaymentStatus::StatusUnavailable
+        | PaymentStatus::PaymentStatusNotFound => Ok(common_enums::RefundStatus::Pending),
     }
 }
 
@@ -2350,11 +2382,28 @@ pub enum WorldpayvantivResponseCode {
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Copy)]
+#[serde(rename_all = "lowercase")]
 pub enum WorldpayvantivPaymentFlow {
     Sale,
     Auth,
     Capture,
     Void,
+}
+
+fn get_payment_flow_type(input: &str) -> Result<WorldpayvantivPaymentFlow, errors::ConnectorError> {
+    if input.contains("auth") {
+        Ok(WorldpayvantivPaymentFlow::Auth)
+    } else if input.contains("sale") {
+        Ok(WorldpayvantivPaymentFlow::Sale)
+    } else if input.contains("void") {
+        Ok(WorldpayvantivPaymentFlow::Void)
+    } else if input.contains("capture") {
+        Ok(WorldpayvantivPaymentFlow::Capture)
+    } else {
+        Err(errors::ConnectorError::UnexpectedResponseError(
+            bytes::Bytes::from("Invalid merchantTxnId".to_string()),
+        ))
+    }
 }
 
 fn get_attempt_status(

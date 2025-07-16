@@ -6666,7 +6666,6 @@
         "required": [
           "acquirer_assigned_merchant_id",
           "merchant_name",
-          "merchant_country_code",
           "network",
           "acquirer_bin",
           "acquirer_fraud_rate"
@@ -6681,11 +6680,6 @@
             "type": "string",
             "description": "merchant name",
             "example": "NewAge Retailer"
-          },
-          "merchant_country_code": {
-            "type": "string",
-            "description": "Merchant country code assigned by acquirer",
-            "example": "US"
           },
           "network": {
             "type": "string",
@@ -15137,6 +15131,28 @@
             ]
           },
           {
+            "type": "object",
+            "required": [
+              "user_bank_options"
+            ],
+            "properties": {
+              "user_bank_options": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
             "type": "string",
             "enum": [
               "user_bank_account_number"
@@ -18804,6 +18820,10 @@
         },
         "additionalProperties": false
       },
+      "MerchantCountryCode": {
+        "type": "string",
+        "description": "A wrapper type for merchant country codes that provides validation and conversion functionality.\n\nThis type stores a country code as a string and provides methods to validate it\nand convert it to a `Country` enum variant."
+      },
       "MerchantDetails": {
         "type": "object",
         "properties": {
@@ -22342,6 +22362,8 @@
           "ali_pay_hk",
           "alma",
           "amazon_pay",
+          "skrill",
+          "paysera",
           "apple_pay",
           "atome",
           "bacs",
@@ -28915,6 +28937,9 @@
           }
         }
       },
+      "PayseraData": {
+        "type": "object"
+      },
       "PazeSessionTokenResponse": {
         "type": "object",
         "required": [
@@ -29197,7 +29222,6 @@
         "required": [
           "acquirer_assigned_merchant_id",
           "merchant_name",
-          "merchant_country_code",
           "network",
           "acquirer_bin",
           "acquirer_fraud_rate",
@@ -29213,11 +29237,6 @@
             "type": "string",
             "description": "merchant name",
             "example": "NewAge Retailer"
-          },
-          "merchant_country_code": {
-            "type": "string",
-            "description": "Merchant country code assigned by acquirer",
-            "example": "US"
           },
           "network": {
             "type": "string",
@@ -29256,7 +29275,6 @@
           "profile_acquirer_id",
           "acquirer_assigned_merchant_id",
           "merchant_name",
-          "merchant_country_code",
           "network",
           "acquirer_bin",
           "acquirer_fraud_rate",
@@ -29277,11 +29295,6 @@
             "type": "string",
             "description": "Merchant name",
             "example": "NewAge Retailer"
-          },
-          "merchant_country_code": {
-            "type": "string",
-            "description": "Merchant country code assigned by acquirer",
-            "example": "US"
           },
           "network": {
             "type": "string",
@@ -29330,13 +29343,6 @@
               "null"
             ],
             "example": "Updated Retailer Name"
-          },
-          "merchant_country_code": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "example": "CA"
           },
           "network": {
             "type": [
@@ -29692,6 +29698,17 @@
               {
                 "$ref": "#/components/schemas/MerchantCategoryCode",
                 "description": "Four-digit code assigned based on business type to determine processing fees and risk level"
+              }
+            ]
+          },
+          "merchant_country_code": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MerchantCountryCode",
+                "description": "Merchant country code.\nThis is a 3-digit ISO 3166-1 numeric country code that represents the country in which the merchant is registered or operates.\nMerchants typically receive this value based on their business registration information or during onboarding via payment processors or acquiring banks.\nIt is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior."
               }
             ]
           }
@@ -30068,6 +30085,17 @@
               {
                 "$ref": "#/components/schemas/MerchantCategoryCode",
                 "description": "Four-digit code assigned based on business type to determine processing fees and risk level"
+              }
+            ]
+          },
+          "merchant_country_code": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MerchantCountryCode",
+                "description": "Merchant country code.\nThis is a 3-digit ISO 3166-1 numeric country code that represents the country in which the merchant is registered or operates.\nMerchants typically receive this value based on their business registration information or during onboarding via payment processors or acquiring banks.\nIt is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior."
               }
             ]
           }
@@ -32656,6 +32684,9 @@
           "contain"
         ]
       },
+      "SkrillData": {
+        "type": "object"
+      },
       "SplitPaymentsRequest": {
         "oneOf": [
           {
@@ -34361,6 +34392,32 @@
               "amazon_pay_redirect": {
                 "$ref": "#/components/schemas/AmazonPayRedirectData",
                 "description": "The wallet data for Amazon Pay redirect"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The wallet data for Skrill",
+            "required": [
+              "skrill"
+            ],
+            "properties": {
+              "skrill": {
+                "$ref": "#/components/schemas/SkrillData",
+                "description": "The wallet data for Skrill"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The wallet data for Paysera",
+            "required": [
+              "paysera"
+            ],
+            "properties": {
+              "paysera": {
+                "$ref": "#/components/schemas/PayseraData",
+                "description": "The wallet data for Paysera"
               }
             }
           },

@@ -12077,6 +12077,28 @@
             ]
           },
           {
+            "type": "object",
+            "required": [
+              "user_bank_options"
+            ],
+            "properties": {
+              "user_bank_options": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
             "type": "string",
             "enum": [
               "user_bank_account_number"
@@ -15159,6 +15181,10 @@
           }
         },
         "additionalProperties": false
+      },
+      "MerchantCountryCode": {
+        "type": "string",
+        "description": "A wrapper type for merchant country codes that provides validation and conversion functionality.\n\nThis type stores a country code as a string and provides methods to validate it\nand convert it to a `Country` enum variant."
       },
       "MerchantDetails": {
         "type": "object",
@@ -19477,7 +19503,7 @@
               "bank_names": {
                 "type": "array",
                 "items": {
-                  "$ref": "#/components/schemas/BankCodeResponse"
+                  "$ref": "#/components/schemas/BankNames"
                 }
               }
             }
@@ -19496,6 +19522,8 @@
           "ali_pay_hk",
           "alma",
           "amazon_pay",
+          "skrill",
+          "paysera",
           "apple_pay",
           "atome",
           "bacs",
@@ -23276,6 +23304,9 @@
           }
         }
       },
+      "PayseraData": {
+        "type": "object"
+      },
       "PazeSessionTokenResponse": {
         "type": "object",
         "required": [
@@ -23866,6 +23897,17 @@
                 "description": "Four-digit code assigned based on business type to determine processing fees and risk level"
               }
             ]
+          },
+          "merchant_country_code": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MerchantCountryCode",
+                "description": "Merchant country code.\nThis is a 3-digit ISO 3166-1 numeric country code that represents the country in which the merchant is registered or operates.\nMerchants typically receive this value based on their business registration information or during onboarding via payment processors or acquiring banks.\nIt is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior."
+              }
+            ]
           }
         },
         "additionalProperties": false
@@ -24208,6 +24250,17 @@
               {
                 "$ref": "#/components/schemas/MerchantCategoryCode",
                 "description": "Four-digit code assigned based on business type to determine processing fees and risk level"
+              }
+            ]
+          },
+          "merchant_country_code": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MerchantCountryCode",
+                "description": "Merchant country code.\nThis is a 3-digit ISO 3166-1 numeric country code that represents the country in which the merchant is registered or operates.\nMerchants typically receive this value based on their business registration information or during onboarding via payment processors or acquiring banks.\nIt is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior."
               }
             ]
           }
@@ -25223,15 +25276,14 @@
                 "description": "The payment method subtype enabled"
               },
               "payment_experience": {
-                "oneOf": [
-                  {
-                    "type": "null"
-                  },
-                  {
-                    "$ref": "#/components/schemas/PaymentExperience",
-                    "description": "The payment experience for the payment method"
-                  }
-                ]
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "$ref": "#/components/schemas/PaymentExperience"
+                },
+                "description": "The payment experience for the payment method"
               },
               "required_fields": {
                 "type": [
@@ -26732,6 +26784,9 @@
           "cover",
           "contain"
         ]
+      },
+      "SkrillData": {
+        "type": "object"
       },
       "SortBy": {
         "type": "string",
@@ -28469,6 +28524,32 @@
               "amazon_pay_redirect": {
                 "$ref": "#/components/schemas/AmazonPayRedirectData",
                 "description": "The wallet data for Amazon Pay redirect"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The wallet data for Skrill",
+            "required": [
+              "skrill"
+            ],
+            "properties": {
+              "skrill": {
+                "$ref": "#/components/schemas/SkrillData",
+                "description": "The wallet data for Skrill"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The wallet data for Paysera",
+            "required": [
+              "paysera"
+            ],
+            "properties": {
+              "paysera": {
+                "$ref": "#/components/schemas/PayseraData",
+                "description": "The wallet data for Paysera"
               }
             }
           },
