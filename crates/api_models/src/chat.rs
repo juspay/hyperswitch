@@ -13,5 +13,6 @@ pub struct ChatResponse {
     pub status: String,
     #[serde(skip_serializing)]
     pub query_executed: Option<Secret<String>>,
+    #[serde(skip_serializing)]
     pub row_count: Option<i32>,
 }
