@@ -1145,7 +1145,15 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     .clone()
                     .and_then(|network| business_profile.get_acquirer_details_from_network(network))
             });
-            let country = business_profile.get_country_from_merchant_country_code()?;
+            let country = business_profile
+                .merchant_country_code
+                .as_ref()
+                .map(|country_code| {
+                    country_code.validate_and_get_country_from_merchant_country_code()
+                })
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Error while parsing country from merchant country code")?;
             // get three_ds_decision_rule_output using algorithm_id and payment data
             let decision = three_ds_decision_rule::get_three_ds_decision_rule_output(
                 state,
@@ -1328,6 +1336,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             Ok(unified_authentication_service::UasAuthenticationResponseData::PreAuthentication { .. })
                             | Ok(unified_authentication_service::UasAuthenticationResponseData::Confirmation {})
                             | Ok(unified_authentication_service::UasAuthenticationResponseData::Authentication { .. }) => Err(errors::ApiErrorResponse::InternalServerError).attach_printable("unexpected response received from unified authentication service")?,
+                            Ok(unified_authentication_service::UasAuthenticationResponseData::Webhook { .. }) => Err(errors::ApiErrorResponse::InternalServerError).attach_printable("unexpected webhook response received from unified authentication service")?,
                             Err(_) => (None, common_enums::AuthenticationStatus::Failed)
                         };
                         payment_data.payment_attempt.payment_method =
@@ -1772,6 +1781,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
 
         let connector = payment_data.payment_attempt.connector.clone();
         let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
+        let connector_request_reference_id = payment_data
+            .payment_attempt
+            .connector_request_reference_id
+            .clone();
 
         let straight_through_algorithm = payment_data
             .payment_attempt
@@ -1952,6 +1965,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .connector_mandate_detail,
                         card_discovery,
                         routing_approach: payment_data.payment_attempt.routing_approach,
+                        connector_request_reference_id,
                     },
                     storage_scheme,
                 )

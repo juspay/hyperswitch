@@ -226,20 +226,48 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         fetch_optional_mca_and_connector(&state, &merchant_context, connector_name_or_mca_id)
             .await?;
 
-    let decoded_body = connector
-        .decode_webhook_body(
+    // function to check whether the webhook processing needs to go via `UNIFIED_AUTHENTICATION_SERVICE`
+    let is_eligible_for_uas = payments::helpers::is_merchant_eligible_authentication_service(
+        merchant_context.get_merchant_account().get_id(),
+        &state,
+    )
+    .await?;
+
+    let connector_enum = api_models::enums::Connector::from_str(&connector_name)
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "connector",
+        })
+        .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
+    // Process webhook for modular authentication
+    let decoded_body = if is_eligible_for_uas
+        && connector_enum.is_uas_enabled_authentication_connector()
+    {
+        Box::pin(crate::core::unified_authentication_service::authentication_webhook_core(
+            &state,
             &request_details,
-            merchant_context.get_merchant_account().get_id(),
-            merchant_connector_account
-                .clone()
-                .and_then(|merchant_connector_account| {
-                    merchant_connector_account.connector_webhook_details
-                }),
-            connector_name.as_str(),
-        )
+            &merchant_context,
+            connector_name_or_mca_id,
+        ))
         .await
-        .switch()
-        .attach_printable("There was an error in incoming webhook body decoding")?;
+        .attach_printable("There was an error in incoming webhook body decoding via unified authentication service")?
+    }
+    // Process webhook via payment connector module
+    else {
+        connector
+            .decode_webhook_body(
+                &request_details,
+                merchant_context.get_merchant_account().get_id(),
+                merchant_connector_account
+                    .clone()
+                    .and_then(|merchant_connector_account| {
+                        merchant_connector_account.connector_webhook_details
+                    }),
+                connector_name.as_str(),
+            )
+            .await
+            .switch()
+            .attach_printable("There was an error in incoming webhook body decoding")?
+    };
 
     request_details.body = &decoded_body;
 
@@ -288,6 +316,59 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             ));
         }
     };
+
+    // let event_type = if is_eligible_for_uas
+    //     && connector_enum.is_uas_enabled_authentication_connector()
+    // {
+    //     webhooks::IncomingWebhookEvent::ModularAuthentication
+    // } else {
+    //     match connector
+    //         .get_webhook_event_type(&request_details)
+    //         .allow_webhook_event_type_not_found(
+    //             state
+    //                 .clone()
+    //                 .conf
+    //                 .webhooks
+    //                 .ignore_error
+    //                 .event_type
+    //                 .unwrap_or(true),
+    //         )
+    //         .switch()
+    //         .attach_printable("Could not find event type in incoming webhook body")?
+    //     {
+    //         Some(event_type) => event_type,
+    //         // Early return allows us to acknowledge the webhooks that we do not support
+    //         None => {
+    //             logger::error!(
+    //                 webhook_payload =? request_details.body,
+    //                 "Failed while identifying the event type",
+    //             );
+
+    //             metrics::WEBHOOK_EVENT_TYPE_IDENTIFICATION_FAILURE_COUNT.add(
+    //                 1,
+    //                 router_env::metric_attributes!(
+    //                     (
+    //                         MERCHANT_ID,
+    //                         merchant_context.get_merchant_account().get_id().clone()
+    //                     ),
+    //                     ("connector", connector_name)
+    //                 ),
+    //             );
+
+    //             let response = connector
+    //                 .get_webhook_api_response(&request_details, None)
+    //                 .switch()
+    //                 .attach_printable("Failed while early return in case of event type parsing")?;
+
+    //             return Ok((
+    //                 response,
+    //                 WebhookResponseTracker::NoEffect,
+    //                 serde_json::Value::Null,
+    //             ));
+    //         }
+    //     }
+    // };
+
     logger::info!(event_type=?event_type);
 
     let is_webhook_event_supported = !matches!(
@@ -303,7 +384,8 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     .await;
 
     //process webhook further only if webhook event is enabled and is not event_not_supported
-    let process_webhook_further = is_webhook_event_enabled && is_webhook_event_supported;
+    let process_webhook_further =
+        is_webhook_event_enabled && is_webhook_event_supported && !is_eligible_for_uas;
 
     logger::info!(process_webhook=?process_webhook_further);
 
@@ -2056,7 +2138,7 @@ fn get_connector_by_connector_name(
 
 /// This function fetches the merchant connector account ( if the url used is /{merchant_connector_id})
 /// if merchant connector id is not passed in the request, then this will return None for mca
-async fn fetch_optional_mca_and_connector(
+pub async fn fetch_optional_mca_and_connector(
     state: &SessionState,
     merchant_context: &domain::MerchantContext,
     connector_name_or_mca_id: &str,

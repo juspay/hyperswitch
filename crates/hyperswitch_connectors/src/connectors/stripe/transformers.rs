@@ -749,6 +749,8 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             // Stripe expects PMT as Card for Recurring Mandates Payments
             enums::PaymentMethodType::GooglePay => Ok(Self::Card),
             enums::PaymentMethodType::Boleto
+            | enums::PaymentMethodType::Paysera
+            | enums::PaymentMethodType::Skrill
             | enums::PaymentMethodType::CardRedirect
             | enums::PaymentMethodType::CryptoCurrency
             | enums::PaymentMethodType::Multibanco
@@ -1119,6 +1121,8 @@ fn get_stripe_payment_method_type_from_wallet_data(
         )),
         WalletData::PaypalRedirect(_)
         | WalletData::AliPayQr(_)
+        | WalletData::Paysera(_)
+        | WalletData::Skrill(_)
         | WalletData::AliPayHkRedirect(_)
         | WalletData::MomoRedirect(_)
         | WalletData::KakaoPayRedirect(_)
@@ -1538,6 +1542,8 @@ impl TryFrom<(&WalletData, Option<PaymentMethodToken>)> for StripePaymentMethodD
                 .into(),
             ),
             WalletData::AliPayQr(_)
+            | WalletData::Paysera(_)
+            | WalletData::Skrill(_)
             | WalletData::AliPayHkRedirect(_)
             | WalletData::MomoRedirect(_)
             | WalletData::KakaoPayRedirect(_)
@@ -3575,7 +3581,7 @@ fn format_metadata_for_request(merchant_metadata: Secret<Value>) -> HashMap<Stri
     let mut formatted_metadata = HashMap::new();
     if let Value::Object(metadata_map) = merchant_metadata.expose() {
         for (key, value) in metadata_map {
-            formatted_metadata.insert(format!("metadata[{}]", key), value.to_string());
+            formatted_metadata.insert(format!("metadata[{key}]"), value.to_string());
         }
     }
     formatted_metadata
@@ -4322,7 +4328,7 @@ fn get_transaction_metadata(
             serde_json::from_str(&metadata.peek().to_string()).unwrap_or(HashMap::new());
 
         for (key, value) in hashmap {
-            request_hash_map.insert(format!("metadata[{}]", key), value.to_string());
+            request_hash_map.insert(format!("metadata[{key}]"), value.to_string());
         }
 
         meta_data.extend(request_hash_map)
@@ -4359,10 +4365,7 @@ fn get_stripe_payments_response_data(
             res.decline_code
                 .clone()
                 .map(|decline_code| {
-                    format!(
-                        "message - {}, decline_code - {}",
-                        error_message, decline_code
-                    )
+                    format!("message - {error_message}, decline_code - {decline_code}")
                 })
                 .or(Some(error_message.clone()))
         }),

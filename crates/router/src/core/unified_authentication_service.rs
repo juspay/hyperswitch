@@ -23,8 +23,9 @@ use hyperswitch_domain_models::{
         authentication::{MessageCategory, PreAuthenticationData},
         unified_authentication_service::{
             AuthenticationInfo, PaymentDetails, ServiceSessionIds, TransactionDetails,
-            UasAuthenticationRequestData, UasConfirmationRequestData,
-            UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
+            UasAuthenticationRequestData, UasAuthenticationResponseData,
+            UasConfirmationRequestData, UasPostAuthenticationRequestData,
+            UasPreAuthenticationRequestData, WebhookResponse,
         },
         BrowserInformation,
     },
@@ -33,6 +34,7 @@ use hyperswitch_domain_models::{
         UasPreAuthenticationRouterData,
     },
 };
+use hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails;
 use masking::{ExposeInterface, PeekInterface};
 
 use super::{
@@ -915,12 +917,9 @@ pub async fn authentication_eligibility_core(
         .transpose()
         .change_context(ApiErrorResponse::InternalServerError)?;
 
-    let merchant_country_code = business_profile
-        .merchant_country_code
-        .map(|code| code.to_string())
-        .or(metadata
-            .clone()
-            .and_then(|metadata| metadata.merchant_country_code));
+    let merchant_country_code = business_profile.merchant_country_code.or(metadata
+        .clone()
+        .and_then(|metadata| metadata.merchant_country_code));
 
     let merchant_details = Some(hyperswitch_domain_models::router_request_types::unified_authentication_service::MerchantDetails {
         merchant_id: Some(authentication.merchant_id.get_string_repr().to_string()),
@@ -1469,4 +1468,120 @@ pub async fn authentication_sync_core(
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         response,
     ))
+}
+
+#[cfg(feature = "v1")]
+pub async fn authentication_webhook_core(
+    state: &SessionState,
+    incoming_webhook_request: &IncomingWebhookRequestDetails<'_>,
+    merchant_context: &domain::MerchantContext,
+    connector_name_or_mca_id: &str,
+) -> RouterResult<Vec<u8>> {
+    use common_utils::ext_traits::AsyncExt;
+
+    let (_mca, _connector_enum, connector_name) =
+        crate::core::webhooks::fetch_optional_mca_and_connector(
+            state,
+            merchant_context,
+            connector_name_or_mca_id,
+        )
+        .await?;
+    let webhook_data = utils::get_webhook_request_data_for_uas(incoming_webhook_request);
+
+    let webhook_router_data: hyperswitch_domain_models::types::UasProcessWebhookRouterData =
+        utils::construct_uas_webhook_router_data(state, connector_name.to_string(), webhook_data)?;
+
+    let response = utils::do_auth_connector_call(
+        state,
+        UNIFIED_AUTHENTICATION_SERVICE.to_string(),
+        webhook_router_data,
+    )
+    .await?;
+
+    let response_body = match response.response {
+        Ok(resp) => match resp {
+            UasAuthenticationResponseData::Webhook {
+                trans_status,
+                authentication_value,
+                eci,
+                three_ds_server_transaction_id,
+            } => Ok(WebhookResponse {
+                trans_status,
+                authentication_value,
+                eci,
+                three_ds_server_transaction_id,
+            }),
+            _ => {
+                router_env::logger::error!("received unknown webhook response from uas");
+                Err(ApiErrorResponse::WebhookProcessingFailure)
+            }
+        },
+        Err(err) => {
+            router_env::logger::error!("error processing webhook {:?}", err);
+            Err(ApiErrorResponse::WebhookProcessingFailure)
+        }
+    }?;
+
+    let three_ds_server_transaction_id = response_body
+        .three_ds_server_transaction_id
+        .clone()
+        .ok_or(ApiErrorResponse::MissingRequiredField {
+            field_name: "three_ds_server_transaction_id",
+        })?;
+
+    let authentication = state
+        .store
+        .find_authentication_by_merchant_id_connector_authentication_id(
+            merchant_context.get_merchant_account().get_id().clone(),
+            three_ds_server_transaction_id.clone(),
+        )
+        .await
+        .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {
+            id: three_ds_server_transaction_id.clone(),
+        })
+        .attach_printable("Error while fetching authentication record")?;
+
+    let authentication_update =
+        diesel_models::authentication::AuthenticationUpdate::PostAuthenticationUpdate {
+            authentication_status: common_enums::AuthenticationStatus::foreign_from(
+                response_body.trans_status.clone(),
+            ),
+            trans_status: response_body.trans_status.clone(),
+            eci: response_body.eci.clone(),
+        };
+
+    let updated_authentication = state
+        .store
+        .update_authentication_by_merchant_id_authentication_id(
+            authentication,
+            authentication_update,
+        )
+        .await
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Error while updating authentication")?;
+
+    response_body
+        .clone()
+        .authentication_value
+        .async_map(|auth_val| {
+            crate::core::payment_methods::vault::create_tokenize(
+                state,
+                auth_val.expose(),
+                None,
+                updated_authentication
+                    .authentication_id
+                    .clone()
+                    .get_string_repr()
+                    .to_string(),
+                merchant_context.get_merchant_key_store().key.get_inner(),
+            )
+        })
+        .await
+        .transpose()?;
+
+    let serialized = serde_json::to_vec(&response_body)
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("error converting uas webhook response to bytes")?;
+
+    Ok(serialized)
 }

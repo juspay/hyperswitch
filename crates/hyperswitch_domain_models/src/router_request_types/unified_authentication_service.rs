@@ -1,5 +1,6 @@
 use api_models::payments::DeviceChannel;
 use common_enums::MerchantCategoryCode;
+use common_types::payments::MerchantCountryCode;
 use common_utils::types::MinorUnit;
 use masking::Secret;
 use time::PrimitiveDateTime;
@@ -23,7 +24,7 @@ pub struct MerchantDetails {
     pub merchant_id: Option<String>,
     pub merchant_name: Option<String>,
     pub merchant_category_code: Option<MerchantCategoryCode>,
-    pub merchant_country_code: Option<String>,
+    pub merchant_country_code: Option<MerchantCountryCode>,
     pub endpoint_prefix: Option<String>,
     pub three_ds_requestor_url: Option<String>,
     pub three_ds_requestor_id: Option<String>,
@@ -103,6 +104,12 @@ pub enum UasAuthenticationResponseData {
         authentication_details: PostAuthenticationDetails,
     },
     Confirmation {},
+    Webhook {
+        trans_status: common_enums::TransactionStatus,
+        authentication_value: Option<Secret<String>>,
+        eci: Option<String>,
+        three_ds_server_transaction_id: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -172,10 +179,27 @@ pub struct UasConfirmationRequestData {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ThreeDsMetaData {
     pub mcc: Option<MerchantCategoryCode>,
-    pub merchant_country_code: Option<String>,
+    pub merchant_country_code: Option<MerchantCountryCode>,
     pub merchant_name: Option<String>,
     pub endpoint_prefix: String,
     pub three_ds_requestor_name: Option<String>,
     pub three_ds_requestor_id: Option<String>,
     pub merchant_configuration_id: Option<String>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+pub struct UasWebhookRequestData {
+    pub body: Vec<u8>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+pub struct WebhookResponse {
+    /// trans_status
+    pub trans_status: common_enums::TransactionStatus,
+    /// authentication_value
+    pub authentication_value: Option<Secret<String>>,
+    /// eci
+    pub eci: Option<String>,
+    /// three_ds server transaction id
+    pub three_ds_server_transaction_id: Option<String>,
 }
