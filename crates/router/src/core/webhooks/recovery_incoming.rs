@@ -143,7 +143,7 @@ pub async fn recovery_incoming_webhook_flow(
         if let Err(e) = RecoveryPaymentTuple::publish_revenue_recovery_event_to_kafka(
             &state,
             recovery_payment_tuple,
-            None
+            None,
         )
         .await
         {
@@ -1270,7 +1270,7 @@ impl RecoveryPaymentTuple {
     pub async fn publish_revenue_recovery_event_to_kafka(
         state: &SessionState,
         recovery_payment_tuple: &Self,
-        retry_count: Option<i32>
+        retry_count: Option<i32>,
     ) -> CustomResult<(), errors::RevenueRecoveryError> {
         let recovery_payment_intent = &recovery_payment_tuple.0;
         let recovery_payment_attempt = &recovery_payment_tuple.1;
@@ -1308,7 +1308,7 @@ impl RecoveryPaymentTuple {
                     .and_then(|data| data.billing_connector_payment_method_details.as_ref())
                     .and_then(|details| details.get_billing_connector_card_info())
             });
-            
+
         #[allow(clippy::as_conversions)]
         let retry_count = Some(retry_count.unwrap_or_else(|| {
             revenue_recovery_feature_metadata
