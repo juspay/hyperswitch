@@ -2630,7 +2630,6 @@ pub async fn migrate_rules_for_profile(
 
 pub async fn decide_gateway_open_router(
     state: SessionState,
-    // merchant_context: domain::MerchantContext,
     req_body: OpenRouterDecideGatewayRequest,
 ) -> RouterResponse<DecideGatewayResponse> {
     let response = SRApiClient::send_decision_engine_request(
