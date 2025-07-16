@@ -161,34 +161,44 @@ impl ApiEventMetric for AuthenticationResponse {
 #[cfg(feature = "v1")]
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct AuthenticationEligibilityRequest {
-    /// Payment method data
+    /// Payment method-specific data such as card details, wallet info, etc.
+    /// This holds the raw information required to process the payment method.
     pub payment_method_data: PaymentMethodData,
 
-    /// Payment method
+    /// Enum representing the type of payment method being used 
+    /// (e.g., Card, Wallet, UPI, BankTransfer, etc.).
     pub payment_method: common_enums::PaymentMethod,
 
+    /// Optional secret value used to identify and authorize the client making the request.
+    /// This can help ensure that the payment session is secure and valid.
     pub client_secret: Option<masking::Secret<String>>,
 
-    /// The business profile that is associated with this payment
+    /// Optional identifier for the business profile associated with the payment.
+    /// This determines which configurations, rules, and branding are applied to the transaction.
     #[schema(value_type = Option<String>)]
     pub profile_id: Option<id_type::ProfileId>,
 
-    /// Billing address
+    /// Optional billing address of the customer.
+    /// This can be used for fraud detection, authentication, or compliance purposes.
     #[schema(value_type = Option<Address>)]
     pub billing: Option<Address>,
 
-    /// Shipping address
+    /// Optional shipping address of the customer.
+    /// This can be useful for logistics, verification, or additional risk checks.
     #[schema(value_type = Option<Address>)]
     pub shipping: Option<Address>,
 
-    /// Browser information
+    /// Optional information about the customer's browser (user-agent, language, etc.).
+    /// This is typically used to support 3DS authentication flows and improve risk assessment.
     #[schema(value_type = Option<BrowserInformation>)]
     pub browser_information: Option<BrowserInformation>,
 
-    /// Email
+    /// Optional email address of the customer.
+    /// Used for customer identification, communication, and possibly for 3DS or fraud checks.
     #[schema(value_type = Option<pii::Email>)]
     pub email: Option<common_utils::pii::Email>,
 }
+
 
 #[cfg(feature = "v1")]
 impl AuthenticationEligibilityRequest {

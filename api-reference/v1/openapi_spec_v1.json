@@ -7646,6 +7646,151 @@
           }
         }
       },
+      "AuthenticationEligibilityRequest": {
+        "type": "object",
+        "required": [
+          "payment_method_data",
+          "payment_method"
+        ],
+        "properties": {
+          "payment_method_data": {
+            "$ref": "#/components/schemas/PaymentMethodData"
+          },
+          "payment_method": {
+            "$ref": "#/components/schemas/common_enums.PaymentMethod"
+          },
+          "client_secret": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/masking.Secret"
+              }
+            ],
+            "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "Optional identifier for the business profile associated with the payment.\nThis determines which configurations, rules, and branding are applied to the transaction.",
+            "nullable": true
+          },
+          "billing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "shipping": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "browser_information": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
+            "nullable": true
+          },
+          "email": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/pii.Email"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "AuthenticationEligibilityResponse": {
+        "type": "object",
+        "required": [
+          "authentication_id",
+          "next_api_action",
+          "status",
+          "connector_metadata",
+          "profile_id"
+        ],
+        "properties": {
+          "authentication_id": {
+            "type": "string",
+            "description": "The unique identifier for this authentication.",
+            "example": "auth_mbabizu24mvu3mela5njyhpit4"
+          },
+          "next_api_action": {
+            "$ref": "#/components/schemas/NextAction"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AuthenticationStatus"
+          },
+          "eligibility_response_params": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EligibilityResponseParams"
+              }
+            ],
+            "nullable": true
+          },
+          "connector_metadata": {
+            "description": "The metadata for this authentication."
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The unique identifier for this authentication."
+          },
+          "error_message": {
+            "type": "string",
+            "description": "The error message for this authentication.",
+            "nullable": true
+          },
+          "error_code": {
+            "type": "string",
+            "description": "The error code for this authentication.",
+            "nullable": true
+          },
+          "authentication_connector": {
+            "type": "string",
+            "description": "The connector used for this authentication.",
+            "nullable": true
+          },
+          "billing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "shipping": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "browser_information": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
+            "nullable": true
+          },
+          "email": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/pii.Email"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "AuthenticationResponse": {
         "type": "object",
         "required": [
