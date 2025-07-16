@@ -11,6 +11,7 @@ pub struct ChatResponse {
     pub response: Secret<serde_json::Value>,
     pub merchant_id: id_type::MerchantId,
     pub status: String,
+    #[serde(skip_serializing)]
     pub query_executed: Option<Secret<String>>,
     pub row_count: Option<i32>,
 }
