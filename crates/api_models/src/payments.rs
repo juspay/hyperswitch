@@ -5808,6 +5808,9 @@ pub struct PaymentsResponse {
     /// Stringified connector raw response body. Only returned if `return_raw_connector_response` is true
     #[schema(value_type = Option<String>)]
     pub raw_connector_response: Option<Secret<String>>,
+
+    /// Additional data that might be required by hyperswitch based on the additional features.
+    pub feature_metadata: Option<FeatureMetadata>,
 }
 
 #[cfg(feature = "v2")]

@@ -1989,6 +1989,7 @@ where
             is_iframe_redirection_enabled: None,
             merchant_reference_id: payment_intent.merchant_reference_id.clone(),
             raw_connector_response,
+            feature_metadata: None,
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
@@ -2089,6 +2090,7 @@ where
             is_iframe_redirection_enabled: payment_intent.is_iframe_redirection_enabled,
             merchant_reference_id: payment_intent.merchant_reference_id.clone(),
             raw_connector_response,
+            feature_metadata: None,
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
