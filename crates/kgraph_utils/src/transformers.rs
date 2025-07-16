@@ -131,6 +131,8 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
     fn into_dir_value(self) -> Result<dir::DirValue, KgraphError> {
         match self.0 {
             api_enums::PaymentMethodType::AmazonPay => Ok(dirval!(WalletType = AmazonPay)),
+            api_enums::PaymentMethodType::Paysera => Ok(dirval!(WalletType = Paysera)),
+            api_enums::PaymentMethodType::Skrill => Ok(dirval!(WalletType = Skrill)),
             api_enums::PaymentMethodType::Credit => Ok(dirval!(CardType = Credit)),
             api_enums::PaymentMethodType::Debit => Ok(dirval!(CardType = Debit)),
             #[cfg(feature = "v2")]
