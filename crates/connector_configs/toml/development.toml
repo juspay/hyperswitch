@@ -6338,3 +6338,7 @@ key1="Secret Key"
 [mpgs.connector_auth.HeaderKey]
 api_key = "API Key"
 
+
+[affirm]
+[affirm.connector_auth.HeaderKey]
+api_key = "API Key"

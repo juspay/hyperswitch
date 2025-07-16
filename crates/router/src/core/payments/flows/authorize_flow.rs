@@ -5,7 +5,7 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentConfirmData;
-use masking::ExposeInterface;
+use masking::{ExposeInterface, Secret};
 use unified_connector_service_client::payments as payments_grpc;
 
 // use router_env::tracing::Instrument;
@@ -555,7 +555,9 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
         self.status = status;
         self.response = router_data_response;
-        self.raw_connector_response = payment_authorize_response.raw_connector_response;
+        self.raw_connector_response = payment_authorize_response
+            .raw_connector_response
+            .map(Secret::new);
 
         Ok(())
     }

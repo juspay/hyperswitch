@@ -10,6 +10,7 @@ pub struct ConnectorAuthentication {
     pub adyen: Option<BodyKey>,
     #[cfg(feature = "payouts")]
     pub adyenplatform: Option<HeaderKey>,
+    pub affirm: Option<HeaderKey>,
     #[cfg(feature = "payouts")]
     pub adyen: Option<SignatureKey>,
     #[cfg(not(feature = "payouts"))]

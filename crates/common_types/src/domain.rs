@@ -5,6 +5,8 @@ use std::collections::HashMap;
 use common_enums::enums;
 use common_utils::{impl_to_sql_from_sql_json, types::MinorUnit};
 use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
+#[cfg(feature = "v2")]
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -104,10 +106,10 @@ pub struct MerchantConnectorAuthDetails {
     pub merchant_connector_creds: common_utils::pii::SecretSerdeValue,
 }
 
-/// Connector Response Data that are required to be populated in response
+/// Connector Response Data that are required to be populated in response, but not persisted in DB.
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug)]
 pub struct ConnectorResponseData {
     /// Stringified connector raw response body
-    pub raw_connector_response: Option<String>,
+    pub raw_connector_response: Option<Secret<String>>,
 }

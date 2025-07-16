@@ -15,6 +15,7 @@ pub struct Connectors {
     pub authipay: ConnectorParams,
     pub adyen: AdyenParamsWithThreeBaseUrls,
     pub adyenplatform: ConnectorParams,
+    pub affirm: ConnectorParams,
     pub airwallex: ConnectorParams,
     pub amazonpay: ConnectorParams,
     pub applepay: ConnectorParams,

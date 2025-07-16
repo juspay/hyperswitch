@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use async_trait::async_trait;
 use error_stack::ResultExt;
+use masking::Secret;
 use unified_connector_service_client::payments as payments_grpc;
 
 use super::{ConstructFlowSpecificData, Feature};
@@ -256,7 +257,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
 
         self.status = status;
         self.response = router_data_response;
-        self.raw_connector_response = payment_get_response.raw_connector_response;
+        self.raw_connector_response = payment_get_response.raw_connector_response.map(Secret::new);
 
         Ok(())
     }

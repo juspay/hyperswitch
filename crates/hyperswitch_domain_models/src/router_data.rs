@@ -104,7 +104,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
 
     /// Contains stringified connector raw response body
-    pub raw_connector_response: Option<String>,
+    pub raw_connector_response: Option<Secret<String>>,
 
     /// Indicates whether the payment ID was provided by the merchant (true),
     /// or generated internally by Hyperswitch (false)
@@ -1260,7 +1260,6 @@ impl
                     resource_id,
                     redirection_data,
                     connector_metadata,
-                    connector_response_reference_id,
                     ..
                 } => {
                     let attempt_status = self.get_attempt_status_for_db_update(payment_data);
@@ -1289,9 +1288,7 @@ impl
                                             token_details.get_connector_token_request_reference_id()
                                         }),
                                 ),
-
-                            connector_response_reference_id: connector_response_reference_id
-                                .clone(),
+                            connector_response_reference_id: None,
                         },
                     ))
                 }

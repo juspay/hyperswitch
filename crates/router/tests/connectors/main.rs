@@ -9,6 +9,7 @@ use test_utils::connector_auth;
 mod aci;
 mod adyen;
 mod adyenplatform;
+mod affirm;
 mod airwallex;
 mod amazonpay;
 mod authorizedotnet;
