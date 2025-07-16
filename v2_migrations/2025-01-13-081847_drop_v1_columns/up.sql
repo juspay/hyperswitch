@@ -93,7 +93,8 @@ ALTER TABLE payment_attempt DROP COLUMN attempt_id,
     DROP COLUMN charge_id,
     DROP COLUMN issuer_error_code,
     DROP COLUMN issuer_error_message,
-    DROP COLUMN setup_future_usage_applied;
+    DROP COLUMN setup_future_usage_applied,
+    DROP COLUMN routing_approach;
 
 
 ALTER TABLE payment_methods
@@ -129,5 +130,8 @@ ALTER TABLE refund
     DROP COLUMN IF EXISTS internal_reference_id,
     DROP COLUMN IF EXISTS refund_id,
     DROP COLUMN IF EXISTS merchant_connector_id;
+
+-- Run below queries only when V1 is deprecated
+ALTER TABLE payment_attempt DROP COLUMN IF EXISTS connector_request_reference_id;
 
 

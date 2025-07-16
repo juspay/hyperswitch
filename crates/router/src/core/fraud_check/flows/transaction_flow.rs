@@ -10,7 +10,7 @@ use crate::{
     },
     errors, services,
     types::{
-        api::{self, fraud_check as frm_api},
+        api::fraud_check as frm_api,
         domain,
         fraud_check::{
             FraudCheckResponseData, FraudCheckTransactionData, FrmTransactionRouterData,
@@ -36,7 +36,7 @@ impl
         _connector_id: &str,
         _merchant_context: &domain::MerchantContext,
         _customer: &Option<domain::Customer>,
-        _merchant_connector_account: &domain::MerchantConnectorAccount,
+        _merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         _merchant_recipient_data: Option<MerchantRecipientData>,
         _header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
     ) -> RouterResult<
@@ -146,20 +146,11 @@ impl
             connector_mandate_request_reference_id: None,
             authentication_id: None,
             psd2_sca_exemption_type: None,
-            whole_connector_response: None,
+            raw_connector_response: None,
+            is_payment_id_from_merchant: None,
         };
 
         Ok(router_data)
-    }
-
-    async fn get_merchant_recipient_data<'a>(
-        &self,
-        _state: &SessionState,
-        _merchant_context: &domain::MerchantContext,
-        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
-        _connector: &api::ConnectorData,
-    ) -> RouterResult<Option<MerchantRecipientData>> {
-        Ok(None)
     }
 }
 

@@ -1,9 +1,29 @@
+#[cfg(feature = "dummy_connector")]
+use common_enums::{CallConnectorAction, PaymentAction};
 // impl api::PaymentIncrementalAuthorization for Helcim {}
 // impl api::ConnectorCustomer for Helcim {}
 // impl api::PaymentsPreProcessing for Helcim {}
 // impl api::PaymentReject for Helcim {}
 // impl api::PaymentApprove for Helcim {}
 use common_utils::errors::CustomResult;
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use hyperswitch_domain_models::router_flow_types::{
+    BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, RecoveryRecordBack,
+};
+#[cfg(feature = "dummy_connector")]
+use hyperswitch_domain_models::router_request_types::authentication::{
+    ConnectorAuthenticationRequestData, ConnectorPostAuthenticationRequestData, PreAuthNRequestData,
+};
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use hyperswitch_domain_models::router_request_types::revenue_recovery::{
+    BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
+    RevenueRecoveryRecordBackRequest,
+};
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use hyperswitch_domain_models::router_response_types::revenue_recovery::{
+    BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
+    RevenueRecoveryRecordBackResponse,
+};
 #[cfg(feature = "frm")]
 use hyperswitch_domain_models::{
     router_flow_types::fraud_check::{Checkout, Fulfillment, RecordReturn, Sale, Transaction},
@@ -21,12 +41,6 @@ use hyperswitch_domain_models::{
     },
     router_request_types::PayoutsData,
     router_response_types::PayoutsResponseData,
-};
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-use hyperswitch_domain_models::{
-    router_flow_types::revenue_recovery as recovery_router_flows,
-    router_request_types::revenue_recovery as recovery_request,
-    router_response_types::revenue_recovery as recovery_response,
 };
 use hyperswitch_domain_models::{
     router_flow_types::{
@@ -79,6 +93,12 @@ use hyperswitch_interfaces::api::payouts::{
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_interfaces::api::revenue_recovery as recovery_traits;
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use hyperswitch_interfaces::api::revenue_recovery::{
+    BillingConnectorInvoiceSyncIntegration, BillingConnectorPaymentsSyncIntegration,
+};
+#[cfg(feature = "dummy_connector")]
+use hyperswitch_interfaces::api::ConnectorVerifyWebhookSource;
 use hyperswitch_interfaces::{
     api::{
         self,
@@ -128,6 +148,7 @@ default_imp_for_authorize_session_token!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -139,7 +160,9 @@ default_imp_for_authorize_session_token!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -149,6 +172,7 @@ default_imp_for_authorize_session_token!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Facilitapay,
@@ -182,6 +206,7 @@ default_imp_for_authorize_session_token!(
     connectors::Opennode,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
@@ -200,7 +225,9 @@ default_imp_for_authorize_session_token!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Signifyd,
     connectors::Stax,
     connectors::Stripe,
@@ -248,6 +275,7 @@ default_imp_for_calculate_tax!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -259,7 +287,9 @@ default_imp_for_calculate_tax!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -269,6 +299,7 @@ default_imp_for_calculate_tax!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Facilitapay,
@@ -307,6 +338,7 @@ default_imp_for_calculate_tax!(
     connectors::Novalnet,
     connectors::Nuvei,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
@@ -321,7 +353,9 @@ default_imp_for_calculate_tax!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Signifyd,
     connectors::Stax,
     connectors::Square,
@@ -369,6 +403,7 @@ default_imp_for_session_update!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -380,7 +415,9 @@ default_imp_for_session_update!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -389,6 +426,7 @@ default_imp_for_session_update!(
     connectors::Datatrans,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Facilitapay,
@@ -409,7 +447,9 @@ default_imp_for_session_update!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Signifyd,
     connectors::Stripe,
     connectors::Stax,
@@ -433,6 +473,7 @@ default_imp_for_session_update!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paystack,
@@ -490,6 +531,7 @@ default_imp_for_post_session_tokens!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -501,7 +543,9 @@ default_imp_for_post_session_tokens!(
     connectors::Boku,
     connectors::Billwerk,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -510,6 +554,7 @@ default_imp_for_post_session_tokens!(
     connectors::Datatrans,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Facilitapay,
@@ -530,7 +575,9 @@ default_imp_for_post_session_tokens!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Signifyd,
     connectors::Square,
     connectors::Stax,
@@ -554,6 +601,7 @@ default_imp_for_post_session_tokens!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paystack,
@@ -610,6 +658,7 @@ default_imp_for_create_order!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -621,7 +670,9 @@ default_imp_for_create_order!(
     connectors::Boku,
     connectors::Billwerk,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -630,6 +681,7 @@ default_imp_for_create_order!(
     connectors::Datatrans,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Facilitapay,
@@ -649,7 +701,9 @@ default_imp_for_create_order!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Signifyd,
     connectors::Square,
     connectors::Stax,
@@ -673,6 +727,7 @@ default_imp_for_create_order!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
@@ -731,6 +786,7 @@ default_imp_for_update_metadata!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -742,7 +798,9 @@ default_imp_for_update_metadata!(
     connectors::Boku,
     connectors::Billwerk,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -751,6 +809,7 @@ default_imp_for_update_metadata!(
     connectors::Datatrans,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Facilitapay,
@@ -771,7 +830,9 @@ default_imp_for_update_metadata!(
     connectors::Razorpay,
     connectors::Recurly,
     connectors::Redsys,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Signifyd,
     connectors::Square,
     connectors::Stax,
@@ -794,6 +855,7 @@ default_imp_for_update_metadata!(
     connectors::Nmi,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Paystack,
     connectors::Payu,
@@ -848,12 +910,14 @@ macro_rules! default_imp_for_complete_authorize {
 }
 
 default_imp_for_complete_authorize!(
+    connectors::Silverflow,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Bamboraapac,
     connectors::Bankofamerica,
     connectors::Barclaycard,
@@ -861,13 +925,16 @@ default_imp_for_complete_authorize!(
     connectors::Bitpay,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
     connectors::Cryptopay,
     connectors::Datatrans,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Facilitapay,
@@ -900,6 +967,7 @@ default_imp_for_complete_authorize!(
     connectors::Opayo,
     connectors::Opennode,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payone,
     connectors::Paystack,
     connectors::Payu,
@@ -909,6 +977,7 @@ default_imp_for_complete_authorize!(
     connectors::Razorpay,
     connectors::Recurly,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Signifyd,
     connectors::Stax,
     connectors::Square,
@@ -956,6 +1025,7 @@ default_imp_for_incremental_authorization!(
     connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Amazonpay,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -967,7 +1037,9 @@ default_imp_for_incremental_authorization!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -976,6 +1048,7 @@ default_imp_for_incremental_authorization!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Facilitapay,
@@ -1010,9 +1083,9 @@ default_imp_for_incremental_authorization!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
-    connectors::Paypal,
     connectors::Paystack,
     connectors::Payu,
     connectors::Placetopay,
@@ -1028,7 +1101,9 @@ default_imp_for_incremental_authorization!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Signifyd,
     connectors::Stax,
     connectors::Square,
@@ -1077,6 +1152,7 @@ default_imp_for_create_customer!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -1088,7 +1164,9 @@ default_imp_for_create_customer!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -1098,6 +1176,7 @@ default_imp_for_create_customer!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Fiserv,
@@ -1133,6 +1212,7 @@ default_imp_for_create_customer!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
@@ -1147,7 +1227,9 @@ default_imp_for_create_customer!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Signifyd,
     connectors::Square,
     connectors::Stripebilling,
@@ -1196,6 +1278,7 @@ default_imp_for_connector_redirect_response!(
     connectors::Adyenplatform,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Bamboraapac,
@@ -1203,7 +1286,9 @@ default_imp_for_connector_redirect_response!(
     connectors::Barclaycard,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Coinbase,
     connectors::Coingate,
     connectors::Cryptopay,
@@ -1211,6 +1296,7 @@ default_imp_for_connector_redirect_response!(
     connectors::Datatrans,
     connectors::Deutschebank,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Facilitapay,
@@ -1241,6 +1327,7 @@ default_imp_for_connector_redirect_response!(
     connectors::Opayo,
     connectors::Opennode,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Paystack,
     connectors::Payone,
     connectors::Payu,
@@ -1253,7 +1340,9 @@ default_imp_for_connector_redirect_response!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Signifyd,
     connectors::Stax,
     connectors::Square,
@@ -1291,11 +1380,13 @@ macro_rules! default_imp_for_pre_processing_steps{
 }
 
 default_imp_for_pre_processing_steps!(
+    connectors::Silverflow,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyenplatform,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -1307,7 +1398,9 @@ default_imp_for_pre_processing_steps!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -1316,6 +1409,7 @@ default_imp_for_pre_processing_steps!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Facilitapay,
@@ -1346,6 +1440,7 @@ default_imp_for_pre_processing_steps!(
     connectors::Opennode,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Paystack,
     connectors::Payone,
     connectors::Payu,
@@ -1361,6 +1456,7 @@ default_imp_for_pre_processing_steps!(
     connectors::Razorpay,
     connectors::Recurly,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Signifyd,
     connectors::Stax,
     connectors::Square,
@@ -1408,6 +1504,7 @@ default_imp_for_post_processing_steps!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -1419,7 +1516,9 @@ default_imp_for_post_processing_steps!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -1429,6 +1528,7 @@ default_imp_for_post_processing_steps!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Facilitapay,
@@ -1463,6 +1563,7 @@ default_imp_for_post_processing_steps!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
@@ -1480,7 +1581,9 @@ default_imp_for_post_processing_steps!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Signifyd,
     connectors::Stax,
     connectors::Square,
@@ -1530,6 +1633,7 @@ default_imp_for_approve!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -1541,7 +1645,9 @@ default_imp_for_approve!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -1551,6 +1657,7 @@ default_imp_for_approve!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Facilitapay,
@@ -1585,6 +1692,7 @@ default_imp_for_approve!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Paypal,
     connectors::Paystack,
@@ -1603,7 +1711,9 @@ default_imp_for_approve!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Signifyd,
     connectors::Stax,
     connectors::Square,
@@ -1653,6 +1763,7 @@ default_imp_for_reject!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -1664,7 +1775,9 @@ default_imp_for_reject!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -1674,6 +1787,7 @@ default_imp_for_reject!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Facilitapay,
@@ -1708,6 +1822,7 @@ default_imp_for_reject!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payone,
     connectors::Payme,
     connectors::Paypal,
@@ -1726,7 +1841,9 @@ default_imp_for_reject!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Signifyd,
     connectors::Stax,
     connectors::Square,
@@ -1776,6 +1893,7 @@ default_imp_for_webhook_source_verification!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -1787,7 +1905,9 @@ default_imp_for_webhook_source_verification!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -1797,6 +1917,7 @@ default_imp_for_webhook_source_verification!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Elavon,
     connectors::Ebanx,
     connectors::Facilitapay,
@@ -1832,6 +1953,7 @@ default_imp_for_webhook_source_verification!(
     connectors::Payone,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Paystack,
     connectors::Payu,
@@ -1848,7 +1970,9 @@ default_imp_for_webhook_source_verification!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Signifyd,
     connectors::Stax,
     connectors::Square,
@@ -1898,6 +2022,7 @@ default_imp_for_accept_dispute!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -1909,7 +2034,9 @@ default_imp_for_accept_dispute!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Coinbase,
     connectors::Coingate,
     connectors::Cryptopay,
@@ -1918,6 +2045,7 @@ default_imp_for_accept_dispute!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Facilitapay,
@@ -1952,6 +2080,7 @@ default_imp_for_accept_dispute!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
@@ -1970,7 +2099,9 @@ default_imp_for_accept_dispute!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Signifyd,
     connectors::Stax,
     connectors::Square,
@@ -2019,6 +2150,7 @@ default_imp_for_submit_evidence!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -2030,7 +2162,9 @@ default_imp_for_submit_evidence!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Coinbase,
     connectors::Coingate,
     connectors::Cryptopay,
@@ -2039,6 +2173,7 @@ default_imp_for_submit_evidence!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Facilitapay,
@@ -2073,6 +2208,7 @@ default_imp_for_submit_evidence!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Paypal,
     connectors::Payone,
@@ -2091,7 +2227,9 @@ default_imp_for_submit_evidence!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Signifyd,
     connectors::Stax,
     connectors::Square,
@@ -2139,6 +2277,7 @@ default_imp_for_defend_dispute!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -2150,7 +2289,9 @@ default_imp_for_defend_dispute!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Coinbase,
     connectors::Coingate,
     connectors::Cryptopay,
@@ -2159,6 +2300,7 @@ default_imp_for_defend_dispute!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Facilitapay,
@@ -2193,6 +2335,7 @@ default_imp_for_defend_dispute!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
@@ -2211,7 +2354,9 @@ default_imp_for_defend_dispute!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Signifyd,
     connectors::Stax,
     connectors::Square,
@@ -2269,6 +2414,7 @@ default_imp_for_file_upload!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -2280,7 +2426,9 @@ default_imp_for_file_upload!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Coinbase,
     connectors::Coingate,
     connectors::Cryptopay,
@@ -2289,6 +2437,7 @@ default_imp_for_file_upload!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Facilitapay,
@@ -2323,6 +2472,7 @@ default_imp_for_file_upload!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
@@ -2341,7 +2491,9 @@ default_imp_for_file_upload!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Signifyd,
     connectors::Stax,
     connectors::Square,
@@ -2381,6 +2533,7 @@ default_imp_for_payouts!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -2392,7 +2545,9 @@ default_imp_for_payouts!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Cryptopay,
     connectors::Datatrans,
@@ -2401,6 +2556,7 @@ default_imp_for_payouts!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Elavon,
     connectors::Facilitapay,
     connectors::Fiserv,
@@ -2437,6 +2593,7 @@ default_imp_for_payouts!(
     connectors::Novalnet,
     connectors::Nuvei,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Paystack,
     connectors::Payu,
@@ -2449,7 +2606,9 @@ default_imp_for_payouts!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Signifyd,
     connectors::Square,
     connectors::Stax,
@@ -2497,6 +2656,7 @@ default_imp_for_payouts_create!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -2508,7 +2668,9 @@ default_imp_for_payouts_create!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -2518,6 +2680,7 @@ default_imp_for_payouts_create!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Elavon,
     connectors::Facilitapay,
     connectors::Fiserv,
@@ -2550,6 +2713,7 @@ default_imp_for_payouts_create!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paystack,
@@ -2567,7 +2731,9 @@ default_imp_for_payouts_create!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Signifyd,
     connectors::Stax,
     connectors::Square,
@@ -2617,6 +2783,7 @@ default_imp_for_payouts_retrieve!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -2628,7 +2795,9 @@ default_imp_for_payouts_retrieve!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -2638,6 +2807,7 @@ default_imp_for_payouts_retrieve!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Facilitapay,
@@ -2671,6 +2841,7 @@ default_imp_for_payouts_retrieve!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Paystack,
     connectors::Payu,
@@ -2688,7 +2859,9 @@ default_imp_for_payouts_retrieve!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Signifyd,
     connectors::Stax,
     connectors::Square,
@@ -2739,6 +2912,7 @@ default_imp_for_payouts_eligibility!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -2750,7 +2924,9 @@ default_imp_for_payouts_eligibility!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -2760,6 +2936,7 @@ default_imp_for_payouts_eligibility!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Elavon,
     connectors::Facilitapay,
     connectors::Fiserv,
@@ -2792,6 +2969,7 @@ default_imp_for_payouts_eligibility!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Paypal,
     connectors::Paystack,
@@ -2810,7 +2988,9 @@ default_imp_for_payouts_eligibility!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Signifyd,
     connectors::Stax,
     connectors::Square,
@@ -2859,6 +3039,7 @@ default_imp_for_payouts_fulfill!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -2870,7 +3051,9 @@ default_imp_for_payouts_fulfill!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -2879,6 +3062,7 @@ default_imp_for_payouts_fulfill!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Elavon,
     connectors::Facilitapay,
     connectors::Fiserv,
@@ -2911,6 +3095,7 @@ default_imp_for_payouts_fulfill!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Paystack,
     connectors::Payu,
@@ -2927,7 +3112,9 @@ default_imp_for_payouts_fulfill!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Signifyd,
     connectors::Stax,
     connectors::Square,
@@ -2976,6 +3163,7 @@ default_imp_for_payouts_cancel!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -2987,7 +3175,9 @@ default_imp_for_payouts_cancel!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -2997,6 +3187,7 @@ default_imp_for_payouts_cancel!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Elavon,
     connectors::Facilitapay,
     connectors::Fiserv,
@@ -3029,6 +3220,7 @@ default_imp_for_payouts_cancel!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Paypal,
     connectors::Paystack,
@@ -3047,7 +3239,9 @@ default_imp_for_payouts_cancel!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Signifyd,
     connectors::Stax,
     connectors::Square,
@@ -3097,6 +3291,7 @@ default_imp_for_payouts_quote!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -3108,7 +3303,9 @@ default_imp_for_payouts_quote!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -3118,6 +3315,7 @@ default_imp_for_payouts_quote!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Elavon,
     connectors::Facilitapay,
     connectors::Fiserv,
@@ -3150,6 +3348,7 @@ default_imp_for_payouts_quote!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payone,
     connectors::Payme,
     connectors::Paypal,
@@ -3168,7 +3367,9 @@ default_imp_for_payouts_quote!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Signifyd,
     connectors::Stax,
     connectors::Square,
@@ -3219,6 +3420,7 @@ default_imp_for_payouts_recipient!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -3230,7 +3432,9 @@ default_imp_for_payouts_recipient!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -3240,6 +3444,7 @@ default_imp_for_payouts_recipient!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Elavon,
     connectors::Facilitapay,
     connectors::Fiserv,
@@ -3272,6 +3477,7 @@ default_imp_for_payouts_recipient!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
@@ -3290,7 +3496,9 @@ default_imp_for_payouts_recipient!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Signifyd,
     connectors::Stax,
     connectors::Square,
@@ -3340,6 +3548,7 @@ default_imp_for_payouts_recipient_account!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -3351,7 +3560,9 @@ default_imp_for_payouts_recipient_account!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -3361,6 +3572,7 @@ default_imp_for_payouts_recipient_account!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Facilitapay,
@@ -3394,6 +3606,7 @@ default_imp_for_payouts_recipient_account!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
@@ -3412,7 +3625,9 @@ default_imp_for_payouts_recipient_account!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Signifyd,
     connectors::Stax,
     connectors::Square,
@@ -3463,6 +3678,7 @@ default_imp_for_frm_sale!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -3474,7 +3690,9 @@ default_imp_for_frm_sale!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -3484,6 +3702,7 @@ default_imp_for_frm_sale!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Facilitapay,
@@ -3518,6 +3737,7 @@ default_imp_for_frm_sale!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
@@ -3535,7 +3755,9 @@ default_imp_for_frm_sale!(
     connectors::Razorpay,
     connectors::Recurly,
     connectors::Redsys,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Stax,
     connectors::Square,
     connectors::Stripe,
@@ -3586,6 +3808,7 @@ default_imp_for_frm_checkout!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -3597,7 +3820,9 @@ default_imp_for_frm_checkout!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -3607,6 +3832,7 @@ default_imp_for_frm_checkout!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Facilitapay,
@@ -3641,6 +3867,7 @@ default_imp_for_frm_checkout!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
@@ -3658,7 +3885,9 @@ default_imp_for_frm_checkout!(
     connectors::Razorpay,
     connectors::Recurly,
     connectors::Redsys,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Stax,
     connectors::Square,
     connectors::Stripe,
@@ -3709,6 +3938,7 @@ default_imp_for_frm_transaction!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -3720,7 +3950,9 @@ default_imp_for_frm_transaction!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -3730,6 +3962,7 @@ default_imp_for_frm_transaction!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Facilitapay,
@@ -3764,6 +3997,7 @@ default_imp_for_frm_transaction!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
@@ -3781,7 +4015,9 @@ default_imp_for_frm_transaction!(
     connectors::Razorpay,
     connectors::Recurly,
     connectors::Redsys,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Stax,
     connectors::Square,
     connectors::Stripe,
@@ -3832,6 +4068,7 @@ default_imp_for_frm_fulfillment!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -3843,7 +4080,9 @@ default_imp_for_frm_fulfillment!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -3853,6 +4092,7 @@ default_imp_for_frm_fulfillment!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Facilitapay,
@@ -3888,6 +4128,7 @@ default_imp_for_frm_fulfillment!(
     connectors::Payone,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Paypal,
     connectors::Paystack,
@@ -3904,7 +4145,9 @@ default_imp_for_frm_fulfillment!(
     connectors::Razorpay,
     connectors::Recurly,
     connectors::Redsys,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Stax,
     connectors::Square,
     connectors::Stripe,
@@ -3955,6 +4198,7 @@ default_imp_for_frm_record_return!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -3966,7 +4210,9 @@ default_imp_for_frm_record_return!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -3976,6 +4222,7 @@ default_imp_for_frm_record_return!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Facilitapay,
@@ -4010,6 +4257,7 @@ default_imp_for_frm_record_return!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
@@ -4027,7 +4275,9 @@ default_imp_for_frm_record_return!(
     connectors::Razorpay,
     connectors::Recurly,
     connectors::Redsys,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Stripe,
     connectors::Stax,
     connectors::Square,
@@ -4075,6 +4325,7 @@ default_imp_for_revoking_mandates!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -4085,7 +4336,9 @@ default_imp_for_revoking_mandates!(
     connectors::Bluesnap,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -4094,6 +4347,7 @@ default_imp_for_revoking_mandates!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Facilitapay,
@@ -4127,6 +4381,7 @@ default_imp_for_revoking_mandates!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
@@ -4145,7 +4400,9 @@ default_imp_for_revoking_mandates!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Signifyd,
     connectors::Stax,
     connectors::Square,
@@ -4193,6 +4450,7 @@ default_imp_for_uas_pre_authentication!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -4204,7 +4462,9 @@ default_imp_for_uas_pre_authentication!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -4215,6 +4475,7 @@ default_imp_for_uas_pre_authentication!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Facilitapay,
@@ -4247,6 +4508,7 @@ default_imp_for_uas_pre_authentication!(
     connectors::Opennode,
     connectors::Nuvei,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
@@ -4266,7 +4528,9 @@ default_imp_for_uas_pre_authentication!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Signifyd,
     connectors::Stripe,
     connectors::Stax,
@@ -4313,6 +4577,7 @@ default_imp_for_uas_post_authentication!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -4324,7 +4589,9 @@ default_imp_for_uas_post_authentication!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -4335,6 +4602,7 @@ default_imp_for_uas_post_authentication!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Facilitapay,
@@ -4367,6 +4635,7 @@ default_imp_for_uas_post_authentication!(
     connectors::Opennode,
     connectors::Nuvei,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
@@ -4386,7 +4655,9 @@ default_imp_for_uas_post_authentication!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Signifyd,
     connectors::Stripe,
     connectors::Stax,
@@ -4434,6 +4705,7 @@ default_imp_for_uas_authentication_confirmation!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -4445,7 +4717,9 @@ default_imp_for_uas_authentication_confirmation!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -4456,6 +4730,7 @@ default_imp_for_uas_authentication_confirmation!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Facilitapay,
@@ -4488,6 +4763,7 @@ default_imp_for_uas_authentication_confirmation!(
     connectors::Opennode,
     connectors::Nuvei,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paystack,
@@ -4507,7 +4783,9 @@ default_imp_for_uas_authentication_confirmation!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Signifyd,
     connectors::Stax,
     connectors::Square,
@@ -4546,6 +4824,7 @@ default_imp_for_connector_request_id!(
     connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Amazonpay,
     connectors::Bambora,
@@ -4558,7 +4837,9 @@ default_imp_for_connector_request_id!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -4569,6 +4850,7 @@ default_imp_for_connector_request_id!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Facilitapay,
@@ -4600,6 +4882,7 @@ default_imp_for_connector_request_id!(
     connectors::Opayo,
     connectors::Opennode,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Paystack,
     connectors::Payu,
     connectors::Payme,
@@ -4619,7 +4902,9 @@ default_imp_for_connector_request_id!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Signifyd,
     connectors::Stax,
     connectors::Square,
@@ -4662,6 +4947,7 @@ default_imp_for_fraud_check!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -4673,7 +4959,9 @@ default_imp_for_fraud_check!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -4684,6 +4972,7 @@ default_imp_for_fraud_check!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Facilitapay,
@@ -4716,6 +5005,7 @@ default_imp_for_fraud_check!(
     connectors::Nuvei,
     connectors::Opayo,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Paystack,
     connectors::Paypal,
     connectors::Payu,
@@ -4735,7 +5025,9 @@ default_imp_for_fraud_check!(
     connectors::Razorpay,
     connectors::Recurly,
     connectors::Redsys,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Stax,
     connectors::Square,
     connectors::Stripe,
@@ -4807,6 +5099,7 @@ default_imp_for_connector_authentication!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -4818,7 +5111,9 @@ default_imp_for_connector_authentication!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -4829,6 +5124,7 @@ default_imp_for_connector_authentication!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Facilitapay,
@@ -4860,6 +5156,7 @@ default_imp_for_connector_authentication!(
     connectors::Opayo,
     connectors::Opennode,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Paystack,
     connectors::Payu,
     connectors::Payone,
@@ -4879,7 +5176,9 @@ default_imp_for_connector_authentication!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Signifyd,
     connectors::Stax,
     connectors::Square,
@@ -4925,6 +5224,7 @@ default_imp_for_uas_authentication!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -4936,7 +5236,9 @@ default_imp_for_uas_authentication!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -4947,6 +5249,7 @@ default_imp_for_uas_authentication!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Facilitapay,
@@ -4976,6 +5279,7 @@ default_imp_for_uas_authentication!(
     connectors::Nexixpay,
     connectors::Nuvei,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Paypal,
     connectors::Paystack,
     connectors::Payu,
@@ -4998,7 +5302,9 @@ default_imp_for_uas_authentication!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Signifyd,
     connectors::Stax,
     connectors::Square,
@@ -5030,7 +5336,7 @@ macro_rules! default_imp_for_revenue_recovery {
     };
 }
 
-default_imp_for_revenue_recovery! {
+default_imp_for_revenue_recovery!(
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -5038,6 +5344,7 @@ default_imp_for_revenue_recovery! {
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -5049,8 +5356,10 @@ default_imp_for_revenue_recovery! {
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
-    connectors::Checkout,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
+    connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
     connectors::Cryptopay,
@@ -5060,6 +5369,7 @@ default_imp_for_revenue_recovery! {
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Facilitapay,
@@ -5093,6 +5403,7 @@ default_imp_for_revenue_recovery! {
     connectors::Opayo,
     connectors::Opennode,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Paystack,
     connectors::Payu,
     connectors::Paypal,
@@ -5112,7 +5423,9 @@ default_imp_for_revenue_recovery! {
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Signifyd,
     connectors::Stax,
     connectors::Stripe,
@@ -5136,7 +5449,7 @@ default_imp_for_revenue_recovery! {
     connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
-}
+);
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 macro_rules! default_imp_for_billing_connector_payment_sync {
@@ -5144,9 +5457,9 @@ macro_rules! default_imp_for_billing_connector_payment_sync {
         $(  impl recovery_traits::BillingConnectorPaymentsSyncIntegration for $path::$connector {}
             impl
                 ConnectorIntegration<
-                recovery_router_flows::BillingConnectorPaymentsSync,
-                recovery_request::BillingConnectorPaymentsSyncRequest,
-                recovery_response::BillingConnectorPaymentsSyncResponse
+                BillingConnectorPaymentsSync,
+                BillingConnectorPaymentsSyncRequest,
+                BillingConnectorPaymentsSyncResponse
             > for $path::$connector
             {}
         )*
@@ -5162,6 +5475,7 @@ default_imp_for_billing_connector_payment_sync!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -5173,7 +5487,9 @@ default_imp_for_billing_connector_payment_sync!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -5184,6 +5500,7 @@ default_imp_for_billing_connector_payment_sync!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Facilitapay,
@@ -5217,6 +5534,7 @@ default_imp_for_billing_connector_payment_sync!(
     connectors::Opayo,
     connectors::Opennode,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Paystack,
     connectors::Payu,
     connectors::Paypal,
@@ -5236,7 +5554,9 @@ default_imp_for_billing_connector_payment_sync!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Signifyd,
     connectors::Stripe,
     connectors::Stax,
@@ -5267,9 +5587,9 @@ macro_rules! default_imp_for_revenue_recovery_record_back {
         $( impl recovery_traits::RevenueRecoveryRecordBack for $path::$connector {}
             impl
             ConnectorIntegration<
-            recovery_router_flows::RecoveryRecordBack,
-            recovery_request::RevenueRecoveryRecordBackRequest,
-            recovery_response::RevenueRecoveryRecordBackResponse
+            RecoveryRecordBack,
+            RevenueRecoveryRecordBackRequest,
+            RevenueRecoveryRecordBackResponse
             > for $path::$connector
             {}
         )*
@@ -5285,6 +5605,7 @@ default_imp_for_revenue_recovery_record_back!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -5296,6 +5617,8 @@ default_imp_for_revenue_recovery_record_back!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -5306,6 +5629,7 @@ default_imp_for_revenue_recovery_record_back!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Facilitapay,
@@ -5339,6 +5663,7 @@ default_imp_for_revenue_recovery_record_back!(
     connectors::Opayo,
     connectors::Opennode,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Paystack,
     connectors::Payu,
     connectors::Paypal,
@@ -5358,7 +5683,9 @@ default_imp_for_revenue_recovery_record_back!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Signifyd,
     connectors::Stripe,
     connectors::Stax,
@@ -5389,9 +5716,9 @@ macro_rules! default_imp_for_billing_connector_invoice_sync {
         $( impl recovery_traits::BillingConnectorInvoiceSyncIntegration for $path::$connector {}
             impl
             ConnectorIntegration<
-            recovery_router_flows::BillingConnectorInvoiceSync,
-            recovery_request::BillingConnectorInvoiceSyncRequest,
-            recovery_response::BillingConnectorInvoiceSyncResponse
+            BillingConnectorInvoiceSync,
+            BillingConnectorInvoiceSyncRequest,
+            BillingConnectorInvoiceSyncResponse
             > for $path::$connector
             {}
         )*
@@ -5406,6 +5733,7 @@ default_imp_for_billing_connector_invoice_sync!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -5417,7 +5745,9 @@ default_imp_for_billing_connector_invoice_sync!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -5428,6 +5758,7 @@ default_imp_for_billing_connector_invoice_sync!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Elavon,
     connectors::Ebanx,
     connectors::Facilitapay,
@@ -5461,6 +5792,7 @@ default_imp_for_billing_connector_invoice_sync!(
     connectors::Opayo,
     connectors::Opennode,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Paystack,
     connectors::Payu,
     connectors::Paypal,
@@ -5480,8 +5812,10 @@ default_imp_for_billing_connector_invoice_sync!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Signifyd,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Stax,
     connectors::Square,
     connectors::Stripe,
@@ -5522,6 +5856,7 @@ default_imp_for_external_vault!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Barclaycard,
     connectors::Bambora,
@@ -5533,7 +5868,9 @@ default_imp_for_external_vault!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -5544,6 +5881,7 @@ default_imp_for_external_vault!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Facilitapay,
@@ -5577,6 +5915,7 @@ default_imp_for_external_vault!(
     connectors::Opayo,
     connectors::Opennode,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Paystack,
     connectors::Payu,
     connectors::Paypal,
@@ -5596,8 +5935,10 @@ default_imp_for_external_vault!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Signifyd,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Stax,
     connectors::Stripe,
     connectors::Stripebilling,
@@ -5643,6 +5984,7 @@ default_imp_for_external_vault_insert!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Barclaycard,
     connectors::Bambora,
@@ -5654,7 +5996,9 @@ default_imp_for_external_vault_insert!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -5665,6 +6009,7 @@ default_imp_for_external_vault_insert!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Facilitapay,
@@ -5698,6 +6043,7 @@ default_imp_for_external_vault_insert!(
     connectors::Opayo,
     connectors::Opennode,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Paystack,
     connectors::Payu,
     connectors::Paypal,
@@ -5717,8 +6063,10 @@ default_imp_for_external_vault_insert!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Signifyd,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Stax,
     connectors::Stripe,
     connectors::Stripebilling,
@@ -5764,6 +6112,7 @@ default_imp_for_external_vault_retrieve!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Barclaycard,
     connectors::Bambora,
@@ -5775,7 +6124,9 @@ default_imp_for_external_vault_retrieve!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -5786,6 +6137,7 @@ default_imp_for_external_vault_retrieve!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Facilitapay,
@@ -5819,6 +6171,7 @@ default_imp_for_external_vault_retrieve!(
     connectors::Opayo,
     connectors::Opennode,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Paystack,
     connectors::Payu,
     connectors::Paypal,
@@ -5838,8 +6191,10 @@ default_imp_for_external_vault_retrieve!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Signifyd,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Stax,
     connectors::Stripe,
     connectors::Stripebilling,
@@ -5886,6 +6241,7 @@ default_imp_for_external_vault_delete!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Barclaycard,
     connectors::Bambora,
@@ -5897,7 +6253,9 @@ default_imp_for_external_vault_delete!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -5908,6 +6266,7 @@ default_imp_for_external_vault_delete!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Facilitapay,
@@ -5941,6 +6300,7 @@ default_imp_for_external_vault_delete!(
     connectors::Opayo,
     connectors::Opennode,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Paystack,
     connectors::Payu,
     connectors::Paypal,
@@ -5960,8 +6320,10 @@ default_imp_for_external_vault_delete!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Signifyd,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Stax,
     connectors::Stripe,
     connectors::Stripebilling,
@@ -6008,6 +6370,7 @@ default_imp_for_external_vault_create!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Barclaycard,
     connectors::Bambora,
@@ -6019,7 +6382,9 @@ default_imp_for_external_vault_create!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Celero,
     connectors::Chargebee,
+    connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
@@ -6030,6 +6395,7 @@ default_imp_for_external_vault_create!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Facilitapay,
@@ -6062,6 +6428,7 @@ default_imp_for_external_vault_create!(
     connectors::Opayo,
     connectors::Opennode,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Paystack,
     connectors::Payu,
     connectors::Paypal,
@@ -6081,8 +6448,10 @@ default_imp_for_external_vault_create!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Signifyd,
     connectors::Shift4,
+    connectors::Silverflow,
     connectors::Stax,
     connectors::Stripe,
     connectors::Stripebilling,
@@ -6106,3 +6475,506 @@ default_imp_for_external_vault_create!(
     connectors::Zen,
     connectors::Zsl
 );
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PaymentsCompleteAuthorize for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorVerifyWebhookSource for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        VerifyWebhookSource,
+        VerifyWebhookSourceRequestData,
+        VerifyWebhookSourceResponseData,
+    > for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorCustomer for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, PaymentsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorRedirectResponse for connectors::DummyConnector<T> {
+    fn get_flow_type(
+        &self,
+        _query_params: &str,
+        _json_payload: Option<serde_json::Value>,
+        _action: PaymentAction,
+    ) -> CustomResult<CallConnectorAction, ConnectorError> {
+        Ok(CallConnectorAction::Trigger)
+    }
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorTransactionId for connectors::DummyConnector<T> {}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> Dispute for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> AcceptDispute for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<Accept, AcceptDisputeRequestData, AcceptDisputeResponse>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> FileUpload for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> UploadFile for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<Upload, UploadFileRequestData, UploadFileResponse>
+    for connectors::DummyConnector<T>
+{
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> RetrieveFile for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<Retrieve, RetrieveFileRequestData, RetrieveFileResponse>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> SubmitEvidence for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<Evidence, SubmitEvidenceRequestData, SubmitEvidenceResponse>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> DefendDispute for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<Defend, DefendDisputeRequestData, DefendDisputeResponse>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PaymentsPreProcessing for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PaymentsPostProcessing for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::Payouts for connectors::DummyConnector<T> {}
+
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PayoutCreate for connectors::DummyConnector<T> {}
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<PoCreate, PayoutsData, PayoutsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PayoutSync for connectors::DummyConnector<T> {}
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PayoutEligibility for connectors::DummyConnector<T> {}
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<PoEligibility, PayoutsData, PayoutsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PayoutFulfill for connectors::DummyConnector<T> {}
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PayoutCancel for connectors::DummyConnector<T> {}
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<PoCancel, PayoutsData, PayoutsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PayoutQuote for connectors::DummyConnector<T> {}
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<PoQuote, PayoutsData, PayoutsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PayoutRecipient for connectors::DummyConnector<T> {}
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<PoRecipient, PayoutsData, PayoutsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PayoutRecipientAccount for connectors::DummyConnector<T> {}
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<PoRecipientAccount, PayoutsData, PayoutsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PaymentApprove for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<Approve, PaymentsApproveData, PaymentsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PaymentReject for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<Reject, PaymentsRejectData, PaymentsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
+impl<const T: u8> FraudCheck for connectors::DummyConnector<T> {}
+
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
+impl<const T: u8> FraudCheckSale for connectors::DummyConnector<T> {}
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
+impl<const T: u8> ConnectorIntegration<Sale, FraudCheckSaleData, FraudCheckResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
+impl<const T: u8> FraudCheckCheckout for connectors::DummyConnector<T> {}
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
+impl<const T: u8> ConnectorIntegration<Checkout, FraudCheckCheckoutData, FraudCheckResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
+impl<const T: u8> FraudCheckTransaction for connectors::DummyConnector<T> {}
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
+impl<const T: u8>
+    ConnectorIntegration<Transaction, FraudCheckTransactionData, FraudCheckResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
+impl<const T: u8> FraudCheckFulfillment for connectors::DummyConnector<T> {}
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
+impl<const T: u8>
+    ConnectorIntegration<Fulfillment, FraudCheckFulfillmentData, FraudCheckResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
+impl<const T: u8> FraudCheckRecordReturn for connectors::DummyConnector<T> {}
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
+impl<const T: u8>
+    ConnectorIntegration<RecordReturn, FraudCheckRecordReturnData, FraudCheckResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PaymentIncrementalAuthorization for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        IncrementalAuthorization,
+        PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData,
+    > for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorMandateRevoke for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<MandateRevoke, MandateRevokeRequestData, MandateRevokeResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ExternalAuthentication for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorPreAuthentication for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorPreAuthenticationVersionCall for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorAuthentication for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorPostAuthentication for connectors::DummyConnector<T> {}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        Authentication,
+        ConnectorAuthenticationRequestData,
+        AuthenticationResponseData,
+    > for connectors::DummyConnector<T>
+{
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<PreAuthentication, PreAuthNRequestData, AuthenticationResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        PreAuthenticationVersionCall,
+        PreAuthNRequestData,
+        AuthenticationResponseData,
+    > for connectors::DummyConnector<T>
+{
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        PostAuthentication,
+        ConnectorPostAuthenticationRequestData,
+        AuthenticationResponseData,
+    > for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PaymentAuthorizeSessionToken for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<AuthorizeSessionToken, AuthorizeSessionTokenData, PaymentsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> TaxCalculation for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<CalculateTax, PaymentsTaxCalculationData, TaxCalculationResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PaymentSessionUpdate for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<SdkSessionUpdate, SdkPaymentsSessionUpdateData, PaymentsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PaymentPostSessionTokens for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<PostSessionTokens, PaymentsPostSessionTokensData, PaymentsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PaymentsCreateOrder for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<CreateOrder, CreateOrderRequestData, PaymentsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PaymentUpdateMetadata for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> UasPreAuthentication for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> UnifiedAuthenticationService for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        PreAuthenticate,
+        UasPreAuthenticationRequestData,
+        UasAuthenticationResponseData,
+    > for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> UasPostAuthentication for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        PostAuthenticate,
+        UasPostAuthenticationRequestData,
+        UasAuthenticationResponseData,
+    > for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> UasAuthenticationConfirmation for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        AuthenticationConfirmation,
+        UasConfirmationRequestData,
+        UasAuthenticationResponseData,
+    > for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> UasAuthentication for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<Authenticate, UasAuthenticationRequestData, UasAuthenticationResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> RevenueRecovery for connectors::DummyConnector<T> {}
+
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::revenue_recovery::BillingConnectorPaymentsSyncIntegration
+    for connectors::DummyConnector<T>
+{
+}
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        BillingConnectorPaymentsSync,
+        BillingConnectorPaymentsSyncRequest,
+        BillingConnectorPaymentsSyncResponse,
+    > for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::revenue_recovery::RevenueRecoveryRecordBack
+    for connectors::DummyConnector<T>
+{
+}
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        RecoveryRecordBack,
+        RevenueRecoveryRecordBackRequest,
+        RevenueRecoveryRecordBackResponse,
+    > for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> BillingConnectorInvoiceSyncIntegration for connectors::DummyConnector<T> {}
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        BillingConnectorInvoiceSync,
+        BillingConnectorInvoiceSyncRequest,
+        BillingConnectorInvoiceSyncResponse,
+    > for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ExternalVault for connectors::DummyConnector<T> {}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ExternalVaultInsert for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<ExternalVaultInsertFlow, VaultRequestData, VaultResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ExternalVaultRetrieve for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<ExternalVaultRetrieveFlow, VaultRequestData, VaultResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ExternalVaultDelete for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<ExternalVaultDeleteFlow, VaultRequestData, VaultResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ExternalVaultCreate for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<ExternalVaultCreateFlow, VaultRequestData, VaultResponseData>
+    for connectors::DummyConnector<T>
+{
+}

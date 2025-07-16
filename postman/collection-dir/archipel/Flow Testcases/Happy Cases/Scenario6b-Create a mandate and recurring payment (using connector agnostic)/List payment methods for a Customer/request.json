@@ -1,0 +1,70 @@
+{
+  "method": "GET",
+  "header": [
+    {
+      "key": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "url": {
+    "raw": "{{baseUrl}}/customers/:customer_id/payment_methods",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "customers",
+      ":customer_id",
+      "payment_methods"
+    ],
+    "query": [
+      {
+        "key": "accepted_country",
+        "value": "co",
+        "disabled": true
+      },
+      {
+        "key": "accepted_country",
+        "value": "pa",
+        "disabled": true
+      },
+      {
+        "key": "accepted_currency",
+        "value": "voluptate ea",
+        "disabled": true
+      },
+      {
+        "key": "accepted_currency",
+        "value": "exercitation",
+        "disabled": true
+      },
+      {
+        "key": "minimum_amount",
+        "value": "100",
+        "disabled": true
+      },
+      {
+        "key": "maximum_amount",
+        "value": "10000000",
+        "disabled": true
+      },
+      {
+        "key": "recurring_payment_enabled",
+        "value": "true",
+        "disabled": true
+      },
+      {
+        "key": "installment_payment_enabled",
+        "value": "true",
+        "disabled": true
+      }
+    ],
+    "variable": [
+      {
+        "key": "customer_id",
+        "value": "{{customer_id}}",
+        "description": "//Pass the customer id"
+      }
+    ]
+  },
+  "description": "To filter and list the applicable payment methods for a particular Customer ID"
+}

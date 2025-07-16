@@ -5,13 +5,17 @@ use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
     ext_traits::{Encode, OptionExt, ValueExt},
+    id_type::CustomerId,
     pii::Email,
     request::Method,
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{Card, PaymentMethodData, WalletData},
-    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
+    router_data::{
+        AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
+        ErrorResponse, RouterData,
+    },
     router_flow_types::RSync,
     router_request_types::ResponseId,
     router_response_types::{
@@ -308,9 +312,34 @@ pub struct AuthorizedotnetZeroMandateRequest {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ShipToList {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    first_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    last_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    address: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    city: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    state: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    zip: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    country: Option<enums::CountryAlpha2>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    phone_number: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 struct Profile {
-    description: String,
+    merchant_customer_id: Option<CustomerId>,
+    description: Option<String>,
+    email: Option<Email>,
     payment_profiles: PaymentProfiles,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ship_to_list: Option<Vec<ShipToList>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -366,12 +395,31 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerProfileRequest {
                     Some(true) | None => ValidationMode::TestMode,
                     Some(false) => ValidationMode::LiveMode,
                 };
+                let ship_to_list = item.get_optional_shipping().and_then(|shipping| {
+                    shipping.address.as_ref().map(|address| {
+                        vec![ShipToList {
+                            first_name: address.first_name.clone(),
+                            last_name: address.last_name.clone(),
+                            address: address.line1.clone(),
+                            city: address.city.clone(),
+                            state: address.state.clone(),
+                            zip: address.zip.clone(),
+                            country: address.country,
+                            phone_number: shipping.phone.as_ref().and_then(|phone| {
+                                phone.number.as_ref().map(|number| number.to_owned())
+                            }),
+                        }]
+                    })
+                });
+
                 Ok(Self {
                     create_customer_profile_request: AuthorizedotnetZeroMandateRequest {
                         merchant_authentication,
                         profile: Profile {
+                            merchant_customer_id: item.request.customer_id.clone(),
                             // The payment ID is included in the description because the connector requires unique description when creating a mandate.
-                            description: item.payment_id.clone(),
+                            description: None,
+                            email: item.get_optional_shipping_email(),
                             payment_profiles: PaymentProfiles {
                                 customer_type: CustomerType::Individual,
                                 payment: PaymentDetails::CreditCard(CreditCardDetails {
@@ -380,6 +428,7 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerProfileRequest {
                                     card_code: Some(ccard.card_cvc.clone()),
                                 }),
                             },
+                            ship_to_list,
                         },
                         validation_mode,
                     },
@@ -393,12 +442,30 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerProfileRequest {
                         Some(true) | None => ValidationMode::TestMode,
                         Some(false) => ValidationMode::LiveMode,
                     };
+                    let ship_to_list = item.get_optional_shipping().and_then(|shipping| {
+                        shipping.address.as_ref().map(|address| {
+                            vec![ShipToList {
+                                first_name: address.first_name.clone(),
+                                last_name: address.last_name.clone(),
+                                address: address.line1.clone(),
+                                city: address.city.clone(),
+                                state: address.state.clone(),
+                                zip: address.zip.clone(),
+                                country: address.country,
+                                phone_number: shipping.phone.as_ref().and_then(|phone| {
+                                    phone.number.as_ref().map(|number| number.to_owned())
+                                }),
+                            }]
+                        })
+                    });
                     Ok(Self {
                         create_customer_profile_request: AuthorizedotnetZeroMandateRequest {
                             merchant_authentication,
                             profile: Profile {
+                                merchant_customer_id: item.request.customer_id.clone(),
                                 // The payment ID is included in the description because the connector requires unique description when creating a mandate.
-                                description: item.payment_id.clone(),
+                                description: None,
+                                email: item.get_optional_shipping_email(),
                                 payment_profiles: PaymentProfiles {
                                     customer_type: CustomerType::Individual,
                                     payment: PaymentDetails::OpaqueData(WalletDetails {
@@ -408,6 +475,7 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerProfileRequest {
                                         ),
                                     }),
                                 },
+                                ship_to_list,
                             },
                             validation_mode,
                         },
@@ -420,12 +488,30 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerProfileRequest {
                         Some(true) | None => ValidationMode::TestMode,
                         Some(false) => ValidationMode::LiveMode,
                     };
+                    let ship_to_list = item.get_optional_shipping().and_then(|shipping| {
+                        shipping.address.as_ref().map(|address| {
+                            vec![ShipToList {
+                                first_name: address.first_name.clone(),
+                                last_name: address.last_name.clone(),
+                                address: address.line1.clone(),
+                                city: address.city.clone(),
+                                state: address.state.clone(),
+                                zip: address.zip.clone(),
+                                country: address.country,
+                                phone_number: shipping.phone.as_ref().and_then(|phone| {
+                                    phone.number.as_ref().map(|number| number.to_owned())
+                                }),
+                            }]
+                        })
+                    });
                     Ok(Self {
                         create_customer_profile_request: AuthorizedotnetZeroMandateRequest {
                             merchant_authentication,
                             profile: Profile {
+                                merchant_customer_id: item.request.customer_id.clone(),
                                 // The payment ID is included in the description because the connector requires unique description when creating a mandate.
-                                description: item.payment_id.clone(),
+                                description: None,
+                                email: item.get_optional_shipping_email(),
                                 payment_profiles: PaymentProfiles {
                                     customer_type: CustomerType::Individual,
                                     payment: PaymentDetails::OpaqueData(WalletDetails {
@@ -435,6 +521,7 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerProfileRequest {
                                         ),
                                     }),
                                 },
+                                ship_to_list,
                             },
                             validation_mode,
                         },
@@ -444,6 +531,8 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerProfileRequest {
                 | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
                 | WalletData::AmazonPayRedirect(_)
+                | WalletData::Paysera(_)
+                | WalletData::Skrill(_)
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -737,7 +826,13 @@ impl
             }),
             profile: None,
             order: Order {
-                invoice_number: get_random_string(),
+                invoice_number: item
+                    .router_data
+                    .request
+                    .merchant_order_reference_id
+                    .clone()
+                    .unwrap_or_else(get_random_string),
+
                 description: item.router_data.connector_request_reference_id.clone(),
             },
             customer: Some(CustomerDetails {
@@ -816,7 +911,13 @@ impl
                     })
                 }),
             order: Order {
-                invoice_number: get_random_string(),
+                invoice_number: item
+                    .router_data
+                    .request
+                    .merchant_order_reference_id
+                    .clone()
+                    .unwrap_or_else(get_random_string),
+
                 description: item.router_data.connector_request_reference_id.clone(),
             },
             customer: Some(CustomerDetails {
@@ -887,7 +988,13 @@ impl
             })),
             profile,
             order: Order {
-                invoice_number: get_random_string(),
+                invoice_number: item
+                    .router_data
+                    .request
+                    .merchant_order_reference_id
+                    .clone()
+                    .unwrap_or_else(get_random_string),
+
                 description: item.router_data.connector_request_reference_id.clone(),
             },
             customer,
@@ -958,7 +1065,13 @@ impl
             )?),
             profile,
             order: Order {
-                invoice_number: get_random_string(),
+                invoice_number: item
+                    .router_data
+                    .request
+                    .merchant_order_reference_id
+                    .clone()
+                    .unwrap_or_else(get_random_string),
+
                 description: item.router_data.connector_request_reference_id.clone(),
             },
             customer,
@@ -1138,6 +1251,7 @@ pub struct AuthorizedotnetTransactionResponse {
     pub(super) account_number: Option<Secret<String>>,
     pub(super) errors: Option<Vec<ErrorMessage>>,
     secure_acceptance: Option<SecureAcceptance>,
+    avs_result_code: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -1216,6 +1330,48 @@ impl From<AuthorizedotnetVoidStatus> for enums::AttemptStatus {
     }
 }
 
+fn get_avs_response_description(code: &str) -> Option<&'static str> {
+    match code {
+        "A" => Some("The street address matched, but the postal code did not."),
+        "B" => Some("No address information was provided."),
+        "E" => Some(
+            "AVS data provided is invalid or AVS is not allowed for the card type that was used.",
+        ),
+        "G" => Some("The card was issued by a bank outside the U.S. and does not support AVS."),
+        "N" => Some("Neither the street address nor postal code matched."),
+        "P" => Some("AVS is not applicable for this transaction."),
+        "R" => Some("Retry — AVS was unavailable or timed out."),
+        "S" => Some("AVS is not supported by card issuer."),
+        "U" => Some("Address information is unavailable."),
+        "W" => Some("The US ZIP+4 code matches, but the street address does not."),
+        "X" => Some("Both the street address and the US ZIP+4 code matched."),
+        "Y" => Some("The street address and postal code matched."),
+        "Z" => Some("The postal code matched, but the street address did not."),
+        _ => None,
+    }
+}
+
+fn convert_to_additional_payment_method_connector_response(
+    transaction_response: &AuthorizedotnetTransactionResponse,
+) -> Option<AdditionalPaymentMethodConnectorResponse> {
+    match transaction_response.avs_result_code.as_deref() {
+        Some("P") | None => None,
+        Some(code) => {
+            let description = get_avs_response_description(code);
+            let payment_checks = serde_json::json!({
+                "avs_result_code": code,
+                "description": description
+            });
+            Some(AdditionalPaymentMethodConnectorResponse::Card {
+                authentication_data: None,
+                payment_checks: Some(payment_checks),
+                card_network: None,
+                domestic_network: None,
+            })
+        }
+    }
+}
+
 impl<F, T>
     ForeignTryFrom<(
         ResponseRouterData<F, AuthorizedotnetPaymentsResponse, T, PaymentsResponseData>,
@@ -1258,6 +1414,11 @@ impl<F, T>
                     .change_context(errors::ConnectorError::MissingRequiredField {
                         field_name: "connector_metadata",
                     })?;
+
+                let connector_response_data =
+                    convert_to_additional_payment_method_connector_response(transaction_response)
+                        .map(ConnectorResponseData::with_additional_payment_method_data);
+
                 let url = transaction_response
                     .secure_acceptance
                     .as_ref()
@@ -1305,6 +1466,7 @@ impl<F, T>
                             charges: None,
                         }),
                     },
+                    connector_response: connector_response_data,
                     ..item.data
                 })
             }
@@ -1905,6 +2067,8 @@ fn get_wallet_data(
         | WalletData::AliPayRedirect(_)
         | WalletData::AliPayHkRedirect(_)
         | WalletData::AmazonPayRedirect(_)
+        | WalletData::Paysera(_)
+        | WalletData::Skrill(_)
         | WalletData::MomoRedirect(_)
         | WalletData::KakaoPayRedirect(_)
         | WalletData::GoPayRedirect(_)

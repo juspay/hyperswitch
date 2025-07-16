@@ -6,10 +6,11 @@ use api_models::{
 };
 
 use crate::configs::settings::{
-    ConnectorFields, Mandates, PaymentMethodType, RequiredFieldFinal, RequiredFields,
-    SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
-    SupportedPaymentMethodsForMandate, ZeroMandates,
+    ConnectorFields, Mandates, RequiredFieldFinal, SupportedConnectorsForMandate,
+    SupportedPaymentMethodTypesForMandate, SupportedPaymentMethodsForMandate, ZeroMandates,
 };
+#[cfg(feature = "v1")]
+use crate::configs::settings::{PaymentMethodType, RequiredFields};
 
 impl Default for ZeroMandates {
     fn default() -> Self {
@@ -125,6 +126,7 @@ impl Default for Mandates {
 }
 
 #[derive(Clone, serde::Serialize)]
+#[cfg_attr(feature = "v2", allow(dead_code))] // multiple variants are never constructed for v2
 enum RequiredField {
     CardNumber,
     CardExpMonth,
@@ -171,6 +173,7 @@ enum RequiredField {
     BanContactCardExpYear,
     IdealBankName,
     EpsBankName,
+    EpsBankOptions(HashSet<enums::BankNames>),
     BlikCode,
     MifinityDateOfBirth,
     MifinityLanguagePreference(Vec<&'static str>),
@@ -608,6 +611,17 @@ impl RequiredField {
                     value: None,
                 },
             ),
+            Self::EpsBankOptions(bank) => (
+                "payment_method_data.bank_redirect.eps.bank_name".to_string(),
+                RequiredFieldInfo {
+                    required_field: "payment_method_data.bank_redirect.eps.bank_name".to_string(),
+                    display_name: "bank_name".to_string(),
+                    field_type: FieldType::UserBankOptions {
+                        options: bank.iter().map(|bank| bank.to_string()).collect(),
+                    },
+                    value: None,
+                },
+            ),
             Self::BlikCode => (
                 "payment_method_data.bank_redirect.blik.blik_code".to_string(),
                 RequiredFieldInfo {
@@ -859,6 +873,7 @@ impl RequiredField {
 }
 
 // Define helper functions for common field groups
+#[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
 fn card_basic() -> Vec<RequiredField> {
     vec![
         RequiredField::CardNumber,
@@ -868,6 +883,7 @@ fn card_basic() -> Vec<RequiredField> {
     ]
 }
 
+#[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
 fn full_name() -> Vec<RequiredField> {
     vec![
         RequiredField::BillingUserFirstName,
@@ -875,6 +891,7 @@ fn full_name() -> Vec<RequiredField> {
     ]
 }
 
+#[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
 fn billing_name() -> Vec<RequiredField> {
     vec![
         RequiredField::BillingFirstName("billing_first_name", FieldType::UserBillingName),
@@ -882,18 +899,22 @@ fn billing_name() -> Vec<RequiredField> {
     ]
 }
 
+#[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
 fn email() -> Vec<RequiredField> {
     [RequiredField::Email].to_vec()
 }
 
+#[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
 fn billing_email() -> Vec<RequiredField> {
     [RequiredField::BillingEmail].to_vec()
 }
 
+#[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
 fn card_with_name() -> Vec<RequiredField> {
     [card_basic(), full_name()].concat()
 }
 
+#[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
 fn billing_email_name() -> Vec<RequiredField> {
     vec![
         RequiredField::BillingEmail,
@@ -902,6 +923,7 @@ fn billing_email_name() -> Vec<RequiredField> {
     ]
 }
 
+#[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
 fn billing_email_name_phone() -> Vec<RequiredField> {
     vec![
         RequiredField::BillingUserFirstName,
@@ -912,6 +934,7 @@ fn billing_email_name_phone() -> Vec<RequiredField> {
     ]
 }
 
+#[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
 fn billing_address() -> Vec<RequiredField> {
     vec![
         RequiredField::BillingAddressCity,
@@ -940,6 +963,7 @@ fn fields(
     }
 }
 
+#[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
 fn connectors(connectors: Vec<(Connector, RequiredFieldFinal)>) -> ConnectorFields {
     ConnectorFields {
         fields: connectors.into_iter().collect(),
@@ -1183,6 +1207,7 @@ impl Default for RequiredFields {
 fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
     HashMap::from([
         (Connector::Aci, fields(vec![], vec![], card_with_name())),
+        (Connector::Authipay, fields(vec![], vec![], card_basic())),
         (Connector::Adyen, fields(vec![], vec![], card_with_name())),
         (Connector::Airwallex, fields(vec![], card_basic(), vec![])),
         (
@@ -1413,6 +1438,25 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
                         RequiredField::BillingAddressLine1,
                         RequiredField::BillingAddressCity,
                         RequiredField::BillingAddressZip,
+                        RequiredField::BillingAddressCountries(vec!["ALL"]),
+                    ],
+                ]
+                .concat(),
+            ),
+        ),
+        (
+            Connector::Payload,
+            fields(
+                vec![],
+                vec![],
+                [
+                    email(),
+                    card_with_name(),
+                    vec![
+                        RequiredField::BillingAddressLine1,
+                        RequiredField::BillingAddressCity,
+                        RequiredField::BillingAddressZip,
+                        RequiredField::BillingAddressState,
                         RequiredField::BillingAddressCountries(vec!["ALL"]),
                     ],
                 ]
@@ -1982,6 +2026,71 @@ fn get_bank_redirect_required_fields() -> HashMap<enums::PaymentMethodType, Conn
                             RequiredField::BillingFirstName(
                                 "billing_name",
                                 FieldType::UserFullName,
+                            ),
+                            RequiredField::EpsBankOptions(
+                                vec![
+                                    enums::BankNames::AbnAmro,
+                                    enums::BankNames::ArzteUndApothekerBank,
+                                    enums::BankNames::AsnBank,
+                                    enums::BankNames::AustrianAnadiBankAg,
+                                    enums::BankNames::BankAustria,
+                                    enums::BankNames::BankhausCarlSpangler,
+                                    enums::BankNames::BankhausSchelhammerUndSchatteraAg,
+                                    enums::BankNames::BawagPskAg,
+                                    enums::BankNames::BksBankAg,
+                                    enums::BankNames::BrullKallmusBankAg,
+                                    enums::BankNames::BtvVierLanderBank,
+                                    enums::BankNames::Bunq,
+                                    enums::BankNames::CapitalBankGraweGruppeAg,
+                                    enums::BankNames::Citi,
+                                    enums::BankNames::Dolomitenbank,
+                                    enums::BankNames::EasybankAg,
+                                    enums::BankNames::ErsteBankUndSparkassen,
+                                    enums::BankNames::Handelsbanken,
+                                    enums::BankNames::HypoAlpeadriabankInternationalAg,
+                                    enums::BankNames::HypoNoeLbFurNiederosterreichUWien,
+                                    enums::BankNames::HypoOberosterreichSalzburgSteiermark,
+                                    enums::BankNames::HypoTirolBankAg,
+                                    enums::BankNames::HypoVorarlbergBankAg,
+                                    enums::BankNames::HypoBankBurgenlandAktiengesellschaft,
+                                    enums::BankNames::Ing,
+                                    enums::BankNames::Knab,
+                                    enums::BankNames::MarchfelderBank,
+                                    enums::BankNames::OberbankAg,
+                                    enums::BankNames::RaiffeisenBankengruppeOsterreich,
+                                    enums::BankNames::Rabobank,
+                                    enums::BankNames::Regiobank,
+                                    enums::BankNames::Revolut,
+                                    enums::BankNames::SnsBank,
+                                    enums::BankNames::TriodosBank,
+                                    enums::BankNames::VanLanschot,
+                                    enums::BankNames::Moneyou,
+                                    enums::BankNames::SchoellerbankAg,
+                                    enums::BankNames::SpardaBankWien,
+                                    enums::BankNames::VolksbankGruppe,
+                                    enums::BankNames::VolkskreditbankAg,
+                                    enums::BankNames::VrBankBraunau,
+                                    enums::BankNames::PlusBank,
+                                    enums::BankNames::EtransferPocztowy24,
+                                    enums::BankNames::BankiSpbdzielcze,
+                                    enums::BankNames::BankNowyBfgSa,
+                                    enums::BankNames::GetinBank,
+                                    enums::BankNames::Blik,
+                                    enums::BankNames::NoblePay,
+                                    enums::BankNames::IdeaBank,
+                                    enums::BankNames::EnveloBank,
+                                    enums::BankNames::NestPrzelew,
+                                    enums::BankNames::MbankMtransfer,
+                                    enums::BankNames::Inteligo,
+                                    enums::BankNames::PbacZIpko,
+                                    enums::BankNames::BnpParibas,
+                                    enums::BankNames::BankPekaoSa,
+                                    enums::BankNames::VolkswagenBank,
+                                    enums::BankNames::AliorBank,
+                                    enums::BankNames::Boz,
+                                ]
+                                .into_iter()
+                                .collect(),
                             ),
                             RequiredField::BillingLastName("billing_name", FieldType::UserFullName),
                         ],
@@ -3105,6 +3214,17 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
                     },
                 ),
                 (Connector::Adyen, fields(vec![], vec![], vec![])),
+                (
+                    Connector::Santander,
+                    RequiredFieldFinal {
+                        mandate: HashMap::new(),
+                        non_mandate: HashMap::new(),
+                        common: HashMap::from([
+                            RequiredField::BillingUserFirstName.to_tuple(),
+                            RequiredField::BillingUserLastName.to_tuple(),
+                        ]),
+                    },
+                ),
                 (
                     Connector::Facilitapay,
                     RequiredFieldFinal {

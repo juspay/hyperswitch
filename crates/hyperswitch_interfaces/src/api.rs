@@ -37,7 +37,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    configs::Connectors,
+    connector_endpoints::Connectors,
     errors::api_error_response::ApiErrorResponse,
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
@@ -383,6 +383,22 @@ pub trait ConnectorSpecifications {
         None
     }
 
+    #[cfg(not(feature = "v2"))]
+    /// Generate connector request reference ID
+    fn generate_connector_request_reference_id(
+        &self,
+        _payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+        is_config_enabled_to_send_payment_id_as_connector_request_id: bool,
+    ) -> String {
+        // Send payment_id if config is enabled for a merchant, else send attempt_id
+        if is_config_enabled_to_send_payment_id_as_connector_request_id {
+            payment_attempt.payment_id.get_string_repr().to_owned()
+        } else {
+            payment_attempt.attempt_id.to_owned()
+        }
+    }
+
     #[cfg(feature = "v2")]
     /// Generate connector request reference ID
     fn generate_connector_request_reference_id(
@@ -615,7 +631,7 @@ pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
         let connector = self.id();
         match pm_type {
             Some(pm_type) => Err(errors::ConnectorError::NotSupported {
-                message: format!("{} mandate payment", pm_type),
+                message: format!("{pm_type} mandate payment"),
                 connector,
             }
             .into()),
@@ -692,7 +708,7 @@ fn get_connector_payment_method_type_info(
         .map(|pmt| {
             payment_method_details.get(&pmt).cloned().ok_or_else(|| {
                 errors::ConnectorError::NotSupported {
-                    message: format!("{} {}", payment_method, pmt),
+                    message: format!("{payment_method} {pmt}"),
                     connector,
                 }
                 .into()
@@ -706,7 +722,7 @@ pub trait ConnectorTransactionId: ConnectorCommon + Sync {
     /// fn connector_transaction_id
     fn connector_transaction_id(
         &self,
-        payment_attempt: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> Result<Option<String>, ApiErrorResponse> {
         Ok(payment_attempt
             .get_connector_payment_id()
