@@ -7533,17 +7533,35 @@ label="Recipient Id"
 placeholder="Enter Recipient Id"
 required=true
 type="Text"
-[[tesouro.connector_wallets_details.google_pay]]
-name="allowed_auth_methods"
-label="Allowed Auth Methods"
-placeholder="Enter Allowed Auth Methods"
-required=true
-type="MultiSelect"
-options=["CRYPTOGRAM_3DS"]
+[peachpayments.metadata.sub_mid]
+name="sub_mid"
+label="Sub Mid"
+placeholder="Enter Sub Mid"
+required=false
+type="Text"
+[peachpayments.metadata.visa_payment_facilitator_id]
+name="visa_payment_facilitator_id"
+label="Visa Payment Facilitator Id"
+placeholder="Enter Visa Payment Facilitator Id"
+required=false
+type="Text"
+[peachpayments.metadata.mastercard_payment_facilitator_id]
+name="mastercard_payment_facilitator_id"
+label="mastercard Payment Facilitator Id"
+placeholder="Enter mastercard Payment Facilitator Id"
+required=false
+type="Text"
 
-[zift]
-[zift.connector_auth.HeaderKey]
+[tokenex]
+[tokenex.connector_auth.HeaderKey]
+api_key = "API Key"
 
+[gigadat]
+[gigadat.connector_auth.HeaderKey]
+api_key = "API Key"
+
+[trustpayments]
+[trustpayments.connector_auth.HeaderKey]
 api_key = "API Key"
 [payjustnow]
 [payjustnow.connector_auth.BodyKey]

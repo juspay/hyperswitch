@@ -6306,13 +6306,6 @@ options=["CRYPTOGRAM_3DS"]
 [zift.connector_auth.HeaderKey]
 api_key = "API Key"
 
-[zift]
-[zift.connector_auth.HeaderKey]
-api_key = "API Key"
-
-[zift]
-[zift.connector_auth.HeaderKey]
-api_key = "API Key"
-
 [gigadat]
+[gigadat.connector_auth.HeaderKey]
 api_key = "API Key"
