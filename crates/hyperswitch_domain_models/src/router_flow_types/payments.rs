@@ -79,3 +79,6 @@ pub struct CreateOrder;
 
 #[derive(Debug, Clone)]
 pub struct PaymentGetListAttempts;
+
+#[derive(Debug, Clone)]
+pub struct ExternalVaultProxy;

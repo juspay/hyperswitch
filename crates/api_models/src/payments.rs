@@ -2514,6 +2514,49 @@ pub struct PaymentMethodDataRequest {
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
+pub struct ProxyPaymentMethodDataRequest {
+    /// This field is optional because, in case of saved cards we pass the payment_token
+    /// There might be cases where we don't need to pass the payment_method_data and pass only payment method billing details
+    /// We have flattened it because to maintain backwards compatibility with the old API contract
+    #[serde(flatten)]
+    pub payment_method_data: Option<ProxyPaymentMethodData>,
+    /// billing details for the payment method.
+    /// This billing details will be passed to the processor as billing address.
+    /// If not passed, then payment.billing will be considered
+    pub billing: Option<Address>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum ProxyPaymentMethodData {
+    #[schema(title = "ProxyCardData")]
+    VaultDataCard(ProxyCardData),
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct ProxyCardData {
+    /// The card number
+    #[schema(value_type = String, example = "4242424242424242")]
+    pub card_number: String,
+
+    /// The card's expiry month
+    #[schema(value_type = String, example = "24")]
+    pub card_exp_month: String,
+
+    /// The card's expiry year
+    #[schema(value_type = String, example = "24")]
+    pub card_exp_year: String,
+
+    /// The card holder's name
+    #[schema(value_type = String, example = "John Test")]
+    pub card_holder_name: String,
+
+    /// The CVC number for the card
+    #[schema(value_type = String, example = "242")]
+    pub card_cvc: String,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodData {
     #[schema(title = "Card")]
@@ -5396,6 +5439,52 @@ pub struct ProxyPaymentsRequest {
 
     #[schema(value_type = String)]
     pub merchant_connector_id: id_type::MerchantConnectorAccountId,
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+#[cfg(feature = "v2")]
+pub struct ExternalVaultProxyPaymentsRequest {
+    /// The URL to which you want the user to be redirected after the completion of the payment operation
+    /// If this url is not passed, the url configured in the business profile will be used
+    #[schema(value_type = Option<String>, example = "https://hyperswitch.io")]
+    pub return_url: Option<common_utils::types::Url>,
+
+    /// The payment instrument data to be used for the payment
+    pub payment_method_data: ProxyPaymentMethodDataRequest,
+
+    /// The payment method type to be used for the payment. This should match with the `payment_method_data` provided
+    #[schema(value_type = PaymentMethod, example = "card")]
+    pub payment_method_type: api_enums::PaymentMethod,
+
+    /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
+    #[schema(value_type = PaymentMethodType, example = "apple_pay")]
+    pub payment_method_subtype: api_enums::PaymentMethodType,
+
+    /// The shipping address for the payment. This will override the shipping address provided in the create-intent request
+    pub shipping: Option<Address>,
+
+    /// This "CustomerAcceptance" object is passed during Payments-Confirm request, it enlists the type, time, and mode of acceptance properties related to an acceptance done by the customer. The customer_acceptance sub object is usually passed by the SDK or client.
+    #[schema(value_type = Option<CustomerAcceptance>)]
+    pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
+
+    /// Additional details required by 3DS 2.0
+    #[schema(value_type = Option<BrowserInformation>)]
+    pub browser_info: Option<common_utils::types::BrowserInformation>,
+
+    /// The payment_method_id to be associated with the payment
+    #[schema(value_type = Option<String>)]
+    pub payment_method_id: Option<id_type::GlobalPaymentMethodId>,
+
+    #[schema(example = "187282ab-40ef-47a9-9206-5099ba31e432")]
+    pub payment_token: Option<String>,
+
+    /// Merchant connector details used to make payments.
+    #[schema(value_type = Option<MerchantConnectorAuthDetails>)]
+    pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
+
+    /// If true, returns stringified connector raw response body
+    pub return_raw_connector_response: Option<bool>,
 }
 
 // This struct contains the union of fields in `PaymentsCreateIntentRequest` and

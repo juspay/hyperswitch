@@ -45,6 +45,11 @@ pub enum PaymentMethodData {
     MobilePayment(MobilePaymentData),
 }
 
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+pub enum ExternalVaultPaymentMethodData {
+    Card(ExternalVaultCard)
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ApplePayFlow {
     Simplified(api_models::payments::PaymentProcessingDetails),
@@ -106,6 +111,22 @@ pub struct Card {
     pub card_exp_month: Secret<String>,
     pub card_exp_year: Secret<String>,
     pub card_cvc: Secret<String>,
+    pub card_issuer: Option<String>,
+    pub card_network: Option<common_enums::CardNetwork>,
+    pub card_type: Option<String>,
+    pub card_issuing_country: Option<String>,
+    pub bank_code: Option<String>,
+    pub nick_name: Option<Secret<String>>,
+    pub card_holder_name: Option<Secret<String>>,
+    pub co_badged_card_data: Option<payment_methods::CoBadgedCardData>,
+}
+
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
+pub struct ExternalVaultCard {
+    pub card_number: String,
+    pub card_exp_month: String,
+    pub card_exp_year: String,
+    pub card_cvc: String,
     pub card_issuer: Option<String>,
     pub card_network: Option<common_enums::CardNetwork>,
     pub card_type: Option<String>,
@@ -820,6 +841,48 @@ impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
     }
 }
 
+impl From<api_models::payments::ProxyPaymentMethodData> for ExternalVaultPaymentMethodData {
+    fn from(api_model_payment_method_data: api_models::payments::ProxyPaymentMethodData) -> Self {
+        match api_model_payment_method_data {
+            api_models::payments::ProxyPaymentMethodData::VaultDataCard(card_data) => {
+                Self::Card(ExternalVaultCard::from(card_data))
+            }
+            
+        }
+    }
+}
+impl
+    From<
+        api_models::payments::ProxyCardData> for ExternalVaultCard
+{
+    fn from(
+        value: 
+            api_models::payments::ProxyCardData,
+    ) -> Self {
+        let api_models::payments::ProxyCardData {
+            card_number,
+            card_exp_month,
+            card_exp_year,
+            card_holder_name,
+            card_cvc,
+        } = value;
+
+        Self {
+            card_number,
+            card_exp_month,
+            card_exp_year,
+            card_cvc,
+            card_issuer: None,
+            card_network: None,
+            card_type: None,
+            card_issuing_country:None,
+            bank_code:None,
+            nick_name:None,
+            card_holder_name:None,
+            co_badged_card_data: None,
+        }
+    }
+}
 impl
     From<(
         api_models::payments::Card,

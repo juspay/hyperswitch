@@ -11,6 +11,7 @@ pub mod session_flow;
 pub mod session_update_flow;
 pub mod setup_mandate_flow;
 pub mod update_metadata_flow;
+pub mod external_proxy_flow;
 
 use async_trait::async_trait;
 use common_types::payments::CustomerAcceptance;

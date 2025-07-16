@@ -39,7 +39,7 @@ use hyperswitch_domain_models::router_flow_types::{
         Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture,
         CompleteAuthorize, CreateConnectorCustomer, CreateOrder, IncrementalAuthorization,
         InitPayment, PSync, PostProcessing, PostSessionTokens, PreProcessing, Reject,
-        SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
+        SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,ExternalVaultProxy
     },
     refunds::{Execute, RSync},
     webhooks::VerifyWebhookSource,
@@ -72,7 +72,7 @@ pub use hyperswitch_domain_models::{
         CompleteAuthorizeRedirectResponse, ConnectorCustomerData, CreateOrderRequestData,
         DefendDisputeRequestData, DestinationChargeRefund, DirectChargeRefund,
         MandateRevokeRequestData, MultipleCaptureRequestData, PaymentMethodTokenizationData,
-        PaymentsApproveData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        PaymentsApproveData, PaymentsAuthorizeData, ExternalVaultProxyPaymentsData, PaymentsCancelData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
         PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
         PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
@@ -129,6 +129,8 @@ use crate::{
 
 pub type PaymentsAuthorizeRouterData =
     RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
+pub type ExternalVaultProxyPaymentsRouterData =
+    RouterData<ExternalVaultProxy, ExternalVaultProxyPaymentsData, PaymentsResponseData>;
 pub type PaymentsPreProcessingRouterData =
     RouterData<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>;
 pub type PaymentsPostProcessingRouterData =

@@ -1483,6 +1483,89 @@ where
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 #[instrument(skip_all, fields(payment_id, merchant_id))]
+pub async fn external_vault_proxy_for_payments_operation_core<F, Req, Op, FData, D>(
+    state: &SessionState,
+    req_state: ReqState,
+    merchant_context: domain::MerchantContext,
+    profile: domain::Profile,
+    operation: Op,
+    req: Req,
+    get_tracker_response: operations::GetTrackerResponse<D>,
+    call_connector_action: CallConnectorAction,
+    header_payload: HeaderPayload,
+    return_raw_connector_response: Option<bool>,
+) -> RouterResult<(D, Req, Option<u16>, Option<u128>)>
+where
+    F: Send + Clone + Sync,
+    Req: Send + Sync + Authenticate,
+    Op: Operation<F, Req, Data = D> + Send + Sync,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+
+    // To create connector flow specific interface data
+    D: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
+    RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
+
+    // To construct connector flow specific api
+    dyn api::Connector:
+        services::api::ConnectorIntegration<F, FData, router_types::PaymentsResponseData>,
+
+    RouterData<F, FData, router_types::PaymentsResponseData>:
+        hyperswitch_domain_models::router_data::TrackerPostUpdateObjects<F, FData, D>,
+
+    // To perform router related operation for PaymentResponse
+    PaymentResponse: Operation<F, FData, Data = D>,
+    FData: Send + Sync + Clone,
+{
+    let operation: BoxedOperation<'_, F, Req, D> = Box::new(operation);
+
+    // Get the trackers related to track the state of the payment
+    let operations::GetTrackerResponse { mut payment_data } = get_tracker_response;
+    // consume the req merchant_connector_id and set it in the payment_data
+    let connector = operation
+        .to_domain()?
+        .perform_routing(&merchant_context, &profile, state, &mut payment_data)
+        .await?;
+
+    let payment_data = match connector {
+        ConnectorCallType::PreDetermined(connector_data) => {
+            let router_data = call_connector_service_for_external_vault_proxy(
+                state,
+                req_state.clone(),
+                &merchant_context,
+                connector_data.connector_data.clone(),
+                &operation,
+                &mut payment_data,
+                call_connector_action.clone(),
+                header_payload.clone(),
+                &profile,
+                return_raw_connector_response,
+            )
+            .await?;
+
+            let payments_response_operation = Box::new(PaymentResponse);
+
+            payments_response_operation
+                .to_post_update_tracker()?
+                .update_tracker(
+                    state,
+                    payment_data,
+                    router_data,
+                    merchant_context.get_merchant_key_store(),
+                    merchant_context.get_merchant_account().storage_scheme,
+                )
+                .await?
+        }
+        ConnectorCallType::Retryable(vec) => todo!(),
+        ConnectorCallType::SessionMultiple(vec) => todo!(),
+        ConnectorCallType::Skip => payment_data,
+    };
+
+    Ok((payment_data, req, None, None))
+}
+
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
+#[instrument(skip_all, fields(payment_id, merchant_id))]
 pub async fn payments_intent_operation_core<F, Req, Op, D>(
     state: &SessionState,
     req_state: ReqState,
@@ -2131,6 +2214,86 @@ where
         None,
     )
 }
+
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
+pub async fn external_vault_proxy_for_payments_core<F, Res, Req, Op, FData, D>(
+    state: SessionState,
+    req_state: ReqState,
+    merchant_context: domain::MerchantContext,
+    profile: domain::Profile,
+    operation: Op,
+    req: Req,
+    payment_id: id_type::GlobalPaymentId,
+    call_connector_action: CallConnectorAction,
+    header_payload: HeaderPayload,
+    return_raw_connector_response: Option<bool>,
+) -> RouterResponse<Res>
+where
+    F: Send + Clone + Sync,
+    Req: Send + Sync + Authenticate,
+    FData: Send + Sync + Clone,
+    Op: Operation<F, Req, Data = D> + ValidateStatusForOperation + Send + Sync + Clone,
+    Req: Debug,
+    D: OperationSessionGetters<F>
+        + OperationSessionSetters<F>
+        + transformers::GenerateResponse<Res>
+        + Send
+        + Sync
+        + Clone,
+    D: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
+    RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
+
+    dyn api::Connector:
+        services::api::ConnectorIntegration<F, FData, router_types::PaymentsResponseData>,
+
+    PaymentResponse: Operation<F, FData, Data = D>,
+
+    RouterData<F, FData, router_types::PaymentsResponseData>:
+        hyperswitch_domain_models::router_data::TrackerPostUpdateObjects<F, FData, D>,
+{
+    operation
+        .to_validate_request()?
+        .validate_request(&req, &merchant_context)?;
+
+    let get_tracker_response = operation
+        .to_get_tracker()?
+        .get_trackers(
+            &state,
+            &payment_id,
+            &req,
+            &merchant_context,
+            &profile,
+            &header_payload,
+        )
+        .await?;
+
+    let (payment_data, _req, connector_http_status_code, external_latency) =
+    external_vault_proxy_for_payments_operation_core::<_, _, _, _, _>(
+            &state,
+            req_state,
+            merchant_context.clone(),
+            profile.clone(),
+            operation.clone(),
+            req,
+            get_tracker_response,
+            call_connector_action,
+            header_payload.clone(),
+            return_raw_connector_response,
+        )
+        .await?;
+
+    payment_data.generate_response(
+        &state,
+        connector_http_status_code,
+        external_latency,
+        header_payload.x_hs_latency,
+        &merchant_context,
+        &profile,
+        None,
+    )
+}
+
 
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
@@ -4755,6 +4918,131 @@ where
         &mut router_data,
         &call_connector_action,
     );
+
+    let (connector_request, should_continue_further) = if should_continue_further {
+        router_data
+            .build_flow_specific_connector_request(state, &connector, call_connector_action.clone())
+            .await?
+    } else {
+        (None, false)
+    };
+
+    (_, *payment_data) = operation
+        .to_update_tracker()?
+        .update_trackers(
+            state,
+            req_state,
+            payment_data.clone(),
+            None,
+            merchant_context.get_merchant_account().storage_scheme,
+            None,
+            merchant_context.get_merchant_key_store(),
+            None,
+            header_payload.clone(),
+        )
+        .await?;
+
+    let router_data = if should_continue_further {
+        router_data
+            .decide_flows(
+                state,
+                &connector,
+                call_connector_action,
+                connector_request,
+                business_profile,
+                header_payload.clone(),
+                return_raw_connector_response,
+            )
+            .await
+    } else {
+        Ok(router_data)
+    }?;
+
+    let etime_connector = Instant::now();
+    let duration_connector = etime_connector.saturating_duration_since(stime_connector);
+    tracing::info!(duration = format!("Duration taken: {}", duration_connector.as_millis()));
+
+    Ok(router_data)
+}
+
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
+#[instrument(skip_all)]
+pub async fn call_connector_service_for_external_vault_proxy<F, RouterDReq, ApiRequest, D>(
+    state: &SessionState,
+    req_state: ReqState,
+    merchant_context: &domain::MerchantContext,
+    connector: api::ConnectorData,
+    operation: &BoxedOperation<'_, F, ApiRequest, D>,
+    payment_data: &mut D,
+    call_connector_action: CallConnectorAction,
+    header_payload: HeaderPayload,
+    business_profile: &domain::Profile,
+    return_raw_connector_response: Option<bool>,
+) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
+where
+    F: Send + Clone + Sync,
+    RouterDReq: Send + Sync,
+
+    // To create connector flow specific interface data
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+    D: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
+    RouterData<F, RouterDReq, router_types::PaymentsResponseData>: Feature<F, RouterDReq> + Send,
+    // To construct connector flow specific api
+    dyn api::Connector:
+        services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
+{
+    let stime_connector = Instant::now();
+
+    let merchant_connector_account =
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
+            helpers::get_merchant_connector_account_v2(
+                state,
+                merchant_context.get_merchant_key_store(),
+                connector.merchant_connector_id.as_ref(),
+            )
+            .await?,
+        ));
+    operation
+        .to_domain()?
+        .populate_payment_data(
+            state,
+            payment_data,
+            merchant_context,
+            business_profile,
+            &connector,
+        )
+        .await?;
+
+    let mut router_data = payment_data
+        .construct_router_data(
+            state,
+            connector.connector.id(),
+            merchant_context,
+            &None,
+            &merchant_connector_account,
+            None,
+            None,
+        )
+        .await?;
+
+    // let add_access_token_result = router_data
+    //     .add_access_token(
+    //         state,
+    //         &connector,
+    //         merchant_context,
+    //         payment_data.get_creds_identifier(),
+    //     )
+    //     .await?;
+
+    // router_data = router_data.add_session_token(state, &connector).await?;
+
+    // let mut should_continue_further = access_token::update_router_data_with_access_token_result(
+    //     &add_access_token_result,
+    //     &mut router_data,
+    //     &call_connector_action,
+    // );
+    let should_continue_further = true;
 
     let (connector_request, should_continue_further) = if should_continue_further {
         router_data
