@@ -187,7 +187,6 @@ pub fn mk_app(
         server_app = server_app
             .service(routes::Organization::server(state.clone()))
             .service(routes::MerchantAccount::server(state.clone()))
-            .service(routes::UserDeprecated::server(state.clone()))
             .service(routes::User::server(state.clone()))
             .service(routes::ApiKeys::server(state.clone()))
             .service(routes::Routing::server(state.clone()));
@@ -211,6 +210,7 @@ pub fn mk_app(
         #[cfg(feature = "v2")]
         {
             server_app = server_app
+                .service(routes::UserDeprecated::server(state.clone()))
                 .service(routes::ProcessTrackerDeprecated::server(state.clone()))
                 .service(routes::ProcessTracker::server(state.clone()));
         }
