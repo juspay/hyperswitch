@@ -5047,9 +5047,12 @@ impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::PaymentA
     fn foreign_from(
         attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> Self {
-
-        let payment_method_data : Option<api_models::payments::PaymentMethodDataResponseWithBilling> = 
-            attempt.payment_method_data.clone().and_then(|data| serde_json::from_value(data.expose().clone()).ok());
+        let payment_method_data: Option<
+            api_models::payments::PaymentMethodDataResponseWithBilling,
+        > = attempt
+            .payment_method_data
+            .clone()
+            .and_then(|data| serde_json::from_value(data.expose().clone()).ok());
         Self {
             id: attempt.get_id().to_owned(),
             status: attempt.status,
@@ -5081,7 +5084,7 @@ impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::PaymentA
                 .feature_metadata
                 .as_ref()
                 .map(api_models::payments::PaymentAttemptFeatureMetadata::foreign_from),
-            payment_method_data
+            payment_method_data,
         }
     }
 }

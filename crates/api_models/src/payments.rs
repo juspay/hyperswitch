@@ -1555,7 +1555,7 @@ pub struct PaymentAttemptResponse {
     /// Value passed in X-CLIENT-VERSION header during payments confirm request by the client
     pub client_version: Option<String>,
     /// payment method data
-    pub payment_method_data: Option<PaymentMethodDataResponseWithBilling>
+    pub payment_method_data: Option<PaymentMethodDataResponseWithBilling>,
 }
 
 #[cfg(feature = "v2")]
@@ -1633,7 +1633,7 @@ pub struct PaymentAttemptResponse {
     pub feature_metadata: Option<PaymentAttemptFeatureMetadata>,
 
     /// payment method data
-    pub payment_method_data : Option<PaymentMethodDataResponseWithBilling>,
+    pub payment_method_data: Option<PaymentMethodDataResponseWithBilling>,
 }
 
 #[cfg(feature = "v2")]
