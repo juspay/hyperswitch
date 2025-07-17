@@ -120,8 +120,7 @@ fn get_auth_header(
         .zip(auth.api_key)
         .map(|((business_identifier, application_identifier), api_key)| {
             common_utils::consts::BASE64_ENGINE.encode(format!(
-                "{}.{}:{}",
-                business_identifier, application_identifier, api_key
+                "{business_identifier}.{application_identifier}:{api_key}",
             ))
         });
 

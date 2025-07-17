@@ -117,7 +117,7 @@ pub fn mk_app(
 > {
     let mut server_app = get_application_builder(request_body_limit, state.conf.cors.clone());
 
-    #[cfg(all(feature = "dummy_connector", feature = "v1"))]
+    #[cfg(feature = "dummy_connector")]
     {
         use routes::DummyConnector;
         server_app = server_app.service(DummyConnector::server(state.clone()));
@@ -169,7 +169,8 @@ pub fn mk_app(
         {
             server_app = server_app
                 .service(routes::Refunds::server(state.clone()))
-                .service(routes::Mandates::server(state.clone()));
+                .service(routes::Mandates::server(state.clone()))
+                .service(routes::Authentication::server(state.clone()));
         }
     }
 
@@ -189,7 +190,8 @@ pub fn mk_app(
             .service(routes::MerchantAccount::server(state.clone()))
             .service(routes::User::server(state.clone()))
             .service(routes::ApiKeys::server(state.clone()))
-            .service(routes::Routing::server(state.clone()));
+            .service(routes::Routing::server(state.clone()))
+            .service(routes::Chat::server(state.clone()));
 
         #[cfg(feature = "v1")]
         {

@@ -7,12 +7,16 @@ use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
 pub use diesel_models::refund::{
     Refund, RefundCoreWorkflow, RefundNew, RefundUpdate, RefundUpdateInternal,
 };
-#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+#[cfg(feature = "v1")]
+use diesel_models::schema::refund::dsl;
+#[cfg(feature = "v2")]
 use diesel_models::schema_v2::refund::dsl;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
 use diesel_models::{
     enums::{Currency, RefundStatus},
-    schema::refund::dsl,
+    errors,
+    query::generics::db_metrics,
+    refund::Refund,
 };
 use diesel_models::{errors, query::generics::db_metrics};
 use error_stack::ResultExt;
@@ -22,7 +26,7 @@ use crate::{connection::PgPooledConn, logger};
 
 #[async_trait::async_trait]
 pub trait RefundDbExt: Sized {
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
+    #[cfg(feature = "v1")]
     async fn filter_by_constraints(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -31,7 +35,7 @@ pub trait RefundDbExt: Sized {
         offset: i64,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
 
-    #[cfg(all(feature = "v2", feature = "refunds_v2"))]
+    #[cfg(feature = "v2")]
     async fn filter_by_constraints(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -40,21 +44,21 @@ pub trait RefundDbExt: Sized {
         offset: i64,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
+    #[cfg(feature = "v1")]
     async fn filter_by_meta_constraints(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &common_utils::types::TimeRange,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::DatabaseError>;
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
+    #[cfg(feature = "v1")]
     async fn get_refunds_count(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &refunds::RefundListConstraints,
     ) -> CustomResult<i64, errors::DatabaseError>;
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
+    #[cfg(feature = "v1")]
     async fn get_refund_status_with_count(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -62,7 +66,7 @@ pub trait RefundDbExt: Sized {
         time_range: &common_utils::types::TimeRange,
     ) -> CustomResult<Vec<(RefundStatus, i64)>, errors::DatabaseError>;
 
-    #[cfg(all(feature = "v2", feature = "refunds_v2"))]
+    #[cfg(feature = "v2")]
     async fn get_refunds_count(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -72,7 +76,7 @@ pub trait RefundDbExt: Sized {
 
 #[async_trait::async_trait]
 impl RefundDbExt for Refund {
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
+    #[cfg(feature = "v1")]
     async fn filter_by_constraints(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -184,7 +188,7 @@ impl RefundDbExt for Refund {
         .attach_printable_lazy(|| "Error filtering records by predicate")
     }
 
-    #[cfg(all(feature = "v2", feature = "refunds_v2"))]
+    #[cfg(feature = "v2")]
     async fn filter_by_constraints(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -260,7 +264,7 @@ impl RefundDbExt for Refund {
         // todo!()
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
+    #[cfg(feature = "v1")]
     async fn filter_by_meta_constraints(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -316,7 +320,7 @@ impl RefundDbExt for Refund {
         Ok(meta)
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
+    #[cfg(feature = "v1")]
     async fn get_refunds_count(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -405,7 +409,7 @@ impl RefundDbExt for Refund {
             .attach_printable_lazy(|| "Error filtering count of refunds")
     }
 
-    #[cfg(all(feature = "v2", feature = "refunds_v2"))]
+    #[cfg(feature = "v2")]
     async fn get_refunds_count(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -473,7 +477,7 @@ impl RefundDbExt for Refund {
             .attach_printable_lazy(|| "Error filtering count of refunds")
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
+    #[cfg(feature = "v1")]
     async fn get_refund_status_with_count(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,

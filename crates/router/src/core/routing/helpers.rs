@@ -54,7 +54,10 @@ use crate::{
 };
 #[cfg(feature = "v1")]
 use crate::{
-    core::payments::routing::utils::{self as routing_utils, DecisionEngineApiHandler},
+    core::payments::{
+        routing::utils::{self as routing_utils, DecisionEngineApiHandler},
+        OperationSessionGetters, OperationSessionSetters,
+    },
     services,
 };
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
@@ -340,11 +343,7 @@ impl RoutingDecisionData {
     pub fn apply_routing_decision<F, D>(&self, payment_data: &mut D)
     where
         F: Send + Clone,
-        D: crate::core::payments::OperationSessionGetters<F>
-            + crate::core::payments::OperationSessionSetters<F>
-            + Send
-            + Sync
-            + Clone,
+        D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
     {
         match self {
             Self::DebitRouting(data) => data.apply_debit_routing_decision(payment_data),
@@ -366,11 +365,7 @@ impl DebitRoutingDecisionData {
     pub fn apply_debit_routing_decision<F, D>(&self, payment_data: &mut D)
     where
         F: Send + Clone,
-        D: crate::core::payments::OperationSessionGetters<F>
-            + crate::core::payments::OperationSessionSetters<F>
-            + Send
-            + Sync
-            + Clone,
+        D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
     {
         payment_data.set_card_network(self.card_network.clone());
         self.debit_routing_result
@@ -400,9 +395,7 @@ impl RoutingAlgorithmHelpers<'_> {
                 self.name_mca_id_set.0.contains(&(&connector_choice, mca_id.clone())),
                 errors::ApiErrorResponse::InvalidRequestData {
                     message: format!(
-                        "connector with name '{}' and merchant connector account id '{:?}' not found for the given profile",
-                        connector_choice,
-                        mca_id,
+                        "connector with name '{connector_choice}' and merchant connector account id '{mca_id:?}' not found for the given profile",
                     )
                 }
             );
@@ -412,8 +405,7 @@ impl RoutingAlgorithmHelpers<'_> {
                 self.name_set.0.contains(&connector_choice),
                 errors::ApiErrorResponse::InvalidRequestData {
                     message: format!(
-                        "connector with name '{}' not found for the given profile",
-                        connector_choice,
+                        "connector with name '{connector_choice}' not found for the given profile",
                     )
                 }
             );
@@ -855,14 +847,14 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
 ) -> RouterResult<()> {
     if let Some(success_based_algo_ref) = dynamic_routing_algo_ref.success_based_algorithm {
         if success_based_algo_ref.enabled_feature != routing_types::DynamicRoutingFeatures::None {
-            let client = state
+            let client = &state
                 .grpc_client
                 .dynamic_routing
-                .success_rate_client
                 .as_ref()
                 .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
-                    message: "success_rate gRPC client not found".to_string(),
-                })?;
+                    message: "dynamic routing gRPC client not found".to_string(),
+                })?
+                .success_rate_client;
 
             let payment_connector = &payment_attempt.connector.clone().ok_or(
                 errors::ApiErrorResponse::GenericNotFoundError {
@@ -1224,14 +1216,14 @@ pub async fn update_window_for_elimination_routing(
 ) -> RouterResult<()> {
     if let Some(elimination_algo_ref) = dynamic_algo_ref.elimination_routing_algorithm {
         if elimination_algo_ref.enabled_feature != routing_types::DynamicRoutingFeatures::None {
-            let client = state
+            let client = &state
                 .grpc_client
                 .dynamic_routing
-                .elimination_based_client
                 .as_ref()
                 .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
-                    message: "elimination_rate gRPC client not found".to_string(),
-                })?;
+                    message: "dynamic routing gRPC client not found".to_string(),
+                })?
+                .elimination_based_client;
 
             let elimination_routing_config = fetch_dynamic_routing_configs::<
                 routing_types::EliminationRoutingConfig,
@@ -1404,14 +1396,14 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
     if let Some(contract_routing_algo_ref) = dynamic_routing_algo_ref.contract_based_routing {
         if contract_routing_algo_ref.enabled_feature != routing_types::DynamicRoutingFeatures::None
         {
-            let client = state
+            let client = &state
                 .grpc_client
                 .dynamic_routing
-                .contract_based_client
-                .clone()
+                .as_ref()
                 .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
-                    message: "contract_routing gRPC client not found".to_string(),
-                })?;
+                    message: "dynamic routing gRPC client not found".to_string(),
+                })?
+                .contract_based_client;
 
             let payment_connector = &payment_attempt.connector.clone().ok_or(
                 errors::ApiErrorResponse::GenericNotFoundError {
@@ -1612,8 +1604,8 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                 .split_once(':')
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(format!(
-                    "unable to split connector_name and mca_id from the first connector {:?} obtained from dynamic routing service",
-                    first_contract_based_connector
+                    "unable to split connector_name and mca_id from the first connector {first_contract_based_connector:?} obtained from dynamic routing service",
+
                 ))?
                 .0, first_contract_based_connector.score, first_contract_based_connector.current_count );
 
@@ -1933,7 +1925,7 @@ pub async fn disable_dynamic_routing_algorithm(
         };
 
     // Call to DE here
-    if state.conf.open_router.enabled {
+    if state.conf.open_router.dynamic_routing_enabled {
         disable_decision_engine_dynamic_routing_setup(
             state,
             business_profile.get_id(),
@@ -2121,11 +2113,12 @@ pub async fn default_specific_dynamic_routing_setup(
     let timestamp = common_utils::date_time::now();
     let algo = match dynamic_routing_type {
         routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
-            let default_success_based_routing_config = if state.conf.open_router.enabled {
-                routing_types::SuccessBasedRoutingConfig::open_router_config_default()
-            } else {
-                routing_types::SuccessBasedRoutingConfig::default()
-            };
+            let default_success_based_routing_config =
+                if state.conf.open_router.dynamic_routing_enabled {
+                    routing_types::SuccessBasedRoutingConfig::open_router_config_default()
+                } else {
+                    routing_types::SuccessBasedRoutingConfig::default()
+                };
 
             routing_algorithm::RoutingAlgorithm {
                 algorithm_id: algorithm_id.clone(),
@@ -2142,11 +2135,12 @@ pub async fn default_specific_dynamic_routing_setup(
             }
         }
         routing_types::DynamicRoutingType::EliminationRouting => {
-            let default_elimination_routing_config = if state.conf.open_router.enabled {
-                routing_types::EliminationRoutingConfig::open_router_config_default()
-            } else {
-                routing_types::EliminationRoutingConfig::default()
-            };
+            let default_elimination_routing_config =
+                if state.conf.open_router.dynamic_routing_enabled {
+                    routing_types::EliminationRoutingConfig::open_router_config_default()
+                } else {
+                    routing_types::EliminationRoutingConfig::default()
+                };
             routing_algorithm::RoutingAlgorithm {
                 algorithm_id: algorithm_id.clone(),
                 profile_id: profile_id.clone(),
@@ -2172,7 +2166,7 @@ pub async fn default_specific_dynamic_routing_setup(
 
     // Call to DE here
     // Need to map out the cases if this call should always be made or not
-    if state.conf.open_router.enabled {
+    if state.conf.open_router.dynamic_routing_enabled {
         enable_decision_engine_dynamic_routing_setup(
             state,
             business_profile.get_id(),

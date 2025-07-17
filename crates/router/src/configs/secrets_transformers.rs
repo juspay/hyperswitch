@@ -314,11 +314,15 @@ impl SecretsHandler for settings::NetworkTokenizationService {
         let private_key = secret_management_client
             .get_secret(network_tokenization.private_key.clone())
             .await?;
+        let webhook_source_verification_key = secret_management_client
+            .get_secret(network_tokenization.webhook_source_verification_key.clone())
+            .await?;
 
         Ok(value.transition_state(|network_tokenization| Self {
             public_key,
             private_key,
             token_service_api_key,
+            webhook_source_verification_key,
             ..network_tokenization
         }))
     }
@@ -448,6 +452,7 @@ pub(crate) async fn fetch_raw_secrets(
 
     Settings {
         server: conf.server,
+        chat: conf.chat,
         master_database,
         redis: conf.redis,
         log: conf.log,

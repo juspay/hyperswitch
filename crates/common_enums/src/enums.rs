@@ -29,7 +29,7 @@ pub mod diesel_exports {
         DbPaymentType as PaymentType, DbProcessTrackerStatus as ProcessTrackerStatus,
         DbRefundStatus as RefundStatus,
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
-        DbScaExemptionType as ScaExemptionType,
+        DbRoutingApproach as RoutingApproach, DbScaExemptionType as ScaExemptionType,
         DbSuccessBasedRoutingConclusiveState as SuccessBasedRoutingConclusiveState,
         DbTokenizationFlag as TokenizationFlag, DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
     };
@@ -1832,7 +1832,9 @@ pub enum SamsungPayCardBrand {
     Copy,
     Debug,
     Eq,
+    Ord,
     Hash,
+    PartialOrd,
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
@@ -1854,6 +1856,8 @@ pub enum PaymentMethodType {
     AliPayHk,
     Alma,
     AmazonPay,
+    Skrill,
+    Paysera,
     ApplePay,
     Atome,
     Bacs,
@@ -1972,6 +1976,8 @@ impl PaymentMethodType {
             Self::AliPayHk => "AlipayHK",
             Self::Alma => "Alma",
             Self::AmazonPay => "Amazon Pay",
+            Self::Skrill => "Skrill",
+            Self::Paysera => "Paysera",
             Self::ApplePay => "Apple Pay",
             Self::Atome => "Atome",
             Self::BancontactCard => "Bancontact Card",
@@ -2081,6 +2087,8 @@ impl masking::SerializableSecret for PaymentMethodType {}
     Debug,
     Default,
     Eq,
+    PartialOrd,
+    Ord,
     Hash,
     PartialEq,
     serde::Deserialize,
@@ -2292,6 +2300,7 @@ pub enum FrmTransactionType {
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
+    strum::EnumIter,
     strum::EnumString,
     ToSchema,
 )]
@@ -6959,6 +6968,7 @@ pub enum BrazilStatesAbbreviation {
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
+    strum::EnumIter,
     strum::EnumString,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
@@ -8493,4 +8503,67 @@ pub enum TokenDataType {
     MultiUseToken,
     /// Fetch network token for the given payment method
     NetworkToken,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RoutingApproach {
+    SuccessRateExploitation,
+    SuccessRateExploration,
+    ContractBasedRouting,
+    DebitRouting,
+    RuleBasedRouting,
+    VolumeBasedRouting,
+    StraightThroughRouting,
+    #[default]
+    DefaultFallback,
+}
+
+impl RoutingApproach {
+    pub fn from_decision_engine_approach(approach: &str) -> Self {
+        match approach {
+            "SR_SELECTION_V3_ROUTING" => Self::SuccessRateExploitation,
+            "SR_V3_HEDGING" => Self::SuccessRateExploration,
+            "NTW_BASED_ROUTING" => Self::DebitRouting,
+            "DEFAULT" => Self::StraightThroughRouting,
+            _ => Self::DefaultFallback,
+        }
+    }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    ToSchema,
+    strum::Display,
+    strum::EnumString,
+    Hash,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[router_derive::diesel_enum(storage_type = "text")]
+pub enum CallbackMapperIdType {
+    NetworkTokenRequestorReferenceID,
 }

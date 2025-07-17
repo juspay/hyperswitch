@@ -15,7 +15,6 @@ olap = ["hyperswitch_domain_models/olap"]
 payouts = ["hyperswitch_domain_models/payouts"]
 v1 = ["api_models/v1", "diesel_models/v1", "hyperswitch_domain_models/v1", "common_utils/v1"]
 v2 = ["api_models/v2", "diesel_models/v2", "hyperswitch_domain_models/v2", "common_utils/v2"]
-refunds_v2 = ["diesel_models/refunds_v2"]
 tokenization_v2 = ["diesel_models/tokenization_v2", "api_models/tokenization_v2", "hyperswitch_domain_models/tokenization_v2"]
 
 [dependencies]

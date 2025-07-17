@@ -236,6 +236,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             .into(),
             is_iframe_redirection_enabled: item.is_iframe_redirection_enabled,
             merchant_category_code: item.merchant_category_code,
+            merchant_country_code: item.merchant_country_code,
         })
     }
 }
@@ -321,6 +322,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
                 .external_vault_connector_details
                 .map(ForeignInto::foreign_into),
             merchant_category_code: item.merchant_category_code,
+            merchant_country_code: item.merchant_country_code,
         })
     }
 }
@@ -489,5 +491,6 @@ pub async fn create_profile_from_merchant_account(
             .is_pre_network_tokenization_enabled
             .unwrap_or_default(),
         merchant_category_code: request.merchant_category_code,
+        merchant_country_code: request.merchant_country_code,
     }))
 }

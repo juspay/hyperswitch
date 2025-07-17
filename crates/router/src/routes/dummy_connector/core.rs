@@ -11,7 +11,7 @@ use crate::{routes::app, services::api};
 #[cfg(all(feature = "dummy_connector", feature = "v1"))]
 use crate::{routes::dummy_connector::consts, utils::OptionExt};
 
-#[cfg(all(feature = "dummy_connector", feature = "v1"))]
+#[cfg(feature = "dummy_connector")]
 pub async fn payment(
     state: SessionState,
     req: types::DummyConnectorPaymentRequest,

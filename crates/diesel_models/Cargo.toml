@@ -12,7 +12,6 @@ default = ["kv_store"]
 kv_store = []
 v1 = ["common_utils/v1", "common_types/v1"]
 v2 = ["common_utils/v2", "common_types/v2"]
-refunds_v2 = []
 tokenization_v2 = []
 
 [dependencies]

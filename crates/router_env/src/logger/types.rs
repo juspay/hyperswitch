@@ -349,6 +349,8 @@ pub enum Flow {
     ApplePayCertificatesMigration,
     /// Gsm Rule Delete flow
     GsmRuleDelete,
+    /// Get data from embedded flow
+    GetDataFromHyperswitchAiFlow,
     /// User Sign Up
     UserSignUp,
     /// User Sign Up
@@ -596,12 +598,18 @@ pub enum Flow {
     TokenizationRetrieve,
     /// Clone Connector flow
     CloneConnector,
+    /// Authentication Create flow
+    AuthenticationCreate,
     ///Proxy Flow
     Proxy,
+    /// Profile Acquirer Create flow
     ProfileAcquirerCreate,
+    /// Profile Acquirer Update flow
     ProfileAcquirerUpdate,
     /// ThreeDs Decision Rule Execute flow
     ThreeDsDecisionRuleExecute,
+    /// Incoming Network Token Webhook Receive
+    IncomingNetworkTokenWebhookReceive,
 }
 
 /// Trait for providing generic behaviour to flow metric

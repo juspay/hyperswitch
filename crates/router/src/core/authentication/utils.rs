@@ -103,7 +103,10 @@ pub async fn update_trackers<F: Clone, Req>(
                             state,
                             auth_val.expose(),
                             None,
-                            authentication.authentication_id.clone(),
+                            authentication
+                                .authentication_id
+                                .get_string_repr()
+                                .to_string(),
                             merchant_key_store.key.get_inner(),
                         )
                     })
@@ -138,7 +141,10 @@ pub async fn update_trackers<F: Clone, Req>(
                             state,
                             auth_val.expose(),
                             None,
-                            authentication.authentication_id.clone(),
+                            authentication
+                                .authentication_id
+                                .get_string_repr()
+                                .to_string(),
                             merchant_key_store.key.get_inner(),
                         )
                     })
@@ -217,15 +223,22 @@ pub async fn create_new_authentication(
     payment_id: common_utils::id_type::PaymentId,
     merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
     organization_id: common_utils::id_type::OrganizationId,
+    force_3ds_challenge: Option<bool>,
+    psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
 ) -> RouterResult<storage::Authentication> {
-    let authentication_id =
-        common_utils::generate_id_with_default_len(consts::AUTHENTICATION_ID_PREFIX);
+    let authentication_id = common_utils::id_type::AuthenticationId::generate_authentication_id(
+        consts::AUTHENTICATION_ID_PREFIX,
+    );
+    let authentication_client_secret = Some(common_utils::generate_id_with_default_len(&format!(
+        "{}_secret",
+        authentication_id.get_string_repr()
+    )));
     let new_authorization = storage::AuthenticationNew {
         authentication_id: authentication_id.clone(),
         merchant_id,
-        authentication_connector,
+        authentication_connector: Some(authentication_connector),
         connector_authentication_id: None,
-        payment_method_id: format!("eph_{}", token),
+        payment_method_id: format!("eph_{token}"),
         authentication_type: None,
         authentication_status: common_enums::AuthenticationStatus::Started,
         authentication_lifecycle_status: common_enums::AuthenticationLifecycleStatus::Unused,
@@ -250,12 +263,18 @@ pub async fn create_new_authentication(
         acs_signed_content: None,
         profile_id,
         payment_id: Some(payment_id),
-        merchant_connector_id,
+        merchant_connector_id: Some(merchant_connector_id),
         ds_trans_id: None,
         directory_server_id: None,
         acquirer_country_code: None,
         service_details: None,
         organization_id,
+        authentication_client_secret,
+        force_3ds_challenge,
+        psd2_sca_exemption_type,
+        return_url: None,
+        amount: None,
+        currency: None,
     };
     state
         .store
@@ -264,7 +283,7 @@ pub async fn create_new_authentication(
         .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
             message: format!(
                 "Authentication with authentication_id {} already exists",
-                authentication_id
+                authentication_id.get_string_repr()
             ),
         })
 }

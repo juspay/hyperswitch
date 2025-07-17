@@ -303,6 +303,8 @@ impl ConnectorValidation for Adyen {
                     }
                 },
                 PaymentMethodType::AmazonPay
+                | PaymentMethodType::Paysera
+                | PaymentMethodType::Skrill
                 | PaymentMethodType::CardRedirect
                 | PaymentMethodType::DirectCarrierBilling
                 | PaymentMethodType::Fps
@@ -462,7 +464,7 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
             req.test_mode,
             &req.connector_meta_data,
         )?;
-        Ok(format!("{}{}/payments", endpoint, ADYEN_API_VERSION))
+        Ok(format!("{endpoint}{ADYEN_API_VERSION}/payments"))
     }
     fn get_request_body(
         &self,
@@ -582,8 +584,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             &req.connector_meta_data,
         )?;
         Ok(format!(
-            "{}{}/payments/{}/captures",
-            endpoint, ADYEN_API_VERSION, id
+            "{endpoint}{ADYEN_API_VERSION}/payments/{id}/captures",
         ))
     }
     fn get_request_body(
@@ -729,10 +730,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Ady
             req.test_mode,
             &req.connector_meta_data,
         )?;
-        Ok(format!(
-            "{}{}/payments/details",
-            endpoint, ADYEN_API_VERSION
-        ))
+        Ok(format!("{endpoint}{ADYEN_API_VERSION}/payments/details"))
     }
 
     fn build_request(
@@ -849,7 +847,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             req.test_mode,
             &req.connector_meta_data,
         )?;
-        Ok(format!("{}{}/payments", endpoint, ADYEN_API_VERSION))
+        Ok(format!("{endpoint}{ADYEN_API_VERSION}/payments"))
     }
 
     fn get_request_body(
@@ -959,8 +957,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
             &req.connector_meta_data,
         )?;
         Ok(format!(
-            "{}{}/paymentMethods/balance",
-            endpoint, ADYEN_API_VERSION
+            "{endpoint}{ADYEN_API_VERSION}/paymentMethods/balance",
         ))
     }
 
@@ -1094,8 +1091,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ad
             &req.connector_meta_data,
         )?;
         Ok(format!(
-            "{}{}/payments/{}/cancels",
-            endpoint, ADYEN_API_VERSION, id
+            "{endpoint}{ADYEN_API_VERSION}/payments/{id}/cancels",
         ))
     }
 
@@ -1183,8 +1179,7 @@ impl ConnectorIntegration<PoCancel, PayoutsData, PayoutsResponseData> for Adyen 
             &req.connector_meta_data,
         )?;
         Ok(format!(
-            "{}pal/servlet/Payout/{}/declineThirdParty",
-            endpoint, ADYEN_API_VERSION
+            "{endpoint}pal/servlet/Payout/{ADYEN_API_VERSION}/declineThirdParty",
         ))
     }
 
@@ -1281,8 +1276,7 @@ impl ConnectorIntegration<PoCreate, PayoutsData, PayoutsResponseData> for Adyen 
             &req.connector_meta_data,
         )?;
         Ok(format!(
-            "{}pal/servlet/Payout/{}/storeDetailAndSubmitThirdParty",
-            endpoint, ADYEN_API_VERSION
+            "{endpoint}pal/servlet/Payout/{ADYEN_API_VERSION}/storeDetailAndSubmitThirdParty",
         ))
     }
 
@@ -1379,7 +1373,7 @@ impl ConnectorIntegration<PoEligibility, PayoutsData, PayoutsResponseData> for A
             req.test_mode,
             &req.connector_meta_data,
         )?;
-        Ok(format!("{}{}/payments", endpoint, ADYEN_API_VERSION))
+        Ok(format!("{endpoint}{ADYEN_API_VERSION}/payments"))
     }
 
     fn get_headers(
@@ -1625,8 +1619,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Adyen {
             &req.connector_meta_data,
         )?;
         Ok(format!(
-            "{}{}/payments/{}/refunds",
-            endpoint, ADYEN_API_VERSION, connector_payment_id
+            "{endpoint}{ADYEN_API_VERSION}/payments/{connector_payment_id}/refunds",
         ))
     }
 
@@ -1977,8 +1970,7 @@ impl ConnectorIntegration<Accept, AcceptDisputeRequestData, AcceptDisputeRespons
             &req.connector_meta_data,
         )?;
         Ok(format!(
-            "{}ca/services/DisputeService/v30/acceptDispute",
-            endpoint
+            "{endpoint}ca/services/DisputeService/v30/acceptDispute",
         ))
     }
 
@@ -2055,8 +2047,7 @@ impl ConnectorIntegration<Defend, DefendDisputeRequestData, DefendDisputeRespons
             &req.connector_meta_data,
         )?;
         Ok(format!(
-            "{}ca/services/DisputeService/v30/defendDispute",
-            endpoint
+            "{endpoint}ca/services/DisputeService/v30/defendDispute",
         ))
     }
 
@@ -2136,8 +2127,7 @@ impl ConnectorIntegration<Evidence, SubmitEvidenceRequestData, SubmitEvidenceRes
             &req.connector_meta_data,
         )?;
         Ok(format!(
-            "{}ca/services/DisputeService/v30/supplyDefenseDocument",
-            endpoint
+            "{endpoint}ca/services/DisputeService/v30/supplyDefenseDocument",
         ))
     }
 

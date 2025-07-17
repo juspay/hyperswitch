@@ -226,6 +226,8 @@ mod tests {
             processor_merchant_id: Default::default(),
             created_by: None,
             setup_future_usage_applied: Default::default(),
+            routing_approach: Default::default(),
+            connector_request_reference_id: Default::default(),
         };
 
         let store = state
@@ -316,6 +318,8 @@ mod tests {
             processor_merchant_id: Default::default(),
             created_by: None,
             setup_future_usage_applied: Default::default(),
+            routing_approach: Default::default(),
+            connector_request_reference_id: Default::default(),
         };
         let store = state
             .stores
@@ -419,6 +423,8 @@ mod tests {
             processor_merchant_id: Default::default(),
             created_by: None,
             setup_future_usage_applied: Default::default(),
+            routing_approach: Default::default(),
+            connector_request_reference_id: Default::default(),
         };
         let store = state
             .stores

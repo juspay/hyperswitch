@@ -15,10 +15,7 @@ use crate::{
     },
     services,
     types::{
-        api::{
-            self,
-            fraud_check::{self as frm_api, FraudCheckConnectorData},
-        },
+        api::fraud_check::{self as frm_api, FraudCheckConnectorData},
         domain,
         fraud_check::{FraudCheckCheckoutData, FraudCheckResponseData, FrmCheckoutRouterData},
         MerchantRecipientData, RouterData,
@@ -168,20 +165,11 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
             connector_mandate_request_reference_id: None,
             authentication_id: None,
             psd2_sca_exemption_type: None,
-            whole_connector_response: None,
+            raw_connector_response: None,
+            is_payment_id_from_merchant: None,
         };
 
         Ok(router_data)
-    }
-
-    async fn get_merchant_recipient_data<'a>(
-        &self,
-        _state: &SessionState,
-        _merchant_context: &domain::MerchantContext,
-        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
-        _connector: &api::ConnectorData,
-    ) -> RouterResult<Option<MerchantRecipientData>> {
-        Ok(None)
     }
 }
 
