@@ -2253,10 +2253,10 @@ impl Verify {
     }
 }
 
-pub struct User;
+pub struct UserDeprecated;
 
 #[cfg(all(feature = "olap", feature = "v2"))]
-impl User {
+impl UserDeprecated {
     pub fn server(state: AppState) -> Scope {
         // TODO: Deprecated. Remove this in favour of /v2/users
         let mut route = web::scope("/v2/user").app_data(web::Data::new(state));
@@ -2298,6 +2298,8 @@ impl User {
         route
     }
 }
+
+pub struct User;
 
 #[cfg(all(feature = "olap", feature = "v2"))]
 impl User {
@@ -2712,10 +2714,10 @@ impl FeatureMatrix {
 }
 
 #[cfg(feature = "olap")]
-pub struct ProcessTracker;
+pub struct ProcessTrackerDeprecated;
 
 #[cfg(all(feature = "olap", feature = "v2"))]
-impl ProcessTracker {
+impl ProcessTrackerDeprecated {
     pub fn server(state: AppState) -> Scope {
         use super::process_tracker::revenue_recovery;
         // TODO: Deprecated. Remove this in favour of /v2/process-trackers
@@ -2727,6 +2729,9 @@ impl ProcessTracker {
             )
     }
 }
+
+#[cfg(feature = "olap")]
+pub struct ProcessTracker;
 
 #[cfg(all(feature = "olap", feature = "v2"))]
 impl ProcessTracker {
