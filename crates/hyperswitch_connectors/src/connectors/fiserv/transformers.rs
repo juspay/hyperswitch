@@ -75,11 +75,29 @@ pub struct CheckoutPaymentsRequest {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum FiservChannel {
+    Web,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum FiservPaymentInitiator {
+    Merchant,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum FiservCustomerConfirmation {
+    ReviewAndPay,
+}
+
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FiservInteractions {
-    channel: String,
-    customer_confirmation: String,
-    payment_initiator: String,
+    channel: FiservChannel,
+    customer_confirmation: FiservCustomerConfirmation,
+    payment_initiator: FiservPaymentInitiator,
     return_urls: FiservReturnUrls,
 }
 
@@ -93,9 +111,9 @@ pub struct FiservReturnUrls {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FiservPaymentMethod {
-    provider: String,
+    provider: FiservWallet,
     #[serde(rename = "type")]
-    wallet_type: String,
+    wallet_type: FiservWalletType,
 }
 
 #[derive(Debug, Serialize)]
@@ -116,6 +134,20 @@ pub struct ChargesPaymentRequest {
     source: Source,
     transaction_interaction: Option<TransactionInteraction>,
     transaction_details: TransactionDetails,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum FiservWallet {
+    ApplePay,
+    GooglePay,
+    PayPal,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum FiservWalletType {
+    PaypalWallet,
 }
 
 #[derive(Debug, Serialize)]
@@ -400,16 +432,16 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
                     Ok(FiservCheckoutChargesRequest::Checkout(
                         CheckoutPaymentsRequest {
                             payment_method: FiservPaymentMethod {
-                                provider: "PAYPAL".to_string(),
-                                wallet_type: "PAYPAL_WALLET".to_string(),
+                                provider: FiservWallet::PayPal,
+                                wallet_type: FiservWalletType::PaypalWallet,
                             },
                             order: FiservOrder {
                                 intent: FiservIntent::Authorize,
                             },
                             interactions: FiservInteractions {
-                                channel: "WEB".to_string(),
-                                customer_confirmation: "REVIEW_AND_PAY".to_string(),
-                                payment_initiator: "MERCHANT".to_string(),
+                                channel: FiservChannel::Web,
+                                customer_confirmation: FiservCustomerConfirmation::ReviewAndPay,
+                                payment_initiator: FiservPaymentInitiator::Merchant,
                                 return_urls: FiservReturnUrls {
                                     success_url: return_url.clone(),
                                     cancel_url: return_url,
