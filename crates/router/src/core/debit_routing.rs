@@ -176,13 +176,13 @@ where
 
     let is_currency_supported = is_currency_supported(payment_intent, debit_routing_config);
 
-    let payment_method_validation = validate_payment_method_for_debit_routing(payment_data);
+    let is_valid_payment_method = validate_payment_method_for_debit_routing(payment_data);
 
     payment_intent.setup_future_usage != Some(enums::FutureUsage::OffSession)
         && payment_intent.amount.is_greater_than(0)
         && is_currency_supported
         && payment_attempt.authentication_type == Some(enums::AuthenticationType::NoThreeDs)
-        && payment_method_validation
+        && is_valid_payment_method
 }
 
 fn is_currency_supported(
