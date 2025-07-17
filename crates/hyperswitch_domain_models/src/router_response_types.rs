@@ -5,6 +5,7 @@ use std::collections::HashMap;
 
 use common_utils::{request::Method, types::MinorUnit};
 pub use disputes::{AcceptDisputeResponse, DefendDisputeResponse, SubmitEvidenceResponse};
+use serde::Serialize;
 
 use crate::{
     errors::api_error_response::ApiErrorResponse,
@@ -19,7 +20,7 @@ pub struct RefundsResponseData {
     // pub amount_received: Option<i32>, // Calculation for amount received not in place yet
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum PaymentsResponseData {
     TransactionResponse {
         resource_id: ResponseId,
@@ -95,7 +96,7 @@ pub struct MandateReference {
     pub connector_mandate_request_reference_id: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum CaptureSyncResponse {
     Success {
         resource_id: ResponseId,
@@ -240,7 +241,7 @@ impl PaymentsResponseData {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum PreprocessingResponseId {
     PreProcessingId(String),
     ConnectorTransactionId(String),

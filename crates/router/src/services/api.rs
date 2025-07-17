@@ -349,6 +349,71 @@ where
                                             error_res
                                         }
                                         _ => {
+                                            println!("enters ok wala response 400");
+                                            let body_clone = body.clone();
+                                            println!("body_clone: {:?}", body_clone.clone());
+                                            if body_clone.status_code == 400 {
+                                                println!("in status code 400 wala part");
+                                                if let Ok(parsed) = serde_json::from_slice::<serde_json::Value>(&body_clone.response) {
+                                                    println!("parsed: {:?}", parsed);
+                                                    let code = parsed
+                                                        .get("code")
+                                                        .and_then(|v| v.as_str())
+                                                        .unwrap_or_default();
+
+                                                    let message = parsed
+                                                        .get("message")
+                                                        .and_then(|v| v.as_str())
+                                                        .unwrap_or_default();
+
+                                                    println!("code: {:?}, message: {:?}", code, message);
+                                                    if code == "DuplicateResource" && message.contains("Bank already exists: id=") {
+                                                        if let Some(funding_source_id) = message
+                                                            .split("id=")
+                                                            .nth(1)
+                                                            .map(str::trim)
+                                                            .map(str::to_string)
+                                                        {
+                                                            logger::info!("Handling duplicate resource – reusing funding source ID: {funding_source_id}");
+
+                                                            let success_response = types::PaymentsResponseData::TokenizationResponse {
+                                                                token: funding_source_id.clone(),
+                                                            };
+
+                                                            // Create a successful response and handle it through the connector integration
+                                                            let response_body = serde_json::to_vec(&success_response)
+                                                                .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+                                                            
+                                                            let success_router_data = connector_integration.handle_response(
+                                                                req,
+                                                                Some(&mut connector_event),
+                                                                types::Response {
+                                                                    headers: None,
+                                                                    response: response_body.into(),
+                                                                    status_code: 200,
+                                                                },
+                                                            )?;
+
+                                                            router_data.response = success_router_data.response;
+                                                            router_data.status = success_router_data.status;
+
+                                                            // let converted = ResourceCommonData::get_response_from_gateway_response(success_response);
+                                                            
+                                                            // router_data.response = Ok(converted);
+                                                            router_data.payment_method_token = Some(
+                                                                hyperswitch_domain_models::router_data::PaymentMethodToken::Token(
+                                                                    masking::Secret::new(funding_source_id.clone()),
+                                                                ),
+                                                            );
+
+                                                            println!("router_data.payment_method_token: {:?}", router_data.payment_method_token);
+                                                            println!("funding source ka id : {:?}", funding_source_id);
+                                                            println!("router data: {:?}", router_data);
+                                                            return Ok(router_data);
+                                                        }
+                                                    }
+                                                }
+                                            }
                                             let error_res = connector_integration
                                                 .get_error_response(
                                                     body,
@@ -451,7 +516,7 @@ async fn handle_response(
             logger::info!(?response);
             let status_code = response.status().as_u16();
             let headers = Some(response.headers().to_owned());
-
+            println!("in handle response function in api.rs yayy");
             match status_code {
                 200..=202 | 302 | 204 => {
                     // If needed add log line

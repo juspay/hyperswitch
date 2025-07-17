@@ -392,32 +392,95 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
         ))
     }
 
-    fn handle_response(
-        &self,
-        data: &TokenizationRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<TokenizationRouterData, errors::ConnectorError>
-    {
-        let headers = res.headers.as_ref().ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
-        let location = get_http_header("Location", headers)
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+    // fn handle_response(
+    //     &self,
+    //     data: &TokenizationRouterData,
+    //     event_builder: Option<&mut ConnectorEvent>,
+    //     res: Response,
+    // ) -> CustomResult<TokenizationRouterData, errors::ConnectorError>
+    // {
+    //     let headers = match res.headers.as_ref() {
+    //         Some(h) => h,
+    //         None => {
+    //             let parsed: serde_json::Value = serde_json::from_slice(&res.response)
+    //                 .map_err(|_| errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let payment_token = location
-                    .split('/')
-                    .next_back()
-                    .ok_or(errors::ConnectorError::ResponseHandlingFailed)?
-                    .to_string();
+    //             let token = parsed
+    //                 .get("TokenizationResponse")
+    //                 .and_then(|v| v.get("token"))
+    //                 .and_then(|v| v.as_str())
+    //                 .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let response =
-                    serde_json::json!({"payment_token": payment_token.clone()});
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+    //             return Ok(RouterData {
+    //                 response: Ok(PaymentsResponseData::TokenizationResponse {
+    //                     token: token.to_string(),
+    //                 }),
+    //                 ..data.clone()
+    //             });
+    //         }
+    //     };
+
+    //     let location = get_http_header("Location", headers)
+    //         .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+
+    //     let payment_token = location
+    //                 .split('/')
+    //                 .next_back()
+    //                 .ok_or(errors::ConnectorError::ResponseHandlingFailed)?
+    //                 .to_string();
+
+    //     let response =
+    //                 serde_json::json!({"payment_token": payment_token.clone()});
+    //     event_builder.map(|i| i.set_response_body(&response));
+    //     router_env::logger::info!(connector_response=?response);
         
-        Ok(RouterData{
-            response: Ok(PaymentsResponseData::TokenizationResponse {
-                token : payment_token.clone(),
-            }),
+    //     Ok(RouterData{
+    //         response: Ok(PaymentsResponseData::TokenizationResponse {
+    //             token : payment_token.clone(),
+    //         }),
+    //         ..data.clone()
+    //     })
+    // }
+
+    fn handle_response(
+    &self,
+    data: &TokenizationRouterData,
+    event_builder: Option<&mut ConnectorEvent>,
+    res: Response,
+    ) -> CustomResult<TokenizationRouterData, errors::ConnectorError> {
+        let token = match res.headers.as_ref() {
+            Some(headers) => {
+                let location = get_http_header("Location", headers)
+                    .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+
+                location
+                    .rsplit('/')
+                    .next()
+                    .ok_or(errors::ConnectorError::ResponseHandlingFailed)?
+                    .to_string()
+            }
+            None => {
+                let parsed: serde_json::Value = serde_json::from_slice(&res.response)
+                    .map_err(|_| errors::ConnectorError::ResponseDeserializationFailed)?;
+
+                parsed
+                    .get("TokenizationResponse")
+                    .and_then(|v| v.get("token"))
+                    .and_then(|v| v.as_str())
+                    .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
+                    .to_string()
+            }
+        };
+
+        let response = serde_json::json!({ "payment_token": token });
+        if let Some(builder) = event_builder {
+            builder.set_response_body(&response);
+        }
+
+        router_env::logger::info!(connector_response=?response);
+
+        Ok(RouterData {
+            response: Ok(PaymentsResponseData::TokenizationResponse { token }),
             ..data.clone()
         })
     }
