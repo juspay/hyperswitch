@@ -258,6 +258,25 @@ pub struct StripeCardData {
     #[serde(rename = "payment_method_options[card][network]")]
     pub payment_method_data_card_preferred_network: Option<StripeCardNetwork>,
 }
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct StripeProxyCardData {
+    #[serde(rename = "payment_method_data[type]")]
+    pub payment_method_data_type: StripePaymentMethodType,
+    #[serde(rename = "payment_method_data[card][number]")]
+    pub payment_method_data_card_number: Secret<String>,
+    #[serde(rename = "payment_method_data[card][exp_month]")]
+    pub payment_method_data_card_exp_month: Secret<String>,
+    #[serde(rename = "payment_method_data[card][exp_year]")]
+    pub payment_method_data_card_exp_year: Secret<String>,
+    #[serde(rename = "payment_method_data[card][cvc]")]
+    pub payment_method_data_card_cvc: Option<Secret<String>>,
+    #[serde(rename = "payment_method_options[card][request_three_d_secure]")]
+    pub payment_method_auth_type: Option<Secret<String>>,
+    #[serde(rename = "payment_method_options[card][network]")]
+    pub payment_method_data_card_preferred_network: Option<Secret<String>>,
+}
+
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripePayLaterData {
     #[serde(rename = "payment_method_data[type]")]
@@ -484,6 +503,7 @@ pub enum StripePaymentMethodData {
     BankRedirect(StripeBankRedirectData),
     BankDebit(StripeBankDebitData),
     BankTransfer(StripeBankTransferData),
+    ProxyCard(StripeProxyCardData),
 }
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, Serialize)]
@@ -723,7 +743,9 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(value: enums::PaymentMethodType) -> Result<Self, Self::Error> {
         match value {
-            enums::PaymentMethodType::Credit => Ok(Self::Card),
+            enums::PaymentMethodType::Credit | enums::PaymentMethodType::ProxyCard => {
+                Ok(Self::Card)
+            }
             enums::PaymentMethodType::Debit => Ok(Self::Card),
             #[cfg(feature = "v2")]
             enums::PaymentMethodType::Card => Ok(Self::Card),
@@ -1407,13 +1429,25 @@ fn create_stripe_payment_method(
             )
             .into()),
         },
-
+        PaymentMethodData::ExternalProxyCardData(proxy_card) => {
+            let data = StripePaymentMethodData::ProxyCard(StripeProxyCardData {
+                payment_method_data_type: StripePaymentMethodType::Card,
+                payment_method_data_card_number: proxy_card.card_number.clone(),
+                payment_method_data_card_exp_month: proxy_card.card_exp_month.clone(),
+                payment_method_data_card_exp_year: proxy_card.card_exp_year.clone(),
+                payment_method_data_card_cvc: Some(proxy_card.card_cvc.clone()),
+                payment_method_auth_type: None,
+                payment_method_data_card_preferred_network: None,
+            });
+            Ok((data, Some(StripePaymentMethodType::Card), billing_address))
+        }
         PaymentMethodData::Upi(_)
         | PaymentMethodData::RealTimePayment(_)
         | PaymentMethodData::MobilePayment(_)
         | PaymentMethodData::MandatePayment
         | PaymentMethodData::OpenBanking(_)
         | PaymentMethodData::CardToken(_)
+        | PaymentMethodData::VaultPayment(_)
         | PaymentMethodData::NetworkToken(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => Err(
             ConnectorError::NotImplemented(get_unimplemented_payment_method_error_message(
@@ -1805,6 +1839,19 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                                     .clone()
                                     .and_then(get_stripe_card_network),
                         }),
+                        PaymentMethodData::ExternalProxyCardData(ref proxy_card) => {
+                            StripePaymentMethodData::ProxyCard(StripeProxyCardData {
+                                payment_method_data_type: StripePaymentMethodType::Card,
+                                payment_method_data_card_number: proxy_card.card_number.clone(),
+                                payment_method_data_card_exp_month: proxy_card
+                                    .card_exp_month
+                                    .clone(),
+                                payment_method_data_card_exp_year: proxy_card.card_exp_year.clone(),
+                                payment_method_data_card_cvc: Some(proxy_card.card_cvc.clone()),
+                                payment_method_auth_type: None,
+                                payment_method_data_card_preferred_network: None,
+                            })
+                        }
                         PaymentMethodData::CardRedirect(_)
                         | PaymentMethodData::Wallet(_)
                         | PaymentMethodData::PayLater(_)
@@ -1821,6 +1868,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                         | PaymentMethodData::GiftCard(_)
                         | PaymentMethodData::OpenBanking(_)
                         | PaymentMethodData::CardToken(_)
+                        | PaymentMethodData::VaultPayment(_)
                         | PaymentMethodData::NetworkToken(_)
                         | PaymentMethodData::Card(_) => Err(ConnectorError::NotSupported {
                             message: "Network tokenization for payment method".to_string(),
@@ -3803,43 +3851,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, StripeCustomerResponse, T, PaymentsResp
     }
 }
 
-// #[cfg(test)]
-// mod test_stripe_transformers {
-//     use super::*;
-
-//     #[test]
-//     fn verify_transform_from_router_to_stripe_req() {
-//         let router_req = PaymentsRequest {
-//             amount: 100.0,
-//             currency: "USD".to_string(),
-//             ..Default::default()
-//         };
-
-//         let stripe_req = PaymentIntentRequest::from(router_req);
-
-//         //metadata is generated everytime. So use the transformed struct to copy uuid
-
-//         let stripe_req_expected = PaymentIntentRequest {
-//             amount: 10000,
-//             currency: "USD".to_string(),
-//             statement_descriptor_suffix: None,
-//             metadata_order_id: "Auto generate Order ID".to_string(),
-//             metadata_txn_id: "Fetch from Merchant Account_Auto generate Order ID_1".to_string(),
-//             metadata_txn_uuid: stripe_req.metadata_txn_uuid.clone(),
-//             return_url: "Fetch Url from Merchant Account".to_string(),
-//             confirm: false,
-//             payment_method_types: "card".to_string(),
-//             payment_method_data_type: "card".to_string(),
-//             payment_method_data_card_number: None,
-//             payment_method_data_card_exp_month: None,
-//             payment_method_data_card_exp_year: None,
-//             payment_method_data_card_cvc: None,
-//             description: None,
-//         };
-//         assert_eq!(stripe_req_expected, stripe_req);
-//     }
-// }
-
 #[derive(Debug, Deserialize)]
 pub struct WebhookEventDataResource {
     pub object: Value,
@@ -4119,7 +4130,9 @@ impl
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::VaultPayment(_)
             | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::ExternalProxyCardData(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(ConnectorError::NotImplemented(
                     get_unimplemented_payment_method_error_message("stripe"),

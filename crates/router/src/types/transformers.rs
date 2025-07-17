@@ -374,6 +374,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::PromptPay
             | api_enums::PaymentMethodType::VietQr => Self::RealTimePayment,
             api_enums::PaymentMethodType::DirectCarrierBilling => Self::MobilePayment,
+            api_enums::PaymentMethodType::ProxyCard => Self::ExternalProxyCardData,
         }
     }
 }
@@ -384,9 +385,9 @@ impl ForeignTryFrom<payments::PaymentMethodData> for api_enums::PaymentMethod {
         payment_method_data: payments::PaymentMethodData,
     ) -> Result<Self, Self::Error> {
         match payment_method_data {
-            payments::PaymentMethodData::Card(..) | payments::PaymentMethodData::CardToken(..) => {
-                Ok(Self::Card)
-            }
+            payments::PaymentMethodData::Card(..)
+            | payments::PaymentMethodData::CardToken(..)
+            | payments::PaymentMethodData::VaultPayment(..) => Ok(Self::Card),
             payments::PaymentMethodData::Wallet(..) => Ok(Self::Wallet),
             payments::PaymentMethodData::PayLater(..) => Ok(Self::PayLater),
             payments::PaymentMethodData::BankRedirect(..) => Ok(Self::BankRedirect),
@@ -401,6 +402,9 @@ impl ForeignTryFrom<payments::PaymentMethodData> for api_enums::PaymentMethod {
             payments::PaymentMethodData::CardRedirect(..) => Ok(Self::CardRedirect),
             payments::PaymentMethodData::OpenBanking(..) => Ok(Self::OpenBanking),
             payments::PaymentMethodData::MobilePayment(..) => Ok(Self::MobilePayment),
+            payments::PaymentMethodData::ExternalProxyCardData(..) => {
+                Ok(Self::ExternalProxyCardData)
+            }
             payments::PaymentMethodData::MandatePayment => {
                 Err(errors::ApiErrorResponse::InvalidRequestData {
                     message: ("Mandate payments cannot have payment_method_data field".to_string()),

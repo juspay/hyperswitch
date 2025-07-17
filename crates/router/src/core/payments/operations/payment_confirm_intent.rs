@@ -415,15 +415,6 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                             .ok_or(errors::ApiErrorResponse::InvalidDataValue {
                                 field_name: "card_cvc",
                             })
-                            .or(
-                                payment_methods::vault::retrieve_and_delete_cvc_from_payment_token(
-                                    state,
-                                    payment_token,
-                                    payment_data.payment_attempt.payment_method_type,
-                                    merchant_context.get_merchant_key_store().key.get_inner(),
-                                )
-                                .await,
-                            )
                             .attach_printable("card_cvc not provided")?,
                         card_token.card_holder_name.clone(),
                     )
@@ -503,6 +494,56 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
 
                 // Don't modify payment_method_data in this case, only the payment_method and payment_method_id
                 (Some(payment_method), None)
+            }
+            // payment made with vault token
+            (_, Some(domain::PaymentMethodData::VaultPayment(vault_payment)), _) => {
+                match vault_payment {
+                    domain::VaultPaymentData::HyperswitchVault {
+                        payment_method_token,
+                    } => {
+                        let card_cvc =
+                            payment_methods::vault::retrieve_and_delete_cvc_from_payment_token(
+                                state,
+                                payment_method_token.peek(),
+                                payment_data.payment_attempt.payment_method_type,
+                                merchant_context.get_merchant_key_store().key.get_inner(),
+                            )
+                            .await
+                            .attach_printable("Failed to fetch card_cvc")?;
+
+                        let (payment_method, vault_data) =
+                            payment_methods::vault::retrieve_payment_method_from_vault_using_payment_token(
+                                state,
+                                merchant_context,
+                                business_profile,
+                                payment_method_token.peek(),
+                                &payment_data.payment_attempt.payment_method_type,
+                            )
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to retrieve payment method from vault")?;
+
+                        match vault_data {
+                            domain::vault::PaymentMethodVaultingData::Card(card_detail) => {
+                                let pm_data_from_vault =
+                                    domain::payment_method_data::PaymentMethodData::Card(
+                                        domain::payment_method_data::Card::from((
+                                            card_detail,
+                                            card_cvc,
+                                            None,
+                                        )),
+                                    );
+
+                                (Some(payment_method), Some(pm_data_from_vault))
+                            }
+                            _ => Err(errors::ApiErrorResponse::NotImplemented {
+                                message: errors::NotImplementedMessage::Reason(
+                                    "Non-card Tokenization not implemented".to_string(),
+                                ),
+                            })?,
+                        }
+                    }
+                }
             }
             _ => (None, None), // Pass payment_data unmodified for any other case
         };

@@ -348,7 +348,9 @@ impl TryFrom<&SetupMandateRouterData> for BankOfAmericaPaymentsRequest {
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::ExternalProxyCardData(_)
             | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::VaultPayment(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
@@ -419,6 +421,7 @@ impl<F, T>
                     | common_enums::PaymentMethod::Upi
                     | common_enums::PaymentMethod::Voucher
                     | common_enums::PaymentMethod::OpenBanking
+                    | common_enums::PaymentMethod::ExternalProxyCardData
                     | common_enums::PaymentMethod::GiftCard => None,
                 };
 
@@ -1147,7 +1150,9 @@ impl TryFrom<&BankOfAmericaRouterData<&PaymentsAuthorizeRouterData>>
                     | PaymentMethodData::GiftCard(_)
                     | PaymentMethodData::OpenBanking(_)
                     | PaymentMethodData::CardToken(_)
+                    | PaymentMethodData::VaultPayment(_)
                     | PaymentMethodData::NetworkToken(_)
+                    | PaymentMethodData::ExternalProxyCardData(_)
                     | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message(
@@ -1719,6 +1724,7 @@ impl<F>
                     | common_enums::PaymentMethod::MobilePayment
                     | common_enums::PaymentMethod::Upi
                     | common_enums::PaymentMethod::Voucher
+                    | common_enums::PaymentMethod::ExternalProxyCardData
                     | common_enums::PaymentMethod::OpenBanking
                     | common_enums::PaymentMethod::GiftCard => None,
                 };
@@ -1926,6 +1932,7 @@ impl<F>
                     | common_enums::PaymentMethod::MobilePayment
                     | common_enums::PaymentMethod::Upi
                     | common_enums::PaymentMethod::Voucher
+                    | common_enums::PaymentMethod::ExternalProxyCardData
                     | common_enums::PaymentMethod::OpenBanking
                     | common_enums::PaymentMethod::GiftCard => None,
                 };

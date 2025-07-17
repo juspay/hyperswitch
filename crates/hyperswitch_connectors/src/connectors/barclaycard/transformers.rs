@@ -478,7 +478,9 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsAuthorizeRouterData>> for Barclayca
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::VaultPayment(_)
             | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::ExternalProxyCardData(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Barclaycard"),
@@ -861,6 +863,7 @@ impl<F>
                     | common_enums::PaymentMethod::Upi
                     | common_enums::PaymentMethod::Voucher
                     | common_enums::PaymentMethod::OpenBanking
+                    | common_enums::PaymentMethod::ExternalProxyCardData
                     | common_enums::PaymentMethod::GiftCard => None,
                 };
 
@@ -1069,6 +1072,7 @@ impl<F>
                     | common_enums::PaymentMethod::Upi
                     | common_enums::PaymentMethod::Voucher
                     | common_enums::PaymentMethod::OpenBanking
+                    | common_enums::PaymentMethod::ExternalProxyCardData
                     | common_enums::PaymentMethod::GiftCard => None,
                 };
 

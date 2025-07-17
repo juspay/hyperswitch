@@ -2529,6 +2529,8 @@ pub enum PaymentMethodDataType {
     InstantBankTransferFinland,
     InstantBankTransferPoland,
     RevolutPay,
+    ExternalProxyCardData,
+    VaultPayment,
 }
 
 impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
@@ -2726,12 +2728,14 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                 }
             }
             domain::payments::PaymentMethodData::CardToken(_) => Self::CardToken,
+            domain::payments::PaymentMethodData::VaultPayment(_) => Self::VaultPayment,
             domain::payments::PaymentMethodData::OpenBanking(data) => match data {
                 hyperswitch_domain_models::payment_method_data::OpenBankingData::OpenBankingPIS {  } => Self::OpenBanking
             },
             domain::payments::PaymentMethodData::MobilePayment(mobile_payment_data) => match mobile_payment_data {
                 hyperswitch_domain_models::payment_method_data::MobilePaymentData::DirectCarrierBilling { .. } => Self::DirectCarrierBilling,
             },
+            domain::payments::PaymentMethodData::ExternalProxyCardData(_) => Self::ExternalProxyCardData,
         }
     }
 }
