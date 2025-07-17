@@ -44,7 +44,7 @@ pub async fn should_call_unified_connector_service<F: Clone, T>(
 
     let ucs_config_key = consts::UCS_ENABLED;
 
-    if !is_ucs_enabled(state, ucs_config_key).await? {
+    if !is_ucs_enabled(state, ucs_config_key).await {
         return Ok(false);
     }
 

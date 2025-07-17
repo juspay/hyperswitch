@@ -2037,21 +2037,25 @@ pub fn decide_payment_method_retrieval_action(
     }
 }
 
-pub async fn is_ucs_enabled(state: &SessionState, config_key: &str) -> RouterResult<bool> {
+pub async fn is_ucs_enabled(state: &SessionState, config_key: &str) -> bool {
     let db = state.store.as_ref();
-    match db.find_config_by_key(config_key).await {
-        Ok(rollout_config) => match rollout_config.config.parse::<bool>() {
-            Ok(is_enabled) => Ok(is_enabled),
-            Err(err) => {
-                logger::error!(error = ?err, "Failed to parse {config_key:?} UCS enabled config");
-                Ok(false)
-            }
-        },
-        Err(err) => {
+    let is_enabled = db
+        .find_config_by_key_unwrap_or(config_key, Some("false".to_string()))
+        .await
+        .map_err(|err| {
             logger::error!(error = ?err, "Failed to fetch {config_key:?} UCS enabled config from DB");
-            Ok(false)
-        }
-    }
+        })
+        .ok()
+        .and_then(|config| {
+            config.config.parse::<bool>()
+                .map_err(|err| {
+                    logger::error!(error = ?err, "Failed to parse {config_key:?} UCS enabled config");
+                })
+                .ok()
+        })
+        .unwrap_or(false);
+
+    is_enabled
 }
 
 pub async fn should_execute_based_on_rollout(
