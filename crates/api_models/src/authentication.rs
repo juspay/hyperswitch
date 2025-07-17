@@ -198,7 +198,7 @@ pub struct AuthenticationEligibilityRequest {
 
     /// Optional email address of the customer.
     /// Used for customer identification, communication, and possibly for 3DS or fraud checks.
-    #[schema(value_type = Option<pii::Email>)]
+    #[schema(value_type = Option<String>)]
     pub email: Option<common_utils::pii::Email>,
 }
 
@@ -269,7 +269,7 @@ pub struct AuthenticationEligibilityResponse {
     #[schema(value_type = Option<BrowserInformation>)]
     pub browser_information: Option<BrowserInformation>,
     /// Email
-    #[schema(value_type = Option<pii::Email>)]
+    #[schema(value_type = Option<String>)]
     pub email: common_utils::crypto::OptionalEncryptableEmail,
 }
 
@@ -284,7 +284,7 @@ pub struct ThreeDsData {
     #[schema(value_type = String)]
     pub threeds_server_transaction_id: Option<String>,
     /// The maximum supported 3DS version.
-    #[schema(value_type = SemanticVersion)]
+    #[schema(value_type = String)]
     pub maximum_supported_3ds_version: Option<common_utils::types::SemanticVersion>,
     /// The unique identifier for this authentication from the connector.
     #[schema(value_type = String)]
@@ -296,7 +296,7 @@ pub struct ThreeDsData {
     #[schema(value_type = String, example = "https://example.com/redirect")]
     pub three_ds_method_url: Option<url::Url>,
     /// The version of the message.
-    #[schema(value_type = SemanticVersion)]
+    #[schema(value_type = String)]
     pub message_version: Option<common_utils::types::SemanticVersion>,
     /// The unique identifier for this authentication.
     #[schema(value_type = String)]
@@ -306,10 +306,10 @@ pub struct ThreeDsData {
 #[derive(Debug, Serialize, ToSchema)]
 pub struct NextAction {
     /// The URL for authenticatating the user.
-    #[schema(value_type = url::Url)]
+    #[schema(value_type = String)]
     pub url: url::Url,
     /// The HTTP method to use for the request.
-    #[schema(value_type = common_utils::request::Method)]
+    #[schema(value_type = Method)]
     pub http_method: common_utils::request::Method,
 }
 

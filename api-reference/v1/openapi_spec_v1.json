@@ -7694,11 +7694,8 @@
             "nullable": true
           },
           "email": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/pii.Email"
-              }
-            ],
+            "type": "string",
+            "description": "Optional email address of the customer.\nUsed for customer identification, communication, and possibly for 3DS or fraud checks.",
             "nullable": true
           }
         }
@@ -7779,11 +7776,8 @@
             "nullable": true
           },
           "email": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/pii.Email"
-              }
-            ],
+            "type": "string",
+            "description": "Email",
             "nullable": true
           }
         }
@@ -13667,6 +13661,21 @@
           }
         ]
       },
+      "EligibilityResponseParams": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "ThreeDsData"
+            ],
+            "properties": {
+              "ThreeDsData": {
+                "$ref": "#/components/schemas/ThreeDsData"
+              }
+            }
+          }
+        ]
+      },
       "EliminationAnalyserConfig": {
         "type": "object",
         "properties": {
@@ -17789,6 +17798,16 @@
           }
         }
       },
+      "Method": {
+        "type": "string",
+        "enum": [
+          "GET",
+          "POST",
+          "PUT",
+          "DELETE",
+          "PATCH"
+        ]
+      },
       "MifinityData": {
         "type": "object",
         "required": [
@@ -17976,6 +17995,22 @@
           "network_transaction_id": {
             "type": "string",
             "description": "The network transaction ID provided by the card network during a CIT (Customer Initiated Transaction),\nwhere `setup_future_usage` is set to `off_session`."
+          }
+        }
+      },
+      "NextAction": {
+        "type": "object",
+        "required": [
+          "url",
+          "http_method"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "The URL for authenticatating the user."
+          },
+          "http_method": {
+            "$ref": "#/components/schemas/Method"
           }
         }
       },
@@ -29767,35 +29802,43 @@
       "ThreeDsData": {
         "type": "object",
         "required": [
-          "three_ds_authentication_url",
-          "three_ds_authorize_url",
-          "three_ds_method_details",
-          "poll_config"
+          "threeds_server_transaction_id",
+          "maximum_supported_3ds_version",
+          "connector_authentication_id",
+          "three_ds_method_data",
+          "three_ds_method_url",
+          "message_version",
+          "directory_server_id"
         ],
         "properties": {
-          "three_ds_authentication_url": {
+          "threeds_server_transaction_id": {
             "type": "string",
-            "description": "ThreeDS authentication url - to initiate authentication"
+            "description": "The unique identifier for this authentication from the 3DS server."
           },
-          "three_ds_authorize_url": {
+          "maximum_supported_3ds_version": {
             "type": "string",
-            "description": "ThreeDS authorize url - to complete the payment authorization after authentication"
+            "description": "The maximum supported 3DS version."
           },
-          "three_ds_method_details": {
-            "$ref": "#/components/schemas/ThreeDsMethodData"
+          "connector_authentication_id": {
+            "type": "string",
+            "description": "The unique identifier for this authentication from the connector."
           },
-          "poll_config": {
-            "$ref": "#/components/schemas/PollConfigResponse"
+          "three_ds_method_data": {
+            "type": "string",
+            "description": "The data required to perform the 3DS method."
+          },
+          "three_ds_method_url": {
+            "type": "string",
+            "description": "The URL to which the user should be redirected after authentication.",
+            "example": "https://example.com/redirect"
           },
           "message_version": {
             "type": "string",
-            "description": "Message Version",
-            "nullable": true
+            "description": "The version of the message."
           },
           "directory_server_id": {
             "type": "string",
-            "description": "Directory Server ID",
-            "nullable": true
+            "description": "The unique identifier for this authentication."
           }
         }
       },
