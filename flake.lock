@@ -49,27 +49,6 @@
         "type": "github"
       }
     },
-    "globset": {
-      "inputs": {
-        "nixpkgs-lib": [
-          "rust-flake",
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1744379919,
-        "narHash": "sha256-ieaQegt7LdMDFweeHhRaUQFYyF0U3pWD/XiCvq5L5U8=",
-        "owner": "pdtpartners",
-        "repo": "globset",
-        "rev": "4e21c96ab1259b8cd864272f96a8891b589c8eda",
-        "type": "github"
-      },
-      "original": {
-        "owner": "pdtpartners",
-        "repo": "globset",
-        "type": "github"
-      }
-    },
     "nixos-unified": {
       "locked": {
         "lastModified": 1751174231,
@@ -161,20 +140,20 @@
     "rust-flake": {
       "inputs": {
         "crane": "crane",
-        "globset": "globset",
         "nixpkgs": "nixpkgs_2",
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1751562414,
-        "narHash": "sha256-0ohW9/OWtkRHFteFdbhWJPGNHD00UWHjVA/qOTeuNfM=",
+        "lastModified": 1752473678,
+        "narHash": "sha256-bQg6PwHBRc82ET8jGpnaieTwoguwCX17MNNKyznxEMc=",
         "owner": "juspay",
         "repo": "rust-flake",
-        "rev": "a1c9995285b1288b3249a6ee1ac19443535bbb94",
+        "rev": "96b2d4817c41fcfada95ef71dc439fd0cd43c98c",
         "type": "github"
       },
       "original": {
         "owner": "juspay",
+        "ref": "pull/40/head",
         "repo": "rust-flake",
         "type": "github"
       }
