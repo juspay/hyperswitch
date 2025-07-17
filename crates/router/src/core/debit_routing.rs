@@ -492,7 +492,7 @@ where
             ExtractedCardInfo::new(
                 None,
                 None,
-                Some(Secret::new(card.card_number.get_card_isin())),
+                Some(Secret::new(card.card_number.get_extended_card_bin())),
             )
         }
         Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(
@@ -534,7 +534,7 @@ where
                     .application_primary_account_number
                     .peek()
                     .chars()
-                    .take(6)
+                    .take(8)
                     .collect::<String>(),
             ))
         } else {
