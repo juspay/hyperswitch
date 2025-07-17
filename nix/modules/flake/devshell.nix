@@ -3,7 +3,10 @@
   perSystem = { config, pkgs, self', ... }:
     let
       rustMsrv = config.rust-project.cargoToml.workspace.package.rust-version;
-      rustDevVersion = config.rust-project.toolchain.version;
+      rustStablePkg = config.rust-project.toolchain;
+      rustFmtNightlyPkg = pkgs.rust-bin.nightly.latest.minimal.override {
+        extensions = [ "clippy" "rustfmt" ];
+      };
     in
     {
       devShells = {
@@ -29,8 +32,11 @@
           packages = with pkgs; [
             cargo-watch
             nixd
-            rust-bin.stable.${rustDevVersion}.default
             swagger-cli
+
+            # The order in which these rust package appear is important
+            rustStablePkg
+            rustFmtNightlyPkg
           ];
           shellHook = ''
             echo 1>&2 "Ready to work on hyperswitch!"
