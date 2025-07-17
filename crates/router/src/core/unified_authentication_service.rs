@@ -19,8 +19,8 @@ use hyperswitch_domain_models::{
     router_request_types::{
         authentication::{MessageCategory, PreAuthenticationData},
         unified_authentication_service::{
-            AuthenticationInfo, PaymentDetails, ServiceSessionIds, TransactionDetails,
-            UasAuthenticationRequestData, UasConfirmationRequestData,
+            AuthenticationInfo, PaymentDetails, ServiceSessionIds, ThreeDsMetaData,
+            TransactionDetails, UasAuthenticationRequestData, UasConfirmationRequestData,
             UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
         },
         BrowserInformation,
@@ -852,8 +852,6 @@ pub async fn authentication_eligibility_core(
     req: AuthenticationEligibilityRequest,
     authentication_id: common_utils::id_type::AuthenticationId,
 ) -> RouterResponse<AuthenticationEligibilityResponse> {
-    use hyperswitch_domain_models::router_request_types::unified_authentication_service::ThreeDsMetaData;
-
     let merchant_account = merchant_context.get_merchant_account();
     let merchant_id = merchant_account.get_id();
     let db = &*state.store;
@@ -864,10 +862,10 @@ pub async fn authentication_eligibility_core(
             id: authentication_id.get_string_repr().to_owned(),
         })?;
 
-    if let Some(cs) = &req.client_secret {
+    if let Some(client_secret) = &req.client_secret {
         let is_client_secret_expired =
             utils::authenticate_authentication_client_secret_and_check_expiry(
-                cs.peek(),
+                client_secret.peek(),
                 &authentication,
             )?;
 
@@ -943,7 +941,7 @@ pub async fn authentication_eligibility_core(
     let merchant_details = Some(hyperswitch_domain_models::router_request_types::unified_authentication_service::MerchantDetails {
         merchant_id: Some(authentication.merchant_id.get_string_repr().to_string()),
         merchant_name: acquirer_details.clone().map(|detail| detail.merchant_name.clone()).or(metadata.clone().and_then(|metadata| metadata.merchant_name)),
-        merchant_category_code: business_profile.merchant_category_code.or(metadata.clone().and_then(|metadata| metadata.mcc)),
+        merchant_category_code: business_profile.merchant_category_code.or(metadata.clone().and_then(|metadata| metadata.merchant_category_code)),
         endpoint_prefix: metadata.clone().map(|metadata| metadata.endpoint_prefix),
         three_ds_requestor_url: business_profile.authentication_connector_details.map(|details| details.three_ds_requestor_url),
         three_ds_requestor_id: metadata.clone().and_then(|metadata| metadata.three_ds_requestor_id),
