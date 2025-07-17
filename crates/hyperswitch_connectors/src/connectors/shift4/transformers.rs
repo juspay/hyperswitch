@@ -296,7 +296,8 @@ impl TryFrom<&PayLaterData> for PaymentMethodType {
             | PayLaterData::WalleyRedirect { .. }
             | PayLaterData::AlmaRedirect { .. }
             | PayLaterData::AtomeRedirect { .. }
-            | PayLaterData::KlarnaSdk { .. } => Err(errors::ConnectorError::NotImplemented(
+            | PayLaterData::KlarnaSdk { .. } 
+            | PayLaterData::BreadpayRedirect { .. } => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Shift4"),
             )
             .into()),

@@ -832,7 +832,8 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::DuitNow
             | enums::PaymentMethodType::PromptPay
             | enums::PaymentMethodType::VietQr
-            | enums::PaymentMethodType::Mifinity => Err(ConnectorError::NotImplemented(
+            | enums::PaymentMethodType::Mifinity
+            | enums::PaymentMethodType::Breadpay => Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
             )
             .into()),
@@ -1067,7 +1068,8 @@ impl TryFrom<&PayLaterData> for StripePaymentMethodType {
             | PayLaterData::PayBrightRedirect {}
             | PayLaterData::WalleyRedirect {}
             | PayLaterData::AlmaRedirect {}
-            | PayLaterData::AtomeRedirect {} => Err(ConnectorError::NotImplemented(
+            | PayLaterData::AtomeRedirect {} 
+            | PayLaterData::BreadpayRedirect {} => Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
             )),
         }

@@ -6309,5 +6309,6 @@ api_key="API Key"
 key1="Secret Key"
 
 [breadpay]
-[breadpay.connector_auth.HeaderKey]
+[breadpay.connector_auth.BodyKey]
 api_key = "API Key"
+key1 = "API Secret"
