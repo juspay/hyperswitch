@@ -1,6 +1,7 @@
 pub mod aci;
 pub mod adyen;
 pub mod adyenplatform;
+pub mod affirm;
 pub mod airwallex;
 pub mod amazonpay;
 pub mod archipel;
@@ -115,7 +116,7 @@ pub mod zsl;
 #[cfg(feature = "dummy_connector")]
 pub use self::dummyconnector::DummyConnector;
 pub use self::{
-    aci::Aci, adyen::Adyen, adyenplatform::Adyenplatform, airwallex::Airwallex,
+    aci::Aci, adyen::Adyen, adyenplatform::Adyenplatform, affirm::Affirm, airwallex::Airwallex,
     amazonpay::Amazonpay, archipel::Archipel, authipay::Authipay, authorizedotnet::Authorizedotnet,
     bambora::Bambora, bamboraapac::Bamboraapac, bankofamerica::Bankofamerica,
     barclaycard::Barclaycard, billwerk::Billwerk, bitpay::Bitpay, bluesnap::Bluesnap, boku::Boku,
