@@ -18995,14 +18995,6 @@
             "type": "string",
             "description": "Value passed in X-CLIENT-VERSION header during payments confirm request by the client",
             "nullable": true
-          },
-          "payment_method_data": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentMethodDataResponseWithBilling"
-              }
-            ],
-            "nullable": true
           }
         }
       },
