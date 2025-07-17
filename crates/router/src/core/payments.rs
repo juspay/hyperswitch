@@ -9916,10 +9916,24 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
     }
 
     fn set_card_network(&mut self, card_network: enums::CardNetwork) {
-        if let Some(domain::PaymentMethodData::Card(card)) = &mut self.payment_method_data {
-            logger::debug!("set card network {:?}", card_network.clone());
-            card.card_network = Some(card_network);
-        };
+        match &mut self.payment_method_data {
+            Some(domain::PaymentMethodData::Card(card)) => {
+                logger::debug!("Setting card network: {:?}", card_network);
+                card.card_network = Some(card_network);
+            }
+            Some(domain::PaymentMethodData::Wallet(wallet_data)) => match wallet_data {
+                hyperswitch_domain_models::payment_method_data::WalletData::ApplePay(wallet) => {
+                    logger::debug!("Setting Apple Pay card network: {:?}", card_network);
+                    wallet.payment_method.network = card_network.to_string();
+                }
+                _ => {
+                    logger::debug!("Wallet type does not support setting card network.");
+                }
+            },
+            _ => {
+                logger::warn!("Payment method data does not support setting card network.");
+            }
+        }
     }
 
     fn set_co_badged_card_data(

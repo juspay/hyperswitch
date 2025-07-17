@@ -10,6 +10,7 @@ use common_enums::enums as api_enums;
 #[cfg(feature = "v2")]
 use common_utils::ext_traits::OptionExt;
 use common_utils::{
+    ext_traits::StringExt,
     id_type,
     new_type::{
         MaskedBankAccount, MaskedIban, MaskedRoutingNumber, MaskedSortCode, MaskedUpiVpaId,
@@ -464,6 +465,26 @@ pub struct ApplePayWalletData {
     pub payment_method: ApplepayPaymentMethod,
     /// The unique identifier for the transaction
     pub transaction_identifier: String,
+}
+
+impl ApplePayWalletData {
+    pub fn get_payment_method_type(&self) -> Option<api_enums::PaymentMethodType> {
+        self.payment_method
+            .pm_type
+            .clone()
+            .parse_enum("ApplePayPaymentMethodType")
+            .ok()
+            .and_then(|payment_type| match payment_type {
+                common_enums::ApplePayPaymentMethodType::Debit => {
+                    Some(api_enums::PaymentMethodType::Debit)
+                }
+                common_enums::ApplePayPaymentMethodType::Credit => {
+                    Some(api_enums::PaymentMethodType::Credit)
+                }
+                common_enums::ApplePayPaymentMethodType::Prepaid
+                | common_enums::ApplePayPaymentMethodType::Store => None,
+            })
+    }
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
