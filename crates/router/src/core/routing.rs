@@ -2632,19 +2632,24 @@ pub async fn decide_gateway_open_router(
     state: SessionState,
     req_body: OpenRouterDecideGatewayRequest,
 ) -> RouterResponse<DecideGatewayResponse> {
-    let response = SRApiClient::send_decision_engine_request(
-        &state,
-        Method::Post,
-        "decide-gateway",
-        Some(req_body),
-        None,
-        None,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)?
-    .response
-    .ok_or(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to perform decide gateway call with open router")?;
+    let response = if state.conf.open_router.dynamic_routing_enabled {
+        SRApiClient::send_decision_engine_request(
+            &state,
+            Method::Post,
+            "decide-gateway",
+            Some(req_body),
+            None,
+            None,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?
+        .response
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to perform decide gateway call with open router")?
+    } else {
+        Err(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Dynamic routing is not enabled")?
+    };
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         response,
@@ -2655,19 +2660,24 @@ pub async fn update_gateway_score_open_router(
     state: SessionState,
     req_body: UpdateScorePayload,
 ) -> RouterResponse<UpdateScoreResponse> {
-    let response: UpdateScoreResponse = SRApiClient::send_decision_engine_request(
-        &state,
-        Method::Post,
-        "update-gateway-score",
-        Some(req_body),
-        None,
-        None,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)?
-    .response
-    .ok_or(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to perform update gateway score call with open router")?;
+    let response = if state.conf.open_router.dynamic_routing_enabled {
+        SRApiClient::send_decision_engine_request(
+            &state,
+            Method::Post,
+            "update-gateway-score",
+            Some(req_body),
+            None,
+            None,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?
+        .response
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to perform update gateway score call with open router")?
+    } else {
+        Err(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Dynamic routing is not enabled")?
+    };
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         response,
