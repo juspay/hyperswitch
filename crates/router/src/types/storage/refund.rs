@@ -11,14 +11,12 @@ pub use diesel_models::refund::{
 use diesel_models::schema::refund::dsl;
 #[cfg(feature = "v2")]
 use diesel_models::schema_v2::refund::dsl;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
 use diesel_models::{
     enums::{Currency, RefundStatus},
     errors,
     query::generics::db_metrics,
     refund::Refund,
 };
-use diesel_models::{errors, query::generics::db_metrics};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::refunds;
 
