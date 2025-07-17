@@ -1,4 +1,5 @@
 pub mod types;
+use std::str::FromStr;
 
 pub mod utils;
 #[cfg(feature = "v1")]
@@ -49,10 +50,7 @@ use crate::{
     },
     db::domain,
     routes::SessionState,
-    types::{
-        domain::types::AsyncLift,
-        transformers::{ForeignFrom, ForeignTryFrom},
-    },
+    types::{domain::types::AsyncLift, transformers::ForeignTryFrom},
 };
 
 #[cfg(feature = "v1")]
@@ -728,14 +726,14 @@ pub async fn authentication_create_core(
         .ok_or(ApiErrorResponse::InternalServerError)
         .attach_printable("failed to get profile_acquirer_id from authentication table")?;
 
-    let response = AuthenticationResponse::foreign_from((
+    let response = AuthenticationResponse::foreign_try_from((
         new_authentication,
         amount,
         currency,
         profile_id,
         acquirer_details,
         profile_acquirer_id,
-    ));
+    ))?;
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         response,
@@ -743,7 +741,7 @@ pub async fn authentication_create_core(
 }
 
 impl
-    ForeignFrom<(
+    ForeignTryFrom<(
         Authentication,
         common_utils::types::MinorUnit,
         common_enums::Currency,
@@ -752,7 +750,8 @@ impl
         common_utils::id_type::ProfileAcquirerId,
     )> for AuthenticationResponse
 {
-    fn foreign_from(
+    type Error = error_stack::Report<ApiErrorResponse>;
+    fn foreign_try_from(
         (authentication, amount, currency, profile_id, acquirer_details, profile_acquirer_id): (
             Authentication,
             common_utils::types::MinorUnit,
@@ -761,8 +760,14 @@ impl
             Option<AcquirerDetails>,
             common_utils::id_type::ProfileAcquirerId,
         ),
-    ) -> Self {
-        Self {
+    ) -> Result<Self, Self::Error> {
+        let authentication_connector = authentication
+            .authentication_connector
+            .map(|connector| common_enums::AuthenticationConnectors::from_str(&connector))
+            .transpose()
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Incorrect authentication connector stored in table")?;
+        Ok(Self {
             authentication_id: authentication.authentication_id,
             client_secret: authentication
                 .authentication_client_secret
@@ -772,7 +777,7 @@ impl
             force_3ds_challenge: authentication.force_3ds_challenge,
             merchant_id: authentication.merchant_id,
             status: authentication.authentication_status,
-            authentication_connector: authentication.authentication_connector,
+            authentication_connector,
             return_url: authentication.return_url,
             created_at: Some(authentication.created_at),
             error_code: authentication.error_code,
@@ -781,7 +786,7 @@ impl
             psd2_sca_exemption_type: authentication.psd2_sca_exemption_type,
             acquirer_details,
             profile_acquirer_id,
-        }
+        })
     }
 }
 
@@ -809,6 +814,12 @@ impl
             common_utils::crypto::OptionalEncryptableEmail,
         ),
     ) -> Result<Self, Self::Error> {
+        let authentication_connector = authentication
+            .authentication_connector
+            .map(|connector| common_enums::AuthenticationConnectors::from_str(&connector))
+            .transpose()
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Incorrect authentication connector stored in table")?;
         let three_ds_method_url = authentication
             .three_ds_method_url
             .map(|url| url::Url::parse(&url))
@@ -838,7 +849,7 @@ impl
             error_code: authentication.error_code,
             billing,
             shipping,
-            authentication_connector: authentication.authentication_connector,
+            authentication_connector,
             browser_information,
             email,
         })

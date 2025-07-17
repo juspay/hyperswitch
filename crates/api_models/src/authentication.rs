@@ -104,7 +104,7 @@ pub struct AuthenticationResponse {
 
     /// The connector to be used for authentication, if known.
     #[schema(value_type = Option<AuthenticationConnectors>, example = "netcetera")]
-    pub authentication_connector: Option<String>,
+    pub authentication_connector: Option<AuthenticationConnectors>,
 
     /// Whether 3DS challenge was forced.
     pub force_3ds_challenge: Option<bool>,
@@ -257,8 +257,8 @@ pub struct AuthenticationEligibilityResponse {
     #[schema(value_type = Option<String>)]
     pub error_code: Option<String>,
     /// The connector used for this authentication.
-    #[schema(value_type = Option<String>)]
-    pub authentication_connector: Option<String>,
+    #[schema(value_type = Option<AuthenticationConnectors>)]
+    pub authentication_connector: Option<AuthenticationConnectors>,
     /// Billing address
     #[schema(value_type = Option<Address>)]
     pub billing: Option<Address>,

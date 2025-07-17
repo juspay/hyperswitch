@@ -7747,8 +7747,11 @@
             "nullable": true
           },
           "authentication_connector": {
-            "type": "string",
-            "description": "The connector used for this authentication.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationConnectors"
+              }
+            ],
             "nullable": true
           },
           "billing": {
