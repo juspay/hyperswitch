@@ -7,9 +7,9 @@ use api_models::{enums, payouts};
 use common_utils::{
     crypto::Encryptable,
     encryption::Encryption,
-    pii, type_name,
+    generate_customer_id_of_default_length, pii, type_name,
     types::{
-        keymanager::{Identifier, KeyManagerState},
+        keymanager::{Identifier, KeyManagerState, ToEncryptable},
         MinorUnit,
     },
 };
@@ -19,8 +19,6 @@ use common_utils::{
     fp_utils, id_type, payout_method_utils as payout_additional,
     types::{UnifiedCode, UnifiedMessage},
 };
-#[cfg(feature = "v1")]
-use common_utils::{generate_customer_id_of_default_length, types::keymanager::ToEncryptable};
 #[cfg(feature = "v1")]
 use error_stack::report;
 use error_stack::ResultExt;

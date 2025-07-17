@@ -15,7 +15,7 @@ impl ForeignTryFrom<ClientSecretType> for api_models::ephemeral_key::ClientSecre
                 Err(errors::ApiErrorResponse::InternalServerError)
             }
             common_utils::types::authentication::ResourceId::PaymentMethodSession(
-                _global_payment_id,
+                _global_payment_method_session_id,
             ) => Err(errors::ApiErrorResponse::InternalServerError),
             common_utils::types::authentication::ResourceId::Customer(global_customer_id) => {
                 Ok(Self {

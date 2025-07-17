@@ -2612,27 +2612,27 @@ where
                 common_utils::types::authentication::ResourceId::Payment(self_id),
                 common_utils::types::authentication::ResourceId::Payment(db_id),
             ) => {
-                let _ = fp_utils::when(self_id != db_id, || {
+                fp_utils::when(self_id != db_id, || {
                     Err::<(), errors::ApiErrorResponse>(errors::ApiErrorResponse::Unauthorized)
-                });
+                })?;
             }
 
             (
                 common_utils::types::authentication::ResourceId::Customer(self_id),
                 common_utils::types::authentication::ResourceId::Customer(db_id),
             ) => {
-                let _ = fp_utils::when(self_id != db_id, || {
+                fp_utils::when(self_id != db_id, || {
                     Err::<(), errors::ApiErrorResponse>(errors::ApiErrorResponse::Unauthorized)
-                });
+                })?;
             }
 
             (
                 common_utils::types::authentication::ResourceId::PaymentMethodSession(self_id),
                 common_utils::types::authentication::ResourceId::PaymentMethodSession(db_id),
             ) => {
-                let _ = fp_utils::when(self_id != db_id, || {
+                fp_utils::when(self_id != db_id, || {
                     Err::<(), errors::ApiErrorResponse>(errors::ApiErrorResponse::Unauthorized)
-                });
+                })?;
             }
 
             _ => {

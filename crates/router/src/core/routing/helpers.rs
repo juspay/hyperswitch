@@ -42,10 +42,6 @@ use storage_impl::redis::cache;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use storage_impl::redis::cache::Cacheable;
 
-#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-use crate::db::errors::StorageErrorExt;
-#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-use crate::types::transformers::ForeignFrom;
 use crate::{
     core::errors::{self, RouterResult},
     db::StorageInterface,
@@ -58,16 +54,17 @@ use crate::{
         routing::utils::{self as routing_utils, DecisionEngineApiHandler},
         OperationSessionGetters, OperationSessionSetters,
     },
+    routes::SessionState,
     services,
+    types::domain,
 };
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use crate::{
     core::{metrics as core_metrics, routing},
+    db::errors::StorageErrorExt,
     routes::app::SessionStateInfo,
-    types::transformers::ForeignInto,
+    types::transformers::{ForeignFrom, ForeignInto},
 };
-#[cfg(feature = "v1")]
-use crate::{routes::SessionState, types::domain};
 pub const SUCCESS_BASED_DYNAMIC_ROUTING_ALGORITHM: &str =
     "Success rate based dynamic routing algorithm";
 pub const ELIMINATION_BASED_DYNAMIC_ROUTING_ALGORITHM: &str =

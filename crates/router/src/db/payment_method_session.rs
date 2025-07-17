@@ -142,11 +142,11 @@ mod storage {
                 .get_redis_conn()
                 .map_err(Into::<errors::StorageError>::into)?;
 
-            let _ = redis_connection
+            redis_connection
                 .serialize_and_set_key_without_modifying_ttl(&redis_key.into(), db_model.clone())
                 .await
                 .change_context(errors::StorageError::KVError)
-                .attach_printable("Failed to insert payment methods session to redis");
+                .attach_printable("Failed to insert payment methods session to redis")?;
 
             let key_manager_identifier = common_utils::types::keymanager::Identifier::Merchant(
                 key_store.merchant_id.clone(),

@@ -7,16 +7,14 @@ use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
 pub use diesel_models::refund::{
     Refund, RefundCoreWorkflow, RefundNew, RefundUpdate, RefundUpdateInternal,
 };
-#[cfg(feature = "v1")]
-use diesel_models::schema::refund::dsl;
 #[cfg(feature = "v2")]
 use diesel_models::schema_v2::refund::dsl;
+#[cfg(feature = "v1")]
 use diesel_models::{
     enums::{Currency, RefundStatus},
-    errors,
-    query::generics::db_metrics,
-    refund::Refund,
+    schema::refund::dsl,
 };
+use diesel_models::{errors, query::generics::db_metrics};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::refunds;
 

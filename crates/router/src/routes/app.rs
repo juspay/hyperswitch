@@ -29,8 +29,6 @@ use tokio::sync::oneshot;
 use self::settings::Tenant;
 #[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v1"))]
 use super::currency;
-#[cfg(all(feature = "dummy_connector", feature = "v1"))]
-use super::dummy_connector::*;
 #[cfg(all(any(feature = "v1", feature = "v2"), feature = "oltp"))]
 use super::ephemeral_key::*;
 #[cfg(any(feature = "olap", feature = "oltp"))]
@@ -57,7 +55,9 @@ use super::tokenization as tokenization_routes;
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "oltp")]
 use super::webhooks::*;
-use super::{admin, api_keys, cache::*, chat, health::*, profiles, relay, user};
+use super::{
+    admin, api_keys, cache::*, chat, dummy_connector::*, health::*, profiles, relay, user,
+};
 #[cfg(feature = "v1")]
 use super::{apple_pay_certificates_migration, blocklist, payment_link, webhook_events};
 #[cfg(any(feature = "olap", feature = "oltp"))]
@@ -72,7 +72,7 @@ pub use crate::analytics::opensearch::OpenSearchClient;
 use crate::analytics::AnalyticsProvider;
 #[cfg(feature = "partial-auth")]
 use crate::errors::RouterResult;
-#[cfg(feature = "oltp")]
+#[cfg(all(feature = "oltp", feature = "v1"))]
 use crate::routes::authentication;
 #[cfg(feature = "v1")]
 use crate::routes::cards_info::{
