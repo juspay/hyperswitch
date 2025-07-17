@@ -343,3 +343,15 @@ impl super::settings::OpenRouter {
         )
     }
 }
+
+impl super::settings::ChatSettings {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        when(self.enabled && self.hyperswitch_ai_host.is_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "hyperswitch ai host must be set if chat is enabled".into(),
+            ))
+        })
+    }
+}
