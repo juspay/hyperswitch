@@ -1554,8 +1554,6 @@ pub struct PaymentAttemptResponse {
     pub client_source: Option<String>,
     /// Value passed in X-CLIENT-VERSION header during payments confirm request by the client
     pub client_version: Option<String>,
-    /// payment method data
-    pub payment_method_data: Option<PaymentMethodDataResponseWithBilling>,
 }
 
 #[cfg(feature = "v2")]
