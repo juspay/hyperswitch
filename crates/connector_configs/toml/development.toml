@@ -261,6 +261,13 @@ placeholder="Enter Display Name"
 required=true
 type="Text"
 [[adyen.metadata.apple_pay]]
+name="supported_networks"
+label="Supported Networks"
+placeholder="Enter Supported Networks"
+required=true
+type="MultiSelect"
+options=["visa", "masterCard", "amex", "discover"]
+[[adyen.metadata.apple_pay]]
 name="initiative"
 label="Domain"
 placeholder="Enter Domain"
@@ -603,6 +610,13 @@ placeholder="Enter Domain Name"
 required=true
 type="Text"
 [[authorizedotnet.metadata.apple_pay]]
+name="supported_networks"
+label="Supported Networks"
+placeholder="Enter Supported Networks"
+required=true
+type="MultiSelect"
+options=["visa", "masterCard", "amex", "discover"]
+[[authorizedotnet.metadata.apple_pay]]
 name="merchant_business_country"
 label="Merchant Business Country"
 placeholder="Enter Merchant Business Country"
@@ -847,6 +861,13 @@ placeholder="Enter Display Name"
 required=true
 type="Text"
 [[bankofamerica.metadata.apple_pay]]
+name="supported_networks"
+label="Supported Networks"
+placeholder="Enter Supported Networks"
+required=true
+type="MultiSelect"
+options=["visa", "masterCard", "amex", "discover"]
+[[bankofamerica.metadata.apple_pay]]
 name="initiative"
 label="Domain"
 placeholder="Enter Domain"
@@ -1078,6 +1099,13 @@ label="Display Name"
 placeholder="Enter Display Name"
 required=true
 type="Text"
+[[bluesnap.metadata.apple_pay]]
+name="supported_networks"
+label="Supported Networks"
+placeholder="Enter Supported Networks"
+required=true
+type="MultiSelect"
+options=["visa", "masterCard", "amex", "discover"]
 [[bluesnap.metadata.apple_pay]]
 name="initiative"
 label="Domain"
@@ -1433,6 +1461,13 @@ placeholder="Enter Display Name"
 required=true
 type="Text"
 [[checkout.metadata.apple_pay]]
+name="supported_networks"
+label="Supported Networks"
+placeholder="Enter Supported Networks"
+required=true
+type="MultiSelect"
+options=["visa", "masterCard", "amex", "discover"]
+[[checkout.metadata.apple_pay]]
 name="initiative"
 label="Domain"
 placeholder="Enter Domain"
@@ -1678,6 +1713,13 @@ label="Display Name"
 placeholder="Enter Display Name"
 required=true
 type="Text"
+[[cybersource.metadata.apple_pay]]
+name="supported_networks"
+label="Supported Networks"
+placeholder="Enter Supported Networks"
+required=true
+type="MultiSelect"
+options=["visa", "masterCard", "amex", "discover"]
 [[cybersource.metadata.apple_pay]]
 name="initiative"
 label="Domain"
@@ -2670,6 +2712,13 @@ placeholder="Enter Display Name"
 required=true
 type="Text"
 [[nexinets.metadata.apple_pay]]
+name="supported_networks"
+label="Supported Networks"
+placeholder="Enter Supported Networks"
+required=true
+type="MultiSelect"
+options=["visa", "masterCard", "amex", "discover"]
+[[nexinets.metadata.apple_pay]]
 name="initiative"
 label="Domain"
 placeholder="Enter Domain"
@@ -2790,6 +2839,13 @@ label="Display Name"
 placeholder="Enter Display Name"
 required=true
 type="Text"
+[[nmi.metadata.apple_pay]]
+name="supported_networks"
+label="Supported Networks"
+placeholder="Enter Supported Networks"
+required=true
+type="MultiSelect"
+options=["visa", "masterCard", "amex", "discover"]
 [[nmi.metadata.apple_pay]]
 name="initiative"
 label="Domain"
@@ -2982,6 +3038,13 @@ label="Display Name"
 placeholder="Enter Display Name"
 required=true
 type="Text"
+[[noon.metadata.apple_pay]]
+name="supported_networks"
+label="Supported Networks"
+placeholder="Enter Supported Networks"
+required=true
+type="MultiSelect"
+options=["visa", "masterCard", "amex", "discover"]
 [[noon.metadata.apple_pay]]
 name="initiative"
 label="Domain"
@@ -3227,6 +3290,13 @@ placeholder="Enter Display Name"
 required=true
 type="Text"
 [[novalnet.metadata.apple_pay]]
+name="supported_networks"
+label="Supported Networks"
+placeholder="Enter Supported Networks"
+required=true
+type="MultiSelect"
+options=["visa", "masterCard", "amex", "discover"]
+[[novalnet.metadata.apple_pay]]
 name="initiative"
 label="Domain"
 placeholder="Enter Domain"
@@ -3354,6 +3424,13 @@ label="Domain Name"
 placeholder="Enter Domain Name"
 required=true
 type="Text"
+[[nuvei.metadata.apple_pay]]
+name="supported_networks"
+label="Supported Networks"
+placeholder="Enter Supported Networks"
+required=true
+type="MultiSelect"
+options=["visa", "masterCard", "amex", "discover"]
 [[nuvei.metadata.apple_pay]]
 name="merchant_business_country"
 label="Merchant Business Country"
@@ -3914,6 +3991,13 @@ placeholder="Enter Display Name"
 required=true
 type="Text"
 [[rapyd.metadata.apple_pay]]
+name="supported_networks"
+label="Supported Networks"
+placeholder="Enter Supported Networks"
+required=true
+type="MultiSelect"
+options=["visa", "masterCard", "amex", "discover"]
+[[rapyd.metadata.apple_pay]]
 name="initiative"
 label="Domain"
 placeholder="Enter Domain"
@@ -4105,6 +4189,13 @@ label="Display Name"
 placeholder="Enter Display Name"
 required=true
 type="Text"
+[[stripe.metadata.apple_pay]]
+name="supported_networks"
+label="Supported Networks"
+placeholder="Enter Supported Networks"
+required=true
+type="MultiSelect"
+options=["visa", "masterCard", "amex", "discover"]
 [[stripe.metadata.apple_pay]]
 name="initiative"
 label="Domain"
@@ -4381,6 +4472,13 @@ label="Display Name"
 placeholder="Enter Display Name"
 required=true
 type="Text"
+[[trustpay.metadata.apple_pay]]
+name="supported_networks"
+label="Supported Networks"
+placeholder="Enter Supported Networks"
+required=true
+type="MultiSelect"
+options=["visa", "masterCard", "amex", "discover"]
 [[trustpay.metadata.apple_pay]]
 name="initiative"
 label="Domain"
@@ -4660,6 +4758,13 @@ label="Display Name"
 placeholder="Enter Display Name"
 required=true
 type="Text"
+[[worldpay.metadata.apple_pay]]
+name="supported_networks"
+label="Supported Networks"
+placeholder="Enter Supported Networks"
+required=true
+type="MultiSelect"
+options=["visa", "masterCard", "amex", "discover"]
 [[worldpay.metadata.apple_pay]]
 name="initiative"
 label="Domain"
@@ -5542,6 +5647,13 @@ label="Display Name"
 placeholder="Enter Display Name"
 required=true
 type="Text"
+[[fiuu.metadata.apple_pay]]
+name="supported_networks"
+label="Supported Networks"
+placeholder="Enter Supported Networks"
+required=true
+type="MultiSelect"
+options=["visa", "masterCard", "amex", "discover"]
 [[fiuu.metadata.apple_pay]]
 name="initiative"
 label="Domain"
