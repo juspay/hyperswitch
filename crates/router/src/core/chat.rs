@@ -20,6 +20,7 @@ pub async fn get_data_from_hyperswitch_ai_workflow(
     state: SessionState,
     user_from_token: auth::UserFromToken,
     req: chat_api::ChatRequest,
+    request_id: String,
 ) -> CustomResult<ApplicationResponse<chat_api::ChatResponse>, ChatErrors> {
     let url = format!("{}/webhook", state.conf.chat.hyperswitch_ai_host);
 
@@ -37,6 +38,7 @@ pub async fn get_data_from_hyperswitch_ai_workflow(
         .method(Method::Post)
         .url(&url)
         .attach_default_headers()
+        .header(consts::X_REQUEST_ID, &request_id)
         .set_body(RequestContent::Json(Box::new(request_body.clone())))
         .build();
 
