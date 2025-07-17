@@ -9,7 +9,7 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["common_default", "v2"]
+default = ["common_default", "v1"]
 common_default = ["kv_store", "stripe", "oltp", "olap", "accounts_cache", "dummy_connector", "payouts", "payout_retry", "retry", "frm", "tls", "partial-auth", "km_forward_x_request_id"]
 olap = ["hyperswitch_domain_models/olap", "storage_impl/olap", "scheduler/olap", "api_models/olap", "dep:analytics"]
 tls = ["actix-web/rustls-0_22"]
