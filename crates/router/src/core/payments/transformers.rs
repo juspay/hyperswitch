@@ -138,6 +138,7 @@ where
         response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
         amount_captured: None,
         minor_amount_captured: None,
+        authentication_token: None,
         access_token: None,
         session_token: None,
         reference_id: None,
@@ -1258,6 +1259,7 @@ where
             .amount_captured
             .map(|amt| amt.get_amount_as_i64()),
         minor_amount_captured: payment_data.payment_intent.amount_captured,
+        authentication_token: None,
         access_token: None,
         session_token: None,
         reference_id: None,
@@ -1451,6 +1453,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
             .amount_captured
             .map(|amt| amt.get_amount_as_i64()),
         minor_amount_captured: payment_data.payment_intent.amount_captured,
+        authentication_token: None,
         access_token: None,
         session_token: None,
         reference_id: None,

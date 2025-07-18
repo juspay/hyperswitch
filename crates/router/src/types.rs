@@ -48,14 +48,14 @@ pub use hyperswitch_domain_models::{
     payment_address::PaymentAddress,
     router_data::{
         AccessToken, AdditionalPaymentMethodConnectorResponse, ApplePayCryptogramData,
-        ApplePayPredecryptData, ConnectorAuthType, ConnectorResponseData, ErrorResponse,
-        GooglePayDecryptedData, GooglePayPaymentMethodDetails, PaymentMethodBalance,
+        ApplePayPredecryptData, AuthenticationToken, ConnectorAuthType, ConnectorResponseData,
+        ErrorResponse, GooglePayDecryptedData, GooglePayPaymentMethodDetails, PaymentMethodBalance,
         PaymentMethodToken, RecurringMandatePaymentData, RouterData,
     },
     router_data_v2::{
-        AccessTokenFlowData, DisputesFlowData, ExternalAuthenticationFlowData, FilesFlowData,
-        MandateRevokeFlowData, PaymentFlowData, RefundFlowData, RouterDataV2, UasFlowData,
-        WebhookSourceVerifyData,
+        AccessTokenFlowData, AuthenticationTokenFlowData, DisputesFlowData,
+        ExternalAuthenticationFlowData, FilesFlowData, MandateRevokeFlowData, PaymentFlowData,
+        RefundFlowData, RouterDataV2, UasFlowData, WebhookSourceVerifyData,
     },
     router_request_types::{
         revenue_recovery::{
@@ -67,15 +67,15 @@ pub use hyperswitch_domain_models::{
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
         },
-        AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
-        BrowserInformation, ChargeRefunds, ChargeRefundsOptions, CompleteAuthorizeData,
-        CompleteAuthorizeRedirectResponse, ConnectorCustomerData, CreateOrderRequestData,
-        DefendDisputeRequestData, DestinationChargeRefund, DirectChargeRefund,
-        MandateRevokeRequestData, MultipleCaptureRequestData, PaymentMethodTokenizationData,
-        PaymentsApproveData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
-        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
+        AcceptDisputeRequestData, AccessTokenRequestData, AuthenticationTokenCreationRequestData,
+        AuthorizeSessionTokenData, BrowserInformation, ChargeRefunds, ChargeRefundsOptions,
+        CompleteAuthorizeData, CompleteAuthorizeRedirectResponse, ConnectorCustomerData,
+        CreateOrderRequestData, DefendDisputeRequestData, DestinationChargeRefund,
+        DirectChargeRefund, MandateRevokeRequestData, MultipleCaptureRequestData,
+        PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
+        PaymentsRejectData, PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
         PaymentsUpdateMetadataData, RefundsData, ResponseId, RetrieveFileRequestData,
         SdkPaymentsSessionUpdateData, SetupMandateRequestData, SplitRefundsRequest,
         SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData, VaultRequestData,
@@ -996,18 +996,31 @@ impl ForeignTryFrom<ConnectorAuthType> for AccessTokenRequestData {
             ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
                 app_id: api_key,
                 id: None,
+                authentication_token: None,
             }),
             ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 app_id: api_key,
                 id: Some(key1),
+                authentication_token: None,
             }),
-            ConnectorAuthType::SignatureKey { api_key, key1, .. } => Ok(Self {
+            ConnectorAuthType::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            } => Ok(Self {
                 app_id: api_key,
                 id: Some(key1),
+                authentication_token: Some(api_secret),
             }),
-            ConnectorAuthType::MultiAuthKey { api_key, key1, .. } => Ok(Self {
+            ConnectorAuthType::MultiAuthKey {
+                api_key,
+                key1,
+                api_secret,
+                ..
+            } => Ok(Self {
                 app_id: api_key,
                 id: Some(key1),
+                authentication_token: Some(api_secret),
             }),
 
             _ => Err(errors::ApiErrorResponse::InvalidDataValue {
@@ -1118,6 +1131,7 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             connector_wallets_details: data.connector_wallets_details.clone(),
             amount_captured: data.amount_captured,
             minor_amount_captured: data.minor_amount_captured,
+            authentication_token: data.authentication_token.clone(),
             access_token: data.access_token.clone(),
             response: data.response.clone(),
             payment_id: data.payment_id.clone(),
@@ -1190,6 +1204,7 @@ impl<F1, F2>
             connector_wallets_details: data.connector_wallets_details.clone(),
             amount_captured: data.amount_captured,
             minor_amount_captured: data.minor_amount_captured,
+            authentication_token: data.authentication_token.clone(),
             access_token: data.access_token.clone(),
             response: data.response.clone(),
             payment_id: data.payment_id.clone(),
