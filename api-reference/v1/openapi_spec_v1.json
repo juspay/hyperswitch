@@ -14682,7 +14682,7 @@
           },
           "message": {
             "type": "string",
-            "example": "Missing required param: amount"
+            "example": "Missing required param: {param}"
           },
           "code": {
             "type": "string",

@@ -48,7 +48,7 @@ pub struct ErrorResponse {
     )]
     pub error_type: &'static str,
     #[schema(
-        example = "Missing required param: amount",
+        example = "Missing required param: {param}",
         value_type = String
     )]
     pub message: String,
