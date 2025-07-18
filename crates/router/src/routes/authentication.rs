@@ -1,7 +1,11 @@
+#[cfg(feature = "v1")]
 use actix_web::{web, HttpRequest, Responder};
+#[cfg(feature = "v1")]
 use api_models::authentication::AuthenticationCreateRequest;
+#[cfg(feature = "v1")]
 use router_env::{instrument, tracing, Flow};
 
+#[cfg(feature = "v1")]
 use crate::{
     core::{api_locking, unified_authentication_service},
     routes::app::{self},

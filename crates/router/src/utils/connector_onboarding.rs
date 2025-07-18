@@ -56,18 +56,22 @@ pub async fn check_if_connector_exists(
         .to_not_found_response(ApiErrorResponse::MerchantAccountNotFound)?;
 
     #[cfg(feature = "v1")]
-    let _connector = state
-        .store
-        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            key_manager_state,
-            merchant_id,
-            connector_id,
-            &key_store,
-        )
-        .await
-        .to_not_found_response(ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: connector_id.get_string_repr().to_string(),
-        })?;
+    {
+        let _connector = state
+            .store
+            .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                key_manager_state,
+                merchant_id,
+                connector_id,
+                &key_store,
+            )
+            .await
+            .to_not_found_response(ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: connector_id.get_string_repr().to_string(),
+            })?;
+
+        Ok(())
+    }
 
     #[cfg(feature = "v2")]
     {
@@ -75,8 +79,6 @@ pub async fn check_if_connector_exists(
         let _ = key_store;
         todo!()
     };
-
-    Ok(())
 }
 
 pub async fn set_tracking_id_in_configs(

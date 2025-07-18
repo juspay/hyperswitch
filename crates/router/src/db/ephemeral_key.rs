@@ -1,13 +1,13 @@
-#[cfg(feature = "v2")]
-use common_utils::id_type;
+#[cfg(feature = "v1")]
 use time::ext::NumericalDuration;
 
 #[cfg(feature = "v2")]
 use crate::types::storage::ephemeral_key::{ClientSecretType, ClientSecretTypeNew};
+#[cfg(feature = "v1")]
+use crate::types::storage::ephemeral_key::{EphemeralKey, EphemeralKeyNew};
 use crate::{
     core::errors::{self, CustomResult},
     db::MockDb,
-    types::storage::ephemeral_key::{EphemeralKey, EphemeralKeyNew},
 };
 
 #[async_trait::async_trait]
@@ -56,11 +56,7 @@ pub trait ClientSecretInterface {
 
 mod storage {
     use common_utils::date_time;
-    #[cfg(feature = "v2")]
-    use common_utils::id_type;
     use error_stack::ResultExt;
-    #[cfg(feature = "v2")]
-    use masking::PeekInterface;
     #[cfg(feature = "v2")]
     use redis_interface::errors::RedisError;
     use redis_interface::HsetnxReply;
@@ -71,10 +67,11 @@ mod storage {
     use super::{ClientSecretInterface, EphemeralKeyInterface};
     #[cfg(feature = "v2")]
     use crate::types::storage::ephemeral_key::{ClientSecretType, ClientSecretTypeNew};
+    #[cfg(feature = "v1")]
+    use crate::types::storage::ephemeral_key::{EphemeralKey, EphemeralKeyNew};
     use crate::{
         core::errors::{self, CustomResult},
         services::Store,
-        types::storage::ephemeral_key::{EphemeralKey, EphemeralKeyNew},
     };
 
     #[async_trait::async_trait]
@@ -349,8 +346,8 @@ impl ClientSecretInterface for MockDb {
     #[cfg(feature = "v2")]
     async fn create_client_secret(
         &self,
-        new: ClientSecretTypeNew,
-        validity: i64,
+        _new: ClientSecretTypeNew,
+        _validity: i64,
     ) -> CustomResult<ClientSecretType, errors::StorageError> {
         todo!()
     }
@@ -358,7 +355,7 @@ impl ClientSecretInterface for MockDb {
     #[cfg(feature = "v2")]
     async fn get_client_secret(
         &self,
-        key: &str,
+        _key: &str,
     ) -> CustomResult<ClientSecretType, errors::StorageError> {
         todo!()
     }
@@ -366,7 +363,7 @@ impl ClientSecretInterface for MockDb {
     #[cfg(feature = "v2")]
     async fn delete_client_secret(
         &self,
-        id: &str,
+        _id: &str,
     ) -> CustomResult<ClientSecretType, errors::StorageError> {
         todo!()
     }

@@ -1,22 +1,31 @@
-use common_utils::types::keymanager::KeyManagerState;
 #[cfg(feature = "v1")]
-use diesel_models::user::sample_data::PaymentAttemptBatchNew;
+use common_utils::types::keymanager::KeyManagerState;
+use diesel_models::errors::DatabaseError;
+#[cfg(feature = "v1")]
 use diesel_models::{
     dispute::{Dispute, DisputeNew},
-    errors::DatabaseError,
     query::user::sample_data as sample_data_queries,
     refund::{Refund, RefundNew},
+    user::sample_data::PaymentAttemptBatchNew,
 };
-use error_stack::{Report, ResultExt};
+use error_stack::Report;
+#[cfg(feature = "v1")]
+use error_stack::ResultExt;
+#[cfg(feature = "v1")]
 use futures::{future::try_join_all, FutureExt};
+#[cfg(feature = "v1")]
 use hyperswitch_domain_models::{
     behaviour::Conversion,
     merchant_key_store::MerchantKeyStore,
     payments::{payment_attempt::PaymentAttempt, PaymentIntent},
 };
-use storage_impl::{errors::StorageError, DataModelExt};
+use storage_impl::errors::StorageError;
+#[cfg(feature = "v1")]
+use storage_impl::DataModelExt;
 
-use crate::{connection::pg_connection_write, core::errors::CustomResult, services::Store};
+use crate::services::Store;
+#[cfg(feature = "v1")]
+use crate::{connection::pg_connection_write, core::errors::CustomResult};
 
 #[async_trait::async_trait]
 pub trait BatchSampleDataInterface {
@@ -298,6 +307,7 @@ impl BatchSampleDataInterface for storage_impl::MockDb {
 
 // TODO: This error conversion is re-used from storage_impl and is not DRY when it should be
 // Ideally the impl's here should be defined in that crate avoiding this re-definition
+#[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
 fn diesel_error_to_data_error(diesel_error: Report<DatabaseError>) -> Report<StorageError> {
     let new_err = match diesel_error.current_context() {
         DatabaseError::DatabaseConnectionError => StorageError::DatabaseConnectionError,

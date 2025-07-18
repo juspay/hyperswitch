@@ -33,8 +33,6 @@ use hyperswitch_domain_models::{
 use hyperswitch_domain_models::{
     payments::payment_attempt::PaymentListFilters, payments::PaymentIntent,
 };
-#[cfg(feature = "v2")]
-use label::*;
 use redis_interface::HsetnxReply;
 use router_env::{instrument, tracing};
 
@@ -2226,7 +2224,7 @@ async fn add_preprocessing_id_to_reverse_lookup<T: DatabaseStore>(
 
 #[cfg(feature = "v2")]
 mod label {
-    pub(super) const MODEL_NAME: &str = "payment_attempt_v2";
+    pub(super) const _MODEL_NAME: &str = "payment_attempt_v2";
     pub(super) const CLUSTER_LABEL: &str = "pa";
 
     pub(super) fn get_profile_id_connector_transaction_label(

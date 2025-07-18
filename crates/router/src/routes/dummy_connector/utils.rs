@@ -28,6 +28,7 @@ pub async fn tokio_mock_sleep(delay: u64, tolerance: u64) {
     .await
 }
 
+#[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
 pub async fn store_data_in_redis(
     state: &SessionState,
     key: String,
@@ -67,6 +68,7 @@ pub async fn get_payment_data_from_payment_id(
         .change_context(errors::DummyConnectorErrors::PaymentNotFound)
 }
 
+#[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
 pub async fn get_payment_data_by_attempt_id(
     state: &SessionState,
     attempt_id: String,
@@ -92,6 +94,7 @@ pub async fn get_payment_data_by_attempt_id(
         .change_context(errors::DummyConnectorErrors::PaymentNotFound)
 }
 
+#[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
 pub fn get_authorize_page(
     payment_data: types::DummyConnectorPaymentData,
     return_url: String,
@@ -169,6 +172,7 @@ pub fn get_authorize_page(
     .into_string()
 }
 
+#[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
 pub fn get_expired_page(dummy_connector_conf: &settings::DummyConnector) -> String {
     html! {
         head {

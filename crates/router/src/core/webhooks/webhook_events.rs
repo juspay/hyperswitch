@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use common_utils::{self, errors::CustomResult, fp_utils};
 use error_stack::ResultExt;
+#[cfg(feature = "v1")]
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 
@@ -9,7 +10,11 @@ use crate::{
     core::errors::{self, RouterResponse, StorageErrorExt},
     routes::SessionState,
     services::ApplicationResponse,
-    types::{api, domain, storage, transformers::ForeignTryFrom},
+    types::{api, domain, transformers::ForeignTryFrom},
+};
+#[cfg(feature = "v1")]
+use crate::{
+    types::storage,
     utils::{OptionExt, StringExt},
 };
 

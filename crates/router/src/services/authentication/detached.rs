@@ -34,6 +34,7 @@ pub trait GetAuthType {
 }
 
 impl ExtractedPayload {
+    #[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
     pub fn from_headers(headers: &HeaderMap) -> RouterResult<Self> {
         let merchant_id = headers
             .get(HEADER_MERCHANT_ID)
@@ -80,6 +81,7 @@ impl ExtractedPayload {
         })
     }
 
+    #[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
     pub fn verify_checksum(
         &self,
         headers: &HeaderMap,
@@ -98,6 +100,7 @@ impl ExtractedPayload {
     }
 
     // The payload should be `:` separated strings of all the fields
+    #[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
     fn generate_payload(&self) -> String {
         append_option(
             &self.payload_type.to_string(),

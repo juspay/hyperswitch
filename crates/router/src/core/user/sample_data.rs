@@ -1,17 +1,24 @@
+#[cfg(feature = "v1")]
 use api_models::user::sample_data::SampleDataRequest;
+#[cfg(feature = "v1")]
 use common_utils::errors::ReportSwitchExt;
+#[cfg(feature = "v1")]
 use diesel_models::{DisputeNew, RefundNew};
+#[cfg(feature = "v1")]
 use error_stack::ResultExt;
+#[cfg(feature = "v1")]
 use hyperswitch_domain_models::payments::PaymentIntent;
 
 pub type SampleDataApiResponse<T> = SampleDataResult<ApplicationResponse<T>>;
 
+#[cfg(feature = "v1")]
 use crate::{
-    core::errors::sample_data::{SampleDataError, SampleDataResult},
+    core::errors::sample_data::SampleDataError,
     routes::{app::ReqState, SessionState},
-    services::{authentication::UserFromToken, ApplicationResponse},
+    services::authentication::UserFromToken,
     utils,
 };
+use crate::{core::errors::sample_data::SampleDataResult, services::ApplicationResponse};
 
 #[cfg(feature = "v1")]
 pub async fn generate_sample_data_for_user(

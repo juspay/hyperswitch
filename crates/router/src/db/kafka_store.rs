@@ -9,9 +9,10 @@ use common_utils::{
 };
 #[cfg(feature = "v2")]
 use diesel_models::ephemeral_key::{ClientSecretType, ClientSecretTypeNew};
+#[cfg(feature = "v1")]
+use diesel_models::ephemeral_key::{EphemeralKey, EphemeralKeyNew};
 use diesel_models::{
     enums::{self, ProcessTrackerStatus},
-    ephemeral_key::{EphemeralKey, EphemeralKeyNew},
     refund as diesel_refund,
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
     user_role as user_storage,

@@ -1,5 +1,7 @@
+#[cfg(all(feature = "v1", feature = "olap"))]
+use std::collections::HashMap;
 #[cfg(feature = "olap")]
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 #[cfg(feature = "olap")]
 use common_utils::types::{ConnectorTransactionIdTrait, MinorUnit};
@@ -399,14 +401,19 @@ mod storage {
 
 #[cfg(feature = "kv_store")]
 mod storage {
+    #[cfg(feature = "v1")]
     use common_utils::{
         ext_traits::Encode, fallback_reverse_lookup_not_found, types::ConnectorTransactionIdTrait,
     };
     use diesel_models::refund as diesel_refund;
-    use error_stack::{report, ResultExt};
+    use error_stack::report;
+    #[cfg(feature = "v1")]
+    use error_stack::ResultExt;
     use hyperswitch_domain_models::refunds;
+    #[cfg(feature = "v1")]
     use redis_interface::HsetnxReply;
     use router_env::{instrument, tracing};
+    #[cfg(feature = "v1")]
     use storage_impl::redis::kv_store::{
         decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey,
     };
@@ -414,11 +421,14 @@ mod storage {
     use super::RefundInterface;
     use crate::{
         connection,
-        core::errors::{self, utils::RedisErrorExt, CustomResult},
-        db::reverse_lookup::ReverseLookupInterface,
+        core::errors::{self, CustomResult},
         services::Store,
-        types::storage::{self as storage_types, enums, kv},
-        utils::db_utils,
+        types::storage::{self as storage_types, enums},
+    };
+    #[cfg(feature = "v1")]
+    use crate::{
+        core::errors::utils::RedisErrorExt, db::reverse_lookup::ReverseLookupInterface,
+        types::storage::kv, utils::db_utils,
     };
     #[async_trait::async_trait]
     impl RefundInterface for Store {

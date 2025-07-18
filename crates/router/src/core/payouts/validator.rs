@@ -13,19 +13,19 @@ use hyperswitch_domain_models::payment_methods::PaymentMethod;
 use router_env::{instrument, tracing, which as router_env_which, Env};
 use url::Url;
 
-use super::helpers;
 #[cfg(feature = "v1")]
-use crate::core::payment_methods::cards::get_pm_list_context;
+use super::helpers;
 use crate::{
-    core::{
-        errors::{self, RouterResult},
-        utils as core_utils,
-    },
+    core::errors::{self, RouterResult},
     db::StorageInterface,
     errors::StorageError,
     routes::SessionState,
     types::{api::payouts, domain, storage},
     utils,
+};
+#[cfg(feature = "v1")]
+use crate::{
+    core::{payment_methods::cards::get_pm_list_context, utils as core_utils},
     utils::OptionExt,
 };
 
@@ -283,6 +283,7 @@ pub fn validate_payout_link_request(
 }
 
 #[cfg(feature = "olap")]
+#[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
 pub(super) fn validate_payout_list_request(
     req: &payouts::PayoutListConstraints,
 ) -> CustomResult<(), errors::ApiErrorResponse> {

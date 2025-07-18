@@ -27,9 +27,10 @@ impl KvStorePartition for customers::Customer {}
 mod label {
     use common_utils::id_type;
 
-    pub(super) const MODEL_NAME: &str = "customer_v2";
-    pub(super) const CLUSTER_LABEL: &str = "cust";
+    pub(super) const _MODEL_NAME: &str = "customer_v2";
+    pub(super) const _CLUSTER_LABEL: &str = "cust";
 
+    #[allow(dead_code)] // This is currently not used
     pub(super) fn get_global_id_label(global_customer_id: &id_type::GlobalCustomerId) -> String {
         format!(
             "customer_global_id_{}",

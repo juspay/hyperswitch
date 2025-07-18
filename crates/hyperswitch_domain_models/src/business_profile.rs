@@ -1,13 +1,17 @@
 use std::borrow::Cow;
 
 use common_enums::enums as api_enums;
-use common_types::{domain::AcquirerConfig, primitive_wrappers};
+#[cfg(feature = "v1")]
+use common_types::domain::AcquirerConfig;
+use common_types::primitive_wrappers;
+#[cfg(feature = "v1")]
+use common_utils::ext_traits::ValueExt;
 use common_utils::{
     crypto::{OptionalEncryptableName, OptionalEncryptableValue},
     date_time,
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
-    ext_traits::{OptionExt, ValueExt},
+    ext_traits::OptionExt,
     pii, type_name,
     types::keymanager,
 };
@@ -22,10 +26,9 @@ use diesel_models::business_profile::{
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 
-use crate::{
-    errors::api_error_response,
-    type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
-};
+#[cfg(feature = "v1")]
+use crate::errors::api_error_response;
+use crate::type_encryption::{crypto_operation, AsyncLift, CryptoOperation};
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug)]
 pub struct Profile {

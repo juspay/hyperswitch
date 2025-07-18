@@ -94,9 +94,7 @@ use hyperswitch_interfaces::api::payouts::{
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_interfaces::api::revenue_recovery as recovery_traits;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-use hyperswitch_interfaces::api::revenue_recovery::{
-    BillingConnectorInvoiceSyncIntegration, BillingConnectorPaymentsSyncIntegration,
-};
+use hyperswitch_interfaces::api::revenue_recovery::BillingConnectorInvoiceSyncIntegration;
 #[cfg(feature = "dummy_connector")]
 use hyperswitch_interfaces::api::ConnectorVerifyWebhookSource;
 use hyperswitch_interfaces::{
