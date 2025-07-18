@@ -376,6 +376,7 @@ pub async fn construct_refund_router_data<'a, F>(
             connector_refund_id: connector_refund_id.unwrap_or_default(),
             refund_status: refund.refund_status,
         }),
+        authentication_token: None,
         access_token: None,
         session_token: None,
         reference_id: None,

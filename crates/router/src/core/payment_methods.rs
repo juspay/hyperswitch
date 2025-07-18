@@ -3282,6 +3282,7 @@ async fn create_single_use_tokenization_flow(
             connector_meta_data: None,
             connector_wallets_details: None,
             amount_captured: None,
+            authentication_token: None,
             access_token: None,
             session_token: None,
             reference_id: None,
