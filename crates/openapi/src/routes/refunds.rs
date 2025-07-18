@@ -38,7 +38,7 @@
     ),
     responses(
         (status = 200, description = "Refund created", body = RefundResponse),
-        (status = 400, description = "Missing Mandatory fields")
+        (status = 400, description = "Missing Mandatory fields", body = GenericErrorResponseOpenApi)
     ),
     tag = "Refunds",
     operation_id = "Create a Refund",
@@ -106,7 +106,7 @@ pub async fn refunds_retrieve_with_body() {}
     ),
     responses(
         (status = 200, description = "Refund updated", body = RefundResponse),
-        (status = 400, description = "Missing Mandatory fields")
+        (status = 400, description = "Missing Mandatory fields", body = GenericErrorResponseOpenApi)
     ),
     tag = "Refunds",
     operation_id = "Update a Refund",
@@ -207,7 +207,7 @@ pub async fn refunds_filter_list() {}
     ),
     responses(
         (status = 200, description = "Refund created", body = RefundResponse),
-        (status = 400, description = "Missing Mandatory fields")
+        (status = 400, description = "Missing Mandatory fields", body = GenericErrorResponseOpenApi)
     ),
     tag = "Refunds",
     operation_id = "Create a Refund",
@@ -239,7 +239,7 @@ pub async fn refunds_create() {}
     ),
     responses(
         (status = 200, description = "Refund updated", body = RefundResponse),
-        (status = 400, description = "Missing Mandatory fields")
+        (status = 400, description = "Missing Mandatory fields", body = GenericErrorResponseOpenApi)
     ),
     tag = "Refunds",
     operation_id = "Update Refund Metadata and Reason",
