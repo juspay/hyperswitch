@@ -51,6 +51,11 @@ describe("[Payment] Incremental Auth", () => {
           ...data.Request,
           request_incremental_authorization: true,
         },
+        Response: {
+          ...data.Response,
+          incremental_authorization_allowed: null,
+          incremental_authorizations: null,
+        },
       };
 
       cy.createPaymentIntentTest(
@@ -68,7 +73,16 @@ describe("[Payment] Incremental Auth", () => {
         "card_pm"
       ]["SaveCardUseNo3DSManualCaptureOffSession"];
 
-      cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+      const newData = {
+        ...data,
+        Response: {
+          ...data.Response,
+          incremental_authorization_allowed: true,
+          incremental_authorizations: null,
+        },
+      };
+
+      cy.confirmCallTest(fixtures.confirmBody, newData, true, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
