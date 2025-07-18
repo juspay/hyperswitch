@@ -598,6 +598,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             token_data: None,
             confirm: request.confirm,
             payment_method_data: payment_method_data_after_card_bin_call.map(Into::into),
+            payment_method_token: None,
             payment_method_info,
             refunds: vec![],
             disputes: vec![],
