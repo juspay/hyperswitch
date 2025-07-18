@@ -9,9 +9,11 @@ use common_utils::transformers::ForeignFrom;
 use common_utils::{errors::CustomResult, id_type};
 use diesel_models::enums::IntentStatus;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
+#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
 use hyperswitch_domain_models::{
-    bulk_tokenization::CardNetworkTokenizeRequest, merchant_key_store::MerchantKeyStore,
-    payment_methods::PaymentMethodCustomerMigrate, transformers::ForeignTryFrom,
+    bulk_tokenization::CardNetworkTokenizeRequest, payment_methods::PaymentMethodCustomerMigrate,
+    transformers::ForeignTryFrom,
 };
 use router_env::{instrument, logger, tracing, Flow};
 

@@ -1372,9 +1372,9 @@ pub async fn trigger_payouts_webhook(
 
 #[cfg(all(feature = "payouts", feature = "v2"))]
 pub async fn trigger_payouts_webhook(
-    state: &SessionState,
-    merchant_context: &domain::MerchantContext,
-    payout_response: &api_models::payouts::PayoutCreateResponse,
+    _state: &SessionState,
+    _merchant_context: &domain::MerchantContext,
+    _payout_response: &api_models::payouts::PayoutCreateResponse,
 ) -> RouterResult<()> {
     todo!()
 }
