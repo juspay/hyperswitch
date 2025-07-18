@@ -18434,6 +18434,13 @@
           }
         }
       },
+      "OrganizationType": {
+        "type": "string",
+        "enum": [
+          "standard",
+          "platform"
+        ]
+      },
       "OrganizationUpdateRequest": {
         "type": "object",
         "required": [
