@@ -510,6 +510,7 @@ default_imp_for_new_connector_integration_connector_authentication_token!(
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
+    connectors::Affirm,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authipay,
