@@ -187,6 +187,7 @@ pub struct ConnectorConfig {
     pub barclaycard: Option<ConnectorTomlConfig>,
     pub billwerk: Option<ConnectorTomlConfig>,
     pub bitpay: Option<ConnectorTomlConfig>,
+    pub blackhawknetwork: Option<ConnectorTomlConfig>,
     pub bluesnap: Option<ConnectorTomlConfig>,
     pub boku: Option<ConnectorTomlConfig>,
     pub braintree: Option<ConnectorTomlConfig>,
