@@ -385,7 +385,7 @@ pub struct AuthenticationAuthenticateResponse {
 
     /// The connector to be used for authentication, if known.
     #[schema(value_type = Option<AuthenticationConnectors>, example = "netcetera")]
-    pub authentication_connector: Option<String>,
+    pub authentication_connector: Option<AuthenticationConnectors>,
 }
 
 impl ApiEventMetric for AuthenticationAuthenticateResponse {

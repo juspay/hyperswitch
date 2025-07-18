@@ -53,6 +53,7 @@ use crate::{
     },
     db::domain,
     routes::SessionState,
+    services::AuthFlow,
     types::{domain::types::AsyncLift, transformers::ForeignTryFrom},
 };
 
@@ -1099,7 +1100,7 @@ pub async fn authentication_authenticate_core(
     merchant_context: domain::MerchantContext,
     req: AuthenticationAuthenticateRequest,
     authentication_id: common_utils::id_type::AuthenticationId,
-    auth_flow: crate::services::AuthFlow,
+    auth_flow: AuthFlow,
 ) -> RouterResponse<AuthenticationAuthenticateResponse> {
     let merchant_account = merchant_context.get_merchant_account();
     let merchant_id = merchant_account.get_id();
@@ -1111,10 +1112,10 @@ pub async fn authentication_authenticate_core(
             id: authentication_id.get_string_repr().to_owned(),
         })?;
 
-    if let Some(cs) = &req.client_secret {
+    if let Some(client_secret) = &req.client_secret {
         let is_client_secret_expired =
             utils::authenticate_authentication_client_secret_and_check_expiry(
-                cs.peek(),
+                client_secret.peek(),
                 &authentication,
             )?;
 
@@ -1124,7 +1125,7 @@ pub async fn authentication_authenticate_core(
     };
     let key_manager_state = (&state).into();
 
-    let profile_id = crate::core::utils::get_profile_id_from_business_details(
+    let profile_id = core_utils::get_profile_id_from_business_details(
         &key_manager_state,
         None,
         None,
@@ -1238,8 +1239,8 @@ pub async fn authentication_authenticate_core(
     .await?;
 
     let authentication_value = match auth_flow {
-        crate::services::AuthFlow::Client => None,
-        crate::services::AuthFlow::Merchant => {
+        AuthFlow::Client => None,
+        AuthFlow::Merchant => {
             if let Some(common_enums::TransactionStatus::Success) = authentication.trans_status {
                 let tokenised_data = crate::core::payment_methods::vault::get_tokenized_data(
                     &state,
@@ -1257,24 +1258,55 @@ pub async fn authentication_authenticate_core(
         }
     };
 
-    let response = AuthenticationAuthenticateResponse {
-        transaction_status: authentication.trans_status,
-        acs_url: authentication.acs_url,
-        challenge_request: authentication.challenge_request,
-        acs_reference_number: authentication.acs_reference_number,
-        acs_trans_id: authentication.acs_trans_id,
-        three_dsserver_trans_id: authentication.threeds_server_transaction_id,
-        acs_signed_content: authentication.acs_signed_content,
-        three_ds_requestor_url: authentication_details.three_ds_requestor_url,
-        three_ds_requestor_app_url: authentication_details.three_ds_requestor_app_url,
-        error_code: None,
-        error_message: authentication.error_message,
+    let response = AuthenticationAuthenticateResponse::foreign_try_from((
+        &authentication,
         authentication_value,
-        status: authentication.authentication_status,
-        authentication_connector: authentication.authentication_connector,
-    };
+        authentication_details,
+    ))?;
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         response,
     ))
+}
+
+impl
+    ForeignTryFrom<(
+        &Authentication,
+        Option<masking::Secret<String>>,
+        diesel_models::business_profile::AuthenticationConnectorDetails,
+    )> for AuthenticationAuthenticateResponse
+{
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn foreign_try_from(
+        (authentication, authentication_value, authentication_details): (
+            &Authentication,
+            Option<masking::Secret<String>>,
+            diesel_models::business_profile::AuthenticationConnectorDetails,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let authentication_connector = authentication
+            .authentication_connector
+            .as_ref()
+            .map(|connector| common_enums::AuthenticationConnectors::from_str(&connector))
+            .transpose()
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Incorrect authentication connector stored in table")?;
+        Ok(AuthenticationAuthenticateResponse {
+            transaction_status: authentication.trans_status.clone(),
+            acs_url: authentication.acs_url.clone(),
+            challenge_request: authentication.challenge_request.clone(),
+            acs_reference_number: authentication.acs_reference_number.clone(),
+            acs_trans_id: authentication.acs_trans_id.clone(),
+            three_dsserver_trans_id: authentication.threeds_server_transaction_id.clone(),
+            acs_signed_content: authentication.acs_signed_content.clone(),
+            three_ds_requestor_url: authentication_details.three_ds_requestor_url.clone(),
+            three_ds_requestor_app_url: authentication_details.three_ds_requestor_app_url.clone(),
+            error_code: None,
+            error_message: authentication.error_message.clone(),
+            authentication_value,
+            status: authentication.authentication_status.clone(),
+            authentication_connector,
+        })
+    }
 }
