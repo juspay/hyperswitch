@@ -153,6 +153,7 @@ pub struct UserOrgMerchantCreateRequest {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PlatformAccountCreateRequest {
+    #[schema(max_length = 64, value_type = String, example = "organization_abc")]
     pub organization_name: Secret<String>,
 }
 

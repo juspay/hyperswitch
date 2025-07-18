@@ -26028,7 +26028,9 @@
         ],
         "properties": {
           "organization_name": {
-            "$ref": "#/components/schemas/Secret"
+            "type": "string",
+            "example": "organization_abc",
+            "maxLength": 64
           }
         }
       },
