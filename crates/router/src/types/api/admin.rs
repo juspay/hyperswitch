@@ -75,6 +75,7 @@ impl ForeignFrom<diesel_models::organization::Organization> for OrganizationResp
             metadata: org.metadata,
             modified_at: org.modified_at,
             created_at: org.created_at,
+            organization_type: org.organization_type,
         }
     }
 }
