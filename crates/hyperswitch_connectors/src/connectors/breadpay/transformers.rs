@@ -86,7 +86,7 @@ impl TryFrom<&BreadpayRouterData<&PaymentsAuthorizeRouterData>> for BreadpayCart
                                 }
                             },
                 hyperswitch_domain_models::payment_method_data::PayLaterData::KlarnaRedirect {  } |
-                hyperswitch_domain_models::payment_method_data::PayLaterData::WalleyRedirect {  } |,
+                hyperswitch_domain_models::payment_method_data::PayLaterData::WalleyRedirect {  } |
                             hyperswitch_domain_models::payment_method_data::PayLaterData::KlarnaSdk { .. } |
                             hyperswitch_domain_models::payment_method_data::PayLaterData::AffirmRedirect {  } |
                             hyperswitch_domain_models::payment_method_data::PayLaterData::AfterpayClearpayRedirect {  } |
