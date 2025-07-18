@@ -42,6 +42,8 @@ import { connectorDetails as nuveiConnectorDetails } from "./Nuvei.js";
 import { connectorDetails as payboxConnectorDetails } from "./Paybox.js";
 import { connectorDetails as payloadConnectorDetails } from "./Payload.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
+
+import { connectorDetails as placetopayConnectorDetails } from "./Placetopay.js";
 import { connectorDetails as payuConnectorDetails } from "./Payu.js";
 import { connectorDetails as powertranzConnectorDetails } from "./PowerTranz.js";
 import { connectorDetails as redsysConnectorDetails } from "./Redsys.js";
@@ -98,6 +100,7 @@ const connectorDetails = {
   paybox: payboxConnectorDetails,
   payload: payloadConnectorDetails,
   paypal: paypalConnectorDetails,
+  placetopay: placetopayConnectorDetails,
   payu: payuConnectorDetails,
   powertranz: powertranzConnectorDetails,
   redsys: redsysConnectorDetails,
