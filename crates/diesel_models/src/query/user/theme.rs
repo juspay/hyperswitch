@@ -77,6 +77,48 @@ impl Theme {
         }
     }
 
+    /// Matches all themes that belong to the specified hierarchy level or below
+    fn lineage_hierarchy_filter(
+        lineage: ThemeLineage,
+    ) -> Box<
+        dyn diesel::BoxableExpression<<Self as HasTable>::Table, Pg, SqlType = Nullable<Bool>>
+            + 'static,
+    > {
+        match lineage {
+            ThemeLineage::Tenant { tenant_id } => Box::new(dsl::tenant_id.eq(tenant_id).nullable()),
+            ThemeLineage::Organization { tenant_id, org_id } => Box::new(
+                dsl::tenant_id
+                    .eq(tenant_id)
+                    .and(dsl::org_id.eq(org_id))
+                    .nullable(),
+            ),
+            ThemeLineage::Merchant {
+                tenant_id,
+                org_id,
+                merchant_id,
+            } => Box::new(
+                dsl::tenant_id
+                    .eq(tenant_id)
+                    .and(dsl::org_id.eq(org_id))
+                    .and(dsl::merchant_id.eq(merchant_id))
+                    .nullable(),
+            ),
+            ThemeLineage::Profile {
+                tenant_id,
+                org_id,
+                merchant_id,
+                profile_id,
+            } => Box::new(
+                dsl::tenant_id
+                    .eq(tenant_id)
+                    .and(dsl::org_id.eq(org_id))
+                    .and(dsl::merchant_id.eq(merchant_id))
+                    .and(dsl::profile_id.eq(profile_id))
+                    .nullable(),
+            ),
+        }
+    }
+
     pub async fn find_by_theme_id(conn: &PgPooledConn, theme_id: String) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
@@ -160,5 +202,36 @@ impl Theme {
                 .and(Self::lineage_filter(lineage)),
         )
         .await
+    }
+    pub async fn delete_by_theme_id(conn: &PgPooledConn, theme_id: String) -> StorageResult<Self> {
+        generics::generic_delete_one_with_result::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::theme_id.eq(theme_id),
+        )
+        .await
+    }
+    /// Finds all themes that match the specified lineage hierarchy.
+    pub async fn find_all_by_lineage_hierarchy(
+        conn: &PgPooledConn,
+        lineage: ThemeLineage,
+    ) -> StorageResult<Vec<Self>> {
+        let filter = Self::lineage_hierarchy_filter(lineage);
+
+        let query = <Self as HasTable>::table().filter(filter).into_boxed();
+
+        logger::debug!(query = %debug_query::<Pg,_>(&query).to_string());
+
+        match track_database_call::<Self, _, _>(
+            query.get_results_async(conn),
+            DatabaseOperation::Filter,
+        )
+        .await
+        {
+            Ok(themes) => Ok(themes),
+            Err(err) => match err {
+                DieselError::NotFound => Err(report!(err)).change_context(DatabaseError::NotFound),
+                _ => Err(report!(err)).change_context(DatabaseError::Others),
+            },
+        }
     }
 }
