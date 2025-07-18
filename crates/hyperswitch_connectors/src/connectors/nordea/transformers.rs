@@ -1,20 +1,16 @@
 use std::collections::HashMap;
 
-use common_enums::enums;
 use common_utils::{pii, request::Method, types::StringMajorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{BankDebitData, PaymentMethodData},
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
-    router_flow_types::{
-        refunds::{Execute, RSync},
-        Authorize, PreProcessing,
-    },
+    router_flow_types::{Authorize, PreProcessing},
     router_request_types::{PaymentsAuthorizeData, PaymentsPreProcessingData, ResponseId},
-    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
+    router_response_types::{PaymentsResponseData, RedirectForm},
     types::{
         self, AuthenticationTokenRouterData, PaymentsAuthorizeRouterData,
-        PaymentsPreProcessingRouterData, PaymentsSyncRouterData, RefundsRouterData,
+        PaymentsPreProcessingRouterData, PaymentsSyncRouterData,
     },
 };
 use hyperswitch_interfaces::errors;
@@ -27,16 +23,14 @@ use crate::{
         requests::{
             AccessScope, AccountNumber, AccountType, CreditorAccount, CreditorBank, DebitorAccount,
             GrantType, NordeaOAuthExchangeRequest, NordeaOAuthRequest,
-            NordeaPaymentsConfirmRequest, NordeaPaymentsRequest, NordeaRefundRequest,
-            NordeaRouterData, PaymentsUrgency,
+            NordeaPaymentsConfirmRequest, NordeaPaymentsRequest, NordeaRouterData, PaymentsUrgency,
         },
         responses::{
             NordeaErrorBody, NordeaFailures, NordeaOAuthExchangeResponse, NordeaPaymentStatus,
-            NordeaPaymentsConfirmResponse, NordeaPaymentsInitiateResponse, NordeaRefundResponse,
-            NordeaRefundStatus,
+            NordeaPaymentsConfirmResponse, NordeaPaymentsInitiateResponse,
         },
     },
-    types::{PaymentsSyncResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
+    types::{PaymentsSyncResponseRouterData, ResponseRouterData},
     utils::{self, get_unimplemented_payment_method_error_message, RouterData as _},
 };
 
@@ -572,57 +566,5 @@ impl TryFrom<PaymentsSyncResponseRouterData<NordeaPaymentsInitiateResponse>>
             response: Ok(response),
             ..item.data
         })
-    }
-}
-
-impl<F> TryFrom<&NordeaRouterData<&RefundsRouterData<F>>> for NordeaRefundRequest {
-    type Error = Error;
-    fn try_from(item: &NordeaRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
-        Ok(Self {
-            amount: item.amount.to_owned(),
-        })
-    }
-}
-
-impl TryFrom<RefundsResponseRouterData<Execute, NordeaRefundResponse>>
-    for RefundsRouterData<Execute>
-{
-    type Error = Error;
-    fn try_from(
-        item: RefundsResponseRouterData<Execute, NordeaRefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
-            ..item.data
-        })
-    }
-}
-
-impl TryFrom<RefundsResponseRouterData<RSync, NordeaRefundResponse>> for RefundsRouterData<RSync> {
-    type Error = Error;
-    fn try_from(
-        item: RefundsResponseRouterData<RSync, NordeaRefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
-            ..item.data
-        })
-    }
-}
-
-impl From<NordeaRefundStatus> for enums::RefundStatus {
-    fn from(item: NordeaRefundStatus) -> Self {
-        match item {
-            NordeaRefundStatus::Succeeded => Self::Success,
-            NordeaRefundStatus::Failed => Self::Failure,
-            NordeaRefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
-        }
     }
 }

@@ -33,7 +33,7 @@ use hyperswitch_domain_models::{
     types::{
         AuthenticationTokenRouterData, PaymentsAuthorizeRouterData,
         PaymentsPreProcessingRouterData, PaymentsSyncRouterData, RefreshTokenRouterData,
-        RefundSyncRouterData, RefundsRouterData,
+        RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -61,11 +61,11 @@ use crate::{
     connectors::nordea::{
         requests::{
             NordeaOAuthExchangeRequest, NordeaOAuthRequest, NordeaPaymentsConfirmRequest,
-            NordeaPaymentsRequest, NordeaRefundRequest, NordeaRouterData,
+            NordeaPaymentsRequest, NordeaRouterData,
         },
         responses::{
             NordeaOAuthExchangeResponse, NordeaPaymentsConfirmResponse,
-            NordeaPaymentsInitiateResponse, NordeaRefundResponse,
+            NordeaPaymentsInitiateResponse,
         },
     },
     constants::headers,
@@ -1046,159 +1046,50 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Nor
     }
 }
 
-impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Nordea {}
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Nordea {
+    fn build_request(
+        &self,
+        _req: &RouterData<Capture, PaymentsCaptureData, PaymentsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "Capture".to_string(),
+            connector: "Nordea".to_string(),
+        }
+        .into())
+    }
+}
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Nordea {}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Nordea {
+    fn build_request(
+        &self,
+        _req: &RouterData<Void, PaymentsCancelData, PaymentsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "Payments Cancel".to_string(),
+            connector: "Nordea".to_string(),
+        }
+        .into())
+    }
+}
 
 impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Nordea {
-    fn get_headers(
-        &self,
-        req: &RefundsRouterData<Execute>,
-        connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
+    fn build_request(
         &self,
         _req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
-    }
-
-    fn get_request_body(
-        &self,
-        req: &RefundsRouterData<Execute>,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let refund_amount = utils::convert_amount(
-            self.amount_converter,
-            req.request.minor_refund_amount,
-            req.request.currency,
-        )?;
-
-        let connector_router_data = NordeaRouterData::from((refund_amount, req));
-        let connector_req = NordeaRefundRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
-    }
-
-    fn build_request(
-        &self,
-        req: &RefundsRouterData<Execute>,
-        connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        let request = RequestBuilder::new()
-            .method(Method::Post)
-            .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
-            .attach_default_headers()
-            .headers(types::RefundExecuteType::get_headers(
-                self, req, connectors,
-            )?)
-            .set_body(types::RefundExecuteType::get_request_body(
-                self, req, connectors,
-            )?)
-            .build();
-        Ok(Some(request))
-    }
-
-    fn handle_response(
-        &self,
-        data: &RefundsRouterData<Execute>,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: NordeaRefundResponse = res
-            .response
-            .parse_struct("NordeaRefundResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "Personal API Refunds".to_string(),
+            connector: "Nordea".to_string(),
+        }
+        .into())
     }
 }
 
 impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Nordea {
-    fn get_headers(
-        &self,
-        req: &RefundSyncRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &RefundSyncRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
-    }
-
-    fn build_request(
-        &self,
-        req: &RefundSyncRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Ok(Some(
-            RequestBuilder::new()
-                .method(Method::Get)
-                .url(&types::RefundSyncType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .set_body(types::RefundSyncType::get_request_body(
-                    self, req, connectors,
-                )?)
-                .build(),
-        ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &RefundSyncRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: NordeaRefundResponse = res
-            .response
-            .parse_struct("NordeaRefundSyncResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
+    // Default impl gets executed
 }
 
 #[async_trait::async_trait]

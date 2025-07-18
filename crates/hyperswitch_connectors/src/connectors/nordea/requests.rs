@@ -379,11 +379,3 @@ pub struct NordeaPaymentsConfirmRequest {
     pub redirect_url: Option<String>,
     pub state: Option<String>,
 }
-
-//TODO: Fill the struct with respective fields
-// REFUND :
-// Type definition for RefundRequest
-#[derive(Debug, Serialize)]
-pub struct NordeaRefundRequest {
-    pub amount: StringMajorUnit,
-}

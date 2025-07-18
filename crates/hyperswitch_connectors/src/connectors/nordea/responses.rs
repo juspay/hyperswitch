@@ -259,17 +259,3 @@ pub struct NordeaErrorResponse {
 }
 
 // Nordea does not support refunds in Private APIs. Only Corporate APIs support Refunds
-#[allow(dead_code)]
-#[derive(Debug, Default, Deserialize, Clone, Serialize)]
-pub enum NordeaRefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
-
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct NordeaRefundResponse {
-    pub id: String,
-    pub status: NordeaRefundStatus,
-}
