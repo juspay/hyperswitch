@@ -1,8 +1,6 @@
 use api_models::webhooks::IncomingWebhookEvent;
 use cards::CardNumber;
-use common_enums::{
-    AttemptStatus, AuthenticationType, CaptureMethod, CountryAlpha2, Currency, RefundStatus,
-};
+use common_enums::{AttemptStatus, AuthenticationType, CountryAlpha2, Currency, RefundStatus};
 use common_utils::{errors::CustomResult, ext_traits::XmlExt, pii::Email, types::FloatMajorUnit};
 use error_stack::{report, Report, ResultExt};
 use hyperswitch_domain_models::{
@@ -384,7 +382,7 @@ impl
                     incremental_authorization_allowed: None,
                     charges: None,
                 }),
-                if let Some(CaptureMethod::Automatic) = item.data.request.capture_method {
+                if item.data.request.is_auto_capture()? {
                     AttemptStatus::CaptureInitiated
                 } else {
                     AttemptStatus::Authorizing
@@ -429,6 +427,8 @@ pub struct NmiPaymentsRequest {
     #[serde(flatten)]
     merchant_defined_field: Option<NmiMerchantDefinedField>,
     orderid: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    customer_vault: Option<CustomerAction>,
 }
 
 #[derive(Debug, Serialize)]
@@ -462,6 +462,12 @@ pub enum PaymentMethod {
     CardThreeDs(Box<CardThreeDsData>),
     GPay(Box<GooglePayData>),
     ApplePay(Box<ApplePayData>),
+    MandatePayment(Box<MandatePayment>),
+}
+
+#[derive(Debug, Serialize)]
+pub struct MandatePayment {
+    customer_vault_id: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -503,25 +509,70 @@ impl TryFrom<&NmiRouterData<&PaymentsAuthorizeRouterData>> for NmiPaymentsReques
         };
         let auth_type: NmiAuthType = (&item.router_data.connector_auth_type).try_into()?;
         let amount = item.amount;
-        let payment_method = PaymentMethod::try_from((
-            &item.router_data.request.payment_method_data,
-            Some(item.router_data),
-        ))?;
 
-        Ok(Self {
-            transaction_type,
-            security_key: auth_type.api_key,
-            amount,
-            currency: item.router_data.request.currency,
-            payment_method,
-            merchant_defined_field: item
-                .router_data
-                .request
-                .metadata
-                .as_ref()
-                .map(NmiMerchantDefinedField::new),
-            orderid: item.router_data.connector_request_reference_id.clone(),
-        })
+        match item
+            .router_data
+            .request
+            .mandate_id
+            .clone()
+            .and_then(|mandate_ids| mandate_ids.mandate_reference_id)
+        {
+            Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
+                connector_mandate_id,
+            )) => Ok(Self {
+                transaction_type,
+                security_key: auth_type.api_key,
+                amount,
+                currency: item.router_data.request.currency,
+                payment_method: PaymentMethod::MandatePayment(Box::new(MandatePayment {
+                    customer_vault_id: Secret::new(
+                        connector_mandate_id
+                            .get_connector_mandate_id()
+                            .ok_or(ConnectorError::MissingConnectorMandateID)?,
+                    ),
+                })),
+                merchant_defined_field: item
+                    .router_data
+                    .request
+                    .metadata
+                    .as_ref()
+                    .map(NmiMerchantDefinedField::new),
+                orderid: item.router_data.connector_request_reference_id.clone(),
+                customer_vault: None,
+            }),
+            Some(api_models::payments::MandateReferenceId::NetworkMandateId(_))
+            | Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_)) => {
+                Err(ConnectorError::NotImplemented(
+                    get_unimplemented_payment_method_error_message("nmi"),
+                ))?
+            }
+            None => {
+                let payment_method = PaymentMethod::try_from((
+                    &item.router_data.request.payment_method_data,
+                    Some(item.router_data),
+                ))?;
+
+                Ok(Self {
+                    transaction_type,
+                    security_key: auth_type.api_key,
+                    amount,
+                    currency: item.router_data.request.currency,
+                    payment_method,
+                    merchant_defined_field: item
+                        .router_data
+                        .request
+                        .metadata
+                        .as_ref()
+                        .map(NmiMerchantDefinedField::new),
+                    orderid: item.router_data.connector_request_reference_id.clone(),
+                    customer_vault: item
+                        .router_data
+                        .request
+                        .is_mandate_payment()
+                        .then(|| CustomerAction::AddCustomer),
+                })
+            }
+        }
     }
 }
 
@@ -674,6 +725,7 @@ impl TryFrom<&SetupMandateRouterData> for NmiPaymentsRequest {
             payment_method,
             merchant_defined_field: None,
             orderid: item.connector_request_reference_id.clone(),
+            customer_vault: Some(CustomerAction::AddCustomer),
         })
     }
 }
@@ -745,7 +797,7 @@ impl
                     incremental_authorization_allowed: None,
                     charges: None,
                 }),
-                AttemptStatus::CaptureInitiated,
+                AttemptStatus::Charged,
             ),
             Response::Declined | Response::Error => (
                 Err(get_standard_error_response(item.response, item.http_code)),
@@ -826,6 +878,7 @@ pub struct StandardResponse {
     pub cvvresponse: Option<String>,
     pub orderid: String,
     pub response_code: String,
+    pub customer_vault_id: Option<Secret<String>>,
 }
 
 impl<T> TryFrom<ResponseRouterData<SetupMandate, StandardResponse, T, PaymentsResponseData>>
@@ -896,15 +949,25 @@ impl TryFrom<PaymentsResponseRouterData<StandardResponse>>
                         item.response.transactionid.clone(),
                     ),
                     redirection_data: Box::new(None),
-                    mandate_reference: Box::new(None),
+                    mandate_reference: match item.response.customer_vault_id {
+                        Some(vault_id) => Box::new(Some(
+                            hyperswitch_domain_models::router_response_types::MandateReference {
+                                connector_mandate_id: Some(vault_id.expose()),
+                                payment_method_id: None,
+                                mandate_metadata: None,
+                                connector_mandate_request_reference_id: None,
+                            },
+                        )),
+                        None => Box::new(None),
+                    },
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
                     charges: None,
                 }),
-                if let Some(CaptureMethod::Automatic) = item.data.request.capture_method {
-                    AttemptStatus::CaptureInitiated
+                if item.data.request.is_auto_capture()? {
+                    AttemptStatus::Charged
                 } else {
                     AttemptStatus::Authorized
                 },
@@ -1093,7 +1156,7 @@ impl TryFrom<RefundsResponseRouterData<Capture, StandardResponse>> for RefundsRo
 impl From<Response> for RefundStatus {
     fn from(item: Response) -> Self {
         match item {
-            Response::Approved => Self::Pending,
+            Response::Approved => Self::Success,
             Response::Declined | Response::Error => Self::Failure,
         }
     }
