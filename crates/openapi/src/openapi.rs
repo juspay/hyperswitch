@@ -801,6 +801,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::authentication::AuthenticationCreateRequest,
         api_models::authentication::AuthenticationResponse,
         api_models::authentication::AcquirerDetails,
+        api_models::user::PlatformAccountCreateRequest,
     )),
     modifiers(&SecurityAddon)
 )]

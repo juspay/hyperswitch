@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use common_enums::{EntityType, TokenPurpose};
 use common_utils::{crypto::OptionalEncryptableName, id_type, pii};
 use masking::Secret;
+use utoipa::ToSchema;
 
 use crate::user_role::UserStatus;
 pub mod dashboard_metadata;
@@ -150,7 +151,7 @@ pub struct UserOrgMerchantCreateRequest {
     pub merchant_name: Secret<String>,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PlatformAccountCreateRequest {
     pub organization_name: Secret<String>,
 }

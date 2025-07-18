@@ -26021,6 +26021,17 @@
           }
         }
       },
+      "PlatformAccountCreateRequest": {
+        "type": "object",
+        "required": [
+          "organization_name"
+        ],
+        "properties": {
+          "organization_name": {
+            "$ref": "#/components/schemas/Secret"
+          }
+        }
+      },
       "PollConfig": {
         "type": "object",
         "required": [
