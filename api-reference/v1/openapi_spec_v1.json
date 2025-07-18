@@ -7646,6 +7646,145 @@
           }
         }
       },
+      "AuthenticationEligibilityRequest": {
+        "type": "object",
+        "required": [
+          "payment_method_data",
+          "payment_method"
+        ],
+        "properties": {
+          "payment_method_data": {
+            "$ref": "#/components/schemas/PaymentMethodData"
+          },
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "Optional secret value used to identify and authorize the client making the request.\nThis can help ensure that the payment session is secure and valid.",
+            "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "Optional identifier for the business profile associated with the payment.\nThis determines which configurations, rules, and branding are applied to the transaction.",
+            "nullable": true
+          },
+          "billing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "shipping": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "browser_information": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "description": "Optional email address of the customer.\nUsed for customer identification, communication, and possibly for 3DS or fraud checks.",
+            "nullable": true
+          }
+        }
+      },
+      "AuthenticationEligibilityResponse": {
+        "type": "object",
+        "required": [
+          "authentication_id",
+          "next_action",
+          "status",
+          "connector_metadata",
+          "profile_id"
+        ],
+        "properties": {
+          "authentication_id": {
+            "type": "string",
+            "description": "The unique identifier for this authentication.",
+            "example": "auth_mbabizu24mvu3mela5njyhpit4"
+          },
+          "next_action": {
+            "$ref": "#/components/schemas/NextAction"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AuthenticationStatus"
+          },
+          "eligibility_response_params": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EligibilityResponseParams"
+              }
+            ],
+            "nullable": true
+          },
+          "connector_metadata": {
+            "description": "The metadata for this authentication."
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The unique identifier for this authentication."
+          },
+          "error_message": {
+            "type": "string",
+            "description": "The error message for this authentication.",
+            "nullable": true
+          },
+          "error_code": {
+            "type": "string",
+            "description": "The error code for this authentication.",
+            "nullable": true
+          },
+          "authentication_connector": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationConnectors"
+              }
+            ],
+            "nullable": true
+          },
+          "billing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "shipping": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "browser_information": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "description": "Email",
+            "nullable": true
+          }
+        }
+      },
       "AuthenticationResponse": {
         "type": "object",
         "required": [
@@ -13525,6 +13664,21 @@
           }
         ]
       },
+      "EligibilityResponseParams": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "ThreeDsData"
+            ],
+            "properties": {
+              "ThreeDsData": {
+                "$ref": "#/components/schemas/ThreeDsData"
+              }
+            }
+          }
+        ]
+      },
       "EliminationAnalyserConfig": {
         "type": "object",
         "properties": {
@@ -17647,6 +17801,16 @@
           }
         }
       },
+      "Method": {
+        "type": "string",
+        "enum": [
+          "GET",
+          "POST",
+          "PUT",
+          "DELETE",
+          "PATCH"
+        ]
+      },
       "MifinityData": {
         "type": "object",
         "required": [
@@ -17834,6 +17998,22 @@
           "network_transaction_id": {
             "type": "string",
             "description": "The network transaction ID provided by the card network during a CIT (Customer Initiated Transaction),\nwhere `setup_future_usage` is set to `off_session`."
+          }
+        }
+      },
+      "NextAction": {
+        "type": "object",
+        "required": [
+          "url",
+          "http_method"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "The URL for authenticatating the user."
+          },
+          "http_method": {
+            "$ref": "#/components/schemas/Method"
           }
         }
       },
@@ -20593,6 +20773,8 @@
           "ali_pay_hk",
           "alma",
           "amazon_pay",
+          "skrill",
+          "paysera",
           "apple_pay",
           "atome",
           "bacs",
@@ -25840,6 +26022,9 @@
           }
         }
       },
+      "PayseraData": {
+        "type": "object"
+      },
       "PazeSessionTokenResponse": {
         "type": "object",
         "required": [
@@ -29009,6 +29194,9 @@
           "contain"
         ]
       },
+      "SkrillData": {
+        "type": "object"
+      },
       "SplitPaymentsRequest": {
         "oneOf": [
           {
@@ -29625,35 +29813,43 @@
       "ThreeDsData": {
         "type": "object",
         "required": [
-          "three_ds_authentication_url",
-          "three_ds_authorize_url",
-          "three_ds_method_details",
-          "poll_config"
+          "threeds_server_transaction_id",
+          "maximum_supported_3ds_version",
+          "connector_authentication_id",
+          "three_ds_method_data",
+          "three_ds_method_url",
+          "message_version",
+          "directory_server_id"
         ],
         "properties": {
-          "three_ds_authentication_url": {
+          "threeds_server_transaction_id": {
             "type": "string",
-            "description": "ThreeDS authentication url - to initiate authentication"
+            "description": "The unique identifier for this authentication from the 3DS server."
           },
-          "three_ds_authorize_url": {
+          "maximum_supported_3ds_version": {
             "type": "string",
-            "description": "ThreeDS authorize url - to complete the payment authorization after authentication"
+            "description": "The maximum supported 3DS version."
           },
-          "three_ds_method_details": {
-            "$ref": "#/components/schemas/ThreeDsMethodData"
+          "connector_authentication_id": {
+            "type": "string",
+            "description": "The unique identifier for this authentication from the connector."
           },
-          "poll_config": {
-            "$ref": "#/components/schemas/PollConfigResponse"
+          "three_ds_method_data": {
+            "type": "string",
+            "description": "The data required to perform the 3DS method."
+          },
+          "three_ds_method_url": {
+            "type": "string",
+            "description": "The URL to which the user should be redirected after authentication.",
+            "example": "https://example.com/redirect"
           },
           "message_version": {
             "type": "string",
-            "description": "Message Version",
-            "nullable": true
+            "description": "The version of the message."
           },
           "directory_server_id": {
             "type": "string",
-            "description": "Directory Server ID",
-            "nullable": true
+            "description": "The unique identifier for this authentication."
           }
         }
       },
@@ -30587,6 +30783,28 @@
             "properties": {
               "amazon_pay_redirect": {
                 "$ref": "#/components/schemas/AmazonPayRedirectData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "skrill"
+            ],
+            "properties": {
+              "skrill": {
+                "$ref": "#/components/schemas/SkrillData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "paysera"
+            ],
+            "properties": {
+              "paysera": {
+                "$ref": "#/components/schemas/PayseraData"
               }
             }
           },

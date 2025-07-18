@@ -1,4 +1,5 @@
 pub mod types;
+use std::str::FromStr;
 
 pub mod utils;
 #[cfg(feature = "v1")]
@@ -22,8 +23,8 @@ use hyperswitch_domain_models::{
     router_request_types::{
         authentication::{MessageCategory, PreAuthenticationData},
         unified_authentication_service::{
-            AuthenticationInfo, PaymentDetails, ServiceSessionIds, TransactionDetails,
-            UasAuthenticationRequestData, UasConfirmationRequestData,
+            AuthenticationInfo, PaymentDetails, ServiceSessionIds, ThreeDsMetaData,
+            TransactionDetails, UasAuthenticationRequestData, UasConfirmationRequestData,
             UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
         },
         BrowserInformation,
@@ -52,10 +53,7 @@ use crate::{
     },
     db::domain,
     routes::SessionState,
-    types::{
-        domain::types::AsyncLift,
-        transformers::{ForeignFrom, ForeignTryFrom},
-    },
+    types::{domain::types::AsyncLift, transformers::ForeignTryFrom},
 };
 
 #[cfg(feature = "v1")]
@@ -715,14 +713,14 @@ pub async fn authentication_create_core(
         .ok_or(ApiErrorResponse::InternalServerError)
         .attach_printable("failed to get profile_acquirer_id from authentication table")?;
 
-    let response = AuthenticationResponse::foreign_from((
+    let response = AuthenticationResponse::foreign_try_from((
         new_authentication,
         amount,
         currency,
         profile_id,
         acquirer_details,
         profile_acquirer_id,
-    ));
+    ))?;
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         response,
@@ -730,7 +728,7 @@ pub async fn authentication_create_core(
 }
 
 impl
-    ForeignFrom<(
+    ForeignTryFrom<(
         Authentication,
         common_utils::types::MinorUnit,
         common_enums::Currency,
@@ -739,7 +737,8 @@ impl
         common_utils::id_type::ProfileAcquirerId,
     )> for AuthenticationResponse
 {
-    fn foreign_from(
+    type Error = error_stack::Report<ApiErrorResponse>;
+    fn foreign_try_from(
         (authentication, amount, currency, profile_id, acquirer_details, profile_acquirer_id): (
             Authentication,
             common_utils::types::MinorUnit,
@@ -748,8 +747,14 @@ impl
             Option<AcquirerDetails>,
             common_utils::id_type::ProfileAcquirerId,
         ),
-    ) -> Self {
-        Self {
+    ) -> Result<Self, Self::Error> {
+        let authentication_connector = authentication
+            .authentication_connector
+            .map(|connector| common_enums::AuthenticationConnectors::from_str(&connector))
+            .transpose()
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Incorrect authentication connector stored in table")?;
+        Ok(Self {
             authentication_id: authentication.authentication_id,
             client_secret: authentication
                 .authentication_client_secret
@@ -759,7 +764,7 @@ impl
             force_3ds_challenge: authentication.force_3ds_challenge,
             merchant_id: authentication.merchant_id,
             status: authentication.authentication_status,
-            authentication_connector: authentication.authentication_connector,
+            authentication_connector,
             return_url: authentication.return_url,
             created_at: Some(authentication.created_at),
             error_code: authentication.error_code,
@@ -768,7 +773,7 @@ impl
             psd2_sca_exemption_type: authentication.psd2_sca_exemption_type,
             acquirer_details,
             profile_acquirer_id,
-        }
+        })
     }
 }
 
@@ -786,15 +791,7 @@ impl
 {
     type Error = error_stack::Report<ApiErrorResponse>;
     fn foreign_try_from(
-        (
-            authentication,
-            next_api_action,
-            profile_id,
-            billing,
-            shipping,
-            browser_information,
-            email,
-        ): (
+        (authentication, next_action, profile_id, billing, shipping, browser_information, email): (
             Authentication,
             api_models::authentication::NextAction,
             common_utils::id_type::ProfileId,
@@ -804,6 +801,12 @@ impl
             common_utils::crypto::OptionalEncryptableEmail,
         ),
     ) -> Result<Self, Self::Error> {
+        let authentication_connector = authentication
+            .authentication_connector
+            .map(|connector| common_enums::AuthenticationConnectors::from_str(&connector))
+            .transpose()
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Incorrect authentication connector stored in table")?;
         let three_ds_method_url = authentication
             .three_ds_method_url
             .map(|url| url::Url::parse(&url))
@@ -823,7 +826,7 @@ impl
         });
         Ok(Self {
             authentication_id: authentication.authentication_id,
-            next_api_action,
+            next_action,
             status: authentication.authentication_status,
             eligibility_response_params: three_ds_data
                 .map(api_models::authentication::EligibilityResponseParams::ThreeDsData),
@@ -833,7 +836,7 @@ impl
             error_code: authentication.error_code,
             billing,
             shipping,
-            authentication_connector: authentication.authentication_connector,
+            authentication_connector,
             browser_information,
             email,
         })
@@ -847,8 +850,6 @@ pub async fn authentication_eligibility_core(
     req: AuthenticationEligibilityRequest,
     authentication_id: common_utils::id_type::AuthenticationId,
 ) -> RouterResponse<AuthenticationEligibilityResponse> {
-    use hyperswitch_domain_models::router_request_types::unified_authentication_service::ThreeDsMetaData;
-
     let merchant_account = merchant_context.get_merchant_account();
     let merchant_id = merchant_account.get_id();
     let db = &*state.store;
@@ -859,10 +860,10 @@ pub async fn authentication_eligibility_core(
             id: authentication_id.get_string_repr().to_owned(),
         })?;
 
-    if let Some(cs) = &req.client_secret {
+    if let Some(client_secret) = &req.client_secret {
         let is_client_secret_expired =
             utils::authenticate_authentication_client_secret_and_check_expiry(
-                cs.peek(),
+                client_secret.peek(),
                 &authentication,
             )?;
 
@@ -938,7 +939,7 @@ pub async fn authentication_eligibility_core(
     let merchant_details = Some(hyperswitch_domain_models::router_request_types::unified_authentication_service::MerchantDetails {
         merchant_id: Some(authentication.merchant_id.get_string_repr().to_string()),
         merchant_name: acquirer_details.clone().map(|detail| detail.merchant_name.clone()).or(metadata.clone().and_then(|metadata| metadata.merchant_name)),
-        merchant_category_code: business_profile.merchant_category_code.or(metadata.clone().and_then(|metadata| metadata.mcc)),
+        merchant_category_code: business_profile.merchant_category_code.or(metadata.clone().and_then(|metadata| metadata.merchant_category_code)),
         endpoint_prefix: metadata.clone().map(|metadata| metadata.endpoint_prefix),
         three_ds_requestor_url: business_profile.authentication_connector_details.map(|details| details.three_ds_requestor_url),
         three_ds_requestor_id: metadata.clone().and_then(|metadata| metadata.three_ds_requestor_id),

@@ -531,6 +531,8 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerProfileRequest {
                 | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
                 | WalletData::AmazonPayRedirect(_)
+                | WalletData::Paysera(_)
+                | WalletData::Skrill(_)
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -824,7 +826,13 @@ impl
             }),
             profile: None,
             order: Order {
-                invoice_number: get_random_string(),
+                invoice_number: item
+                    .router_data
+                    .request
+                    .merchant_order_reference_id
+                    .clone()
+                    .unwrap_or_else(get_random_string),
+
                 description: item.router_data.connector_request_reference_id.clone(),
             },
             customer: Some(CustomerDetails {
@@ -903,7 +911,13 @@ impl
                     })
                 }),
             order: Order {
-                invoice_number: get_random_string(),
+                invoice_number: item
+                    .router_data
+                    .request
+                    .merchant_order_reference_id
+                    .clone()
+                    .unwrap_or_else(get_random_string),
+
                 description: item.router_data.connector_request_reference_id.clone(),
             },
             customer: Some(CustomerDetails {
@@ -974,7 +988,13 @@ impl
             })),
             profile,
             order: Order {
-                invoice_number: get_random_string(),
+                invoice_number: item
+                    .router_data
+                    .request
+                    .merchant_order_reference_id
+                    .clone()
+                    .unwrap_or_else(get_random_string),
+
                 description: item.router_data.connector_request_reference_id.clone(),
             },
             customer,
@@ -1045,7 +1065,13 @@ impl
             )?),
             profile,
             order: Order {
-                invoice_number: get_random_string(),
+                invoice_number: item
+                    .router_data
+                    .request
+                    .merchant_order_reference_id
+                    .clone()
+                    .unwrap_or_else(get_random_string),
+
                 description: item.router_data.connector_request_reference_id.clone(),
             },
             customer,
@@ -2041,6 +2067,8 @@ fn get_wallet_data(
         | WalletData::AliPayRedirect(_)
         | WalletData::AliPayHkRedirect(_)
         | WalletData::AmazonPayRedirect(_)
+        | WalletData::Paysera(_)
+        | WalletData::Skrill(_)
         | WalletData::MomoRedirect(_)
         | WalletData::KakaoPayRedirect(_)
         | WalletData::GoPayRedirect(_)

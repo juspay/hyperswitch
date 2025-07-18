@@ -538,6 +538,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::MultibancoTransferInstructions,
         api_models::payments::DokuBankTransferInstructions,
         api_models::payments::AmazonPayRedirectData,
+        api_models::payments::SkrillData,
+        api_models::payments::PayseraData,
         api_models::payments::ApplePayRedirectData,
         api_models::payments::ApplePayThirdPartySdkData,
         api_models::payments::GooglePayRedirectData,
@@ -796,6 +798,12 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::authentication::AuthenticationCreateRequest,
         api_models::authentication::AuthenticationResponse,
         api_models::authentication::AcquirerDetails,
+        api_models::authentication::NextAction,
+        common_utils::request::Method,
+        api_models::authentication::EligibilityResponseParams,
+        api_models::authentication::ThreeDsData,
+        api_models::authentication::AuthenticationEligibilityRequest,
+        api_models::authentication::AuthenticationEligibilityResponse,
     )),
     modifiers(&SecurityAddon)
 )]

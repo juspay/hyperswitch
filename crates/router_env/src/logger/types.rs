@@ -349,6 +349,8 @@ pub enum Flow {
     ApplePayCertificatesMigration,
     /// Gsm Rule Delete flow
     GsmRuleDelete,
+    /// Get data from embedded flow
+    GetDataFromHyperswitchAiFlow,
     /// User Sign Up
     UserSignUp,
     /// User Sign Up

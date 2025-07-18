@@ -104,7 +104,7 @@ pub struct AuthenticationResponse {
 
     /// The connector to be used for authentication, if known.
     #[schema(value_type = Option<AuthenticationConnectors>, example = "netcetera")]
-    pub authentication_connector: Option<String>,
+    pub authentication_connector: Option<AuthenticationConnectors>,
 
     /// Whether 3DS challenge was forced.
     pub force_3ds_challenge: Option<bool>,
@@ -160,32 +160,44 @@ impl ApiEventMetric for AuthenticationResponse {
 #[cfg(feature = "v1")]
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct AuthenticationEligibilityRequest {
-    /// Payment method data
+    /// Payment method-specific data such as card details, wallet info, etc.
+    /// This holds the raw information required to process the payment method.
+    #[schema(value_type = PaymentMethodData)]
     pub payment_method_data: PaymentMethodData,
 
-    /// Payment method
+    /// Enum representing the type of payment method being used
+    /// (e.g., Card, Wallet, UPI, BankTransfer, etc.).
+    #[schema(value_type = PaymentMethod)]
     pub payment_method: common_enums::PaymentMethod,
 
+    /// Optional secret value used to identify and authorize the client making the request.
+    /// This can help ensure that the payment session is secure and valid.
+    #[schema(value_type = Option<String>)]
     pub client_secret: Option<masking::Secret<String>>,
 
-    /// The business profile that is associated with this payment
+    /// Optional identifier for the business profile associated with the payment.
+    /// This determines which configurations, rules, and branding are applied to the transaction.
     #[schema(value_type = Option<String>)]
     pub profile_id: Option<id_type::ProfileId>,
 
-    /// Billing address
+    /// Optional billing address of the customer.
+    /// This can be used for fraud detection, authentication, or compliance purposes.
     #[schema(value_type = Option<Address>)]
     pub billing: Option<Address>,
 
-    /// Shipping address
+    /// Optional shipping address of the customer.
+    /// This can be useful for logistics, verification, or additional risk checks.
     #[schema(value_type = Option<Address>)]
     pub shipping: Option<Address>,
 
-    /// Browser information
+    /// Optional information about the customer's browser (user-agent, language, etc.).
+    /// This is typically used to support 3DS authentication flows and improve risk assessment.
     #[schema(value_type = Option<BrowserInformation>)]
     pub browser_information: Option<BrowserInformation>,
 
-    /// Email
-    #[schema(value_type = Option<pii::Email>)]
+    /// Optional email address of the customer.
+    /// Used for customer identification, communication, and possibly for 3DS or fraud checks.
+    #[schema(value_type = Option<String>)]
     pub email: Option<common_utils::pii::Email>,
 }
 
@@ -224,7 +236,7 @@ pub struct AuthenticationEligibilityResponse {
     pub authentication_id: id_type::AuthenticationId,
     /// The URL to which the user should be redirected after authentication.
     #[schema(value_type = NextAction)]
-    pub next_api_action: NextAction,
+    pub next_action: NextAction,
     /// The current status of the authentication (e.g., Started).
     #[schema(value_type = AuthenticationStatus)]
     pub status: common_enums::AuthenticationStatus,
@@ -244,8 +256,8 @@ pub struct AuthenticationEligibilityResponse {
     #[schema(value_type = Option<String>)]
     pub error_code: Option<String>,
     /// The connector used for this authentication.
-    #[schema(value_type = Option<String>)]
-    pub authentication_connector: Option<String>,
+    #[schema(value_type = Option<AuthenticationConnectors>)]
+    pub authentication_connector: Option<AuthenticationConnectors>,
     /// Billing address
     #[schema(value_type = Option<Address>)]
     pub billing: Option<Address>,
@@ -256,7 +268,7 @@ pub struct AuthenticationEligibilityResponse {
     #[schema(value_type = Option<BrowserInformation>)]
     pub browser_information: Option<BrowserInformation>,
     /// Email
-    #[schema(value_type = Option<pii::Email>)]
+    #[schema(value_type = Option<String>)]
     pub email: common_utils::crypto::OptionalEncryptableEmail,
 }
 
@@ -271,7 +283,7 @@ pub struct ThreeDsData {
     #[schema(value_type = String)]
     pub threeds_server_transaction_id: Option<String>,
     /// The maximum supported 3DS version.
-    #[schema(value_type = SemanticVersion)]
+    #[schema(value_type = String)]
     pub maximum_supported_3ds_version: Option<common_utils::types::SemanticVersion>,
     /// The unique identifier for this authentication from the connector.
     #[schema(value_type = String)]
@@ -283,7 +295,7 @@ pub struct ThreeDsData {
     #[schema(value_type = String, example = "https://example.com/redirect")]
     pub three_ds_method_url: Option<url::Url>,
     /// The version of the message.
-    #[schema(value_type = SemanticVersion)]
+    #[schema(value_type = String)]
     pub message_version: Option<common_utils::types::SemanticVersion>,
     /// The unique identifier for this authentication.
     #[schema(value_type = String)]
@@ -293,10 +305,10 @@ pub struct ThreeDsData {
 #[derive(Debug, Serialize, ToSchema)]
 pub struct NextAction {
     /// The URL for authenticatating the user.
-    #[schema(value_type = url::Url)]
+    #[schema(value_type = String)]
     pub url: url::Url,
     /// The HTTP method to use for the request.
-    #[schema(value_type = common_utils::request::Method)]
+    #[schema(value_type = Method)]
     pub http_method: common_utils::request::Method,
 }
 

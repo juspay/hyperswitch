@@ -172,7 +172,7 @@ pub struct UasConfirmationRequestData {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ThreeDsMetaData {
-    pub mcc: Option<MerchantCategoryCode>,
+    pub merchant_category_code: Option<MerchantCategoryCode>,
     pub merchant_country_code: Option<MerchantCountryCode>,
     pub merchant_name: Option<String>,
     pub endpoint_prefix: String,

@@ -18,6 +18,7 @@ use super::types::{
     IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_AUTHENTICATION_FLOW,
 };
 use crate::{
+    consts::DEFAULT_SESSION_EXPIRY,
     core::{
         errors::{utils::ConnectorErrorExt, RouterResult},
         payments,
@@ -337,9 +338,7 @@ pub fn authenticate_authentication_client_secret_and_check_expiry(
         let current_timestamp = common_utils::date_time::now();
         let session_expiry = authentication
             .created_at
-            .saturating_add(time::Duration::seconds(
-                crate::consts::DEFAULT_SESSION_EXPIRY,
-            ));
+            .saturating_add(time::Duration::seconds(DEFAULT_SESSION_EXPIRY));
 
         let expired = current_timestamp > session_expiry;
 
