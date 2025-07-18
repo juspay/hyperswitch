@@ -2,6 +2,7 @@ use std::fmt::Debug;
 
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
+use hyperswitch_interfaces::api::ConnectorSpecifications;
 
 use crate::{
     consts,
@@ -112,10 +113,59 @@ pub async fn add_access_token<
                     )),
                 );
 
-                let cloned_router_data = router_data.clone();
-                let refresh_token_request_data = types::AccessTokenRequestData::try_from(
+                let should_create_authentication_token = connector
+                    .connector
+                    .authentication_token_for_token_creation();
+
+                let authentication_token = if should_create_authentication_token {
+                    let cloned_router_data = router_data.clone();
+                    let authentication_token_request_data = types::AuthenticationTokenCreationRequestData::try_from(router_data.connector_auth_type.clone())
+                        .attach_printable(
+                "Could not create authentication token request, invalid connector account credentials",
+                        )?;
+
+                    let authentication_token_response_data: Result<
+                        types::AuthenticationToken,
+                        types::ErrorResponse,
+                    > = Err(types::ErrorResponse::default());
+
+                    let auth_token_router_data = payments::helpers::router_data_type_conversion::<
+                        _,
+                        api_types::AuthenticationTokenCreation,
+                        _,
+                        _,
+                        _,
+                        _,
+                    >(
+                        cloned_router_data,
+                        authentication_token_request_data,
+                        authentication_token_response_data,
+                    );
+
+                    let auth_token_result = execute_authentication_token(
+                        state,
+                        connector,
+                        merchant_context,
+                        &auth_token_router_data,
+                    )
+                    .await?;
+
+                    let authentication_token = auth_token_result
+                        .map_err(|_error| errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to get authentication token")?;
+
+                    Some(authentication_token)
+                } else {
+                    None
+                };
+
+                let mut cloned_router_data = router_data.clone();
+                cloned_router_data.authentication_token = authentication_token.clone();
+
+                let refresh_token_request_data = types::AccessTokenRequestData::try_from((
                     router_data.connector_auth_type.clone(),
-                )
+                    authentication_token,
+                ))
                 .attach_printable(
                     "Could not create access token request, invalid connector account credentials",
                 )?;
@@ -253,4 +303,61 @@ pub async fn refresh_connector_auth(
         router_env::metric_attributes!(("connector", connector.connector_name.to_string())),
     );
     Ok(access_token_router_data)
+}
+
+pub async fn execute_authentication_token(
+    state: &SessionState,
+    connector: &api_types::ConnectorData,
+    _merchant_context: &domain::MerchantContext,
+    router_data: &types::RouterData<
+        api_types::AuthenticationTokenCreation,
+        types::AuthenticationTokenCreationRequestData,
+        types::AuthenticationToken,
+    >,
+) -> RouterResult<Result<types::AuthenticationToken, types::ErrorResponse>> {
+    // Get the connector integration for authentication token
+    let connector_integration: services::BoxedAuthenticationTokenConnectorIntegrationInterface<
+        api_types::AuthenticationTokenCreation,
+        types::AuthenticationTokenCreationRequestData,
+        types::AuthenticationToken,
+    > = connector.connector.get_connector_integration();
+
+    // Execute the connector processing step
+    let auth_token_router_data_result = services::execute_connector_processing_step(
+        state,
+        connector_integration,
+        router_data,
+        payments::CallConnectorAction::Trigger,
+        None,
+        None,
+    )
+    .await;
+
+    // Handle the response
+    let auth_token_router_data = match auth_token_router_data_result {
+        Ok(router_data) => Ok(router_data.response),
+        Err(connector_error) => {
+            // Handle timeout errors
+            if connector_error.current_context().is_connector_timeout() {
+                let error_response = types::ErrorResponse {
+                    code: consts::REQUEST_TIMEOUT_ERROR_CODE.to_string(),
+                    message: consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string(),
+                    reason: Some(consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string()),
+                    status_code: 504,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                };
+                Ok(Err(error_response))
+            } else {
+                Err(connector_error
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Could not get authentication token"))
+            }
+        }
+    }?;
+
+    Ok(auth_token_router_data)
 }

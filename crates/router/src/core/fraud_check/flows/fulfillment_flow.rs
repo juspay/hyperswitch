@@ -97,6 +97,7 @@ pub async fn construct_fulfillment_router_data<'a>(
             fulfillment_req: fulfillment_request,
         },
         response: Err(ErrorResponse::default()),
+        authentication_token: None,
         access_token: None,
         session_token: None,
         reference_id: None,
