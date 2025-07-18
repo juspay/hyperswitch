@@ -278,8 +278,10 @@ async fn drainer(
             },
         }
 
-        if store.use_legacy_version(){
-            store.delete_from_stream(stream_name, &last_processed_id).await?;
+        if store.use_legacy_version() {
+            store
+                .delete_from_stream(stream_name, &last_processed_id)
+                .await?;
         }
     }
 
@@ -295,7 +297,7 @@ async fn drainer(
                 "Assertion Failed no. of entries read from the stream doesn't match no. of entries trimmed"
             );
         }
-    }else{
+    } else {
         logger::error!(read_entries = %read_count,?entries,"No streams were processed in this session");
     }
 
