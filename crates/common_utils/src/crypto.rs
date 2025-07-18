@@ -703,8 +703,7 @@ impl SignMessage for RsaPssSha256 {
                 .change_context(errors::CryptoError::InvalidKeyLength)
                 .attach_printable("Failed to parse PKCS#1 DER (using from_der) with ring"),
             tag => Err(errors::CryptoError::InvalidKeyLength).attach_printable(format!(
-                "Unexpected PEM tag: {}. Expected 'PRIVATE KEY' or 'RSA PRIVATE KEY'",
-                tag
+                "Unexpected PEM tag: {tag}. Expected 'PRIVATE KEY' or 'RSA PRIVATE KEY'",
             )),
         }?;
         let rng = ring_rand::SystemRandom::new();
