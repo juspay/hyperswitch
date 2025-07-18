@@ -1232,7 +1232,7 @@ where
     String(String),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct RoutingEventsResponse<Res>
 where
     Res: Serialize + serde::de::DeserializeOwned + Clone,
