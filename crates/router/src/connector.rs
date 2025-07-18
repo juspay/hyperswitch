@@ -13,7 +13,7 @@ pub use hyperswitch_connectors::connectors::{
     cashtocode::Cashtocode, celero, celero::Celero, chargebee, chargebee::Chargebee, checkbook,
     checkbook::Checkbook, checkout, checkout::Checkout, coinbase, coinbase::Coinbase, coingate,
     coingate::Coingate, cryptopay, cryptopay::Cryptopay, ctp_mastercard,
-    ctp_mastercard::CtpMastercard, cybersource, cybersource::Cybersource, datatrans,
+    ctp_mastercard::CtpMastercard,custombilling, custombilling::Custombilling, cybersource, cybersource::Cybersource, datatrans,
     datatrans::Datatrans, deutschebank, deutschebank::Deutschebank, digitalvirgo,
     digitalvirgo::Digitalvirgo, dlocal, dlocal::Dlocal, dwolla, dwolla::Dwolla, ebanx,
     ebanx::Ebanx, elavon, elavon::Elavon, facilitapay, facilitapay::Facilitapay, fiserv,

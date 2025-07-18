@@ -24,6 +24,7 @@ pub mod checkout;
 pub mod coinbase;
 pub mod coingate;
 pub mod cryptopay;
+pub mod custombilling;
 pub mod ctp_mastercard;
 pub mod cybersource;
 pub mod datatrans;
@@ -120,7 +121,7 @@ pub use self::{
     amazonpay::Amazonpay, archipel::Archipel, authipay::Authipay, authorizedotnet::Authorizedotnet,
     bambora::Bambora, bamboraapac::Bamboraapac, bankofamerica::Bankofamerica,
     barclaycard::Barclaycard, billwerk::Billwerk, bitpay::Bitpay, bluesnap::Bluesnap, boku::Boku,
-    braintree::Braintree, cashtocode::Cashtocode, celero::Celero, chargebee::Chargebee,
+    braintree::Braintree, cashtocode::Cashtocode, celero::Celero, chargebee::Chargebee, custombilling::Custombilling,
     checkbook::Checkbook, checkout::Checkout, coinbase::Coinbase, coingate::Coingate,
     cryptopay::Cryptopay, ctp_mastercard::CtpMastercard, cybersource::Cybersource,
     datatrans::Datatrans, deutschebank::Deutschebank, digitalvirgo::Digitalvirgo, dlocal::Dlocal,
