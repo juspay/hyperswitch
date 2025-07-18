@@ -1,3 +1,4 @@
+pub mod chat;
 pub mod customers_error_response;
 pub mod error_handlers;
 pub mod transformers;

@@ -1226,3 +1226,7 @@ connector_names = "stripe, adyen"               # Comma-separated list of allowe
 [infra_values]
 cluster = "CLUSTER"
 version = "HOSTNAME"
+
+[chat]
+enabled = false
+hyperswitch_ai_host = "http://0.0.0.0:8000"
