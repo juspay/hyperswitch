@@ -8523,6 +8523,7 @@ pub enum RoutingApproach {
     DebitRouting,
     RuleBasedRouting,
     VolumeBasedRouting,
+    StraightThroughRouting,
     #[default]
     DefaultFallback,
 }
