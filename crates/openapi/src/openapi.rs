@@ -213,6 +213,9 @@ Never share your secret api keys. Keep them guarded and secure.
 
         // Routes for authentication
         routes::authentication::authentication_create,
+
+        // Routes for user
+        routes::user::create_platform_account,
     ),
     components(schemas(
         common_utils::types::MinorUnit,
