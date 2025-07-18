@@ -1,5 +1,7 @@
 pub mod transformers;
 
+use std::sync::LazyLock;
+
 use base64::Engine;
 use common_enums::{enums, CallConnectorAction, PaymentAction};
 use common_utils::{
@@ -27,9 +29,9 @@ use hyperswitch_domain_models::{
         ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
     },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsCompleteAuthorizeRouterData, PaymentsSyncRouterData, RefundSyncRouterData,
-        RefundsRouterData,PaymentsCancelRouterData
+        RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -44,7 +46,6 @@ use hyperswitch_interfaces::{
     webhooks,
 };
 use masking::{ExposeInterface, Mask, Maskable, PeekInterface};
-use std::sync::LazyLock;
 use transformers::{
     self as breadpay, BreadpayTransactionRequest, BreadpayTransactionResponse,
     BreadpayTransactionType,
@@ -476,8 +477,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             "{}{}{}",
             self.base_url(connectors),
             "/transactions/actions",
-            req.request
-                .connector_transaction_id
+            req.request.connector_transaction_id
         ))
     }
 
@@ -562,8 +562,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Br
             "{}{}{}",
             self.base_url(connectors),
             "/transactions/actions",
-            req.request
-                .connector_transaction_id
+            req.request.connector_transaction_id
         ))
     }
 
@@ -588,9 +587,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Br
                 .method(Method::Post)
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::PaymentsVoidType::get_headers(
-                    self, req, connectors,
-                )?)
+                .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
                 .set_body(types::PaymentsVoidType::get_request_body(
                     self, req, connectors,
                 )?)

@@ -12,8 +12,10 @@ use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
-use crate::{types::{RefundsResponseRouterData, ResponseRouterData}
-,utils::{self,RouterData as OtherRouterData,PaymentsAuthorizeRequestData}};
+use crate::{
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils::{self, PaymentsAuthorizeRequestData, RouterData as OtherRouterData},
+};
 
 pub struct BreadpayRouterData<T> {
     pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
@@ -42,14 +44,14 @@ pub struct BreadpayCartOptions {
     order_ref: Option<String>,
     complete_url: String,
     callback_url: String,
-    billing_contact : Option<BillingContact>,
+    billing_contact: Option<BillingContact>,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BillingContact {
-    first_name : Secret<String>,
-    last_name : Secret<String>,
+    first_name: Secret<String>,
+    last_name: Secret<String>,
     email: Option<Email>,
     address: Secret<String>,
     city: Secret<String>,
@@ -82,7 +84,7 @@ impl TryFrom<&BreadpayRouterData<&PaymentsAuthorizeRouterData>> for BreadpayCart
                                 });
                                 Self{
                                     custom_total: item.amount.clone(),
-                                    options, 
+                                    options,
                                 }
                             },
                 hyperswitch_domain_models::payment_method_data::PayLaterData::KlarnaRedirect {  } |
@@ -127,12 +129,11 @@ impl TryFrom<&BreadpayRouterData<&PaymentsAuthorizeRouterData>> for BreadpayCart
     }
 }
 
-
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BreadpayTransactionRequest {
     #[serde(rename = "type")]
-    pub transaction_type: BreadpayTransactionType
+    pub transaction_type: BreadpayTransactionType,
 }
 
 #[derive(Debug, Serialize)]
@@ -162,14 +163,14 @@ impl TryFrom<&ConnectorAuthType> for BreadpayAuthType {
     }
 }
 
-#[derive( Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct BreadpayTransactionResponse {
     status: TransactionStatus,
-    bread_transactin_id : String,
+    bread_transactin_id: String,
     merchant_order_id: String,
 }
 
-#[derive( Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum TransactionStatus {
     Pending,
@@ -180,7 +181,6 @@ pub enum TransactionStatus {
     Settled,
 }
 
-
 impl<F, T> TryFrom<ResponseRouterData<F, BreadpayTransactionResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 {
@@ -188,12 +188,10 @@ impl<F, T> TryFrom<ResponseRouterData<F, BreadpayTransactionResponse, T, Payment
     fn try_from(
         item: ResponseRouterData<F, BreadpayTransactionResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self{
+        Ok(Self {
             status: enums::AttemptStatus::from(item.response.status.clone()),
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(
-                    item.response.bread_transactin_id,
-                ),
+                resource_id: ResponseId::ConnectorTransactionId(item.response.bread_transactin_id),
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
@@ -216,11 +214,11 @@ impl From<TransactionStatus> for enums::AttemptStatus {
             TransactionStatus::Refunded => Self::AutoRefunded,
             TransactionStatus::Expired => Self::Failure,
             TransactionStatus::Settled => Self::Charged,
-            }
+        }
     }
 }
 
-#[derive( Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct BreadpayPaymentsResponse {
     url: url::Url,
 }
@@ -238,7 +236,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BreadpayPaymentsResponse, T, PaymentsRe
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::NoResponseId,
                 redirection_data: Box::new(Some(RedirectForm::from((
-                   item.response.url,
+                    item.response.url,
                     Method::Get,
                 )))),
                 mandate_reference: Box::new(None),
@@ -253,8 +251,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, BreadpayPaymentsResponse, T, PaymentsRe
     }
 }
 
-#[derive( Debug, Clone, Deserialize, Serialize)]
-pub struct CallBackResponse{
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct CallBackResponse {
     pub transaction_id: String,
     pub order_ref: String,
 }
@@ -265,7 +263,7 @@ pub struct CallBackResponse{
 pub struct BreadpayRefundRequest {
     pub amount: StringMinorUnit,
     #[serde(rename = "type")]
-    pub transaction_type: BreadpayTransactionType
+    pub transaction_type: BreadpayTransactionType,
 }
 
 impl<F> TryFrom<&BreadpayRouterData<&RefundsRouterData<F>>> for BreadpayRefundRequest {

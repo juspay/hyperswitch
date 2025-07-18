@@ -1010,7 +1010,7 @@ where
                 | PayLaterData::PayBrightRedirect {}
                 | PayLaterData::WalleyRedirect {}
                 | PayLaterData::AlmaRedirect {}
-                | PayLaterData::AtomeRedirect {} 
+                | PayLaterData::AtomeRedirect {}
                 | PayLaterData::BreadpayRedirect {} => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("nuvei"),
                 )
