@@ -6,6 +6,7 @@ use router_env::{instrument, tracing, Flow};
 use super::AppState;
 use crate::{
     core::{api_locking, chat as chat_core},
+    routes::metrics,
     services::{
         api,
         authentication::{self as auth},
@@ -34,6 +35,10 @@ pub async fn get_data_from_hyperswitch_ai_workflow(
         &http_req,
         payload.into_inner(),
         |state, user: auth::UserFromToken, payload, _| {
+            metrics::CHAT_REQUEST_COUNT.add(
+                1,
+                router_env::metric_attributes!(("merchant_id", user.merchant_id.clone())),
+            );
             chat_core::get_data_from_hyperswitch_ai_workflow(
                 state,
                 user,
