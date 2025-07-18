@@ -1729,6 +1729,29 @@ impl behaviour::Conversion for PaymentIntent {
             is_payment_id_from_merchant,
         })
     }
+
+    fn validate(
+        item: Self::DstType,
+        key_manager_identifier: keymanager::Identifier,
+    ) -> CustomResult<(), ValidationError>
+    where
+        Self: Sized,
+    {
+        match key_manager_identifier {
+            keymanager::Identifier::Merchant(merchant_id) => {
+                if item.merchant_id != merchant_id {
+                    return Err(ValidationError::IncorrectValueProvided {
+                        field_name: "Profile ID",
+                    }
+                    .into());
+                }
+
+                Ok(())
+            }
+            _ => Ok(()),
+        }
+    }
+
     async fn convert_back(
         state: &KeyManagerState,
         storage_model: Self::DstType,
@@ -1872,8 +1895,8 @@ impl behaviour::Conversion for PaymentIntent {
             })
         }
         .await
-        .change_context(ValidationError::InvalidValue {
-            message: "Failed while decrypting payment intent".to_string(),
+        .change_context(ValidationError::DecryptionError {
+            message: "payment intent".to_string(),
         })
     }
 
@@ -2035,6 +2058,28 @@ impl behaviour::Conversion for PaymentIntent {
         })
     }
 
+    fn validate(
+        item: Self::DstType,
+        key_manager_identifier: keymanager::Identifier,
+    ) -> CustomResult<(), ValidationError>
+    where
+        Self: Sized,
+    {
+        match key_manager_identifier {
+            keymanager::Identifier::Merchant(merchant_id) => {
+                if item.merchant_id != merchant_id {
+                    return Err(ValidationError::IncorrectValueProvided {
+                        field_name: "Profile ID",
+                    }
+                    .into());
+                }
+
+                Ok(())
+            }
+            _ => Ok(()),
+        }
+    }
+
     async fn convert_back(
         state: &KeyManagerState,
         storage_model: Self::DstType,
@@ -2136,8 +2181,8 @@ impl behaviour::Conversion for PaymentIntent {
             })
         }
         .await
-        .change_context(ValidationError::InvalidValue {
-            message: "Failed while decrypting payment intent".to_string(),
+        .change_context(ValidationError::DecryptionError {
+            message: "payment intent".to_string(),
         })
     }
 

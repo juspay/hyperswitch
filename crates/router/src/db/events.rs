@@ -133,7 +133,7 @@ impl EventInterface for Store {
                 merchant_key_store.merchant_id.clone().into(),
             )
             .await
-            .change_context(errors::StorageError::DecryptionError)
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -154,7 +154,7 @@ impl EventInterface for Store {
                 merchant_key_store.merchant_id.clone().into(),
             )
             .await
-            .change_context(errors::StorageError::DecryptionError)
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -184,7 +184,7 @@ impl EventInterface for Store {
                             merchant_key_store.merchant_id.clone().into(),
                         )
                         .await
-                        .change_context(errors::StorageError::DecryptionError)?,
+                        .map_err(|error| report!(errors::StorageError::from(error)))?,
                 );
             }
             Ok(domain_events)
@@ -229,7 +229,7 @@ impl EventInterface for Store {
                             merchant_key_store.merchant_id.clone().into(),
                         )
                         .await
-                        .change_context(errors::StorageError::DecryptionError)?,
+                        .map_err(|error| report!(errors::StorageError::from(error)))?,
                 );
             }
             Ok(domain_events)
@@ -264,7 +264,7 @@ impl EventInterface for Store {
                             merchant_key_store.merchant_id.clone().into(),
                         )
                         .await
-                        .change_context(errors::StorageError::DecryptionError)?,
+                        .map_err(|error| report!(errors::StorageError::from(error)))?,
                 );
             }
             Ok(domain_events)
@@ -299,7 +299,7 @@ impl EventInterface for Store {
                             merchant_key_store.merchant_id.clone().into(),
                         )
                         .await
-                        .change_context(errors::StorageError::DecryptionError)?,
+                        .map_err(|error| report!(errors::StorageError::from(error)))?,
                 );
             }
             Ok(domain_events)
@@ -346,7 +346,7 @@ impl EventInterface for Store {
                             ),
                         )
                         .await
-                        .change_context(errors::StorageError::DecryptionError)?,
+                        .map_err(|error| report!(errors::StorageError::from(error)))?,
                 );
             }
             Ok(domain_events)
@@ -373,7 +373,7 @@ impl EventInterface for Store {
                 merchant_key_store.merchant_id.clone().into(),
             )
             .await
-            .change_context(errors::StorageError::DecryptionError)
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     async fn count_initial_events_by_constraints(
@@ -423,7 +423,7 @@ impl EventInterface for MockDb {
                 merchant_key_store.merchant_id.clone().into(),
             )
             .await
-            .change_context(errors::StorageError::DecryptionError)
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     async fn find_event_by_merchant_id_event_id(
@@ -448,7 +448,7 @@ impl EventInterface for MockDb {
                         merchant_key_store.merchant_id.clone().into(),
                     )
                     .await
-                    .change_context(errors::StorageError::DecryptionError)
+                    .map_err(|error| report!(errors::StorageError::from(error)))
             })
             .await
             .transpose()?
@@ -488,7 +488,7 @@ impl EventInterface for MockDb {
                     merchant_key_store.merchant_id.clone().into(),
                 )
                 .await
-                .change_context(errors::StorageError::DecryptionError)?;
+                .map_err(|error| report!(errors::StorageError::from(error)))?;
             domain_events.push(domain_event);
         }
 
@@ -556,7 +556,7 @@ impl EventInterface for MockDb {
                     merchant_key_store.merchant_id.clone().into(),
                 )
                 .await
-                .change_context(errors::StorageError::DecryptionError)?;
+                .map_err(|error| report!(errors::StorageError::from(error)))?;
             domain_events.push(domain_event);
         }
 
@@ -589,7 +589,7 @@ impl EventInterface for MockDb {
                     merchant_key_store.merchant_id.clone().into(),
                 )
                 .await
-                .change_context(errors::StorageError::DecryptionError)?;
+                .map_err(|error| report!(errors::StorageError::from(error)))?;
             domain_events.push(domain_event);
         }
 
@@ -624,7 +624,7 @@ impl EventInterface for MockDb {
                     merchant_key_store.merchant_id.clone().into(),
                 )
                 .await
-                .change_context(errors::StorageError::DecryptionError)?;
+                .map_err(|error| report!(errors::StorageError::from(error)))?;
             domain_events.push(domain_event);
         }
 
@@ -692,7 +692,7 @@ impl EventInterface for MockDb {
                     merchant_key_store.merchant_id.clone().into(),
                 )
                 .await
-                .change_context(errors::StorageError::DecryptionError)?;
+                .map_err(|error| report!(errors::StorageError::from(error)))?;
             domain_events.push(domain_event);
         }
 
@@ -739,7 +739,7 @@ impl EventInterface for MockDb {
                 merchant_key_store.merchant_id.clone().into(),
             )
             .await
-            .change_context(errors::StorageError::DecryptionError)
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     async fn count_initial_events_by_constraints(
