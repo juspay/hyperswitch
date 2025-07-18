@@ -18,15 +18,15 @@ pub struct WorldpayPaymentsResponse {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum WorldpayPaymentResponseFields {
-    AuthorizedResponse(Box<AuthorizedResponse>),
-    DDCResponse(DDCResponse),
-    FraudHighRisk(FraudHighRiskResponse),
     RefusedResponse(RefusedResponse),
+    DDCResponse(DDCResponse),
     ThreeDsChallenged(ThreeDsChallengedResponse),
+    FraudHighRisk(FraudHighRiskResponse),
+    AuthorizedResponse(Box<AuthorizedResponse>),
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AuthorizedResponse {
     pub payment_instrument: PaymentsResPaymentInstrument,
     #[serde(skip_serializing_if = "Option::is_none")]
