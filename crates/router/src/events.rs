@@ -39,6 +39,7 @@ pub enum EventType {
     Consolidated,
     Authentication,
     RoutingApiLogs,
+    RevenueRecovery,
 }
 
 #[derive(Debug, Default, Deserialize, Clone)]

@@ -402,6 +402,13 @@ impl TryFrom<StripebillingInvoiceBody> for revenue_recovery::RevenueRecoveryInvo
             .data
             .first()
             .map(|linedata| linedata.period.end);
+        let billing_started_at = item
+            .data
+            .object
+            .lines
+            .data
+            .first()
+            .map(|linedata| linedata.period.start);
         Ok(Self {
             amount: item.data.object.amount,
             currency: item.data.object.currency,
@@ -413,6 +420,7 @@ impl TryFrom<StripebillingInvoiceBody> for revenue_recovery::RevenueRecoveryInvo
                 .map(api_models::payments::Address::from),
             retry_count: Some(item.data.object.attempt_count),
             next_billing_at,
+            billing_started_at,
         })
     }
 }

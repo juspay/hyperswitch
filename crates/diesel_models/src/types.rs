@@ -174,6 +174,8 @@ pub struct PaymentRevenueRecoveryMetadata {
     pub connector: common_enums::connector_enums::Connector,
     /// Time at which next invoice will be created
     pub invoice_next_billing_time: Option<time::PrimitiveDateTime>,
+    /// Time at which invoice started
+    pub invoice_billing_started_at_time: Option<time::PrimitiveDateTime>,
     /// Extra Payment Method Details that are needed to be stored
     pub billing_connector_payment_method_details: Option<BillingConnectorPaymentMethodDetails>,
     /// First Payment Attempt Payment Gateway Error Code
