@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.07.16.0-hotfix1
+
+### Bug Fixes
+
+- **connector:** [AUTHORIZEDOTNET] Added Invoice Number Fix ([#8686](https://github.com/juspay/hyperswitch/pull/8686)) ([`dc122d2`](https://github.com/juspay/hyperswitch/commit/dc122d231c0903138924bc06a987ffca7fb13486))
+
+**Full Changelog:** [`2025.07.16.0...2025.07.16.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.07.16.0...2025.07.16.0-hotfix1)
+
+- - -
+
 ## 2025.07.16.0
 
 ### Features
