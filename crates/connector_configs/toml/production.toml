@@ -4941,6 +4941,10 @@ api_key="API Key"
 api_key="API Key"
 key1="Secret Key"
 
+[mpgs]
+[mpgs.connector_auth.HeaderKey]
+api_key = "API Key"
+
 [affirm]
 [affirm.connector_auth.HeaderKey]
 api_key = "API Key"
