@@ -3379,8 +3379,9 @@ impl ProfileCreateBridge for api::ProfileCreate {
             .as_ref()
             .map(|country_code| country_code.validate_and_get_country_from_merchant_country_code())
             .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error while parsing country from merchant country code")?;
+            .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Invalid merchant country code".to_string(),
+            })?;
 
         Ok(domain::Profile::from(domain::ProfileSetter {
             profile_id,
@@ -3931,8 +3932,9 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
             .as_ref()
             .map(|country_code| country_code.validate_and_get_country_from_merchant_country_code())
             .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error while parsing country from merchant country code")?;
+            .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Invalid merchant country code".to_string(),
+            })?;
 
         Ok(domain::ProfileUpdate::Update(Box::new(
             domain::ProfileGeneralUpdate {
