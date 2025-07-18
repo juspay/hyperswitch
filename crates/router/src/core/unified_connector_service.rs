@@ -22,7 +22,9 @@ use crate::{
     consts,
     core::{
         errors::RouterResult,
-        payments::helpers::{should_execute_based_on_rollout, MerchantConnectorAccountType},
+        payments::helpers::{
+            is_ucs_enabled, should_execute_based_on_rollout, MerchantConnectorAccountType,
+        },
         utils::get_flow_name,
     },
     routes::SessionState,
@@ -36,6 +38,16 @@ pub async fn should_call_unified_connector_service<F: Clone, T>(
     merchant_context: &MerchantContext,
     router_data: &RouterData<F, T, PaymentsResponseData>,
 ) -> RouterResult<bool> {
+    if state.grpc_client.unified_connector_service_client.is_none() {
+        return Ok(false);
+    }
+
+    let ucs_config_key = consts::UCS_ENABLED;
+
+    if !is_ucs_enabled(state, ucs_config_key).await {
+        return Ok(false);
+    }
+
     let merchant_id = merchant_context
         .get_merchant_account()
         .get_id()
@@ -55,7 +67,7 @@ pub async fn should_call_unified_connector_service<F: Clone, T>(
     );
 
     let should_execute = should_execute_based_on_rollout(state, &config_key).await?;
-    Ok(should_execute && state.grpc_client.unified_connector_service_client.is_some())
+    Ok(should_execute)
 }
 
 pub fn build_unified_connector_service_payment_method(
