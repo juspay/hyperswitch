@@ -5189,7 +5189,8 @@ pub struct PaymentsResponse {
     pub is_iframe_redirection_enabled: Option<bool>,
 
     /// Contains whole connector response
-    pub whole_connector_response: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub whole_connector_response: Option<Secret<String>>,
 }
 
 #[cfg(feature = "v2")]
@@ -5808,7 +5809,11 @@ pub struct PaymentsResponse {
     pub merchant_reference_id: Option<id_type::PaymentReferenceId>,
 
     /// Stringified connector raw response body. Only returned if `return_raw_connector_response` is true
-    pub raw_connector_response: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub raw_connector_response: Option<Secret<String>>,
+
+    /// Additional data that might be required by hyperswitch based on the additional features.
+    pub feature_metadata: Option<FeatureMetadata>,
 }
 
 #[cfg(feature = "v2")]
@@ -7824,13 +7829,13 @@ pub struct FeatureMetadata {
     /// Recurring payment details required for apple pay Merchant Token
     pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
     /// revenue recovery data for payment intent
-    pub payment_revenue_recovery_metadata: Option<PaymentRevenueRecoveryMetadata>,
+    pub revenue_recovery: Option<PaymentRevenueRecoveryMetadata>,
 }
 
 #[cfg(feature = "v2")]
 impl FeatureMetadata {
     pub fn get_retry_count(&self) -> Option<u16> {
-        self.payment_revenue_recovery_metadata
+        self.revenue_recovery
             .as_ref()
             .map(|metadata| metadata.total_retry_count)
     }
@@ -7843,7 +7848,7 @@ impl FeatureMetadata {
             redirect_response: self.redirect_response,
             search_tags: self.search_tags,
             apple_pay_recurring_details: self.apple_pay_recurring_details,
-            payment_revenue_recovery_metadata: Some(payment_revenue_recovery_metadata),
+            revenue_recovery: Some(payment_revenue_recovery_metadata),
         }
     }
 }
