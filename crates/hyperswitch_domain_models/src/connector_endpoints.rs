@@ -30,6 +30,7 @@ pub struct Connectors {
     pub bluesnap: ConnectorParamsWithSecondaryBaseUrl,
     pub boku: ConnectorParams,
     pub braintree: ConnectorParams,
+    pub breadpay: ConnectorParams,
     pub cashtocode: ConnectorParams,
     pub celero: ConnectorParams,
     pub chargebee: ConnectorParams,
