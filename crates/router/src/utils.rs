@@ -1377,16 +1377,14 @@ pub async fn trigger_payouts_webhook(
 }
 
 pub fn get_request_id(req: &HttpRequest) -> RouterResult<String> {
-    let header_value = req
-        .headers()
-        .get(common_utils::consts::X_REQUEST_ID)
-        .map(|value| value.to_str());
-
-    match header_value {
-        Some(Ok(request_id)) => Ok(request_id.to_string()),
-        _ => Err(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "x-request-id",
-        }
-        .into()),
-    }
+    use actix_web::HttpMessage;
+    req.extensions()
+        .get::<router_env::tracing_actix_web::RequestId>()
+        .map(|id| id.as_hyphenated().to_string())
+        .ok_or(
+            errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "x-request-id",
+            }
+            .into(),
+        )
 }

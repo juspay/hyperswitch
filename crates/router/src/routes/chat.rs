@@ -21,8 +21,13 @@ pub async fn get_data_from_hyperswitch_ai_workflow(
     payload: web::Json<chat_api::ChatRequest>,
 ) -> HttpResponse {
     let flow = Flow::GetDataFromHyperswitchAiFlow;
-    let request_id =
-        utils::get_request_id(&http_req).unwrap_or_else(|_| uuid::Uuid::new_v4().to_string());
+    let request_id = match utils::get_request_id(&http_req) {
+        Ok(id) => id,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
+
     Box::pin(api::server_wrap(
         flow.clone(),
         state,
