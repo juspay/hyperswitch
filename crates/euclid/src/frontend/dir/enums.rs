@@ -56,6 +56,7 @@ pub enum PayLaterType {
     PayBright,
     Walley,
     Atome,
+    Breadpay,
 }
 
 #[derive(
