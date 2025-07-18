@@ -141,6 +141,7 @@ pub struct ConnectorWalletDetailsConfig {
     pub samsung_pay: Option<Vec<InputData>>,
     pub paze: Option<Vec<InputData>>,
     pub google_pay: Option<Vec<InputData>>,
+    pub amazon_pay: Option<Vec<InputData>>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -180,6 +181,7 @@ pub struct ConnectorConfig {
     #[cfg(feature = "payouts")]
     pub adyenplatform_payout: Option<ConnectorTomlConfig>,
     pub airwallex: Option<ConnectorTomlConfig>,
+    pub amazonpay: Option<ConnectorTomlConfig>,
     pub archipel: Option<ConnectorTomlConfig>,
     pub authorizedotnet: Option<ConnectorTomlConfig>,
     pub bamboraapac: Option<ConnectorTomlConfig>,
@@ -374,6 +376,7 @@ impl ConnectorConfig {
             Connector::Adyen => Ok(connector_data.adyen),
             Connector::Adyenplatform => Err("Use get_payout_connector_config".to_string()),
             Connector::Airwallex => Ok(connector_data.airwallex),
+            Connector::Amazonpay => Ok(connector_data.amazonpay),
             Connector::Archipel => Ok(connector_data.archipel),
             Connector::Authorizedotnet => Ok(connector_data.authorizedotnet),
             Connector::Bamboraapac => Ok(connector_data.bamboraapac),
