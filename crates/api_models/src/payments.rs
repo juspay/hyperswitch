@@ -2223,7 +2223,7 @@ impl GetAddressFromPaymentMethodData for PayLaterData {
             | Self::KlarnaSdk { .. }
             | Self::AffirmRedirect {}
             | Self::AtomeRedirect {} 
-            | Self::BreadpayRedirect {  }=> None,
+            | Self::BreadpayRedirect {} => None,
         }
     }
 }
