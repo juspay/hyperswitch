@@ -376,3 +376,12 @@ base_url = "http://localhost:8080" # base url to call hyperswitch vault service
 [clone_connector_allowlist]
 merchant_ids = "merchant_ids"           # Comma-separated list of allowed merchant IDs
 connector_names = "connector_names"     # Comma-separated list of allowed connector names
+
+[grpc_client.unified_connector_service]
+host = "localhost"                      # Unified Connector Service Client Host
+port = 8000                             # Unified Connector Service Client Port
+connection_timeout = 10                 # Connection Timeout Duration in Seconds
+
+[chat]
+enabled = false                                # Enable or disable chat features
+hyperswitch_ai_host = "http://0.0.0.0:8000"    # Hyperswitch ai workflow host

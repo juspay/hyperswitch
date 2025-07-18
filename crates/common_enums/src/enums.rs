@@ -1832,7 +1832,9 @@ pub enum SamsungPayCardBrand {
     Copy,
     Debug,
     Eq,
+    Ord,
     Hash,
+    PartialOrd,
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
@@ -1854,6 +1856,8 @@ pub enum PaymentMethodType {
     AliPayHk,
     Alma,
     AmazonPay,
+    Skrill,
+    Paysera,
     ApplePay,
     Atome,
     Bacs,
@@ -1972,6 +1976,8 @@ impl PaymentMethodType {
             Self::AliPayHk => "AlipayHK",
             Self::Alma => "Alma",
             Self::AmazonPay => "Amazon Pay",
+            Self::Skrill => "Skrill",
+            Self::Paysera => "Paysera",
             Self::ApplePay => "Apple Pay",
             Self::Atome => "Atome",
             Self::BancontactCard => "Bancontact Card",
@@ -2081,6 +2087,8 @@ impl masking::SerializableSecret for PaymentMethodType {}
     Debug,
     Default,
     Eq,
+    PartialOrd,
+    Ord,
     Hash,
     PartialEq,
     serde::Deserialize,
@@ -8523,6 +8531,7 @@ pub enum RoutingApproach {
     DebitRouting,
     RuleBasedRouting,
     VolumeBasedRouting,
+    StraightThroughRouting,
     #[default]
     DefaultFallback,
 }
@@ -8533,6 +8542,7 @@ impl RoutingApproach {
             "SR_SELECTION_V3_ROUTING" => Self::SuccessRateExploitation,
             "SR_V3_HEDGING" => Self::SuccessRateExploration,
             "NTW_BASED_ROUTING" => Self::DebitRouting,
+            "DEFAULT" => Self::StraightThroughRouting,
             _ => Self::DefaultFallback,
         }
     }

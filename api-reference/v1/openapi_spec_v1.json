@@ -6708,7 +6708,6 @@
         "required": [
           "acquirer_assigned_merchant_id",
           "merchant_name",
-          "merchant_country_code",
           "network",
           "acquirer_bin",
           "acquirer_fraud_rate"
@@ -6723,11 +6722,6 @@
             "type": "string",
             "description": "merchant name",
             "example": "NewAge Retailer"
-          },
-          "merchant_country_code": {
-            "type": "string",
-            "description": "Merchant country code assigned by acquirer",
-            "example": "US"
           },
           "network": {
             "type": "string",
@@ -10916,6 +10910,7 @@
       "Connector": {
         "type": "string",
         "enum": [
+          "authipay",
           "adyenplatform",
           "stripe_billing_test",
           "phonypay",
@@ -10940,6 +10935,7 @@
           "boku",
           "braintree",
           "cashtocode",
+          "celero",
           "chargebee",
           "checkout",
           "coinbase",
@@ -10987,6 +10983,7 @@
           "nuvei",
           "opennode",
           "paybox",
+          "payload",
           "payme",
           "payone",
           "paypal",
@@ -10999,6 +10996,7 @@
           "razorpay",
           "recurly",
           "redsys",
+          "santander",
           "shift4",
           "square",
           "stax",
@@ -14278,6 +14276,28 @@
             ]
           },
           {
+            "type": "object",
+            "required": [
+              "user_bank_options"
+            ],
+            "properties": {
+              "user_bank_options": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
             "type": "string",
             "enum": [
               "user_bank_account_number"
@@ -17436,6 +17456,10 @@
         },
         "additionalProperties": false
       },
+      "MerchantCountryCode": {
+        "type": "string",
+        "description": "A wrapper type for merchant country codes that provides validation and conversion functionality.\n\nThis type stores a country code as a string and provides methods to validate it\nand convert it to a `Country` enum variant."
+      },
       "MerchantDetails": {
         "type": "object",
         "properties": {
@@ -20559,6 +20583,8 @@
           "ali_pay_hk",
           "alma",
           "amazon_pay",
+          "skrill",
+          "paysera",
           "apple_pay",
           "atome",
           "bacs",
@@ -24303,6 +24329,13 @@
           "client_secret"
         ],
         "properties": {
+          "merchant_order_reference_id": {
+            "type": "string",
+            "description": "Your unique identifier for this payout or order. This ID helps you reconcile payouts on your system. If provided, it is passed to the connector if supported.",
+            "example": "merchant_order_ref_123",
+            "nullable": true,
+            "maxLength": 255
+          },
           "amount": {
             "type": "integer",
             "format": "int64",
@@ -24609,6 +24642,13 @@
             "example": "merchant_1668273825",
             "maxLength": 255
           },
+          "merchant_order_reference_id": {
+            "type": "string",
+            "description": "Your unique identifier for this payout or order. This ID helps you reconcile payouts on your system. If provided, it is passed to the connector if supported.",
+            "example": "merchant_order_ref_123",
+            "nullable": true,
+            "maxLength": 255
+          },
           "amount": {
             "type": "integer",
             "format": "int64",
@@ -24902,13 +24942,13 @@
               "starting_after": {
                 "type": "string",
                 "description": "A cursor for use in pagination, fetch the next list after some object",
-                "example": "pay_fafa124123",
+                "example": "payout_fafa124123",
                 "nullable": true
               },
               "ending_before": {
                 "type": "string",
                 "description": "A cursor for use in pagination, fetch the previous list before some object",
-                "example": "pay_fafa124123",
+                "example": "payout_fafa124123",
                 "nullable": true
               },
               "limit": {
@@ -24954,6 +24994,13 @@
                 "nullable": true,
                 "maxLength": 30,
                 "minLength": 30
+              },
+              "merchant_order_reference_id": {
+                "type": "string",
+                "description": "The merchant order reference ID for payout",
+                "example": "merchant_order_ref_123",
+                "nullable": true,
+                "maxLength": 255
               },
               "profile_id": {
                 "type": "string",
@@ -25249,6 +25296,13 @@
       "PayoutUpdateRequest": {
         "type": "object",
         "properties": {
+          "merchant_order_reference_id": {
+            "type": "string",
+            "description": "Your unique identifier for this payout or order. This ID helps you reconcile payouts on your system. If provided, it is passed to the connector if supported.",
+            "example": "merchant_order_ref_123",
+            "nullable": true,
+            "maxLength": 255
+          },
           "amount": {
             "type": "integer",
             "format": "int64",
@@ -25479,6 +25533,13 @@
           "currency"
         ],
         "properties": {
+          "merchant_order_reference_id": {
+            "type": "string",
+            "description": "Your unique identifier for this payout or order. This ID helps you reconcile payouts on your system. If provided, it is passed to the connector if supported.",
+            "example": "merchant_order_ref_123",
+            "nullable": true,
+            "maxLength": 255
+          },
           "amount": {
             "type": "integer",
             "format": "int64",
@@ -25771,6 +25832,9 @@
           }
         }
       },
+      "PayseraData": {
+        "type": "object"
+      },
       "PazeSessionTokenResponse": {
         "type": "object",
         "required": [
@@ -26028,7 +26092,6 @@
         "required": [
           "acquirer_assigned_merchant_id",
           "merchant_name",
-          "merchant_country_code",
           "network",
           "acquirer_bin",
           "acquirer_fraud_rate",
@@ -26044,11 +26107,6 @@
             "type": "string",
             "description": "merchant name",
             "example": "NewAge Retailer"
-          },
-          "merchant_country_code": {
-            "type": "string",
-            "description": "Merchant country code assigned by acquirer",
-            "example": "US"
           },
           "network": {
             "type": "string",
@@ -26085,7 +26143,6 @@
           "profile_acquirer_id",
           "acquirer_assigned_merchant_id",
           "merchant_name",
-          "merchant_country_code",
           "network",
           "acquirer_bin",
           "acquirer_fraud_rate",
@@ -26106,11 +26163,6 @@
             "type": "string",
             "description": "Merchant name",
             "example": "NewAge Retailer"
-          },
-          "merchant_country_code": {
-            "type": "string",
-            "description": "Merchant country code assigned by acquirer",
-            "example": "US"
           },
           "network": {
             "type": "string",
@@ -26152,11 +26204,6 @@
           "merchant_name": {
             "type": "string",
             "example": "Updated Retailer Name",
-            "nullable": true
-          },
-          "merchant_country_code": {
-            "type": "string",
-            "example": "CA",
             "nullable": true
           },
           "network": {
@@ -26425,6 +26472,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/MerchantCategoryCode"
+              }
+            ],
+            "nullable": true
+          },
+          "merchant_country_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantCountryCode"
               }
             ],
             "nullable": true
@@ -26731,6 +26786,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/MerchantCategoryCode"
+              }
+            ],
+            "nullable": true
+          },
+          "merchant_country_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantCountryCode"
               }
             ],
             "nullable": true
@@ -27888,6 +27951,7 @@
         "type": "string",
         "description": "RoutableConnectors are the subset of Connectors that are eligible for payments routing",
         "enum": [
+          "authipay",
           "adyenplatform",
           "stripe_billing_test",
           "phonypay",
@@ -27912,6 +27976,7 @@
           "boku",
           "braintree",
           "cashtocode",
+          "celero",
           "chargebee",
           "checkout",
           "coinbase",
@@ -27954,6 +28019,7 @@
           "opennode",
           "paybox",
           "payme",
+          "payload",
           "payone",
           "paypal",
           "paystack",
@@ -27966,6 +28032,7 @@
           "recurly",
           "redsys",
           "riskified",
+          "santander",
           "shift4",
           "signifyd",
           "square",
@@ -28936,6 +29003,9 @@
           "cover",
           "contain"
         ]
+      },
+      "SkrillData": {
+        "type": "object"
       },
       "SplitPaymentsRequest": {
         "oneOf": [
@@ -30515,6 +30585,28 @@
             "properties": {
               "amazon_pay_redirect": {
                 "$ref": "#/components/schemas/AmazonPayRedirectData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "skrill"
+            ],
+            "properties": {
+              "skrill": {
+                "$ref": "#/components/schemas/SkrillData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "paysera"
+            ],
+            "properties": {
+              "paysera": {
+                "$ref": "#/components/schemas/PayseraData"
               }
             }
           },

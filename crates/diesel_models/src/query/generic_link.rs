@@ -224,7 +224,11 @@ impl TryFrom<GenericLink> for PayoutLink {
 
         Ok(Self {
             link_id: db_val.link_id,
-            primary_reference: db_val.primary_reference,
+            primary_reference: common_utils::id_type::PayoutId::try_from(std::borrow::Cow::Owned(
+                db_val.primary_reference,
+            ))
+            .change_context(errors::ParsingError::UnknownError)
+            .attach_printable("Failed to parse PayoutId from primary_reference string")?,
             merchant_id: db_val.merchant_id,
             created_at: db_val.created_at,
             last_modified_at: db_val.last_modified_at,

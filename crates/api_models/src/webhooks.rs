@@ -10,9 +10,9 @@ use crate::{disputes, enums as api_enums, mandates, payments, refunds};
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum IncomingWebhookEvent {
-    /// Authorization + Capture success
-    PaymentIntentFailure,
     /// Authorization + Capture failure
+    PaymentIntentFailure,
+    /// Authorization + Capture success
     PaymentIntentSuccess,
     PaymentIntentProcessing,
     PaymentIntentPartiallyFunded,
@@ -98,7 +98,7 @@ pub enum WebhookResponseTracker {
     },
     #[cfg(feature = "payouts")]
     Payout {
-        payout_id: String,
+        payout_id: common_utils::id_type::PayoutId,
         status: common_enums::PayoutStatus,
     },
     #[cfg(feature = "v1")]

@@ -635,8 +635,39 @@ static MULTISAFEPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods>
         );
 
         multisafepay_supported_payment_methods.add(
+            enums::PaymentMethod::Wallet,
+            enums::PaymentMethodType::AliPay,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+        multisafepay_supported_payment_methods.add(
+            enums::PaymentMethod::Wallet,
+            enums::PaymentMethodType::WeChatPay,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        multisafepay_supported_payment_methods.add(
             enums::PaymentMethod::BankRedirect,
             enums::PaymentMethodType::Giropay,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+        multisafepay_supported_payment_methods.add(
+            enums::PaymentMethod::BankRedirect,
+            enums::PaymentMethodType::Trustly,
             PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
@@ -667,6 +698,38 @@ static MULTISAFEPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods>
             },
         );
 
+        multisafepay_supported_payment_methods.add(
+            enums::PaymentMethod::BankRedirect,
+            enums::PaymentMethodType::Eps,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        multisafepay_supported_payment_methods.add(
+            enums::PaymentMethod::BankRedirect,
+            enums::PaymentMethodType::Sofort,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        multisafepay_supported_payment_methods.add(
+            enums::PaymentMethod::Wallet,
+            enums::PaymentMethodType::MbWay,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
         multisafepay_supported_payment_methods
     });
 

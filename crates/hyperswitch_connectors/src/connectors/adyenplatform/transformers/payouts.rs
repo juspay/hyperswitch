@@ -361,7 +361,7 @@ impl<F> TryFrom<&AdyenPlatformRouterData<&types::PayoutsRouterData<F>>> for Adye
             counterparty,
             priority,
             reference: item.router_data.connector_request_reference_id.clone(),
-            reference_for_beneficiary: request.payout_id.clone(),
+            reference_for_beneficiary: item.router_data.connector_request_reference_id.clone(),
             description: item.router_data.description.clone(),
         })
     }

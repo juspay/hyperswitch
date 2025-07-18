@@ -5,6 +5,8 @@ use std::collections::HashMap;
 use common_enums::enums;
 use common_utils::{impl_to_sql_from_sql_json, types::MinorUnit};
 use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
+#[cfg(feature = "v2")]
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -65,9 +67,6 @@ pub struct AcquirerConfig {
     /// merchant name
     #[schema(value_type= String,example = "NewAge Retailer")]
     pub merchant_name: String,
-    /// Merchant country code assigned by acquirer
-    #[schema(value_type= String,example = "US")]
-    pub merchant_country_code: common_enums::CountryAlpha2,
     /// Network provider
     #[schema(value_type= String,example = "VISA")]
     pub network: common_enums::CardNetwork,
@@ -105,4 +104,12 @@ pub struct MerchantConnectorAuthDetails {
         },
     }"#)]
     pub merchant_connector_creds: common_utils::pii::SecretSerdeValue,
+}
+
+/// Connector Response Data that are required to be populated in response, but not persisted in DB.
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug)]
+pub struct ConnectorResponseData {
+    /// Stringified connector raw response body
+    pub raw_connector_response: Option<Secret<String>>,
 }
