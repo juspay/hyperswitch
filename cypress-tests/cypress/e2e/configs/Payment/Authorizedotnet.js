@@ -27,6 +27,7 @@ const failedNo3DSCardDetails = {
   card_holder_name: "John Doe",
   card_cvc: "123",
 };
+
 const paymentMethodData = {
   card: {
     last4: "1111",
