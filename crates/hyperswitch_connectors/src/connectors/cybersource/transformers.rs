@@ -174,18 +174,7 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                     Some(card_network) => Some(card_network.to_string()),
                     None => ccard.get_card_issuer().ok().map(String::from),
                 };
-                let is_cobadged_card = ccard
-                    .card_number
-                    .clone()
-                    .is_cobadged_card()
-                    .change_context(errors::ConnectorError::RequestEncodingFailed)
-                    .attach_printable("error while checking is_cobadged_card")?;
 
-                let type_selection_indicator = if is_cobadged_card {
-                    Some("1".to_owned())
-                } else {
-                    None
-                };
                 (
                     PaymentInformation::Cards(Box::new(CardPaymentInformation {
                         card: Card {
@@ -194,7 +183,7 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                             expiration_year: ccard.card_exp_year,
                             security_code: Some(ccard.card_cvc),
                             card_type,
-                            type_selection_indicator,
+                            type_selection_indicator: Some("1".to_owned()),
                         },
                     })),
                     None,
@@ -1298,19 +1287,6 @@ impl
             Some(ccard.card_cvc)
         };
 
-        let is_cobadged_card = ccard
-            .card_number
-            .clone()
-            .is_cobadged_card()
-            .change_context(errors::ConnectorError::RequestEncodingFailed)
-            .attach_printable("error while checking is_cobadged_card")?;
-
-        let type_selection_indicator = if is_cobadged_card {
-            Some("1".to_owned())
-        } else {
-            None
-        };
-
         let payment_information = PaymentInformation::Cards(Box::new(CardPaymentInformation {
             card: Card {
                 number: ccard.card_number,
@@ -1318,7 +1294,7 @@ impl
                 expiration_year: ccard.card_exp_year,
                 security_code,
                 card_type: card_type.clone(),
-                type_selection_indicator,
+                type_selection_indicator: Some("1".to_owned()),
             },
         }));
 
@@ -1408,19 +1384,6 @@ impl
                 None
             };
 
-        let is_cobadged_card = ccard
-            .card_number
-            .clone()
-            .is_cobadged_card()
-            .change_context(errors::ConnectorError::RequestEncodingFailed)
-            .attach_printable("error while checking is_cobadged_card")?;
-
-        let type_selection_indicator = if is_cobadged_card {
-            Some("1".to_owned())
-        } else {
-            None
-        };
-
         let payment_information = PaymentInformation::Cards(Box::new(CardPaymentInformation {
             card: Card {
                 number: ccard.card_number,
@@ -1428,7 +1391,7 @@ impl
                 expiration_year: ccard.card_exp_year,
                 security_code: None,
                 card_type: card_type.clone(),
-                type_selection_indicator,
+                type_selection_indicator: Some("1".to_owned()),
             },
         }));
 
@@ -1705,19 +1668,6 @@ impl
                 None
             };
 
-        let is_cobadged_card = ccard
-            .card_number
-            .clone()
-            .is_cobadged_card()
-            .change_context(errors::ConnectorError::RequestEncodingFailed)
-            .attach_printable("error while checking is_cobadged_card")?;
-
-        let type_selection_indicator = if is_cobadged_card {
-            Some("1".to_owned())
-        } else {
-            None
-        };
-
         let payment_information = PaymentInformation::Cards(Box::new(CardPaymentInformation {
             card: Card {
                 number: ccard.card_number,
@@ -1725,7 +1675,7 @@ impl
                 expiration_year: ccard.card_exp_year,
                 security_code: Some(ccard.card_cvc),
                 card_type,
-                type_selection_indicator,
+                type_selection_indicator: Some("1".to_owned()),
             },
         }));
         let client_reference_information = ClientReferenceInformation::from(item);
@@ -2385,18 +2335,6 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
                     Some(card_network) => Some(card_network.to_string()),
                     None => ccard.get_card_issuer().ok().map(String::from),
                 };
-                let is_cobadged_card = ccard
-                    .card_number
-                    .clone()
-                    .is_cobadged_card()
-                    .change_context(errors::ConnectorError::RequestEncodingFailed)
-                    .attach_printable("error while checking is_cobadged_card")?;
-
-                let type_selection_indicator = if is_cobadged_card {
-                    Some("1".to_owned())
-                } else {
-                    None
-                };
 
                 let payment_information =
                     PaymentInformation::Cards(Box::new(CardPaymentInformation {
@@ -2406,7 +2344,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
                             expiration_year: ccard.card_exp_year,
                             security_code: Some(ccard.card_cvc),
                             card_type,
-                            type_selection_indicator,
+                            type_selection_indicator: Some("1".to_owned()),
                         },
                     }));
                 let client_reference_information = ClientReferenceInformation::from(item);
@@ -3088,18 +3026,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPreProcessingRouterData>>
                     Some(card_network) => Some(card_network.to_string()),
                     None => ccard.get_card_issuer().ok().map(String::from),
                 };
-                let is_cobadged_card = ccard
-                    .card_number
-                    .clone()
-                    .is_cobadged_card()
-                    .change_context(errors::ConnectorError::RequestEncodingFailed)
-                    .attach_printable("error while checking is_cobadged_card")?;
 
-                let type_selection_indicator = if is_cobadged_card {
-                    Some("1".to_owned())
-                } else {
-                    None
-                };
                 Ok(PaymentInformation::Cards(Box::new(
                     CardPaymentInformation {
                         card: Card {
@@ -3108,7 +3035,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPreProcessingRouterData>>
                             expiration_year: ccard.card_exp_year,
                             security_code: Some(ccard.card_cvc),
                             card_type,
-                            type_selection_indicator,
+                            type_selection_indicator: Some("1".to_owned()),
                         },
                     },
                 )))
