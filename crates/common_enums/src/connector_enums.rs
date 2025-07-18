@@ -371,6 +371,7 @@ impl Connector {
                 | (Self::Globalpay, _)
                 | (Self::Jpmorgan, _)
                 | (Self::Moneris, _)
+                | (Self::Nordea, _)
                 | (Self::Paypal, _)
                 | (Self::Payu, _)
                 | (
