@@ -171,6 +171,7 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 Ok(())
             }
             api_enums::Connector::CtpMastercard => Ok(()),
+            api_enums::Connector::Custombilling => Ok(()),
             api_enums::Connector::CtpVisa => Ok(()),
             api_enums::Connector::Cybersource => {
                 cybersource::transformers::CybersourceAuthType::try_from(self.auth_type)?;

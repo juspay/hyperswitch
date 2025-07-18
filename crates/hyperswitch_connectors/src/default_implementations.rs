@@ -141,6 +141,7 @@ macro_rules! default_imp_for_authorize_session_token {
 }
 
 default_imp_for_authorize_session_token!(
+    connectors::Custombilling,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -269,6 +270,7 @@ macro_rules! default_imp_for_calculate_tax {
 }
 
 default_imp_for_calculate_tax!(
+    connectors::Custombilling,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -398,6 +400,7 @@ macro_rules! default_imp_for_session_update {
 }
 
 default_imp_for_session_update!(
+    connectors::Custombilling,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -527,6 +530,7 @@ macro_rules! default_imp_for_post_session_tokens {
 }
 
 default_imp_for_post_session_tokens!(
+    connectors::Custombilling,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -656,6 +660,7 @@ macro_rules! default_imp_for_create_order {
 }
 
 default_imp_for_create_order!(
+    connectors::Custombilling,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -785,6 +790,7 @@ macro_rules! default_imp_for_update_metadata {
 }
 
 default_imp_for_update_metadata!(
+    connectors::Custombilling,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -939,6 +945,7 @@ default_imp_for_complete_authorize!(
     connectors::Coinbase,
     connectors::Coingate,
     connectors::Cryptopay,
+    connectors::Custombilling,
     connectors::Datatrans,
     connectors::Dlocal,
     connectors::Dwolla,
@@ -1026,6 +1033,7 @@ macro_rules! default_imp_for_incremental_authorization {
 }
 
 default_imp_for_incremental_authorization!(
+    connectors::Custombilling,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -1153,6 +1161,7 @@ macro_rules! default_imp_for_create_customer {
 }
 
 default_imp_for_create_customer!(
+    connectors::Custombilling,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -1281,6 +1290,7 @@ macro_rules! default_imp_for_connector_redirect_response {
 }
 
 default_imp_for_connector_redirect_response!(
+    connectors::Custombilling,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -1416,6 +1426,7 @@ default_imp_for_pre_processing_steps!(
     connectors::Coinbase,
     connectors::Coingate,
     connectors::Cryptopay,
+    connectors::Custombilling,
     connectors::Datatrans,
     connectors::Deutschebank,
     connectors::Digitalvirgo,
@@ -1508,6 +1519,7 @@ macro_rules! default_imp_for_post_processing_steps{
 }
 
 default_imp_for_post_processing_steps!(
+    connectors::Custombilling,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -1638,6 +1650,7 @@ macro_rules! default_imp_for_approve {
 }
 
 default_imp_for_approve!(
+    connectors::Custombilling,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -1769,6 +1782,7 @@ macro_rules! default_imp_for_reject {
 }
 
 default_imp_for_reject!(
+    connectors::Custombilling,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -1900,6 +1914,7 @@ macro_rules! default_imp_for_webhook_source_verification {
 }
 
 default_imp_for_webhook_source_verification!(
+    connectors::Custombilling,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -2031,6 +2046,7 @@ macro_rules! default_imp_for_accept_dispute {
 }
 
 default_imp_for_accept_dispute!(
+    connectors::Custombilling,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyenplatform,
@@ -2160,6 +2176,7 @@ macro_rules! default_imp_for_submit_evidence {
 }
 
 default_imp_for_submit_evidence!(
+    connectors::Custombilling,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyenplatform,
@@ -2288,6 +2305,7 @@ macro_rules! default_imp_for_defend_dispute {
 }
 
 default_imp_for_defend_dispute!(
+    connectors::Custombilling,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyenplatform,
@@ -2426,6 +2444,7 @@ macro_rules! default_imp_for_file_upload {
 }
 
 default_imp_for_file_upload!(
+    connectors::Custombilling,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyenplatform,
@@ -2573,6 +2592,7 @@ default_imp_for_payouts!(
     connectors::Datatrans,
     connectors::Coinbase,
     connectors::Coingate,
+    connectors::Custombilling,
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
@@ -2670,6 +2690,7 @@ macro_rules! default_imp_for_payouts_create {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_create!(
+    connectors::Custombilling,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyenplatform,
@@ -2797,6 +2818,7 @@ macro_rules! default_imp_for_payouts_retrieve {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_retrieve!(
+    connectors::Custombilling,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -2928,6 +2950,7 @@ macro_rules! default_imp_for_payouts_eligibility {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_eligibility!(
+    connectors::Custombilling,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyenplatform,
@@ -3082,6 +3105,7 @@ default_imp_for_payouts_fulfill!(
     connectors::Coinbase,
     connectors::Coingate,
     connectors::Cryptopay,
+    connectors::Custombilling,
     connectors::Datatrans,
     connectors::Deutschebank,
     connectors::Digitalvirgo,
@@ -3181,6 +3205,7 @@ macro_rules! default_imp_for_payouts_cancel {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_cancel!(
+    connectors::Custombilling,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyenplatform,
@@ -3309,6 +3334,7 @@ macro_rules! default_imp_for_payouts_quote {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_quote!(
+    connectors::Custombilling,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -3439,6 +3465,7 @@ macro_rules! default_imp_for_payouts_recipient {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient!(
+    connectors::Custombilling,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -3568,6 +3595,7 @@ macro_rules! default_imp_for_payouts_recipient_account {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient_account!(
+    connectors::Custombilling,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -3699,6 +3727,7 @@ macro_rules! default_imp_for_frm_sale {
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_sale!(
+    connectors::Custombilling,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -3830,6 +3859,7 @@ macro_rules! default_imp_for_frm_checkout {
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_checkout!(
+    connectors::Custombilling,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -3961,6 +3991,7 @@ macro_rules! default_imp_for_frm_transaction {
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_transaction!(
+    connectors::Custombilling,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -4092,6 +4123,7 @@ macro_rules! default_imp_for_frm_fulfillment {
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_fulfillment!(
+    connectors::Custombilling,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -4223,6 +4255,7 @@ macro_rules! default_imp_for_frm_record_return {
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_record_return!(
+    connectors::Custombilling,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -4351,6 +4384,7 @@ macro_rules! default_imp_for_revoking_mandates {
 }
 
 default_imp_for_revoking_mandates!(
+    connectors::Custombilling,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -4477,6 +4511,7 @@ macro_rules! default_imp_for_uas_pre_authentication {
 }
 
 default_imp_for_uas_pre_authentication!(
+    connectors::Custombilling,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -4605,6 +4640,7 @@ macro_rules! default_imp_for_uas_post_authentication {
 }
 
 default_imp_for_uas_post_authentication!(
+    connectors::Custombilling,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -4734,6 +4770,7 @@ macro_rules! default_imp_for_uas_authentication_confirmation {
 }
 
 default_imp_for_uas_authentication_confirmation!(
+    connectors::Custombilling,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -4855,6 +4892,7 @@ macro_rules! default_imp_for_connector_request_id {
     };
 }
 default_imp_for_connector_request_id!(
+    connectors::Custombilling,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -4978,6 +5016,7 @@ macro_rules! default_imp_for_fraud_check {
 }
 #[cfg(feature = "frm")]
 default_imp_for_fraud_check!(
+    connectors::Custombilling,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -5131,6 +5170,7 @@ macro_rules! default_imp_for_connector_authentication {
 }
 
 default_imp_for_connector_authentication!(
+    connectors::Custombilling,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -5257,6 +5297,7 @@ macro_rules! default_imp_for_uas_authentication {
     };
 }
 default_imp_for_uas_authentication!(
+    connectors::Custombilling,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -5406,6 +5447,7 @@ default_imp_for_revenue_recovery!(
     connectors::Coingate,
     connectors::Cryptopay,
     connectors::CtpMastercard,
+    connectors::Custombilling,
     connectors::Cybersource,
     connectors::Datatrans,
     connectors::Deutschebank,
@@ -5510,6 +5552,7 @@ macro_rules! default_imp_for_billing_connector_payment_sync {
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 default_imp_for_billing_connector_payment_sync!(
+    connectors::Custombilling,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -5641,6 +5684,7 @@ macro_rules! default_imp_for_revenue_recovery_record_back {
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 default_imp_for_revenue_recovery_record_back!(
+    connectors::Custombilling,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -5771,6 +5815,7 @@ macro_rules! default_imp_for_billing_connector_invoice_sync {
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 default_imp_for_billing_connector_invoice_sync!(
+    connectors::Custombilling,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -5895,6 +5940,7 @@ macro_rules! default_imp_for_external_vault {
 }
 
 default_imp_for_external_vault!(
+    connectors::Custombilling,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -6025,6 +6071,7 @@ macro_rules! default_imp_for_external_vault_insert {
 }
 
 default_imp_for_external_vault_insert!(
+    connectors::Custombilling,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -6155,6 +6202,7 @@ macro_rules! default_imp_for_external_vault_retrieve {
 }
 
 default_imp_for_external_vault_retrieve!(
+    connectors::Custombilling,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -6285,6 +6333,7 @@ macro_rules! default_imp_for_external_vault_delete {
 }
 
 default_imp_for_external_vault_delete!(
+    connectors::Custombilling,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -6415,6 +6464,7 @@ macro_rules! default_imp_for_external_vault_create {
 }
 
 default_imp_for_external_vault_create!(
+    connectors::Custombilling,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
