@@ -597,6 +597,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
             .connector_request_reference_id
             .clone();
 
+        // Updates payment_attempt for cases where authorize flow is not performed.
         let connector_response_reference_id = payment_data
             .payment_attempt
             .connector_response_reference_id

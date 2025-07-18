@@ -20773,6 +20773,8 @@
           "ali_pay_hk",
           "alma",
           "amazon_pay",
+          "skrill",
+          "paysera",
           "apple_pay",
           "atome",
           "bacs",
@@ -26020,6 +26022,9 @@
           }
         }
       },
+      "PayseraData": {
+        "type": "object"
+      },
       "PazeSessionTokenResponse": {
         "type": "object",
         "required": [
@@ -29189,6 +29194,9 @@
           "contain"
         ]
       },
+      "SkrillData": {
+        "type": "object"
+      },
       "SplitPaymentsRequest": {
         "oneOf": [
           {
@@ -30775,6 +30783,28 @@
             "properties": {
               "amazon_pay_redirect": {
                 "$ref": "#/components/schemas/AmazonPayRedirectData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "skrill"
+            ],
+            "properties": {
+              "skrill": {
+                "$ref": "#/components/schemas/SkrillData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "paysera"
+            ],
+            "properties": {
+              "paysera": {
+                "$ref": "#/components/schemas/PayseraData"
               }
             }
           },
