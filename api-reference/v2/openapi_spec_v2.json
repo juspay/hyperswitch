@@ -10838,7 +10838,7 @@
             ],
             "nullable": true
           },
-          "payment_revenue_recovery_metadata": {
+          "revenue_recovery": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/PaymentRevenueRecoveryMetadata"
@@ -19318,6 +19318,14 @@
           "raw_connector_response": {
             "type": "string",
             "description": "Stringified connector raw response body. Only returned if `return_raw_connector_response` is true",
+            "nullable": true
+          },
+          "feature_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeatureMetadata"
+              }
+            ],
             "nullable": true
           }
         }

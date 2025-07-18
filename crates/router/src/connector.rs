@@ -3,13 +3,13 @@ pub mod utils;
 #[cfg(feature = "dummy_connector")]
 pub use hyperswitch_connectors::connectors::DummyConnector;
 pub use hyperswitch_connectors::connectors::{
-    aci, aci::Aci, adyen, adyen::Adyen, adyenplatform, adyenplatform::Adyenplatform, airwallex,
-    airwallex::Airwallex, amazonpay, amazonpay::Amazonpay, archipel, archipel::Archipel, authipay,
-    authipay::Authipay, authorizedotnet, authorizedotnet::Authorizedotnet, bambora,
-    bambora::Bambora, bamboraapac, bamboraapac::Bamboraapac, bankofamerica,
-    bankofamerica::Bankofamerica, barclaycard, barclaycard::Barclaycard, billwerk,
-    billwerk::Billwerk, bitpay, bitpay::Bitpay, bluesnap, bluesnap::Bluesnap, boku, boku::Boku,
-    braintree, braintree::Braintree, breadpay, breadpay::Breadpay, cashtocode,
+    aci, aci::Aci, adyen, adyen::Adyen, adyenplatform, adyenplatform::Adyenplatform, affirm,
+    affirm::Affirm, airwallex, airwallex::Airwallex, amazonpay, amazonpay::Amazonpay, archipel,
+    archipel::Archipel, authipay, authipay::Authipay, authorizedotnet,
+    authorizedotnet::Authorizedotnet, bambora, bambora::Bambora, bamboraapac,
+    bamboraapac::Bamboraapac, bankofamerica, bankofamerica::Bankofamerica, barclaycard,
+    barclaycard::Barclaycard, billwerk, billwerk::Billwerk, bitpay, bitpay::Bitpay, bluesnap,
+    bluesnap::Bluesnap, boku, boku::Boku, braintree, braintree::Braintree, breadpay, breadpay::Breadpay, cashtocode,
     cashtocode::Cashtocode, celero, celero::Celero, chargebee, chargebee::Chargebee, checkbook,
     checkbook::Checkbook, checkout, checkout::Checkout, coinbase, coinbase::Coinbase, coingate,
     coingate::Coingate, cryptopay, cryptopay::Cryptopay, ctp_mastercard,
