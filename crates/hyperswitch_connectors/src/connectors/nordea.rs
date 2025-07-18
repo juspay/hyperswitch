@@ -13,25 +13,27 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    router_data::{AccessToken, ErrorResponse, RouterData},
+    router_data::{AccessToken, AuthenticationToken, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
-        PreProcessing,
+        AuthenticationTokenCreation, PreProcessing,
     },
     router_request_types::{
-        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSessionData,
-        PaymentsSyncData, RefundsData, SetupMandateRequestData,
+        AccessTokenRequestData, AuthenticationTokenCreationRequestData,
+        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
+        RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
         SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsPreProcessingRouterData, PaymentsSessionRouterData,
-        PaymentsSyncRouterData, RefreshTokenRouterData, RefundSyncRouterData, RefundsRouterData,
+        AuthenticationTokenRouterData, PaymentsAuthorizeRouterData,
+        PaymentsPreProcessingRouterData, PaymentsSyncRouterData, RefreshTokenRouterData,
+        RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -43,7 +45,7 @@ use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
     events::connector_api_logs::ConnectorEvent,
-    types::{self, PaymentsSessionType, RefreshTokenType, Response},
+    types::{self, AuthenticationTokenType, RefreshTokenType, Response},
     webhooks,
 };
 use lazy_static::lazy_static;
@@ -61,11 +63,14 @@ use crate::{
             NordeaOAuthExchangeRequest, NordeaOAuthRequest, NordeaPaymentsConfirmRequest,
             NordeaPaymentsRequest, NordeaRefundRequest, NordeaRouterData,
         },
-        responses::{NordeaOAuthExchangeResponse, NordeaPaymentsResponse, NordeaRefundResponse},
+        responses::{
+            NordeaOAuthExchangeResponse, NordeaPaymentsConfirmResponse,
+            NordeaPaymentsInitiateResponse, NordeaRefundResponse,
+        },
     },
     constants::headers,
     types::ResponseRouterData,
-    utils::{self, PaymentsAuthorizeRequestData, RouterData as OtherRouterData},
+    utils::{self, RouterData as OtherRouterData},
 };
 
 #[derive(Clone)]
@@ -96,30 +101,47 @@ impl Nordea {
 
     pub fn generate_digest_from_request(&self, payload: &RequestContent) -> String {
         let payload_bytes = match payload {
-            RequestContent::FormUrlEncoded(form_data) => {
-                // Get the JSON representation and convert to raw form string
-                let json_value = form_data.masked_serialize().unwrap_or_default();
-                if let serde_json::Value::Object(map) = json_value {
-                    map.iter()
-                        .map(|(k, v)| {
-                            // Remove quotes from string values
-                            let value = match v {
-                                serde_json::Value::String(s) => s.to_string(),
-                                _ => v.to_string(),
-                            };
-                            format!("{k}={value}")
-                        })
-                        .collect::<Vec<_>>()
-                        .join("&")
-                        .into_bytes()
-                } else {
-                    payload.get_inner_value().expose().as_bytes().to_vec()
-                }
-            }
+            RequestContent::RawBytes(bytes) => bytes.clone(),
             _ => payload.get_inner_value().expose().as_bytes().to_vec(),
         };
 
         self.generate_digest(&payload_bytes)
+    }
+
+    fn format_private_key(
+        &self,
+        private_key_str: &str,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let key = private_key_str.to_string();
+
+        // Check if it already has PEM headers
+        let pem_data =
+            if key.contains("BEGIN") && key.contains("END") && key.contains("PRIVATE KEY") {
+                // Already in PEM format
+                key
+            } else {
+                // Remove whitespace and format with 64-char lines
+                let cleaned_key = key
+                    .chars()
+                    .filter(|c| !c.is_whitespace())
+                    .collect::<String>();
+
+                let formatted_key = cleaned_key
+                    .chars()
+                    .collect::<Vec<char>>()
+                    .chunks(64)
+                    .map(|chunk| chunk.iter().collect::<String>())
+                    .collect::<Vec<String>>()
+                    .join("\n");
+
+                // Try PKCS#1 format first (as JavaScript example suggests)
+                format!(
+                    "-----BEGIN RSA PRIVATE KEY-----\n{}\n-----END RSA PRIVATE KEY-----",
+                    formatted_key
+                )
+            };
+
+        Ok(pem_data)
     }
 
     // For non-production environments, signature generation can be skipped and instead `SKIP_SIGNATURE_VALIDATION_FOR_SANDBOX` can be passed.
@@ -134,7 +156,7 @@ impl Nordea {
 
         let method_string = signature_params.http_method.to_string().to_lowercase();
         let mut normalized_string = format!(
-            "(request-target) {} {}\nx-nordea-originating-host: {}\nx-nordea-originating-date: {}",
+            "(request-target): {} {}\nx-nordea-originating-host: {}\nx-nordea-originating-date: {}",
             method_string, signature_params.path, signature_params.host, signature_params.date
         );
 
@@ -153,12 +175,15 @@ impl Nordea {
         };
 
         let signature_base64 = {
-            let private_key_der = pem::parse(auth.eidas_private_key.clone().expose())
-                .change_context(errors::ConnectorError::InvalidConnectorConfig {
-                    config: "eIDAS Private Key",
-                })?;
-            let private_key_der_contents = private_key_der.contents();
+            let private_key_pem =
+                self.format_private_key(&auth.eidas_private_key.clone().expose())?;
 
+            let private_key_der = pem::parse(&private_key_pem).change_context(
+                errors::ConnectorError::InvalidConnectorConfig {
+                    config: "eIDAS Private Key",
+                },
+            )?;
+            let private_key_der_contents = private_key_der.contents();
             let key_pair = RsaKeyPair::from_der(private_key_der_contents).change_context(
                 errors::ConnectorError::InvalidConnectorConfig {
                     config: "eIDAS Private Key",
@@ -185,10 +210,40 @@ impl Nordea {
             signature_base64
         ))
     }
+
+    // This helper function correctly serializes a struct into the required
+    // non-percent-encoded form URL string.
+    fn get_form_urlencoded_payload<T: serde::Serialize>(
+        &self,
+        form_data: &T,
+    ) -> Result<Vec<u8>, error_stack::Report<errors::ConnectorError>> {
+        let json_value = serde_json::to_value(form_data)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        // Using a BTreeMap guarantees that the keys are sorted alphabetically.
+        let btree_map: std::collections::BTreeMap<String, serde_json::Value> =
+            serde_json::from_value(json_value)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        Ok(btree_map
+            .iter()
+            .map(|(k, v)| {
+                // Remove quotes from string values for proper form encoding
+                let value = match v {
+                    serde_json::Value::String(s) => s.clone(),
+                    _ => v.to_string(),
+                };
+                format!("{k}={value}")
+            })
+            .collect::<Vec<_>>()
+            .join("&")
+            .into_bytes())
+    }
 }
 
 impl api::Payment for Nordea {}
 impl api::PaymentSession for Nordea {}
+impl api::ConnectorAuthenticationToken for Nordea {}
 impl api::ConnectorAccessToken for Nordea {}
 impl api::MandateSetup for Nordea {}
 impl api::PaymentAuthorize for Nordea {}
@@ -204,8 +259,9 @@ impl api::PaymentsPreProcessing for Nordea {}
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Nordea
 {
-    // Not Implemented (R)
 }
+
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Nordea {}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Nordea
 where
@@ -216,8 +272,8 @@ where
         req: &RouterData<Flow, Request, Response>,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let token = req
-            .session_token
+        let access_token = req
+            .access_token
             .clone()
             .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
         let auth = NordeaAuthType::try_from(&req.connector_auth_type)?;
@@ -251,7 +307,7 @@ where
             ),
             (
                 headers::AUTHORIZATION.to_string(),
-                format!("Bearer {}", token.clone()).into_masked(),
+                format!("Bearer {}", access_token.token.peek()).into_masked(),
             ),
             (
                 "X-IBM-Client-ID".to_string(),
@@ -367,17 +423,44 @@ impl ConnectorCommon for Nordea {
 
 impl ConnectorValidation for Nordea {}
 
-impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Nordea {
-    fn get_headers(
+impl
+    ConnectorIntegration<
+        AuthenticationTokenCreation,
+        AuthenticationTokenCreationRequestData,
+        AuthenticationToken,
+    > for Nordea
+{
+    fn get_url(
         &self,
-        req: &RefreshTokenRouterData,
+        _req: &AuthenticationTokenRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        // For the initial OAuth authorize request, we don't have an access token yet
-        // So we need to build headers without the bearer token
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}/personal/v5/authorize",
+            self.base_url(connectors)
+        ))
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        "application/json"
+    }
+
+    fn get_request_body(
+        &self,
+        req: &AuthenticationTokenRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = NordeaOAuthRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &AuthenticationTokenRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         let auth = NordeaAuthType::try_from(&req.connector_auth_type)?;
         let content_type = self.common_get_content_type().to_string();
-
         let http_method = Method::Post;
 
         // Extract host from base URL
@@ -394,6 +477,8 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
         let url_parsed =
             Url::parse(&full_url).change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let path = url_parsed.path();
+
+        let request_body = self.get_request_body(req, connectors)?;
 
         let mut required_headers = vec![
             (
@@ -418,9 +503,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
             ),
         ];
 
-        // For POST requests, we need to calculate digest and signature
-        let nordea_request = self.get_request_body(req, connectors)?;
-        let sha256_digest = self.generate_digest_from_request(&nordea_request);
+        let sha256_digest = self.generate_digest_from_request(&request_body);
 
         // Add Digest header
         required_headers.push((
@@ -442,55 +525,24 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
 
         required_headers.push(("Signature".to_string(), signature.into_masked()));
 
-        Ok(required_headers)
-    }
-
-    fn get_url(
-        &self,
-        _req: &RefreshTokenRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}/personal/v5/authorize",
-            self.base_url(connectors)
-        ))
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        "application/x-www-form-urlencoded"
-    }
-
-    fn get_request_body(
-        &self,
-        req: &RefreshTokenRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = NordeaOAuthRequest::try_from(req)?;
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
-    }
-
-    fn build_request(
-        &self,
-        req: &RefreshTokenRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Ok(Some(
+        let request = Some(
             RequestBuilder::new()
-                .method(Method::Post)
+                .method(http_method)
                 .attach_default_headers()
-                .headers(RefreshTokenType::get_headers(self, req, connectors)?)
-                .url(&RefreshTokenType::get_url(self, req, connectors)?)
-                .set_body(RefreshTokenType::get_request_body(self, req, connectors)?)
+                .headers(required_headers)
+                .url(&AuthenticationTokenType::get_url(self, req, connectors)?)
+                .set_body(request_body)
                 .build(),
-        ))
+        );
+        Ok(request)
     }
 
     fn handle_response(
         &self,
-        data: &RefreshTokenRouterData,
+        data: &AuthenticationTokenRouterData,
         _event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<RefreshTokenRouterData, errors::ConnectorError> {
+    ) -> CustomResult<AuthenticationTokenRouterData, errors::ConnectorError> {
         // Handle 302 redirect response
         if res.status_code == 302 {
             // Extract Location header
@@ -518,8 +570,8 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
 
             // Return auth code as "token" with short expiry
             Ok(RouterData {
-                response: Ok(AccessToken {
-                    token: Secret::new(code),
+                response: Ok(AuthenticationToken {
+                    code: Secret::new(code),
                     expires: 60, // 60 seconds - auth code validity
                 }),
                 ..data.clone()
@@ -541,16 +593,37 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
     }
 }
 
-impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Nordea {
-    fn get_headers(
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Nordea {
+    fn get_url(
         &self,
-        req: &PaymentsSessionRouterData,
+        _req: &RefreshTokenRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}/personal/v5/authorize/token",
+            self.base_url(connectors)
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &RefreshTokenRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = NordeaOAuthExchangeRequest::try_from(req)?;
+        let body_bytes = self.get_form_urlencoded_payload(&Box::new(connector_req))?;
+        Ok(RequestContent::RawBytes(body_bytes))
+    }
+
+    fn build_request(
+        &self,
+        req: &RefreshTokenRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         // For the OAuth token exchange request, we don't have a bearer token yet
         // We're exchanging the auth code for an access token
         let auth = NordeaAuthType::try_from(&req.connector_auth_type)?;
-        let content_type = self.common_get_content_type().to_string();
+        let content_type = "application/x-www-form-urlencoded".to_string();
         let http_method = Method::Post;
 
         // Extract host from base URL
@@ -567,6 +640,8 @@ impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> fo
         let url_parsed =
             Url::parse(&full_url).change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let path = url_parsed.path();
+
+        let request_body = self.get_request_body(req, connectors)?;
 
         let mut required_headers = vec![
             (
@@ -591,9 +666,7 @@ impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> fo
             ),
         ];
 
-        // For POST requests, we need to calculate digest and signature
-        let nordea_request = self.get_request_body(req, connectors)?;
-        let sha256_digest = self.generate_digest_from_request(&nordea_request);
+        let sha256_digest = self.generate_digest_from_request(&request_body);
 
         // Add Digest header
         required_headers.push((
@@ -615,57 +688,24 @@ impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> fo
 
         required_headers.push(("Signature".to_string(), signature.into_masked()));
 
-        Ok(required_headers)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        "application/x-www-form-urlencoded"
-    }
-
-    fn get_url(
-        &self,
-        _req: &PaymentsSessionRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}/personal/v5/authorize/token",
-            self.base_url(connectors)
-        ))
-    }
-
-    fn get_request_body(
-        &self,
-        req: &PaymentsSessionRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = NordeaOAuthExchangeRequest::try_from(req)?;
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
-    }
-
-    fn build_request(
-        &self,
-        req: &PaymentsSessionRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Ok(Some(
+        let request = Some(
             RequestBuilder::new()
-                .method(Method::Post)
+                .method(http_method)
                 .attach_default_headers()
-                .headers(PaymentsSessionType::get_headers(self, req, connectors)?)
-                .url(&PaymentsSessionType::get_url(self, req, connectors)?)
-                .set_body(PaymentsSessionType::get_request_body(
-                    self, req, connectors,
-                )?)
+                .headers(required_headers)
+                .url(&RefreshTokenType::get_url(self, req, connectors)?)
+                .set_body(request_body)
                 .build(),
-        ))
+        );
+        Ok(request)
     }
 
     fn handle_response(
         &self,
-        data: &PaymentsSessionRouterData,
+        data: &RefreshTokenRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<PaymentsSessionRouterData, errors::ConnectorError> {
+    ) -> CustomResult<RefreshTokenRouterData, errors::ConnectorError> {
         let response: NordeaOAuthExchangeResponse = res
             .response
             .parse_struct("NordeaOAuthExchangeResponse")
@@ -811,9 +851,9 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsPreProcessingRouterData, errors::ConnectorError> {
-        let response: NordeaPaymentsResponse = res
+        let response: NordeaPaymentsInitiateResponse = res
             .response
-            .parse_struct("NordeaPaymentsResponse")
+            .parse_struct("NordeaPaymentsInitiateResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -841,21 +881,15 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let mut headers = self.build_headers(req, connectors)?;
-
-        // Add the X-Nordea-Originating-User-Ip header for authorize (connector confirm) calls
-        let user_ip = req.request.get_ip_address()?;
-
-        headers.push((
-            "X-Nordea-Originating-User-Ip".to_string(),
-            user_ip.peek().clone().into_masked(),
-        ));
-
-        Ok(headers)
+        self.build_headers(req, connectors)
     }
 
     fn get_content_type(&self) -> &'static str {
         self.common_get_content_type()
+    }
+
+    fn get_http_method(&self) -> Method {
+        Method::Put
     }
 
     fn get_url(
@@ -866,7 +900,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         Ok(format!(
             "{}{}",
             self.base_url(_connectors),
-            "/personal/v5/payments/confirm"
+            "/personal/v5/payments"
         ))
     }
 
@@ -893,7 +927,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
-                .method(Method::Post)
+                .method(types::PaymentsAuthorizeType::get_http_method(self))
                 .url(&types::PaymentsAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
@@ -914,9 +948,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: NordeaPaymentsResponse = res
+        let response: NordeaPaymentsConfirmResponse = res
             .response
-            .parse_struct("NordeaPaymentsAuthorizeResponse")
+            .parse_struct("NordeaPaymentsConfirmResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -951,6 +985,10 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Nor
         self.common_get_content_type()
     }
 
+    fn get_http_method(&self) -> Method {
+        Method::Get
+    }
+
     fn get_url(
         &self,
         req: &PaymentsSyncRouterData,
@@ -976,7 +1014,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Nor
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
-                .method(Method::Get)
+                .method(types::PaymentsSyncType::get_http_method(self))
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
@@ -990,7 +1028,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Nor
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: NordeaPaymentsResponse = res
+        let response: NordeaPaymentsInitiateResponse = res
             .response
             .parse_struct("NordeaPaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -1235,5 +1273,10 @@ impl ConnectorSpecifications for Nordea {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&*NORDEA_SUPPORTED_WEBHOOK_FLOWS)
+    }
+
+    fn authentication_token_for_token_creation(&self) -> bool {
+        // Nordea requires authentication token for access token creation
+        true
     }
 }

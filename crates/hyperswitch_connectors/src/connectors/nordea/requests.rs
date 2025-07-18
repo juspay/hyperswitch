@@ -47,7 +47,7 @@ pub enum AccessScope {
     CardsTransactions,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct NordeaOAuthExchangeRequest {
     /// authorization_code flow
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -100,7 +100,7 @@ pub struct CreditorAccountReference {
     pub creditor_reference_type: String,
     /// Actual reference number
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub value: Option<Secret<String>>,
+    pub value: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -135,7 +135,7 @@ pub struct CreditorAccount {
     /// Account number
     pub account: AccountNumber,
     /// Creditor bank information.
-    pub bank: CreditorBank,
+    pub bank: Option<CreditorBank>,
     /// Country of the creditor
     pub country: Option<api_models::enums::CountryAlpha2>,
     /// Address
@@ -149,8 +149,9 @@ pub struct CreditorAccount {
     /// NO: 30 (mandatory for Straksbetaling/Express payments).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<Secret<String>>,
-    /// Creditor reference number
-    pub reference: CreditorAccountReference,
+    /// Creditor reference number.
+    /// Either Reference or Message has to be passed in the Request
+    pub reference: Option<CreditorAccountReference>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]

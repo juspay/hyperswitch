@@ -91,7 +91,7 @@ pub struct BankFee {
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[serde(rename_all = "lowercase")]
 pub enum ChargeBearer {
     Shar,
     Debt,
@@ -104,24 +104,22 @@ pub struct ExchangeRate {
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
-pub struct NordeaResponseBody {
+pub struct MessagePagination {
+    /// Resource listing may return a continuationKey if there's more results available.
+    /// Request may be retried with the continuationKey, but otherwise same parameters, in order to get more results.
+    pub continuation_key: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct NordeaPaymentsInitiateResponseData {
     /// Unique payment identifier assigned for new payment
     #[serde(rename = "_id")]
     pub payment_id: String,
     /// HATEOAS inspired links: 'rel' and 'href'. Context specific link (only GET supported)
     #[serde(rename = "_links")]
     pub links: Option<Vec<NordeaResponseLinks>>,
-    pub amount: StringMajorUnit,
-    /// The indicator shows whether the funds are available to process the current payment - at this moment.
-    pub availability_of_funds: Option<bool>,
-    /// BankIdSe authentication session id. Needed when you call /v4/payments/domestic/confirm/bankidse/{bankIdSeAuthenticationId}
-    pub bank_id_se_authentication_id: Option<Secret<String>>,
-    /// Purpose code of money transfer as defined by Swedish Tax Authority/Skattewerket
-    /// Purpose code of money transfer, mandatory for transfers above 100.000 NOK or the
-    /// equivalent in other currencies, have to be reported to the Norwegian Customs and Excise (Tollvesenet)
-    pub central_bank_reporting_code: Option<Secret<String>>,
-    /// Supplementary information about the transfer purpose. Mandatory when central_bank_reporting_code is informed
-    pub central_bank_reporting_supplementary_text: Option<String>,
+    /// Marked as required field in the docs, but connector does not send amount in payment_response.amount
+    pub amount: Option<StringMajorUnit>,
     /// Bearer of charges. shar = The Debtor (sender of the payment) will pay all fees charged by the sending bank.
     /// The Creditor (recipient of the payment) will pay all fees charged by the receiving bank.
     /// debt = The Debtor (sender of the payment) will bear all of the payment transaction fees.
@@ -129,12 +127,11 @@ pub struct NordeaResponseBody {
     pub charge_bearer: Option<ChargeBearer>,
     /// Creditor of the payment
     #[serde(rename = "creditor")]
-    pub creditor_account: Option<CreditorAccount>,
+    pub creditor_account: CreditorAccount,
     pub currency: Option<api_models::enums::Currency>,
     /// Debtor of the payment
     #[serde(rename = "debtor")]
     pub debitor_account: Option<DebitorAccount>,
-    end_to_end_identification: Option<String>,
     /// Timestamp of payment creation. ISO 8601 format yyyy-mm-ddThh:mm:ss.fffZ. Format:date-time.
     pub entry_date_time: Option<String>,
     /// Unique identification as assigned by a partner to identify the payment.
@@ -180,10 +177,10 @@ pub struct NordeaResponseBody {
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
-pub struct NordeaPaymentsResponse {
+pub struct NordeaPaymentsInitiateResponse {
     /// Payment information
     #[serde(rename = "response")]
-    pub payments_response: Option<NordeaResponseBody>,
+    pub payments_response: Option<NordeaPaymentsInitiateResponseData>,
     /// External response header
     pub group_header: Option<NordeaGroupHeader>,
 }
@@ -199,34 +196,23 @@ pub struct NordeaPaymentsConfirmErrorObject {
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct NordeaPaymentsResponseWrapper {
+    pub payments: Vec<NordeaPaymentsInitiateResponseData>,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct NordeaPaymentsConfirmResponse {
     /// HATEOAS inspired links: 'rel' and 'href'
     #[serde(rename = "_links")]
     pub links: Option<Vec<NordeaResponseLinks>>,
-    /// BankIdSe authentication session id. Needed when you call /v5/payments/confirm/bankidse/{bankIdSeAuthenticationId}
-    pub bank_id_se_authentication_id: Option<String>,
     /// Error description
     pub errors: Option<Vec<NordeaPaymentsConfirmErrorObject>>,
     /// External response header
     pub group_header: Option<NordeaGroupHeader>,
     /// OTP Challenge
     pub otp_challenge: Option<String>,
-    pub response: Option<NordeaResponseBody>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Default, Deserialize, Clone, Serialize)]
-pub enum NordeaRefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
-
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct NordeaRefundResponse {
-    pub id: String,
-    pub status: NordeaRefundStatus,
+    #[serde(rename = "response")]
+    pub nordea_payments_response: Option<NordeaPaymentsResponseWrapper>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -261,16 +247,29 @@ pub struct NordeaErrorBody {
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
-pub struct MessagePagination {
-    /// Resource listing may return a continuationKey if there's more results available.
-    /// Request may be retried with the continuationKey, but otherwise same parameters, in order to get more results.
-    pub continuation_key: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct NordeaErrorResponse {
     /// Error response body
     pub error: Option<NordeaErrorBody>,
     /// External response header
     pub group_header: Option<NordeaGroupHeader>,
+    #[serde(rename = "httpCode")]
+    pub http_code: Option<String>,
+    #[serde(rename = "moreInformation")]
+    pub more_information: Option<String>,
+}
+
+// Nordea does not support refunds in Private APIs. Only Corporate APIs support Refunds
+#[allow(dead_code)]
+#[derive(Debug, Default, Deserialize, Clone, Serialize)]
+pub enum NordeaRefundStatus {
+    Succeeded,
+    Failed,
+    #[default]
+    Processing,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+pub struct NordeaRefundResponse {
+    pub id: String,
+    pub status: NordeaRefundStatus,
 }

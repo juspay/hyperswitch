@@ -5,34 +5,38 @@ use common_utils::{pii, request::Method, types::StringMajorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{BankDebitData, PaymentMethodData},
-    router_data::{AccessToken, ConnectorAuthType, RouterData},
-    router_flow_types::refunds::{Execute, RSync},
-    router_request_types::ResponseId,
+    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_flow_types::{
+        refunds::{Execute, RSync},
+        Authorize, PreProcessing,
+    },
+    router_request_types::{PaymentsAuthorizeData, PaymentsPreProcessingData, ResponseId},
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types::{
-        self, PaymentsAuthorizeRouterData, PaymentsPreProcessingRouterData, RefreshTokenRouterData,
-        RefundsRouterData,
+        self, AuthenticationTokenRouterData, PaymentsAuthorizeRouterData,
+        PaymentsPreProcessingRouterData, PaymentsSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::errors;
-use masking::{ExposeInterface, Secret};
+use masking::Secret;
 use rand::distributions::DistString;
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
     connectors::nordea::{
         requests::{
-            AccessScope, AccountNumber, AccountType, CreditorAccount, CreditorAccountReference,
-            CreditorBank, DebitorAccount, GrantType, NordeaOAuthExchangeRequest,
-            NordeaOAuthRequest, NordeaPaymentsConfirmRequest, NordeaPaymentsRequest,
-            NordeaRefundRequest, NordeaRouterData, PaymentsUrgency,
+            AccessScope, AccountNumber, AccountType, CreditorAccount, CreditorBank, DebitorAccount,
+            GrantType, NordeaOAuthExchangeRequest, NordeaOAuthRequest,
+            NordeaPaymentsConfirmRequest, NordeaPaymentsRequest, NordeaRefundRequest,
+            NordeaRouterData, PaymentsUrgency,
         },
         responses::{
             NordeaErrorBody, NordeaFailures, NordeaOAuthExchangeResponse, NordeaPaymentStatus,
-            NordeaPaymentsResponse, NordeaRefundResponse, NordeaRefundStatus,
+            NordeaPaymentsConfirmResponse, NordeaPaymentsInitiateResponse, NordeaRefundResponse,
+            NordeaRefundStatus,
         },
     },
-    types::{RefundsResponseRouterData, ResponseRouterData},
+    types::{PaymentsSyncResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
     utils::{self, get_unimplemented_payment_method_error_message, RouterData as _},
 };
 
@@ -40,7 +44,6 @@ type Error = error_stack::Report<errors::ConnectorError>;
 
 impl<T> From<(StringMajorUnit, T)> for NordeaRouterData<T> {
     fn from((amount, item): (StringMajorUnit, T)) -> Self {
-        //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Self {
             amount,
             router_data: item,
@@ -48,12 +51,13 @@ impl<T> From<(StringMajorUnit, T)> for NordeaRouterData<T> {
     }
 }
 
-//TODO: Fill the struct with respective fields
 // Auth Struct
+#[derive(Debug)]
 pub struct NordeaAuthType {
     pub(super) client_id: Secret<String>,
     pub(super) client_secret: Secret<String>,
     /// PEM format private key for eIDAS signing
+    /// Should be base64 encoded
     pub(super) eidas_private_key: Secret<String>,
 }
 
@@ -79,6 +83,7 @@ impl TryFrom<&ConnectorAuthType> for NordeaAuthType {
 pub struct NordeaConnectorMetadataObject {
     pub creditor_account_value: Secret<String>,
     pub creditor_account_type: String,
+    pub creditor_beneficiary_name: Secret<String>,
 }
 
 impl TryFrom<&Option<pii::SecretSerdeValue>> for NordeaConnectorMetadataObject {
@@ -92,9 +97,9 @@ impl TryFrom<&Option<pii::SecretSerdeValue>> for NordeaConnectorMetadataObject {
     }
 }
 
-impl TryFrom<&RefreshTokenRouterData> for NordeaOAuthRequest {
+impl TryFrom<&AuthenticationTokenRouterData> for NordeaOAuthRequest {
     type Error = Error;
-    fn try_from(item: &RefreshTokenRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &AuthenticationTokenRouterData) -> Result<Self, Self::Error> {
         let country = item.get_billing_country()?;
         // Set refresh_token maximum expiry duration to 180 days (259200 / 60 = 180)
         // Minimum is 1 minute
@@ -122,16 +127,16 @@ impl TryFrom<&RefreshTokenRouterData> for NordeaOAuthRequest {
     }
 }
 
-impl TryFrom<&types::PaymentsSessionRouterData> for NordeaOAuthExchangeRequest {
+impl TryFrom<&types::RefreshTokenRouterData> for NordeaOAuthExchangeRequest {
     type Error = Error;
-    fn try_from(item: &types::PaymentsSessionRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::RefreshTokenRouterData) -> Result<Self, Self::Error> {
         let code = item
-            .access_token
+            .authentication_token
             .as_ref()
             .ok_or(errors::ConnectorError::MissingRequiredField {
                 field_name: "authorization_code",
             })?
-            .token
+            .code
             .clone();
         let grant_type = GrantType::AuthorizationCode;
         let redirect_uri = Some("https://hyperswitch.io".to_string());
@@ -145,12 +150,12 @@ impl TryFrom<&types::PaymentsSessionRouterData> for NordeaOAuthExchangeRequest {
     }
 }
 
-impl<F, T> TryFrom<ResponseRouterData<F, NordeaOAuthExchangeResponse, T, PaymentsResponseData>>
-    for RouterData<F, T, PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, NordeaOAuthExchangeResponse, T, AccessToken>>
+    for RouterData<F, T, AccessToken>
 {
     type Error = Error;
     fn try_from(
-        item: ResponseRouterData<F, NordeaOAuthExchangeResponse, T, PaymentsResponseData>,
+        item: ResponseRouterData<F, NordeaOAuthExchangeResponse, T, AccessToken>,
     ) -> Result<Self, Self::Error> {
         let access_token =
             item.response
@@ -161,30 +166,13 @@ impl<F, T> TryFrom<ResponseRouterData<F, NordeaOAuthExchangeResponse, T, Payment
 
         let expires_in = item.response.expires_in.unwrap_or(3600); // Default to 1 hour if not provided
 
-        // Store the access token in the router data
-        let mut data = item.data;
-        data.access_token = Some(AccessToken {
-            token: access_token.clone(),
-            expires: expires_in,
-        });
-
-        // i'm pretty skeptical about this part of code working9
-
-        // Create a session response with the access token
-        let response = Ok(PaymentsResponseData::SessionTokenResponse {
-            session_token: access_token.clone().expose(),
-        });
-
         Ok(Self {
             status: common_enums::AttemptStatus::AuthenticationSuccessful,
-            response,
-            // or, may be, override access token at this point?
-            // access_token: Some(AccessToken {
-            //     token: access_token.clone(),
-            //     expires: expires_in,
-            // }),
-            session_token: Some(access_token.clone().expose()),
-            ..data
+            response: Ok(AccessToken {
+                token: access_token.clone(),
+                expires: expires_in,
+            }),
+            ..item.data
         })
     }
 }
@@ -245,22 +233,21 @@ fn get_creditor_account_from_metadata(
         },
         country: router_data.get_optional_billing_country(),
         // Merchant is the beneficiary in this case
-        name: None,
-        message: None,
-        bank: CreditorBank {
+        name: Some(metadata.creditor_beneficiary_name),
+        message: router_data
+            .description
+            .as_ref()
+            .map(|desc| desc.chars().take(20).collect::<String>()),
+        bank: Some(CreditorBank {
             address: None,
             bank_code: None,
             bank_name: None,
             business_identifier_code: None,
             country: router_data.get_billing_country()?,
-        },
+        }),
         creditor_address: None,
-        // Reference is optional field in the examples given in the doc.
-        // It is considered as a required field in the api contract
-        reference: CreditorAccountReference {
-            creditor_reference_type: "RF".to_string(), // Assuming RF for SEPA payments
-            value: None,
-        },
+        // Either Reference or Message must be supplied in the request
+        reference: None,
     };
     Ok(creditor_account)
 }
@@ -280,7 +267,11 @@ impl TryFrom<&NordeaRouterData<&PaymentsPreProcessingRouterData>> for NordeaPaym
                             currency: item.router_data.request.currency,
                             value: iban,
                         },
-                        message: item.router_data.description.clone(),
+                        message: item
+                            .router_data
+                            .description
+                            .as_ref()
+                            .map(|desc| desc.chars().take(20).collect::<String>()),
                     };
 
                     let instructed_amount = super::requests::InstructedAmount {
@@ -367,8 +358,8 @@ impl From<NordeaPaymentStatus> for common_enums::AttemptStatus {
             NordeaPaymentStatus::Confirmed | NordeaPaymentStatus::Paid => Self::Charged,
 
             NordeaPaymentStatus::PendingConfirmation
-            | NordeaPaymentStatus::PendingSecondConfirmation
-            | NordeaPaymentStatus::PendingUserApproval => Self::AuthenticationPending,
+            | NordeaPaymentStatus::PendingSecondConfirmation => Self::ConfirmationAwaited,
+            NordeaPaymentStatus::PendingUserApproval => Self::AuthenticationPending,
 
             NordeaPaymentStatus::OnHold | NordeaPaymentStatus::Unknown => Self::Pending,
 
@@ -388,66 +379,197 @@ pub fn get_error_data(error_response: Option<&NordeaErrorBody>) -> Option<&Norde
         .and_then(|failures| failures.first())
 }
 
-impl<F, T> TryFrom<ResponseRouterData<F, NordeaPaymentsResponse, T, PaymentsResponseData>>
-    for RouterData<F, T, PaymentsResponseData>
+// Helper function to convert NordeaPaymentsInitiateResponse to common response data
+fn convert_nordea_payment_response(
+    response: &NordeaPaymentsInitiateResponse,
+) -> Result<(PaymentsResponseData, common_enums::AttemptStatus), Error> {
+    let payment_response = response
+        .payments_response
+        .as_ref()
+        .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
+
+    let resource_id = ResponseId::ConnectorTransactionId(payment_response.payment_id.clone());
+
+    let response_data = PaymentsResponseData::TransactionResponse {
+        resource_id,
+        redirection_data: Box::new(None),
+        mandate_reference: Box::new(None),
+        connector_metadata: None,
+        network_txn_id: None,
+        connector_response_reference_id: payment_response.external_id.clone(),
+        incremental_authorization_allowed: None,
+        charges: None,
+    };
+
+    let status = common_enums::AttemptStatus::from(payment_response.payment_status.clone());
+
+    Ok((response_data, status))
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            PreProcessing,
+            NordeaPaymentsInitiateResponse,
+            PaymentsPreProcessingData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(
-        item: ResponseRouterData<F, NordeaPaymentsResponse, T, PaymentsResponseData>,
+        item: ResponseRouterData<
+            PreProcessing,
+            NordeaPaymentsInitiateResponse,
+            PaymentsPreProcessingData,
+            PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
-        let response = match &item.response.payments_response {
-            Some(payment_response) => {
-                let resource_id =
-                    ResponseId::ConnectorTransactionId(payment_response.payment_id.clone());
+        let (response, status) = convert_nordea_payment_response(&item.response)?;
+        Ok(Self {
+            status,
+            response: Ok(response),
+            ..item.data
+        })
+    }
+}
 
-                let redirection_data = payment_response
-                    .links
-                    .as_ref()
-                    .and_then(|links| {
-                        links.iter().find(|link| {
-                            link.rel
-                                .as_ref()
-                                .map(|rel| rel == "signing")
-                                .unwrap_or(false)
-                        })
-                    })
-                    .and_then(|link| link.href.clone())
-                    .map(|redirect_url| RedirectForm::Form {
-                        endpoint: redirect_url,
-                        method: Method::Get,
-                        form_fields: HashMap::new(),
-                    });
+impl
+    TryFrom<
+        ResponseRouterData<
+            Authorize,
+            NordeaPaymentsConfirmResponse,
+            PaymentsAuthorizeData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>
+{
+    type Error = Error;
+    fn try_from(
+        item: ResponseRouterData<
+            Authorize,
+            NordeaPaymentsConfirmResponse,
+            PaymentsAuthorizeData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        // First check if there are any errors in the response
+        if let Some(errors) = &item.response.errors {
+            if !errors.is_empty() {
+                // Get the first error for the error response
+                let first_error = errors
+                    .first()
+                    .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
 
-                Ok(PaymentsResponseData::TransactionResponse {
+                return Ok(Self {
+                    status: common_enums::AttemptStatus::Failure,
+                    response: Err(ErrorResponse {
+                        code: first_error
+                            .error
+                            .clone()
+                            .unwrap_or_else(|| "UNKNOWN_ERROR".to_string()),
+                        message: first_error
+                            .error_description
+                            .clone()
+                            .unwrap_or_else(|| "Payment confirmation failed".to_string()),
+                        reason: first_error.error_description.clone(),
+                        status_code: item.http_code,
+                        attempt_status: Some(common_enums::AttemptStatus::Failure),
+                        connector_transaction_id: first_error.payment_id.clone(),
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
+                    }),
+                    ..item.data
+                });
+            }
+        }
+
+        // If no errors, proceed with normal response handling
+        // Check if there's a redirect link at the top level only
+        let redirection_data = item
+            .response
+            .links
+            .as_ref()
+            .and_then(|links| {
+                links.iter().find(|link| {
+                    link.rel
+                        .as_ref()
+                        .map(|rel| rel == "signing")
+                        .unwrap_or(false)
+                })
+            })
+            .and_then(|link| link.href.clone())
+            .map(|redirect_url| RedirectForm::Form {
+                endpoint: redirect_url,
+                method: Method::Get,
+                form_fields: HashMap::new(),
+            });
+
+        let (response, status) = match &item.response.nordea_payments_response {
+            Some(payment_response_wrapper) => {
+                // Get the first payment from the payments array
+                let payment = payment_response_wrapper
+                    .payments
+                    .first()
+                    .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
+
+                let resource_id = ResponseId::ConnectorTransactionId(payment.payment_id.clone());
+
+                let response = Ok(PaymentsResponseData::TransactionResponse {
                     resource_id,
                     redirection_data: Box::new(redirection_data),
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: Some(payment_response.payment_id.clone()),
+                    connector_response_reference_id: payment.external_id.clone(),
                     incremental_authorization_allowed: None,
                     charges: None,
-                })
-            }
-            None => Err(errors::ConnectorError::ResponseHandlingFailed)?,
-        };
+                });
 
-        let status = item
-            .response
-            .payments_response
-            .as_ref()
-            .map(|r| match r.payment_status {
-                NordeaPaymentStatus::PendingConfirmation
-                | NordeaPaymentStatus::PendingUserApproval => {
-                    common_enums::AttemptStatus::AuthenticationPending
+                let status = common_enums::AttemptStatus::from(payment.payment_status.clone());
+
+                (response, status)
+            }
+            None => {
+                // No payment response, but we might still have a redirect link
+                if let Some(redirect) = redirection_data {
+                    let response = Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::NoResponseId,
+                        redirection_data: Box::new(Some(redirect)),
+                        mandate_reference: Box::new(None),
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
+                        charges: None,
+                    });
+                    (response, common_enums::AttemptStatus::AuthenticationPending)
+                } else {
+                    return Err(errors::ConnectorError::ResponseHandlingFailed.into());
                 }
-                _ => common_enums::AttemptStatus::from(r.payment_status.clone()),
-            })
-            .unwrap_or(common_enums::AttemptStatus::Failure);
+            }
+        };
 
         Ok(Self {
             status,
             response,
+            ..item.data
+        })
+    }
+}
+
+impl TryFrom<PaymentsSyncResponseRouterData<NordeaPaymentsInitiateResponse>>
+    for PaymentsSyncRouterData
+{
+    type Error = Error;
+    fn try_from(
+        item: PaymentsSyncResponseRouterData<NordeaPaymentsInitiateResponse>,
+    ) -> Result<Self, Self::Error> {
+        let (response, status) = convert_nordea_payment_response(&item.response)?;
+        Ok(Self {
+            status,
+            response: Ok(response),
             ..item.data
         })
     }
