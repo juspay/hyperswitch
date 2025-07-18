@@ -6198,6 +6198,12 @@ type = "Text"
   placeholder="Enter Beneficiary Account Number"
   required=true
   type="Text"
+[nordea.metadata.creditor_beneficiary_name]
+  name="creditor_beneficiary_name"
+  label="Creditor Account Beneficiary Name"
+  placeholder="Enter Beneficiary Name"
+  required=true
+  type="Text"
 
 [worldpayxml]
 [[worldpayxml.credit]]

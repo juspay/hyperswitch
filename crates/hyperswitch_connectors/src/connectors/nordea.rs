@@ -117,7 +117,6 @@ impl Nordea {
         // Check if it already has PEM headers
         let pem_data =
             if key.contains("BEGIN") && key.contains("END") && key.contains("PRIVATE KEY") {
-                // Already in PEM format
                 key
             } else {
                 // Remove whitespace and format with 64-char lines
@@ -134,11 +133,9 @@ impl Nordea {
                     .collect::<Vec<String>>()
                     .join("\n");
 
-                // Try PKCS#1 format first (as JavaScript example suggests)
                 format!(
-                    "-----BEGIN RSA PRIVATE KEY-----\n{}\n-----END RSA PRIVATE KEY-----",
-                    formatted_key
-                )
+                "-----BEGIN RSA PRIVATE KEY-----\n{formatted_key}\n-----END RSA PRIVATE KEY-----",
+            )
             };
 
         Ok(pem_data)
@@ -220,7 +217,6 @@ impl Nordea {
         let json_value = serde_json::to_value(form_data)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
-        // Using a BTreeMap guarantees that the keys are sorted alphabetically.
         let btree_map: std::collections::BTreeMap<String, serde_json::Value> =
             serde_json::from_value(json_value)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
