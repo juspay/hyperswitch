@@ -115,10 +115,7 @@ where
 
         let auth = cryptopay::CryptopayAuthType::try_from(&req.connector_auth_type)?;
 
-        let sign_req: String = format!(
-            "{}\n{}\n{}\n{}\n{}",
-            api_method, payload, content_type, date, api
-        );
+        let sign_req: String = format!("{api_method}\n{payload}\n{content_type}\n{date}\n{api}");
         let authz = crypto::HmacSha1::sign_message(
             &crypto::HmacSha1,
             auth.api_secret.peek().as_bytes(),

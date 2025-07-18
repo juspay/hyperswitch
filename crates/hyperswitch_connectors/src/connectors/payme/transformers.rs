@@ -403,6 +403,8 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
                 | WalletData::AliPayHkRedirect(_)
                 | WalletData::AmazonPay(_)
                 | WalletData::AmazonPayRedirect(_)
+                | WalletData::Paysera(_)
+                | WalletData::Skrill(_)
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -573,7 +575,7 @@ impl<F>
                     ))) => Some(api_models::payments::SessionToken::ApplePay(Box::new(
                         api_models::payments::ApplepaySessionTokenResponse {
                             session_token_data: Some(
-                                api_models::payments::ApplePaySessionResponse::NoSessionResponse,
+                                api_models::payments::ApplePaySessionResponse::NoSessionResponse(api_models::payments::NullObject),
                             ),
                             payment_request_data: Some(
                                 api_models::payments::ApplePayPaymentRequest {

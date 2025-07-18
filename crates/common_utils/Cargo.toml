@@ -20,8 +20,6 @@ metrics = ["dep:router_env", "dep:futures"]
 payouts = ["common_enums/payouts"]
 v1 = []
 v2 = []
-customer_v2 = []
-payment_methods_v2 = []
 crypto_openssl = ["dep:openssl"]
 tokenization_v2 = []
 

@@ -47,11 +47,11 @@ pub enum DynamicRoutingError {
 #[derive(Debug, Clone)]
 pub struct RoutingStrategy {
     /// success rate service for Dynamic Routing
-    pub success_rate_client: Option<SuccessRateCalculatorClient<Client>>,
+    pub success_rate_client: SuccessRateCalculatorClient<Client>,
     /// contract based routing service for Dynamic Routing
-    pub contract_based_client: Option<ContractScoreCalculatorClient<Client>>,
+    pub contract_based_client: ContractScoreCalculatorClient<Client>,
     /// elimination service for Dynamic Routing
-    pub elimination_based_client: Option<EliminationAnalyserClient<Client>>,
+    pub elimination_based_client: EliminationAnalyserClient<Client>,
 }
 
 /// Contains the Dynamic Routing Client Config
@@ -74,32 +74,28 @@ pub enum DynamicRoutingClientConfig {
 
 impl DynamicRoutingClientConfig {
     /// establish connection with the server
-    pub async fn get_dynamic_routing_connection(
+    pub fn get_dynamic_routing_connection(
         self,
         client: Client,
-    ) -> Result<RoutingStrategy, Box<dyn std::error::Error>> {
-        let (success_rate_client, contract_based_client, elimination_based_client) = match self {
+    ) -> Result<Option<RoutingStrategy>, Box<dyn std::error::Error>> {
+        match self {
             Self::Enabled { host, port, .. } => {
-                let uri = format!("http://{}:{}", host, port).parse::<tonic::transport::Uri>()?;
+                let uri = format!("http://{host}:{port}").parse::<tonic::transport::Uri>()?;
                 logger::info!("Connection established with dynamic routing gRPC Server");
-                (
-                    Some(SuccessRateCalculatorClient::with_origin(
-                        client.clone(),
-                        uri.clone(),
-                    )),
-                    Some(ContractScoreCalculatorClient::with_origin(
-                        client.clone(),
-                        uri.clone(),
-                    )),
-                    Some(EliminationAnalyserClient::with_origin(client, uri)),
-                )
+
+                let (success_rate_client, contract_based_client, elimination_based_client) = (
+                    SuccessRateCalculatorClient::with_origin(client.clone(), uri.clone()),
+                    ContractScoreCalculatorClient::with_origin(client.clone(), uri.clone()),
+                    EliminationAnalyserClient::with_origin(client, uri),
+                );
+
+                Ok(Some(RoutingStrategy {
+                    success_rate_client,
+                    contract_based_client,
+                    elimination_based_client,
+                }))
             }
-            Self::Disabled => (None, None, None),
-        };
-        Ok(RoutingStrategy {
-            success_rate_client,
-            contract_based_client,
-            elimination_based_client,
-        })
+            Self::Disabled => Ok(None),
+        }
     }
 }

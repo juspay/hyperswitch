@@ -15,7 +15,7 @@ use crate::{
     utils,
 };
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 pub async fn validate_request_and_initiate_payment_method_collect_link(
     _state: &SessionState,
     _merchant_context: &domain::MerchantContext,
@@ -24,7 +24,7 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
     todo!()
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 pub async fn validate_request_and_initiate_payment_method_collect_link(
     state: &SessionState,
     merchant_context: &domain::MerchantContext,
@@ -34,7 +34,7 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
     let db: &dyn StorageInterface = &*state.store;
     let customer_id = req.customer_id.clone();
     let merchant_id = merchant_context.get_merchant_account().get_id().clone();
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     match db
         .find_customer_by_customer_id_merchant_id(
             &state.into(),
@@ -113,7 +113,7 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
     let domain = merchant_config
         .clone()
         .and_then(|c| c.config.domain_name)
-        .map(|domain| format!("https://{}", domain))
+        .map(|domain| format!("https://{domain}"))
         .unwrap_or(state.base_url.clone());
     let session_expiry = match req.session_expiry {
         Some(expiry) => expiry,

@@ -126,7 +126,7 @@ pub fn create_identity_from_certificate_and_key(
     let certificate_key = String::from_utf8(decoded_certificate_key)
         .change_context(HttpClientError::CertificateDecodeFailed)?;
 
-    let key_chain = format!("{}{}", certificate_key, certificate);
+    let key_chain = format!("{certificate_key}{certificate}");
     reqwest::Identity::from_pem(key_chain.as_bytes())
         .change_context(HttpClientError::CertificateDecodeFailed)
 }

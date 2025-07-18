@@ -31,6 +31,8 @@ impl SerializableSecret for url::Url {}
 #[cfg(feature = "time")]
 impl SerializableSecret for time::Date {}
 
+impl<T: SerializableSecret> SerializableSecret for &T {}
+
 impl<'de, T, I> Deserialize<'de> for Secret<T, I>
 where
     T: Clone + de::DeserializeOwned + Sized,

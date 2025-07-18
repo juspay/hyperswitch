@@ -104,6 +104,9 @@ pub enum CryptoError {
     /// The provided IV length is invalid for the cryptographic algorithm
     #[error("Invalid IV length")]
     InvalidIvLength,
+    /// The provided authentication tag length is invalid for the cryptographic algorithm
+    #[error("Invalid authentication tag length")]
+    InvalidTagLength,
 }
 
 /// Errors for Qr code handling

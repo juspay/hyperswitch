@@ -10,9 +10,9 @@ use crate::{disputes, enums as api_enums, mandates, payments, refunds};
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum IncomingWebhookEvent {
-    /// Authorization + Capture success
-    PaymentIntentFailure,
     /// Authorization + Capture failure
+    PaymentIntentFailure,
+    /// Authorization + Capture success
     PaymentIntentSuccess,
     PaymentIntentProcessing,
     PaymentIntentPartiallyFunded,
@@ -98,7 +98,7 @@ pub enum WebhookResponseTracker {
     },
     #[cfg(feature = "payouts")]
     Payout {
-        payout_id: String,
+        payout_id: common_utils::id_type::PayoutId,
         status: common_enums::PayoutStatus,
     },
     #[cfg(feature = "v1")]
@@ -129,6 +129,11 @@ pub enum WebhookResponseTracker {
         mandate_id: String,
         status: common_enums::MandateStatus,
     },
+    #[cfg(feature = "v1")]
+    PaymentMethod {
+        payment_method_id: String,
+        status: common_enums::PaymentMethodStatus,
+    },
     NoEffect,
     Relay {
         relay_id: common_utils::id_type::RelayId,
@@ -143,10 +148,27 @@ impl WebhookResponseTracker {
             Self::Payment { payment_id, .. }
             | Self::Refund { payment_id, .. }
             | Self::Dispute { payment_id, .. } => Some(payment_id.to_owned()),
-            Self::NoEffect | Self::Mandate { .. } => None,
+            Self::NoEffect | Self::Mandate { .. } | Self::PaymentMethod { .. } => None,
             #[cfg(feature = "payouts")]
             Self::Payout { .. } => None,
             Self::Relay { .. } => None,
+        }
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn get_payment_method_id(&self) -> Option<String> {
+        match self {
+            Self::PaymentMethod {
+                payment_method_id, ..
+            } => Some(payment_method_id.to_owned()),
+            Self::Payment { .. }
+            | Self::Refund { .. }
+            | Self::Dispute { .. }
+            | Self::NoEffect
+            | Self::Mandate { .. }
+            | Self::Relay { .. } => None,
+            #[cfg(feature = "payouts")]
+            Self::Payout { .. } => None,
         }
     }
 
@@ -232,7 +254,7 @@ pub enum MandateIdType {
 
 #[derive(Clone)]
 pub enum AuthenticationIdType {
-    AuthenticationId(String),
+    AuthenticationId(common_utils::id_type::AuthenticationId),
     ConnectorAuthenticationId(String),
 }
 

@@ -4,6 +4,8 @@ pub mod dynamic_routing;
 /// gRPC based Heath Check Client interface implementation
 #[cfg(feature = "dynamic_routing")]
 pub mod health_check_client;
+/// gRPC based Unified Connector Service Client interface implementation
+pub mod unified_connector_service;
 use std::{fmt::Debug, sync::Arc};
 
 #[cfg(feature = "dynamic_routing")]
@@ -13,37 +15,41 @@ use dynamic_routing::{DynamicRoutingClientConfig, RoutingStrategy};
 #[cfg(feature = "dynamic_routing")]
 use health_check_client::HealthCheckClient;
 #[cfg(feature = "dynamic_routing")]
-use http_body_util::combinators::UnsyncBoxBody;
-#[cfg(feature = "dynamic_routing")]
-use hyper::body::Bytes;
-#[cfg(feature = "dynamic_routing")]
 use hyper_util::client::legacy::connect::HttpConnector;
 #[cfg(feature = "dynamic_routing")]
 use router_env::logger;
 use serde;
 #[cfg(feature = "dynamic_routing")]
-use tonic::Status;
+use tonic::body::Body;
+
+use crate::grpc_client::unified_connector_service::{
+    UnifiedConnectorServiceClient, UnifiedConnectorServiceClientConfig,
+};
 
 #[cfg(feature = "dynamic_routing")]
 /// Hyper based Client type for maintaining connection pool for all gRPC services
-pub type Client = hyper_util::client::legacy::Client<HttpConnector, UnsyncBoxBody<Bytes, Status>>;
+pub type Client = hyper_util::client::legacy::Client<HttpConnector, Body>;
 
 /// Struct contains all the gRPC Clients
 #[derive(Debug, Clone)]
 pub struct GrpcClients {
     /// The routing client
     #[cfg(feature = "dynamic_routing")]
-    pub dynamic_routing: RoutingStrategy,
+    pub dynamic_routing: Option<RoutingStrategy>,
     /// Health Check client for all gRPC services
     #[cfg(feature = "dynamic_routing")]
     pub health_client: HealthCheckClient,
+    /// Unified Connector Service client
+    pub unified_connector_service_client: Option<UnifiedConnectorServiceClient>,
 }
 /// Type that contains the configs required to construct a  gRPC client with its respective services.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, Default)]
 pub struct GrpcClientSettings {
     #[cfg(feature = "dynamic_routing")]
     /// Configs for Dynamic Routing Client
-    pub dynamic_routing_client: DynamicRoutingClientConfig,
+    pub dynamic_routing_client: Option<DynamicRoutingClientConfig>,
+    /// Configs for Unified Connector Service client
+    pub unified_connector_service: Option<UnifiedConnectorServiceClientConfig>,
 }
 
 impl GrpcClientSettings {
@@ -63,20 +69,25 @@ impl GrpcClientSettings {
         let dynamic_routing_connection = self
             .dynamic_routing_client
             .clone()
-            .get_dynamic_routing_connection(client.clone())
-            .await
-            .expect("Failed to establish a connection with the Dynamic Routing Server");
+            .map(|config| config.get_dynamic_routing_connection(client.clone()))
+            .transpose()
+            .expect("Failed to establish a connection with the Dynamic Routing Server")
+            .flatten();
 
         #[cfg(feature = "dynamic_routing")]
         let health_client = HealthCheckClient::build_connections(self, client)
             .await
             .expect("Failed to build gRPC connections");
 
+        let unified_connector_service_client =
+            UnifiedConnectorServiceClient::build_connections(self).await;
+
         Arc::new(GrpcClients {
             #[cfg(feature = "dynamic_routing")]
             dynamic_routing: dynamic_routing_connection,
             #[cfg(feature = "dynamic_routing")]
             health_client,
+            unified_connector_service_client,
         })
     }
 }

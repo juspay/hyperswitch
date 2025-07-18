@@ -56,7 +56,7 @@ impl PayoutAttempt {
     pub async fn find_by_merchant_id_payout_id(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
-        payout_id: &str,
+        payout_id: &common_utils::id_type::PayoutId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
@@ -95,10 +95,24 @@ impl PayoutAttempt {
         .await
     }
 
+    pub async fn find_by_merchant_id_merchant_order_reference_id(
+        conn: &PgPooledConn,
+        merchant_id_input: &common_utils::id_type::MerchantId,
+        merchant_order_reference_id_input: &str,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::merchant_id.eq(merchant_id_input.to_owned()).and(
+                dsl::merchant_order_reference_id.eq(merchant_order_reference_id_input.to_owned()),
+            ),
+        )
+        .await
+    }
+
     pub async fn update_by_merchant_id_payout_id(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
-        payout_id: &str,
+        payout_id: &common_utils::id_type::PayoutId,
         payout: PayoutAttemptUpdate,
     ) -> StorageResult<Self> {
         generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
@@ -152,7 +166,7 @@ impl PayoutAttempt {
             .map(|payout| {
                 format!(
                     "{}_{}",
-                    payout.payout_id.clone(),
+                    payout.payout_id.get_string_repr(),
                     payout.attempt_count.clone()
                 )
             })
@@ -160,8 +174,8 @@ impl PayoutAttempt {
 
         let active_payout_ids = payouts
             .iter()
-            .map(|payout| payout.payout_id.clone())
-            .collect::<Vec<String>>();
+            .map(|payout| payout.payout_id.to_owned())
+            .collect::<Vec<common_utils::id_type::PayoutId>>();
 
         let filter = <Self as HasTable>::table()
             .filter(dsl::merchant_id.eq(merchant_id.to_owned()))

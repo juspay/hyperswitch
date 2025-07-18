@@ -35,6 +35,7 @@ pub enum ApiIdentifier {
     UserRole,
     ConnectorOnboarding,
     Recon,
+    AiWorkflow,
     Poll,
     ApplePayCertificatesMigration,
     Relay,
@@ -43,7 +44,9 @@ pub enum ApiIdentifier {
     Hypersense,
     PaymentMethodSession,
     ProcessTracker,
+    Authentication,
     Proxy,
+    ProfileAcquirer,
     ThreeDsDecisionRule,
     GenericTokenization,
 }
@@ -78,6 +81,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ToggleDynamicRouting
             | Flow::UpdateDynamicRoutingConfigs
             | Flow::DecisionManagerUpsertConfig
+            | Flow::DecisionEngineRuleMigration
             | Flow::VolumeSplitOnRoutingType => Self::Routing,
 
             Flow::RetrieveForexFlow => Self::Forex,
@@ -159,7 +163,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsCreateAndConfirmIntent
             | Flow::PaymentStartRedirection
             | Flow::ProxyConfirmIntent
-            | Flow::PaymentsRetrieveUsingMerchantReferenceId => Self::Payments,
+            | Flow::PaymentsRetrieveUsingMerchantReferenceId
+            | Flow::PaymentAttemptsList => Self::Payments,
 
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve
@@ -188,7 +193,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::WebhookEventInitialDeliveryAttemptList
             | Flow::WebhookEventDeliveryAttemptList
             | Flow::WebhookEventDeliveryRetry
-            | Flow::RecoveryIncomingWebhookReceive => Self::Webhooks,
+            | Flow::RecoveryIncomingWebhookReceive
+            | Flow::IncomingNetworkTokenWebhookReceive => Self::Webhooks,
 
             Flow::ApiKeyCreate
             | Flow::ApiKeyRetrieve
@@ -295,6 +301,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::DeleteTheme
             | Flow::CloneConnector => Self::User,
 
+            Flow::GetDataFromHyperswitchAiFlow => Self::AiWorkflow,
+
             Flow::ListRolesV2
             | Flow::ListInvitableRolesAtEntityLevel
             | Flow::ListUpdatableRolesAtEntityLevel
@@ -343,8 +351,11 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentMethodSessionUpdate => Self::PaymentMethodSession,
 
             Flow::RevenueRecoveryRetrieve => Self::ProcessTracker,
+
+            Flow::AuthenticationCreate => Self::Authentication,
             Flow::Proxy => Self::Proxy,
 
+            Flow::ProfileAcquirerCreate | Flow::ProfileAcquirerUpdate => Self::ProfileAcquirer,
             Flow::ThreeDsDecisionRuleExecute => Self::ThreeDsDecisionRule,
             Flow::TokenizationCreate | Flow::TokenizationRetrieve => Self::GenericTokenization,
         }

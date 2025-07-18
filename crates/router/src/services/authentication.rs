@@ -1,12 +1,9 @@
 use std::str::FromStr;
 
 use actix_web::http::header::HeaderMap;
-#[cfg(all(
-    any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 use api_models::payment_methods::PaymentMethodCreate;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 use api_models::payment_methods::PaymentMethodIntentConfirm;
 #[cfg(feature = "payouts")]
 use api_models::payouts;
@@ -1915,16 +1912,15 @@ impl<'a> HeaderMapStruct<'a> {
         self.headers
             .get(key)
             .ok_or(errors::ApiErrorResponse::InvalidRequestData {
-                message: format!("Missing header key: `{}`", key),
+                message: format!("Missing header key: `{key}`"),
             })
-            .attach_printable(format!("Failed to find header key: {}", key))?
+            .attach_printable(format!("Failed to find header key: {key}"))?
             .to_str()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "`{key}` in headers",
             })
             .attach_printable(format!(
-                "Failed to convert header value to string for header key: {}",
-                key
+                "Failed to convert header value to string for header key: {key}",
             ))
     }
 
@@ -1944,7 +1940,7 @@ impl<'a> HeaderMapStruct<'a> {
             .and_then(|header_value| {
                 T::try_from(std::borrow::Cow::Owned(header_value)).change_context(
                     errors::ApiErrorResponse::InvalidRequestData {
-                        message: format!("`{}` header is invalid", key),
+                        message: format!("`{key}` header is invalid"),
                     },
                 )
             })
@@ -1988,13 +1984,12 @@ impl<'a> HeaderMapStruct<'a> {
                 field_name: "`{key}` in headers",
             })
             .attach_printable(format!(
-                "Failed to convert header value to string for header key: {}",
-                key
+                "Failed to convert header value to string for header key: {key}",
             ))?
             .map(|value| {
                 T::try_from(std::borrow::Cow::Owned(value.to_owned())).change_context(
                     errors::ApiErrorResponse::InvalidRequestData {
-                        message: format!("`{}` header is invalid", key),
+                        message: format!("`{key}` header is invalid"),
                     },
                 )
             })
@@ -2701,7 +2696,27 @@ where
         api_auth
     }
 }
-
+#[cfg(feature = "v2")]
+pub fn api_or_client_or_jwt_auth<'a, T, A>(
+    api_auth: &'a dyn AuthenticateAndFetch<T, A>,
+    client_auth: &'a dyn AuthenticateAndFetch<T, A>,
+    jwt_auth: &'a dyn AuthenticateAndFetch<T, A>,
+    headers: &HeaderMap,
+) -> &'a dyn AuthenticateAndFetch<T, A>
+where
+{
+    if let Ok(val) = HeaderMapStruct::new(headers).get_auth_string_from_header() {
+        if val.trim().starts_with("api-key=") {
+            api_auth
+        } else if is_jwt_auth(headers) {
+            jwt_auth
+        } else {
+            client_auth
+        }
+    } else {
+        api_auth
+    }
+}
 #[derive(Debug)]
 pub struct PublishableKeyAuth;
 
@@ -4165,10 +4180,7 @@ impl ClientSecretFetch for payments::PaymentsPostSessionTokensRequest {
     }
 }
 
-#[cfg(all(
-    any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 impl ClientSecretFetch for PaymentMethodCreate {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
@@ -4342,8 +4354,7 @@ pub fn get_header_value_by_key(key: String, headers: &HeaderMap) -> RouterResult
                 .to_str()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(format!(
-                    "Failed to convert header value to string for header key: {}",
-                    key
+                    "Failed to convert header value to string for header key: {key}",
                 ))
         })
         .transpose()

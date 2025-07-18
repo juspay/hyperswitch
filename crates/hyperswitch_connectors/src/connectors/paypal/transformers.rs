@@ -19,7 +19,8 @@ use hyperswitch_domain_models::{
         VerifyWebhookSource,
     },
     router_request_types::{
-        PaymentsAuthorizeData, PaymentsPostSessionTokensData, PaymentsSyncData, ResponseId,
+        CompleteAuthorizeData, PaymentsAuthorizeData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostSessionTokensData, PaymentsSyncData, ResponseId,
         VerifyWebhookSourceRequestData,
     },
     router_response_types::{
@@ -28,8 +29,9 @@ use hyperswitch_domain_models::{
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
-        PaymentsPostSessionTokensRouterData, RefreshTokenRouterData, RefundsRouterData,
-        SdkSessionUpdateRouterData, SetupMandateRouterData, VerifyWebhookSourceRouterData,
+        PaymentsIncrementalAuthorizationRouterData, PaymentsPostSessionTokensRouterData,
+        RefreshTokenRouterData, RefundsRouterData, SdkSessionUpdateRouterData,
+        SetupMandateRouterData, VerifyWebhookSourceRouterData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -54,6 +56,28 @@ use crate::{
         RouterData as OtherRouterData,
     },
 };
+
+trait GetRequestIncrementalAuthorization {
+    fn get_request_incremental_authorization(&self) -> Option<bool>;
+}
+
+impl GetRequestIncrementalAuthorization for PaymentsAuthorizeData {
+    fn get_request_incremental_authorization(&self) -> Option<bool> {
+        Some(self.request_incremental_authorization)
+    }
+}
+
+impl GetRequestIncrementalAuthorization for CompleteAuthorizeData {
+    fn get_request_incremental_authorization(&self) -> Option<bool> {
+        None
+    }
+}
+
+impl GetRequestIncrementalAuthorization for PaymentsSyncData {
+    fn get_request_incremental_authorization(&self) -> Option<bool> {
+        None
+    }
+}
 
 #[derive(Debug, Serialize)]
 pub struct PaypalRouterData<T> {
@@ -237,7 +261,7 @@ pub struct PurchaseUnitRequest {
     items: Vec<ItemDetails>,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Deserialize, Serialize, Eq, PartialEq)]
 pub struct Payee {
     merchant_id: Secret<String>,
 }
@@ -864,8 +888,8 @@ impl TryFrom<&PaypalRouterData<&SdkSessionUpdateRouterData>> for PaypalUpdateOrd
         // Create separate paths for amount and items
         let reference_id = &item.router_data.connector_request_reference_id;
 
-        let amount_path = format!("/purchase_units/@reference_id=='{}'/amount", reference_id);
-        let items_path = format!("/purchase_units/@reference_id=='{}'/items", reference_id);
+        let amount_path = format!("/purchase_units/@reference_id=='{reference_id}'/amount");
+        let items_path = format!("/purchase_units/@reference_id=='{reference_id}'/items");
 
         let amount_value = Value::Amount(OrderRequestAmount::try_from(item)?);
 
@@ -1046,6 +1070,8 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                 | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
                 | WalletData::AmazonPayRedirect(_)
+                | WalletData::Paysera(_)
+                | WalletData::Skrill(_)
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -1146,6 +1172,8 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::AliPayHk
                     | enums::PaymentMethodType::Alma
                     | enums::PaymentMethodType::AmazonPay
+                    | enums::PaymentMethodType::Paysera
+                    | enums::PaymentMethodType::Skrill
                     | enums::PaymentMethodType::ApplePay
                     | enums::PaymentMethodType::Atome
                     | enums::PaymentMethodType::Bacs
@@ -1232,6 +1260,8 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::PayEasy
                     | enums::PaymentMethodType::LocalBankTransfer
                     | enums::PaymentMethodType::InstantBankTransfer
+                    | enums::PaymentMethodType::InstantBankTransferFinland
+                    | enums::PaymentMethodType::InstantBankTransferPoland
                     | enums::PaymentMethodType::Mifinity
                     | enums::PaymentMethodType::Paze
                     | enums::PaymentMethodType::RevolutPay => {
@@ -1332,6 +1362,8 @@ impl TryFrom<&BankTransferData> for PaypalPaymentsRequest {
             | BankTransferData::Pix { .. }
             | BankTransferData::Pse {}
             | BankTransferData::InstantBankTransfer {}
+            | BankTransferData::InstantBankTransferFinland {}
+            | BankTransferData::InstantBankTransferPoland {}
             | BankTransferData::LocalBankTransfer { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),
@@ -1416,6 +1448,119 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaypalAuthUpdateResponse, T, AccessToke
             response: Ok(AccessToken {
                 token: item.response.access_token,
                 expires: item.response.expires_in,
+            }),
+            ..item.data
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct PaypalIncrementalAuthRequest {
+    amount: OrderAmount,
+}
+
+impl TryFrom<&PaypalRouterData<&PaymentsIncrementalAuthorizationRouterData>>
+    for PaypalIncrementalAuthRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: &PaypalRouterData<&PaymentsIncrementalAuthorizationRouterData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount: OrderAmount {
+                currency_code: item.router_data.request.currency,
+                value: item.amount.clone(),
+            },
+        })
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PaypalIncrementalAuthResponse {
+    status: PaypalIncrementalStatus,
+    status_details: PaypalIncrementalAuthStatusDetails,
+    id: String,
+    invoice_id: String,
+    custom_id: String,
+    links: Vec<PaypalLinks>,
+    amount: OrderAmount,
+    network_transaction_reference: PaypalNetworkTransactionReference,
+    expiration_time: String,
+    create_time: String,
+    update_time: String,
+    supplementary_data: PaypalSupplementaryData,
+    payee: Payee,
+    name: Option<String>,
+    message: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PaypalIncrementalStatus {
+    CREATED,
+    CAPTURED,
+    DENIED,
+    PARTIALLYCAPTURED,
+    VOIDED,
+    PENDING,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PaypalNetworkTransactionReference {
+    id: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PaypalIncrementalAuthStatusDetails {
+    reason: PaypalStatusPendingReason,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PaypalStatusPendingReason {
+    PENDINGREVIEW,
+    DECLINEDBYRISKFRAUDFILTERS,
+}
+
+impl From<PaypalIncrementalStatus> for common_enums::AuthorizationStatus {
+    fn from(item: PaypalIncrementalStatus) -> Self {
+        match item {
+            PaypalIncrementalStatus::CREATED
+            | PaypalIncrementalStatus::CAPTURED
+            | PaypalIncrementalStatus::PARTIALLYCAPTURED => Self::Success,
+            PaypalIncrementalStatus::PENDING => Self::Processing,
+            PaypalIncrementalStatus::DENIED | PaypalIncrementalStatus::VOIDED => Self::Failure,
+        }
+    }
+}
+
+impl<F>
+    TryFrom<
+        ResponseRouterData<
+            F,
+            PaypalIncrementalAuthResponse,
+            PaymentsIncrementalAuthorizationData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<F, PaymentsIncrementalAuthorizationData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            F,
+            PaypalIncrementalAuthResponse,
+            PaymentsIncrementalAuthorizationData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let status = common_enums::AuthorizationStatus::from(item.response.status);
+        Ok(Self {
+            response: Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
+                status,
+                error_code: None,
+                error_message: None,
+                connector_authorization_id: Some(item.response.id),
             }),
             ..item.data
         })
@@ -1744,6 +1889,7 @@ pub struct CardDetails {
 pub struct PaypalMeta {
     pub authorize_id: Option<String>,
     pub capture_id: Option<String>,
+    pub incremental_authorization_id: Option<String>,
     pub psync_flow: PaypalPaymentIntent,
     pub next_action: Option<api_models::payments::NextActionCall>,
     pub order_id: Option<String>,
@@ -1779,12 +1925,25 @@ fn get_id_based_on_intent(
     .ok_or_else(|| errors::ConnectorError::MissingConnectorTransactionID.into())
 }
 
-impl<F, T> TryFrom<ResponseRouterData<F, PaypalOrdersResponse, T, PaymentsResponseData>>
-    for RouterData<F, T, PaymentsResponseData>
+fn extract_incremental_authorization_id(response: &PaypalOrdersResponse) -> Option<String> {
+    for unit in &response.purchase_units {
+        if let Some(authorizations) = &unit.payments.authorizations {
+            if let Some(first_auth) = authorizations.first() {
+                return Some(first_auth.id.clone());
+            }
+        }
+    }
+    None
+}
+
+impl<F, Req> TryFrom<ResponseRouterData<F, PaypalOrdersResponse, Req, PaymentsResponseData>>
+    for RouterData<F, Req, PaymentsResponseData>
+where
+    Req: GetRequestIncrementalAuthorization,
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, PaypalOrdersResponse, T, PaymentsResponseData>,
+        item: ResponseRouterData<F, PaypalOrdersResponse, Req, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let purchase_units = item
             .response
@@ -1798,6 +1957,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaypalOrdersResponse, T, PaymentsRespon
                 serde_json::json!(PaypalMeta {
                     authorize_id: None,
                     capture_id: Some(id),
+                    incremental_authorization_id: None,
                     psync_flow: item.response.intent.clone(),
                     next_action: None,
                     order_id: None,
@@ -1809,6 +1969,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaypalOrdersResponse, T, PaymentsRespon
                 serde_json::json!(PaypalMeta {
                     authorize_id: Some(id),
                     capture_id: None,
+                    incremental_authorization_id: extract_incremental_authorization_id(
+                        &item.response
+                    ),
                     psync_flow: item.response.intent.clone(),
                     next_action: None,
                     order_id: None,
@@ -1869,7 +2032,10 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaypalOrdersResponse, T, PaymentsRespon
                     .invoice_id
                     .clone()
                     .or(Some(item.response.id)),
-                incremental_authorization_allowed: None,
+                incremental_authorization_allowed: item
+                    .data
+                    .request
+                    .get_request_incremental_authorization(),
                 charges: None,
             }),
             ..item.data
@@ -1962,6 +2128,7 @@ impl<F, T>
         let connector_meta = serde_json::json!(PaypalMeta {
             authorize_id: None,
             capture_id: None,
+            incremental_authorization_id: None,
             psync_flow: item.response.intent,
             next_action,
             order_id: None,
@@ -2014,6 +2181,7 @@ impl
         let connector_meta = serde_json::json!(PaypalMeta {
             authorize_id: None,
             capture_id: None,
+            incremental_authorization_id: None,
             psync_flow: item.response.intent,
             next_action: None,
             order_id: None,
@@ -2069,6 +2237,7 @@ impl
         let connector_meta = serde_json::json!(PaypalMeta {
             authorize_id: None,
             capture_id: None,
+            incremental_authorization_id: None,
             psync_flow: item.response.intent,
             next_action,
             order_id: Some(item.response.id.clone()),
@@ -2141,6 +2310,7 @@ impl<F>
         let connector_meta = serde_json::json!(PaypalMeta {
             authorize_id: None,
             capture_id: None,
+            incremental_authorization_id: None,
             psync_flow: PaypalPaymentIntent::Authenticate, // when there is no capture or auth id present
             next_action: None,
             order_id: None,
@@ -2306,7 +2476,7 @@ impl TryFrom<&PaypalRouterData<&PayoutsRouterData<PoFulfill>>> for PaypalFulfill
         let item_data = PaypalPayoutItem::try_from(item)?;
         Ok(Self {
             sender_batch_header: PayoutBatchHeader {
-                sender_batch_id: item.router_data.request.payout_id.to_owned(),
+                sender_batch_id: item.router_data.connector_request_reference_id.to_owned(),
             },
             items: vec![item_data],
         })
@@ -2531,9 +2701,8 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaypalCaptureResponse>>
             | storage_enums::AttemptStatus::Voided => 0,
             storage_enums::AttemptStatus::Charged
             | storage_enums::AttemptStatus::PartialCharged
-            | storage_enums::AttemptStatus::PartialChargedAndChargeable => {
-                item.data.request.amount_to_capture
-            }
+            | storage_enums::AttemptStatus::PartialChargedAndChargeable
+            | storage_enums::AttemptStatus::IntegrityFailure => item.data.request.amount_to_capture,
         };
         let connector_payment_id: PaypalMeta =
             to_connector_meta(item.data.request.connector_meta.clone())?;
@@ -2548,6 +2717,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaypalCaptureResponse>>
                 connector_metadata: Some(serde_json::json!(PaypalMeta {
                     authorize_id: connector_payment_id.authorize_id,
                     capture_id: Some(item.response.id.clone()),
+                    incremental_authorization_id: None,
                     psync_flow: PaypalPaymentIntent::Capture,
                     next_action: None,
                     order_id: None,
