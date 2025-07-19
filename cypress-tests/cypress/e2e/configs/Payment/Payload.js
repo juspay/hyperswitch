@@ -1,8 +1,30 @@
 import {
   customerAcceptance,
-  singleUseMandateData,
-  multiUseMandateData,
+  connectorDetails as commonConnectorDetails,
 } from "./Commons";
+import { getCustomExchange } from "./Modifiers";
+
+const DUPLICATION_TIMEOUT = 30000; // 30 seconds
+
+const singleUseMandateData = {
+  customer_acceptance: customerAcceptance,
+  mandate_type: {
+    single_use: {
+      amount: 8000,
+      currency: "USD",
+    },
+  },
+};
+
+const multiUseMandateData = {
+  customer_acceptance: customerAcceptance,
+  mandate_type: {
+    multi_use: {
+      amount: 8000,
+      currency: "USD",
+    },
+  },
+};
 
 const successfulNo3DSCardDetails = {
   card_number: "4242424242424242",
@@ -22,24 +44,6 @@ const failedNo3DSCardDetails = {
   card_exp_year: "25",
   card_holder_name: "John Doe",
   card_cvc: "123",
-};
-
-const payment_method_data_no3ds = {
-  card: {
-    last4: "4242",
-    card_type: "CREDIT",
-    card_network: "Visa",
-    card_issuer: "STRIPE PAYMENTS UK LIMITED",
-    card_issuing_country: "UNITEDKINGDOM",
-    card_isin: "424242",
-    card_extended_bin: null,
-    card_exp_month: "12",
-    card_exp_year: "25",
-    card_holder_name: "John Doe",
-    payment_checks: null,
-    authentication_data: null,
-  },
-  billing: null,
 };
 
 export const connectorDetails = {
@@ -179,7 +183,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 15000,
+          TIMEOUT: DUPLICATION_TIMEOUT / 2, // 15 seconds
         },
       },
       Request: {
@@ -313,7 +317,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 15000,
+          TIMEOUT: DUPLICATION_TIMEOUT / 2, // 15 seconds
         },
       },
       Request: {
@@ -336,7 +340,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 15000,
+          TIMEOUT: DUPLICATION_TIMEOUT / 2, // 15 seconds
         },
       },
       Request: {
@@ -359,7 +363,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 15000,
+          TIMEOUT: DUPLICATION_TIMEOUT / 2, // 15 seconds
         },
         TRIGGER_SKIP: true,
       },
@@ -383,7 +387,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 15000,
+          TIMEOUT: DUPLICATION_TIMEOUT / 2, // 15 seconds
         },
       },
       Request: {
@@ -430,7 +434,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 15000,
+          TIMEOUT: DUPLICATION_TIMEOUT / 2, // 15 seconds
         },
       },
       Request: {
@@ -452,7 +456,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 15000,
+          TIMEOUT: DUPLICATION_TIMEOUT / 2, // 15 seconds
         },
       },
       Request: {
@@ -469,7 +473,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 15000,
+          TIMEOUT: DUPLICATION_TIMEOUT / 2, // 15 seconds
         },
       },
       Request: {
@@ -486,7 +490,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 15000,
+          TIMEOUT: DUPLICATION_TIMEOUT / 2, // 15 seconds
         },
       },
       Request: {
@@ -504,9 +508,8 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 15000,
+          TIMEOUT: DUPLICATION_TIMEOUT,
         },
-        TRIGGER_SKIP: true,
       },
       Request: {
         payment_method: "card",
@@ -528,9 +531,8 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 15000,
+          TIMEOUT: DUPLICATION_TIMEOUT,
         },
-        TRIGGER_SKIP: true,
       },
       Request: {
         payment_method: "card",
@@ -544,10 +546,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
-          mandate_id: null,
-          payment_method_data: payment_method_data_no3ds,
-          payment_method: "card",
-          connector: "payload",
         },
       },
     },
@@ -555,9 +553,8 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 15000,
+          TIMEOUT: DUPLICATION_TIMEOUT,
         },
-        TRIGGER_SKIP: true,
       },
       Request: {
         payment_method: "card",
@@ -571,10 +568,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
-          mandate_id: null,
-          payment_method_data: payment_method_data_no3ds,
-          payment_method: "card",
-          connector: "payload",
         },
       },
     },
@@ -582,9 +575,8 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 15000,
+          TIMEOUT: DUPLICATION_TIMEOUT,
         },
-        TRIGGER_SKIP: true,
       },
       Request: {
         payment_method: "card",
@@ -598,9 +590,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
-          payment_method_data: payment_method_data_no3ds,
-          payment_method: "card",
-          connector: "payload",
         },
       },
     },
@@ -608,9 +597,8 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 15000,
+          TIMEOUT: DUPLICATION_TIMEOUT,
         },
-        TRIGGER_SKIP: true,
       },
       Request: {
         payment_method: "card",
@@ -624,9 +612,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
-          payment_method_data: payment_method_data_no3ds,
-          payment_method: "card",
-          connector: "payload",
         },
       },
     },
@@ -634,9 +619,8 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 15000,
+          TIMEOUT: DUPLICATION_TIMEOUT,
         },
-        TRIGGER_SKIP: true,
       },
       Request: {
         currency: "BRL",
@@ -652,9 +636,8 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 15000,
+          TIMEOUT: DUPLICATION_TIMEOUT,
         },
-        TRIGGER_SKIP: true,
       },
       Request: {
         payment_method: "card",
@@ -670,6 +653,31 @@ export const connectorDetails = {
           code: "IR_00",
           message: "Setup Mandate flow for Payload is not implemented",
           type: "invalid_request",
+        },
+      },
+    },
+
+    MITAutoCapture: getCustomExchange({
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: DUPLICATION_TIMEOUT,
+        },
+      },
+      ...commonConnectorDetails.card_pm.MITAutoCapture,
+    }),
+    MITManualCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: DUPLICATION_TIMEOUT,
+        },
+      },
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
         },
       },
     },
