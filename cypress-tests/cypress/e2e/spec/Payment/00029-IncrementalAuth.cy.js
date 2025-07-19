@@ -114,12 +114,6 @@ describe("[Payment] Incremental Auth", () => {
   context("[Payment] [Saved Card] Incremental Pre-Auth", () => {
     let shouldContinue = true;
 
-    beforeEach(function () {
-      if (!shouldContinue || connector !== "cybersource") {
-        this.skip();
-      }
-    });
-
     it("[Payment] List customer payment methods", () => {
       cy.listCustomerPMCallTest(globalState);
     });
@@ -128,9 +122,22 @@ describe("[Payment] Incremental Auth", () => {
         "card_pm"
       ]["PaymentIntentOffSession"];
 
+      const newData = {
+        ...data,
+        Request: {
+          ...data.Request,
+          request_incremental_authorization: true,
+        },
+        Response: {
+          ...data.Response,
+          incremental_authorization_allowed: null,
+          incremental_authorizations: null,
+        },
+      };
+
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
-        data,
+        newData,
         "no_three_ds",
         "manual",
         globalState
@@ -165,7 +172,13 @@ describe("[Payment] Incremental Auth", () => {
         "card_pm"
       ]["Capture"];
 
-      cy.captureCallTest(fixtures.captureBody, data, globalState);
+      const newData = {
+        ...data,
+        Request: { amount_to_capture: data.Request.amount_to_capture + 2000 },
+        Response: data.ResponseCustom || data.Response,
+      };
+
+      cy.captureCallTest(fixtures.captureBody, newData, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
