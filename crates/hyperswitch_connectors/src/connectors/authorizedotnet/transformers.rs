@@ -826,12 +826,16 @@ impl
             }),
             profile: None,
             order: Order {
-                invoice_number: item
-                    .router_data
-                    .request
-                    .merchant_order_reference_id
-                    .clone()
-                    .unwrap_or_else(get_random_string),
+                invoice_number: match &item.router_data.request.merchant_order_reference_id {
+                    Some(merchant_order_reference_id) => {
+                        if merchant_order_reference_id.len() <= MAX_ID_LENGTH {
+                            merchant_order_reference_id.to_string()
+                        } else {
+                            get_random_string()
+                        }
+                    }
+                    None => get_random_string(),
+                },
 
                 description: item.router_data.connector_request_reference_id.clone(),
             },
@@ -911,12 +915,16 @@ impl
                     })
                 }),
             order: Order {
-                invoice_number: item
-                    .router_data
-                    .request
-                    .merchant_order_reference_id
-                    .clone()
-                    .unwrap_or_else(get_random_string),
+                invoice_number: match &item.router_data.request.merchant_order_reference_id {
+                    Some(merchant_order_reference_id) => {
+                        if merchant_order_reference_id.len() <= MAX_ID_LENGTH {
+                            merchant_order_reference_id.to_string()
+                        } else {
+                            get_random_string()
+                        }
+                    }
+                    None => get_random_string(),
+                },
 
                 description: item.router_data.connector_request_reference_id.clone(),
             },
@@ -988,12 +996,16 @@ impl
             })),
             profile,
             order: Order {
-                invoice_number: item
-                    .router_data
-                    .request
-                    .merchant_order_reference_id
-                    .clone()
-                    .unwrap_or_else(get_random_string),
+                invoice_number: match &item.router_data.request.merchant_order_reference_id {
+                    Some(merchant_order_reference_id) => {
+                        if merchant_order_reference_id.len() <= MAX_ID_LENGTH {
+                            merchant_order_reference_id.to_string()
+                        } else {
+                            get_random_string()
+                        }
+                    }
+                    None => get_random_string(),
+                },
 
                 description: item.router_data.connector_request_reference_id.clone(),
             },
@@ -1065,12 +1077,16 @@ impl
             )?),
             profile,
             order: Order {
-                invoice_number: item
-                    .router_data
-                    .request
-                    .merchant_order_reference_id
-                    .clone()
-                    .unwrap_or_else(get_random_string),
+                invoice_number: match &item.router_data.request.merchant_order_reference_id {
+                    Some(merchant_order_reference_id) => {
+                        if merchant_order_reference_id.len() <= MAX_ID_LENGTH {
+                            merchant_order_reference_id.to_string()
+                        } else {
+                            get_random_string()
+                        }
+                    }
+                    None => get_random_string(),
+                },
 
                 description: item.router_data.connector_request_reference_id.clone(),
             },
