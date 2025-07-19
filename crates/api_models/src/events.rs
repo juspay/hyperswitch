@@ -238,3 +238,9 @@ impl ApiEventMetric for tokenization::GenericTokenizationRequest {}
 
 #[cfg(feature = "tokenization_v2")]
 impl ApiEventMetric for tokenization::GenericTokenizationResponse {}
+
+#[cfg(feature = "tokenization_v2")]
+impl ApiEventMetric for tokenization::DeleteTokenDataResponse {}
+
+#[cfg(feature = "tokenization_v2")]
+impl ApiEventMetric for tokenization::DeleteTokenDataRequest {}

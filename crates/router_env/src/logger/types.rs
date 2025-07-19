@@ -612,6 +612,8 @@ pub enum Flow {
     ThreeDsDecisionRuleExecute,
     /// Incoming Network Token Webhook Receive
     IncomingNetworkTokenWebhookReceive,
+    /// Tokenization delete flow
+    TokenizationDelete,
 }
 
 /// Trait for providing generic behaviour to flow metric
