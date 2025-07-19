@@ -52,6 +52,9 @@ pub enum ParsingError {
     /// Failed to convert the given integer because of integer overflow error
     #[error("Integer Overflow error")]
     IntegerOverflow,
+    /// Failed to parse url
+    #[error("Failed to parse url")]
+    UrlParsingError,
 }
 
 /// Validation errors.
