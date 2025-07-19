@@ -591,7 +591,7 @@ gocardless = { long_lived_token = true, payment_method = "bank_debit" }
 billwerk = { long_lived_token = false, payment_method = "card" }
 
 [connector_customer]
-connector_list = "adyen,facilitapay,gocardless,hyperswitch_vault,payload,stax,stripe"
+connector_list = "adyen,facilitapay,gocardless,hyperswitch_vault,stax,stripe"
 payout_connector_list = "nomupay,wise"
 
 [dummy_connector]

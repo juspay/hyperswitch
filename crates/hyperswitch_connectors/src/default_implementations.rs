@@ -1214,6 +1214,7 @@ default_imp_for_create_customer!(
     connectors::Paybox,
     connectors::Payeezy,
     connectors::Payme,
+    connectors::Payload,
     connectors::Payone,
     connectors::Paypal,
     connectors::Paystack,
