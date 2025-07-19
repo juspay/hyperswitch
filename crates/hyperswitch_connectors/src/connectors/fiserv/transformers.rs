@@ -10,7 +10,7 @@ use hyperswitch_domain_models::{
     types,
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -45,21 +45,26 @@ pub struct FiservPaymentsRequest {
     source: Source,
     transaction_details: TransactionDetails,
     merchant_details: MerchantDetails,
-    transaction_interaction: TransactionInteraction,
+    transaction_interaction: Option<TransactionInteraction>,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(tag = "sourceType")]
 pub enum Source {
-    PaymentCard {
-        card: CardData,
-    },
-    #[allow(dead_code)]
-    GooglePay {
-        data: Secret<String>,
-        signature: Secret<String>,
-        version: String,
-    },
+    #[serde(rename = "GooglePay")]
+    GooglePay(GooglePayData),
+
+    #[serde(rename = "PaymentCard")]
+    PaymentCard { card: CardData },
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GooglePayData {
+    data: Secret<String>,
+    signature: Secret<String>,
+    version: String,
+    intermediate_signing_key: IntermediateSigningKey,
 }
 
 #[derive(Debug, Serialize)]
@@ -68,15 +73,8 @@ pub struct CardData {
     card_data: cards::CardNumber,
     expiration_month: Secret<String>,
     expiration_year: Secret<String>,
-    security_code: Secret<String>,
-}
-
-#[derive(Default, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GooglePayToken {
-    signature: Secret<String>,
-    signed_message: Secret<String>,
-    protocol_version: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    security_code: Option<Secret<String>>,
 }
 
 #[derive(Default, Debug, Serialize)]
@@ -90,7 +88,7 @@ pub struct Amount {
 pub struct TransactionDetails {
     capture_flag: Option<bool>,
     reversal_reason_code: Option<String>,
-    merchant_transaction_id: String,
+    merchant_transaction_id: Option<String>,
 }
 
 #[derive(Default, Debug, Serialize)]
@@ -127,6 +125,81 @@ pub enum TransactionInteractionPosConditionCode {
     CardNotPresentEcom,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IntermediateSigningKey {
+    signed_key: Secret<String>,
+    signatures: Vec<Secret<String>>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SignedKey {
+    key_value: String,
+    key_expiration: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SignedMessage {
+    encrypted_message: String,
+    ephemeral_public_key: String,
+    tag: String,
+}
+
+#[derive(Debug, Default)]
+pub struct FullyParsedGooglePayToken {
+    pub signature: Secret<String>,
+    pub protocol_version: String,
+    pub encrypted_message: String,
+    pub ephemeral_public_key: String,
+    pub tag: String,
+    pub key_value: String,
+    pub key_expiration: String,
+    pub signatures: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RawGooglePayToken {
+    pub signature: Secret<String>,
+    pub protocol_version: String,
+    pub signed_message: Secret<String>,
+    pub intermediate_signing_key: IntermediateSigningKey,
+}
+
+pub fn parse_googlepay_token_safely(token_json_str: &str) -> FullyParsedGooglePayToken {
+    let mut result = FullyParsedGooglePayToken::default();
+
+    if let Ok(raw_token) = serde_json::from_str::<RawGooglePayToken>(token_json_str) {
+        result.signature = raw_token.signature;
+        result.protocol_version = raw_token.protocol_version;
+        result.signatures = raw_token
+            .intermediate_signing_key
+            .signatures
+            .into_iter()
+            .map(|s| s.expose().to_owned())
+            .collect();
+
+        if let Ok(key) = serde_json::from_str::<SignedKey>(
+            &raw_token.intermediate_signing_key.signed_key.expose(),
+        ) {
+            result.key_value = key.key_value;
+            result.key_expiration = key.key_expiration;
+        }
+
+        if let Ok(message) =
+            serde_json::from_str::<SignedMessage>(&raw_token.signed_message.expose())
+        {
+            result.encrypted_message = message.encrypted_message;
+            result.ephemeral_public_key = message.ephemeral_public_key;
+            result.tag = message.tag;
+        }
+    }
+
+    result
+}
+
 impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -145,10 +218,11 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
                     | None
             )),
             reversal_reason_code: None,
-            merchant_transaction_id: item.router_data.connector_request_reference_id.clone(),
+            merchant_transaction_id: Some(item.router_data.connector_request_reference_id.clone()),
         };
-        let metadata = item.router_data.get_connector_meta()?;
+        let metadata = item.router_data.get_connector_meta()?.clone();
         let session: FiservSessionObject = metadata
+            .expose()
             .parse_value("FiservSessionObject")
             .change_context(errors::ConnectorError::InvalidConnectorConfig {
                 config: "Merchant connector account metadata",
@@ -159,26 +233,56 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
             terminal_id: Some(session.terminal_id),
         };
 
-        let transaction_interaction = TransactionInteraction {
+        let transaction_interaction = Some(TransactionInteraction {
             //Payment is being made in online mode, card not present
             origin: TransactionInteractionOrigin::Ecom,
             // transaction encryption such as SSL/TLS, but authentication was not performed
             eci_indicator: TransactionInteractionEciIndicator::ChannelEncrypted,
             //card not present in online transaction
             pos_condition_code: TransactionInteractionPosConditionCode::CardNotPresentEcom,
-        };
+        });
         let source = match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(ref ccard) => {
-                let card = CardData {
+            PaymentMethodData::Card(ref ccard) => Ok(Source::PaymentCard {
+                card: CardData {
                     card_data: ccard.card_number.clone(),
                     expiration_month: ccard.card_exp_month.clone(),
                     expiration_year: ccard.get_expiry_year_4_digit(),
-                    security_code: ccard.card_cvc.clone(),
-                };
-                Source::PaymentCard { card }
-            }
-            PaymentMethodData::Wallet(_)
-            | PaymentMethodData::PayLater(_)
+                    security_code: Some(ccard.card_cvc.clone()),
+                },
+            }),
+            PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                hyperswitch_domain_models::payment_method_data::WalletData::GooglePay(data) => {
+                    let token_string = data.tokenization_data.token.to_owned();
+
+                    let parsed = parse_googlepay_token_safely(&token_string);
+
+                    Ok(Source::GooglePay(GooglePayData {
+                        data: Secret::new(parsed.encrypted_message),
+                        signature: Secret::new(parsed.signature.expose().to_owned()),
+                        version: parsed.protocol_version,
+                        intermediate_signing_key: IntermediateSigningKey {
+                            signed_key: Secret::new(
+                                serde_json::json!({
+                                    "keyValue": parsed.key_value,
+                                    "keyExpiration": parsed.key_expiration
+                                })
+                                .to_string(),
+                            ),
+                            signatures: parsed
+                                .signatures
+                                .into_iter()
+                                .map(|s| Secret::new(s.to_owned()))
+                                .collect(),
+                        },
+                    }))
+                }
+                _ => Err(error_stack::report!(
+                    errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("fiserv"),
+                    )
+                )),
+            },
+            PaymentMethodData::PayLater(_)
             | PaymentMethodData::BankRedirect(_)
             | PaymentMethodData::BankDebit(_)
             | PaymentMethodData::CardRedirect(_)
@@ -194,12 +298,12 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(errors::ConnectorError::NotImplemented(
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => Err(
+                error_stack::report!(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("fiserv"),
-                ))
-            }?,
-        };
+                )),
+            ),
+        }?;
         Ok(Self {
             amount,
             source,
@@ -248,8 +352,9 @@ impl TryFrom<&types::PaymentsCancelRouterData> for FiservCancelRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         let auth: FiservAuthType = FiservAuthType::try_from(&item.connector_auth_type)?;
-        let metadata = item.get_connector_meta()?;
+        let metadata = item.get_connector_meta()?.clone();
         let session: FiservSessionObject = metadata
+            .expose()
             .parse_value("FiservSessionObject")
             .change_context(errors::ConnectorError::InvalidConnectorConfig {
                 config: "Merchant connector account metadata",
@@ -265,7 +370,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for FiservCancelRequest {
             transaction_details: TransactionDetails {
                 capture_flag: None,
                 reversal_reason_code: Some(item.request.get_cancellation_reason()?),
-                merchant_transaction_id: item.connector_request_reference_id.clone(),
+                merchant_transaction_id: Some(item.connector_request_reference_id.clone()),
             },
         })
     }
@@ -541,6 +646,7 @@ impl TryFrom<&FiservRouterData<&types::PaymentsCaptureRouterData>> for FiservCap
             .clone()
             .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
         let session: FiservSessionObject = metadata
+            .expose()
             .parse_value("FiservSessionObject")
             .change_context(errors::ConnectorError::InvalidConnectorConfig {
                 config: "Merchant connector account metadata",
@@ -553,7 +659,9 @@ impl TryFrom<&FiservRouterData<&types::PaymentsCaptureRouterData>> for FiservCap
             transaction_details: TransactionDetails {
                 capture_flag: Some(true),
                 reversal_reason_code: None,
-                merchant_transaction_id: item.router_data.connector_request_reference_id.clone(),
+                merchant_transaction_id: Some(
+                    item.router_data.connector_request_reference_id.clone(),
+                ),
             },
             merchant_details: MerchantDetails {
                 merchant_id: auth.merchant_account,
@@ -636,6 +744,7 @@ impl<F> TryFrom<&FiservRouterData<&types::RefundsRouterData<F>>> for FiservRefun
             .clone()
             .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
         let session: FiservSessionObject = metadata
+            .expose()
             .parse_value("FiservSessionObject")
             .change_context(errors::ConnectorError::InvalidConnectorConfig {
                 config: "Merchant connector account metadata",
