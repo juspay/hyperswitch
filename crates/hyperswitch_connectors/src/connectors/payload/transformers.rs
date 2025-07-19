@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::enums;
-use common_utils::{ext_traits::ValueExt, types::StringMinorUnit};
+use common_utils::{ext_traits::ValueExt, types::StringMajorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
@@ -32,12 +32,12 @@ type Error = error_stack::Report<errors::ConnectorError>;
 
 //TODO: Fill the struct with respective fields
 pub struct PayloadRouterData<T> {
-    pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: StringMajorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
 }
 
-impl<T> From<(StringMinorUnit, T)> for PayloadRouterData<T> {
-    fn from((amount, item): (StringMinorUnit, T)) -> Self {
+impl<T> From<(StringMajorUnit, T)> for PayloadRouterData<T> {
+    fn from((amount, item): (StringMajorUnit, T)) -> Self {
         Self {
             amount,
             router_data: item,

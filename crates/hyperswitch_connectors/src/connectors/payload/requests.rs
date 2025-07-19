@@ -1,4 +1,4 @@
-use common_utils::{pii, types::StringMinorUnit};
+use common_utils::{pii, types::StringMajorUnit};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -49,7 +49,7 @@ pub struct BillingAddress {
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct PayloadCardsRequestData {
-    pub amount: StringMinorUnit,
+    pub amount: StringMajorUnit,
     #[serde(flatten)]
     pub card: PayloadCard,
     #[serde(rename = "type")]
@@ -70,7 +70,7 @@ pub struct PayloadCardsRequestData {
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct PayloadMandateRequestData {
-    pub amount: StringMinorUnit,
+    pub amount: StringMajorUnit,
     #[serde(rename = "type")]
     pub transaction_types: TransactionTypes,
     pub customer_id: Secret<String>,
@@ -105,7 +105,7 @@ pub struct PayloadCaptureRequest {
 pub struct PayloadRefundRequest {
     #[serde(rename = "type")]
     pub transaction_type: TransactionTypes,
-    pub amount: StringMinorUnit,
+    pub amount: StringMajorUnit,
     #[serde(rename = "ledger[0][assoc_transaction_id]")]
     pub ledger_assoc_transaction_id: String,
 }
