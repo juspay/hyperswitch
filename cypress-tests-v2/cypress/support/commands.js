@@ -45,7 +45,7 @@ Cypress.Commands.add(
     // Define the necessary variables and constants
     const api_key = globalState.get("adminApiKey");
     const base_url = globalState.get("baseUrl");
-    const url = `${base_url}/v2/organization`;
+    const url = `${base_url}/v2/organizations`;
 
     // Update request body
     organizationCreateBody.organization_name += " " + nanoid();
@@ -84,7 +84,7 @@ Cypress.Commands.add("organizationRetrieveCall", (globalState) => {
   const api_key = globalState.get("adminApiKey");
   const base_url = globalState.get("baseUrl");
   const organization_id = globalState.get("organizationId");
-  const url = `${base_url}/v2/organization/${organization_id}`;
+  const url = `${base_url}/v2/organizations/${organization_id}`;
 
   cy.request({
     method: "GET",
@@ -125,7 +125,7 @@ Cypress.Commands.add(
     const api_key = globalState.get("adminApiKey");
     const base_url = globalState.get("baseUrl");
     const organization_id = globalState.get("organizationId");
-    const url = `${base_url}/v2/organization/${organization_id}`;
+    const url = `${base_url}/v2/organizations/${organization_id}`;
 
     // Update request body
     organizationUpdateBody.organization_name += " " + nanoid();
@@ -805,7 +805,7 @@ Cypress.Commands.add(
     const api_key = globalState.get("userInfoToken");
     const base_url = globalState.get("baseUrl");
     const profile_id = globalState.get("profileId");
-    const url = `${base_url}/v2/routing-algorithm`;
+    const url = `${base_url}/v2/routing-algorithms`;
 
     // Update request body
     routingSetupBody.algorithm.data = payload.data;
@@ -961,7 +961,7 @@ Cypress.Commands.add("routingRetrieveCall", (globalState) => {
   const base_url = globalState.get("baseUrl");
   const profile_id = globalState.get("profileId");
   const routing_algorithm_id = globalState.get("routingAlgorithmId");
-  const url = `${base_url}/v2/routing-algorithm/${routing_algorithm_id}`;
+  const url = `${base_url}/v2/routing-algorithms/${routing_algorithm_id}`;
 
   cy.request({
     method: "GET",
@@ -1170,7 +1170,7 @@ Cypress.Commands.add("merchantAccountsListCall", (globalState) => {
   const key_id_type = "publishable_key";
   const key_id = validateEnv(base_url, key_id_type);
   const organization_id = globalState.get("organizationId");
-  const url = `${base_url}/v2/organization/${organization_id}/merchant-accounts`;
+  const url = `${base_url}/v2/organizations/${organization_id}/merchant-accounts`;
 
   cy.request({
     method: "GET",
