@@ -1,14 +1,14 @@
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{self,RouterData as _},
+    utils::{self, CustomerData, RouterData as _},
 };
 use common_enums::enums;
-use common_utils::types::StringMajorUnit;
+use common_utils::types::{StringMajorUnit};
 use hyperswitch_domain_models::{
     payment_method_data::{PaymentMethodData, BankDebitData},
     router_data::{ConnectorAuthType, RouterData, AccessToken, PaymentMethodToken},
     router_flow_types::{
-        refunds::{Execute, RSync}
+        refunds::{RSync}
     },
     router_request_types::ResponseId,
     router_response_types::{RefundsResponseData, PaymentsResponseData},
@@ -71,17 +71,21 @@ impl<F, T> TryFrom<ResponseRouterData<F, DwollaAccessTokenResponse, T, AccessTok
 }
 
 #[derive(Debug)]
-pub struct DwollaRouterData<T> {
+pub struct DwollaRouterData<'a, T> {
     pub amount: StringMajorUnit,
     pub router_data: T,
+    pub base_url: &'a str,
 }
 
-impl<T> TryFrom<(StringMajorUnit, T)> for DwollaRouterData<T> {
+impl<'a, T> TryFrom<(StringMajorUnit, T, &'a str)> for DwollaRouterData<'a, T> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from((amount, router_data): (StringMajorUnit, T)) -> Result<Self, Self::Error> {
+    fn try_from(
+        (amount, router_data, base_url): (StringMajorUnit, T, &'a str),
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data,
+            base_url,
         })
     }
 }
@@ -93,7 +97,6 @@ pub struct DwollaCustomerRequest {
     #[serde(rename = "lastName")]
     last_name: Secret<String>,
     email: common_utils::pii::Email,
-    correlation_id: Option<String>,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
@@ -134,12 +137,19 @@ pub struct DwollaRequestLink {
 
 #[derive(Default, Debug, Serialize, PartialEq, Deserialize, Clone)]
 pub struct DwollaAmount {
-    currency : common_enums::Currency,
-    value : StringMajorUnit,
+    pub currency : common_enums::Currency,
+    pub value : StringMajorUnit,
 }
 
 #[derive(Default, Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct DwollaPSyncResponse {
+    pub id : String,
+    pub status : DwollaPaymentStatus,
+    pub amount : DwollaAmount,
+}
+
+#[derive(Default, Debug, PartialEq, Serialize, Deserialize, Clone)]
+pub struct DwollaRSyncResponse {
     id : String,
     status : DwollaPaymentStatus,
     amount : DwollaAmount,
@@ -150,28 +160,34 @@ pub struct DwollaMetaData {
     pub merchant_funding_source: Secret<String>,
 }
 
+#[derive(Default, Debug, Serialize, PartialEq, Deserialize, Clone)]
+pub struct DwollaRefundsRequest {
+    #[serde(rename = "_links")]
+    links : DwollaPaymentLinks,
+    amount : DwollaAmount,
+}
+
 impl TryFrom<&types::ConnectorCustomerRouterData> for DwollaCustomerRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: &types::ConnectorCustomerRouterData,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            first_name: item.request.name.clone().ok_or_else(|| {
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "first_name",
-                }
-            })?,
-            last_name: item.request.name.clone().ok_or_else(|| {
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "last_name",
-                }
-            })?,
-            email: item.request.email.clone().ok_or_else(|| {
-                errors::ConnectorError::MissingRequiredField {
+            first_name: item.get_billing_first_name().map_err(|_| {
+                            errors::ConnectorError::MissingRequiredField {
+                                field_name: "first_name",
+                            }
+                        })?,
+            last_name: item.get_billing_last_name().map_err(|_| {
+                            errors::ConnectorError::MissingRequiredField {
+                                field_name: "last_name",
+                            }
+                        })?,
+            email: item.request.get_email()
+                .or_else(|_| item.get_billing_email())
+                .map_err(|_| errors::ConnectorError::MissingRequiredField {
                     field_name: "email",
-                }
-            })?,
-            correlation_id: Some(uuid::Uuid::new_v4().to_string().into()),
+                })?,
         })
     }
 }
@@ -180,30 +196,26 @@ impl TryFrom<&types::TokenizationRouterData> for DwollaFundingSourceRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::TokenizationRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
-            PaymentMethodData::BankDebit(bank_details) => match bank_details {
-                BankDebitData::AchBankDebit { ref routing_number, ref account_number, ref bank_type, ref bank_account_holder_name, .. } => {
-                    let account_type = bank_type.clone().ok_or_else(|| {
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "bank_type",
-                        }
-                    })?;
+            PaymentMethodData::BankDebit(BankDebitData::AchBankDebit { ref routing_number, ref account_number, ref bank_type, ref bank_account_holder_name, .. }) => {
+                let account_type = (*bank_type).ok_or_else(|| {
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "bank_type",
+                    }
+                })?;
 
-                    let name = bank_account_holder_name.clone().ok_or_else(|| {
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "bank_account_holder_name",
-                        }
-                    })?;
+                let name = bank_account_holder_name.clone().ok_or_else(|| {
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "bank_account_holder_name",
+                    }
+                })?;
 
-                    let request = Self {
-                        routing_number: routing_number.clone(),
-                        account_number: account_number.clone(),
-                        account_type,
-                        name,
-                    };
-                    Ok(request)
-                }
-                _ => Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("dwolla"),))?,
+                let request = Self {
+                    routing_number: routing_number.clone(),
+                    account_number: account_number.clone(),
+                    account_type,
+                    name,
+                };
+                Ok(request)
             },
             _ => Err(errors::ConnectorError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("dwolla"),
@@ -212,10 +224,10 @@ impl TryFrom<&types::TokenizationRouterData> for DwollaFundingSourceRequest {
     }
 }
 
-impl TryFrom<&DwollaRouterData<&PaymentsAuthorizeRouterData>> for DwollaPaymentsRequest {
+impl<'a> TryFrom<&DwollaRouterData<'a, &PaymentsAuthorizeRouterData>> for DwollaPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &DwollaRouterData<&PaymentsAuthorizeRouterData>,
+        item: &DwollaRouterData<'a, &PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let source_funding = match item.router_data.get_payment_method_token()? {
             PaymentMethodToken::Token(pm_token) => Ok(pm_token),
@@ -224,21 +236,26 @@ impl TryFrom<&DwollaRouterData<&PaymentsAuthorizeRouterData>> for DwollaPayments
             }),
         }?;
 
-        let metadata = utils::to_connector_meta_from_secret::<DwollaMetaData>(item.router_data.connector_meta_data.clone())
-                .change_context(errors::ConnectorError::InvalidConnectorConfig {
-                    config: "metadata",
-                })?;
+        let metadata = utils::to_connector_meta_from_secret::<DwollaMetaData>(
+            item.router_data.connector_meta_data.clone(),
+        )
+        .change_context(errors::ConnectorError::InvalidConnectorConfig {
+            config: "metadata",
+        })?;
 
         let source_url = format!(
-            "https://api-sandbox.dwolla.com/funding-sources/{}",
+            "{}/funding-sources/{}",
+            item.base_url,
             source_funding.expose()
         );
 
         let destination_url = format!(
-            "https://api-sandbox.dwolla.com/funding-sources/{}",metadata.merchant_funding_source.expose()
+            "{}/funding-sources/{}",
+            item.base_url,
+            metadata.merchant_funding_source.expose()
         );
 
-        let request = DwollaPaymentsRequest{
+        let request = Self {
             links: DwollaPaymentLinks {
                 source: DwollaRequestLink {
                     href: source_url
@@ -265,14 +282,23 @@ impl<F, T> TryFrom<ResponseRouterData<F, DwollaPSyncResponse, T, PaymentsRespons
         item: ResponseRouterData<F, DwollaPSyncResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let payment_id = item.response.id.clone();
-        let status = DwollaPaymentStatus::from(item.response.status);
-
+        let status = item.response.status;
+        let connector_metadata =
+            item.data
+                .payment_method_token
+                .as_ref()
+                .and_then(|token| match token {
+                    PaymentMethodToken::Token(t) => {
+                        Some(serde_json::json!({ "payment_token": t.clone().expose() }))
+                    }
+                    _ => None,
+                });
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(payment_id.clone()),
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
-                connector_metadata: None,
+                connector_metadata,
                 network_txn_id: None,
                 connector_response_reference_id: Some(payment_id.clone()),
                 incremental_authorization_allowed: None,
@@ -284,8 +310,78 @@ impl<F, T> TryFrom<ResponseRouterData<F, DwollaPSyncResponse, T, PaymentsRespons
     }
 }
 
+impl<'a, F> TryFrom<&DwollaRouterData<'a, &RefundsRouterData<F>>> for DwollaRefundsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &DwollaRouterData<'a, &RefundsRouterData<F>>,
+    ) -> Result<Self, Self::Error> {
+        let destination_funding =
+            item.router_data
+                .request
+                .connector_metadata
+                .as_ref()
+                .and_then(|meta| {
+                    meta.get("payment_token")
+                        .and_then(|token| token.as_str().map(|s| s.to_string()))
+                })
+                .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                    field_name: "payment_token",
+                })?;
+
+        let metadata = utils::to_connector_meta_from_secret::<DwollaMetaData>(
+            item.router_data.connector_meta_data.clone(),
+        )
+        .change_context(errors::ConnectorError::InvalidConnectorConfig {
+            config: "metadata",
+        })?;
+
+        let source_url = format!(
+            "{}/funding-sources/{}",
+            item.base_url,
+            metadata.merchant_funding_source.expose()
+        );
+
+        let destination_url = format!(
+            "{}/funding-sources/{}",
+            item.base_url, destination_funding
+        );
+
+        let request = Self {
+            links: DwollaPaymentLinks {
+                source: DwollaRequestLink {
+                    href: source_url
+                },
+                destination: DwollaRequestLink {
+                    href: destination_url,
+                },
+            },
+            amount: DwollaAmount {
+                currency: item.router_data.request.currency,
+                value: item.amount.to_owned(),
+            },
+        };
+
+        Ok(request)
+    }
+}
+
+impl TryFrom<RefundsResponseRouterData<RSync, DwollaRSyncResponse>> for RefundsRouterData<RSync> {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: RefundsResponseRouterData<RSync, DwollaRSyncResponse>,
+    ) -> Result<Self, Self::Error> {
+        let refund_status = enums::RefundStatus::from(item.response.status);
+        Ok(Self {
+            response: Ok(RefundsResponseData {
+                connector_refund_id: item.response.id,
+                refund_status,
+            }),
+            ..item.data
+        })
+    }
+}
+
 // PaymentsResponse
-//TODO: Append the remaining status flags
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum DwollaPaymentStatus {
@@ -309,91 +405,104 @@ impl From<DwollaPaymentStatus> for common_enums::AttemptStatus {
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct DwollaPaymentsResponse {}
-
-
-//TODO: Fill the struct with respective fields
-// REFUND :
-// Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
-pub struct DwollaRefundRequest {
-    pub amount: StringMajorUnit,
-}
-
-impl<F> TryFrom<&DwollaRouterData<&RefundsRouterData<F>>> for DwollaRefundRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &DwollaRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
-        Ok(Self {
-            amount: item.amount.to_owned(),
-        })
-    }
-}
-
-// Type definition for Refund Response
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
-pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
-
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
+impl From<DwollaPaymentStatus> for enums::RefundStatus {
+    fn from(item: DwollaPaymentStatus) -> Self {
         match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
+            DwollaPaymentStatus::Succeeded => Self::Success,
+            DwollaPaymentStatus::Processed => Self::Success,
+            DwollaPaymentStatus::Failed => Self::Failure,
+            DwollaPaymentStatus::Processing => Self::Pending,
+            DwollaPaymentStatus::Pending => Self::Pending,
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {
-    id: String,
-    status: RefundStatus,
-}
-
-impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: RefundsResponseRouterData<Execute, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
-            ..item.data
-        })
-    }
-}
-
-impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouterData<RSync> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: RefundsResponseRouterData<RSync, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
-            ..item.data
-        })
-    }
-}
-
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct DwollaErrorResponse {
     pub code: String,
     pub message: String,
     pub reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DwollaWebhookDetails {
+    pub resource_id: String,
+    pub topic: DwollaWebhookEventType,
+}
+
+impl From<&str> for DwollaWebhookEventType {
+    fn from(topic: &str) -> Self {
+        match topic {
+            "customer_created" => Self::CustomerCreated,
+            "customer_verified" => Self::CustomerVerified,
+            "customer_funding_source_added" => Self::CustomerFundingSourceAdded,
+            "customer_funding_source_removed" => Self::CustomerFundingSourceRemoved,
+            "customer_funding_source_verified" => Self::CustomerFundingSourceVerified,
+            "customer_funding_source_unverified" => Self::CustomerFundingSourceUnverified,
+            "customer_microdeposits_added" => Self::CustomerMicrodepositsAdded,
+            "customer_microdeposits_failed" => Self::CustomerMicrodepositsFailed,
+            "customer_microdeposits_completed" => Self::CustomerMicrodepositsCompleted,
+            "customer_microdeposits_maxattempts" => Self::CustomerMicrodepositsMaxAttempts,
+            "customer_bank_transfer_creation_failed" => Self::CustomerBankTransferCreationFailed,
+            "customer_bank_transfer_created" => Self::CustomerBankTransferCreated,
+            "customer_transfer_created" => Self::CustomerTransferCreated,
+            "customer_bank_transfer_failed" => Self::CustomerBankTransferFailed,
+            "customer_bank_transfer_completed" => Self::CustomerBankTransferCompleted,
+            "customer_transfer_completed" => Self::CustomerTransferCompleted,
+            "customer_transfer_failed" => Self::CustomerTransferFailed,
+            "transfer_created" => Self::TransferCreated,
+            "transfer_pending" => Self::TransferPending,
+            "transfer_processed" => Self::TransferProcessed,
+            "transfer_failed" => Self::TransferFailed,
+            _ => Self::Unknown,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+pub enum DwollaWebhookEventType {
+    CustomerCreated,
+    CustomerVerified,
+    CustomerFundingSourceAdded,
+    CustomerFundingSourceRemoved,
+    CustomerFundingSourceUnverified,
+    CustomerFundingSourceVerified,
+    CustomerMicrodepositsAdded,
+    CustomerMicrodepositsFailed,
+    CustomerMicrodepositsCompleted,
+    CustomerMicrodepositsMaxAttempts,
+    CustomerTransferCreated,
+    CustomerBankTransferCreationFailed,
+    CustomerBankTransferCreated,
+    CustomerBankTransferCompleted,
+    CustomerBankTransferFailed,
+    CustomerTransferCompleted,
+    CustomerTransferFailed,
+    TransferCreated,
+    TransferPending,
+    TransferProcessed,
+    TransferFailed,
+    #[serde(other)]
+    Unknown,
+}
+
+impl TryFrom<DwollaWebhookEventType> for api_models::webhooks::IncomingWebhookEvent {
+    type Error = errors::ConnectorError;
+    fn try_from(value: DwollaWebhookEventType) -> Result<Self, Self::Error> {
+        Ok(match value {
+            DwollaWebhookEventType::TransferCreated => Self::PaymentIntentProcessing,
+            DwollaWebhookEventType::TransferProcessed
+            | DwollaWebhookEventType::CustomerBankTransferCompleted
+            | DwollaWebhookEventType::CustomerTransferCompleted => Self::PaymentIntentSuccess,
+            DwollaWebhookEventType::TransferFailed
+            | DwollaWebhookEventType::CustomerBankTransferFailed
+            | DwollaWebhookEventType::CustomerTransferFailed
+            | DwollaWebhookEventType::CustomerBankTransferCreationFailed => {
+                Self::PaymentIntentFailure
+            }
+            _ => Self::EventNotSupported,
+        })
+    }
 }
