@@ -1,18 +1,8 @@
-use common_utils::{pii, types::StringMajorUnit};
+use common_utils::types::StringMajorUnit;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::connectors::payload::responses;
-
-#[derive(Debug, Clone, Serialize, PartialEq)]
-#[serde(rename_all = "snake_case")]
-pub struct PayloadCustomerRequest {
-    pub email: Option<pii::Email>,
-    pub name: Secret<String>,
-    /// Allows one-time payment by customer without saving their payment method
-    /// This is true by default
-    pub keep_active: bool,
-}
 
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(untagged)]
@@ -59,13 +49,14 @@ pub struct PayloadCardsRequestData {
     pub status: Option<responses::PayloadPaymentStatus>,
     #[serde(rename = "payment_method[type]")]
     pub payment_method_type: String,
-    #[serde(rename = "payment_method[default_payment_method]")]
-    pub default_payment_method: Option<bool>,
     // Billing address fields are for AVS validation
     #[serde(flatten)]
     pub billing_address: BillingAddress,
     pub processing_id: Option<Secret<String>>,
-    pub customer_id: Option<Secret<String>>,
+    /// Allows one-time payment by customer without saving their payment method
+    /// This is true by default
+    #[serde(rename = "payment_method[keep_active]")]
+    pub keep_active: bool,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -73,7 +64,9 @@ pub struct PayloadMandateRequestData {
     pub amount: StringMajorUnit,
     #[serde(rename = "type")]
     pub transaction_types: TransactionTypes,
-    pub customer_id: Secret<String>,
+    // Based on the connectors' response, we can do recurring payment either based on a default payment method id saved in the customer profile or a specific payment method id
+    // Connector by default, saves every payment method
+    pub payment_method_id: Secret<String>,
     // For manual capture, set status to "authorized", otherwise omit
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<responses::PayloadPaymentStatus>,

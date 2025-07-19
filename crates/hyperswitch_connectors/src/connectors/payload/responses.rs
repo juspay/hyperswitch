@@ -1,16 +1,5 @@
-use common_utils::pii;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct PayloadCustomerResponse {
-    pub email: Option<pii::Email>,
-    #[serde(rename = "id")]
-    pub customer_id: Secret<String>,
-    pub keep_active: bool,
-    pub name: Secret<String>,
-    pub primary_processing_id: Secret<String>,
-}
 
 // PaymentsResponse
 #[derive(Default, Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]

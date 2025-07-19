@@ -10,21 +10,21 @@ use hyperswitch_domain_models::{
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{PaymentsAuthorizeData, ResponseId},
     router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
-    types::{self, PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, RefundsRouterData},
+    types::{PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, RefundsRouterData},
 };
 use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
 };
-use masking::{ExposeInterface, ExposeOptionInterface, Secret};
+use masking::{ExposeOptionInterface, Secret};
 use serde::Deserialize;
 
 use super::{requests, responses};
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        is_manual_capture, AddressDetailsData, CardData, CustomerData,
-        PaymentsAuthorizeRequestData, RouterData as OtherRouterData,
+        is_manual_capture, AddressDetailsData, CardData, PaymentsAuthorizeRequestData,
+        RouterData as OtherRouterData,
     },
 };
 
@@ -104,39 +104,6 @@ impl TryFrom<&ConnectorAuthType> for PayloadAuthType {
     }
 }
 
-impl TryFrom<&types::ConnectorCustomerRouterData> for requests::PayloadCustomerRequest {
-    type Error = Error;
-
-    fn try_from(item: &types::ConnectorCustomerRouterData) -> Result<Self, Self::Error> {
-        let email = item.request.email.clone();
-        let name = item.get_billing_first_name()?;
-        let save_payment_method = item.request.is_mandate_payment();
-
-        Ok(Self {
-            email,
-            name,
-            keep_active: save_payment_method,
-        })
-    }
-}
-
-impl<F, T>
-    TryFrom<ResponseRouterData<F, responses::PayloadCustomerResponse, T, PaymentsResponseData>>
-    for RouterData<F, T, PaymentsResponseData>
-{
-    type Error = Error;
-    fn try_from(
-        item: ResponseRouterData<F, responses::PayloadCustomerResponse, T, PaymentsResponseData>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(PaymentsResponseData::ConnectorCustomerResponse {
-                connector_customer_id: item.response.customer_id.expose(),
-            }),
-            ..item.data
-        })
-    }
-}
-
 impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
     for requests::PayloadPaymentsRequest
 {
@@ -164,8 +131,7 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
                         .get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned())?,
                     cvc: req_card.card_cvc,
                 };
-                let customer_id = Some(item.router_data.get_connector_customer_id()?.into());
-                let default_payment_method = Some(item.router_data.request.is_mandate_payment());
+                let is_mandate = item.router_data.request.is_mandate_payment();
                 let address = item.router_data.get_billing_address()?;
 
                 // Check for required fields and fail if they're missing
@@ -196,17 +162,14 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
                         card,
                         transaction_types: requests::TransactionTypes::Payment,
                         payment_method_type: "card".to_string(),
-                        default_payment_method,
                         status,
                         billing_address,
                         processing_id: payload_auth.processing_account_id,
-                        customer_id,
+                        keep_active: is_mandate,
                     },
                 )))
             }
             PaymentMethodData::MandatePayment => {
-                let connector_customer_id = item.router_data.get_connector_customer_id()?;
-
                 // For manual capture, set status to "authorized"
                 let status = if is_manual_capture(item.router_data.request.capture_method) {
                     Some(responses::PayloadPaymentStatus::Authorized)
@@ -218,7 +181,9 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
                     requests::PayloadMandateRequestData {
                         amount: item.amount.clone(),
                         transaction_types: requests::TransactionTypes::Payment,
-                        customer_id: Secret::new(connector_customer_id),
+                        payment_method_id: Secret::new(
+                            item.router_data.request.get_connector_mandate_id()?,
+                        ),
                         status,
                     },
                 )))
@@ -254,7 +219,6 @@ where
         match item.response.clone() {
             responses::PayloadPaymentsResponse::PayloadCardsResponse(response) => {
                 let status = enums::AttemptStatus::from(response.status);
-                let connector_customer = response.customer_id.clone().expose_option();
 
                 let request_any: &dyn std::any::Any = &item.data.request;
                 let is_mandate_payment = request_any
@@ -264,9 +228,7 @@ where
                 let mandate_reference = if is_mandate_payment {
                     let connector_payment_method_id =
                         response.connector_payment_method_id.clone().expose_option();
-                    let customer_id = connector_customer.clone();
-
-                    if connector_payment_method_id.is_some() || customer_id.is_some() {
+                    if connector_payment_method_id.is_some() {
                         Some(MandateReference {
                             connector_mandate_id: connector_payment_method_id,
                             payment_method_id: None,
@@ -313,7 +275,6 @@ where
                 Ok(Self {
                     status,
                     response: response_result,
-                    connector_customer,
                     ..item.data
                 })
             }
