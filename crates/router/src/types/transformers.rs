@@ -266,6 +266,8 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
     fn foreign_from(payment_method_type: api_enums::PaymentMethodType) -> Self {
         match payment_method_type {
             api_enums::PaymentMethodType::AmazonPay
+            | api_enums::PaymentMethodType::Paysera
+            | api_enums::PaymentMethodType::Skrill
             | api_enums::PaymentMethodType::ApplePay
             | api_enums::PaymentMethodType::GooglePay
             | api_enums::PaymentMethodType::Paypal
@@ -288,7 +290,6 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::KakaoPay
             | api_enums::PaymentMethodType::Venmo
             | api_enums::PaymentMethodType::Mifinity
-            | api_enums::PaymentMethodType::Skrill
             | api_enums::PaymentMethodType::RevolutPay => Self::Wallet,
             api_enums::PaymentMethodType::Affirm
             | api_enums::PaymentMethodType::Alma

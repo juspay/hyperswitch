@@ -527,7 +527,7 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
                 WalletData::PaypalRedirect(_paypal_details) => {
                     item.router_data.request.router_return_url.clone()
                 }
-                WalletData::SkrillRedirect(_skrill_details) => {
+                WalletData::Skrill(_) => {
                     item.router_data.request.router_return_url.clone()
                 }
                 _ => request.complete_authorize_url.clone(),
@@ -764,7 +764,7 @@ fn get_wallet_details(
                 payment_method_type: AirwallexPaymentType::Paypal,
             }))
         }
-        WalletData::SkrillRedirect(skrill_details) => {
+        WalletData::Skrill(_skrill_details) => {
             AirwallexPaymentMethod::Wallets(AirwallexWalletData::Skrill(SkrillData {
                 skrill: SkrillDetails {
                     shopper_name: item.router_data.request.customer_name
@@ -776,15 +776,10 @@ fn get_wallet_details(
                             field_name: "shopper_name",
                         },
                     )?,
-                    shopper_email: skrill_details.email
-                        .as_ref()
-                        .cloned()
-                        .or_else(|| item.router_data.get_billing_email().ok())
-                        .ok_or(
-                            errors::ConnectorError::MissingRequiredField {
-                                field_name: "shopper_email",
-                            },
-                        )?,
+                    shopper_email: item.router_data.get_billing_email()
+                        .map_err(|_| errors::ConnectorError::MissingRequiredField {
+                            field_name: "shopper_email",
+                        })?,
                     country_code: item.router_data.get_billing_country().map_err(|_| errors::ConnectorError::MissingRequiredField {
                                 field_name: "country_code",
                             })?,
@@ -796,6 +791,7 @@ fn get_wallet_details(
         | WalletData::AliPayRedirect(_)
         | WalletData::AliPayHkRedirect(_)
         | WalletData::AmazonPayRedirect(_)
+        | WalletData::Paysera(_)
         | WalletData::MomoRedirect(_)
         | WalletData::KakaoPayRedirect(_)
         | WalletData::GoPayRedirect(_)

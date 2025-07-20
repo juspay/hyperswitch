@@ -2425,6 +2425,8 @@ pub enum PaymentMethodDataType {
     AliPayRedirect,
     AliPayHkRedirect,
     AmazonPayRedirect,
+    Paysera,
+    Skrill,
     MomoRedirect,
     KakaoPayRedirect,
     GoPayRedirect,
@@ -2527,7 +2529,6 @@ pub enum PaymentMethodDataType {
     InstantBankTransferFinland,
     InstantBankTransferPoland,
     RevolutPay,
-    SkrillRedirect,
     IndonesianBankTransfer,
 }
 
@@ -2550,6 +2551,8 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                 domain::payments::WalletData::AliPayRedirect(_) => Self::AliPayRedirect,
                 domain::payments::WalletData::AliPayHkRedirect(_) => Self::AliPayHkRedirect,
                 domain::payments::WalletData::AmazonPayRedirect(_) => Self::AmazonPayRedirect,
+                domain::payments::WalletData::Paysera(_) => Self::Paysera,
+                domain::payments::WalletData::Skrill(_) => Self::Skrill,
                 domain::payments::WalletData::MomoRedirect(_) => Self::MomoRedirect,
                 domain::payments::WalletData::KakaoPayRedirect(_) => Self::KakaoPayRedirect,
                 domain::payments::WalletData::GoPayRedirect(_) => Self::GoPayRedirect,
@@ -2580,7 +2583,6 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                 domain::payments::WalletData::SwishQr(_) => Self::SwishQr,
                 domain::payments::WalletData::Mifinity(_) => Self::Mifinity,
                 domain::payments::WalletData::RevolutPay(_) => Self::RevolutPay,
-                domain::payments::WalletData::SkrillRedirect(_) => Self::SkrillRedirect,
             },
             domain::payments::PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
                 domain::payments::PayLaterData::KlarnaRedirect { .. } => Self::KlarnaRedirect,

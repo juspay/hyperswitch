@@ -182,7 +182,6 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Sepa
                 | PaymentMethodType::Vipps
                 | PaymentMethodType::Venmo
-                | PaymentMethodType::Skrill
                 | PaymentMethodType::Paypal => match capture_method {
                     enums::CaptureMethod::Automatic
                     | enums::CaptureMethod::SequentialAutomatic
@@ -305,6 +304,8 @@ impl ConnectorValidation for Adyen {
                     }
                 },
                 PaymentMethodType::AmazonPay
+                | PaymentMethodType::Paysera
+                | PaymentMethodType::Skrill
                 | PaymentMethodType::CardRedirect
                 | PaymentMethodType::DirectCarrierBilling
                 | PaymentMethodType::Fps

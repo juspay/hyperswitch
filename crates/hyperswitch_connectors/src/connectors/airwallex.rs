@@ -1216,7 +1216,7 @@ static AIRWALLEX_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
+                supported_capture_methods: supported_capture_methods_redirect.clone(),
                 specific_features: None,
             },
         );

@@ -76,6 +76,8 @@ pub enum PayLaterType {
 pub enum WalletType {
     GooglePay,
     AmazonPay,
+    Skrill,
+    Paysera,
     ApplePay,
     Paypal,
     AliPay,
@@ -98,7 +100,6 @@ pub enum WalletType {
     Mifinity,
     Paze,
     RevolutPay,
-    Skrill,
 }
 
 #[derive(

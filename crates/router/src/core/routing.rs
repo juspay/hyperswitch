@@ -1848,10 +1848,10 @@ pub async fn success_based_routing_update_configs(
         state
             .grpc_client
             .dynamic_routing
-            .success_rate_client
             .as_ref()
-            .async_map(|sr_client| async {
-                sr_client
+            .async_map(|dr_client| async {
+                dr_client
+                    .success_rate_client
                     .invalidate_success_rate_routing_keys(
                         profile_id.get_string_repr().into(),
                         state.get_grpc_headers(),
@@ -1952,10 +1952,10 @@ pub async fn elimination_routing_update_configs(
         state
             .grpc_client
             .dynamic_routing
-            .elimination_based_client
             .as_ref()
-            .async_map(|er_client| async {
-                er_client
+            .async_map(|dr_client| async {
+                dr_client
+                    .elimination_based_client
                     .invalidate_elimination_bucket(
                         profile_id.get_string_repr().into(),
                         state.get_grpc_headers(),
@@ -2287,12 +2287,11 @@ pub async fn contract_based_routing_update_configs(
 
     state
         .grpc_client
-        .clone()
         .dynamic_routing
-        .contract_based_client
-        .clone()
-        .async_map(|ct_client| async move {
-            ct_client
+        .as_ref()
+        .async_map(|dr_client| async {
+            dr_client
+                .contract_based_client
                 .invalidate_contracts(
                     profile_id.get_string_repr().into(),
                     state.get_grpc_headers(),

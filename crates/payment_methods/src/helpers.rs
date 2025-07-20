@@ -102,6 +102,8 @@ pub fn validate_payment_method_type_against_payment_method(
         api_enums::PaymentMethod::Wallet => matches!(
             payment_method_type,
             api_enums::PaymentMethodType::AmazonPay
+                | api_enums::PaymentMethodType::Paysera
+                | api_enums::PaymentMethodType::Skrill
                 | api_enums::PaymentMethodType::ApplePay
                 | api_enums::PaymentMethodType::GooglePay
                 | api_enums::PaymentMethodType::Paypal
@@ -124,7 +126,6 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::Mifinity
                 | api_enums::PaymentMethodType::Paze
                 | api_enums::PaymentMethodType::RevolutPay
-                | api_enums::PaymentMethodType::Skrill
         ),
         api_enums::PaymentMethod::BankRedirect => matches!(
             payment_method_type,

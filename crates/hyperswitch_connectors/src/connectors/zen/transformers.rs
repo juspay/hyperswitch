@@ -492,6 +492,8 @@ impl
             | WalletData::AliPayRedirect(_)
             | WalletData::AliPayHkRedirect(_)
             | WalletData::AmazonPayRedirect(_)
+            | WalletData::Paysera(_)
+            | WalletData::Skrill(_)
             | WalletData::MomoRedirect(_)
             | WalletData::KakaoPayRedirect(_)
             | WalletData::GoPayRedirect(_)
@@ -511,7 +513,6 @@ impl
             | WalletData::SwishQr(_)
             | WalletData::WeChatPayQr(_)
             | WalletData::Mifinity(_)
-            | WalletData::SkrillRedirect(_)
             | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Zen"),
             ))?,

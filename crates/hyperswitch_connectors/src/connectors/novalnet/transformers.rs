@@ -348,6 +348,8 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                     | WalletDataPaymentMethod::AliPayRedirect(_)
                     | WalletDataPaymentMethod::AliPayHkRedirect(_)
                     | WalletDataPaymentMethod::AmazonPayRedirect(_)
+                    | WalletDataPaymentMethod::Paysera(_)
+                    | WalletDataPaymentMethod::Skrill(_)
                     | WalletDataPaymentMethod::MomoRedirect(_)
                     | WalletDataPaymentMethod::KakaoPayRedirect(_)
                     | WalletDataPaymentMethod::GoPayRedirect(_)
@@ -359,7 +361,6 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                     | WalletDataPaymentMethod::GooglePayThirdPartySdk(_)
                     | WalletDataPaymentMethod::MbWayRedirect(_)
                     | WalletDataPaymentMethod::MobilePayRedirect(_)
-                    | WalletDataPaymentMethod::SkrillRedirect(_)
                     | WalletDataPaymentMethod::RevolutPay(_) => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message("novalnet"),
@@ -1601,6 +1602,8 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
                 | WalletDataPaymentMethod::AliPayRedirect(_)
                 | WalletDataPaymentMethod::AliPayHkRedirect(_)
                 | WalletDataPaymentMethod::AmazonPayRedirect(_)
+                | WalletDataPaymentMethod::Paysera(_)
+                | WalletDataPaymentMethod::Skrill(_)
                 | WalletDataPaymentMethod::MomoRedirect(_)
                 | WalletDataPaymentMethod::KakaoPayRedirect(_)
                 | WalletDataPaymentMethod::GoPayRedirect(_)
@@ -1612,7 +1615,6 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
                 | WalletDataPaymentMethod::GooglePayThirdPartySdk(_)
                 | WalletDataPaymentMethod::MbWayRedirect(_)
                 | WalletDataPaymentMethod::MobilePayRedirect(_)
-                | WalletDataPaymentMethod::SkrillRedirect(_)
                 | WalletDataPaymentMethod::RevolutPay(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("novalnet"),

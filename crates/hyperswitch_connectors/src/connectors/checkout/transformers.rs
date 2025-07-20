@@ -109,6 +109,8 @@ impl TryFrom<&TokenizationRouterData> for TokenRequest {
                 | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
                 | WalletData::AmazonPayRedirect(_)
+                | WalletData::Paysera(_)
+                | WalletData::Skrill(_)
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -132,7 +134,6 @@ impl TryFrom<&TokenizationRouterData> for TokenRequest {
                 | WalletData::SwishQr(_)
                 | WalletData::WeChatPayQr(_)
                 | WalletData::Mifinity(_)
-                | WalletData::SkrillRedirect(_)
                 | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("checkout"),
                 )
@@ -365,6 +366,8 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                 | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
                 | WalletData::AmazonPayRedirect(_)
+                | WalletData::Paysera(_)
+                | WalletData::Skrill(_)
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -388,7 +391,6 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                 | WalletData::SwishQr(_)
                 | WalletData::WeChatPayQr(_)
                 | WalletData::Mifinity(_)
-                | WalletData::SkrillRedirect(_)
                 | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("checkout"),
                 )),

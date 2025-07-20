@@ -550,6 +550,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::AliPayHk
                         | common_enums::PaymentMethodType::Alma
                         | common_enums::PaymentMethodType::AmazonPay
+                        | common_enums::PaymentMethodType::Paysera
+                        | common_enums::PaymentMethodType::Skrill
                         | common_enums::PaymentMethodType::ApplePay
                         | common_enums::PaymentMethodType::Atome
                         | common_enums::PaymentMethodType::Bacs
@@ -645,7 +647,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::OpenBankingPIS
                         | common_enums::PaymentMethodType::RevolutPay
                         | common_enums::PaymentMethodType::IndonesianBankTransfer
-                        | common_enums::PaymentMethodType::Skrill,
                     ) => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                         message: payment_method_type.to_string(),
                         connector: "klarna",
@@ -668,6 +669,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::AliPayHk
                         | common_enums::PaymentMethodType::Alma
                         | common_enums::PaymentMethodType::AmazonPay
+                        | common_enums::PaymentMethodType::Paysera
+                        | common_enums::PaymentMethodType::Skrill
                         | common_enums::PaymentMethodType::ApplePay
                         | common_enums::PaymentMethodType::Atome
                         | common_enums::PaymentMethodType::Bacs
@@ -795,6 +798,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::AliPayHk
                         | common_enums::PaymentMethodType::Alma
                         | common_enums::PaymentMethodType::AmazonPay
+                        | common_enums::PaymentMethodType::Paysera
+                        | common_enums::PaymentMethodType::Skrill
                         | common_enums::PaymentMethodType::ApplePay
                         | common_enums::PaymentMethodType::Atome
                         | common_enums::PaymentMethodType::Bacs
@@ -888,7 +893,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::PromptPay
                         | common_enums::PaymentMethodType::VietQr
                         | common_enums::PaymentMethodType::OpenBankingPIS
-                        | common_enums::PaymentMethodType::Skrill
                         | common_enums::PaymentMethodType::IndonesianBankTransfer
                         | common_enums::PaymentMethodType::RevolutPay,
                     ) => Err(error_stack::report!(errors::ConnectorError::NotSupported {
@@ -913,6 +917,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::AliPayHk
                         | common_enums::PaymentMethodType::Alma
                         | common_enums::PaymentMethodType::AmazonPay
+                        | common_enums::PaymentMethodType::Paysera
+                        | common_enums::PaymentMethodType::Skrill
                         | common_enums::PaymentMethodType::ApplePay
                         | common_enums::PaymentMethodType::Atome
                         | common_enums::PaymentMethodType::Bacs

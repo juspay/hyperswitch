@@ -402,6 +402,8 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
                 | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
                 | WalletData::AmazonPayRedirect(_)
+                | WalletData::Paysera(_)
+                | WalletData::Skrill(_)
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -426,7 +428,6 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
                 | WalletData::ApplePay(_)
                 | WalletData::SwishQr(_)
                 | WalletData::Mifinity(_)
-                | WalletData::SkrillRedirect(_)
                 | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotSupported {
                     message: "Wallet".to_string(),
                     connector: "payme",

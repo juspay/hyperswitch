@@ -214,6 +214,8 @@ pub enum PaymentMethodType {
     Blik,
     KlarnaDebitRisk,
     Bitpay,
+    Paysera,
+    Skrill,
 }
 
 #[derive(Debug, Serialize)]
@@ -372,6 +374,8 @@ impl TryFrom<&WalletData> for PaymentMethodType {
         match value {
             WalletData::AliPayRedirect { .. } => Ok(Self::Alipay),
             WalletData::WeChatPayRedirect { .. } => Ok(Self::Wechatpay),
+            WalletData::Paysera(_) => Ok(Self::Paysera),
+            WalletData::Skrill(_) => Ok(Self::Skrill),
             WalletData::AliPayQr(_)
             | WalletData::AliPayHkRedirect(_)
             | WalletData::AmazonPayRedirect(_)
@@ -399,7 +403,6 @@ impl TryFrom<&WalletData> for PaymentMethodType {
             | WalletData::CashappQr(_)
             | WalletData::SwishQr(_)
             | WalletData::Mifinity(_)
-            | WalletData::SkrillRedirect(_)
             | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Shift4"),
             )
