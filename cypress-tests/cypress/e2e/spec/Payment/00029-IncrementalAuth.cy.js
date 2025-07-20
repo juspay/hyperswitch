@@ -6,7 +6,7 @@ let connector;
 let globalState;
 
 describe("[Payment] Incremental Auth", () => {
-  beforeEach(function () {
+  before(function () {
     // Changed to regular function instead of arrow function
     let skip = false;
 
@@ -148,11 +148,20 @@ describe("[Payment] Incremental Auth", () => {
     it("[Payment] Confirm Payment Intent", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
-      ]["SaveCardUseNo3DSManualCaptureOffSession"];
+      ]["SaveCardUseNo3DSManualCapture"];
+
+      const newData = {
+        ...data,
+        Response: {
+          ...data.Response,
+          incremental_authorization_allowed: true,
+          incremental_authorizations: null,
+        },
+      };
 
       cy.saveCardConfirmCallTest(
         fixtures.saveCardConfirmBody,
-        data,
+        newData,
         globalState
       );
 
