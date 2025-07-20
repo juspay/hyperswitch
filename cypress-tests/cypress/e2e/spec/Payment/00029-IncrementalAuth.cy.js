@@ -6,7 +6,7 @@ let connector;
 let globalState;
 
 describe("[Payment] Incremental Auth", () => {
-  before(function () {
+  beforeEach(function () {
     // Changed to regular function instead of arrow function
     let skip = false;
 
