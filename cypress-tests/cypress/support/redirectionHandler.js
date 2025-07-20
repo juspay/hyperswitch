@@ -892,6 +892,10 @@ function walletRedirection(
   cy.visit(redirectionUrl.href);
 
   switch (connectorId) {
+    case "adyen":
+      cy.contains("button", "authorised").click();
+      verifyReturnUrl(redirectionUrl, expectedUrl, true);
+      break;
     case "multisafepay":
       cy.get("div.alert").should("contain.text", "CSRF validation failed");
       break;
