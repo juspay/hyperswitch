@@ -12,7 +12,7 @@ pub trait ApiEventMetric {
 #[serde(tag = "flow_type", rename_all = "snake_case")]
 pub enum ApiEventsType {
     Payout {
-        payout_id: String,
+        payout_id: id_type::PayoutId,
     },
     #[cfg(feature = "v1")]
     Payment {
@@ -137,6 +137,7 @@ pub enum ApiEventsType {
         profile_acquirer_id: id_type::ProfileAcquirerId,
     },
     ThreeDsDecisionRule,
+    Chat,
 }
 
 impl ApiEventMetric for serde_json::Value {}

@@ -10,6 +10,7 @@ pub struct ConnectorAuthentication {
     pub adyen: Option<BodyKey>,
     #[cfg(feature = "payouts")]
     pub adyenplatform: Option<HeaderKey>,
+    pub affirm: Option<HeaderKey>,
     #[cfg(feature = "payouts")]
     pub adyen: Option<SignatureKey>,
     #[cfg(not(feature = "payouts"))]
@@ -19,6 +20,7 @@ pub struct ConnectorAuthentication {
     pub airwallex: Option<BodyKey>,
     pub amazonpay: Option<HeaderKey>,
     pub archipel: Option<NoKey>,
+    pub authipay: Option<SignatureKey>,
     pub authorizedotnet: Option<BodyKey>,
     pub bambora: Option<BodyKey>,
     pub bamboraapac: Option<HeaderKey>,
@@ -29,7 +31,9 @@ pub struct ConnectorAuthentication {
     pub bluesnap: Option<BodyKey>,
     pub boku: Option<BodyKey>,
     pub cashtocode: Option<BodyKey>,
+    pub celero: Option<HeaderKey>,
     pub chargebee: Option<HeaderKey>,
+    pub checkbook: Option<BodyKey>,
     pub checkout: Option<SignatureKey>,
     pub coinbase: Option<HeaderKey>,
     pub coingate: Option<HeaderKey>,
@@ -79,6 +83,7 @@ pub struct ConnectorAuthentication {
     pub opennode: Option<HeaderKey>,
     pub paybox: Option<HeaderKey>,
     pub payeezy: Option<SignatureKey>,
+    pub payload: Option<HeaderKey>,
     pub payme: Option<BodyKey>,
     pub payone: Option<HeaderKey>,
     pub paypal: Option<BodyKey>,
@@ -94,6 +99,7 @@ pub struct ConnectorAuthentication {
     pub redsys: Option<HeaderKey>,
     pub santander: Option<BodyKey>,
     pub shift4: Option<HeaderKey>,
+    pub silverflow: Option<BodyKey>,
     pub square: Option<BodyKey>,
     pub stax: Option<HeaderKey>,
     pub stripe: Option<HeaderKey>,

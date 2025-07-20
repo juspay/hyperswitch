@@ -3,7 +3,7 @@ use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
-    core::{admin::*, api_locking},
+    core::{admin::*, api_locking, errors},
     services::{api, authentication as auth, authorization::permissions},
     types::{api::admin, domain},
 };
@@ -19,6 +19,18 @@ pub async fn profile_create(
     let flow = Flow::ProfileCreate;
     let payload = json_payload.into_inner();
     let merchant_id = path.into_inner();
+    if let Err(api_error) = payload
+        .webhook_details
+        .as_ref()
+        .map(|details| {
+            details
+                .validate()
+                .map_err(|message| errors::ApiErrorResponse::InvalidRequestData { message })
+        })
+        .transpose()
+    {
+        return api::log_and_return_error_response(api_error.into());
+    }
 
     Box::pin(api::server_wrap(
         flow,
@@ -53,6 +65,18 @@ pub async fn profile_create(
 ) -> HttpResponse {
     let flow = Flow::ProfileCreate;
     let payload = json_payload.into_inner();
+    if let Err(api_error) = payload
+        .webhook_details
+        .as_ref()
+        .map(|details| {
+            details
+                .validate()
+                .map_err(|message| errors::ApiErrorResponse::InvalidRequestData { message })
+        })
+        .transpose()
+    {
+        return api::log_and_return_error_response(api_error.into());
+    }
 
     Box::pin(api::server_wrap(
         flow,
@@ -158,12 +182,25 @@ pub async fn profile_update(
 ) -> HttpResponse {
     let flow = Flow::ProfileUpdate;
     let (merchant_id, profile_id) = path.into_inner();
+    let payload = json_payload.into_inner();
+    if let Err(api_error) = payload
+        .webhook_details
+        .as_ref()
+        .map(|details| {
+            details
+                .validate()
+                .map_err(|message| errors::ApiErrorResponse::InvalidRequestData { message })
+        })
+        .transpose()
+    {
+        return api::log_and_return_error_response(api_error.into());
+    }
 
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        json_payload.into_inner(),
+        payload,
         |state, auth_data, req, _| update_profile(state, &profile_id, auth_data.key_store, req),
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),
@@ -189,12 +226,25 @@ pub async fn profile_update(
 ) -> HttpResponse {
     let flow = Flow::ProfileUpdate;
     let profile_id = path.into_inner();
+    let payload = json_payload.into_inner();
+    if let Err(api_error) = payload
+        .webhook_details
+        .as_ref()
+        .map(|details| {
+            details
+                .validate()
+                .map_err(|message| errors::ApiErrorResponse::InvalidRequestData { message })
+        })
+        .transpose()
+    {
+        return api::log_and_return_error_response(api_error.into());
+    }
 
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        json_payload.into_inner(),
+        payload,
         |state, auth::AuthenticationDataWithoutProfile { key_store, .. }, req, _| {
             update_profile(state, &profile_id, key_store, req)
         },

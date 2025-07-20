@@ -45,7 +45,7 @@ pub use hyperswitch_interfaces::{
         BoxedConnectorIntegrationV2, ConnectorIntegrationAnyV2, ConnectorIntegrationV2,
     },
 };
-use masking::{Maskable, PeekInterface};
+use masking::{Maskable, PeekInterface, Secret};
 use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
 use serde::Serialize;
 use serde_json::json;
@@ -142,7 +142,7 @@ pub async fn execute_connector_processing_step<
     req: &'b types::RouterData<T, Req, Resp>,
     call_connector_action: payments::CallConnectorAction,
     connector_request: Option<Request>,
-    all_keys_required: Option<bool>,
+    return_raw_connector_response: Option<bool>,
 ) -> CustomResult<types::RouterData<T, Req, Resp>, errors::ConnectorError>
 where
     T: Clone + Debug + 'static,
@@ -302,7 +302,7 @@ where
                                                         val + external_latency
                                                     }),
                                             );
-                                            if all_keys_required == Some(true) {
+                                            if return_raw_connector_response == Some(true) {
                                                 let mut decoded = String::from_utf8(body.response.as_ref().to_vec())
                                                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
                                                 if decoded.starts_with('\u{feff}') {
@@ -310,7 +310,8 @@ where
                                                         .trim_start_matches('\u{feff}')
                                                         .to_string();
                                                 }
-                                                data.whole_connector_response = Some(decoded);
+                                                data.raw_connector_response =
+                                                    Some(Secret::new(decoded));
                                             }
                                             Ok(data)
                                         }
@@ -350,9 +351,9 @@ where
                                         }
                                         _ => {
                                             if req.connector == "dwolla"
-                                            && body.status_code == 400
-                                            && std::any::type_name::<T>()
-                                            .contains("PaymentMethodToken")
+                                                && body.status_code == 400
+                                                && std::any::type_name::<T>()
+                                                    .contains("PaymentMethodToken")
                                             {
                                                 if let Ok(response_body) =
                                                     str::from_utf8(body.response.as_ref())
@@ -363,11 +364,12 @@ where
                                                             response: body.response,
                                                             status_code: 200,
                                                         };
-                                                        return connector_integration.handle_response(
-                                                            req,
-                                                            Some(&mut connector_event),
-                                                            response,
-                                                        );
+                                                        return connector_integration
+                                                            .handle_response(
+                                                                req,
+                                                                Some(&mut connector_event),
+                                                                response,
+                                                            );
                                                     }
                                                 }
                                             }
@@ -867,16 +869,14 @@ where
                             .into_iter()
                             .collect::<Vec<String>>()
                             .join(" ");
-                        let csp_header = format!("frame-ancestors 'self' {};", domains_str);
+                        let csp_header = format!("frame-ancestors 'self' {domains_str};");
                         Some(HashSet::from([("content-security-policy", csp_header)]))
                     } else {
                         None
                     };
                     http_response_html_data(rendered_html, headers)
                 }
-                Err(_) => {
-                    http_response_err(format!("Error while rendering {} HTML page", link_type))
-                }
+                Err(_) => http_response_err(format!("Error while rendering {link_type} HTML page")),
             }
         }
 
@@ -1100,13 +1100,17 @@ pub trait Authenticate {
         None
     }
 
-    fn get_all_keys_required(&self) -> Option<bool> {
+    fn should_return_raw_response(&self) -> Option<bool> {
         None
     }
 }
 
 #[cfg(feature = "v2")]
-impl Authenticate for api_models::payments::PaymentsConfirmIntentRequest {}
+impl Authenticate for api_models::payments::PaymentsConfirmIntentRequest {
+    fn should_return_raw_response(&self) -> Option<bool> {
+        self.return_raw_connector_response
+    }
+}
 #[cfg(feature = "v2")]
 impl Authenticate for api_models::payments::ProxyPaymentsRequest {}
 
@@ -1116,7 +1120,9 @@ impl Authenticate for api_models::payments::PaymentsRequest {
         self.client_secret.as_ref()
     }
 
-    fn get_all_keys_required(&self) -> Option<bool> {
+    fn should_return_raw_response(&self) -> Option<bool> {
+        // In v1, this maps to `all_keys_required` to retain backward compatibility.
+        // The equivalent field in v2 is `return_raw_connector_response`.
         self.all_keys_required
     }
 }
@@ -1147,7 +1153,15 @@ impl Authenticate for api_models::payments::PaymentsPostSessionTokensRequest {
 
 impl Authenticate for api_models::payments::PaymentsUpdateMetadataRequest {}
 impl Authenticate for api_models::payments::PaymentsRetrieveRequest {
-    fn get_all_keys_required(&self) -> Option<bool> {
+    #[cfg(feature = "v2")]
+    fn should_return_raw_response(&self) -> Option<bool> {
+        self.return_raw_connector_response
+    }
+
+    #[cfg(feature = "v1")]
+    fn should_return_raw_response(&self) -> Option<bool> {
+        // In v1, this maps to `all_keys_required` to retain backward compatibility.
+        // The equivalent field in v2 is `return_raw_connector_response`.
         self.all_keys_required
     }
 }
@@ -1244,10 +1258,9 @@ pub fn build_redirection_form(
             }
         }
         },
-        RedirectForm::Html { html_data } => PreEscaped(format!(
-            "{} <script>{}</script>",
-            html_data, logging_template
-        )),
+        RedirectForm::Html { html_data } => {
+            PreEscaped(format!("{html_data} <script>{logging_template}</script>"))
+        }
         RedirectForm::BlueSnap {
             payment_fields_token,
         } => {
@@ -2011,7 +2024,6 @@ fn get_preload_link_html_template(sdk_url: &url::Url) -> String {
     format!(
         r#"<link rel="preload" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800" as="style">
             <link rel="preload" href="{sdk_url}" as="script">"#,
-        sdk_url = sdk_url
     )
 }
 

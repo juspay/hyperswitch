@@ -8123,6 +8123,7 @@
       "Connector": {
         "type": "string",
         "enum": [
+          "authipay",
           "adyenplatform",
           "stripe_billing_test",
           "phonypay",
@@ -8147,6 +8148,7 @@
           "boku",
           "braintree",
           "cashtocode",
+          "celero",
           "chargebee",
           "checkout",
           "coinbase",
@@ -8194,6 +8196,7 @@
           "nuvei",
           "opennode",
           "paybox",
+          "payload",
           "payme",
           "payone",
           "paypal",
@@ -8206,6 +8209,7 @@
           "razorpay",
           "recurly",
           "redsys",
+          "santander",
           "shift4",
           "square",
           "stax",
@@ -10834,7 +10838,7 @@
             ],
             "nullable": true
           },
-          "payment_revenue_recovery_metadata": {
+          "revenue_recovery": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/PaymentRevenueRecoveryMetadata"
@@ -11091,6 +11095,28 @@
             "enum": [
               "user_bank"
             ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "user_bank_options"
+            ],
+            "properties": {
+              "user_bank_options": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
           },
           {
             "type": "string",
@@ -13798,6 +13824,10 @@
         },
         "additionalProperties": false
       },
+      "MerchantCountryCode": {
+        "type": "string",
+        "description": "A wrapper type for merchant country codes that provides validation and conversion functionality.\n\nThis type stores a country code as a string and provides methods to validate it\nand convert it to a `Country` enum variant."
+      },
       "MerchantDetails": {
         "type": "object",
         "properties": {
@@ -14941,8 +14971,23 @@
           "created_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "organization_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OrganizationType"
+              }
+            ],
+            "nullable": true
           }
         }
+      },
+      "OrganizationType": {
+        "type": "string",
+        "enum": [
+          "standard",
+          "platform"
+        ]
       },
       "OrganizationUpdateRequest": {
         "type": "object",
@@ -17615,10 +17660,7 @@
             ],
             "properties": {
               "bank_names": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/BankCodeResponse"
-                }
+                "$ref": "#/components/schemas/BankNames"
               }
             }
           }
@@ -17636,6 +17678,8 @@
           "ali_pay_hk",
           "alma",
           "amazon_pay",
+          "skrill",
+          "paysera",
           "apple_pay",
           "atome",
           "bacs",
@@ -17880,41 +17924,6 @@
           "propertyName": "payment_processing_details_at"
         }
       },
-      "PaymentRetrieveBody": {
-        "type": "object",
-        "properties": {
-          "merchant_id": {
-            "type": "string",
-            "description": "The identifier for the Merchant Account.",
-            "nullable": true
-          },
-          "force_sync": {
-            "type": "boolean",
-            "description": "Decider to enable or disable the connector call for retrieve request",
-            "nullable": true
-          },
-          "client_secret": {
-            "type": "string",
-            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
-            "nullable": true
-          },
-          "expand_captures": {
-            "type": "boolean",
-            "description": "If enabled provides list of captures linked to latest attempt",
-            "nullable": true
-          },
-          "expand_attempts": {
-            "type": "boolean",
-            "description": "If enabled provides list of attempts linked to payment intent",
-            "nullable": true
-          },
-          "all_keys_required": {
-            "type": "boolean",
-            "description": "If enabled, provides whole connector response",
-            "nullable": true
-          }
-        }
-      },
       "PaymentRevenueRecoveryMetadata": {
         "type": "object",
         "required": [
@@ -18126,6 +18135,11 @@
                 "$ref": "#/components/schemas/MerchantConnectorAuthDetails"
               }
             ],
+            "nullable": true
+          },
+          "return_raw_connector_response": {
+            "type": "boolean",
+            "description": "If true, returns stringified connector raw response body",
             "nullable": true
           }
         },
@@ -19126,6 +19140,11 @@
               }
             ],
             "nullable": true
+          },
+          "return_raw_connector_response": {
+            "type": "boolean",
+            "description": "Stringified connector raw response body. Only returned if `return_raw_connector_response` is true",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -19310,6 +19329,19 @@
             "nullable": true,
             "maxLength": 30,
             "minLength": 30
+          },
+          "raw_connector_response": {
+            "type": "string",
+            "description": "Stringified connector raw response body. Only returned if `return_raw_connector_response` is true",
+            "nullable": true
+          },
+          "feature_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeatureMetadata"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -19330,9 +19362,9 @@
             "description": "These are the query params that are sent in case of redirect response.\nThese can be ingested by the connector to take necessary actions.",
             "nullable": true
           },
-          "all_keys_required": {
+          "return_raw_connector_response": {
             "type": "boolean",
-            "description": "If enabled, provides whole connector response",
+            "description": "If true, returns stringified connector raw response body",
             "nullable": true
           },
           "merchant_connector_details": {
@@ -19393,9 +19425,9 @@
             "description": "These are the query params that are sent in case of redirect response.\nThese can be ingested by the connector to take necessary actions.",
             "nullable": true
           },
-          "all_keys_required": {
+          "return_raw_connector_response": {
             "type": "boolean",
-            "description": "If enabled, provides whole connector response",
+            "description": "If true, returns stringified connector raw response body",
             "nullable": true
           }
         }
@@ -19579,7 +19611,19 @@
         "additionalProperties": false
       },
       "PayoutActionRequest": {
-        "type": "object"
+        "type": "object",
+        "required": [
+          "payout_id"
+        ],
+        "properties": {
+          "payout_id": {
+            "type": "string",
+            "description": "Unique identifier for the payout. This ensures idempotency for multiple payouts\nthat have been done by a single merchant. This field is auto generated and is returned in the API response.",
+            "example": "187282ab-40ef-47a9-9206-5099ba31e432",
+            "maxLength": 30,
+            "minLength": 30
+          }
+        }
       },
       "PayoutAttemptResponse": {
         "type": "object",
@@ -19743,6 +19787,13 @@
             "type": "string",
             "description": "This is an identifier for the merchant account. This is inferred from the API key provided during the request, **not required to be included in the Payout Create/Update Request.**",
             "example": "merchant_1668273825",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "merchant_order_reference_id": {
+            "type": "string",
+            "description": "Your unique identifier for this payout or order. This ID helps you reconcile payouts on your system. If provided, it is passed to the connector if supported.",
+            "example": "merchant_order_ref_123",
             "nullable": true,
             "maxLength": 255
           },
@@ -19999,6 +20050,13 @@
             "type": "string",
             "description": "This is an identifier for the merchant account. This is inferred from the API key\nprovided during the request",
             "example": "merchant_1668273825",
+            "maxLength": 255
+          },
+          "merchant_order_reference_id": {
+            "type": "string",
+            "description": "Your unique identifier for this payout or order. This ID helps you reconcile payouts on your system. If provided, it is passed to the connector if supported.",
+            "example": "merchant_order_ref_123",
+            "nullable": true,
             "maxLength": 255
           },
           "amount": {
@@ -20279,13 +20337,13 @@
               "starting_after": {
                 "type": "string",
                 "description": "A cursor for use in pagination, fetch the next list after some object",
-                "example": "pay_fafa124123",
+                "example": "payout_fafa124123",
                 "nullable": true
               },
               "ending_before": {
                 "type": "string",
                 "description": "A cursor for use in pagination, fetch the previous list before some object",
-                "example": "pay_fafa124123",
+                "example": "payout_fafa124123",
                 "nullable": true
               },
               "limit": {
@@ -20331,6 +20389,13 @@
                 "nullable": true,
                 "maxLength": 30,
                 "minLength": 30
+              },
+              "merchant_order_reference_id": {
+                "type": "string",
+                "description": "The merchant order reference ID for payout",
+                "example": "merchant_order_ref_123",
+                "nullable": true,
+                "maxLength": 255
               },
               "profile_id": {
                 "type": "string",
@@ -20702,6 +20767,9 @@
             "$ref": "#/components/schemas/SdkNextAction"
           }
         }
+      },
+      "PayseraData": {
+        "type": "object"
       },
       "PazeSessionTokenResponse": {
         "type": "object",
@@ -21199,6 +21267,14 @@
               }
             ],
             "nullable": true
+          },
+          "merchant_country_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantCountryCode"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -21473,6 +21549,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/MerchantCategoryCode"
+              }
+            ],
+            "nullable": true
+          },
+          "merchant_country_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantCountryCode"
               }
             ],
             "nullable": true
@@ -22312,11 +22396,11 @@
                 "$ref": "#/components/schemas/PaymentMethodType"
               },
               "payment_experience": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/PaymentExperience"
-                  }
-                ],
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PaymentExperience"
+                },
+                "description": "The payment experience for the payment method",
                 "nullable": true
               },
               "required_fields": {
@@ -22627,6 +22711,7 @@
         "type": "string",
         "description": "RoutableConnectors are the subset of Connectors that are eligible for payments routing",
         "enum": [
+          "authipay",
           "adyenplatform",
           "stripe_billing_test",
           "phonypay",
@@ -22651,6 +22736,7 @@
           "boku",
           "braintree",
           "cashtocode",
+          "celero",
           "chargebee",
           "checkout",
           "coinbase",
@@ -22693,6 +22779,7 @@
           "opennode",
           "paybox",
           "payme",
+          "payload",
           "payone",
           "paypal",
           "paystack",
@@ -22705,6 +22792,7 @@
           "recurly",
           "redsys",
           "riskified",
+          "santander",
           "shift4",
           "signifyd",
           "square",
@@ -23663,6 +23751,9 @@
           "cover",
           "contain"
         ]
+      },
+      "SkrillData": {
+        "type": "object"
       },
       "SortBy": {
         "type": "string",
@@ -25288,6 +25379,28 @@
           {
             "type": "object",
             "required": [
+              "skrill"
+            ],
+            "properties": {
+              "skrill": {
+                "$ref": "#/components/schemas/SkrillData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "paysera"
+            ],
+            "properties": {
+              "paysera": {
+                "$ref": "#/components/schemas/PayseraData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "momo_redirect"
             ],
             "properties": {
@@ -25648,6 +25761,10 @@
       },
       "WebhookDetails": {
         "type": "object",
+        "required": [
+          "payment_statuses_enabled",
+          "refund_statuses_enabled"
+        ],
         "properties": {
           "webhook_version": {
             "type": "string",
@@ -25692,6 +25809,42 @@
             "type": "boolean",
             "description": "If this property is true, a webhook message is posted whenever a payment fails",
             "example": true,
+            "nullable": true
+          },
+          "payment_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IntentStatus"
+            },
+            "description": "List of payment statuses that triggers a webhook for payment intents",
+            "example": [
+              "succeeded",
+              "failed",
+              "partially_captured",
+              "requires_merchant_action"
+            ]
+          },
+          "refund_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IntentStatus"
+            },
+            "description": "List of refund statuses that triggers a webhook for refunds",
+            "example": [
+              "success",
+              "failure"
+            ]
+          },
+          "payout_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PayoutStatus"
+            },
+            "description": "List of payout statuses that triggers a webhook for payouts",
+            "example": [
+              "success",
+              "failed"
+            ],
             "nullable": true
           }
         },

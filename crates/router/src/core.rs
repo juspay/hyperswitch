@@ -13,6 +13,7 @@ pub mod conditional_config;
 pub mod configs;
 #[cfg(feature = "olap")]
 pub mod connector_onboarding;
+pub mod connector_validation;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 pub mod currency;
 pub mod customers;
@@ -63,6 +64,7 @@ pub mod webhooks;
 
 pub mod profile_acquirer;
 pub mod unified_authentication_service;
+pub mod unified_connector_service;
 
 #[cfg(feature = "v2")]
 pub mod proxy;
@@ -70,4 +72,5 @@ pub mod relay;
 #[cfg(feature = "v2")]
 pub mod revenue_recovery;
 
+pub mod chat;
 pub mod tokenization;

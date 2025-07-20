@@ -173,6 +173,7 @@ enum RequiredField {
     BanContactCardExpYear,
     IdealBankName,
     EpsBankName,
+    EpsBankOptions(HashSet<enums::BankNames>),
     BlikCode,
     MifinityDateOfBirth,
     MifinityLanguagePreference(Vec<&'static str>),
@@ -182,6 +183,8 @@ enum RequiredField {
     UpiCollectVpaId,
     AchBankDebitAccountNumber,
     AchBankDebitRoutingNumber,
+    AchBankDebitBankType(Vec<enums::BankType>),
+    AchBankDebitBankAccountHolderName,
     SepaBankDebitIban,
     BacsBankDebitAccountNumber,
     BacsBankDebitSortCode,
@@ -610,6 +613,17 @@ impl RequiredField {
                     value: None,
                 },
             ),
+            Self::EpsBankOptions(bank) => (
+                "payment_method_data.bank_redirect.eps.bank_name".to_string(),
+                RequiredFieldInfo {
+                    required_field: "payment_method_data.bank_redirect.eps.bank_name".to_string(),
+                    display_name: "bank_name".to_string(),
+                    field_type: FieldType::UserBankOptions {
+                        options: bank.iter().map(|bank| bank.to_string()).collect(),
+                    },
+                    value: None,
+                },
+            ),
             Self::BlikCode => (
                 "payment_method_data.bank_redirect.blik.blik_code".to_string(),
                 RequiredFieldInfo {
@@ -696,6 +710,30 @@ impl RequiredField {
                         .to_string(),
                     display_name: "bank_routing_number".to_string(),
                     field_type: FieldType::UserBankRoutingNumber,
+                    value: None,
+                },
+            ),
+            Self::AchBankDebitBankType(bank_type) => (
+                "payment_method_data.bank_debit.ach_bank_debit.bank_type".to_string(),
+                RequiredFieldInfo {
+                    required_field: "payment_method_data.bank_debit.ach_bank_debit.bank_type"
+                        .to_string(),
+                    display_name: "bank_type".to_string(),
+                    field_type: FieldType::UserBankType {
+                        options: bank_type.iter().map(|bt| bt.to_string()).collect(),
+                    },
+                    value: None,
+                },
+            ),
+            Self::AchBankDebitBankAccountHolderName => (
+                "payment_method_data.bank_debit.ach_bank_debit.bank_account_holder_name"
+                    .to_string(),
+                RequiredFieldInfo {
+                    required_field:
+                        "payment_method_data.bank_debit.ach_bank_debit.bank_account_holder_name"
+                            .to_string(),
+                    display_name: "bank_account_holder_name".to_string(),
+                    field_type: FieldType::UserBankAccountHolderName,
                     value: None,
                 },
             ),
@@ -1195,6 +1233,7 @@ impl Default for RequiredFields {
 fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
     HashMap::from([
         (Connector::Aci, fields(vec![], vec![], card_with_name())),
+        (Connector::Authipay, fields(vec![], vec![], card_basic())),
         (Connector::Adyen, fields(vec![], vec![], card_with_name())),
         (Connector::Airwallex, fields(vec![], card_basic(), vec![])),
         (
@@ -1425,6 +1464,25 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
                         RequiredField::BillingAddressLine1,
                         RequiredField::BillingAddressCity,
                         RequiredField::BillingAddressZip,
+                        RequiredField::BillingAddressCountries(vec!["ALL"]),
+                    ],
+                ]
+                .concat(),
+            ),
+        ),
+        (
+            Connector::Payload,
+            fields(
+                vec![],
+                vec![],
+                [
+                    email(),
+                    card_with_name(),
+                    vec![
+                        RequiredField::BillingAddressLine1,
+                        RequiredField::BillingAddressCity,
+                        RequiredField::BillingAddressZip,
+                        RequiredField::BillingAddressState,
                         RequiredField::BillingAddressCountries(vec!["ALL"]),
                     ],
                 ]
@@ -1994,6 +2052,71 @@ fn get_bank_redirect_required_fields() -> HashMap<enums::PaymentMethodType, Conn
                             RequiredField::BillingFirstName(
                                 "billing_name",
                                 FieldType::UserFullName,
+                            ),
+                            RequiredField::EpsBankOptions(
+                                vec![
+                                    enums::BankNames::AbnAmro,
+                                    enums::BankNames::ArzteUndApothekerBank,
+                                    enums::BankNames::AsnBank,
+                                    enums::BankNames::AustrianAnadiBankAg,
+                                    enums::BankNames::BankAustria,
+                                    enums::BankNames::BankhausCarlSpangler,
+                                    enums::BankNames::BankhausSchelhammerUndSchatteraAg,
+                                    enums::BankNames::BawagPskAg,
+                                    enums::BankNames::BksBankAg,
+                                    enums::BankNames::BrullKallmusBankAg,
+                                    enums::BankNames::BtvVierLanderBank,
+                                    enums::BankNames::Bunq,
+                                    enums::BankNames::CapitalBankGraweGruppeAg,
+                                    enums::BankNames::Citi,
+                                    enums::BankNames::Dolomitenbank,
+                                    enums::BankNames::EasybankAg,
+                                    enums::BankNames::ErsteBankUndSparkassen,
+                                    enums::BankNames::Handelsbanken,
+                                    enums::BankNames::HypoAlpeadriabankInternationalAg,
+                                    enums::BankNames::HypoNoeLbFurNiederosterreichUWien,
+                                    enums::BankNames::HypoOberosterreichSalzburgSteiermark,
+                                    enums::BankNames::HypoTirolBankAg,
+                                    enums::BankNames::HypoVorarlbergBankAg,
+                                    enums::BankNames::HypoBankBurgenlandAktiengesellschaft,
+                                    enums::BankNames::Ing,
+                                    enums::BankNames::Knab,
+                                    enums::BankNames::MarchfelderBank,
+                                    enums::BankNames::OberbankAg,
+                                    enums::BankNames::RaiffeisenBankengruppeOsterreich,
+                                    enums::BankNames::Rabobank,
+                                    enums::BankNames::Regiobank,
+                                    enums::BankNames::Revolut,
+                                    enums::BankNames::SnsBank,
+                                    enums::BankNames::TriodosBank,
+                                    enums::BankNames::VanLanschot,
+                                    enums::BankNames::Moneyou,
+                                    enums::BankNames::SchoellerbankAg,
+                                    enums::BankNames::SpardaBankWien,
+                                    enums::BankNames::VolksbankGruppe,
+                                    enums::BankNames::VolkskreditbankAg,
+                                    enums::BankNames::VrBankBraunau,
+                                    enums::BankNames::PlusBank,
+                                    enums::BankNames::EtransferPocztowy24,
+                                    enums::BankNames::BankiSpbdzielcze,
+                                    enums::BankNames::BankNowyBfgSa,
+                                    enums::BankNames::GetinBank,
+                                    enums::BankNames::Blik,
+                                    enums::BankNames::NoblePay,
+                                    enums::BankNames::IdeaBank,
+                                    enums::BankNames::EnveloBank,
+                                    enums::BankNames::NestPrzelew,
+                                    enums::BankNames::MbankMtransfer,
+                                    enums::BankNames::Inteligo,
+                                    enums::BankNames::PbacZIpko,
+                                    enums::BankNames::BnpParibas,
+                                    enums::BankNames::BankPekaoSa,
+                                    enums::BankNames::VolkswagenBank,
+                                    enums::BankNames::AliorBank,
+                                    enums::BankNames::Boz,
+                                ]
+                                .into_iter()
+                                .collect(),
                             ),
                             RequiredField::BillingLastName("billing_name", FieldType::UserFullName),
                         ],
@@ -2899,6 +3022,30 @@ fn get_bank_debit_required_fields() -> HashMap<enums::PaymentMethodType, Connect
                         ]),
                     },
                 ),
+                (
+                    Connector::Dwolla,
+                    RequiredFieldFinal {
+                        mandate: HashMap::new(),
+                        non_mandate: HashMap::from([
+                            RequiredField::BillingFirstName(
+                                "first_name",
+                                FieldType::UserBillingName,
+                            )
+                            .to_tuple(),
+                            RequiredField::BillingLastName("last_name", FieldType::UserBillingName)
+                                .to_tuple(),
+                            RequiredField::AchBankDebitAccountNumber.to_tuple(),
+                            RequiredField::AchBankDebitRoutingNumber.to_tuple(),
+                            RequiredField::AchBankDebitBankAccountHolderName.to_tuple(),
+                            RequiredField::AchBankDebitBankType(vec![
+                                enums::BankType::Checking,
+                                enums::BankType::Savings,
+                            ])
+                            .to_tuple(),
+                        ]),
+                        common: HashMap::new(),
+                    },
+                ),
             ]),
         ),
         (
@@ -3117,6 +3264,17 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
                     },
                 ),
                 (Connector::Adyen, fields(vec![], vec![], vec![])),
+                (
+                    Connector::Santander,
+                    RequiredFieldFinal {
+                        mandate: HashMap::new(),
+                        non_mandate: HashMap::new(),
+                        common: HashMap::from([
+                            RequiredField::BillingUserFirstName.to_tuple(),
+                            RequiredField::BillingUserLastName.to_tuple(),
+                        ]),
+                    },
+                ),
                 (
                     Connector::Facilitapay,
                     RequiredFieldFinal {

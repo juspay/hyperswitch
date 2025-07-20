@@ -171,6 +171,7 @@ pub struct ConnectorTomlConfig {
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, serde::Serialize, Clone)]
 pub struct ConnectorConfig {
+    pub authipay: Option<ConnectorTomlConfig>,
     pub juspaythreedsserver: Option<ConnectorTomlConfig>,
     pub aci: Option<ConnectorTomlConfig>,
     pub adyen: Option<ConnectorTomlConfig>,
@@ -190,7 +191,9 @@ pub struct ConnectorConfig {
     pub boku: Option<ConnectorTomlConfig>,
     pub braintree: Option<ConnectorTomlConfig>,
     pub cashtocode: Option<ConnectorTomlConfig>,
+    pub celero: Option<ConnectorTomlConfig>,
     pub chargebee: Option<ConnectorTomlConfig>,
+    pub checkbook: Option<ConnectorTomlConfig>,
     pub checkout: Option<ConnectorTomlConfig>,
     pub coinbase: Option<ConnectorTomlConfig>,
     pub coingate: Option<ConnectorTomlConfig>,
@@ -239,6 +242,7 @@ pub struct ConnectorConfig {
     pub novalnet: Option<ConnectorTomlConfig>,
     pub nuvei: Option<ConnectorTomlConfig>,
     pub paybox: Option<ConnectorTomlConfig>,
+    pub payload: Option<ConnectorTomlConfig>,
     pub payme: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub payone_payout: Option<ConnectorTomlConfig>,
@@ -258,6 +262,7 @@ pub struct ConnectorConfig {
     pub redsys: Option<ConnectorTomlConfig>,
     pub santander: Option<ConnectorTomlConfig>,
     pub shift4: Option<ConnectorTomlConfig>,
+    pub silverflow: Option<ConnectorTomlConfig>,
     pub stripe: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub stripe_payout: Option<ConnectorTomlConfig>,
@@ -365,6 +370,7 @@ impl ConnectorConfig {
         let connector_data = Self::new()?;
         match connector {
             Connector::Aci => Ok(connector_data.aci),
+            Connector::Authipay => Ok(connector_data.authipay),
             Connector::Adyen => Ok(connector_data.adyen),
             Connector::Adyenplatform => Err("Use get_payout_connector_config".to_string()),
             Connector::Airwallex => Ok(connector_data.airwallex),
@@ -379,6 +385,7 @@ impl ConnectorConfig {
             Connector::Boku => Ok(connector_data.boku),
             Connector::Braintree => Ok(connector_data.braintree),
             Connector::Cashtocode => Ok(connector_data.cashtocode),
+            Connector::Celero => Ok(connector_data.celero),
             Connector::Chargebee => Ok(connector_data.chargebee),
             Connector::Checkout => Ok(connector_data.checkout),
             Connector::Coinbase => Ok(connector_data.coinbase),
@@ -429,6 +436,7 @@ impl ConnectorConfig {
             Connector::Noon => Ok(connector_data.noon),
             Connector::Nuvei => Ok(connector_data.nuvei),
             Connector::Paybox => Ok(connector_data.paybox),
+            Connector::Payload => Ok(connector_data.payload),
             Connector::Payme => Ok(connector_data.payme),
             Connector::Payone => Err("Use get_payout_connector_config".to_string()),
             Connector::Paypal => Ok(connector_data.paypal),
@@ -442,6 +450,7 @@ impl ConnectorConfig {
             Connector::Recurly => Ok(connector_data.recurly),
             Connector::Redsys => Ok(connector_data.redsys),
             Connector::Riskified => Ok(connector_data.riskified),
+            Connector::Santander => Ok(connector_data.santander),
             Connector::Shift4 => Ok(connector_data.shift4),
             Connector::Signifyd => Ok(connector_data.signifyd),
             Connector::Square => Ok(connector_data.square),

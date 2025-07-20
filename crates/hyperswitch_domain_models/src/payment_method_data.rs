@@ -4,14 +4,13 @@ use std::str::FromStr;
 use api_models::{
     mandates,
     payment_methods::{self},
-    payments::{
-        additional_info as payment_additional_types, AmazonPayRedirectData, ExtendedCardInfo,
-    },
+    payments::{additional_info as payment_additional_types, ExtendedCardInfo},
 };
 use common_enums::enums as api_enums;
 #[cfg(feature = "v2")]
 use common_utils::ext_traits::OptionExt;
 use common_utils::{
+    ext_traits::StringExt,
     id_type,
     new_type::{
         MaskedBankAccount, MaskedIban, MaskedRoutingNumber, MaskedSortCode, MaskedUpiVpaId,
@@ -24,7 +23,7 @@ use time::Date;
 
 // We need to derive Serialize and Deserialize because some parts of payment method data are being
 // stored in the database as serde_json::Value
-#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum PaymentMethodData {
     Card(Card),
     CardDetailsForNetworkTransactionId(CardDetailsForNetworkTransactionId),
@@ -77,6 +76,14 @@ impl PaymentMethodData {
         }
     }
 
+    pub fn get_wallet_data(&self) -> Option<&WalletData> {
+        if let Self::Wallet(wallet_data) = self {
+            Some(wallet_data)
+        } else {
+            None
+        }
+    }
+
     pub fn is_network_token_payment_method_data(&self) -> bool {
         matches!(self, Self::NetworkToken(_))
     }
@@ -88,9 +95,21 @@ impl PaymentMethodData {
             None
         }
     }
+
+    pub fn extract_debit_routing_saving_percentage(
+        &self,
+        network: &common_enums::CardNetwork,
+    ) -> Option<f64> {
+        self.get_co_badged_card_data()?
+            .co_badged_card_networks_info
+            .0
+            .iter()
+            .find(|info| &info.network == network)
+            .map(|info| info.saving_percentage)
+    }
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
 pub struct Card {
     pub card_number: cards::CardNumber,
     pub card_exp_month: Secret<String>,
@@ -120,7 +139,7 @@ pub struct CardDetailsForNetworkTransactionId {
     pub card_holder_name: Option<Secret<String>>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
 pub struct CardDetail {
     pub card_number: cards::CardNumber,
     pub card_exp_month: Secret<String>,
@@ -222,7 +241,9 @@ pub enum WalletData {
     AliPayQr(Box<AliPayQr>),
     AliPayRedirect(AliPayRedirection),
     AliPayHkRedirect(AliPayHkRedirection),
-    AmazonPayRedirect(Box<AmazonPayRedirectData>),
+    AmazonPayRedirect(Box<AmazonPayRedirect>),
+    Paysera(Box<PayseraData>),
+    Skrill(Box<SkrillData>),
     MomoRedirect(MomoRedirection),
     KakaoPayRedirect(KakaoPayRedirection),
     GoPayRedirect(GoPayRedirection),
@@ -249,6 +270,32 @@ pub enum WalletData {
     SwishQr(SwishQrData),
     Mifinity(MifinityData),
     RevolutPay(RevolutPayData),
+}
+
+impl WalletData {
+    pub fn get_paze_wallet_data(&self) -> Option<&PazeWalletData> {
+        if let Self::Paze(paze_wallet_data) = self {
+            Some(paze_wallet_data)
+        } else {
+            None
+        }
+    }
+
+    pub fn get_apple_pay_wallet_data(&self) -> Option<&ApplePayWalletData> {
+        if let Self::ApplePay(apple_pay_wallet_data) = self {
+            Some(apple_pay_wallet_data)
+        } else {
+            None
+        }
+    }
+
+    pub fn get_google_pay_wallet_data(&self) -> Option<&GooglePayWalletData> {
+        if let Self::GooglePay(google_pay_wallet_data) = self {
+            Some(google_pay_wallet_data)
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -345,6 +392,15 @@ pub struct AliPayRedirection {}
 pub struct AliPayHkRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct AmazonPayRedirect {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct PayseraData {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct SkrillData {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct MomoRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -409,6 +465,26 @@ pub struct ApplePayWalletData {
     pub payment_method: ApplepayPaymentMethod,
     /// The unique identifier for the transaction
     pub transaction_identifier: String,
+}
+
+impl ApplePayWalletData {
+    pub fn get_payment_method_type(&self) -> Option<api_enums::PaymentMethodType> {
+        self.payment_method
+            .pm_type
+            .clone()
+            .parse_enum("ApplePayPaymentMethodType")
+            .ok()
+            .and_then(|payment_type| match payment_type {
+                common_enums::ApplePayPaymentMethodType::Debit => {
+                    Some(api_enums::PaymentMethodType::Debit)
+                }
+                common_enums::ApplePayPaymentMethodType::Credit => {
+                    Some(api_enums::PaymentMethodType::Credit)
+                }
+                common_enums::ApplePayPaymentMethodType::Prepaid
+                | common_enums::ApplePayPaymentMethodType::Store => None,
+            })
+    }
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -925,8 +1001,10 @@ impl From<api_models::payments::WalletData> for WalletData {
                 Self::AliPayHkRedirect(AliPayHkRedirection {})
             }
             api_models::payments::WalletData::AmazonPayRedirect(_) => {
-                Self::AmazonPayRedirect(Box::new(AmazonPayRedirectData {}))
+                Self::AmazonPayRedirect(Box::new(AmazonPayRedirect {}))
             }
+            api_models::payments::WalletData::Skrill(_) => Self::Skrill(Box::new(SkrillData {})),
+            api_models::payments::WalletData::Paysera(_) => Self::Paysera(Box::new(PayseraData {})),
             api_models::payments::WalletData::MomoRedirect(_) => {
                 Self::MomoRedirect(MomoRedirection {})
             }
@@ -1748,6 +1826,8 @@ impl GetPaymentMethodType for WalletData {
             Self::AliPayQr(_) | Self::AliPayRedirect(_) => api_enums::PaymentMethodType::AliPay,
             Self::AliPayHkRedirect(_) => api_enums::PaymentMethodType::AliPayHk,
             Self::AmazonPayRedirect(_) => api_enums::PaymentMethodType::AmazonPay,
+            Self::Skrill(_) => api_enums::PaymentMethodType::Skrill,
+            Self::Paysera(_) => api_enums::PaymentMethodType::Paysera,
             Self::MomoRedirect(_) => api_enums::PaymentMethodType::Momo,
             Self::KakaoPayRedirect(_) => api_enums::PaymentMethodType::KakaoPay,
             Self::GoPayRedirect(_) => api_enums::PaymentMethodType::GoPay,
@@ -1951,6 +2031,25 @@ impl From<Card> for ExtendedCardInfo {
     }
 }
 
+impl From<ApplePayWalletData> for payment_methods::PaymentMethodDataWalletInfo {
+    fn from(item: ApplePayWalletData) -> Self {
+        Self {
+            last4: item
+                .payment_method
+                .display_name
+                .chars()
+                .rev()
+                .take(4)
+                .collect::<Vec<_>>()
+                .into_iter()
+                .rev()
+                .collect(),
+            card_network: item.payment_method.network,
+            card_type: Some(item.payment_method.pm_type),
+        }
+    }
+}
+
 impl From<GooglePayWalletData> for payment_methods::PaymentMethodDataWalletInfo {
     fn from(item: GooglePayWalletData) -> Self {
         Self {
@@ -1961,7 +2060,7 @@ impl From<GooglePayWalletData> for payment_methods::PaymentMethodDataWalletInfo 
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub enum PaymentMethodsData {
     Card(CardDetailsPaymentMethod),
     BankDetails(payment_methods::PaymentMethodDataBankCreds), //PaymentMethodDataBankCreds and its transformations should be moved to the domain models
@@ -2005,7 +2104,7 @@ fn saved_in_locker_default() -> bool {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CardDetailsPaymentMethod {
     pub last4_digits: Option<String>,
     pub issuer_country: Option<String>,

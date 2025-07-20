@@ -186,7 +186,7 @@ mod tests {
             .await
             .expect("aws kms encryption failed");
 
-        println!("{}", kms_encrypted_fingerprint);
+        println!("{kms_encrypted_fingerprint}");
     }
 
     #[tokio::test]
@@ -208,6 +208,6 @@ mod tests {
             .await
             .expect("aws kms decryption failed");
 
-        println!("{}", kms_encrypted_fingerprint);
+        println!("{kms_encrypted_fingerprint}");
     }
 }
