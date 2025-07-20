@@ -56,6 +56,17 @@ describe("Wallet Payments", () => {
         globalState
       );
     });
+
+    it("handle-wallet-redirection", () => {
+      const expected_redirection = fixtures.confirmBody["return_url"];
+      const payment_method_type = globalState.get("paymentMethodType");
+
+      cy.handleWalletRedirection(
+        globalState,
+        payment_method_type,
+        expected_redirection
+      );
+    });
   });
 
   context("Alipay", () => {
@@ -95,6 +106,17 @@ describe("Wallet Payments", () => {
         data,
         true,
         globalState
+      );
+    });
+
+    it("handle-wallet-redirection", () => {
+      const expected_redirection = fixtures.confirmBody["return_url"];
+      const payment_method_type = globalState.get("paymentMethodType");
+
+      cy.handleWalletRedirection(
+        globalState,
+        payment_method_type,
+        expected_redirection
       );
     });
   });

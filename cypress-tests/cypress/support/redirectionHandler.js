@@ -60,6 +60,14 @@ export function handleRedirection(
         paymentMethodType
       );
       break;
+    case "wallet":
+      walletRedirection(
+        urls.redirectionUrl,
+        urls.expectedUrl,
+        connectorId,
+        paymentMethodType
+      );
+    break;
     default:
       throw new Error(`Unknown redirection type: ${redirectionType}`);
   }
@@ -873,6 +881,19 @@ function upiRedirection(
   cy.then(() => {
     verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
   });
+}
+
+function walletRedirection(
+  redirectionUrl,
+  expectedUrl,
+  connectorId,
+  paymentMethodType
+) {
+  cy.visit(redirectionUrl.href);
+
+  if (connectorId === "multisafepay") {
+    cy.get('div.alert').should('contain.text', 'CSRF validation failed');
+  }
 }
 
 function verifyReturnUrl(redirectionUrl, expectedUrl, forwardFlow) {
