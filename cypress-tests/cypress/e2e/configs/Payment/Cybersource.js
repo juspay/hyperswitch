@@ -120,7 +120,7 @@ export const connectorDetails = {
       Configs: {
         CONNECTOR_CREDENTIAL: {
           specName: ["incrementalAuth"],
-          value: "connector_2",
+          value: "connector_1",
         },
       },
       Request: {
@@ -288,7 +288,7 @@ export const connectorDetails = {
         },
       },
     },
-    Capture: {
+    Capture: getCustomExchange({
       Configs: {
         CONNECTOR_CREDENTIAL: {
           value: "connector_1",
@@ -306,7 +306,17 @@ export const connectorDetails = {
           amount_received: null,
         },
       },
-    },
+      ResponseCustom: {
+        status: 422,
+        body: {
+          error: {
+            code: "IR_06",
+            message: "amount_to_capture is greater than amount",
+            type: "invalid_request",
+          },
+        },
+      },
+    }),
     PartialCapture: {
       Configs: {
         CONNECTOR_CREDENTIAL: {
@@ -436,8 +446,17 @@ export const connectorDetails = {
         body: {
           status: "requires_capture",
           amount: 8000,
-          amount_capturable: 8000,
+          amount_capturable: 6000,
           amount_received: null,
+          incremental_authorizations: [
+            {
+              amount: 8000,
+              previously_authorized_amount: 6000,
+              status: "failure",
+              error_code: "INVALID_DATA",
+              error_message: "INVALID_DATA",
+            },
+          ],
         },
       },
     },
@@ -759,7 +778,7 @@ export const connectorDetails = {
       Configs: {
         CONNECTOR_CREDENTIAL: {
           specName: ["incrementalAuth"],
-          value: "connector_2",
+          value: "connector_1",
         },
       },
       Request: {
