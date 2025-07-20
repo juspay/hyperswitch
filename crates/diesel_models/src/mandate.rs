@@ -35,6 +35,7 @@ pub struct Mandate {
     pub original_payment_id: Option<common_utils::id_type::PaymentId>,
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub updated_by: Option<String>,
+    pub customer_device_user_agent: Option<String>,
 }
 
 #[derive(
@@ -73,6 +74,7 @@ pub struct MandateNew {
     pub original_payment_id: Option<common_utils::id_type::PaymentId>,
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub updated_by: Option<String>,
+    pub customer_device_user_agent: Option<String>,
 }
 
 impl MandateNew {
@@ -234,6 +236,11 @@ impl From<&MandateNew> for Mandate {
             original_payment_id: mandate_new.original_payment_id.clone(),
             merchant_connector_id: mandate_new.merchant_connector_id.clone(),
             updated_by: mandate_new.updated_by.clone(),
+            // Using customer_user_agent as a fallback
+            customer_device_user_agent: mandate_new
+                .customer_device_user_agent
+                .clone()
+                .or_else(|| mandate_new.customer_user_agent.clone()),
         }
     }
 }
