@@ -67,7 +67,7 @@ export function handleRedirection(
         connectorId,
         paymentMethodType
       );
-    break;
+      break;
     default:
       throw new Error(`Unknown redirection type: ${redirectionType}`);
   }
@@ -892,7 +892,12 @@ function walletRedirection(
   cy.visit(redirectionUrl.href);
 
   if (connectorId === "multisafepay") {
-    cy.get('div.alert').should('contain.text', 'CSRF validation failed');
+    cy.get("div.alert").should("contain.text", "CSRF validation failed");
+  }
+
+  if (connectorId === "shift4") {
+    cy.contains("button", "Succeed payment").click();
+    verifyReturnUrl(redirectionUrl, expectedUrl, true);
   }
 }
 
