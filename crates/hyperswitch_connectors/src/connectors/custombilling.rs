@@ -108,7 +108,7 @@ impl ConnectorCommon for Custombilling {
         "application/json"
     }
 
-    fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
+    fn base_url<'a>(&self, _connectors: &'a Connectors) -> &'a str {
         ""
     }
 
