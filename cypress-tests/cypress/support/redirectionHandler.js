@@ -891,13 +891,16 @@ function walletRedirection(
 ) {
   cy.visit(redirectionUrl.href);
 
-  if (connectorId === "multisafepay") {
-    cy.get("div.alert").should("contain.text", "CSRF validation failed");
-  }
-
-  if (connectorId === "shift4") {
-    cy.contains("button", "Succeed payment").click();
-    verifyReturnUrl(redirectionUrl, expectedUrl, true);
+  switch (connectorId) {
+    case "multisafepay":
+      cy.get("div.alert").should("contain.text", "CSRF validation failed");
+      break;
+    case "shift4":
+      cy.contains("button", "Succeed payment").click();
+      verifyReturnUrl(redirectionUrl, expectedUrl, true);
+      break;
+    default:
+      return;
   }
 }
 
