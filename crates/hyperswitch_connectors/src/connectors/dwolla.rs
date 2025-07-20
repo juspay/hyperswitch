@@ -205,7 +205,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
         );
 
         let encoded = BASE64_ENGINE.encode(auth_str);
-        let auth_header_value = format!("Basic {}", encoded);
+        let auth_header_value = format!("Basic {encoded}");
         headers.push((
             headers::AUTHORIZATION.to_string(),
             auth_header_value.into_masked(),
