@@ -124,4 +124,58 @@ describe("Wallet Payments", () => {
       );
     });
   });
+
+  context("MB Way", () => {
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("create-payment-call-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "wallet_pm"
+      ]["PaymentIntent"]("MBWay");
+
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "three_ds",
+        "automatic",
+        globalState
+      );
+    });
+
+    it("payment_methods-call-test", () => {
+      cy.paymentMethodsCallTest(globalState);
+    });
+
+    it("alipay-confirm-call-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "wallet_pm"
+      ]["MBWay"];
+
+      cy.confirmWalletPaymentCallTest(
+        fixtures.confirmBody,
+        data,
+        true,
+        globalState
+      );
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("handle-wallet-redirection", () => {
+      const expected_redirection = fixtures.confirmBody["return_url"];
+      const payment_method_type = globalState.get("paymentMethodType");
+
+      cy.handleWalletRedirection(
+        globalState,
+        payment_method_type,
+        expected_redirection
+      );
+    });
+  });
 });

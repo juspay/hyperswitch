@@ -125,6 +125,7 @@ const CURRENCY_MAP = {
   Przelewy24: "EUR",
   Sofort: "EUR",
   WeChatPay: "EUR",
+  MBWay: "EUR",
 
   // Chinese payment methods
   Alipay: "CNY",
