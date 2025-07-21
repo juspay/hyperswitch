@@ -1110,5 +1110,37 @@ export const connectorDetails = {
         },
       },
     },
+    MBWay: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "mb_way",
+        payment_method_data: {
+          wallet: {
+            mb_way_redirect: {},
+          },
+        },
+        billing: {
+          address: {
+            zip: "1100-279",
+            first_name: "Sakil",
+            last_name: "Mostak",
+            line1: "Rua Augusta 100",
+            country: "PT",
+            line2: "3º Esquerdo",
+            city: "Lisboa",
+          },
+          phone: {
+            number: "912345678",
+            country_code: "+351",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
   },
 };
