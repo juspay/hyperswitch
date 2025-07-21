@@ -1890,6 +1890,9 @@ impl<F, Req> TryFrom<ResponseRouterData<F, AuthorizedotnetSyncResponse, Req, Pay
                     ..item.data
                 })
             }
+
+            // E00053 indicates "server too busy"
+            // If the server is too busy, we return the already available data
             None => match item
                 .response
                 .messages
