@@ -1125,16 +1125,7 @@ pub async fn authentication_authenticate_core(
     };
     let key_manager_state = (&state).into();
 
-    let profile_id = core_utils::get_profile_id_from_business_details(
-        &key_manager_state,
-        None,
-        None,
-        &merchant_context,
-        None,
-        db,
-        true,
-    )
-    .await?;
+    let profile_id = authentication.profile_id.clone();
 
     let business_profile = db
         .find_business_profile_by_profile_id(
@@ -1168,17 +1159,18 @@ pub async fn authentication_authenticate_core(
         })
         .await
         .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to decrypt email")?;
+        .attach_printable("Unable to decrypt email from authentication table")?;
 
     let browser_info = authentication
         .browser_info
         .clone()
         .map(|browser_info| browser_info.parse_value::<BrowserInformation>("BrowserInformation"))
         .transpose()
-        .change_context(ApiErrorResponse::InternalServerError)?;
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to parse browser information from authentication table")?;
 
     let (authentication_connector, three_ds_connector_account) =
-        crate::core::authentication::utils::get_authentication_connector_data(
+        auth_utils::get_authentication_connector_data(
             &state,
             merchant_context.get_merchant_key_store(),
             &business_profile,
@@ -1189,7 +1181,8 @@ pub async fn authentication_authenticate_core(
     let authentication_details = business_profile
         .authentication_connector_details
         .clone()
-        .ok_or(ApiErrorResponse::InternalServerError)?;
+        .ok_or(ApiErrorResponse::InternalServerError)
+        .attach_printable("authentication_connector_details not configured by the merchant")?;
 
     let connector_name_string = authentication_connector.to_string();
     let mca_id_option = three_ds_connector_account.get_mca_id();
@@ -1238,8 +1231,8 @@ pub async fn authentication_authenticate_core(
     )
     .await?;
 
-    let authentication_value = match auth_flow {
-        AuthFlow::Client => None,
+    let (authentication_value, eci) = match auth_flow {
+        AuthFlow::Client => (None, None),
         AuthFlow::Merchant => {
             if let Some(common_enums::TransactionStatus::Success) = authentication.trans_status {
                 let tokenised_data = crate::core::payment_methods::vault::get_tokenized_data(
@@ -1251,9 +1244,12 @@ pub async fn authentication_authenticate_core(
                 .await
                 .inspect_err(|err| router_env::logger::error!(tokenized_data_result=?err))
                 .attach_printable("cavv not present after authentication status is success")?;
-                Some(masking::Secret::new(tokenised_data.value1))
+                (
+                    Some(masking::Secret::new(tokenised_data.value1)),
+                    authentication.eci.clone(),
+                )
             } else {
-                None
+                (None, None)
             }
         }
     };
@@ -1261,6 +1257,7 @@ pub async fn authentication_authenticate_core(
     let response = AuthenticationAuthenticateResponse::foreign_try_from((
         &authentication,
         authentication_value,
+        eci,
         authentication_details,
     ))?;
 
@@ -1273,15 +1270,17 @@ impl
     ForeignTryFrom<(
         &Authentication,
         Option<masking::Secret<String>>,
+        Option<String>,
         diesel_models::business_profile::AuthenticationConnectorDetails,
     )> for AuthenticationAuthenticateResponse
 {
     type Error = error_stack::Report<ApiErrorResponse>;
 
     fn foreign_try_from(
-        (authentication, authentication_value, authentication_details): (
+        (authentication, authentication_value, eci, authentication_details): (
             &Authentication,
             Option<masking::Secret<String>>,
+            Option<String>,
             diesel_models::business_profile::AuthenticationConnectorDetails,
         ),
     ) -> Result<Self, Self::Error> {
@@ -1292,9 +1291,16 @@ impl
             .transpose()
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Incorrect authentication connector stored in table")?;
+        let acs_url = authentication
+            .acs_url
+            .clone()
+            .map(|acs_url| url::Url::parse(&acs_url))
+            .transpose()
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to parse the url with param")?;
         Ok(Self {
             transaction_status: authentication.trans_status.clone(),
-            acs_url: authentication.acs_url.clone(),
+            acs_url,
             challenge_request: authentication.challenge_request.clone(),
             acs_reference_number: authentication.acs_reference_number.clone(),
             acs_trans_id: authentication.acs_trans_id.clone(),
@@ -1307,6 +1313,7 @@ impl
             authentication_value,
             status: authentication.authentication_status,
             authentication_connector,
+            eci,
         })
     }
 }

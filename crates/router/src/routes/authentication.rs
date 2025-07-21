@@ -83,14 +83,14 @@ pub async fn authentication_eligibility(
 }
 
 #[cfg(feature = "v1")]
-#[instrument(skip_all, fields(flow = ?Flow::AuthenticationEligibility))]
+#[instrument(skip_all, fields(flow = ?Flow::AuthenticationAuthenticate))]
 pub async fn authentication_authenticate(
     state: web::Data<app::AppState>,
     req: HttpRequest,
     json_payload: web::Json<AuthenticationAuthenticateRequest>,
     path: web::Path<common_utils::id_type::AuthenticationId>,
 ) -> impl Responder {
-    let flow = Flow::AuthenticationEligibility;
+    let flow = Flow::AuthenticationAuthenticate;
 
     let api_auth = auth::ApiKeyAuth::default();
     let payload = json_payload.into_inner();

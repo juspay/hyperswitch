@@ -11,9 +11,9 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::payments::CustomerDetails;
 #[cfg(feature = "v1")]
 use crate::payments::{Address, BrowserInformation, PaymentMethodData};
+use crate::payments::{CustomerDetails, DeviceChannel, SdkInformation, ThreeDsCompletionIndicator};
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct AuthenticationCreateRequest {
@@ -333,11 +333,11 @@ pub struct AuthenticationAuthenticateRequest {
     #[schema(value_type = String)]
     pub client_secret: Option<masking::Secret<String>>,
     /// SDK Information if request is from SDK
-    pub sdk_information: Option<crate::payments::SdkInformation>,
+    pub sdk_information: Option<SdkInformation>,
     /// Device Channel indicating whether request is coming from App or Browser
-    pub device_channel: crate::payments::DeviceChannel,
+    pub device_channel: DeviceChannel,
     /// Indicates if 3DS method data was successfully completed or not
-    pub threeds_method_comp_ind: crate::payments::ThreeDsCompletionIndicator,
+    pub threeds_method_comp_ind: ThreeDsCompletionIndicator,
 }
 
 impl ApiEventMetric for AuthenticationAuthenticateRequest {
@@ -353,7 +353,7 @@ pub struct AuthenticationAuthenticateResponse {
     #[schema(value_type = Option<TransactionStatus>)]
     pub transaction_status: Option<common_enums::TransactionStatus>,
     /// Access Server URL to be used for challenge submission
-    pub acs_url: Option<String>,
+    pub acs_url: Option<url::Url>,
     /// Challenge request which should be sent to acs_url
     pub challenge_request: Option<String>,
     /// Unique identifier assigned by the EMVCo(Europay, Mastercard and Visa)
@@ -375,14 +375,14 @@ pub struct AuthenticationAuthenticateResponse {
     /// The error code for this authentication.
     #[schema(value_type = String)]
     pub error_code: Option<String>,
-    /// The authentication value for this authentication.
+    /// The authentication value for this authentication, only available in case of server to server request. Unavailable in case of client request due to security concern.
     #[schema(value_type = String)]
     pub authentication_value: Option<masking::Secret<String>>,
-
+    /// ECI indicator of the card, only available in case of server to server request. Unavailable in case of client request due to security concern.
+    pub eci: Option<String>,
     /// The current status of the authentication (e.g., Started).
     #[schema(value_type = AuthenticationStatus)]
     pub status: common_enums::AuthenticationStatus,
-
     /// The connector to be used for authentication, if known.
     #[schema(value_type = Option<AuthenticationConnectors>, example = "netcetera")]
     pub authentication_connector: Option<AuthenticationConnectors>,
