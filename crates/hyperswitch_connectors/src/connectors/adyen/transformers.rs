@@ -3221,14 +3221,28 @@ impl
         let telephone_number = item.router_data.get_optional_billing_phone_number();
         let (session_validity, social_security_number) = match bank_transfer_data {
             BankTransferData::Pix {
-                pix_key: _,
                 cpf,
                 cnpj,
-                source_bank_account_id: _,
-                destination_bank_account_id: _,
                 expiry_date,
-            } => (expiry_date.clone(), cpf.clone().or(cnpj.clone()).clone()),
-            BankTransferData::LocalBankTransfer { bank_code: _ } => (None, None),
+                ..
+            } => {
+                // Validate expiry_date doesn't exceed 5 days from now
+                if let Some(expiry) = expiry_date {
+                    let now = OffsetDateTime::now_utc();
+                    let max_expiry = now + Duration::days(5);
+                    let max_expiry_primitive =
+                        PrimitiveDateTime::new(max_expiry.date(), max_expiry.time());
+
+                    if *expiry > max_expiry_primitive {
+                        return Err(report!(errors::ConnectorError::InvalidDataFormat {
+                            field_name: "expiry_date cannot be more than 5 days from now",
+                        }));
+                    }
+                }
+
+                (expiry_date.clone(), cpf.as_ref().or(cnpj.as_ref()).cloned())
+            }
+            BankTransferData::LocalBankTransfer { .. } => (None, None),
             BankTransferData::AchBankTransfer {}
             | BankTransferData::SepaBankTransfer {}
             | BankTransferData::BacsBankTransfer {}
