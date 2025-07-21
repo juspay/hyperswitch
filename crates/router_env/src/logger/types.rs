@@ -602,6 +602,8 @@ pub enum Flow {
     CloneConnector,
     /// Authentication Create flow
     AuthenticationCreate,
+    /// Authentication Eligibility flow
+    AuthenticationEligibility,
     ///Proxy Flow
     Proxy,
     /// Profile Acquirer Create flow
