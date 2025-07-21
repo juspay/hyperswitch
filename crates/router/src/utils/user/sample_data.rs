@@ -384,6 +384,7 @@ pub async fn generate_sample_data(
             setup_future_usage_applied: None,
             routing_approach: None,
             connector_request_reference_id: None,
+            routing_approach_v2: None,
         };
 
         let refund = if refunds_count < number_of_refunds && !is_failed_payment {
