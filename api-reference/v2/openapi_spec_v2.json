@@ -8153,6 +8153,7 @@
           "checkout",
           "coinbase",
           "coingate",
+          "custombilling",
           "cryptopay",
           "ctp_mastercard",
           "ctp_visa",
@@ -15740,6 +15741,14 @@
               }
             ],
             "nullable": true
+          },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodDataResponseWithBilling"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -22738,6 +22747,7 @@
           "cashtocode",
           "celero",
           "chargebee",
+          "custombilling",
           "checkout",
           "coinbase",
           "coingate",
