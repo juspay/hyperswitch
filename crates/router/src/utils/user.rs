@@ -14,6 +14,7 @@ use common_utils::{
     id_type, type_name,
     types::{keymanager::Identifier, user::LineageContext},
 };
+#[cfg(feature = "v1")]
 use diesel_models::organization::{self, OrganizationBridge};
 use error_stack::ResultExt;
 #[cfg(feature = "v1")]

@@ -1,5 +1,7 @@
+#[cfg(feature = "v1")]
 use error_stack::ResultExt;
 
+#[cfg(feature = "v1")]
 use crate::{
     core::errors::{self, RouterResult},
     logger,

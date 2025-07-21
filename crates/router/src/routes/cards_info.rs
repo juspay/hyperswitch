@@ -1,13 +1,17 @@
+#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
 use actix_multipart::form::MultipartForm;
-use actix_web::{web, HttpRequest, HttpResponse, Responder};
+#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
+use actix_web::HttpResponse;
+use actix_web::{web, HttpRequest, Responder};
 use api_models::cards_info as cards_info_api_types;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
+#[cfg(feature = "v1")]
+use crate::types::domain;
 use crate::{
     core::{api_locking, cards_info},
     services::{api, authentication as auth},
-    types::domain,
 };
 
 #[cfg(feature = "v1")]

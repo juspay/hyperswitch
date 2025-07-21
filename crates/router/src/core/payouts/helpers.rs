@@ -1,46 +1,62 @@
+#[cfg(feature = "v1")]
 use ::payment_methods::controller::PaymentMethodsController;
-use api_models::{enums, payment_methods::Card, payouts};
+#[cfg(feature = "v1")]
+use api_models::payment_methods::Card;
+use api_models::{enums, payouts};
+#[cfg(feature = "v1")]
 use common_utils::{
     crypto::Encryptable,
     encryption::Encryption,
-    errors::CustomResult,
-    ext_traits::{AsyncExt, StringExt},
-    fp_utils, id_type, payout_method_utils as payout_additional, pii, type_name,
+    generate_customer_id_of_default_length, pii, type_name,
     types::{
-        keymanager::{Identifier, KeyManagerState},
-        MinorUnit, UnifiedCode, UnifiedMessage,
+        keymanager::{Identifier, KeyManagerState, ToEncryptable},
+        MinorUnit,
     },
 };
+use common_utils::{
+    errors::CustomResult,
+    ext_traits::{AsyncExt, StringExt},
+    fp_utils, id_type, payout_method_utils as payout_additional,
+    types::{UnifiedCode, UnifiedMessage},
+};
 #[cfg(feature = "v1")]
-use common_utils::{generate_customer_id_of_default_length, types::keymanager::ToEncryptable};
-use error_stack::{report, ResultExt};
+use error_stack::report;
+use error_stack::ResultExt;
+#[cfg(feature = "v1")]
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
+#[cfg(feature = "v1")]
 use masking::{ExposeInterface, PeekInterface, Secret, SwitchStrategy};
 use router_env::logger;
 
 use super::PayoutData;
-#[cfg(feature = "payouts")]
+#[cfg(all(feature = "payouts", feature = "v1"))]
 use crate::core::payments::route_connector_v1_for_payouts;
+#[cfg(feature = "v1")]
 use crate::{
     consts,
     core::{
-        errors::{self, RouterResult, StorageErrorExt},
-        payment_methods::{
-            cards,
-            transformers::{DataDuplicationCheck, StoreCardReq, StoreGenericReq, StoreLockerReq},
-            vault,
+        errors::StorageErrorExt,
+        payment_methods::transformers::{
+            DataDuplicationCheck, StoreCardReq, StoreGenericReq, StoreLockerReq,
         },
-        payments::{helpers as payment_helpers, routing, CustomerDetails},
+        payments::routing,
         routing::TransactionData,
         utils as core_utils,
+    },
+    types::domain::types::AsyncLift,
+};
+use crate::{
+    core::{
+        errors::{self, RouterResult},
+        payment_methods::{cards, vault},
+        payments::{helpers as payment_helpers, CustomerDetails},
     },
     db::StorageInterface,
     routes::{metrics, SessionState},
     services,
     types::{
         api::{self, enums as api_enums},
-        domain::{self, types::AsyncLift},
-        storage,
+        domain, storage,
         transformers::ForeignFrom,
     },
     utils::{self, OptionExt},
@@ -704,6 +720,7 @@ pub async fn save_payout_data_to_locker(
 }
 
 #[cfg(feature = "v2")]
+#[allow(dead_code)]
 pub(super) async fn get_or_create_customer_details(
     _state: &SessionState,
     _customer_details: &CustomerDetails,
@@ -1163,6 +1180,7 @@ pub fn is_eligible_for_local_payout_cancellation(status: api_enums::PayoutStatus
 }
 
 #[cfg(feature = "olap")]
+#[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
 pub(super) async fn filter_by_constraints(
     db: &dyn StorageInterface,
     constraints: &api::PayoutListConstraints,
@@ -1342,6 +1360,7 @@ pub async fn update_payouts_and_payout_attempt(
     Ok(())
 }
 
+#[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
 pub(super) fn get_customer_details_from_request(
     request: &payouts::PayoutCreateRequest,
 ) -> CustomerDetails {

@@ -7,20 +7,23 @@
 
 mod utils;
 
+#[cfg(feature = "v1")]
 use std::{borrow::Cow, sync::Arc};
 
+#[cfg(feature = "v1")]
 use common_utils::{id_type, types::MinorUnit};
+use router::types;
+#[cfg(feature = "v1")]
 use router::{
     configs,
     core::payments,
     db::StorageImpl,
     routes, services,
-    types::{
-        self,
-        api::{self, enums as api_enums},
-    },
+    types::api::{self, enums as api_enums},
 };
+#[cfg(feature = "v1")]
 use time::macros::datetime;
+#[cfg(feature = "v1")]
 use tokio::sync::oneshot;
 use uuid::Uuid;
 

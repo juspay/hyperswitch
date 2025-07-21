@@ -1,17 +1,11 @@
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "v2")]
-use crate::payment_attempt::PaymentAttemptUpdateInternal;
-#[cfg(feature = "v1")]
-use crate::payment_intent::PaymentIntentUpdate;
-#[cfg(feature = "v2")]
-use crate::payment_intent::PaymentIntentUpdateInternal;
 use crate::{
     address::{Address, AddressNew, AddressUpdateInternal},
     customers::{Customer, CustomerNew, CustomerUpdateInternal},
     errors,
-    payment_attempt::{PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate},
+    payment_attempt::{PaymentAttempt, PaymentAttemptNew},
     payment_intent::PaymentIntentNew,
     payout_attempt::{PayoutAttempt, PayoutAttemptNew, PayoutAttemptUpdate},
     payouts::{Payouts, PayoutsNew, PayoutsUpdate},
@@ -19,6 +13,12 @@ use crate::{
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
     Mandate, MandateNew, MandateUpdateInternal, PaymentIntent, PaymentMethod, PaymentMethodNew,
     PaymentMethodUpdateInternal, PgPooledConn,
+};
+#[cfg(feature = "v1")]
+use crate::{payment_attempt::PaymentAttemptUpdate, payment_intent::PaymentIntentUpdate};
+#[cfg(feature = "v2")]
+use crate::{
+    payment_attempt::PaymentAttemptUpdateInternal, payment_intent::PaymentIntentUpdateInternal,
 };
 
 #[derive(Debug, Serialize, Deserialize)]

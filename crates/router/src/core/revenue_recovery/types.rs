@@ -2,25 +2,18 @@ use std::{marker::PhantomData, str::FromStr};
 
 use api_models::{
     enums as api_enums,
-    payments::{
-        AmountDetails, PaymentRevenueRecoveryMetadata, PaymentsUpdateIntentRequest,
-        ProxyPaymentsRequest,
-    },
+    payments::{PaymentRevenueRecoveryMetadata, PaymentsUpdateIntentRequest},
 };
 use common_utils::{
     self,
     ext_traits::{OptionExt, ValueExt},
     id_type,
 };
-use diesel_models::{enums, process_tracker::business_status, types as diesel_types};
+use diesel_models::{enums, process_tracker::business_status};
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
-    business_profile, merchant_connector_account,
-    merchant_context::{Context, MerchantContext},
-    payments::{
-        self as domain_payments, payment_attempt, PaymentConfirmData, PaymentIntent,
-        PaymentIntentData,
-    },
+    merchant_connector_account,
+    payments::{payment_attempt, PaymentIntent},
     router_data_v2::{self, flow_common_types},
     router_flow_types,
     router_request_types::revenue_recovery as revenue_recovery_request,
@@ -31,17 +24,15 @@ use time::PrimitiveDateTime;
 
 use crate::{
     core::{
-        errors::{self, RouterResult},
-        payments::{self, helpers, operations::Operation},
+        errors,
+        payments::{self, helpers},
         revenue_recovery::{self as revenue_recovery_core},
     },
     db::StorageInterface,
     logger,
     routes::SessionState,
     services::{self, connector_integration_interface::RouterDataConversion},
-    types::{
-        self, api as api_types, api::payments as payments_types, storage, transformers::ForeignInto,
-    },
+    types::{self, api as api_types, storage, transformers::ForeignInto},
     workflows::{payment_sync, revenue_recovery::get_schedule_time_to_retry_mit_payments},
 };
 
@@ -526,7 +517,7 @@ impl Action {
     ) -> Result<(), errors::ProcessTrackerError> {
         let db = &*state.store;
         match self {
-            Self::SyncPayment(payment_attempt) => {
+            Self::SyncPayment(_payment_attempt) => {
                 //  get a schedule time for psync
                 // and retry the process if there is a schedule time
                 // if None mark the pt status as Retries Exceeded and finish the task

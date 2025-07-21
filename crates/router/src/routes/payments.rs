@@ -4,28 +4,32 @@ use crate::{
 };
 pub mod helpers;
 use actix_web::{web, Responder};
+#[cfg(feature = "v1")]
 use error_stack::report;
 use hyperswitch_domain_models::payments::HeaderPayload;
+#[cfg(feature = "v1")]
 use masking::PeekInterface;
-use router_env::{env, instrument, logger, tracing, types, Flow};
+#[cfg(feature = "v1")]
+use router_env::logger;
+use router_env::{env, instrument, tracing, types, Flow};
 
+#[cfg(feature = "v1")]
 use super::app::ReqState;
 use crate::{
     self as app,
-    core::{
-        errors::{self, http_not_implemented},
-        payments::{self, PaymentRedirectFlow},
-    },
+    core::payments::{self, PaymentRedirectFlow},
     routes::lock_utils,
     services::{api, authentication as auth},
     types::{
-        api::{
-            self as api_types, enums as api_enums,
-            payments::{self as payment_types, PaymentIdTypeExt},
-        },
+        api::{self as api_types, payments as payment_types},
         domain,
         transformers::ForeignTryFrom,
     },
+};
+#[cfg(feature = "v1")]
+use crate::{
+    core::errors::{self, http_not_implemented},
+    types::api::{enums as api_enums, payments::PaymentIdTypeExt},
 };
 
 #[cfg(feature = "v1")]
@@ -2375,7 +2379,7 @@ impl GetLockingInput for payment_types::PaymentsSessionRequest {
 
 #[cfg(feature = "v2")]
 impl GetLockingInput for payment_types::PaymentsSessionRequest {
-    fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
+    fn get_locking_input<F>(&self, _flow: F) -> api_locking::LockAction
     where
         F: types::FlowMetric,
     {
@@ -2524,10 +2528,10 @@ impl GetLockingInput for payment_types::PaymentsCaptureRequest {
     }
 }
 
-#[cfg(feature = "oltp")]
+#[cfg(all(feature = "oltp", feature = "v1"))]
 struct FPaymentsApproveRequest<'a>(&'a payment_types::PaymentsApproveRequest);
 
-#[cfg(feature = "oltp")]
+#[cfg(all(feature = "oltp", feature = "v1"))]
 impl GetLockingInput for FPaymentsApproveRequest<'_> {
     fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
     where
@@ -2544,10 +2548,10 @@ impl GetLockingInput for FPaymentsApproveRequest<'_> {
     }
 }
 
-#[cfg(feature = "oltp")]
+#[cfg(all(feature = "oltp", feature = "v1"))]
 struct FPaymentsRejectRequest<'a>(&'a payment_types::PaymentsRejectRequest);
 
-#[cfg(feature = "oltp")]
+#[cfg(all(feature = "oltp", feature = "v1"))]
 impl GetLockingInput for FPaymentsRejectRequest<'_> {
     fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
     where
@@ -2755,7 +2759,7 @@ pub async fn payments_start_redirection(
         state,
         &req,
         payment_start_redirection_request.clone(),
-        |state, auth: auth::AuthenticationData, _req, req_state| async {
+        |state, auth: auth::AuthenticationData, _req, _req_state| async {
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
@@ -3126,8 +3130,6 @@ pub async fn payment_get_intent_using_merchant_reference_id(
     req: actix_web::HttpRequest,
     path: web::Path<common_utils::id_type::PaymentReferenceId>,
 ) -> impl Responder {
-    use crate::db::domain::merchant_context;
-
     let flow = Flow::PaymentsRetrieveUsingMerchantReferenceId;
     let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
         Ok(headers) => headers,
@@ -3304,8 +3306,6 @@ pub async fn list_payment_methods(
     path: web::Path<common_utils::id_type::GlobalPaymentId>,
     query_payload: web::Query<api_models::payments::PaymentMethodsListRequest>,
 ) -> impl Responder {
-    use crate::db::domain::merchant_context;
-
     let flow = Flow::PaymentMethodsList;
     let payload = query_payload.into_inner();
     let global_payment_id = path.into_inner();

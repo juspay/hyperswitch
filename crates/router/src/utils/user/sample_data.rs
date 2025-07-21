@@ -1,19 +1,27 @@
+#[cfg(feature = "v1")]
 use api_models::{
     enums::Connector::{DummyConnector4, DummyConnector7},
     user::sample_data::SampleDataRequest,
 };
+#[cfg(feature = "v1")]
 use common_utils::{
     id_type,
     types::{AmountConvertor, ConnectorTransactionId, MinorUnit, StringMinorUnitForConnector},
 };
 #[cfg(feature = "v1")]
-use diesel_models::user::sample_data::PaymentAttemptBatchNew;
-use diesel_models::{enums as storage_enums, DisputeNew, RefundNew};
+use diesel_models::{
+    enums as storage_enums, user::sample_data::PaymentAttemptBatchNew, DisputeNew, RefundNew,
+};
+#[cfg(feature = "v1")]
 use error_stack::ResultExt;
+#[cfg(feature = "v1")]
 use hyperswitch_domain_models::payments::PaymentIntent;
+#[cfg(feature = "v1")]
 use rand::{prelude::SliceRandom, thread_rng, Rng};
+#[cfg(feature = "v1")]
 use time::OffsetDateTime;
 
+#[cfg(feature = "v1")]
 use crate::{
     consts,
     core::errors::sample_data::{SampleDataError, SampleDataResult},
@@ -477,6 +485,7 @@ pub async fn generate_sample_data(
     Ok(res)
 }
 
+#[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
 fn get_payment_method_type(num: u8) -> common_enums::PaymentMethodType {
     let rem: u8 = (num) % 2;
     match rem {

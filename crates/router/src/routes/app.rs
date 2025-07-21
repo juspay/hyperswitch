@@ -2,8 +2,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use actix_web::{web, Scope};
 #[cfg(all(feature = "olap", feature = "v1"))]
-use api_models::routing::RoutingRetrieveQuery;
-use api_models::routing::RuleMigrationQuery;
+use api_models::routing::{RoutingRetrieveQuery, RuleMigrationQuery};
 #[cfg(feature = "olap")]
 use common_enums::TransactionType;
 #[cfg(feature = "partial-auth")]
@@ -28,21 +27,19 @@ use storage_impl::{config::TenantConfig, redis::RedisStore, MockDb};
 use tokio::sync::oneshot;
 
 use self::settings::Tenant;
-#[cfg(any(feature = "olap", feature = "oltp"))]
+#[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v1"))]
 use super::currency;
-#[cfg(feature = "dummy_connector")]
-use super::dummy_connector::*;
 #[cfg(all(any(feature = "v1", feature = "v2"), feature = "oltp"))]
 use super::ephemeral_key::*;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::payment_methods;
-#[cfg(feature = "payouts")]
+#[cfg(all(feature = "payouts", feature = "v1"))]
 use super::payout_link::*;
-#[cfg(feature = "payouts")]
+#[cfg(all(feature = "payouts", feature = "v1"))]
 use super::payouts::*;
 #[cfg(all(feature = "oltp", feature = "v1"))]
 use super::pm_auth;
-#[cfg(feature = "oltp")]
+#[cfg(all(feature = "oltp", feature = "v1"))]
 use super::poll;
 #[cfg(feature = "v2")]
 use super::proxy;
@@ -59,13 +56,14 @@ use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_ve
 #[cfg(feature = "oltp")]
 use super::webhooks::*;
 use super::{
-    admin, api_keys, cache::*, chat, connector_onboarding, disputes, files, gsm, health::*,
-    profiles, relay, user, user_role,
+    admin, api_keys, cache::*, chat, dummy_connector::*, health::*, profiles, relay, user,
 };
 #[cfg(feature = "v1")]
 use super::{apple_pay_certificates_migration, blocklist, payment_link, webhook_events};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers, payments};
+#[cfg(all(feature = "olap", feature = "v1"))]
+use super::{connector_onboarding, disputes, files, gsm, user_role};
 #[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v1"))]
 use super::{mandates::*, refunds::*};
 #[cfg(feature = "olap")]
@@ -74,7 +72,7 @@ pub use crate::analytics::opensearch::OpenSearchClient;
 use crate::analytics::AnalyticsProvider;
 #[cfg(feature = "partial-auth")]
 use crate::errors::RouterResult;
-#[cfg(feature = "oltp")]
+#[cfg(all(feature = "oltp", feature = "v1"))]
 use crate::routes::authentication;
 #[cfg(feature = "v1")]
 use crate::routes::cards_info::{
@@ -82,11 +80,11 @@ use crate::routes::cards_info::{
 };
 #[cfg(all(feature = "olap", feature = "v1"))]
 use crate::routes::feature_matrix;
-#[cfg(all(feature = "frm", feature = "oltp"))]
+#[cfg(all(feature = "frm", feature = "oltp", feature = "v1"))]
 use crate::routes::fraud_check as frm_routes;
 #[cfg(all(feature = "olap", feature = "v1"))]
 use crate::routes::profile_acquirer;
-#[cfg(all(feature = "recon", feature = "olap"))]
+#[cfg(all(feature = "recon", feature = "olap", feature = "v1"))]
 use crate::routes::recon as recon_routes;
 pub use crate::{
     configs::settings,

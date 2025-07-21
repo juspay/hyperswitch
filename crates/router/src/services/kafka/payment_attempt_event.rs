@@ -6,13 +6,13 @@ use common_utils::{id_type, types::MinorUnit};
 use diesel_models::enums as storage_enums;
 #[cfg(feature = "v2")]
 use diesel_models::payment_attempt;
+#[cfg(feature = "v1")]
+use hyperswitch_domain_models::mandates::MandateDetails;
+use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::{
     address, payments::payment_attempt::PaymentAttemptFeatureMetadata,
     router_response_types::RedirectForm,
-};
-use hyperswitch_domain_models::{
-    mandates::MandateDetails, payments::payment_attempt::PaymentAttempt,
 };
 use time::OffsetDateTime;
 

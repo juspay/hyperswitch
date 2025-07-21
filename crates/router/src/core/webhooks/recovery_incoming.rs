@@ -21,7 +21,7 @@ use crate::{
         errors::{self, CustomResult},
         payments::{self, helpers},
     },
-    db::{errors::RevenueRecoveryError, StorageInterface},
+    db::StorageInterface,
     routes::{app::ReqState, metrics, SessionState},
     services::{
         self,
@@ -962,7 +962,7 @@ impl BillingConnectorPaymentsSyncFlowRouterData {
         state: &SessionState,
         connector_name: &str,
         merchant_connector_account: &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
-        merchant_context: &domain::MerchantContext,
+        _merchant_context: &domain::MerchantContext,
         billing_connector_psync_id: &str,
     ) -> CustomResult<Self, errors::RevenueRecoveryError> {
         let auth_type: types::ConnectorAuthType = helpers::MerchantConnectorAccountType::DbVal(
@@ -1128,7 +1128,7 @@ impl BillingConnectorInvoiceSyncFlowRouterData {
         state: &SessionState,
         connector_name: &str,
         merchant_connector_account: &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
-        merchant_context: &domain::MerchantContext,
+        _merchant_context: &domain::MerchantContext,
         billing_connector_invoice_id: &str,
     ) -> CustomResult<Self, errors::RevenueRecoveryError> {
         let auth_type: types::ConnectorAuthType = helpers::MerchantConnectorAccountType::DbVal(

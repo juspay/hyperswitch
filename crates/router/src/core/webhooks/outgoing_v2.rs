@@ -609,7 +609,7 @@ impl ForeignFrom<&api::OutgoingWebhookContent> for storage::EventMetadata {
                 payment_id: refund_response.payment_id.clone(),
                 refund_id: refund_response.id.clone(),
             },
-            webhooks::OutgoingWebhookContent::DisputeDetails(dispute_response) => {
+            webhooks::OutgoingWebhookContent::DisputeDetails(_dispute_response) => {
                 //TODO: add support for dispute outgoing webhook
                 todo!()
             }

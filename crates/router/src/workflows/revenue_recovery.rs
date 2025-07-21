@@ -14,8 +14,6 @@ use router_env::logger;
 use scheduler::{consumer::workflows::ProcessTrackerWorkflow, errors};
 #[cfg(feature = "v2")]
 use scheduler::{types::process_data, utils as scheduler_utils};
-#[cfg(feature = "v2")]
-use storage_impl::errors as storage_errors;
 
 #[cfg(feature = "v2")]
 use crate::{

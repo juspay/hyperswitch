@@ -1,37 +1,42 @@
-#[cfg(feature = "payouts")]
+#[cfg(all(feature = "payouts", feature = "v1"))]
 use api_models::payouts as payout_models;
+#[cfg(feature = "v1")]
 use api_models::{
     enums::EventType,
     webhook_events::OutgoingWebhookRequestContent,
     webhooks::{OutgoingWebhook, OutgoingWebhookContent},
 };
+#[cfg(feature = "v1")]
 use common_utils::{
     consts::DEFAULT_LOCALE,
     ext_traits::{StringExt, ValueExt},
     id_type,
 };
+#[cfg(feature = "v1")]
 use diesel_models::process_tracker::business_status;
+#[cfg(feature = "v1")]
 use error_stack::ResultExt;
+#[cfg(feature = "v1")]
 use masking::PeekInterface;
 use router_env::tracing::{self, instrument};
-use scheduler::{
-    consumer::{self, workflows::ProcessTrackerWorkflow},
-    types::process_data,
-    utils as scheduler_utils,
-};
+use scheduler::consumer::{self, workflows::ProcessTrackerWorkflow};
+#[cfg(feature = "v1")]
+use scheduler::{types::process_data, utils as scheduler_utils};
 
-#[cfg(feature = "payouts")]
+#[cfg(all(feature = "payouts", feature = "v1"))]
 use crate::core::payouts;
+#[cfg(feature = "v1")]
 use crate::{
     core::{
         payments,
         webhooks::{self as webhooks_core, types::OutgoingWebhookTrackingData},
     },
     db::StorageInterface,
-    errors, logger,
-    routes::{app::ReqState, SessionState},
-    types::{domain, storage},
+    logger,
+    routes::app::ReqState,
+    types::domain,
 };
+use crate::{errors, routes::SessionState, types::storage};
 
 pub struct OutgoingWebhookRetryWorkflow;
 

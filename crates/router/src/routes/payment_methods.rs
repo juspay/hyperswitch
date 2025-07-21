@@ -1,34 +1,40 @@
-use ::payment_methods::{
-    controller::PaymentMethodsController,
-    core::{migration, migration::payment_methods::migrate_payment_method},
-};
+use ::payment_methods::core::migration::payment_methods::migrate_payment_method;
+#[cfg(feature = "v1")]
+use ::payment_methods::{controller::PaymentMethodsController, core::migration};
 #[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
 use actix_multipart::form::MultipartForm;
 use actix_web::{web, HttpRequest, HttpResponse};
-use common_utils::{errors::CustomResult, id_type, transformers::ForeignFrom};
+#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
+use common_utils::transformers::ForeignFrom;
+use common_utils::{errors::CustomResult, id_type};
 use diesel_models::enums::IntentStatus;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
+#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
 use hyperswitch_domain_models::{
-    bulk_tokenization::CardNetworkTokenizeRequest, merchant_key_store::MerchantKeyStore,
-    payment_methods::PaymentMethodCustomerMigrate, transformers::ForeignTryFrom,
+    bulk_tokenization::CardNetworkTokenizeRequest, payment_methods::PaymentMethodCustomerMigrate,
+    transformers::ForeignTryFrom,
 };
 use router_env::{instrument, logger, tracing, Flow};
 
 use super::app::{AppState, SessionState};
-#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
-use crate::core::{customers, payment_methods::tokenize};
 use crate::{
     core::{
         api_locking,
         errors::{self, utils::StorageErrorExt},
         payment_methods::{self as payment_methods_routes, cards},
     },
-    services::{self, api, authentication as auth, authorization::permissions::Permission},
+    services::{api, authentication as auth, authorization::permissions::Permission},
     types::{
         api::payment_methods::{self, PaymentMethodId},
         domain,
         storage::payment_method::PaymentTokenData,
     },
+};
+#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
+use crate::{
+    core::{customers, payment_methods::tokenize},
+    services,
 };
 
 #[cfg(feature = "v1")]

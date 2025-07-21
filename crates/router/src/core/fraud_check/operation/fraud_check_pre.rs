@@ -1,17 +1,27 @@
 use async_trait::async_trait;
 use common_enums::FrmSuggestion;
+#[cfg(feature = "v1")]
 use common_utils::ext_traits::Encode;
 use diesel_models::enums::FraudCheckLastStep;
 use router_env::{instrument, tracing};
+#[cfg(feature = "v1")]
 use uuid::Uuid;
 
 use super::{Domain, FraudCheckOperation, GetTracker, UpdateTracker};
+#[cfg(feature = "v1")]
+use crate::{
+    core::fraud_check::types::PaymentDetails,
+    types::{
+        fraud_check::FraudCheckTransactionData,
+        storage::{enums::FraudCheckType, fraud_check::FraudCheckNew},
+    },
+};
 use crate::{
     core::{
         errors::RouterResult,
         fraud_check::{
             self as frm_core,
-            types::{FrmData, PaymentDetails, PaymentToFrmData},
+            types::{FrmData, PaymentToFrmData},
             ConnectorDetailsCore,
         },
         payments,
@@ -22,13 +32,9 @@ use crate::{
         api::fraud_check as frm_api,
         domain,
         fraud_check::{
-            FraudCheckCheckoutData, FraudCheckResponseData, FraudCheckTransactionData, FrmRequest,
-            FrmResponse, FrmRouterData,
+            FraudCheckCheckoutData, FraudCheckResponseData, FrmRequest, FrmResponse, FrmRouterData,
         },
-        storage::{
-            enums::{FraudCheckStatus, FraudCheckType},
-            fraud_check::{FraudCheckNew, FraudCheckUpdate},
-        },
+        storage::{enums::FraudCheckStatus, fraud_check::FraudCheckUpdate},
         ResponseId,
     },
     SessionState,
@@ -75,9 +81,9 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPre {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
-        state: &'a SessionState,
-        payment_data: PaymentToFrmData,
-        frm_connector_details: ConnectorDetailsCore,
+        _state: &'a SessionState,
+        _payment_data: PaymentToFrmData,
+        _frm_connector_details: ConnectorDetailsCore,
     ) -> RouterResult<Option<FrmData>> {
         todo!()
     }
