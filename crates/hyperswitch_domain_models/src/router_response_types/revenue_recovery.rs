@@ -28,9 +28,33 @@ pub struct BillingConnectorPaymentsSyncResponse {
     pub payment_method_type: common_enums::enums::PaymentMethod,
     /// payment method sub type of the payment attempt.
     pub payment_method_sub_type: common_enums::enums::PaymentMethodType,
+    /// card netword network
+    pub card_network: Option<common_enums::CardNetwork>,
+    /// card isin
+    pub card_isin: Option<String>,
+    /// stripe specific id used to validate duplicate attempts.
+    pub charge_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
 pub struct RevenueRecoveryRecordBackResponse {
     pub merchant_reference_id: common_utils::id_type::PaymentReferenceId,
+}
+
+#[derive(Debug, Clone)]
+pub struct BillingConnectorInvoiceSyncResponse {
+    /// transaction amount against invoice, accepted in minor unit.
+    pub amount: MinorUnit,
+    /// currency of the transaction
+    pub currency: common_enums::enums::Currency,
+    /// merchant reference id at billing connector. ex: invoice_id
+    pub merchant_reference_id: common_utils::id_type::PaymentReferenceId,
+    /// No of attempts made against an invoice
+    pub retry_count: Option<u16>,
+    ///  Billing Address of the customer for Invoice
+    pub billing_address: Option<api_models::payments::Address>,
+    /// creation time of the invoice
+    pub created_at: Option<PrimitiveDateTime>,
+    /// Ending time of Invoice
+    pub ends_at: Option<PrimitiveDateTime>,
 }

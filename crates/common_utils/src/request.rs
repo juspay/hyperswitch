@@ -1,10 +1,20 @@
 use masking::{Maskable, Secret};
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 pub type Headers = std::collections::HashSet<(String, Maskable<String>)>;
 
 #[derive(
-    Clone, Copy, Debug, Eq, PartialEq, Deserialize, Serialize, strum::Display, strum::EnumString,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    Deserialize,
+    Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
 )]
 #[serde(rename_all = "UPPERCASE")]
 #[strum(serialize_all = "UPPERCASE")]
@@ -38,6 +48,7 @@ pub struct Request {
     pub certificate: Option<Secret<String>>,
     pub certificate_key: Option<Secret<String>>,
     pub body: Option<RequestContent>,
+    pub ca_certificate: Option<Secret<String>>,
 }
 
 impl std::fmt::Debug for RequestContent {
@@ -81,6 +92,7 @@ impl Request {
             certificate: None,
             certificate_key: None,
             body: None,
+            ca_certificate: None,
         }
     }
 
@@ -113,6 +125,7 @@ pub struct RequestBuilder {
     pub certificate: Option<Secret<String>>,
     pub certificate_key: Option<Secret<String>>,
     pub body: Option<RequestContent>,
+    pub ca_certificate: Option<Secret<String>>,
 }
 
 impl RequestBuilder {
@@ -124,6 +137,7 @@ impl RequestBuilder {
             certificate: None,
             certificate_key: None,
             body: None,
+            ca_certificate: None,
         }
     }
 
@@ -172,6 +186,11 @@ impl RequestBuilder {
         self
     }
 
+    pub fn add_ca_certificate_pem(mut self, ca_certificate: Option<Secret<String>>) -> Self {
+        self.ca_certificate = ca_certificate;
+        self
+    }
+
     pub fn build(self) -> Request {
         Request {
             method: self.method,
@@ -180,6 +199,7 @@ impl RequestBuilder {
             certificate: self.certificate,
             certificate_key: self.certificate_key,
             body: self.body,
+            ca_certificate: self.ca_certificate,
         }
     }
 }

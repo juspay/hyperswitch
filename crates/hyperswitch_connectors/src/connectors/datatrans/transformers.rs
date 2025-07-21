@@ -458,7 +458,7 @@ fn create_card_details(
                 .threeds_server_transaction_id
                 .clone()
                 .map(Secret::new),
-            cavv: Secret::new(auth_data.cavv.clone()),
+            cavv: auth_data.cavv.clone(),
             eci: auth_data.eci.clone(),
             xid: auth_data.ds_trans_id.clone().map(Secret::new),
             three_ds_version: auth_data
@@ -580,8 +580,8 @@ impl<F>
             }
             DatatransResponse::ThreeDSResponse(response) => {
                 let redirection_link = match item.data.test_mode {
-                    Some(true) => format!("{}/v1/start", REDIRECTION_SBX_URL),
-                    Some(false) | None => format!("{}/v1/start", REDIRECTION_PROD_URL),
+                    Some(true) => format!("{REDIRECTION_SBX_URL}/v1/start"),
+                    Some(false) | None => format!("{REDIRECTION_PROD_URL}/v1/start"),
                 };
                 Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(
@@ -652,8 +652,8 @@ impl<F>
             }
             DatatransResponse::ThreeDSResponse(response) => {
                 let redirection_link = match item.data.test_mode {
-                    Some(true) => format!("{}/v1/start", REDIRECTION_SBX_URL),
-                    Some(false) | None => format!("{}/v1/start", REDIRECTION_PROD_URL),
+                    Some(true) => format!("{REDIRECTION_SBX_URL}/v1/start"),
+                    Some(false) | None => format!("{REDIRECTION_PROD_URL}/v1/start"),
                 };
                 Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(

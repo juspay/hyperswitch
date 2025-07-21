@@ -8,26 +8,17 @@ use common_utils::{
 };
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use error_stack::ResultExt;
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 use crate::{enums as storage_enums, schema::payment_methods};
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 use crate::{enums as storage_enums, schema_v2::payment_methods};
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(
     Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Selectable, Serialize, Deserialize,
 )]
@@ -71,7 +62,7 @@ pub struct PaymentMethod {
     pub network_token_payment_method_data: Option<Encryption>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, Identifiable, Queryable, Selectable, Serialize, Deserialize)]
 #[diesel(table_name = payment_methods, primary_key(id), check_for_backend(diesel::pg::Pg))]
 pub struct PaymentMethod {
@@ -97,27 +88,22 @@ pub struct PaymentMethod {
     pub payment_method_type_v2: Option<storage_enums::PaymentMethod>,
     pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     pub id: common_utils::id_type::GlobalPaymentMethodId,
+    pub external_vault_source: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 impl PaymentMethod {
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     pub fn get_id(&self) -> &String {
         &self.payment_method_id
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     pub fn get_id(&self) -> &common_utils::id_type::GlobalPaymentMethodId {
         &self.id
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(
     Clone, Debug, Eq, PartialEq, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize,
 )]
@@ -159,7 +145,7 @@ pub struct PaymentMethodNew {
     pub network_token_payment_method_data: Option<Encryption>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize)]
 #[diesel(table_name = payment_methods)]
 pub struct PaymentMethodNew {
@@ -192,15 +178,12 @@ impl PaymentMethodNew {
         self.updated_by = Some(storage_scheme.to_string());
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     pub fn get_id(&self) -> &String {
         &self.payment_method_id
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     pub fn get_id(&self) -> &common_utils::id_type::GlobalPaymentMethodId {
         &self.id
     }
@@ -212,10 +195,7 @@ pub struct TokenizeCoreWorkflow {
     pub pm: storage_enums::PaymentMethod,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Debug, Serialize, Deserialize)]
 pub enum PaymentMethodUpdate {
     MetadataUpdateAndLastUsed {
@@ -265,7 +245,7 @@ pub enum PaymentMethodUpdate {
     },
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, Serialize, Deserialize)]
 pub enum PaymentMethodUpdate {
     UpdatePaymentMethodDataAndLastUsed {
@@ -297,6 +277,7 @@ pub enum PaymentMethodUpdate {
         network_token_payment_method_data: Option<Encryption>,
         locker_fingerprint_id: Option<String>,
         connector_mandate_details: Option<CommonMandateReference>,
+        external_vault_source: Option<common_utils::id_type::MerchantConnectorAccountId>,
     },
     ConnectorMandateDetailsUpdate {
         connector_mandate_details: Option<CommonMandateReference>,
@@ -314,7 +295,7 @@ impl PaymentMethodUpdate {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay, Serialize, Deserialize)]
 #[diesel(table_name = payment_methods)]
 pub struct PaymentMethodUpdateInternal {
@@ -332,9 +313,10 @@ pub struct PaymentMethodUpdateInternal {
     network_token_locker_id: Option<String>,
     network_token_payment_method_data: Option<Encryption>,
     locker_fingerprint_id: Option<String>,
+    external_vault_source: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl PaymentMethodUpdateInternal {
     pub fn apply_changeset(self, source: PaymentMethod) -> PaymentMethod {
         let Self {
@@ -352,6 +334,7 @@ impl PaymentMethodUpdateInternal {
             network_token_locker_id,
             network_token_payment_method_data,
             locker_fingerprint_id,
+            external_vault_source,
         } = self;
 
         PaymentMethod {
@@ -380,14 +363,12 @@ impl PaymentMethodUpdateInternal {
             network_token_locker_id: network_token_locker_id.or(source.network_token_locker_id),
             network_token_payment_method_data: network_token_payment_method_data
                 .or(source.network_token_payment_method_data),
+            external_vault_source: external_vault_source.or(source.external_vault_source),
         }
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay, Serialize, Deserialize)]
 #[diesel(table_name = payment_methods)]
 pub struct PaymentMethodUpdateInternal {
@@ -409,10 +390,7 @@ pub struct PaymentMethodUpdateInternal {
     scheme: Option<String>,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 impl PaymentMethodUpdateInternal {
     pub fn apply_changeset(self, source: PaymentMethod) -> PaymentMethod {
         let Self {
@@ -476,10 +454,7 @@ impl PaymentMethodUpdateInternal {
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
     fn from(payment_method_update: PaymentMethodUpdate) -> Self {
         match payment_method_update {
@@ -699,7 +674,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
     fn from(payment_method_update: PaymentMethodUpdate) -> Self {
         match payment_method_update {
@@ -720,6 +695,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_requestor_reference_id: None,
                 network_token_payment_method_data: None,
                 locker_fingerprint_id: None,
+                external_vault_source: None,
             },
             PaymentMethodUpdate::LastUsedUpdate { last_used_at } => Self {
                 payment_method_data: None,
@@ -736,6 +712,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_requestor_reference_id: None,
                 network_token_payment_method_data: None,
                 locker_fingerprint_id: None,
+                external_vault_source: None,
             },
             PaymentMethodUpdate::UpdatePaymentMethodDataAndLastUsed {
                 payment_method_data,
@@ -756,6 +733,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_requestor_reference_id: None,
                 network_token_payment_method_data: None,
                 locker_fingerprint_id: None,
+                external_vault_source: None,
             },
             PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
                 network_transaction_id,
@@ -775,6 +753,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_requestor_reference_id: None,
                 network_token_payment_method_data: None,
                 locker_fingerprint_id: None,
+                external_vault_source: None,
             },
             PaymentMethodUpdate::StatusUpdate { status } => Self {
                 payment_method_data: None,
@@ -791,6 +770,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_requestor_reference_id: None,
                 network_token_payment_method_data: None,
                 locker_fingerprint_id: None,
+                external_vault_source: None,
             },
             PaymentMethodUpdate::GenericUpdate {
                 payment_method_data,
@@ -803,6 +783,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_payment_method_data,
                 locker_fingerprint_id,
                 connector_mandate_details,
+                external_vault_source,
             } => Self {
                 payment_method_data,
                 last_used_at: None,
@@ -818,6 +799,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_locker_id,
                 network_token_payment_method_data,
                 locker_fingerprint_id,
+                external_vault_source,
             },
             PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
                 connector_mandate_details,
@@ -836,15 +818,13 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_requestor_reference_id: None,
                 network_token_payment_method_data: None,
                 locker_fingerprint_id: None,
+                external_vault_source: None,
             },
         }
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 impl From<&PaymentMethodNew> for PaymentMethod {
     fn from(payment_method_new: &PaymentMethodNew) -> Self {
         Self {
@@ -892,7 +872,7 @@ impl From<&PaymentMethodNew> for PaymentMethod {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl From<&PaymentMethodNew> for PaymentMethod {
     fn from(payment_method_new: &PaymentMethodNew) -> Self {
         Self {
@@ -924,14 +904,12 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             network_token_payment_method_data: payment_method_new
                 .network_token_payment_method_data
                 .clone(),
+            external_vault_source: None,
         }
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentsMandateReferenceRecord {
     pub connector_mandate_id: String,
@@ -943,7 +921,7 @@ pub struct PaymentsMandateReferenceRecord {
     pub connector_mandate_request_reference_id: Option<String>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ConnectorTokenReferenceRecord {
     pub connector_token: String,

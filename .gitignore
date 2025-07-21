@@ -120,6 +120,7 @@ fabric.properties
 
 ### dotenv ###
 .env
+.oneclick-setup.env
 
 ### Linux ###
 *~
@@ -144,7 +145,6 @@ fabric.properties
 
 # Icon must end with two \r
 Icon
-
 
 # Thumbnails
 ._*
@@ -270,3 +270,4 @@ creds.json
 
 # Nix services data
 /data
+.pre-commit-config.yaml

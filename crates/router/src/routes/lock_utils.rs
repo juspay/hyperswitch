@@ -35,6 +35,7 @@ pub enum ApiIdentifier {
     UserRole,
     ConnectorOnboarding,
     Recon,
+    AiWorkflow,
     Poll,
     ApplePayCertificatesMigration,
     Relay,
@@ -43,6 +44,11 @@ pub enum ApiIdentifier {
     Hypersense,
     PaymentMethodSession,
     ProcessTracker,
+    Authentication,
+    Proxy,
+    ProfileAcquirer,
+    ThreeDsDecisionRule,
+    GenericTokenization,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -75,6 +81,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ToggleDynamicRouting
             | Flow::UpdateDynamicRoutingConfigs
             | Flow::DecisionManagerUpsertConfig
+            | Flow::RoutingEvaluateRule
+            | Flow::DecisionEngineRuleMigration
             | Flow::VolumeSplitOnRoutingType => Self::Routing,
 
             Flow::RetrieveForexFlow => Self::Forex,
@@ -112,6 +120,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentMethodsMigrate
             | Flow::PaymentMethodsList
             | Flow::CustomerPaymentMethodsList
+            | Flow::GetPaymentMethodTokenData
             | Flow::PaymentMethodsRetrieve
             | Flow::PaymentMethodsUpdate
             | Flow::PaymentMethodsDelete
@@ -150,11 +159,13 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsCreateIntent
             | Flow::PaymentsGetIntent
             | Flow::PaymentsPostSessionTokens
+            | Flow::PaymentsUpdateMetadata
             | Flow::PaymentsUpdateIntent
             | Flow::PaymentsCreateAndConfirmIntent
             | Flow::PaymentStartRedirection
             | Flow::ProxyConfirmIntent
-            | Flow::PaymentsRetrieveUsingMerchantReferenceId => Self::Payments,
+            | Flow::PaymentsRetrieveUsingMerchantReferenceId
+            | Flow::PaymentAttemptsList => Self::Payments,
 
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve
@@ -183,7 +194,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::WebhookEventInitialDeliveryAttemptList
             | Flow::WebhookEventDeliveryAttemptList
             | Flow::WebhookEventDeliveryRetry
-            | Flow::RecoveryIncomingWebhookReceive => Self::Webhooks,
+            | Flow::RecoveryIncomingWebhookReceive
+            | Flow::IncomingNetworkTokenWebhookReceive => Self::Webhooks,
 
             Flow::ApiKeyCreate
             | Flow::ApiKeyRetrieve
@@ -246,6 +258,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::SwitchOrg
             | Flow::SwitchMerchantV2
             | Flow::SwitchProfile
+            | Flow::CreatePlatformAccount
             | Flow::UserOrgMerchantCreate
             | Flow::UserMerchantAccountCreate
             | Flow::GenerateSampleData
@@ -286,7 +299,10 @@ impl From<Flow> for ApiIdentifier {
             | Flow::UploadFileToThemeStorage
             | Flow::CreateTheme
             | Flow::UpdateTheme
-            | Flow::DeleteTheme => Self::User,
+            | Flow::DeleteTheme
+            | Flow::CloneConnector => Self::User,
+
+            Flow::GetDataFromHyperswitchAiFlow => Self::AiWorkflow,
 
             Flow::ListRolesV2
             | Flow::ListInvitableRolesAtEntityLevel
@@ -336,6 +352,13 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentMethodSessionUpdate => Self::PaymentMethodSession,
 
             Flow::RevenueRecoveryRetrieve => Self::ProcessTracker,
+
+            Flow::AuthenticationCreate => Self::Authentication,
+            Flow::Proxy => Self::Proxy,
+
+            Flow::ProfileAcquirerCreate | Flow::ProfileAcquirerUpdate => Self::ProfileAcquirer,
+            Flow::ThreeDsDecisionRuleExecute => Self::ThreeDsDecisionRule,
+            Flow::TokenizationCreate | Flow::TokenizationRetrieve => Self::GenericTokenization,
         }
     }
 }

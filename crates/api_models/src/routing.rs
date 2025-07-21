@@ -1,6 +1,12 @@
 use std::fmt::Debug;
 
-use common_utils::{errors::ParsingError, ext_traits::ValueExt, pii};
+use common_types::three_ds_decision_rule_engine::{ThreeDSDecision, ThreeDSDecisionRule};
+use common_utils::{
+    errors::{ParsingError, ValidationError},
+    ext_traits::ValueExt,
+    pii,
+};
+use euclid::frontend::ast::Program;
 pub use euclid::{
     dssa::types::EuclidAnalysable,
     frontend::{
@@ -11,7 +17,17 @@ pub use euclid::{
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::enums::{RoutableConnectors, TransactionType};
+use crate::{
+    enums::{RoutableConnectors, TransactionType},
+    open_router,
+};
+
+// Define constants for default values
+const DEFAULT_LATENCY_THRESHOLD: f64 = 90.0;
+const DEFAULT_BUCKET_SIZE: i32 = 200;
+const DEFAULT_HEDGING_PERCENT: f64 = 5.0;
+const DEFAULT_ELIMINATION_THRESHOLD: f64 = 0.35;
+const DEFAULT_PAYMENT_METHOD: &str = "CARD";
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
@@ -35,7 +51,7 @@ impl ConnectorSelection {
 pub struct RoutingConfigRequest {
     pub name: String,
     pub description: String,
-    pub algorithm: RoutingAlgorithm,
+    pub algorithm: StaticRoutingAlgorithm,
     #[schema(value_type = String)]
     pub profile_id: common_utils::id_type::ProfileId,
 }
@@ -45,9 +61,10 @@ pub struct RoutingConfigRequest {
 pub struct RoutingConfigRequest {
     pub name: Option<String>,
     pub description: Option<String>,
-    pub algorithm: Option<RoutingAlgorithm>,
+    pub algorithm: Option<StaticRoutingAlgorithm>,
     #[schema(value_type = Option<String>)]
     pub profile_id: Option<common_utils::id_type::ProfileId>,
+    pub transaction_type: Option<TransactionType>,
 }
 
 #[derive(Debug, serde::Serialize, ToSchema)]
@@ -61,11 +78,18 @@ pub struct ProfileDefaultRoutingConfig {
 pub struct RoutingRetrieveQuery {
     pub limit: Option<u16>,
     pub offset: Option<u8>,
+    pub transaction_type: Option<TransactionType>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct RoutingActivatePayload {
+    pub transaction_type: Option<TransactionType>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct RoutingRetrieveLinkQuery {
     pub profile_id: Option<common_utils::id_type::ProfileId>,
+    pub transaction_type: Option<TransactionType>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -82,7 +106,7 @@ pub struct RoutingRetrieveResponse {
 #[derive(Debug, serde::Serialize, ToSchema)]
 #[serde(untagged)]
 pub enum LinkedRoutingConfigRetrieveResponse {
-    MerchantAccountBased(RoutingRetrieveResponse),
+    MerchantAccountBased(Box<RoutingRetrieveResponse>),
     ProfileBased(Vec<RoutingDictionaryRecord>),
 }
 
@@ -95,7 +119,7 @@ pub struct MerchantRoutingAlgorithm {
     pub profile_id: common_utils::id_type::ProfileId,
     pub name: String,
     pub description: String,
-    pub algorithm: RoutingAlgorithm,
+    pub algorithm: RoutingAlgorithmWrapper,
     pub created_at: i64,
     pub modified_at: i64,
     pub algorithm_for: TransactionType,
@@ -200,7 +224,7 @@ impl std::fmt::Display for RoutableConnectorChoice {
         if let Some(mca_id) = &self.merchant_connector_id {
             return write!(f, "{}:{}", base, mca_id.get_string_repr());
         }
-        write!(f, "{}", base)
+        write!(f, "{base}")
     }
 }
 
@@ -269,7 +293,9 @@ impl RoutableConnectorChoiceWithStatus {
     }
 }
 
-#[derive(Debug, Copy, Clone, serde::Serialize, serde::Deserialize, strum::Display, ToSchema)]
+#[derive(
+    Debug, Copy, Clone, PartialEq, serde::Serialize, serde::Deserialize, strum::Display, ToSchema,
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RoutingAlgorithmKind {
@@ -278,12 +304,27 @@ pub enum RoutingAlgorithmKind {
     VolumeSplit,
     Advanced,
     Dynamic,
+    ThreeDsDecisionRule,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct RoutingPayloadWrapper {
     pub updated_config: Vec<RoutableConnectorChoice>,
     pub profile_id: common_utils::id_type::ProfileId,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(untagged)]
+pub enum RoutingAlgorithmWrapper {
+    Static(StaticRoutingAlgorithm),
+    Dynamic(DynamicRoutingAlgorithm),
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(untagged)]
+pub enum DynamicRoutingAlgorithm {
+    EliminationBasedAlgorithm(EliminationRoutingConfig),
+    SuccessBasedAlgorithm(SuccessBasedRoutingConfig),
+    ContractBasedAlgorithm(ContractBasedRoutingConfig),
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -293,25 +334,55 @@ pub struct RoutingPayloadWrapper {
     rename_all = "snake_case",
     try_from = "RoutingAlgorithmSerde"
 )]
-/// Routing Algorithm kind
-pub enum RoutingAlgorithm {
+pub enum StaticRoutingAlgorithm {
     Single(Box<RoutableConnectorChoice>),
     Priority(Vec<RoutableConnectorChoice>),
     VolumeSplit(Vec<ConnectorVolumeSplit>),
     #[schema(value_type=ProgramConnectorSelection)]
-    Advanced(ast::Program<ConnectorSelection>),
+    Advanced(Program<ConnectorSelection>),
+    #[schema(value_type=ProgramThreeDsDecisionRule)]
+    ThreeDsDecisionRule(Program<ThreeDSDecisionRule>),
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ProgramThreeDsDecisionRule {
+    pub default_selection: ThreeDSDecisionRule,
+    #[schema(value_type = RuleThreeDsDecisionRule)]
+    pub rules: Vec<ast::Rule<ThreeDSDecisionRule>>,
+    #[schema(value_type = HashMap<String, serde_json::Value>)]
+    pub metadata: std::collections::HashMap<String, serde_json::Value>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct RuleThreeDsDecisionRule {
+    pub name: String,
+    pub connector_selection: ThreeDSDecision,
+    #[schema(value_type = Vec<IfStatement>)]
+    pub statements: Vec<ast::IfStatement>,
+}
+
+impl StaticRoutingAlgorithm {
+    pub fn should_validate_connectors_in_routing_config(&self) -> bool {
+        match self {
+            Self::Single(_) | Self::Priority(_) | Self::VolumeSplit(_) | Self::Advanced(_) => true,
+            Self::ThreeDsDecisionRule(_) => false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
 pub enum RoutingAlgorithmSerde {
     Single(Box<RoutableConnectorChoice>),
     Priority(Vec<RoutableConnectorChoice>),
     VolumeSplit(Vec<ConnectorVolumeSplit>),
-    Advanced(ast::Program<ConnectorSelection>),
+    Advanced(Program<ConnectorSelection>),
+    ThreeDsDecisionRule(Program<ThreeDSDecisionRule>),
 }
 
-impl TryFrom<RoutingAlgorithmSerde> for RoutingAlgorithm {
+impl TryFrom<RoutingAlgorithmSerde> for StaticRoutingAlgorithm {
     type Error = error_stack::Report<ParsingError>;
 
     fn try_from(value: RoutingAlgorithmSerde) -> Result<Self, Self::Error> {
@@ -333,6 +404,7 @@ impl TryFrom<RoutingAlgorithmSerde> for RoutingAlgorithm {
             RoutingAlgorithmSerde::Priority(i) => Self::Priority(i),
             RoutingAlgorithmSerde::VolumeSplit(i) => Self::VolumeSplit(i),
             RoutingAlgorithmSerde::Advanced(i) => Self::Advanced(i),
+            RoutingAlgorithmSerde::ThreeDsDecisionRule(i) => Self::ThreeDsDecisionRule(i),
         })
     }
 }
@@ -418,7 +490,7 @@ impl From<StraightThroughAlgorithm> for StraightThroughAlgorithmSerde {
     }
 }
 
-impl From<StraightThroughAlgorithm> for RoutingAlgorithm {
+impl From<StraightThroughAlgorithm> for StaticRoutingAlgorithm {
     fn from(value: StraightThroughAlgorithm) -> Self {
         match value {
             StraightThroughAlgorithm::Single(conn) => Self::Single(conn),
@@ -428,13 +500,14 @@ impl From<StraightThroughAlgorithm> for RoutingAlgorithm {
     }
 }
 
-impl RoutingAlgorithm {
+impl StaticRoutingAlgorithm {
     pub fn get_kind(&self) -> RoutingAlgorithmKind {
         match self {
             Self::Single(_) => RoutingAlgorithmKind::Single,
             Self::Priority(_) => RoutingAlgorithmKind::Priority,
             Self::VolumeSplit(_) => RoutingAlgorithmKind::VolumeSplit,
             Self::Advanced(_) => RoutingAlgorithmKind::Advanced,
+            Self::ThreeDsDecisionRule(_) => RoutingAlgorithmKind::ThreeDsDecisionRule,
         }
     }
 }
@@ -484,6 +557,7 @@ pub struct RoutingDictionaryRecord {
     pub created_at: i64,
     pub modified_at: i64,
     pub algorithm_for: Option<TransactionType>,
+    pub decision_engine_routing_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -534,6 +608,8 @@ pub struct DynamicRoutingAlgorithmRef {
     pub dynamic_routing_volume_split: Option<u8>,
     pub elimination_routing_algorithm: Option<EliminationRoutingAlgorithm>,
     pub contract_based_routing: Option<ContractRoutingAlgorithm>,
+    #[serde(default)]
+    pub is_merchant_created_in_decision_engine: bool,
 }
 
 pub trait DynamicRoutingAlgoAccessor {
@@ -641,6 +717,32 @@ impl DynamicRoutingAlgorithmRef {
 
     pub fn update_volume_split(&mut self, volume: Option<u8>) {
         self.dynamic_routing_volume_split = volume
+    }
+
+    pub fn update_merchant_creation_status_in_decision_engine(&mut self, is_created: bool) {
+        self.is_merchant_created_in_decision_engine = is_created;
+    }
+
+    pub fn is_success_rate_routing_enabled(&self) -> bool {
+        self.success_based_algorithm
+            .as_ref()
+            .map(|success_based_routing| {
+                success_based_routing.enabled_feature
+                    == DynamicRoutingFeatures::DynamicConnectorSelection
+                    || success_based_routing.enabled_feature == DynamicRoutingFeatures::Metrics
+            })
+            .unwrap_or_default()
+    }
+
+    pub fn is_elimination_enabled(&self) -> bool {
+        self.elimination_routing_algorithm
+            .as_ref()
+            .map(|elimination_routing| {
+                elimination_routing.enabled_feature
+                    == DynamicRoutingFeatures::DynamicConnectorSelection
+                    || elimination_routing.enabled_feature == DynamicRoutingFeatures::Metrics
+            })
+            .unwrap_or_default()
     }
 }
 
@@ -805,16 +907,36 @@ pub struct ToggleDynamicRoutingPath {
     pub profile_id: common_utils::id_type::ProfileId,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
-pub struct EliminationRoutingConfig {
-    pub params: Option<Vec<DynamicRoutingConfigParams>>,
-    pub elimination_analyser_config: Option<EliminationAnalyserConfig>,
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct RoutingVolumeSplitResponse {
+    pub split: u8,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct EliminationRoutingConfig {
+    pub params: Option<Vec<DynamicRoutingConfigParams>>,
+    pub elimination_analyser_config: Option<EliminationAnalyserConfig>,
+    #[schema(value_type = DecisionEngineEliminationData)]
+    pub decision_engine_configs: Option<open_router::DecisionEngineEliminationData>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub struct EliminationAnalyserConfig {
     pub bucket_size: Option<u64>,
     pub bucket_leak_interval_in_secs: Option<u64>,
+}
+
+impl EliminationAnalyserConfig {
+    pub fn update(&mut self, new: Self) {
+        if let Some(bucket_size) = new.bucket_size {
+            self.bucket_size = Some(bucket_size)
+        }
+        if let Some(bucket_leak_interval_in_secs) = new.bucket_leak_interval_in_secs {
+            self.bucket_leak_interval_in_secs = Some(bucket_leak_interval_in_secs)
+        }
+    }
 }
 
 impl Default for EliminationRoutingConfig {
@@ -823,16 +945,61 @@ impl Default for EliminationRoutingConfig {
             params: Some(vec![DynamicRoutingConfigParams::PaymentMethod]),
             elimination_analyser_config: Some(EliminationAnalyserConfig {
                 bucket_size: Some(5),
-                bucket_leak_interval_in_secs: Some(2),
+                bucket_leak_interval_in_secs: Some(60),
             }),
+            decision_engine_configs: None,
         }
     }
 }
 
+impl EliminationRoutingConfig {
+    pub fn update(&mut self, new: Self) {
+        if let Some(params) = new.params {
+            self.params = Some(params)
+        }
+        if let Some(new_config) = new.elimination_analyser_config {
+            self.elimination_analyser_config
+                .as_mut()
+                .map(|config| config.update(new_config));
+        }
+        if let Some(new_config) = new.decision_engine_configs {
+            self.decision_engine_configs
+                .as_mut()
+                .map(|config| config.update(new_config));
+        }
+    }
+
+    pub fn open_router_config_default() -> Self {
+        Self {
+            elimination_analyser_config: None,
+            params: None,
+            decision_engine_configs: Some(open_router::DecisionEngineEliminationData {
+                threshold: DEFAULT_ELIMINATION_THRESHOLD,
+            }),
+        }
+    }
+
+    pub fn get_decision_engine_configs(
+        &self,
+    ) -> Result<open_router::DecisionEngineEliminationData, error_stack::Report<ValidationError>>
+    {
+        self.decision_engine_configs
+            .clone()
+            .ok_or(error_stack::Report::new(
+                ValidationError::MissingRequiredField {
+                    field_name: "decision_engine_configs".to_string(),
+                },
+            ))
+    }
+}
+
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub struct SuccessBasedRoutingConfig {
     pub params: Option<Vec<DynamicRoutingConfigParams>>,
     pub config: Option<SuccessBasedRoutingConfigBody>,
+    #[schema(value_type = DecisionEngineSuccessRateData)]
+    pub decision_engine_configs: Option<open_router::DecisionEngineSuccessRateData>,
 }
 
 impl Default for SuccessBasedRoutingConfig {
@@ -840,20 +1007,25 @@ impl Default for SuccessBasedRoutingConfig {
         Self {
             params: Some(vec![DynamicRoutingConfigParams::PaymentMethod]),
             config: Some(SuccessBasedRoutingConfigBody {
-                min_aggregates_size: Some(2),
+                min_aggregates_size: Some(5),
                 default_success_rate: Some(100.0),
-                max_aggregates_size: Some(3),
+                max_aggregates_size: Some(8),
                 current_block_threshold: Some(CurrentBlockThreshold {
-                    duration_in_mins: Some(5),
-                    max_total_count: Some(2),
+                    duration_in_mins: None,
+                    max_total_count: Some(5),
                 }),
                 specificity_level: SuccessRateSpecificityLevel::default(),
+                exploration_percent: Some(20.0),
+                shuffle_on_tie_during_exploitation: Some(false),
             }),
+            decision_engine_configs: None,
         }
     }
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema, strum::Display)]
+#[derive(
+    serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema, PartialEq, strum::Display,
+)]
 pub enum DynamicRoutingConfigParams {
     PaymentMethod,
     PaymentMethodType,
@@ -872,6 +1044,8 @@ pub struct SuccessBasedRoutingConfigBody {
     pub current_block_threshold: Option<CurrentBlockThreshold>,
     #[serde(default)]
     pub specificity_level: SuccessRateSpecificityLevel,
+    pub exploration_percent: Option<f64>,
+    pub shuffle_on_tie_during_exploitation: Option<bool>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
@@ -880,7 +1054,7 @@ pub struct CurrentBlockThreshold {
     pub max_total_count: Option<u64>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Default, Clone, ToSchema)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Default, Clone, Copy, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum SuccessRateSpecificityLevel {
     #[default]
@@ -891,6 +1065,13 @@ pub enum SuccessRateSpecificityLevel {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SuccessBasedRoutingPayloadWrapper {
     pub updated_config: SuccessBasedRoutingConfig,
+    pub algorithm_id: common_utils::id_type::RoutingId,
+    pub profile_id: common_utils::id_type::ProfileId,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct EliminationRoutingPayloadWrapper {
+    pub updated_config: EliminationRoutingConfig,
     pub algorithm_id: common_utils::id_type::RoutingId,
     pub profile_id: common_utils::id_type::ProfileId,
 }
@@ -926,6 +1107,51 @@ impl SuccessBasedRoutingConfig {
         if let Some(new_config) = new.config {
             self.config.as_mut().map(|config| config.update(new_config));
         }
+        if let Some(new_config) = new.decision_engine_configs {
+            self.decision_engine_configs
+                .as_mut()
+                .map(|config| config.update(new_config));
+        }
+    }
+
+    pub fn open_router_config_default() -> Self {
+        Self {
+            params: None,
+            config: None,
+            decision_engine_configs: Some(open_router::DecisionEngineSuccessRateData {
+                default_latency_threshold: Some(DEFAULT_LATENCY_THRESHOLD),
+                default_bucket_size: Some(DEFAULT_BUCKET_SIZE),
+                default_hedging_percent: Some(DEFAULT_HEDGING_PERCENT),
+                default_lower_reset_factor: None,
+                default_upper_reset_factor: None,
+                default_gateway_extra_score: None,
+                sub_level_input_config: Some(vec![
+                    open_router::DecisionEngineSRSubLevelInputConfig {
+                        payment_method_type: Some(DEFAULT_PAYMENT_METHOD.to_string()),
+                        payment_method: None,
+                        latency_threshold: None,
+                        bucket_size: Some(DEFAULT_BUCKET_SIZE),
+                        hedging_percent: Some(DEFAULT_HEDGING_PERCENT),
+                        lower_reset_factor: None,
+                        upper_reset_factor: None,
+                        gateway_extra_score: None,
+                    },
+                ]),
+            }),
+        }
+    }
+
+    pub fn get_decision_engine_configs(
+        &self,
+    ) -> Result<open_router::DecisionEngineSuccessRateData, error_stack::Report<ValidationError>>
+    {
+        self.decision_engine_configs
+            .clone()
+            .ok_or(error_stack::Report::new(
+                ValidationError::MissingRequiredField {
+                    field_name: "decision_engine_configs".to_string(),
+                },
+            ))
     }
 }
 
@@ -945,7 +1171,13 @@ impl SuccessBasedRoutingConfigBody {
                 .as_mut()
                 .map(|threshold| threshold.update(current_block_threshold));
         }
-        self.specificity_level = new.specificity_level
+        self.specificity_level = new.specificity_level;
+        if let Some(exploration_percent) = new.exploration_percent {
+            self.exploration_percent = Some(exploration_percent);
+        }
+        if let Some(shuffle_on_tie_during_exploitation) = new.shuffle_on_tie_during_exploitation {
+            self.shuffle_on_tie_during_exploitation = Some(shuffle_on_tie_during_exploitation);
+        }
     }
 }
 
@@ -1061,4 +1293,154 @@ impl RoutableConnectorChoiceWithBucketName {
             bucket_name,
         }
     }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct CalSuccessRateConfigEventRequest {
+    pub min_aggregates_size: Option<u32>,
+    pub default_success_rate: Option<f64>,
+    pub specificity_level: SuccessRateSpecificityLevel,
+    pub exploration_percent: Option<f64>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct CalSuccessRateEventRequest {
+    pub id: String,
+    pub params: String,
+    pub labels: Vec<String>,
+    pub config: Option<CalSuccessRateConfigEventRequest>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct EliminationRoutingEventBucketConfig {
+    pub bucket_size: Option<u64>,
+    pub bucket_leak_interval_in_secs: Option<u64>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct EliminationRoutingEventRequest {
+    pub id: String,
+    pub params: String,
+    pub labels: Vec<String>,
+    pub config: Option<EliminationRoutingEventBucketConfig>,
+}
+
+/// API-1 types
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct CalContractScoreEventRequest {
+    pub id: String,
+    pub params: String,
+    pub labels: Vec<String>,
+    pub config: Option<ContractBasedRoutingConfig>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct LabelWithScoreEventResponse {
+    pub score: f64,
+    pub label: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct CalSuccessRateEventResponse {
+    pub labels_with_score: Vec<LabelWithScoreEventResponse>,
+    pub routing_approach: RoutingApproach,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RoutingApproach {
+    Exploitation,
+    Exploration,
+    Elimination,
+    ContractBased,
+    Default,
+}
+
+impl RoutingApproach {
+    pub fn from_decision_engine_approach(approach: &str) -> Self {
+        match approach {
+            "SR_SELECTION_V3_ROUTING" => Self::Exploitation,
+            "SR_V3_HEDGING" => Self::Exploration,
+            _ => Self::Default,
+        }
+    }
+}
+
+impl std::fmt::Display for RoutingApproach {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Exploitation => write!(f, "Exploitation"),
+            Self::Exploration => write!(f, "Exploration"),
+            Self::Elimination => write!(f, "Elimination"),
+            Self::ContractBased => write!(f, "ContractBased"),
+            Self::Default => write!(f, "Default"),
+        }
+    }
+}
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct RuleMigrationQuery {
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub limit: Option<u32>,
+    pub offset: Option<u32>,
+}
+
+impl RuleMigrationQuery {
+    pub fn validated_limit(&self) -> u32 {
+        self.limit.unwrap_or(50).min(1000)
+    }
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct RuleMigrationResult {
+    pub success: Vec<RuleMigrationResponse>,
+    pub errors: Vec<RuleMigrationError>,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct RuleMigrationResponse {
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub euclid_algorithm_id: common_utils::id_type::RoutingId,
+    pub decision_engine_algorithm_id: String,
+    pub is_active_rule: bool,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct RuleMigrationError {
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub algorithm_id: common_utils::id_type::RoutingId,
+    pub error: String,
+}
+
+impl RuleMigrationResponse {
+    pub fn new(
+        profile_id: common_utils::id_type::ProfileId,
+        euclid_algorithm_id: common_utils::id_type::RoutingId,
+        decision_engine_algorithm_id: String,
+        is_active_rule: bool,
+    ) -> Self {
+        Self {
+            profile_id,
+            euclid_algorithm_id,
+            decision_engine_algorithm_id,
+            is_active_rule,
+        }
+    }
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, strum::Display, strum::EnumString)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RoutingResultSource {
+    /// External Decision Engine
+    DecisionEngine,
+    /// Inbuilt Hyperswitch Routing Engine
+    HyperswitchRouting,
 }

@@ -90,7 +90,7 @@ pub struct EmvThreedsData {
     browser_accept_header: Option<String>,
     browser_user_agent: Option<String>,
     browser_java_enabled: Option<bool>,
-    browser_java_script_enabled: Option<bool>,
+    browser_javascript_enabled: Option<bool>,
     browser_language: Option<String>,
     browser_color_depth: Option<String>,
     browser_screen_height: Option<String>,
@@ -139,7 +139,7 @@ impl EmvThreedsData {
             browser_accept_header: None,
             browser_user_agent: None,
             browser_java_enabled: None,
-            browser_java_script_enabled: None,
+            browser_javascript_enabled: None,
             browser_language: None,
             browser_color_depth: None,
             browser_screen_height: None,
@@ -159,7 +159,7 @@ impl EmvThreedsData {
         self.browser_accept_header = Some(browser_info.get_accept_header()?);
         self.browser_user_agent = Some(browser_info.get_user_agent()?);
         self.browser_java_enabled = Some(browser_info.get_java_enabled()?);
-        self.browser_java_script_enabled = browser_info.get_java_script_enabled().ok();
+        self.browser_javascript_enabled = browser_info.get_java_script_enabled().ok();
         self.browser_language = Some(browser_info.get_language()?);
         self.browser_color_depth = Some(browser_info.get_color_depth()?.to_string());
         self.browser_screen_height = Some(browser_info.get_screen_height()?.to_string());
@@ -361,7 +361,7 @@ impl TryFrom<&Option<PaymentMethodData>> for RedsysCardData {
             Some(PaymentMethodData::Card(card)) => {
                 let year = card.get_card_expiry_year_2_digit()?.expose();
                 let month = card.get_card_expiry_month_2_digit()?.expose();
-                let expiry_date = Secret::new(format!("{}{}", year, month));
+                let expiry_date = Secret::new(format!("{year}{month}"));
                 Ok(Self {
                     card_number: card.card_number.clone(),
                     expiry_date,
@@ -456,35 +456,47 @@ impl TryFrom<&RedsysRouterData<&PaymentsPreProcessingRouterData>> for RedsysTran
                 connector: "redsys",
             })?
         };
-        let redsys_preprocessing_request =
-            if item.router_data.auth_type == enums::AuthenticationType::ThreeDs {
-                let ds_merchant_emv3ds = Some(EmvThreedsData::new(RedsysThreeDsInfo::CardData));
-                let ds_merchant_transactiontype = if item.router_data.request.is_auto_capture()? {
-                    RedsysTransactionType::Payment
-                } else {
-                    RedsysTransactionType::Preauthorization
-                };
-                let ds_merchant_order = connector_utils::generate_12_digit_number().to_string();
-                let card_data =
-                    RedsysCardData::try_from(&item.router_data.request.payment_method_data)?;
-                Ok(PaymentsRequest {
-                    ds_merchant_emv3ds,
-                    ds_merchant_transactiontype,
-                    ds_merchant_currency: item.currency.iso_4217().to_owned(),
-                    ds_merchant_pan: card_data.card_number,
-                    ds_merchant_merchantcode: auth.merchant_id.clone(),
-                    ds_merchant_terminal: auth.terminal_id.clone(),
-                    ds_merchant_order,
-                    ds_merchant_amount: item.amount.clone(),
-                    ds_merchant_expirydate: card_data.expiry_date,
-                    ds_merchant_cvv2: card_data.cvv2,
-                })
+        let redsys_preprocessing_request = if item.router_data.auth_type
+            == enums::AuthenticationType::ThreeDs
+        {
+            let ds_merchant_emv3ds = Some(EmvThreedsData::new(RedsysThreeDsInfo::CardData));
+            let ds_merchant_transactiontype = if item.router_data.request.is_auto_capture()? {
+                RedsysTransactionType::Payment
             } else {
-                Err(errors::ConnectorError::FlowNotSupported {
-                    flow: "PreProcessing".to_string(),
-                    connector: "redsys".to_string(),
+                RedsysTransactionType::Preauthorization
+            };
+
+            let ds_merchant_order = if item.router_data.connector_request_reference_id.len() <= 12 {
+                Ok(item.router_data.connector_request_reference_id.clone())
+            } else {
+                Err(errors::ConnectorError::MaxFieldLengthViolated {
+                    connector: "Redsys".to_string(),
+                    field_name: "ds_merchant_order".to_string(),
+                    max_length: 12,
+                    received_length: item.router_data.connector_request_reference_id.len(),
                 })
             }?;
+
+            let card_data =
+                RedsysCardData::try_from(&item.router_data.request.payment_method_data)?;
+            Ok(PaymentsRequest {
+                ds_merchant_emv3ds,
+                ds_merchant_transactiontype,
+                ds_merchant_currency: item.currency.iso_4217().to_owned(),
+                ds_merchant_pan: card_data.card_number,
+                ds_merchant_merchantcode: auth.merchant_id.clone(),
+                ds_merchant_terminal: auth.terminal_id.clone(),
+                ds_merchant_order,
+                ds_merchant_amount: item.amount.clone(),
+                ds_merchant_expirydate: card_data.expiry_date,
+                ds_merchant_cvv2: card_data.cvv2,
+            })
+        } else {
+            Err(errors::ConnectorError::FlowNotSupported {
+                flow: "PreProcessing".to_string(),
+                connector: "redsys".to_string(),
+            })
+        }?;
 
         Self::try_from((&redsys_preprocessing_request, &auth))
     }
@@ -886,7 +898,7 @@ fn get_redsys_attempt_status(
             | "0912" | "9064" | "9078" | "9093" | "9094" | "9104" | "9218" | "9253" | "9261"
             | "9915" | "9997" | "9999" => Ok(enums::AttemptStatus::Failure),
             error => Err(errors::ConnectorError::ResponseHandlingFailed)
-                .attach_printable(format!("Received Unknown Status:{}", error))?,
+                .attach_printable(format!("Received Unknown Status:{error}"))?,
         }
     }
 }
@@ -1407,7 +1419,7 @@ impl TryFrom<DsResponse> for enums::RefundStatus {
             "9999" => Ok(Self::Pending),
             "0950" | "0172" | "174" => Ok(Self::Failure),
             unknown_status => Err(errors::ConnectorError::ResponseHandlingFailed)
-                .attach_printable(format!("Received unknown status:{}", unknown_status))?,
+                .attach_printable(format!("Received unknown status:{unknown_status}"))?,
         }
     }
 }
@@ -1601,10 +1613,7 @@ fn get_transaction_type(
             }),
         },
         other_attempt_status => Err(errors::ConnectorError::NotSupported {
-            message: format!(
-                "Payment sync after terminal status: {} payment",
-                other_attempt_status
-            ),
+            message: format!("Payment sync after terminal status: {other_attempt_status} payment"),
             connector: "redsys",
         }),
     }

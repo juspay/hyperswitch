@@ -1,0 +1,113 @@
+{
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_api_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "organization_id",
+      "value": ""
+    },
+    {
+      "key": "merchant_id",
+      "value": ""
+    },
+    {
+      "key": "profile_id",
+      "value": ""
+    },
+    {
+      "key": "api_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "api_key_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "publishable_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "client_secret",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "archipel_tenant_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "archipel_platform_url",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "merchant_connector_id",
+      "value": ""
+    },
+    {
+      "key": "payment_id",
+      "value": ""
+    },
+    {
+      "key": "customer_id",
+      "value": ""
+    },
+    {
+      "key": "mandate_id",
+      "value": ""
+    },
+    {
+      "key": "refund_id",
+      "value": ""
+    },
+    {
+      "key": "payment_token",
+      "value": ""
+    },
+    {
+      "key": "connector_transaction_id",
+      "value": ""
+    },
+    {
+      "key": "archipel_transaction_uuid",
+      "value": ""
+    },
+    {
+      "key": "netcetera_certificate",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "netcetera_private_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "netcetera_merchant_configuration_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "netcetera_requestor_url",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "netcetera_requestor_app_url",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

@@ -1,6 +1,9 @@
+pub mod refunds_transformers;
+pub mod refunds_validator;
+
 use std::{collections::HashSet, marker::PhantomData, str::FromStr};
 
-use api_models::enums::{DisputeStage, DisputeStatus};
+use api_models::enums::{Connector, DisputeStage, DisputeStatus};
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutVendorAccountDetails;
 use common_enums::{IntentStatus, RequestIncrementalAuthorization};
@@ -11,22 +14,35 @@ use common_utils::{
     ext_traits::AsyncExt,
     types::{keymanager::KeyManagerState, ConnectorTransactionIdTrait, MinorUnit},
 };
+use diesel_models::refund as diesel_refund;
 use error_stack::{report, ResultExt};
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::types::VaultRouterData;
 use hyperswitch_domain_models::{
     merchant_connector_account::MerchantConnectorAccount, payment_address::PaymentAddress,
     router_data::ErrorResponse, router_request_types, types::OrderDetailsWithAmount,
 };
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::{
+    router_data_v2::flow_common_types::VaultConnectorFlowData, types::VaultRouterDataV2,
+};
+use hyperswitch_interfaces::api::ConnectorSpecifications;
+#[cfg(feature = "v2")]
+use masking::ExposeOptionInterface;
+use masking::Secret;
 #[cfg(feature = "payouts")]
 use masking::{ExposeInterface, PeekInterface};
 use maud::{html, PreEscaped};
+use regex::Regex;
 use router_env::{instrument, tracing};
-use uuid::Uuid;
 
 use super::payments::helpers;
 #[cfg(feature = "payouts")]
 use super::payouts::{helpers as payout_helpers, PayoutData};
 #[cfg(feature = "payouts")]
 use crate::core::payments;
+#[cfg(feature = "v2")]
+use crate::core::payments::helpers as payment_helpers;
 use crate::{
     configs::Settings,
     consts,
@@ -41,7 +57,7 @@ use crate::{
         storage::{self, enums},
         PollConfig,
     },
-    utils::{generate_id, generate_uuid, OptionExt, ValueExt},
+    utils::{generate_id, OptionExt, ValueExt},
 };
 
 pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW: &str =
@@ -51,27 +67,23 @@ pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLOW: &str =
     "irrelevant_connector_request_reference_id_in_payouts_flow";
 const IRRELEVANT_ATTEMPT_ID_IN_DISPUTE_FLOW: &str = "irrelevant_attempt_id_in_dispute_flow";
 
-#[cfg(all(feature = "payouts", feature = "v2", feature = "customer_v2"))]
+#[cfg(all(feature = "payouts", feature = "v2"))]
 #[instrument(skip_all)]
 pub async fn construct_payout_router_data<'a, F>(
     _state: &SessionState,
     _connector_data: &api::ConnectorData,
-    _merchant_account: &domain::MerchantAccount,
+    _merchant_context: &domain::MerchantContext,
     _payout_data: &mut PayoutData,
 ) -> RouterResult<types::PayoutsRouterData<F>> {
     todo!()
 }
 
-#[cfg(all(
-    feature = "payouts",
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2")
-))]
+#[cfg(all(feature = "payouts", feature = "v1"))]
 #[instrument(skip_all)]
 pub async fn construct_payout_router_data<'a, F>(
     state: &SessionState,
     connector_data: &api::ConnectorData,
-    merchant_account: &domain::MerchantAccount,
+    merchant_context: &domain::MerchantContext,
     payout_data: &mut PayoutData,
 ) -> RouterResult<types::PayoutsRouterData<F>> {
     let merchant_connector_account = payout_data
@@ -155,7 +167,7 @@ pub async fn construct_payout_router_data<'a, F>(
 
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: merchant_account.get_id().to_owned(),
+        merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
         customer_id: customer_details.to_owned().map(|c| c.customer_id),
         tenant_id: state.tenant.tenant_id.clone(),
         connector_customer: connector_customer_id,
@@ -176,7 +188,7 @@ pub async fn construct_payout_router_data<'a, F>(
         minor_amount_captured: None,
         payment_method_status: None,
         request: types::PayoutsData {
-            payout_id: payouts.payout_id.to_owned(),
+            payout_id: payouts.payout_id.clone(),
             amount: payouts.amount.get_amount_as_i64(),
             minor_amount: payouts.amount,
             connector_payout_id: payout_attempt.connector_payout_id.clone(),
@@ -223,6 +235,8 @@ pub async fn construct_payout_router_data<'a, F>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        raw_connector_response: None,
+        is_payment_id_from_merchant: None,
     };
 
     Ok(router_data)
@@ -232,18 +246,168 @@ pub async fn construct_payout_router_data<'a, F>(
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn construct_refund_router_data<'a, F>(
-    _state: &'a SessionState,
-    _connector_id: &str,
-    _merchant_account: &domain::MerchantAccount,
-    _key_store: &domain::MerchantKeyStore,
-    _money: (MinorUnit, enums::Currency),
-    _payment_intent: &'a storage::PaymentIntent,
-    _payment_attempt: &storage::PaymentAttempt,
-    _refund: &'a storage::Refund,
-    _creds_identifier: Option<String>,
-    _split_refunds: Option<router_request_types::SplitRefundsRequest>,
+    state: &'a SessionState,
+    connector_enum: Connector,
+    merchant_context: &domain::MerchantContext,
+    payment_intent: &'a storage::PaymentIntent,
+    payment_attempt: &storage::PaymentAttempt,
+    refund: &'a diesel_refund::Refund,
+    merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
 ) -> RouterResult<types::RefundsRouterData<F>> {
-    todo!()
+    let auth_type = merchant_connector_account
+        .get_connector_account_details()
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    let status = payment_attempt.status;
+
+    let payment_amount = payment_attempt.get_total_amount();
+    let currency = payment_intent.get_currency();
+
+    let payment_method_type = payment_attempt.payment_method_type;
+
+    let webhook_url = match merchant_connector_account {
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(
+            merchant_connector_account,
+        ) => Some(helpers::create_webhook_url(
+            &state.base_url.clone(),
+            merchant_context.get_merchant_account().get_id(),
+            merchant_connector_account.get_id().get_string_repr(),
+        )),
+        // TODO: Implement for connectors that require a webhook URL to be included in the request payload.
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => None,
+    };
+
+    let supported_connector = &state
+        .conf
+        .multiple_api_version_supported_connectors
+        .supported_connectors;
+
+    let connector_api_version = if supported_connector.contains(&connector_enum) {
+        state
+            .store
+            .find_config_by_key(&format!("connector_api_version_{connector_enum}"))
+            .await
+            .map(|value| value.config)
+            .ok()
+    } else {
+        None
+    };
+
+    let browser_info = payment_attempt
+        .browser_info
+        .clone()
+        .map(types::BrowserInformation::from);
+
+    let connector_refund_id = refund.get_optional_connector_refund_id().cloned();
+    let capture_method = payment_intent.capture_method;
+
+    let customer_id = payment_intent
+        .get_optional_customer_id()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get optional customer id")?;
+
+    let braintree_metadata = payment_intent
+        .get_optional_connector_metadata()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed parsing ConnectorMetadata")?
+        .and_then(|cm| cm.braintree);
+
+    let merchant_account_id = braintree_metadata
+        .as_ref()
+        .and_then(|braintree| braintree.merchant_account_id.clone());
+
+    let merchant_config_currency =
+        braintree_metadata.and_then(|braintree| braintree.merchant_config_currency);
+
+    let connector_wallets_details = match merchant_connector_account {
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(
+            merchant_connector_account,
+        ) => merchant_connector_account.get_connector_wallets_details(),
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => None,
+    };
+
+    let router_data = types::RouterData {
+        flow: PhantomData,
+        merchant_id: merchant_context.get_merchant_account().get_id().clone(),
+        customer_id,
+        tenant_id: state.tenant.tenant_id.clone(),
+        connector: connector_enum.to_string(),
+        payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
+        attempt_id: payment_attempt.id.get_string_repr().to_string().clone(),
+        status,
+        payment_method: payment_method_type,
+        connector_auth_type: auth_type,
+        description: None,
+        // Does refund need shipping/billing address ?
+        address: PaymentAddress::default(),
+        auth_type: payment_attempt.authentication_type,
+        connector_meta_data: merchant_connector_account.get_metadata(),
+        connector_wallets_details,
+        amount_captured: payment_intent
+            .amount_captured
+            .map(|amt| amt.get_amount_as_i64()),
+        payment_method_status: None,
+        minor_amount_captured: payment_intent.amount_captured,
+        request: types::RefundsData {
+            refund_id: refund.id.get_string_repr().to_string(),
+            connector_transaction_id: refund.get_connector_transaction_id().clone(),
+            refund_amount: refund.refund_amount.get_amount_as_i64(),
+            minor_refund_amount: refund.refund_amount,
+            currency,
+            payment_amount: payment_amount.get_amount_as_i64(),
+            minor_payment_amount: payment_amount,
+            webhook_url,
+            connector_metadata: payment_attempt.connector_metadata.clone().expose_option(),
+            reason: refund.refund_reason.clone(),
+            connector_refund_id: connector_refund_id.clone(),
+            browser_info,
+            split_refunds: None,
+            integrity_object: None,
+            refund_status: refund.refund_status,
+            merchant_account_id,
+            merchant_config_currency,
+            refund_connector_metadata: refund.metadata.clone(),
+            capture_method: Some(capture_method),
+            additional_payment_method_data: None,
+        },
+
+        response: Ok(types::RefundsResponseData {
+            connector_refund_id: connector_refund_id.unwrap_or_default(),
+            refund_status: refund.refund_status,
+        }),
+        access_token: None,
+        session_token: None,
+        reference_id: None,
+        payment_method_token: None,
+        connector_customer: None,
+        recurring_mandate_payment_data: None,
+        preprocessing_id: None,
+        connector_request_reference_id: refund.id.get_string_repr().to_string().clone(),
+        #[cfg(feature = "payouts")]
+        payout_method_data: None,
+        #[cfg(feature = "payouts")]
+        quote_id: None,
+        test_mode: None,
+        payment_method_balance: None,
+        connector_api_version,
+        connector_http_status_code: None,
+        external_latency: None,
+        apple_pay_flow: None,
+        frm_metadata: None,
+        refund_id: Some(refund.id.get_string_repr().to_string().clone()),
+        dispute_id: None,
+        connector_response: None,
+        integrity_check: Ok(()),
+        additional_merchant_data: None,
+        header_payload: None,
+        connector_mandate_request_reference_id: None,
+        authentication_id: None,
+        psd2_sca_exemption_type: None,
+        raw_connector_response: None,
+        is_payment_id_from_merchant: None,
+    };
+
+    Ok(router_data)
 }
 
 #[cfg(feature = "v1")]
@@ -252,12 +416,11 @@ pub async fn construct_refund_router_data<'a, F>(
 pub async fn construct_refund_router_data<'a, F>(
     state: &'a SessionState,
     connector_id: &str,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     money: (MinorUnit, enums::Currency),
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
-    refund: &'a storage::Refund,
+    refund: &'a diesel_refund::Refund,
     creds_identifier: Option<String>,
     split_refunds: Option<router_request_types::SplitRefundsRequest>,
 ) -> RouterResult<types::RefundsRouterData<F>> {
@@ -270,9 +433,9 @@ pub async fn construct_refund_router_data<'a, F>(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        merchant_account.get_id(),
+        merchant_context.get_merchant_account().get_id(),
         creds_identifier.as_deref(),
-        key_store,
+        merchant_context.get_merchant_key_store(),
         profile_id,
         connector_id,
         payment_attempt.merchant_connector_id.as_ref(),
@@ -300,7 +463,7 @@ pub async fn construct_refund_router_data<'a, F>(
 
     let webhook_url = Some(helpers::create_webhook_url(
         &state.base_url.clone(),
-        merchant_account.get_id(),
+        merchant_context.get_merchant_account().get_id(),
         merchant_connector_account_id_or_connector_name,
     ));
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
@@ -309,7 +472,7 @@ pub async fn construct_refund_router_data<'a, F>(
         .conf
         .multiple_api_version_supported_connectors
         .supported_connectors;
-    let connector_enum = api_models::enums::Connector::from_str(connector_id)
+    let connector_enum = Connector::from_str(connector_id)
         .change_context(errors::ConnectorError::InvalidConnectorName)
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "connector",
@@ -355,10 +518,21 @@ pub async fn construct_refund_router_data<'a, F>(
         .and_then(|braintree| braintree.merchant_account_id.clone());
     let merchant_config_currency =
         braintree_metadata.and_then(|braintree| braintree.merchant_config_currency);
+    let additional_payment_method_data: Option<api_models::payments::AdditionalPaymentData> =
+        payment_attempt
+            .payment_method_data
+            .clone()
+            .and_then(|value| match serde_json::from_value(value) {
+                Ok(data) => Some(data),
+                Err(e) => {
+                    router_env::logger::error!("Failed to deserialize payment_method_data: {}", e);
+                    None
+                }
+            });
 
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: merchant_account.get_id().clone(),
+        merchant_id: merchant_context.get_merchant_account().get_id().clone(),
         customer_id: payment_intent.customer_id.to_owned(),
         tenant_id: state.tenant.tenant_id.clone(),
         connector: connector_id.to_string(),
@@ -398,6 +572,7 @@ pub async fn construct_refund_router_data<'a, F>(
             merchant_account_id,
             merchant_config_currency,
             capture_method,
+            additional_payment_method_data,
         },
 
         response: Ok(types::RefundsResponseData {
@@ -432,6 +607,8 @@ pub async fn construct_refund_router_data<'a, F>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        raw_connector_response: None,
+        is_payment_id_from_merchant: None,
     };
 
     Ok(router_data)
@@ -446,16 +623,6 @@ pub fn get_or_generate_id(
     provided_id
         .clone()
         .map_or(Ok(generate_id(consts::ID_LENGTH, prefix)), validate_id)
-}
-
-pub fn get_or_generate_uuid(
-    key: &str,
-    provided_id: Option<&String>,
-) -> Result<String, errors::ApiErrorResponse> {
-    let validate_id = |id: String| validate_uuid(id, key);
-    provided_id
-        .cloned()
-        .map_or(Ok(generate_uuid()), validate_id)
 }
 
 fn invalid_id_format_error(key: &str) -> errors::ApiErrorResponse {
@@ -476,16 +643,9 @@ pub fn validate_id(id: String, key: &str) -> Result<String, errors::ApiErrorResp
     }
 }
 
-pub fn validate_uuid(uuid: String, key: &str) -> Result<String, errors::ApiErrorResponse> {
-    match (Uuid::parse_str(&uuid), uuid.len() > consts::MAX_ID_LENGTH) {
-        (Ok(_), false) => Ok(uuid),
-        (_, _) => Err(invalid_id_format_error(key)),
-    }
-}
-
 #[cfg(feature = "v1")]
 pub fn get_split_refunds(
-    split_refund_input: super::refunds::transformers::SplitRefundInput,
+    split_refund_input: refunds_transformers::SplitRefundInput,
 ) -> RouterResult<Option<router_request_types::SplitRefundsRequest>> {
     match split_refund_input.split_payment_request.as_ref() {
         Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(stripe_payment)) => {
@@ -515,7 +675,7 @@ pub fn get_split_refunds(
             };
 
             if let Some(charge_id) = charge_id_option {
-                let options = super::refunds::validator::validate_stripe_charge_refund(
+                let options = refunds_validator::validate_stripe_charge_refund(
                     charge_type_option,
                     &split_refund_input.refund_request,
                 )?;
@@ -543,7 +703,7 @@ pub fn get_split_refunds(
                         split_refund_request,
                     )) = split_refund_input.refund_request.clone()
                     {
-                        super::refunds::validator::validate_adyen_charge_refund(
+                        refunds_validator::validate_adyen_charge_refund(
                             adyen_split_payment_response,
                             &split_refund_request,
                         )?;
@@ -573,7 +733,7 @@ pub fn get_split_refunds(
                         split_refund_request,
                     )),
                 ) => {
-                    let user_id = super::refunds::validator::validate_xendit_charge_refund(
+                    let user_id = refunds_validator::validate_xendit_charge_refund(
                         xendit_split_payment_response,
                         split_refund_request,
                     )?;
@@ -784,8 +944,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
     state: &'a SessionState,
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     dispute: &storage::Dispute,
 ) -> RouterResult<types::AcceptDisputeRouterData> {
     let profile_id = payment_intent
@@ -798,9 +957,9 @@ pub async fn construct_accept_dispute_router_data<'a>(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        merchant_account.get_id(),
+        merchant_context.get_merchant_account().get_id(),
         None,
-        key_store,
+        merchant_context.get_merchant_key_store(),
         &profile_id,
         &dispute.connector,
         payment_attempt.merchant_connector_id.as_ref(),
@@ -817,7 +976,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         .get_required_value("payment_method_type")?;
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: merchant_account.get_id().clone(),
+        merchant_id: merchant_context.get_merchant_account().get_id().clone(),
         connector: dispute.connector.to_string(),
         tenant_id: state.tenant.tenant_id.clone(),
         payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
@@ -850,9 +1009,11 @@ pub async fn construct_accept_dispute_router_data<'a>(
         preprocessing_id: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
-            merchant_account.get_id(),
+            merchant_context.get_merchant_account().get_id(),
+            payment_intent,
             payment_attempt,
-        ),
+            &dispute.connector,
+        )?,
         #[cfg(feature = "payouts")]
         payout_method_data: None,
         #[cfg(feature = "payouts")]
@@ -873,6 +1034,8 @@ pub async fn construct_accept_dispute_router_data<'a>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        raw_connector_response: None,
+        is_payment_id_from_merchant: None,
     };
     Ok(router_data)
 }
@@ -883,8 +1046,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
     state: &'a SessionState,
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     dispute: &storage::Dispute,
     submit_evidence_request_data: types::SubmitEvidenceRequestData,
 ) -> RouterResult<types::SubmitEvidenceRouterData> {
@@ -899,9 +1061,9 @@ pub async fn construct_submit_evidence_router_data<'a>(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        merchant_account.get_id(),
+        merchant_context.get_merchant_account().get_id(),
         None,
-        key_store,
+        merchant_context.get_merchant_key_store(),
         &profile_id,
         connector_id,
         payment_attempt.merchant_connector_id.as_ref(),
@@ -918,7 +1080,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         .get_required_value("payment_method_type")?;
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: merchant_account.get_id().clone(),
+        merchant_id: merchant_context.get_merchant_account().get_id().clone(),
         connector: connector_id.to_string(),
         payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
         tenant_id: state.tenant.tenant_id.clone(),
@@ -949,9 +1111,11 @@ pub async fn construct_submit_evidence_router_data<'a>(
         payment_method_status: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
-            merchant_account.get_id(),
+            merchant_context.get_merchant_account().get_id(),
+            payment_intent,
             payment_attempt,
-        ),
+            connector_id,
+        )?,
         #[cfg(feature = "payouts")]
         payout_method_data: None,
         #[cfg(feature = "payouts")]
@@ -971,6 +1135,8 @@ pub async fn construct_submit_evidence_router_data<'a>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        raw_connector_response: None,
+        is_payment_id_from_merchant: None,
     };
     Ok(router_data)
 }
@@ -982,8 +1148,7 @@ pub async fn construct_upload_file_router_data<'a>(
     state: &'a SessionState,
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     create_file_request: &api::CreateFileRequest,
     connector_id: &str,
     file_key: String,
@@ -998,9 +1163,9 @@ pub async fn construct_upload_file_router_data<'a>(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        merchant_account.get_id(),
+        merchant_context.get_merchant_account().get_id(),
         None,
-        key_store,
+        merchant_context.get_merchant_key_store(),
         &profile_id,
         connector_id,
         payment_attempt.merchant_connector_id.as_ref(),
@@ -1017,7 +1182,7 @@ pub async fn construct_upload_file_router_data<'a>(
         .get_required_value("payment_method_type")?;
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: merchant_account.get_id().clone(),
+        merchant_id: merchant_context.get_merchant_account().get_id().clone(),
         connector: connector_id.to_string(),
         payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
         tenant_id: state.tenant.tenant_id.clone(),
@@ -1053,9 +1218,11 @@ pub async fn construct_upload_file_router_data<'a>(
         payment_method_balance: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
-            merchant_account.get_id(),
+            merchant_context.get_merchant_account().get_id(),
+            payment_intent,
             payment_attempt,
-        ),
+            connector_id,
+        )?,
         #[cfg(feature = "payouts")]
         payout_method_data: None,
         #[cfg(feature = "payouts")]
@@ -1075,6 +1242,8 @@ pub async fn construct_upload_file_router_data<'a>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        raw_connector_response: None,
+        is_payment_id_from_merchant: None,
     };
     Ok(router_data)
 }
@@ -1082,8 +1251,7 @@ pub async fn construct_upload_file_router_data<'a>(
 #[cfg(feature = "v2")]
 pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
     state: &SessionState,
-    merchant_account: &domain::MerchantAccount,
-    _key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     payment_data: &mut PaymentData<F>,
     merchant_connector_account: &MerchantConnectorAccount,
 ) -> RouterResult<types::PaymentsTaxCalculationRouterData> {
@@ -1093,8 +1261,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
 #[cfg(feature = "v1")]
 pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
     state: &SessionState,
-    merchant_account: &domain::MerchantAccount,
-    _key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     payment_data: &mut PaymentData<F>,
     merchant_connector_account: &MerchantConnectorAccount,
 ) -> RouterResult<types::PaymentsTaxCalculationRouterData> {
@@ -1142,7 +1309,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
 
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: merchant_account.get_id().to_owned(),
+        merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
         customer_id: None,
         connector_customer: None,
         connector: merchant_connector_account.connector_name.clone(),
@@ -1176,9 +1343,11 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
         response: Err(ErrorResponse::default()),
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
-            merchant_account.get_id(),
+            merchant_context.get_merchant_account().get_id(),
+            payment_intent,
             payment_attempt,
-        ),
+            &merchant_connector_account.connector_name,
+        )?,
         #[cfg(feature = "payouts")]
         payout_method_data: None,
         #[cfg(feature = "payouts")]
@@ -1199,6 +1368,8 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        raw_connector_response: None,
+        is_payment_id_from_merchant: None,
     };
     Ok(router_data)
 }
@@ -1209,8 +1380,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
     state: &'a SessionState,
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     dispute: &storage::Dispute,
 ) -> RouterResult<types::DefendDisputeRouterData> {
     let _db = &*state.store;
@@ -1225,9 +1395,9 @@ pub async fn construct_defend_dispute_router_data<'a>(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        merchant_account.get_id(),
+        merchant_context.get_merchant_account().get_id(),
         None,
-        key_store,
+        merchant_context.get_merchant_key_store(),
         &profile_id,
         connector_id,
         payment_attempt.merchant_connector_id.as_ref(),
@@ -1244,7 +1414,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         .get_required_value("payment_method_type")?;
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: merchant_account.get_id().clone(),
+        merchant_id: merchant_context.get_merchant_account().get_id().clone(),
         connector: connector_id.to_string(),
         payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
         tenant_id: state.tenant.tenant_id.clone(),
@@ -1278,9 +1448,11 @@ pub async fn construct_defend_dispute_router_data<'a>(
         payment_method_balance: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
-            merchant_account.get_id(),
+            merchant_context.get_merchant_account().get_id(),
+            payment_intent,
             payment_attempt,
-        ),
+            connector_id,
+        )?,
         #[cfg(feature = "payouts")]
         payout_method_data: None,
         #[cfg(feature = "payouts")]
@@ -1300,6 +1472,8 @@ pub async fn construct_defend_dispute_router_data<'a>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        raw_connector_response: None,
+        is_payment_id_from_merchant: None,
     };
     Ok(router_data)
 }
@@ -1307,8 +1481,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
 #[instrument(skip_all)]
 pub async fn construct_retrieve_file_router_data<'a>(
     state: &'a SessionState,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     file_metadata: &diesel_models::file::FileMetadata,
     connector_id: &str,
 ) -> RouterResult<types::RetrieveFileRouterData> {
@@ -1323,9 +1496,9 @@ pub async fn construct_retrieve_file_router_data<'a>(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        merchant_account.get_id(),
+        merchant_context.get_merchant_account().get_id(),
         None,
-        key_store,
+        merchant_context.get_merchant_key_store(),
         profile_id,
         connector_id,
         file_metadata.merchant_connector_id.as_ref(),
@@ -1339,7 +1512,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: merchant_account.get_id().clone(),
+        merchant_id: merchant_context.get_merchant_account().get_id().clone(),
         connector: connector_id.to_string(),
         tenant_id: state.tenant.tenant_id.clone(),
         customer_id: None,
@@ -1395,6 +1568,8 @@ pub async fn construct_retrieve_file_router_data<'a>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        raw_connector_response: None,
+        is_payment_id_from_merchant: None,
     };
     Ok(router_data)
 }
@@ -1413,16 +1588,30 @@ pub fn is_merchant_enabled_for_payment_id_as_connector_request_id(
 pub fn get_connector_request_reference_id(
     conf: &Settings,
     merchant_id: &common_utils::id_type::MerchantId,
+    payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
     payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
-) -> String {
-    let is_config_enabled_for_merchant =
+    connector_name: &str,
+) -> CustomResult<String, errors::ApiErrorResponse> {
+    let is_config_enabled_to_send_payment_id_as_connector_request_id =
         is_merchant_enabled_for_payment_id_as_connector_request_id(conf, merchant_id);
-    // Send payment_id if config is enabled for a merchant, else send attempt_id
-    if is_config_enabled_for_merchant {
-        payment_attempt.payment_id.get_string_repr().to_owned()
-    } else {
-        payment_attempt.attempt_id.to_owned()
-    }
+
+    let connector_data = api::ConnectorData::get_connector_by_name(
+        &conf.connectors,
+        connector_name,
+        api::GetToken::Connector,
+        payment_attempt.merchant_connector_id.clone(),
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable_lazy(|| "Failed to construct connector data")?;
+
+    let connector_request_reference_id = connector_data
+        .connector
+        .generate_connector_request_reference_id(
+            payment_intent,
+            payment_attempt,
+            is_config_enabled_to_send_payment_id_as_connector_request_id,
+        );
+    Ok(connector_request_reference_id)
 }
 
 // TODO: Based on the connector configuration, the connector_request_reference_id should be generated
@@ -1472,7 +1661,7 @@ pub async fn validate_and_get_business_profile(
 }
 
 fn connector_needs_business_sub_label(connector_name: &str) -> bool {
-    let connectors_list = [api_models::enums::Connector::Cybersource];
+    let connectors_list = [Connector::Cybersource];
     connectors_list
         .map(|connector| connector.to_string())
         .contains(&connector_name.to_string())
@@ -1516,24 +1705,27 @@ pub fn get_connector_label(
 #[allow(clippy::too_many_arguments)]
 pub async fn get_profile_id_from_business_details(
     key_manager_state: &KeyManagerState,
-    merchant_key_store: &domain::MerchantKeyStore,
     business_country: Option<api_models::enums::CountryAlpha2>,
     business_label: Option<&String>,
-    merchant_account: &domain::MerchantAccount,
+    merchant_context: &domain::MerchantContext,
     request_profile_id: Option<&common_utils::id_type::ProfileId>,
     db: &dyn StorageInterface,
     should_validate: bool,
 ) -> RouterResult<common_utils::id_type::ProfileId> {
-    match request_profile_id.or(merchant_account.default_profile.as_ref()) {
+    match request_profile_id.or(merchant_context
+        .get_merchant_account()
+        .default_profile
+        .as_ref())
+    {
         Some(profile_id) => {
             // Check whether this business profile belongs to the merchant
             if should_validate {
                 let _ = validate_and_get_business_profile(
                     db,
                     key_manager_state,
-                    merchant_key_store,
+                    merchant_context.get_merchant_key_store(),
                     Some(profile_id),
-                    merchant_account.get_id(),
+                    merchant_context.get_merchant_account().get_id(),
                 )
                 .await?;
             }
@@ -1545,9 +1737,9 @@ pub async fn get_profile_id_from_business_details(
                 let business_profile = db
                     .find_business_profile_by_profile_name_merchant_id(
                         key_manager_state,
-                        merchant_key_store,
+                        merchant_context.get_merchant_key_store(),
                         &profile_name,
-                        merchant_account.get_id(),
+                        merchant_context.get_merchant_account().get_id(),
                     )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
@@ -1571,6 +1763,38 @@ pub fn get_external_authentication_request_poll_id(
     payment_id: &common_utils::id_type::PaymentId,
 ) -> String {
     payment_id.get_external_authentication_request_poll_id()
+}
+pub fn get_html_redirect_response_popup(
+    return_url_with_query_params: String,
+) -> RouterResult<String> {
+    Ok(html! {
+        head {
+            title { "Redirect Form" }
+            (PreEscaped(format!(r#"
+                    <script>
+                        let return_url = "{return_url_with_query_params}";
+                        try {{
+                            // if inside iframe, send post message to parent for redirection
+                            if (window.self !== window.parent) {{
+                                window.parent.postMessage({{openurl_if_required: return_url}}, '*')
+                            // if parent, redirect self to return_url
+                            }} else {{
+                                window.location.href = return_url
+                            }}
+                        }}
+                        catch(err) {{
+                            // if error occurs, send post message to parent and wait for 10 secs to redirect. if doesn't redirect, redirect self to return_url
+                            window.parent.postMessage({{openurl_if_required: return_url}}, '*')
+                            setTimeout(function() {{
+                                window.location.href = return_url
+                            }}, 10000);
+                            console.log(err.message)
+                        }}
+                    </script>
+                    "#)))
+        }
+    }
+    .into_string())
 }
 
 #[cfg(feature = "v1")]
@@ -1833,40 +2057,242 @@ pub(crate) fn validate_profile_id_from_auth_layer<T: GetProfileId + std::fmt::De
             }
             .into(),
         )
-        .attach_printable(format!("Couldn't find profile_id in entity {:?}", object)),
+        .attach_printable(format!("Couldn't find profile_id in entity {object:?}")),
         (None, None) | (None, Some(_)) => Ok(()),
     }
 }
 
-pub(crate) trait ValidatePlatformMerchant {
-    fn get_platform_merchant_id(&self) -> Option<&common_utils::id_type::MerchantId>;
+#[cfg(feature = "v2")]
+pub async fn construct_vault_router_data<F>(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
+    payment_method_vaulting_data: Option<domain::PaymentMethodVaultingData>,
+    connector_vault_id: Option<String>,
+    connector_customer_id: Option<String>,
+) -> RouterResult<VaultRouterDataV2<F>> {
+    let connector_name = merchant_connector_account
+        .get_connector_name()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Connector name not present for external vault")?; // always get the connector name from the merchant_connector_account
+    let connector_auth_type = merchant_connector_account
+        .get_connector_account_details()
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    fn validate_platform_merchant(
-        &self,
-        auth_platform_merchant_id: Option<&common_utils::id_type::MerchantId>,
-    ) -> CustomResult<(), errors::ApiErrorResponse> {
-        let data_platform_merchant_id = self.get_platform_merchant_id();
-        match (data_platform_merchant_id, auth_platform_merchant_id) {
-            (Some(data_platform_merchant_id), Some(auth_platform_merchant_id)) => {
-                common_utils::fp_utils::when(
-                    data_platform_merchant_id != auth_platform_merchant_id,
-                    || {
-                        Err(report!(errors::ApiErrorResponse::PaymentNotFound)).attach_printable(format!(
-                     "Data platform merchant id: {data_platform_merchant_id:?} does not match with auth platform merchant id: {auth_platform_merchant_id:?}"))
-                    },
-                )
-            }
-            (Some(_), None) | (None, Some(_)) => {
-                Err(report!(errors::ApiErrorResponse::InvalidPlatformOperation))
-                    .attach_printable("Platform merchant id is missing in either data or auth")
-            }
-            (None, None) => Ok(()),
-        }
+    let resource_common_data = VaultConnectorFlowData {
+        merchant_id: merchant_account.get_id().to_owned(),
+    };
+
+    let router_data = types::RouterDataV2 {
+        flow: PhantomData,
+        resource_common_data,
+        tenant_id: state.tenant.tenant_id.clone(),
+        connector_auth_type,
+        request: types::VaultRequestData {
+            payment_method_vaulting_data,
+            connector_vault_id,
+            connector_customer_id,
+        },
+        response: Ok(types::VaultResponseData::default()),
+    };
+
+    Ok(router_data)
+}
+
+pub fn validate_bank_account_data(data: &types::MerchantAccountData) -> RouterResult<()> {
+    match data {
+        types::MerchantAccountData::Iban { iban, .. } => validate_iban(iban),
+
+        types::MerchantAccountData::Sepa { iban, .. } => validate_iban(iban),
+
+        types::MerchantAccountData::SepaInstant { iban, .. } => validate_iban(iban),
+
+        types::MerchantAccountData::Bacs {
+            account_number,
+            sort_code,
+            ..
+        } => validate_uk_account(account_number, sort_code),
+
+        types::MerchantAccountData::FasterPayments {
+            account_number,
+            sort_code,
+            ..
+        } => validate_uk_account(account_number, sort_code),
+
+        types::MerchantAccountData::Elixir { iban, .. } => validate_elixir_account(iban),
+
+        types::MerchantAccountData::Bankgiro { number, .. } => validate_bankgiro_number(number),
+
+        types::MerchantAccountData::Plusgiro { number, .. } => validate_plusgiro_number(number),
     }
 }
 
-impl ValidatePlatformMerchant for storage::PaymentIntent {
-    fn get_platform_merchant_id(&self) -> Option<&common_utils::id_type::MerchantId> {
-        self.platform_merchant_id.as_ref()
+fn validate_iban(iban: &Secret<String>) -> RouterResult<()> {
+    let iban_str = iban.peek();
+
+    if iban_str.len() > consts::IBAN_MAX_LENGTH || iban_str.len() < consts::IBAN_MIN_LENGTH {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: format!(
+                "IBAN length must be between {} and {} characters",
+                consts::IBAN_MIN_LENGTH,
+                consts::IBAN_MAX_LENGTH
+            ),
+        }
+        .into());
     }
+
+    if iban.peek().len() > consts::IBAN_MAX_LENGTH {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "IBAN length must be up to 34 characters".to_string(),
+        }
+        .into());
+    }
+    let pattern = Regex::new(r"^[A-Z0-9]*$")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to create regex pattern")?;
+
+    let mut iban = iban.peek().to_string();
+
+    if !pattern.is_match(iban.as_str()) {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "IBAN data must be alphanumeric".to_string(),
+        }
+        .into());
+    }
+
+    // MOD check
+    let first_4 = iban.chars().take(4).collect::<String>();
+    iban.push_str(first_4.as_str());
+    let len = iban.len();
+
+    let rearranged_iban = iban
+        .chars()
+        .rev()
+        .take(len - 4)
+        .collect::<String>()
+        .chars()
+        .rev()
+        .collect::<String>();
+
+    let mut result = String::new();
+
+    rearranged_iban.chars().for_each(|c| {
+        if c.is_ascii_uppercase() {
+            let digit = (u32::from(c) - u32::from('A')) + 10;
+            result.push_str(&format!("{digit:02}"));
+        } else {
+            result.push(c);
+        }
+    });
+
+    let num = result
+        .parse::<u128>()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to validate IBAN")?;
+
+    if num % 97 != 1 {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Invalid IBAN".to_string(),
+        }
+        .into());
+    }
+
+    Ok(())
+}
+
+fn validate_uk_account(
+    account_number: &Secret<String>,
+    sort_code: &Secret<String>,
+) -> RouterResult<()> {
+    if account_number.peek().len() > consts::BACS_MAX_ACCOUNT_NUMBER_LENGTH
+        || sort_code.peek().len() != consts::BACS_SORT_CODE_LENGTH
+    {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Invalid BACS numbers".to_string(),
+        }
+        .into());
+    }
+
+    Ok(())
+}
+
+fn validate_elixir_account(iban: &Secret<String>) -> RouterResult<()> {
+    let iban_str = iban.peek();
+
+    // Validate IBAN first
+    validate_iban(iban)?;
+
+    // Check if IBAN is Polish
+    if !iban_str.starts_with("PL") {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Elixir IBAN must be Polish (PL)".to_string(),
+        }
+        .into());
+    }
+
+    // Validate IBAN length for Poland
+    if iban_str.len() != consts::ELIXIR_IBAN_LENGTH {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Polish IBAN must be 28 characters".to_string(),
+        }
+        .into());
+    }
+
+    Ok(())
+}
+
+fn validate_bankgiro_number(number: &Secret<String>) -> RouterResult<()> {
+    let num_str = number.peek();
+    let clean_number = num_str.replace("-", "").replace(" ", "");
+
+    // Length validation
+    if clean_number.len() < consts::BANKGIRO_MIN_LENGTH
+        || clean_number.len() > consts::BANKGIRO_MAX_LENGTH
+    {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: format!(
+                "Bankgiro number must be between {} and {} digits",
+                consts::BANKGIRO_MIN_LENGTH,
+                consts::BANKGIRO_MAX_LENGTH
+            ),
+        }
+        .into());
+    }
+
+    // Must be numeric
+    if !clean_number.chars().all(|c| c.is_ascii_digit()) {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Bankgiro number must be numeric".to_string(),
+        }
+        .into());
+    }
+    Ok(())
+}
+
+fn validate_plusgiro_number(number: &Secret<String>) -> RouterResult<()> {
+    let num_str = number.peek();
+    let clean_number = num_str.replace("-", "").replace(" ", "");
+
+    // Length validation
+    if clean_number.len() < consts::PLUSGIRO_MIN_LENGTH
+        || clean_number.len() > consts::PLUSGIRO_MAX_LENGTH
+    {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: format!(
+                "Plusgiro number must be between {} and {} digits",
+                consts::PLUSGIRO_MIN_LENGTH,
+                consts::PLUSGIRO_MAX_LENGTH
+            ),
+        }
+        .into());
+    }
+
+    // Must be numeric
+    if !clean_number.chars().all(|c| c.is_ascii_digit()) {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Plusgiro number must be numeric".to_string(),
+        }
+        .into());
+    }
+    Ok(())
 }

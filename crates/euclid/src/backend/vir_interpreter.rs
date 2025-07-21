@@ -40,13 +40,15 @@ where
     }
 
     fn eval_statement(stmt: &vir::ValuedIfStatement, ctx: &types::Context) -> bool {
-        Self::eval_condition(&stmt.condition, ctx)
-            .then(|| {
+        if Self::eval_condition(&stmt.condition, ctx) {
+            {
                 stmt.nested.as_ref().map_or(true, |nested_stmts| {
                     nested_stmts.iter().any(|s| Self::eval_statement(s, ctx))
                 })
-            })
-            .unwrap_or(false)
+            }
+        } else {
+            false
+        }
     }
 
     fn eval_rule(rule: &vir::ValuedRule<O>, ctx: &types::Context) -> bool {
@@ -151,6 +153,9 @@ mod test {
                 mandate_type: None,
                 payment_type: None,
             },
+            acquirer_data: None,
+            customer_device_data: None,
+            issuer_data: None,
         };
 
         let backend = VirInterpreterBackend::<DummyOutput>::with_program(program).expect("Program");
@@ -191,6 +196,9 @@ mod test {
                 mandate_type: None,
                 payment_type: Some(enums::PaymentType::SetupMandate),
             },
+            acquirer_data: None,
+            customer_device_data: None,
+            issuer_data: None,
         };
 
         let backend = VirInterpreterBackend::<DummyOutput>::with_program(program).expect("Program");
@@ -232,6 +240,9 @@ mod test {
                 mandate_type: None,
                 payment_type: Some(enums::PaymentType::PptMandate),
             },
+            acquirer_data: None,
+            customer_device_data: None,
+            issuer_data: None,
         };
 
         let backend = VirInterpreterBackend::<DummyOutput>::with_program(program).expect("Program");
@@ -273,6 +284,9 @@ mod test {
                 mandate_type: Some(enums::MandateType::SingleUse),
                 payment_type: None,
             },
+            acquirer_data: None,
+            customer_device_data: None,
+            issuer_data: None,
         };
 
         let backend = VirInterpreterBackend::<DummyOutput>::with_program(program).expect("Program");
@@ -314,6 +328,9 @@ mod test {
                 mandate_type: None,
                 payment_type: None,
             },
+            acquirer_data: None,
+            customer_device_data: None,
+            issuer_data: None,
         };
 
         let backend = VirInterpreterBackend::<DummyOutput>::with_program(program).expect("Program");
@@ -355,6 +372,9 @@ mod test {
                 mandate_type: None,
                 payment_type: None,
             },
+            acquirer_data: None,
+            customer_device_data: None,
+            issuer_data: None,
         };
 
         let backend = VirInterpreterBackend::<DummyOutput>::with_program(program).expect("Program");
@@ -396,6 +416,9 @@ mod test {
                 mandate_type: None,
                 payment_type: None,
             },
+            acquirer_data: None,
+            customer_device_data: None,
+            issuer_data: None,
         };
 
         let backend = VirInterpreterBackend::<DummyOutput>::with_program(program).expect("Program");
@@ -437,6 +460,9 @@ mod test {
                 mandate_type: None,
                 payment_type: None,
             },
+            acquirer_data: None,
+            customer_device_data: None,
+            issuer_data: None,
         };
 
         let backend = VirInterpreterBackend::<DummyOutput>::with_program(program).expect("Program");
@@ -478,6 +504,9 @@ mod test {
                 mandate_type: None,
                 payment_type: None,
             },
+            acquirer_data: None,
+            customer_device_data: None,
+            issuer_data: None,
         };
 
         let backend = VirInterpreterBackend::<DummyOutput>::with_program(program).expect("Program");
@@ -521,6 +550,9 @@ mod test {
                 mandate_type: None,
                 payment_type: None,
             },
+            acquirer_data: None,
+            customer_device_data: None,
+            issuer_data: None,
         };
 
         let backend = VirInterpreterBackend::<DummyOutput>::with_program(program).expect("Program");
@@ -562,6 +594,9 @@ mod test {
                 mandate_type: None,
                 payment_type: None,
             },
+            acquirer_data: None,
+            customer_device_data: None,
+            issuer_data: None,
         };
         let mut inp_equal = inp_greater.clone();
         inp_equal.payment.amount = MinorUnit::new(123);
@@ -612,6 +647,9 @@ mod test {
                 mandate_type: None,
                 payment_type: None,
             },
+            acquirer_data: None,
+            customer_device_data: None,
+            issuer_data: None,
         };
         let mut inp_equal = inp_lower.clone();
         inp_equal.payment.amount = MinorUnit::new(123);

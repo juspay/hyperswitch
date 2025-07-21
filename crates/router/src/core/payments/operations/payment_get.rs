@@ -13,7 +13,6 @@ use crate::{
             helpers,
             operations::{self, ValidateStatusForOperation},
         },
-        utils::ValidatePlatformMerchant,
     },
     routes::{app::ReqState, SessionState},
     types::{
@@ -31,9 +30,42 @@ impl ValidateStatusForOperation for PaymentGet {
     /// Validate if the current operation can be performed on the current status of the payment intent
     fn validate_status_for_operation(
         &self,
-        _intent_status: common_enums::IntentStatus,
+        intent_status: common_enums::IntentStatus,
     ) -> Result<(), errors::ApiErrorResponse> {
-        Ok(())
+        match intent_status {
+            common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::RequiresCustomerAction
+            | common_enums::IntentStatus::RequiresMerchantAction
+            | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::Succeeded
+            | common_enums::IntentStatus::Failed
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::PartiallyCaptured
+            | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::Conflicted => Ok(()),
+            // These statuses are not valid for this operation
+            common_enums::IntentStatus::RequiresConfirmation
+            | common_enums::IntentStatus::RequiresPaymentMethod => {
+                Err(errors::ApiErrorResponse::PaymentUnexpectedState {
+                    current_flow: format!("{self:?}"),
+                    field_name: "status".to_string(),
+                    current_value: intent_status.to_string(),
+                    states: [
+                        common_enums::IntentStatus::RequiresCapture,
+                        common_enums::IntentStatus::RequiresCustomerAction,
+                        common_enums::IntentStatus::RequiresMerchantAction,
+                        common_enums::IntentStatus::Processing,
+                        common_enums::IntentStatus::Succeeded,
+                        common_enums::IntentStatus::Failed,
+                        common_enums::IntentStatus::PartiallyCapturedAndCapturable,
+                        common_enums::IntentStatus::PartiallyCaptured,
+                        common_enums::IntentStatus::Cancelled,
+                    ]
+                    .map(|enum_value| enum_value.to_string())
+                    .join(", "),
+                })
+            }
+        }
     }
 }
 
@@ -97,11 +129,11 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, PaymentsRetrieveRequest, Payment
     fn validate_request<'a, 'b>(
         &'b self,
         _request: &PaymentsRetrieveRequest,
-        merchant_account: &'a domain::MerchantAccount,
+        merchant_context: &'a domain::MerchantContext,
     ) -> RouterResult<operations::ValidateResult> {
         let validate_result = operations::ValidateResult {
-            merchant_id: merchant_account.get_id().to_owned(),
-            storage_scheme: merchant_account.storage_scheme,
+            merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
+            storage_scheme: merchant_context.get_merchant_account().storage_scheme,
             requeue: false,
         };
 
@@ -119,41 +151,48 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
         state: &'a SessionState,
         payment_id: &common_utils::id_type::GlobalPaymentId,
         request: &PaymentsRetrieveRequest,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         _profile: &domain::Profile,
-        key_store: &domain::MerchantKeyStore,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<operations::GetTrackerResponse<PaymentStatusData<F>>> {
         let db = &*state.store;
         let key_manager_state = &state.into();
 
-        let storage_scheme = merchant_account.storage_scheme;
+        let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
 
         let payment_intent = db
-            .find_payment_intent_by_id(key_manager_state, payment_id, key_store, storage_scheme)
+            .find_payment_intent_by_id(
+                key_manager_state,
+                payment_id,
+                merchant_context.get_merchant_key_store(),
+                storage_scheme,
+            )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        payment_intent
-            .validate_platform_merchant(platform_merchant_account.map(|ma| ma.get_id()))?;
+        self.validate_status_for_operation(payment_intent.status)?;
 
-        let payment_attempt = payment_intent
-            .active_attempt_id
-            .as_ref()
-            .async_map(|active_attempt| async {
-                db.find_payment_attempt_by_id(
-                    key_manager_state,
-                    key_store,
-                    active_attempt,
-                    storage_scheme,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Could not find payment attempt given the attempt id")
-            })
+        let active_attempt_id = payment_intent.active_attempt_id.as_ref().ok_or_else(|| {
+            errors::ApiErrorResponse::MissingRequiredField {
+                field_name: ("active_attempt_id"),
+            }
+        })?;
+
+        let mut payment_attempt = db
+            .find_payment_attempt_by_id(
+                key_manager_state,
+                merchant_context.get_merchant_key_store(),
+                active_attempt_id,
+                storage_scheme,
+            )
             .await
-            .transpose()?;
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Could not find payment attempt given the attempt id")?;
+
+        payment_attempt.encoded_data = request
+            .param
+            .as_ref()
+            .map(|val| masking::Secret::new(val.clone()));
 
         let should_sync_with_connector =
             request.force_sync && payment_intent.status.should_force_sync_with_connector();
@@ -169,9 +208,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
                 .clone()
                 .map(|address| address.into_inner()),
             payment_attempt
-                .as_ref()
-                .and_then(|payment_attempt| payment_attempt.payment_method_billing_address.as_ref())
-                .cloned()
+                .payment_method_billing_address
+                .clone()
                 .map(|address| address.into_inner()),
             Some(true),
         );
@@ -184,7 +222,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
                     db.find_payment_attempts_by_payment_intent_id(
                         key_manager_state,
                         payment_id,
-                        key_store,
+                        merchant_context.get_merchant_key_store(),
                         storage_scheme,
                     )
                     .await
@@ -196,6 +234,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
             false => None,
         };
 
+        let merchant_connector_details = request.merchant_connector_details.clone();
+
         let payment_data = PaymentStatusData {
             flow: std::marker::PhantomData,
             payment_intent,
@@ -203,6 +243,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
             payment_address,
             attempts,
             should_sync_with_connector,
+            merchant_connector_details,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };
@@ -230,7 +271,6 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRetrieveRequest, PaymentStatusDat
                     .find_customer_by_global_id(
                         &state.into(),
                         &id,
-                        &payment_data.payment_intent.merchant_id,
                         merchant_key_store,
                         storage_scheme,
                     )
@@ -263,42 +303,64 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRetrieveRequest, PaymentStatusDat
     #[instrument(skip_all)]
     async fn perform_routing<'a>(
         &'a self,
-        _merchant_account: &domain::MerchantAccount,
+        _merchant_context: &domain::MerchantContext,
         _business_profile: &domain::Profile,
         state: &SessionState,
         // TODO: do not take the whole payment data here
         payment_data: &mut PaymentStatusData<F>,
-        _mechant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<ConnectorCallType, errors::ApiErrorResponse> {
-        match &payment_data.payment_attempt {
-            Some(payment_attempt) if payment_data.should_sync_with_connector => {
-                let connector = payment_attempt
-                    .connector
-                    .as_ref()
-                    .get_required_value("connector")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Connector is none when constructing response")?;
+        let payment_attempt = &payment_data.payment_attempt;
 
-                let merchant_connector_id = payment_attempt
-                    .merchant_connector_id
-                    .as_ref()
-                    .get_required_value("merchant_connector_id")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Merchant connector id is none when constructing response")?;
-
-                let connector_data = api::ConnectorData::get_connector_by_name(
-                    &state.conf.connectors,
-                    connector,
-                    api::GetToken::Connector,
-                    Some(merchant_connector_id.to_owned()),
-                )
+        if payment_data.should_sync_with_connector {
+            let connector = payment_attempt
+                .connector
+                .as_ref()
+                .get_required_value("connector")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Invalid connector name received")?;
+                .attach_printable("Connector is none when constructing response")?;
 
-                Ok(ConnectorCallType::PreDetermined(connector_data))
-            }
-            None | Some(_) => Ok(ConnectorCallType::Skip),
+            let merchant_connector_id = payment_attempt
+                .merchant_connector_id
+                .as_ref()
+                .get_required_value("merchant_connector_id")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Merchant connector id is none when constructing response")?;
+
+            let connector_data = api::ConnectorData::get_connector_by_name(
+                &state.conf.connectors,
+                connector,
+                api::GetToken::Connector,
+                Some(merchant_connector_id.to_owned()),
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Invalid connector name received")?;
+
+            Ok(ConnectorCallType::PreDetermined(
+                api::ConnectorRoutingData::from(connector_data),
+            ))
+        } else {
+            Ok(ConnectorCallType::Skip)
         }
+    }
+
+    #[cfg(feature = "v2")]
+    async fn get_connector_from_request<'a>(
+        &'a self,
+        state: &SessionState,
+        request: &PaymentsRetrieveRequest,
+        payment_data: &mut PaymentStatusData<F>,
+    ) -> CustomResult<api::ConnectorData, errors::ApiErrorResponse> {
+        use crate::core::payments::OperationSessionSetters;
+
+        let connector_data = helpers::get_connector_data_from_request(
+            state,
+            request.merchant_connector_details.clone(),
+        )
+        .await?;
+
+        payment_data
+            .set_connector_in_payment_attempt(Some(connector_data.connector_name.to_string()));
+        Ok(connector_data)
     }
 }
 

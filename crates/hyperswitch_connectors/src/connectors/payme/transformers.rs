@@ -402,6 +402,8 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
                 | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
                 | WalletData::AmazonPayRedirect(_)
+                | WalletData::Paysera(_)
+                | WalletData::Skrill(_)
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -425,7 +427,8 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
                 | WalletData::CashappQr(_)
                 | WalletData::ApplePay(_)
                 | WalletData::SwishQr(_)
-                | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotSupported {
+                | WalletData::Mifinity(_)
+                | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotSupported {
                     message: "Wallet".to_string(),
                     connector: "payme",
                 }
@@ -571,7 +574,7 @@ impl<F>
                     ))) => Some(api_models::payments::SessionToken::ApplePay(Box::new(
                         api_models::payments::ApplepaySessionTokenResponse {
                             session_token_data: Some(
-                                api_models::payments::ApplePaySessionResponse::NoSessionResponse,
+                                api_models::payments::ApplePaySessionResponse::NoSessionResponse(api_models::payments::NullObject),
                             ),
                             payment_request_data: Some(
                                 api_models::payments::ApplePayPaymentRequest {
@@ -1229,7 +1232,7 @@ pub struct WebhookEventDataResource {
     pub payme_transaction_id: String,
     pub status_error_details: Option<String>,
     pub status_error_code: Option<u32>,
-    pub price: i64,
+    pub price: MinorUnit,
     pub currency: enums::Currency,
 }
 

@@ -1,6 +1,6 @@
 use api_models::user::dashboard_metadata::ProdIntent;
-use common_enums::EntityType;
-use common_utils::{errors::CustomResult, pii, types::theme::EmailThemeConfig};
+use common_enums::{EntityType, MerchantProductType};
+use common_utils::{errors::CustomResult, pii, types::user::EmailThemeConfig};
 use error_stack::ResultExt;
 use external_services::email::{EmailContents, EmailData, EmailError};
 use masking::{ExposeInterface, Secret};
@@ -64,6 +64,7 @@ pub enum EmailBody {
         legal_business_name: String,
         business_location: String,
         business_website: String,
+        product_type: MerchantProductType,
     },
     ReconActivation {
         user_name: String,
@@ -199,6 +200,7 @@ pub mod html {
                 legal_business_name,
                 business_location,
                 business_website,
+                product_type,
             } => {
                 format!(
                     include_str!("assets/bizemailprod.html"),
@@ -207,6 +209,7 @@ pub mod html {
                     business_location = business_location,
                     business_website = business_website,
                     username = user_name,
+                    product_type = product_type
                 )
             }
             EmailBody::ProFeatureRequest {
@@ -317,15 +320,6 @@ pub fn get_link_with_token(
 
     email_url
 }
-
-pub fn get_base_url(state: &SessionState) -> &str {
-    if !state.conf.multitenancy.enabled {
-        &state.conf.user.base_url
-    } else {
-        &state.tenant.user.control_center_url
-    }
-}
-
 pub struct VerifyEmail {
     pub recipient_email: domain::UserEmail,
     pub settings: std::sync::Arc<configs::Settings>,
@@ -558,6 +552,7 @@ pub struct BizEmailProd {
     pub settings: std::sync::Arc<configs::Settings>,
     pub theme_id: Option<String>,
     pub theme_config: EmailThemeConfig,
+    pub product_type: MerchantProductType,
 }
 
 impl BizEmailProd {
@@ -572,7 +567,7 @@ impl BizEmailProd {
                 state.conf.email.prod_intent_recipient_email.clone(),
             )?,
             settings: state.conf.clone(),
-            user_name: data.poc_name.unwrap_or_default().into(),
+            user_name: data.poc_name.unwrap_or_default(),
             poc_email: data.poc_email.unwrap_or_default(),
             legal_business_name: data.legal_business_name.unwrap_or_default(),
             business_location: data
@@ -582,6 +577,7 @@ impl BizEmailProd {
             business_website: data.business_website.unwrap_or_default(),
             theme_id,
             theme_config,
+            product_type: data.product_type,
         })
     }
 }
@@ -595,6 +591,7 @@ impl EmailData for BizEmailProd {
             legal_business_name: self.legal_business_name.clone(),
             business_location: self.business_location.clone(),
             business_website: self.business_website.clone(),
+            product_type: self.product_type,
         });
 
         Ok(EmailContents {

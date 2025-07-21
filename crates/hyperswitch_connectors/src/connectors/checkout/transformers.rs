@@ -109,6 +109,8 @@ impl TryFrom<&TokenizationRouterData> for TokenRequest {
                 | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
                 | WalletData::AmazonPayRedirect(_)
+                | WalletData::Paysera(_)
+                | WalletData::Skrill(_)
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -131,7 +133,8 @@ impl TryFrom<&TokenizationRouterData> for TokenRequest {
                 | WalletData::CashappQr(_)
                 | WalletData::SwishQr(_)
                 | WalletData::WeChatPayQr(_)
-                | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                | WalletData::Mifinity(_)
+                | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("checkout"),
                 )
                 .into()),
@@ -271,7 +274,7 @@ pub struct CheckoutThreeDS {
     enabled: bool,
     force_3ds: bool,
     eci: Option<String>,
-    cryptogram: Option<String>,
+    cryptogram: Option<Secret<String>>,
     xid: Option<String>,
     version: Option<String>,
 }
@@ -363,6 +366,8 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                 | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
                 | WalletData::AmazonPayRedirect(_)
+                | WalletData::Paysera(_)
+                | WalletData::Skrill(_)
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -385,7 +390,8 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                 | WalletData::CashappQr(_)
                 | WalletData::SwishQr(_)
                 | WalletData::WeChatPayQr(_)
-                | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                | WalletData::Mifinity(_)
+                | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("checkout"),
                 )),
             },
@@ -1267,7 +1273,7 @@ pub struct CheckoutDisputeWebhookData {
     pub id: String,
     pub payment_id: Option<String>,
     pub action_id: Option<String>,
-    pub amount: i32,
+    pub amount: MinorUnit,
     pub currency: enums::Currency,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub evidence_required_by: Option<PrimitiveDateTime>,
@@ -1373,7 +1379,7 @@ pub fn construct_file_upload_request(
                 .file_type
                 .as_ref()
                 .split('/')
-                .last()
+                .next_back()
                 .unwrap_or_default()
         ))
         .mime_str(request.file_type.as_ref())

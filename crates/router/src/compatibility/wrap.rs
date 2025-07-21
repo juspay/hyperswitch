@@ -10,7 +10,7 @@ use crate::{
     events::api_logs::ApiEventMetric,
     routes::{
         app::{AppStateInfo, ReqState},
-        metrics, AppState, SessionState,
+        AppState, SessionState,
     },
     services::{self, api, authentication as auth, logger},
 };
@@ -44,18 +44,15 @@ where
     let start_instant = Instant::now();
     logger::info!(tag = ?Tag::BeginRequest, payload = ?payload);
 
-    let server_wrap_util_res = metrics::request::record_request_time_metric(
-        api::server_wrap_util(
-            &flow,
-            state.clone().into(),
-            request.headers(),
-            request,
-            payload,
-            func,
-            api_authentication,
-            lock_action,
-        ),
+    let server_wrap_util_res = api::server_wrap_util(
         &flow,
+        state.clone().into(),
+        request.headers(),
+        request,
+        payload,
+        func,
+        api_authentication,
+        lock_action,
     )
     .await
     .map(|response| {
@@ -146,7 +143,7 @@ where
             ) {
                 Ok(rendered_html) => api::http_response_html_data(rendered_html, None),
                 Err(_) => {
-                    api::http_response_err(format!("Error while rendering {} HTML page", link_type))
+                    api::http_response_err(format!("Error while rendering {link_type} HTML page"))
                 }
             }
         }

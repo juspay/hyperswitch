@@ -7,12 +7,11 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::enums as storage_enums;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
+#[cfg(feature = "v1")]
 use crate::schema::refund;
-#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+#[cfg(feature = "v2")]
 use crate::schema_v2::refund;
-
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
+#[cfg(feature = "v1")]
 #[derive(
     Clone,
     Debug,
@@ -69,7 +68,7 @@ pub struct Refund {
     pub issuer_error_message: Option<String>,
 }
 
-#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+#[cfg(feature = "v2")]
 #[derive(
     Clone,
     Debug,
@@ -120,7 +119,7 @@ pub struct Refund {
     pub connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
+#[cfg(feature = "v1")]
 #[derive(
     Clone,
     Debug,
@@ -167,7 +166,7 @@ pub struct RefundNew {
     pub processor_transaction_data: Option<String>,
 }
 
-#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+#[cfg(feature = "v2")]
 #[derive(
     Clone,
     Debug,
@@ -214,7 +213,7 @@ pub struct RefundNew {
     pub processor_transaction_data: Option<String>,
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum RefundUpdate {
     Update {
@@ -258,7 +257,7 @@ pub enum RefundUpdate {
     },
 }
 
-#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum RefundUpdate {
     Update {
@@ -300,7 +299,7 @@ pub enum RefundUpdate {
     },
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = refund)]
 pub struct RefundUpdateInternal {
@@ -321,7 +320,7 @@ pub struct RefundUpdateInternal {
     issuer_error_message: Option<String>,
 }
 
-#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = refund)]
 pub struct RefundUpdateInternal {
@@ -340,7 +339,7 @@ pub struct RefundUpdateInternal {
     unified_message: Option<String>,
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
+#[cfg(feature = "v1")]
 impl RefundUpdateInternal {
     pub fn create_refund(self, source: Refund) -> Refund {
         Refund {
@@ -362,7 +361,7 @@ impl RefundUpdateInternal {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+#[cfg(feature = "v2")]
 impl RefundUpdateInternal {
     pub fn create_refund(self, source: Refund) -> Refund {
         Refund {
@@ -384,7 +383,7 @@ impl RefundUpdateInternal {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
+#[cfg(feature = "v1")]
 impl From<RefundUpdate> for RefundUpdateInternal {
     fn from(refund_update: RefundUpdate) -> Self {
         match refund_update {
@@ -511,7 +510,7 @@ impl From<RefundUpdate> for RefundUpdateInternal {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+#[cfg(feature = "v2")]
 impl From<RefundUpdate> for RefundUpdateInternal {
     fn from(refund_update: RefundUpdate) -> Self {
         match refund_update {
@@ -626,7 +625,7 @@ impl From<RefundUpdate> for RefundUpdateInternal {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
+#[cfg(feature = "v1")]
 impl RefundUpdate {
     pub fn apply_changeset(self, source: Refund) -> Refund {
         let RefundUpdateInternal {
@@ -667,7 +666,7 @@ impl RefundUpdate {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+#[cfg(feature = "v2")]
 impl RefundUpdate {
     pub fn apply_changeset(self, source: Refund) -> Refund {
         let RefundUpdateInternal {
@@ -702,14 +701,98 @@ impl RefundUpdate {
             ..source
         }
     }
+
+    pub fn build_error_update_for_unified_error_and_message(
+        unified_error_object: (String, String),
+        refund_error_message: Option<String>,
+        refund_error_code: Option<String>,
+        storage_scheme: &storage_enums::MerchantStorageScheme,
+    ) -> Self {
+        let (unified_code, unified_message) = unified_error_object;
+
+        Self::ErrorUpdate {
+            refund_status: Some(storage_enums::RefundStatus::Failure),
+            refund_error_message,
+            refund_error_code,
+            updated_by: storage_scheme.to_string(),
+            connector_refund_id: None,
+            processor_refund_data: None,
+            unified_code: Some(unified_code),
+            unified_message: Some(unified_message),
+        }
+    }
+
+    pub fn build_error_update_for_integrity_check_failure(
+        integrity_check_failed_fields: String,
+        connector_refund_id: Option<ConnectorTransactionId>,
+        storage_scheme: &storage_enums::MerchantStorageScheme,
+    ) -> Self {
+        Self::ErrorUpdate {
+            refund_status: Some(storage_enums::RefundStatus::ManualReview),
+            refund_error_message: Some(format!(
+                "Integrity Check Failed! as data mismatched for fields {integrity_check_failed_fields}"
+            )),
+            refund_error_code: Some("IE".to_string()),
+            updated_by: storage_scheme.to_string(),
+            connector_refund_id: connector_refund_id.clone(),
+            processor_refund_data: connector_refund_id.and_then(|x| x.extract_hashed_data()),
+            unified_code: None,
+            unified_message: None,
+        }
+    }
+
+    pub fn build_refund_update(
+        connector_refund_id: ConnectorTransactionId,
+        refund_status: storage_enums::RefundStatus,
+        storage_scheme: &storage_enums::MerchantStorageScheme,
+    ) -> Self {
+        Self::Update {
+            connector_refund_id: connector_refund_id.clone(),
+            refund_status,
+            sent_to_gateway: true,
+            refund_error_message: None,
+            refund_arn: "".to_string(),
+            updated_by: storage_scheme.to_string(),
+            processor_refund_data: connector_refund_id.extract_hashed_data(),
+        }
+    }
+
+    pub fn build_error_update_for_refund_failure(
+        refund_status: Option<storage_enums::RefundStatus>,
+        refund_error_message: Option<String>,
+        refund_error_code: Option<String>,
+        storage_scheme: &storage_enums::MerchantStorageScheme,
+    ) -> Self {
+        Self::ErrorUpdate {
+            refund_status,
+            refund_error_message,
+            refund_error_code,
+            updated_by: storage_scheme.to_string(),
+            connector_refund_id: None,
+            processor_refund_data: None,
+            unified_code: None,
+            unified_message: None,
+        }
+    }
 }
 
+#[cfg(feature = "v1")]
 #[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct RefundCoreWorkflow {
     pub refund_internal_reference_id: String,
     pub connector_transaction_id: ConnectorTransactionId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub payment_id: common_utils::id_type::PaymentId,
+    pub processor_transaction_data: Option<String>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
+pub struct RefundCoreWorkflow {
+    pub refund_id: common_utils::id_type::GlobalRefundId,
+    pub connector_transaction_id: ConnectorTransactionId,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub payment_id: common_utils::id_type::GlobalPaymentId,
     pub processor_transaction_data: Option<String>,
 }
 
@@ -727,7 +810,7 @@ impl common_utils::events::ApiEventMetric for Refund {
 impl common_utils::events::ApiEventMetric for Refund {
     fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
         Some(common_utils::events::ApiEventsType::Refund {
-            payment_id: self.payment_id.clone(),
+            payment_id: Some(self.payment_id.clone()),
             refund_id: self.id.clone(),
         })
     }

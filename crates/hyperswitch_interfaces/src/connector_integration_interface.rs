@@ -3,7 +3,7 @@ use common_enums::PaymentAction;
 use common_utils::{crypto, errors::CustomResult, request::Request};
 use hyperswitch_domain_models::{
     api::ApplicationResponse,
-    configs::Connectors,
+    connector_endpoints::Connectors,
     errors::api_error_response::ApiErrorResponse,
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
@@ -388,6 +388,34 @@ impl IncomingWebhook for ConnectorEnum {
             Self::New(connector) => connector.get_network_txn_id(request),
         }
     }
+
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+    fn get_revenue_recovery_invoice_details(
+        &self,
+        request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        hyperswitch_domain_models::revenue_recovery::RevenueRecoveryInvoiceData,
+        errors::ConnectorError,
+    > {
+        match self {
+            Self::Old(connector) => connector.get_revenue_recovery_invoice_details(request),
+            Self::New(connector) => connector.get_revenue_recovery_invoice_details(request),
+        }
+    }
+
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+    fn get_revenue_recovery_attempt_details(
+        &self,
+        request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        hyperswitch_domain_models::revenue_recovery::RevenueRecoveryAttemptData,
+        errors::ConnectorError,
+    > {
+        match self {
+            Self::Old(connector) => connector.get_revenue_recovery_attempt_details(request),
+            Self::New(connector) => connector.get_revenue_recovery_attempt_details(request),
+        }
+    }
 }
 
 impl ConnectorRedirectResponse for ConnectorEnum {
@@ -488,6 +516,44 @@ impl ConnectorSpecifications for ConnectorEnum {
         match self {
             Self::Old(connector) => connector.get_connector_about(),
             Self::New(connector) => connector.get_connector_about(),
+        }
+    }
+
+    #[cfg(feature = "v1")]
+    fn generate_connector_request_reference_id(
+        &self,
+        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+        is_config_enabled_to_send_payment_id_as_connector_request_id: bool,
+    ) -> String {
+        match self {
+            Self::Old(connector) => connector.generate_connector_request_reference_id(
+                payment_intent,
+                payment_attempt,
+                is_config_enabled_to_send_payment_id_as_connector_request_id,
+            ),
+            Self::New(connector) => connector.generate_connector_request_reference_id(
+                payment_intent,
+                payment_attempt,
+                is_config_enabled_to_send_payment_id_as_connector_request_id,
+            ),
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    /// Generate connector request reference ID
+    fn generate_connector_request_reference_id(
+        &self,
+        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> String {
+        match self {
+            Self::Old(connector) => {
+                connector.generate_connector_request_reference_id(payment_intent, payment_attempt)
+            }
+            Self::New(connector) => {
+                connector.generate_connector_request_reference_id(payment_intent, payment_attempt)
+            }
         }
     }
 }
@@ -727,7 +793,7 @@ impl api::ConnectorTransactionId for ConnectorEnum {
     /// A `Result` containing an optional transaction ID or an ApiErrorResponse
     fn connector_transaction_id(
         &self,
-        payment_attempt: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> Result<Option<String>, ApiErrorResponse> {
         match self {
             Self::Old(connector) => connector.connector_transaction_id(payment_attempt),

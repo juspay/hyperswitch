@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use common_utils::{ext_traits::AsyncExt, types::keymanager::KeyManagerState};
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
@@ -53,6 +55,7 @@ where
         created_before: time::PrimitiveDateTime,
         limit: Option<i64>,
         offset: Option<i64>,
+        event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
@@ -82,6 +85,7 @@ where
         created_before: time::PrimitiveDateTime,
         limit: Option<i64>,
         offset: Option<i64>,
+        event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
@@ -101,6 +105,7 @@ where
         profile_id: Option<common_utils::id_type::ProfileId>,
         created_after: time::PrimitiveDateTime,
         created_before: time::PrimitiveDateTime,
+        event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
     ) -> CustomResult<i64, errors::StorageError>;
 }
@@ -196,6 +201,7 @@ impl EventInterface for Store {
         created_before: time::PrimitiveDateTime,
         limit: Option<i64>,
         offset: Option<i64>,
+        event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
@@ -207,6 +213,7 @@ impl EventInterface for Store {
             created_before,
             limit,
             offset,
+            event_types,
             is_delivered,
         )
         .await
@@ -309,6 +316,7 @@ impl EventInterface for Store {
         created_before: time::PrimitiveDateTime,
         limit: Option<i64>,
         offset: Option<i64>,
+        event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
@@ -320,6 +328,7 @@ impl EventInterface for Store {
             created_before,
             limit,
             offset,
+            event_types,
             is_delivered,
         )
         .await
@@ -373,6 +382,7 @@ impl EventInterface for Store {
         profile_id: Option<common_utils::id_type::ProfileId>,
         created_after: time::PrimitiveDateTime,
         created_before: time::PrimitiveDateTime,
+        event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
     ) -> CustomResult<i64, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
@@ -382,6 +392,7 @@ impl EventInterface for Store {
             profile_id,
             created_after,
             created_before,
+            event_types,
             is_delivered,
         )
         .await
@@ -492,6 +503,7 @@ impl EventInterface for MockDb {
         created_before: time::PrimitiveDateTime,
         limit: Option<i64>,
         offset: Option<i64>,
+        event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
@@ -501,6 +513,7 @@ impl EventInterface for MockDb {
                 && event.initial_attempt_id.as_ref() == Some(&event.event_id)
                 && (event.created_at >= created_after)
                 && (event.created_at <= created_before)
+                && (event_types.is_empty() || event_types.contains(&event.event_type))
                 && (event.is_overall_delivery_successful == is_delivered);
 
             check
@@ -626,6 +639,7 @@ impl EventInterface for MockDb {
         created_before: time::PrimitiveDateTime,
         limit: Option<i64>,
         offset: Option<i64>,
+        event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
@@ -635,6 +649,7 @@ impl EventInterface for MockDb {
                 && event.initial_attempt_id.as_ref() == Some(&event.event_id)
                 && (event.created_at >= created_after)
                 && (event.created_at <= created_before)
+                && (event_types.is_empty() || event_types.contains(&event.event_type))
                 && (event.is_overall_delivery_successful == is_delivered);
 
             check
@@ -733,6 +748,7 @@ impl EventInterface for MockDb {
         profile_id: Option<common_utils::id_type::ProfileId>,
         created_after: time::PrimitiveDateTime,
         created_before: time::PrimitiveDateTime,
+        event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
     ) -> CustomResult<i64, errors::StorageError> {
         let locked_events = self.events.lock().await;
@@ -743,6 +759,7 @@ impl EventInterface for MockDb {
                 && (event.business_profile_id == profile_id)
                 && (event.created_at >= created_after)
                 && (event.created_at <= created_before)
+                && (event_types.is_empty() || event_types.contains(&event.event_type))
                 && (event.is_overall_delivery_successful == is_delivered);
 
             check
@@ -779,6 +796,7 @@ mod tests {
 
     #[allow(clippy::unwrap_used)]
     #[tokio::test]
+    #[cfg(feature = "v1")]
     async fn test_mockdb_event_interface() {
         #[allow(clippy::expect_used)]
         let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
@@ -861,6 +879,123 @@ mod tests {
                     delivery_attempt: Some(enums::WebhookDeliveryAttempt::InitialAttempt),
                     metadata: Some(EventMetadata::Payment {
                         payment_id: common_utils::id_type::PaymentId::try_from(
+                            std::borrow::Cow::Borrowed(payment_id),
+                        )
+                        .unwrap(),
+                    }),
+                    is_overall_delivery_successful: Some(false),
+                },
+                &merchant_key_store,
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(event1.event_id, event_id);
+
+        let updated_event = mockdb
+            .update_event_by_merchant_id_event_id(
+                key_manager_state,
+                &merchant_id,
+                event_id,
+                domain::EventUpdate::UpdateResponse {
+                    is_webhook_notified: true,
+                    response: None,
+                },
+                &merchant_key_store,
+            )
+            .await
+            .unwrap();
+
+        assert!(updated_event.is_webhook_notified);
+        assert_eq!(updated_event.primary_object_id, payment_id);
+        assert_eq!(updated_event.event_id, event_id);
+    }
+
+    #[allow(clippy::unwrap_used)]
+    #[tokio::test]
+    #[cfg(feature = "v2")]
+    async fn test_mockdb_event_interface() {
+        #[allow(clippy::expect_used)]
+        let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
+            .await
+            .expect("Failed to create Mock store");
+        let event_id = "test_event_id";
+        let (tx, _) = tokio::sync::oneshot::channel();
+        let app_state = Box::pin(routes::AppState::with_storage(
+            Settings::default(),
+            StorageImpl::PostgresqlTest,
+            tx,
+            Box::new(services::MockApiClient),
+        ))
+        .await;
+        let state = &Arc::new(app_state)
+            .get_session_state(
+                &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                None,
+                || {},
+            )
+            .unwrap();
+        let merchant_id =
+            common_utils::id_type::MerchantId::try_from(std::borrow::Cow::from("merchant_1"))
+                .unwrap();
+        let business_profile_id =
+            common_utils::id_type::ProfileId::try_from(std::borrow::Cow::from("profile1")).unwrap();
+        let payment_id = "test_payment_id";
+        let key_manager_state = &state.into();
+        let master_key = mockdb.get_master_key();
+        mockdb
+            .insert_merchant_key_store(
+                key_manager_state,
+                domain::MerchantKeyStore {
+                    merchant_id: merchant_id.clone(),
+                    key: domain::types::crypto_operation(
+                        key_manager_state,
+                        type_name!(domain::MerchantKeyStore),
+                        domain::types::CryptoOperation::Encrypt(
+                            services::generate_aes256_key().unwrap().to_vec().into(),
+                        ),
+                        Identifier::Merchant(merchant_id.to_owned()),
+                        master_key,
+                    )
+                    .await
+                    .and_then(|val| val.try_into_operation())
+                    .unwrap(),
+                    created_at: datetime!(2023-02-01 0:00),
+                },
+                &master_key.to_vec().into(),
+            )
+            .await
+            .unwrap();
+        let merchant_key_store = mockdb
+            .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
+                &merchant_id,
+                &master_key.to_vec().into(),
+            )
+            .await
+            .unwrap();
+
+        let event1 = mockdb
+            .insert_event(
+                key_manager_state,
+                domain::Event {
+                    event_id: event_id.into(),
+                    event_type: enums::EventType::PaymentSucceeded,
+                    event_class: enums::EventClass::Payments,
+                    is_webhook_notified: false,
+                    primary_object_id: payment_id.into(),
+                    primary_object_type: enums::EventObjectType::PaymentDetails,
+                    created_at: common_utils::date_time::now(),
+                    merchant_id: Some(merchant_id.to_owned()),
+                    business_profile_id: Some(business_profile_id.to_owned()),
+                    primary_object_created_at: Some(common_utils::date_time::now()),
+                    idempotent_event_id: Some(event_id.into()),
+                    initial_attempt_id: Some(event_id.into()),
+                    request: None,
+                    response: None,
+                    delivery_attempt: Some(enums::WebhookDeliveryAttempt::InitialAttempt),
+                    metadata: Some(EventMetadata::Payment {
+                        payment_id: common_utils::id_type::GlobalPaymentId::try_from(
                             std::borrow::Cow::Borrowed(payment_id),
                         )
                         .unwrap(),

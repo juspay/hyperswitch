@@ -181,6 +181,8 @@ fn get_wallet_type(wallet_data: &WalletData) -> Result<String, errors::Connector
         | WalletData::AliPayRedirect(_)
         | WalletData::AliPayHkRedirect(_)
         | WalletData::AmazonPayRedirect(_)
+        | WalletData::Paysera(_)
+        | WalletData::Skrill(_)
         | WalletData::ApplePay(_)
         | WalletData::ApplePayRedirect(_)
         | WalletData::ApplePayThirdPartySdk(_)
@@ -200,7 +202,8 @@ fn get_wallet_type(wallet_data: &WalletData) -> Result<String, errors::Connector
         | WalletData::WeChatPayQr(_)
         | WalletData::CashappQr(_)
         | WalletData::SwishQr(_)
-        | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+        | WalletData::Mifinity(_)
+        | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("boku"),
         )),
     }

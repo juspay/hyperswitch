@@ -8,6 +8,7 @@ use api_models::{
 use common_utils::{
     consts::DEFAULT_LOCALE,
     ext_traits::{StringExt, ValueExt},
+    id_type,
 };
 use diesel_models::process_tracker::business_status;
 use error_stack::ResultExt;
@@ -159,6 +160,9 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                     )
                     .await?;
 
+                let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                    domain::Context(merchant_account.clone(), key_store.clone()),
+                ));
                 // TODO: Add request state for the PT flows as well
                 let (content, event_type) = Box::pin(get_outgoing_webhook_content_and_event_type(
                     state.clone(),
@@ -181,7 +185,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                         };
 
                         let request_content = webhooks_core::get_outgoing_webhook_request(
-                            &merchant_account,
+                            &merchant_context,
                             outgoing_webhook,
                             &business_profile,
                         )
@@ -280,7 +284,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
 #[instrument(skip_all)]
 pub(crate) async fn get_webhook_delivery_retry_schedule_time(
     db: &dyn StorageInterface,
-    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_id: &id_type::MerchantId,
     retry_count: i32,
 ) -> Option<time::PrimitiveDateTime> {
     let key = "pt_mapping_outgoing_webhooks";
@@ -326,7 +330,7 @@ pub(crate) async fn get_webhook_delivery_retry_schedule_time(
 #[instrument(skip_all)]
 pub(crate) async fn retry_webhook_delivery_task(
     db: &dyn StorageInterface,
-    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_id: &id_type::MerchantId,
     process: storage::ProcessTracker,
 ) -> errors::CustomResult<(), errors::StorageError> {
     let schedule_time =
@@ -375,18 +379,21 @@ async fn get_outgoing_webhook_content_and_event_type(
         },
     };
 
+    let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+        merchant_account.clone(),
+        key_store.clone(),
+    )));
     match tracking_data.event_class {
         diesel_models::enums::EventClass::Payments => {
             let payment_id = tracking_data.primary_object_id.clone();
-            let payment_id =
-                common_utils::id_type::PaymentId::try_from(std::borrow::Cow::Owned(payment_id))
-                    .map_err(|payment_id_parsing_error| {
-                        logger::error!(
-                            ?payment_id_parsing_error,
-                            "Failed to parse payment ID from tracking data"
-                        );
-                        errors::ProcessTrackerError::DeserializationFailed
-                    })?;
+            let payment_id = id_type::PaymentId::try_from(std::borrow::Cow::Owned(payment_id))
+                .map_err(|payment_id_parsing_error| {
+                    logger::error!(
+                        ?payment_id_parsing_error,
+                        "Failed to parse payment ID from tracking data"
+                    );
+                    errors::ProcessTrackerError::DeserializationFailed
+                })?;
             let request = PaymentsRetrieveRequest {
                 resource_id: PaymentIdType::PaymentIntentId(payment_id),
                 merchant_id: Some(tracking_data.merchant_id.clone()),
@@ -404,16 +411,14 @@ async fn get_outgoing_webhook_content_and_event_type(
             >(
                 state,
                 req_state,
-                merchant_account,
+                merchant_context.clone(),
                 None,
-                key_store,
                 PaymentStatus,
                 request,
                 AuthFlow::Client,
                 CallConnectorAction::Avoid,
                 None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
-                None, //Platform merchant account
             ))
             .await?
             {
@@ -433,7 +438,7 @@ async fn get_outgoing_webhook_content_and_event_type(
                     })
                 }
             }?;
-            let event_type = Option::<EventType>::foreign_from(payments_response.status);
+            let event_type: Option<EventType> = payments_response.status.into();
             logger::debug!(current_resource_status=%payments_response.status);
 
             Ok((
@@ -452,13 +457,12 @@ async fn get_outgoing_webhook_content_and_event_type(
 
             let refund = Box::pin(refund_retrieve_core_with_refund_id(
                 state,
-                merchant_account,
+                merchant_context.clone(),
                 None,
-                key_store,
                 request,
             ))
             .await?;
-            let event_type = Option::<EventType>::foreign_from(refund.refund_status);
+            let event_type: Option<EventType> = refund.refund_status.into();
             logger::debug!(current_resource_status=%refund.refund_status);
             let refund_response = RefundResponse::foreign_from(refund);
 
@@ -473,7 +477,7 @@ async fn get_outgoing_webhook_content_and_event_type(
             let request = DisputeId { dispute_id };
 
             let dispute_response =
-                match retrieve_dispute(state, merchant_account, None, request).await? {
+                match retrieve_dispute(state, merchant_context.clone(), None, request).await? {
                     ApplicationResponse::Json(dispute_response)
                     | ApplicationResponse::JsonWithHeaders((dispute_response, _)) => {
                         Ok(dispute_response)
@@ -491,7 +495,7 @@ async fn get_outgoing_webhook_content_and_event_type(
                     }
                 }
                 .map(Box::new)?;
-            let event_type = Some(EventType::foreign_from(dispute_response.dispute_status));
+            let event_type = Some(EventType::from(dispute_response.dispute_status));
             logger::debug!(current_resource_status=%dispute_response.dispute_status);
 
             Ok((
@@ -505,7 +509,7 @@ async fn get_outgoing_webhook_content_and_event_type(
             let request = MandateId { mandate_id };
 
             let mandate_response =
-                match get_mandate(state, merchant_account, key_store, request).await? {
+                match get_mandate(state, merchant_context.clone(), request).await? {
                     ApplicationResponse::Json(mandate_response)
                     | ApplicationResponse::JsonWithHeaders((mandate_response, _)) => {
                         Ok(mandate_response)
@@ -523,7 +527,7 @@ async fn get_outgoing_webhook_content_and_event_type(
                     }
                 }
                 .map(Box::new)?;
-            let event_type = Option::<EventType>::foreign_from(mandate_response.status);
+            let event_type: Option<EventType> = mandate_response.status.into();
             logger::debug!(current_resource_status=%mandate_response.status);
 
             Ok((
@@ -535,30 +539,24 @@ async fn get_outgoing_webhook_content_and_event_type(
         diesel_models::enums::EventClass::Payouts => {
             let payout_id = tracking_data.primary_object_id.clone();
             let request = payout_models::PayoutRequest::PayoutActionRequest(
-                payout_models::PayoutActionRequest { payout_id },
+                payout_models::PayoutActionRequest {
+                    payout_id: id_type::PayoutId::try_from(std::borrow::Cow::Owned(payout_id))?,
+                },
             );
 
-            let payout_data = payouts::make_payout_data(
+            let payout_data = Box::pin(payouts::make_payout_data(
                 &state,
-                &merchant_account,
+                &merchant_context,
                 None,
-                &key_store,
                 &request,
                 DEFAULT_LOCALE,
-            )
+            ))
             .await?;
 
-            let router_response =
-                payouts::response_handler(&state, &merchant_account, &payout_data).await?;
+            let payout_create_response =
+                payouts::response_handler(&state, &merchant_context, &payout_data).await?;
 
-            let payout_create_response: payout_models::PayoutCreateResponse = match router_response
-            {
-                ApplicationResponse::Json(response) => response,
-                _ => Err(errors::ApiErrorResponse::WebhookResourceNotFound)
-                    .attach_printable("Failed to fetch the payout create response")?,
-            };
-
-            let event_type = Option::<EventType>::foreign_from(payout_data.payout_attempt.status);
+            let event_type: Option<EventType> = payout_data.payout_attempt.status.into();
             logger::debug!(current_resource_status=%payout_data.payout_attempt.status);
 
             Ok((

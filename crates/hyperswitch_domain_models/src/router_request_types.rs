@@ -3,6 +3,7 @@ pub mod fraud_check;
 pub mod revenue_recovery;
 pub mod unified_authentication_service;
 use api_models::payments::{AdditionalPaymentData, RequestSurchargeDetails};
+use common_types::payments as common_payments_types;
 use common_utils::{consts, errors, ext_traits::OptionExt, id_type, pii, types::MinorUnit};
 use diesel_models::{enums as storage_enums, types::OrderDetailsWithAmount};
 use error_stack::ResultExt;
@@ -17,6 +18,7 @@ use crate::{
     mandates, payments,
     router_data::{self, RouterData},
     router_flow_types as flows, router_response_types as response_types,
+    vault::PaymentMethodVaultingData,
 };
 #[derive(Debug, Clone)]
 pub struct PaymentsAuthorizeData {
@@ -45,7 +47,7 @@ pub struct PaymentsAuthorizeData {
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub mandate_id: Option<api_models::payments::MandateIds>,
     pub off_session: Option<bool>,
-    pub customer_acceptance: Option<mandates::CustomerAcceptance>,
+    pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
     pub setup_mandate_details: Option<mandates::MandateData>,
     pub browser_info: Option<BrowserInformation>,
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
@@ -76,6 +78,8 @@ pub struct PaymentsAuthorizeData {
     pub additional_payment_method_data: Option<AdditionalPaymentData>,
     pub merchant_account_id: Option<Secret<String>>,
     pub merchant_config_currency: Option<storage_enums::Currency>,
+    pub connector_testing_data: Option<pii::SecretSerdeValue>,
+    pub order_id: Option<String>,
 }
 #[derive(Debug, Clone)]
 pub struct PaymentsPostSessionTokensData {
@@ -92,6 +96,12 @@ pub struct PaymentsPostSessionTokensData {
     pub shipping_cost: Option<MinorUnit>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub router_return_url: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PaymentsUpdateMetadataData {
+    pub metadata: pii::SecretSerdeValue,
+    pub connector_transaction_id: String,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -145,6 +155,7 @@ pub struct PaymentsIncrementalAuthorizationData {
     pub currency: storage_enums::Currency,
     pub reason: Option<String>,
     pub connector_transaction_id: String,
+    pub connector_meta: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -168,7 +179,8 @@ pub struct ConnectorCustomerData {
     pub phone: Option<Secret<String>>,
     pub name: Option<Secret<String>>,
     pub preprocessing_id: Option<String>,
-    pub payment_method_data: PaymentMethodData,
+    pub payment_method_data: Option<PaymentMethodData>,
+    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 }
 
 impl TryFrom<SetupMandateRequestData> for ConnectorCustomerData {
@@ -176,11 +188,12 @@ impl TryFrom<SetupMandateRequestData> for ConnectorCustomerData {
     fn try_from(data: SetupMandateRequestData) -> Result<Self, Self::Error> {
         Ok(Self {
             email: data.email,
-            payment_method_data: data.payment_method_data,
+            payment_method_data: Some(data.payment_method_data),
             description: None,
             phone: None,
             name: None,
             preprocessing_id: None,
+            split_payments: None,
         })
     }
 }
@@ -200,11 +213,36 @@ impl
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             email: data.request.email.clone(),
-            payment_method_data: data.request.payment_method_data.clone(),
+            payment_method_data: Some(data.request.payment_method_data.clone()),
             description: None,
             phone: None,
             name: data.request.customer_name.clone(),
             preprocessing_id: data.preprocessing_id.clone(),
+            split_payments: data.request.split_payments.clone(),
+        })
+    }
+}
+
+impl TryFrom<&RouterData<flows::Session, PaymentsSessionData, response_types::PaymentsResponseData>>
+    for ConnectorCustomerData
+{
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(
+        data: &RouterData<
+            flows::Session,
+            PaymentsSessionData,
+            response_types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            email: data.request.email.clone(),
+            payment_method_data: None,
+            description: None,
+            phone: None,
+            name: data.request.customer_name.clone(),
+            preprocessing_id: data.preprocessing_id.clone(),
+            split_payments: None,
         })
     }
 }
@@ -215,6 +253,7 @@ pub struct PaymentMethodTokenizationData {
     pub browser_info: Option<BrowserInformation>,
     pub currency: storage_enums::Currency,
     pub amount: Option<i64>,
+    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 }
 
 impl TryFrom<SetupMandateRequestData> for PaymentMethodTokenizationData {
@@ -226,6 +265,7 @@ impl TryFrom<SetupMandateRequestData> for PaymentMethodTokenizationData {
             browser_info: None,
             currency: data.currency,
             amount: data.amount,
+            split_payments: None,
         })
     }
 }
@@ -240,6 +280,7 @@ impl<F> From<&RouterData<F, PaymentsAuthorizeData, response_types::PaymentsRespo
             browser_info: None,
             currency: data.request.currency,
             amount: Some(data.request.amount),
+            split_payments: data.request.split_payments.clone(),
         }
     }
 }
@@ -253,6 +294,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentMethodTokenizationData {
             browser_info: data.browser_info,
             currency: data.currency,
             amount: Some(data.amount),
+            split_payments: data.split_payments.clone(),
         })
     }
 }
@@ -271,6 +313,24 @@ impl TryFrom<CompleteAuthorizeData> for PaymentMethodTokenizationData {
             browser_info: data.browser_info,
             currency: data.currency,
             amount: Some(data.amount),
+            split_payments: None,
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct CreateOrderRequestData {
+    pub minor_amount: MinorUnit,
+    pub currency: storage_enums::Currency,
+}
+
+impl TryFrom<PaymentsAuthorizeData> for CreateOrderRequestData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            minor_amount: data.minor_amount,
+            currency: data.currency,
         })
     }
 }
@@ -420,7 +480,7 @@ pub struct CompleteAuthorizeData {
     pub connector_meta: Option<serde_json::Value>,
     pub complete_authorize_url: Option<String>,
     pub metadata: Option<serde_json::Value>,
-    pub customer_acceptance: Option<mandates::CustomerAcceptance>,
+    pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
     pub merchant_account_id: Option<Secret<String>>,
@@ -449,6 +509,7 @@ pub struct PaymentsSyncData {
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
     pub amount: MinorUnit,
     pub integrity_object: Option<SyncIntegrityObject>,
+    pub connector_reference_id: Option<String>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -604,7 +665,7 @@ impl
     )> for SurchargeDetails
 {
     fn from(
-        (request_surcharge_details, payment_attempt): (
+        (_request_surcharge_details, _payment_attempt): (
             &RequestSurchargeDetails,
             &payments::payment_attempt::PaymentAttempt,
         ),
@@ -616,7 +677,7 @@ impl
 #[derive(Debug, Clone)]
 pub struct AuthenticationData {
     pub eci: Option<String>,
-    pub cavv: String,
+    pub cavv: Secret<String>,
     pub threeds_server_transaction_id: Option<String>,
     pub message_version: Option<common_utils::types::SemanticVersion>,
     pub ds_trans_id: Option<String>,
@@ -652,6 +713,7 @@ pub struct RefundsData {
     pub merchant_account_id: Option<Secret<String>>,
     pub merchant_config_currency: Option<storage_enums::Currency>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
+    pub additional_payment_method_data: Option<AdditionalPaymentData>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -830,7 +892,7 @@ pub struct UploadFileRequestData {
 #[cfg(feature = "payouts")]
 #[derive(Debug, Clone)]
 pub struct PayoutsData {
-    pub payout_id: String,
+    pub payout_id: id_type::PayoutId,
     pub amount: i64,
     pub connector_payout_id: Option<String>,
     pub destination_currency: storage_enums::Currency,
@@ -879,6 +941,7 @@ pub struct PaymentsSessionData {
     // Minor Unit amount for amount frame work
     pub minor_amount: MinorUnit,
     pub apple_pay_recurring_details: Option<api_models::payments::ApplePayRecurringPaymentRequest>,
+    pub customer_name: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -909,7 +972,7 @@ pub struct SetupMandateRequestData {
     pub amount: Option<i64>,
     pub confirm: bool,
     pub statement_descriptor_suffix: Option<String>,
-    pub customer_acceptance: Option<mandates::CustomerAcceptance>,
+    pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
     pub mandate_id: Option<api_models::payments::MandateIds>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
@@ -929,4 +992,13 @@ pub struct SetupMandateRequestData {
     // MinorUnit for amount framework
     pub minor_amount: Option<MinorUnit>,
     pub shipping_cost: Option<MinorUnit>,
+    pub connector_testing_data: Option<pii::SecretSerdeValue>,
+    pub customer_id: Option<id_type::CustomerId>,
+}
+
+#[derive(Debug, Clone)]
+pub struct VaultRequestData {
+    pub payment_method_vaulting_data: Option<PaymentMethodVaultingData>,
+    pub connector_vault_id: Option<String>,
+    pub connector_customer_id: Option<String>,
 }

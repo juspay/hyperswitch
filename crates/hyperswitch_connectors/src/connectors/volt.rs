@@ -663,7 +663,7 @@ impl webhooks::IncomingWebhook for Volt {
         let user_agent = utils::get_header_key_value(webhook_headers::USER_AGENT, request.headers)?;
         let version = user_agent
             .split('/')
-            .last()
+            .next_back()
             .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         Ok(format!(
             "{}|{}|{}",

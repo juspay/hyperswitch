@@ -150,8 +150,16 @@ pub struct RevenueRecoveryRecordBackData;
 #[derive(Debug, Clone)]
 pub struct UasFlowData {
     pub authenticate_by: String,
-    pub source_authentication_id: String,
+    pub source_authentication_id: common_utils::id_type::AuthenticationId,
 }
 
 #[derive(Debug, Clone)]
 pub struct BillingConnectorPaymentsSyncFlowData;
+
+#[derive(Debug, Clone)]
+pub struct BillingConnectorInvoiceSyncFlowData;
+
+#[derive(Debug, Clone)]
+pub struct VaultConnectorFlowData {
+    pub merchant_id: common_utils::id_type::MerchantId,
+}

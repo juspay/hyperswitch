@@ -8,6 +8,22 @@ networks:
 
 services:
   ### Dependencies
+  prestart-hook:
+    image: curlimages/curl-base:latest
+    container_name: prestart-hook
+    environment:
+      - ONE_CLICK_SETUP=${ONE_CLICK_SETUP:-false}
+    entrypoint:
+      [
+        "/bin/sh",
+        "-c",
+        "apk add --no-cache bash && /bin/bash /prestart_hook.sh",
+      ]
+    volumes:
+      - ./scripts/prestart_hook.sh:/prestart_hook.sh
+    networks:
+      - router_net
+
   pg:
     image: postgres:latest
     ports:
@@ -15,7 +31,7 @@ services:
     networks:
       - router_net
     volumes:
-      - pg_data:/VAR/LIB/POSTGRESQL/DATA
+      - pg_data:/var/lib/postgresql/data
     environment:
       - POSTGRES_USER=db_user
       - POSTGRES_PASSWORD=db_pass
@@ -42,7 +58,11 @@ services:
 
   migration_runner:
     image: rust:latest
-    command: "bash -c 'cargo install diesel_cli --no-default-features --features postgres && cargo install just && just migrate'"
+    command: >
+      bash -c "
+      curl -fsSL https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash &&
+      cargo binstall diesel_cli just --no-confirm &&
+      just migrate"
     working_dir: /app
     networks:
       - router_net
@@ -56,6 +76,8 @@ services:
     image: mailhog/mailhog
     networks:
       - router_net
+    profiles:
+      - full_setup
     ports:
       - "1025:1025"
       - "8025:8025"
@@ -77,6 +99,8 @@ services:
         condition: service_healthy
       redis-standalone:
         condition: service_healthy
+      migration_runner:
+        condition: service_completed_successfully
     labels:
       logs: "promtail"
     healthcheck:
@@ -153,20 +177,13 @@ services:
     pull_policy: always
     ports:
       - "9050:9050"
-      - "9060:9060"
-      - "5252:5252"
     networks:
       - router_net
     depends_on:
       hyperswitch-server:
         condition: service_healthy
     environment:
-      - HYPERSWITCH_PUBLISHABLE_KEY=placeholder_publishable_key
-      - HYPERSWITCH_SECRET_KEY=placeholder_api_key
-      - HYPERSWITCH_SERVER_URL=http://localhost:8080
-      - HYPERSWITCH_SERVER_URL_FOR_DEMO_APP=http://hyperswitch-server:8080
-      - HYPERSWITCH_CLIENT_URL=http://localhost:9050
-      - SELF_SERVER_URL=http://localhost:5252
+      - ENABLE_LOGGING=true
       - SDK_ENV=local
       - ENV_LOGGING_URL=http://localhost:3103
       - ENV_BACKEND_URL=http://localhost:8080
@@ -190,6 +207,49 @@ services:
         condition: service_started
     labels:
       logs: "promtail"
+
+  create-default-user:
+    image: curlimages/curl-base:latest
+    container_name: create-default-user
+    depends_on:
+      hyperswitch-server:
+        condition: service_healthy 
+      hyperswitch-control-center:
+        condition: service_started
+    environment:
+      - HYPERSWITCH_SERVER_URL=http://hyperswitch-server:8080
+      - HYPERSWITCH_CONTROL_CENTER_URL=http://hyperswitch-control-center:9000  
+    entrypoint:
+      [
+        "/bin/sh",
+        "-c",
+        "apk add --no-cache bash jq && /bin/bash /create_default_user.sh",
+      ]
+    volumes:
+      - ./scripts/create_default_user.sh:/create_default_user.sh
+    networks:
+      - router_net
+  
+  poststart-hook:
+    image: curlimages/curl-base:latest
+    container_name: poststart-hook
+    depends_on:
+      create-default-user:
+        condition: service_completed_successfully
+      hyperswitch-server:
+        condition: service_healthy # Ensures it only starts when `hyperswitch-server` is healthy
+    environment:
+      - ONE_CLICK_SETUP=${ONE_CLICK_SETUP:-false}
+    entrypoint:
+      [
+        "/bin/sh",
+        "-c",
+        "apk add --no-cache bash jq && /bin/bash /poststart_hook.sh",
+      ]
+    volumes:
+      - ./scripts/poststart_hook.sh:/poststart_hook.sh
+    networks:
+      - router_net
 
   ### Clustered Redis setup
   redis-cluster:
@@ -421,3 +481,27 @@ services:
     volumes:
       - ./config/vector.yaml:/etc/vector/vector.yaml
       - /var/run/docker.sock:/var/run/docker.sock
+
+  hyperswitch-demo:
+    image: docker.juspay.io/juspaydotin/hyperswitch-react-demo-app:latest
+    pull_policy: always
+    ports:
+      - "9060:9060"
+      - "5252:5252"
+    networks:
+      - router_net
+    profiles:
+      - full_setup
+    depends_on:
+      hyperswitch-server:
+        condition: service_healthy
+      hyperswitch-web:
+        condition: service_started
+    environment:
+      - HYPERSWITCH_PUBLISHABLE_KEY=placeholder_publishable_key
+      - HYPERSWITCH_SECRET_KEY=placeholder_api_key
+      - PROFILE_ID=placeholder_profile_id
+      - HYPERSWITCH_CLIENT_URL=http://localhost:9050
+      - HYPERSWITCH_SERVER_URL=http://localhost:8080
+    labels:
+      logs: "promtail"

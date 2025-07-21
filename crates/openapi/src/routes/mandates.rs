@@ -64,8 +64,11 @@ pub async fn retrieve_mandates_list() {}
 ///
 /// Lists all the mandates for a particular customer id.
 #[utoipa::path(
-    post,
+    get,
     path = "/customers/{customer_id}/mandates",
+    params(
+        ("customer_id" = String, Path, description = "The unique identifier for the customer")
+    ),
     responses(
         (status = 200, description = "List of retrieved mandates for a customer", body = Vec<MandateResponse>),
         (status = 400, description = "Invalid Data"),

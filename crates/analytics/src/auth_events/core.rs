@@ -8,15 +8,18 @@ use api_models::analytics::{
     AuthEventFilterValue, AuthEventFiltersResponse, AuthEventMetricsResponse,
     AuthEventsAnalyticsMetadata, GetAuthEventFilterRequest, GetAuthEventMetricRequest,
 };
+use common_utils::types::TimeRange;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
 use super::{
     filters::{get_auth_events_filter_for_dimension, AuthEventFilterRow},
+    sankey::{get_sankey_data, SankeyRow},
     AuthEventMetricsAccumulator,
 };
 use crate::{
     auth_events::AuthEventMetricAccumulator,
+    enums::AuthInfo,
     errors::{AnalyticsError, AnalyticsResult},
     AnalyticsProvider,
 };
@@ -24,7 +27,7 @@ use crate::{
 #[instrument(skip_all)]
 pub async fn get_metrics(
     pool: &AnalyticsProvider,
-    merchant_id: &common_utils::id_type::MerchantId,
+    auth: &AuthInfo,
     req: GetAuthEventMetricRequest,
 ) -> AnalyticsResult<AuthEventMetricsResponse<MetricsBucketResponse>> {
     let mut metrics_accumulator: HashMap<
@@ -35,14 +38,14 @@ pub async fn get_metrics(
     let mut set = tokio::task::JoinSet::new();
     for metric_type in req.metrics.iter().cloned() {
         let req = req.clone();
-        let merchant_id_scoped = merchant_id.to_owned();
+        let auth_scoped = auth.to_owned();
         let pool = pool.clone();
         set.spawn(async move {
             let data = pool
                 .get_auth_event_metrics(
                     &metric_type,
                     &req.group_by_names.clone(),
-                    &merchant_id_scoped,
+                    &auth_scoped,
                     &req.filters,
                     req.time_series.map(|t| t.granularity),
                     &req.time_range,
@@ -92,6 +95,12 @@ pub async fn get_metrics(
                 AuthEventMetrics::AuthenticationFunnel => metrics_builder
                     .authentication_funnel
                     .add_metrics_bucket(&value),
+                AuthEventMetrics::AuthenticationExemptionApprovedCount => metrics_builder
+                    .authentication_exemption_approved_count
+                    .add_metrics_bucket(&value),
+                AuthEventMetrics::AuthenticationExemptionRequestedCount => metrics_builder
+                    .authentication_exemption_requested_count
+                    .add_metrics_bucket(&value),
             }
         }
     }
@@ -121,7 +130,7 @@ pub async fn get_metrics(
 pub async fn get_filters(
     pool: &AnalyticsProvider,
     req: GetAuthEventFilterRequest,
-    merchant_id: &common_utils::id_type::MerchantId,
+    auth: &AuthInfo,
 ) -> AnalyticsResult<AuthEventFiltersResponse> {
     let mut res = AuthEventFiltersResponse::default();
     for dim in req.group_by_names {
@@ -130,14 +139,14 @@ pub async fn get_filters(
                             Err(report!(AnalyticsError::UnknownError))
             }
                         AnalyticsProvider::Clickhouse(pool) => {
-                get_auth_events_filter_for_dimension(dim, merchant_id, &req.time_range, pool)
+                get_auth_events_filter_for_dimension(dim, auth, &req.time_range, pool)
                     .await
                     .map_err(|e| e.change_context(AnalyticsError::UnknownError))
             }
                     AnalyticsProvider::CombinedCkh(sqlx_pool, ckh_pool) | AnalyticsProvider::CombinedSqlx(sqlx_pool, ckh_pool) => {
                 let ckh_result = get_auth_events_filter_for_dimension(
                     dim,
-                    merchant_id,
+                    auth,
                     &req.time_range,
                     ckh_pool,
                 )
@@ -145,7 +154,7 @@ pub async fn get_filters(
                 .map_err(|e| e.change_context(AnalyticsError::UnknownError));
                 let sqlx_result = get_auth_events_filter_for_dimension(
                     dim,
-                    merchant_id,
+                    auth,
                     &req.time_range,
                     sqlx_pool,
                 )
@@ -170,6 +179,27 @@ pub async fn get_filters(
             AuthEventDimensions::AuthenticationConnector => fil.authentication_connector.map(|i| i.as_ref().to_string()),
             AuthEventDimensions::MessageVersion => fil.message_version,
             AuthEventDimensions::AcsReferenceNumber => fil.acs_reference_number,
+            AuthEventDimensions::Platform => fil.platform,
+            AuthEventDimensions::Mcc => fil.mcc,
+           AuthEventDimensions::Currency => fil.currency.map(|i| i.as_ref().to_string()),
+            AuthEventDimensions::MerchantCountry => fil.merchant_country,
+            AuthEventDimensions::BillingCountry => fil.billing_country,
+            AuthEventDimensions::ShippingCountry => fil.shipping_country,
+            AuthEventDimensions::IssuerCountry => fil.issuer_country,
+            AuthEventDimensions::EarliestSupportedVersion => fil.earliest_supported_version,
+            AuthEventDimensions::LatestSupportedVersion => fil.latest_supported_version,
+            AuthEventDimensions::WhitelistDecision => fil.whitelist_decision.map(|i| i.to_string()),
+            AuthEventDimensions::DeviceManufacturer => fil.device_manufacturer,
+            AuthEventDimensions::DeviceType => fil.device_type,
+            AuthEventDimensions::DeviceBrand => fil.device_brand,
+            AuthEventDimensions::DeviceOs => fil.device_os,
+            AuthEventDimensions::DeviceDisplay => fil.device_display,
+            AuthEventDimensions::BrowserName => fil.browser_name,
+            AuthEventDimensions::BrowserVersion => fil.browser_version,
+            AuthEventDimensions::IssuerId => fil.issuer_id,
+            AuthEventDimensions::SchemeName => fil.scheme_name,
+            AuthEventDimensions::ExemptionRequested => fil.exemption_requested.map(|i| i.to_string()),
+            AuthEventDimensions::ExemptionAccepted => fil.exemption_accepted.map(|i| i.to_string()),
         })
         .collect::<Vec<String>>();
         res.query_data.push(AuthEventFilterValue {
@@ -178,4 +208,25 @@ pub async fn get_filters(
         })
     }
     Ok(res)
+}
+
+#[instrument(skip_all)]
+pub async fn get_sankey(
+    pool: &AnalyticsProvider,
+    auth: &AuthInfo,
+    req: TimeRange,
+) -> AnalyticsResult<Vec<SankeyRow>> {
+    match pool {
+        AnalyticsProvider::Sqlx(_) => Err(AnalyticsError::NotImplemented(
+            "Sankey not implemented for sqlx",
+        ))?,
+        AnalyticsProvider::Clickhouse(ckh_pool)
+        | AnalyticsProvider::CombinedCkh(_, ckh_pool)
+        | AnalyticsProvider::CombinedSqlx(_, ckh_pool) => {
+            let sankey_rows = get_sankey_data(ckh_pool, auth, &req)
+                .await
+                .change_context(AnalyticsError::UnknownError)?;
+            Ok(sankey_rows)
+        }
+    }
 }

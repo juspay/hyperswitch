@@ -1,5 +1,7 @@
 pub mod transformers;
 
+use std::sync::LazyLock;
+
 use api_models::webhooks::IncomingWebhookEvent;
 use base64::Engine;
 use common_enums::{enums, CallConnectorAction, PaymentAction};
@@ -9,7 +11,10 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{BytesExt, StringExt, ValueExt},
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
+    types::{
+        AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, StringMajorUnit,
+        StringMajorUnitForConnector, StringMinorUnit, StringMinorUnitForConnector,
+    },
 };
 use error_stack::{report, Report, ResultExt};
 use hyperswitch_domain_models::{
@@ -25,7 +30,10 @@ use hyperswitch_domain_models::{
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
         PaymentsSyncData, RefundsData, ResponseId, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RedirectForm,
+        RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsCompleteAuthorizeRouterData, PaymentsSessionRouterData, PaymentsSyncRouterData,
@@ -53,10 +61,10 @@ use crate::{
     constants::headers,
     types::ResponseRouterData,
     utils::{
-        construct_not_supported_error_report, convert_amount,
+        construct_not_supported_error_report, convert_amount, convert_back_amount_to_minor_units,
         get_error_code_error_message_based_on_priority, get_header_key_value, get_http_header,
         handle_json_response_deserialization_failure, to_connector_meta_from_secret,
-        to_currency_lower_unit, ConnectorErrorType, ConnectorErrorTypeMapping, ForeignTryFrom,
+        ConnectorErrorType, ConnectorErrorTypeMapping, ForeignTryFrom,
         PaymentsAuthorizeRequestData, RefundsRequestData, RouterData as _,
     },
 };
@@ -68,12 +76,18 @@ pub const REQUEST_TIMEOUT_PAYMENT_NOT_FOUND: &str = "Timed out ,payment not foun
 #[derive(Clone)]
 pub struct Bluesnap {
     amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+    amount_converter_to_string_minor_unit:
+        &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+    amount_converter_float_major_unit:
+        &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
 }
 
 impl Bluesnap {
     pub fn new() -> &'static Self {
         &Self {
             amount_converter: &StringMajorUnitForConnector,
+            amount_converter_to_string_minor_unit: &StringMinorUnitForConnector,
+            amount_converter_float_major_unit: &FloatMajorUnitForConnector,
         }
     }
 }
@@ -190,8 +204,7 @@ impl ConnectorCommon for Bluesnap {
                         {
                             (
                                 format!(
-                                    "{} in bluesnap dashboard",
-                                    REQUEST_TIMEOUT_PAYMENT_NOT_FOUND
+                                    "{REQUEST_TIMEOUT_PAYMENT_NOT_FOUND} in bluesnap dashboard",
                                 ),
                                 Some(enums::AttemptStatus::Failure), // when bluesnap throws 403 for payment not found, we update the payment status to failure.
                             )
@@ -747,7 +760,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?; // If location headers are not present connector will return 4XX so this error will never be propagated
                 let payment_fields_token = location
                     .split('/')
-                    .last()
+                    .next_back()
                     .ok_or(errors::ConnectorError::ResponseHandlingFailed)?
                     .to_string();
 
@@ -1156,9 +1169,15 @@ impl IncomingWebhook for Bluesnap {
         let dispute_details: bluesnap::BluesnapDisputeWebhookBody =
             serde_urlencoded::from_bytes(request.body)
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let amount = convert_back_amount_to_minor_units(
+            self.amount_converter_float_major_unit,
+            dispute_details.invoice_charge_amount,
+            dispute_details.currency,
+        )?;
         Ok(DisputePayload {
-            amount: to_currency_lower_unit(
-                dispute_details.invoice_charge_amount.abs().to_string(),
+            amount: convert_amount(
+                self.amount_converter_to_string_minor_unit,
+                amount,
                 dispute_details.currency,
             )?,
             currency: dispute_details.currency,
@@ -1390,4 +1409,95 @@ fn get_rsync_url_with_connector_refund_id(
     ))
 }
 
-impl ConnectorSpecifications for Bluesnap {}
+static BLUESNAP_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
+        let supported_capture_methods = vec![
+            enums::CaptureMethod::Automatic,
+            enums::CaptureMethod::Manual,
+            enums::CaptureMethod::SequentialAutomatic,
+        ];
+
+        let supported_card_network = vec![
+            common_enums::CardNetwork::Visa,
+            common_enums::CardNetwork::Mastercard,
+            common_enums::CardNetwork::AmericanExpress,
+            common_enums::CardNetwork::JCB,
+            common_enums::CardNetwork::DinersClub,
+            common_enums::CardNetwork::Discover,
+            common_enums::CardNetwork::CartesBancaires,
+            common_enums::CardNetwork::RuPay,
+            common_enums::CardNetwork::Maestro,
+        ];
+
+        let mut bluesnap_supported_payment_methods = SupportedPaymentMethods::new();
+
+        bluesnap_supported_payment_methods.add(
+            enums::PaymentMethod::Wallet,
+            enums::PaymentMethodType::GooglePay,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        bluesnap_supported_payment_methods.add(
+            enums::PaymentMethod::Wallet,
+            enums::PaymentMethodType::ApplePay,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        bluesnap_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Credit,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
+            },
+        );
+
+        bluesnap_supported_payment_methods
+    });
+
+static BLUESNAP_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "BlueSnap",
+    description:
+        "BlueSnap is a payment platform that helps businesses accept payments from customers in over 200 regions ",
+    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+};
+
+static BLUESNAP_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 3] = [
+    enums::EventClass::Payments,
+    enums::EventClass::Refunds,
+    enums::EventClass::Disputes,
+];
+
+impl ConnectorSpecifications for Bluesnap {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&BLUESNAP_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*BLUESNAP_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&BLUESNAP_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}

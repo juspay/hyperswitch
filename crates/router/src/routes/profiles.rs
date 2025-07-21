@@ -3,9 +3,9 @@ use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
-    core::{admin::*, api_locking},
+    core::{admin::*, api_locking, errors},
     services::{api, authentication as auth, authorization::permissions},
-    types::api::admin,
+    types::{api::admin, domain},
 };
 
 #[cfg(all(feature = "olap", feature = "v1"))]
@@ -19,6 +19,18 @@ pub async fn profile_create(
     let flow = Flow::ProfileCreate;
     let payload = json_payload.into_inner();
     let merchant_id = path.into_inner();
+    if let Err(api_error) = payload
+        .webhook_details
+        .as_ref()
+        .map(|details| {
+            details
+                .validate()
+                .map_err(|message| errors::ApiErrorResponse::InvalidRequestData { message })
+        })
+        .transpose()
+    {
+        return api::log_and_return_error_response(api_error.into());
+    }
 
     Box::pin(api::server_wrap(
         flow,
@@ -26,7 +38,10 @@ pub async fn profile_create(
         &req,
         payload,
         |state, auth_data, req, _| {
-            create_profile(state, req, auth_data.merchant_account, auth_data.key_store)
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth_data.merchant_account, auth_data.key_store),
+            ));
+            create_profile(state, req, merchant_context)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),
@@ -50,6 +65,18 @@ pub async fn profile_create(
 ) -> HttpResponse {
     let flow = Flow::ProfileCreate;
     let payload = json_payload.into_inner();
+    if let Err(api_error) = payload
+        .webhook_details
+        .as_ref()
+        .map(|details| {
+            details
+                .validate()
+                .map_err(|message| errors::ApiErrorResponse::InvalidRequestData { message })
+        })
+        .transpose()
+    {
+        return api::log_and_return_error_response(api_error.into());
+    }
 
     Box::pin(api::server_wrap(
         flow,
@@ -62,7 +89,12 @@ pub async fn profile_create(
              key_store,
          },
          req,
-         _| { create_profile(state, req, merchant_account, key_store) },
+         _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(merchant_account, key_store),
+            ));
+            create_profile(state, req, merchant_context)
+        },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
@@ -150,12 +182,25 @@ pub async fn profile_update(
 ) -> HttpResponse {
     let flow = Flow::ProfileUpdate;
     let (merchant_id, profile_id) = path.into_inner();
+    let payload = json_payload.into_inner();
+    if let Err(api_error) = payload
+        .webhook_details
+        .as_ref()
+        .map(|details| {
+            details
+                .validate()
+                .map_err(|message| errors::ApiErrorResponse::InvalidRequestData { message })
+        })
+        .transpose()
+    {
+        return api::log_and_return_error_response(api_error.into());
+    }
 
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        json_payload.into_inner(),
+        payload,
         |state, auth_data, req, _| update_profile(state, &profile_id, auth_data.key_store, req),
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),
@@ -181,12 +226,25 @@ pub async fn profile_update(
 ) -> HttpResponse {
     let flow = Flow::ProfileUpdate;
     let profile_id = path.into_inner();
+    let payload = json_payload.into_inner();
+    if let Err(api_error) = payload
+        .webhook_details
+        .as_ref()
+        .map(|details| {
+            details
+                .validate()
+                .map_err(|message| errors::ApiErrorResponse::InvalidRequestData { message })
+        })
+        .transpose()
+    {
+        return api::log_and_return_error_response(api_error.into());
+    }
 
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        json_payload.into_inner(),
+        payload,
         |state, auth::AuthenticationDataWithoutProfile { key_store, .. }, req, _| {
             update_profile(state, &profile_id, key_store, req)
         },
@@ -343,7 +401,10 @@ pub async fn toggle_connector_agnostic_mit(
             connector_agnostic_mit_toggle(state, &merchant_id, &profile_id, req)
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: permissions::Permission::MerchantRoutingWrite,
             },

@@ -52,6 +52,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
                 bank_code: None,
                 nick_name: Some(Secret::new("nick_name".into())),
                 card_holder_name: Some(Secret::new("card holder name".into())),
+                co_badged_card_data: None,
             }),
             confirm: true,
             statement_descriptor_suffix: None,
@@ -132,6 +133,8 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        raw_connector_response: None,
+        is_payment_id_from_merchant: None,
     }
 }
 
@@ -204,6 +207,8 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        raw_connector_response: None,
+        is_payment_id_from_merchant: None,
     }
 }
 
@@ -245,6 +250,7 @@ async fn payments_create_success() {
         connector_integration,
         &request,
         payments::CallConnectorAction::Trigger,
+        None,
         None,
     )
     .await
@@ -302,6 +308,7 @@ async fn payments_create_failure() {
                 bank_code: None,
                 nick_name: Some(Secret::new("nick_name".into())),
                 card_holder_name: Some(Secret::new("card holder name".into())),
+                co_badged_card_data: None,
             });
 
         let response = services::api::execute_connector_processing_step(
@@ -309,6 +316,7 @@ async fn payments_create_failure() {
             connector_integration,
             &request,
             payments::CallConnectorAction::Trigger,
+            None,
             None,
         )
         .await
@@ -356,6 +364,7 @@ async fn refund_for_successful_payments() {
         &request,
         payments::CallConnectorAction::Trigger,
         None,
+        None,
     )
     .await
     .unwrap();
@@ -380,6 +389,7 @@ async fn refund_for_successful_payments() {
         connector_integration,
         &refund_request,
         payments::CallConnectorAction::Trigger,
+        None,
         None,
     )
     .await
@@ -430,6 +440,7 @@ async fn refunds_create_failure() {
         connector_integration,
         &request,
         payments::CallConnectorAction::Trigger,
+        None,
         None,
     )
     .await

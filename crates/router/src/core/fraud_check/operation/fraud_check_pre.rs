@@ -159,7 +159,7 @@ where
     F: Clone + Send,
     D: payments::OperationSessionGetters<F> + Send + Sync + Clone,
 {
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     async fn post_payment_frm<'a>(
         &'a self,
@@ -167,14 +167,13 @@ where
         _req_state: ReqState,
         _payment_data: &mut D,
         _frm_data: &mut FrmData,
-        _merchant_account: &domain::MerchantAccount,
+        _merchant_context: &domain::MerchantContext,
         _customer: &Option<domain::Customer>,
-        _key_store: domain::MerchantKeyStore,
     ) -> RouterResult<Option<FrmRouterData>> {
         todo!()
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn post_payment_frm<'a>(
         &'a self,
@@ -182,16 +181,14 @@ where
         _req_state: ReqState,
         payment_data: &mut D,
         frm_data: &mut FrmData,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
-        key_store: domain::MerchantKeyStore,
     ) -> RouterResult<Option<FrmRouterData>> {
         let router_data = frm_core::call_frm_service::<F, frm_api::Transaction, _, D>(
             state,
             payment_data,
             &mut frm_data.to_owned(),
-            merchant_account,
-            &key_store,
+            merchant_context,
             customer,
         )
         .await?;
@@ -220,16 +217,14 @@ where
         state: &'a SessionState,
         payment_data: &mut D,
         frm_data: &mut FrmData,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
-        key_store: domain::MerchantKeyStore,
     ) -> RouterResult<FrmRouterData> {
         let router_data = frm_core::call_frm_service::<F, frm_api::Checkout, _, D>(
             state,
             payment_data,
             &mut frm_data.to_owned(),
-            merchant_account,
-            &key_store,
+            merchant_context,
             customer,
         )
         .await?;

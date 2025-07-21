@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use api_models::payments;
+use common_types::payments as common_payments_types;
 use common_utils::{
     crypto::Encryptable,
     date_time,
@@ -287,7 +288,7 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
 
         let routing = routable_connector
             .map(|connector| {
-                api_models::routing::RoutingAlgorithm::Single(Box::new(
+                api_models::routing::StaticRoutingAlgorithm::Single(Box::new(
                     api_models::routing::RoutableConnectorChoice {
                         choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
                         connector,
@@ -423,7 +424,8 @@ impl From<api_enums::IntentStatus> for StripePaymentStatus {
             api_enums::IntentStatus::Failed => Self::Canceled,
             api_enums::IntentStatus::Processing => Self::Processing,
             api_enums::IntentStatus::RequiresCustomerAction
-            | api_enums::IntentStatus::RequiresMerchantAction => Self::RequiresAction,
+            | api_enums::IntentStatus::RequiresMerchantAction
+            | api_enums::IntentStatus::Conflicted => Self::RequiresAction,
             api_enums::IntentStatus::RequiresPaymentMethod => Self::RequiresPaymentMethod,
             api_enums::IntentStatus::RequiresConfirmation => Self::RequiresConfirmation,
             api_enums::IntentStatus::RequiresCapture
@@ -764,16 +766,15 @@ impl ForeignTryFrom<(Option<MandateData>, Option<String>)> for Option<payments::
                     },
                 ))),
             },
-            customer_acceptance: Some(payments::CustomerAcceptance {
-                acceptance_type: payments::AcceptanceType::Online,
+            customer_acceptance: Some(common_payments_types::CustomerAcceptance {
+                acceptance_type: common_payments_types::AcceptanceType::Online,
                 accepted_at: mandate.customer_acceptance.accepted_at,
-                online: mandate
-                    .customer_acceptance
-                    .online
-                    .map(|online| payments::OnlineMandate {
+                online: mandate.customer_acceptance.online.map(|online| {
+                    common_payments_types::OnlineMandate {
                         ip_address: Some(online.ip_address),
                         user_agent: online.user_agent,
-                    }),
+                    }
+                }),
             }),
             update_mandate_id: None,
         });
@@ -832,6 +833,7 @@ pub enum StripeNextAction {
     WaitScreenInformation {
         display_from_timestamp: i128,
         display_to_timestamp: Option<i128>,
+        poll_config: Option<payments::PollConfig>,
     },
     InvokeSdkClient {
         next_action_data: payments::SdkNextActionData,
@@ -854,6 +856,14 @@ pub(crate) fn into_stripe_next_action(
                 redirect_to_url: RedirectUrl {
                     return_url,
                     url: Some(redirect_to_url),
+                },
+            }
+        }
+        payments::NextActionData::RedirectInsidePopup { popup_url, .. } => {
+            StripeNextAction::RedirectToUrl {
+                redirect_to_url: RedirectUrl {
+                    return_url,
+                    url: Some(popup_url),
                 },
             }
         }
@@ -888,9 +898,11 @@ pub(crate) fn into_stripe_next_action(
         payments::NextActionData::WaitScreenInformation {
             display_from_timestamp,
             display_to_timestamp,
+            poll_config: _,
         } => StripeNextAction::WaitScreenInformation {
             display_from_timestamp,
             display_to_timestamp,
+            poll_config: None,
         },
         payments::NextActionData::ThreeDsInvoke { .. } => StripeNextAction::RedirectToUrl {
             redirect_to_url: RedirectUrl {

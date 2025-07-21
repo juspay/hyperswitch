@@ -1,5 +1,9 @@
+#[cfg(feature = "v2")]
+use crate::business_profile::Profile;
+#[cfg(feature = "v1")]
 use crate::errors;
 
+#[cfg(feature = "v1")]
 pub struct RefundListConstraints {
     pub payment_id: Option<common_utils::id_type::PaymentId>,
     pub refund_id: Option<String>,
@@ -14,6 +18,22 @@ pub struct RefundListConstraints {
     pub refund_status: Option<Vec<common_enums::RefundStatus>>,
 }
 
+#[cfg(feature = "v2")]
+pub struct RefundListConstraints {
+    pub payment_id: Option<common_utils::id_type::GlobalPaymentId>,
+    pub refund_id: Option<common_utils::id_type::GlobalRefundId>,
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub limit: Option<i64>,
+    pub offset: Option<i64>,
+    pub time_range: Option<common_utils::types::TimeRange>,
+    pub amount_filter: Option<api_models::payments::AmountFilter>,
+    pub connector: Option<Vec<String>>,
+    pub connector_id_list: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
+    pub currency: Option<Vec<common_enums::Currency>>,
+    pub refund_status: Option<Vec<common_enums::RefundStatus>>,
+}
+
+#[cfg(feature = "v1")]
 impl
     TryFrom<(
         api_models::refunds::RefundListRequest,
@@ -57,8 +77,8 @@ impl
                     return Err(error_stack::Report::new(
                         errors::api_error_response::ApiErrorResponse::PreconditionFailed {
                             message: format!(
-                                "Access not available for the given profile_id {:?}",
-                                profile_id_from_request_body
+                                "Access not available for the given profile_id {profile_id_from_request_body:?}",
+
                             ),
                         },
                     ));
@@ -78,5 +98,37 @@ impl
             currency,
             refund_status,
         })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl From<(api_models::refunds::RefundListRequest, Profile)> for RefundListConstraints {
+    fn from((value, profile): (api_models::refunds::RefundListRequest, Profile)) -> Self {
+        let api_models::refunds::RefundListRequest {
+            payment_id,
+            refund_id,
+            connector,
+            currency,
+            refund_status,
+            limit,
+            offset,
+            time_range,
+            amount_filter,
+            connector_id_list,
+        } = value;
+
+        Self {
+            payment_id,
+            refund_id,
+            profile_id: profile.get_id().to_owned(),
+            limit,
+            offset,
+            time_range,
+            amount_filter,
+            connector,
+            connector_id_list,
+            currency,
+            refund_status,
+        }
     }
 }

@@ -1,5 +1,7 @@
+use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data_v2::ExternalAuthenticationFlowData;
+use masking::ExposeInterface;
 
 use crate::{
     consts,
@@ -22,28 +24,30 @@ pub fn get_connector_data_if_separate_authn_supported(
     connector_call_type: &api::ConnectorCallType,
 ) -> Option<api::ConnectorData> {
     match connector_call_type {
-        api::ConnectorCallType::PreDetermined(connector_data) => {
-            if connector_data
+        api::ConnectorCallType::PreDetermined(connector_routing_data) => {
+            if connector_routing_data
+                .connector_data
                 .connector_name
                 .is_separate_authentication_supported()
             {
-                Some(connector_data.clone())
+                Some(connector_routing_data.connector_data.clone())
             } else {
                 None
             }
         }
-        api::ConnectorCallType::Retryable(connectors) => {
-            connectors.first().and_then(|connector_data| {
-                if connector_data
+        api::ConnectorCallType::Retryable(connector_routing_data) => connector_routing_data
+            .first()
+            .and_then(|connector_routing_data| {
+                if connector_routing_data
+                    .connector_data
                     .connector_name
                     .is_separate_authentication_supported()
                 {
-                    Some(connector_data.clone())
+                    Some(connector_routing_data.connector_data.clone())
                 } else {
                     None
                 }
-            })
-        }
+            }),
         api::ConnectorCallType::SessionMultiple(_) => None,
     }
 }
@@ -53,6 +57,7 @@ pub async fn update_trackers<F: Clone, Req>(
     router_data: RouterData<F, Req, AuthenticationResponseData>,
     authentication: storage::Authentication,
     acquirer_details: Option<super::types::AcquirerDetails>,
+    merchant_key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
 ) -> RouterResult<storage::Authentication> {
     let authentication_update = match router_data.response {
         Ok(response) => match response {
@@ -90,11 +95,28 @@ pub async fn update_trackers<F: Clone, Req>(
                 trans_status,
                 connector_metadata,
                 ds_trans_id,
+                eci,
             } => {
+                authentication_value
+                    .async_map(|auth_val| {
+                        crate::core::payment_methods::vault::create_tokenize(
+                            state,
+                            auth_val.expose(),
+                            None,
+                            authentication
+                                .authentication_id
+                                .get_string_repr()
+                                .to_string(),
+                            merchant_key_store.key.get_inner(),
+                        )
+                    })
+                    .await
+                    .transpose()?;
+
                 let authentication_status =
                     common_enums::AuthenticationStatus::foreign_from(trans_status.clone());
+
                 storage::AuthenticationUpdate::AuthenticationUpdate {
-                    authentication_value,
                     trans_status,
                     acs_url: authn_flow_type.get_acs_url(),
                     challenge_request: authn_flow_type.get_challenge_request(),
@@ -105,20 +127,37 @@ pub async fn update_trackers<F: Clone, Req>(
                     authentication_status,
                     connector_metadata,
                     ds_trans_id,
+                    eci,
                 }
             }
             AuthenticationResponseData::PostAuthNResponse {
                 trans_status,
                 authentication_value,
                 eci,
-            } => storage::AuthenticationUpdate::PostAuthenticationUpdate {
-                authentication_status: common_enums::AuthenticationStatus::foreign_from(
-                    trans_status.clone(),
-                ),
-                trans_status,
-                authentication_value,
-                eci,
-            },
+            } => {
+                authentication_value
+                    .async_map(|auth_val| {
+                        crate::core::payment_methods::vault::create_tokenize(
+                            state,
+                            auth_val.expose(),
+                            None,
+                            authentication
+                                .authentication_id
+                                .get_string_repr()
+                                .to_string(),
+                            merchant_key_store.key.get_inner(),
+                        )
+                    })
+                    .await
+                    .transpose()?;
+                storage::AuthenticationUpdate::PostAuthenticationUpdate {
+                    authentication_status: common_enums::AuthenticationStatus::foreign_from(
+                        trans_status.clone(),
+                    ),
+                    trans_status,
+                    eci,
+                }
+            }
             AuthenticationResponseData::PreAuthVersionCallResponse {
                 maximum_supported_3ds_version,
             } => storage::AuthenticationUpdate::PreAuthenticationVersionCallUpdate {
@@ -184,15 +223,22 @@ pub async fn create_new_authentication(
     payment_id: common_utils::id_type::PaymentId,
     merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
     organization_id: common_utils::id_type::OrganizationId,
+    force_3ds_challenge: Option<bool>,
+    psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
 ) -> RouterResult<storage::Authentication> {
-    let authentication_id =
-        common_utils::generate_id_with_default_len(consts::AUTHENTICATION_ID_PREFIX);
+    let authentication_id = common_utils::id_type::AuthenticationId::generate_authentication_id(
+        consts::AUTHENTICATION_ID_PREFIX,
+    );
+    let authentication_client_secret = Some(common_utils::generate_id_with_default_len(&format!(
+        "{}_secret",
+        authentication_id.get_string_repr()
+    )));
     let new_authorization = storage::AuthenticationNew {
         authentication_id: authentication_id.clone(),
         merchant_id,
-        authentication_connector,
+        authentication_connector: Some(authentication_connector),
         connector_authentication_id: None,
-        payment_method_id: format!("eph_{}", token),
+        payment_method_id: format!("eph_{token}"),
         authentication_type: None,
         authentication_status: common_enums::AuthenticationStatus::Started,
         authentication_lifecycle_status: common_enums::AuthenticationLifecycleStatus::Unused,
@@ -217,12 +263,18 @@ pub async fn create_new_authentication(
         acs_signed_content: None,
         profile_id,
         payment_id: Some(payment_id),
-        merchant_connector_id,
+        merchant_connector_id: Some(merchant_connector_id),
         ds_trans_id: None,
         directory_server_id: None,
         acquirer_country_code: None,
         service_details: None,
         organization_id,
+        authentication_client_secret,
+        force_3ds_challenge,
+        psd2_sca_exemption_type,
+        return_url: None,
+        amount: None,
+        currency: None,
     };
     state
         .store
@@ -231,7 +283,7 @@ pub async fn create_new_authentication(
         .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
             message: format!(
                 "Authentication with authentication_id {} already exists",
-                authentication_id
+                authentication_id.get_string_repr()
             ),
         })
 }
@@ -261,6 +313,7 @@ where
         connector_integration,
         &router_data,
         payments::CallConnectorAction::Trigger,
+        None,
         None,
     )
     .await

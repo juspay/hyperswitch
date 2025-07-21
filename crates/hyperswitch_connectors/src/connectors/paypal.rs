@@ -8,7 +8,10 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::ByteSliceExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector},
+    types::{
+        AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector, StringMinorUnit,
+        StringMinorUnitForConnector,
+    },
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -17,8 +20,8 @@ use hyperswitch_domain_models::{
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{
-            Authorize, Capture, PSync, PaymentMethodToken, PostSessionTokens, PreProcessing,
-            SdkSessionUpdate, Session, SetupMandate, Void,
+            Authorize, Capture, IncrementalAuthorization, PSync, PaymentMethodToken,
+            PostSessionTokens, PreProcessing, SdkSessionUpdate, Session, SetupMandate, Void,
         },
         refunds::{Execute, RSync},
         CompleteAuthorize, VerifyWebhookSource,
@@ -26,19 +29,19 @@ use hyperswitch_domain_models::{
     router_request_types::{
         AccessTokenRequestData, CompleteAuthorizeData, PaymentMethodTokenizationData,
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
-        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsSessionData,
-        PaymentsSyncData, RefundsData, ResponseId, SdkPaymentsSessionUpdateData,
-        SetupMandateRequestData, VerifyWebhookSourceRequestData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostSessionTokensData,
+        PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData, RefundsData, ResponseId,
+        SdkPaymentsSessionUpdateData, SetupMandateRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         PaymentsResponseData, RefundsResponseData, VerifyWebhookSourceResponseData,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsCompleteAuthorizeRouterData, PaymentsPostSessionTokensRouterData,
-        PaymentsPreProcessingRouterData, PaymentsSyncRouterData, RefreshTokenRouterData,
-        RefundSyncRouterData, RefundsRouterData, SdkSessionUpdateRouterData,
-        SetupMandateRouterData, VerifyWebhookSourceRouterData,
+        PaymentsCompleteAuthorizeRouterData, PaymentsIncrementalAuthorizationRouterData,
+        PaymentsPostSessionTokensRouterData, PaymentsPreProcessingRouterData,
+        PaymentsSyncRouterData, RefreshTokenRouterData, RefundSyncRouterData, RefundsRouterData,
+        SdkSessionUpdateRouterData, SetupMandateRouterData, VerifyWebhookSourceRouterData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -52,17 +55,17 @@ use hyperswitch_interfaces::types::{PayoutFulfillType, PayoutSyncType};
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse,
-        ConnectorSpecifications, ConnectorValidation,
+        ConnectorSpecifications, ConnectorValidation, PaymentIncrementalAuthorization,
     },
     configs::Connectors,
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     disputes, errors,
     events::connector_api_logs::ConnectorEvent,
     types::{
-        PaymentsAuthorizeType, PaymentsCaptureType, PaymentsCompleteAuthorizeType,
-        PaymentsPostSessionTokensType, PaymentsPreProcessingType, PaymentsSyncType,
-        PaymentsVoidType, RefreshTokenType, RefundExecuteType, RefundSyncType, Response,
-        SdkSessionUpdateType, SetupMandateType, VerifyWebhookSourceType,
+        IncrementalAuthorizationType, PaymentsAuthorizeType, PaymentsCaptureType,
+        PaymentsCompleteAuthorizeType, PaymentsPostSessionTokensType, PaymentsPreProcessingType,
+        PaymentsSyncType, PaymentsVoidType, RefreshTokenType, RefundExecuteType, RefundSyncType,
+        Response, SdkSessionUpdateType, SetupMandateType, VerifyWebhookSourceType,
     },
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
@@ -70,7 +73,8 @@ use masking::{ExposeInterface, Mask, Maskable, PeekInterface, Secret};
 #[cfg(feature = "payouts")]
 use router_env::{instrument, tracing};
 use transformers::{
-    self as paypal, auth_headers, PaypalAuthResponse, PaypalMeta, PaypalWebhookEventType,
+    self as paypal, auth_headers, PaypalAuthResponse, PaypalIncrementalAuthResponse, PaypalMeta,
+    PaypalWebhookEventType,
 };
 
 use crate::{
@@ -86,12 +90,14 @@ use crate::{
 #[derive(Clone)]
 pub struct Paypal {
     amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+    amount_converter_webhooks: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }
 
 impl Paypal {
     pub fn new() -> &'static Self {
         &Self {
             amount_converter: &StringMajorUnitForConnector,
+            amount_converter_webhooks: &StringMinorUnitForConnector,
         }
     }
 }
@@ -148,7 +154,7 @@ impl Paypal {
                     if let Some(field) = error
                         .field
                         .as_ref()
-                        .and_then(|field| field.split('/').last())
+                        .and_then(|field| field.split('/').next_back())
                     {
                         reason.push_str(&format!(", field - {field}"));
                     }
@@ -312,7 +318,7 @@ impl ConnectorCommon for Paypal {
                     .iter()
                     .try_fold(String::new(), |mut acc, error| {
                         if let Some(description) = &error.description {
-                            write!(acc, "description - {} ;", description)
+                            write!(acc, "description - {description} ;")
                                 .change_context(
                                     errors::ConnectorError::ResponseDeserializationFailed,
                                 )
@@ -948,12 +954,12 @@ impl ConnectorIntegration<SdkSessionUpdate, SdkPaymentsSessionUpdateData, Paymen
         // https://developer.paypal.com/docs/api/orders/v2/#orders_patch
         // If 204 status code, then the session was updated successfully.
         let status = if res.status_code == 204 {
-            enums::SessionUpdateStatus::Success
+            enums::PaymentResourceUpdateStatus::Success
         } else {
-            enums::SessionUpdateStatus::Failure
+            enums::PaymentResourceUpdateStatus::Failure
         };
         Ok(SdkSessionUpdateRouterData {
-            response: Ok(PaymentsResponseData::SessionUpdateResponse { status }),
+            response: Ok(PaymentsResponseData::PaymentResourceUpdateResponse { status }),
             ..data.clone()
         })
     }
@@ -1097,6 +1103,123 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.get_order_error_response(res, event_builder)
+    }
+}
+
+impl PaymentIncrementalAuthorization for Paypal {}
+
+impl
+    ConnectorIntegration<
+        IncrementalAuthorization,
+        PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData,
+    > for Paypal
+{
+    fn get_headers(
+        &self,
+        req: &PaymentsIncrementalAuthorizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_http_method(&self) -> Method {
+        Method::Post
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &PaymentsIncrementalAuthorizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let paypal_meta: PaypalMeta = to_connector_meta(req.request.connector_meta.clone())?;
+        let incremental_authorization_id = paypal_meta.incremental_authorization_id.ok_or(
+            errors::ConnectorError::RequestEncodingFailedWithReason(
+                "Missing incremental authorization id".to_string(),
+            ),
+        )?;
+        Ok(format!(
+            "{}v2/payments/authorizations/{}/reauthorize",
+            self.base_url(connectors),
+            incremental_authorization_id
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsIncrementalAuthorizationRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            MinorUnit::new(req.request.total_amount),
+            req.request.currency,
+        )?;
+        let connector_router_data =
+            paypal::PaypalRouterData::try_from((amount, None, None, None, req))?;
+        let connector_req = paypal::PaypalIncrementalAuthRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsIncrementalAuthorizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&IncrementalAuthorizationType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(IncrementalAuthorizationType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(IncrementalAuthorizationType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsIncrementalAuthorizationRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<
+        RouterData<
+            IncrementalAuthorization,
+            PaymentsIncrementalAuthorizationData,
+            PaymentsResponseData,
+        >,
+        errors::ConnectorError,
+    > {
+        let response: PaypalIncrementalAuthResponse = res
+            .response
+            .parse_struct("Paypal IncrementalAuthResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -1398,7 +1521,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pay
                                 "Missing Authorize id".to_string(),
                             ),
                         )?;
-                        format!("v2/payments/authorizations/{authorize_id}",)
+                        format!("v2/payments/authorizations/{authorize_id}")
                     }
                     transformers::PaypalPaymentIntent::Capture => {
                         let capture_id = paypal_meta.capture_id.ok_or(
@@ -2024,9 +2147,15 @@ impl IncomingWebhook for Paypal {
                     .attach_printable("Expected Dispute webhooks,but found other webhooks")?
             }
             transformers::PaypalResource::PaypalDisputeWebhooks(payload) => {
+                let amt = connector_utils::convert_back_amount_to_minor_units(
+                    self.amount_converter,
+                    payload.dispute_amount.value,
+                    payload.dispute_amount.currency_code,
+                )?;
                 Ok(disputes::DisputePayload {
-                    amount: connector_utils::to_currency_lower_unit(
-                        payload.dispute_amount.value.get_amount_as_string(),
+                    amount: connector_utils::convert_amount(
+                        self.amount_converter_webhooks,
+                        amt,
                         payload.dispute_amount.currency_code,
                     )?,
                     currency: payload.dispute_amount.currency_code,

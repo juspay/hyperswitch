@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use common_enums::EntityType;
-use common_utils::{ext_traits::AsyncExt, id_type, types::theme::ThemeLineage};
+use common_utils::{ext_traits::AsyncExt, id_type, types::user::ThemeLineage};
 use diesel_models::user::theme::Theme;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
@@ -29,7 +29,7 @@ pub fn get_theme_file_key(theme_id: &str) -> PathBuf {
 fn path_buf_to_str(path: &PathBuf) -> UserResult<&str> {
     path.to_str()
         .ok_or(UserErrors::InternalServerError)
-        .attach_printable(format!("Failed to convert path {:#?} to string", path))
+        .attach_printable(format!("Failed to convert path {path:#?} to string"))
 }
 
 pub async fn retrieve_file_from_theme_bucket(

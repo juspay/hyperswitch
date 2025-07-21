@@ -9,7 +9,9 @@ pub use disputes::{AcceptDisputeResponse, DefendDisputeResponse, SubmitEvidenceR
 use crate::{
     errors::api_error_response::ApiErrorResponse,
     router_request_types::{authentication::AuthNFlowType, ResponseId},
+    vault::PaymentMethodVaultingData,
 };
+
 #[derive(Debug, Clone)]
 pub struct RefundsResponseData {
     pub connector_refund_id: String,
@@ -72,8 +74,11 @@ pub enum PaymentsResponseData {
     PostProcessingResponse {
         session_token: Option<api_models::payments::OpenBankingSessionToken>,
     },
-    SessionUpdateResponse {
-        status: common_enums::SessionUpdateStatus,
+    PaymentResourceUpdateResponse {
+        status: common_enums::PaymentResourceUpdateStatus,
+    },
+    PaymentsCreateOrderResponse {
+        order_id: String,
     },
 }
 
@@ -536,14 +541,15 @@ pub enum AuthenticationResponseData {
     },
     AuthNResponse {
         authn_flow_type: AuthNFlowType,
-        authentication_value: Option<String>,
+        authentication_value: Option<masking::Secret<String>>,
         trans_status: common_enums::TransactionStatus,
         connector_metadata: Option<serde_json::Value>,
         ds_trans_id: Option<String>,
+        eci: Option<String>,
     },
     PostAuthNResponse {
         trans_status: common_enums::TransactionStatus,
-        authentication_value: Option<String>,
+        authentication_value: Option<masking::Secret<String>>,
         eci: Option<String>,
     },
 }
@@ -606,6 +612,33 @@ impl SupportedPaymentMethodsExt for SupportedPaymentMethods {
             payment_method_type_metadata.insert(payment_method_type, payment_method_details);
 
             self.insert(payment_method, payment_method_type_metadata);
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum VaultResponseData {
+    ExternalVaultCreateResponse {
+        session_id: masking::Secret<String>,
+        client_secret: masking::Secret<String>,
+    },
+    ExternalVaultInsertResponse {
+        connector_vault_id: String,
+        fingerprint_id: String,
+    },
+    ExternalVaultRetrieveResponse {
+        vault_data: PaymentMethodVaultingData,
+    },
+    ExternalVaultDeleteResponse {
+        connector_vault_id: String,
+    },
+}
+
+impl Default for VaultResponseData {
+    fn default() -> Self {
+        Self::ExternalVaultInsertResponse {
+            connector_vault_id: String::new(),
+            fingerprint_id: String::new(),
         }
     }
 }

@@ -13,6 +13,7 @@ use super::AuthEventMetricRow;
 use crate::{
     query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql, Window},
     types::{AnalyticsCollection, AnalyticsDataSource, MetricsError, MetricsResult},
+    AuthInfo,
 };
 
 #[derive(Default)]
@@ -30,7 +31,7 @@ where
 {
     async fn load_metrics(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        auth: &AuthInfo,
         dimensions: &[AuthEventDimensions],
         filters: &AuthEventFilters,
         granularity: Option<Granularity>,
@@ -64,10 +65,6 @@ where
             .switch()?;
 
         query_builder
-            .add_filter_clause("merchant_id", merchant_id)
-            .switch()?;
-
-        query_builder
             .add_filter_clause(
                 "authentication_type",
                 DecoupledAuthenticationType::Frictionless,
@@ -78,6 +75,7 @@ where
             .set_filter_clause(&mut query_builder)
             .attach_printable("Error filtering time range")
             .switch()?;
+        auth.set_filter_clause(&mut query_builder).switch()?;
 
         for dim in dimensions.iter() {
             query_builder
@@ -109,6 +107,26 @@ where
                         i.authentication_connector.as_ref().map(|i| i.0),
                         i.message_version.clone(),
                         i.acs_reference_number.clone(),
+                        i.mcc.clone(),
+                        i.currency.as_ref().map(|i| i.0),
+                        i.merchant_country.clone(),
+                        i.billing_country.clone(),
+                        i.shipping_country.clone(),
+                        i.issuer_country.clone(),
+                        i.earliest_supported_version.clone(),
+                        i.latest_supported_version.clone(),
+                        i.whitelist_decision,
+                        i.device_manufacturer.clone(),
+                        i.device_type.clone(),
+                        i.device_brand.clone(),
+                        i.device_os.clone(),
+                        i.device_display.clone(),
+                        i.browser_name.clone(),
+                        i.browser_version.clone(),
+                        i.issuer_id.clone(),
+                        i.scheme_name.clone(),
+                        i.exemption_requested,
+                        i.exemption_accepted,
                         TimeRange {
                             start_time: match (granularity, i.start_bucket) {
                                 (Some(g), Some(st)) => g.clip_to_start(st)?,

@@ -127,7 +127,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "31a264da-bef7-4d2f-bb48-85db8589cced.json.gpg"
+          S3_SOURCE_FILE_NAME: "fa1c07a5-f9c8-4e90-b9c7-b90cb8263015.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
@@ -161,6 +161,11 @@ jobs:
         with:
           toolchain: stable 2 weeks ago
           components: clippy
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install sccache
         if: ${{ env.RUN_TESTS == 'true' }}

@@ -25,8 +25,7 @@ impl
         &self,
         state: &SessionState,
         connector_id: &str,
-        merchant_account: &domain::MerchantAccount,
-        key_store: &domain::MerchantKeyStore,
+        merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -45,8 +44,7 @@ impl
             state,
             self.clone(),
             connector_id,
-            merchant_account,
-            key_store,
+            merchant_context,
             customer,
             merchant_connector_account,
             merchant_recipient_data,
@@ -60,10 +58,9 @@ impl
         &self,
         state: &SessionState,
         connector_id: &str,
-        merchant_account: &domain::MerchantAccount,
-        key_store: &domain::MerchantKeyStore,
+        merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
-        merchant_connector_account: &domain::MerchantConnectorAccount,
+        merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
     ) -> RouterResult<
@@ -74,17 +71,6 @@ impl
         >,
     > {
         todo!()
-    }
-
-    async fn get_merchant_recipient_data<'a>(
-        &self,
-        _state: &SessionState,
-        _merchant_account: &domain::MerchantAccount,
-        _key_store: &domain::MerchantKeyStore,
-        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
-        _connector: &api::ConnectorData,
-    ) -> RouterResult<Option<types::MerchantRecipientData>> {
-        Ok(None)
     }
 }
 
@@ -104,6 +90,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         connector_request: Option<services::Request>,
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _return_raw_connector_response: Option<bool>,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::CompleteAuthorize,
@@ -117,6 +104,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
             &self,
             call_connector_action.clone(),
             connector_request,
+            None,
         )
         .await
         .to_payment_failed_response()?;
@@ -151,10 +139,10 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
-        access_token::add_access_token(state, connector, merchant_account, self, creds_identifier)
+        access_token::add_access_token(state, connector, merchant_context, self, creds_identifier)
             .await
     }
 
@@ -250,6 +238,7 @@ pub async fn complete_authorize_preprocessing_steps<F: Clone>(
             connector_integration,
             &preprocessing_router_data,
             payments::CallConnectorAction::Trigger,
+            None,
             None,
         )
         .await
