@@ -1288,11 +1288,11 @@ impl
         let authentication_connector = authentication
             .authentication_connector
             .as_ref()
-            .map(|connector| common_enums::AuthenticationConnectors::from_str(&connector))
+            .map(|connector| common_enums::AuthenticationConnectors::from_str(connector))
             .transpose()
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Incorrect authentication connector stored in table")?;
-        Ok(AuthenticationAuthenticateResponse {
+        Ok(Self {
             transaction_status: authentication.trans_status.clone(),
             acs_url: authentication.acs_url.clone(),
             challenge_request: authentication.challenge_request.clone(),
@@ -1305,7 +1305,7 @@ impl
             error_code: None,
             error_message: authentication.error_message.clone(),
             authentication_value,
-            status: authentication.authentication_status.clone(),
+            status: authentication.authentication_status,
             authentication_connector,
         })
     }
