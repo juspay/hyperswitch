@@ -1,7 +1,11 @@
 use api_models::payments::QrCodeInformation;
 use common_enums::{enums, PaymentMethod};
 use common_utils::{
-    errors::CustomResult, ext_traits::{BytesExt, Encode}, new_type::MaskedBankAccount, pii, types::StringMajorUnit
+    errors::CustomResult,
+    ext_traits::{BytesExt, Encode},
+    new_type::MaskedBankAccount,
+    pii,
+    types::StringMajorUnit,
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
