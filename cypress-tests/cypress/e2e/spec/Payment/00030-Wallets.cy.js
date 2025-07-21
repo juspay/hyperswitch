@@ -53,7 +53,7 @@ describe("Wallet Payments", () => {
         true,
         globalState
       );
-      
+
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
@@ -70,7 +70,7 @@ describe("Wallet Payments", () => {
   });
 
   context("Alipay", () => {
-    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
+    const shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     beforeEach(function () {
       if (!shouldContinue) {
