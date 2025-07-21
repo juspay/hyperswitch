@@ -9413,6 +9413,12 @@
                     "description": "Destination bank account number",
                     "example": "9b95f84e-de61-460b-a14b-f23b4e71c97b",
                     "nullable": true
+                  },
+                  "expiry_date": {
+                    "type": "string",
+                    "description": "The expiration date and time for the Pix QR code in ISO 8601 format",
+                    "example": "2025-09-10T10:11:12Z",
+                    "nullable": true
                   }
                 }
               }
@@ -25985,6 +25991,12 @@
             "type": "string",
             "description": "Partially masked destination bank account number",
             "example": "********-****-460b-****-f23b4e71c97b",
+            "nullable": true
+          },
+          "expiry_date": {
+            "type": "string",
+            "description": "The expiration date and time for the Pix QR code in ISO 8601 format",
+            "example": "2025-09-10T10:11:12Z",
             "nullable": true
           }
         }
