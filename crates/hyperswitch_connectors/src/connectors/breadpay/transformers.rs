@@ -231,7 +231,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BreadpayPaymentsResponse, T, PaymentsRe
         item: ResponseRouterData<F, BreadpayPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            // As per documentaion, the first call is cart creation where we don't get any status only get the customer redirection url.
+            // As per documentation, the first call is cart creation where we don't get any status only get the customer redirection url.
             status: common_enums::AttemptStatus::AuthenticationPending,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::NoResponseId,
