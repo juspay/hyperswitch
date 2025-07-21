@@ -487,15 +487,15 @@ impl behaviour::Conversion for MerchantConnectorAccount {
     }
 
     fn validate(
-        item: Self::DstType,
-        key_manager_identifier: Identifier,
+        item: &Self::DstType,
+        key_manager_identifier: &Identifier,
     ) -> CustomResult<(), ValidationError>
     where
         Self: Sized,
     {
         match key_manager_identifier {
             Identifier::Merchant(merchant_id) => {
-                if item.merchant_id != merchant_id {
+                if &item.merchant_id != merchant_id {
                     return Err(ValidationError::IncorrectValueProvided {
                         field_name: "Merchant Connector Account ID",
                     }
@@ -504,7 +504,10 @@ impl behaviour::Conversion for MerchantConnectorAccount {
 
                 Ok(())
             }
-            _ => Ok(()),
+            Identifier::User(_) | Identifier::UserAuth(_) => Err(ValidationError::InvalidValue {
+                message: "Key manager identifier is not a merchant".to_string(),
+            }
+            .into()),
         }
     }
 

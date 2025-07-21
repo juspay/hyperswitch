@@ -31,8 +31,8 @@ impl super::behaviour::Conversion for UserKeyStore {
     }
 
     fn validate(
-        _item: Self::DstType,
-        _key_manager_identifier: Identifier,
+        _item: &Self::DstType,
+        _key_manager_identifier: &Identifier,
     ) -> CustomResult<(), ValidationError>
     where
         Self: Sized,

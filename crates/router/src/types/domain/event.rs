@@ -134,15 +134,15 @@ impl super::behaviour::Conversion for Event {
     }
 
     fn validate(
-        item: Self::DstType,
-        key_manager_identifier: common_utils::types::keymanager::Identifier,
+        item: &Self::DstType,
+        key_manager_identifier: &common_utils::types::keymanager::Identifier,
     ) -> CustomResult<(), ValidationError>
     where
         Self: Sized,
     {
         match key_manager_identifier {
             common_utils::types::keymanager::Identifier::Merchant(merchant_id) => {
-                if item.merchant_id != Some(merchant_id) {
+                if item.merchant_id.as_ref() != Some(merchant_id) {
                     return Err(ValidationError::IncorrectValueProvided {
                         field_name: "Event ID",
                     }
@@ -151,7 +151,13 @@ impl super::behaviour::Conversion for Event {
 
                 Ok(())
             }
-            _ => Ok(()),
+            common_utils::types::keymanager::Identifier::User(_)
+            | common_utils::types::keymanager::Identifier::UserAuth(_) => {
+                Err(ValidationError::InvalidValue {
+                    message: "Key manager identifier is not a merchant".to_string(),
+                }
+                .into())
+            }
         }
     }
 

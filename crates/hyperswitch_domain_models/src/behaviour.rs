@@ -12,8 +12,8 @@ pub trait Conversion {
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError>;
 
     fn validate(
-        item: Self::DstType,
-        key_manager_identifier: Identifier,
+        item: &Self::DstType,
+        key_manager_identifier: &Identifier,
     ) -> CustomResult<(), ValidationError>;
 
     async fn convert_back(
@@ -39,14 +39,14 @@ pub trait ReverseConversion<SrcType: Conversion> {
 }
 
 #[async_trait::async_trait]
-impl<T: Send + Clone, U: Conversion<DstType = T>> ReverseConversion<U> for T {
+impl<T: Send, U: Conversion<DstType = T>> ReverseConversion<U> for T {
     async fn convert(
         self,
         state: &KeyManagerState,
         key: &Secret<Vec<u8>>,
         key_manager_identifier: Identifier,
     ) -> CustomResult<U, ValidationError> {
-        U::validate(self.clone(), key_manager_identifier.clone())?;
+        U::validate(&self, &key_manager_identifier)?;
         U::convert_back(state, self, key, key_manager_identifier).await
     }
 }
