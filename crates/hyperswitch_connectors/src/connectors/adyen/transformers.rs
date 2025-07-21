@@ -2218,7 +2218,7 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod
                         number: apple_pay_decrypte.application_primary_account_number,
                         expiry_month: exp_month,
                         expiry_year: expiry_year_4_digit,
-                        brand: "applepay".to_string(),
+                        brand: data.payment_method.network.clone(),
                         payment_type: PaymentType::Scheme,
                     };
                     Ok(AdyenPaymentMethod::ApplePayDecrypt(Box::new(
