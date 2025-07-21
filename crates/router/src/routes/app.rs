@@ -973,6 +973,19 @@ impl Routing {
                 })),
             );
 
+        #[cfg(feature = "dynamic_routing")]
+        {
+            route = route
+                .service(
+                    web::resource("/evaluate")
+                        .route(web::post().to(routing::call_decide_gateway_open_router)),
+                )
+                .service(
+                    web::resource("/feedback")
+                        .route(web::post().to(routing::call_update_gateway_score_open_router)),
+                )
+        }
+
         #[cfg(feature = "payouts")]
         {
             route = route
@@ -2707,6 +2720,10 @@ impl Authentication {
         web::scope("/authentication")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(authentication::authentication_create)))
+            .service(
+                web::resource("/{authentication_id}/eligibility")
+                    .route(web::post().to(authentication::authentication_eligibility)),
+            )
     }
 }
 
