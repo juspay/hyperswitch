@@ -1594,16 +1594,13 @@ impl ForeignFrom<gsm_api_types::GsmCreateRequest>
             sub_flow: value.sub_flow,
             code: value.code,
             message: value.message,
-            decision: value.decision,
             status: value.status,
             router_error: value.router_error,
-            step_up_possible: value.step_up_possible.unwrap_or_default(),
             unified_code: value.unified_code,
             unified_message: value.unified_message,
             error_category: value.error_category,
-            clear_pan_possible: value.clear_pan_possible.unwrap_or_default(),
-            feature_data: Some(feature_data),
-            feature: Some(value.feature),
+            feature_data,
+            feature: value.feature.unwrap_or(api_enums::GsmFeature::Retry),
         }
     }
 }
@@ -1615,7 +1612,7 @@ impl ForeignFrom<&gsm_api_types::GsmCreateRequest> for hyperswitch_domain_models
         let alternate_network_possible = value.alternate_network_possible.unwrap_or_default();
 
         match value.feature {
-            api_enums::GsmFeature::Retry => {
+            Some(api_enums::GsmFeature::Retry) | None => {
                 Self::Retry(hyperswitch_domain_models::gsm::RetryFeatureData {
                     step_up_possible,
                     clear_pan_possible,
@@ -1642,11 +1639,8 @@ impl
             &gsm_api_types::GsmUpdateRequest,
             hyperswitch_domain_models::gsm::GatewayStatusMap,
         ),
-    ) -> Option<(
-        api_enums::GsmFeature,
-        hyperswitch_domain_models::gsm::FeatureData,
-    )> {
-        let gsm_db_record_infered_feature = match gsm_db_record.decision {
+    ) -> Self {
+        let gsm_db_record_infered_feature = match gsm_db_record.feature_data.get_decision() {
             api_enums::GsmDecision::Retry | api_enums::GsmDecision::DoDefault => {
                 api_enums::GsmFeature::Retry
             }
@@ -1654,19 +1648,12 @@ impl
 
         let gsm_feature = gsm_update_request
             .feature
-            .or(gsm_db_record.feature)
             .or(Some(gsm_db_record_infered_feature));
 
-        let gsm_feature_data = match gsm_feature {
+        match gsm_feature {
             Some(api_enums::GsmFeature::Retry) => {
                 let gsm_db_record_retry_feature_data =
-                    gsm_db_record
-                        .feature_data
-                        .map(|gsm_feature_data| match gsm_feature_data {
-                            hyperswitch_domain_models::gsm::FeatureData::Retry(
-                                retry_feature_data,
-                            ) => retry_feature_data,
-                        });
+                    gsm_db_record.feature_data.get_retry_feature_data();
 
                 let retry_feature_data = hyperswitch_domain_models::gsm::FeatureData::Retry(
                     hyperswitch_domain_models::gsm::RetryFeatureData {
@@ -1675,14 +1662,12 @@ impl
                             .or(gsm_db_record_retry_feature_data
                                 .clone()
                                 .map(|data| data.step_up_possible))
-                            .or(Some(gsm_db_record.step_up_possible))
                             .unwrap_or_default(),
                         clear_pan_possible: gsm_update_request
                             .clear_pan_possible
                             .or(gsm_db_record_retry_feature_data
                                 .clone()
                                 .map(|data| data.clear_pan_possible))
-                            .or(Some(gsm_db_record.clear_pan_possible))
                             .unwrap_or_default(),
                         alternate_network_possible: gsm_update_request
                             .alternate_network_possible
@@ -1691,43 +1676,46 @@ impl
                             .unwrap_or_default(),
                         decision: gsm_update_request
                             .decision
-                            .or(Some(gsm_db_record.decision))
+                            .or(Some(gsm_db_record.feature_data.get_decision()))
                             .unwrap_or_default(),
                     },
                 );
                 Some((api_enums::GsmFeature::Retry, retry_feature_data))
             }
             None => None,
-        };
-        gsm_feature_data
+        }
     }
 }
 
 impl ForeignFrom<hyperswitch_domain_models::gsm::GatewayStatusMap> for gsm_api_types::GsmResponse {
     fn foreign_from(value: hyperswitch_domain_models::gsm::GatewayStatusMap) -> Self {
-        let alternate_network_possible = value
-            .feature_data
-            .map(|feature_data| match feature_data {
-                hyperswitch_domain_models::gsm::FeatureData::Retry(ref retry_feature_data) => {
-                    retry_feature_data.alternate_network_possible
-                }
-            })
-            .unwrap_or(false);
         Self {
             connector: value.connector.to_string(),
             flow: value.flow,
             sub_flow: value.sub_flow,
             code: value.code,
             message: value.message,
-            decision: value.decision,
+            decision: value.feature_data.get_decision(),
             status: value.status,
             router_error: value.router_error,
-            step_up_possible: value.step_up_possible,
+            step_up_possible: value
+                .feature_data
+                .get_retry_feature_data()
+                .map(|data| data.is_step_up_possible())
+                .unwrap_or(false),
             unified_code: value.unified_code,
             unified_message: value.unified_message,
             error_category: value.error_category,
-            clear_pan_possible: value.clear_pan_possible,
-            alternate_network_possible,
+            clear_pan_possible: value
+                .feature_data
+                .get_retry_feature_data()
+                .map(|data| data.is_clear_pan_possible())
+                .unwrap_or(false),
+            alternate_network_possible: value
+                .feature_data
+                .get_retry_feature_data()
+                .map(|data| data.is_alternate_network_possible())
+                .unwrap_or(false),
             feature: value.feature,
         }
     }

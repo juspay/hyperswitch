@@ -65,10 +65,10 @@ where
 
     let mut initial_gsm = get_gsm(state, &router_data).await?;
 
-    //Check if step-up to threeDS is possible and merchant has enabled
     let step_up_possible = initial_gsm
-        .clone()
-        .map(|gsm| gsm.step_up_possible)
+        .as_ref()
+        .and_then(|data| data.feature_data.get_retry_feature_data())
+        .map(|data| data.is_step_up_possible())
         .unwrap_or(false);
 
     #[cfg(feature = "v1")]
@@ -150,11 +150,13 @@ where
                         .map(|pmd| pmd.is_network_token_payment_method_data())
                         .unwrap_or(false);
 
+                    let clear_pan_possible = initial_gsm
+                        .and_then(|data| data.feature_data.get_retry_feature_data())
+                        .map(|data| data.is_clear_pan_possible())
+                        .unwrap_or(false);
+
                     let should_retry_with_pan = is_network_token
-                        && initial_gsm
-                            .as_ref()
-                            .map(|gsm| gsm.clear_pan_possible)
-                            .unwrap_or(false)
+                        && clear_pan_possible
                         && business_profile.is_clear_pan_retries_enabled;
 
                     let (connector, routing_decision) = if should_retry_with_pan {
@@ -287,7 +289,9 @@ pub async fn get_gsm<F, FData>(
 pub fn get_gsm_decision(
     option_gsm: Option<hyperswitch_domain_models::gsm::GatewayStatusMap>,
 ) -> storage_enums::GsmDecision {
-    let option_gsm_decision = option_gsm.map(|gsm| gsm.decision);
+    let option_gsm_decision = option_gsm
+        .as_ref()
+        .map(|gsm| gsm.feature_data.get_decision());
 
     if option_gsm_decision.is_some() {
         metrics::AUTO_RETRY_GSM_MATCH_COUNT.add(1, &[]);

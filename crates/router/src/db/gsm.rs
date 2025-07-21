@@ -120,7 +120,7 @@ impl GsmInterface for Store {
     ) -> CustomResult<hyperswitch_domain_models::gsm::GatewayStatusMap, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         let gsm_update_data = diesel_models::gsm::GatewayStatusMappingUpdate::try_from(data)
-            .change_context(errors::StorageError::EncryptionError)?;
+            .change_context(errors::StorageError::SerializationFailed)?;
         let gsm_db_record = storage::GatewayStatusMap::update(
             &conn,
             connector,

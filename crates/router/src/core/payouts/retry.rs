@@ -187,7 +187,7 @@ pub async fn get_gsm(
 pub fn get_gsm_decision(
     option_gsm: Option<hyperswitch_domain_models::gsm::GatewayStatusMap>,
 ) -> common_enums::GsmDecision {
-    let option_gsm_decision = option_gsm.map(|gsm| gsm.decision);
+    let option_gsm_decision = option_gsm.map(|gsm| gsm.feature_data.get_decision());
 
     if option_gsm_decision.is_some() {
         metrics::AUTO_PAYOUT_RETRY_GSM_MATCH_COUNT.add(1, &[]);

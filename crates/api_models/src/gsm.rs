@@ -34,7 +34,7 @@ pub struct GsmCreateRequest {
     /// indicates if retry with alternate network possible
     pub alternate_network_possible: Option<bool>,
     /// indicates gsm feature
-    pub feature: common_enums::GsmFeature,
+    pub feature: Option<common_enums::GsmFeature>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -143,5 +143,5 @@ pub struct GsmResponse {
     /// indicates if retry with alternate network possible
     pub alternate_network_possible: bool,
     /// indicates gsm feature
-    pub feature: Option<common_enums::GsmFeature>,
+    pub feature: common_enums::GsmFeature,
 }
