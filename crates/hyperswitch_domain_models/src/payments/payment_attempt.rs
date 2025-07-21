@@ -1306,6 +1306,7 @@ pub enum PaymentAttemptUpdate {
         charges: Option<common_types::payments::ConnectorChargeResponseData>,
         setup_future_usage_applied: Option<storage_enums::FutureUsage>,
         debit_routing_savings: Option<MinorUnit>,
+        routing_approach: Option<storage_enums::RoutingApproach>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -1590,6 +1591,7 @@ impl PaymentAttemptUpdate {
                 charges,
                 setup_future_usage_applied,
                 debit_routing_savings: _,
+                routing_approach,
             } => DieselPaymentAttemptUpdate::ResponseUpdate {
                 status,
                 connector,
@@ -1615,6 +1617,7 @@ impl PaymentAttemptUpdate {
                 connector_mandate_detail,
                 charges,
                 setup_future_usage_applied,
+                routing_approach_v2: routing_approach.map(|approach| approach.to_string()),
             },
             Self::UnresolvedResponseUpdate {
                 status,

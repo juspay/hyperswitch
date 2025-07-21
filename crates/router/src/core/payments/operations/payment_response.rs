@@ -1866,6 +1866,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                             .payment_attempt
                                             .setup_future_usage_applied,
                                         debit_routing_savings,
+                                        routing_approach: payment_data
+                                            .payment_attempt
+                                            .routing_approach,
                                     }),
                                 ),
                             };

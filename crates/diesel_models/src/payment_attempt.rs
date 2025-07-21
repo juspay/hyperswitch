@@ -557,6 +557,7 @@ pub enum PaymentAttemptUpdate {
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
         charges: Option<common_types::payments::ConnectorChargeResponseData>,
         setup_future_usage_applied: Option<storage_enums::FutureUsage>,
+        routing_approach_v2: Option<String>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -2892,6 +2893,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_mandate_detail,
                 charges,
                 setup_future_usage_applied,
+                routing_approach_v2,
             } => {
                 let (connector_transaction_id, processor_transaction_data) =
                     connector_transaction_id
@@ -2956,7 +2958,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     issuer_error_code: None,
                     issuer_error_message: None,
                     setup_future_usage_applied,
-                    routing_approach_v2: None,
+                    routing_approach_v2,
                     connector_request_reference_id: None,
                 }
             }

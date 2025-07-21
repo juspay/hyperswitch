@@ -530,6 +530,7 @@ where
                 charges,
                 setup_future_usage_applied: None,
                 debit_routing_savings,
+                routing_approach: payment_data.get_payment_attempt().routing_approach,
             };
 
             #[cfg(feature = "v1")]
