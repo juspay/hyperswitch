@@ -380,7 +380,6 @@ macro_rules! default_imp_for_new_connector_integration_refund {
 }
 
 default_imp_for_new_connector_integration_refund!(
-
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,

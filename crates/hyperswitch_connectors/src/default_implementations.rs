@@ -533,7 +533,6 @@ macro_rules! default_imp_for_post_session_tokens {
 }
 
 default_imp_for_post_session_tokens!(
-    
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -796,7 +795,6 @@ macro_rules! default_imp_for_update_metadata {
 }
 
 default_imp_for_update_metadata!(
-    
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -1042,7 +1040,6 @@ macro_rules! default_imp_for_incremental_authorization {
 }
 
 default_imp_for_incremental_authorization!(
-    
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -3494,7 +3491,6 @@ macro_rules! default_imp_for_payouts_recipient {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient!(
-    
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -3759,7 +3755,6 @@ macro_rules! default_imp_for_frm_sale {
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_sale!(
-    
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -3893,7 +3888,6 @@ macro_rules! default_imp_for_frm_checkout {
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_checkout!(
-    
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
