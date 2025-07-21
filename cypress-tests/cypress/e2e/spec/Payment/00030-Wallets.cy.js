@@ -54,7 +54,7 @@ describe("Wallet Payments", () => {
         globalState
       );
       
-      // if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("handle-wallet-redirection", () => {
