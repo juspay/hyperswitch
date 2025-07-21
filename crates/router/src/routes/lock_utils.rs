@@ -35,6 +35,7 @@ pub enum ApiIdentifier {
     UserRole,
     ConnectorOnboarding,
     Recon,
+    AiWorkflow,
     Poll,
     ApplePayCertificatesMigration,
     Relay,
@@ -80,6 +81,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ToggleDynamicRouting
             | Flow::UpdateDynamicRoutingConfigs
             | Flow::DecisionManagerUpsertConfig
+            | Flow::RoutingEvaluateRule
             | Flow::DecisionEngineRuleMigration
             | Flow::VolumeSplitOnRoutingType => Self::Routing,
 
@@ -299,6 +301,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::UpdateTheme
             | Flow::DeleteTheme
             | Flow::CloneConnector => Self::User,
+
+            Flow::GetDataFromHyperswitchAiFlow => Self::AiWorkflow,
 
             Flow::ListRolesV2
             | Flow::ListInvitableRolesAtEntityLevel
