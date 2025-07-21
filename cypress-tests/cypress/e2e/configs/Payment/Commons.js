@@ -340,6 +340,14 @@ export const payment_methods_enabled = [
         installment_payment_enabled: true,
         payment_experience: "redirect_to_url",
       },
+      {
+        payment_method_type: "mb_way",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+        payment_experience: "redirect_to_url",
+      },
     ],
   },
 ];
@@ -1747,6 +1755,28 @@ export const connectorDetails = {
             country: "CN",
             first_name: "Sakil",
             last_name: "Mostak",
+          },
+        },
+      },
+    }),
+    MBWay: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "mb_way",
+        payment_method_data: {
+          wallet: {
+            mb_way_redirect: {},
+          },
+        },
+        billing: {
+          address: {
+            zip: "1012JS",
+            first_name: "Sakil",
+            last_name: "Mostak",
+            line1: "Damrak 1",
+            country: "NL",
+            line2: "2nd floor",
+            city: "Amsterdam",
           },
         },
       },

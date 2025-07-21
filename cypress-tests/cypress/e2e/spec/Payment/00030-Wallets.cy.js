@@ -150,7 +150,7 @@ describe("Wallet Payments", () => {
       cy.paymentMethodsCallTest(globalState);
 
       // skip this if payment method type mb_way is not there in the payment method types
-      shouldContinue = !!globalState.get("paymentMethodTypes")?.includes("mb_way");
+      // shouldContinue = !!globalState.get("paymentMethodTypes")?.includes("mb_way");
     });
 
     it("mb_way-confirm-call-test", () => {
