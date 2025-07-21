@@ -3,8 +3,8 @@ use crate::{
     utils::{self, CustomerData, RouterData as _},
 };
 use common_enums::enums;
-use common_utils::types::StringMajorUnit;
-use error_stack::ResultExt;
+use common_utils::{errors::CustomResult, types::StringMajorUnit};
+use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     payment_method_data::{BankDebitData, PaymentMethodData},
     router_data::{AccessToken, ConnectorAuthType, PaymentMethodToken, RouterData},
@@ -46,6 +46,31 @@ pub struct DwollaAccessTokenResponse {
     access_token: Secret<String>,
     expires_in: i64,
     token_type: String,
+}
+
+pub fn extract_token_from_body(body: &[u8]) -> CustomResult<String, errors::ConnectorError> {
+    let parsed: serde_json::Value = serde_json::from_slice(body)
+        .map_err(|_| report!(errors::ConnectorError::ResponseDeserializationFailed))?;
+
+    if let Some(code) = parsed.get("code").and_then(|v| v.as_str()) {
+        if code == "DuplicateResource" {
+            return parsed
+                .get("_links")
+                .and_then(|links| links.get("about"))
+                .and_then(|about| about.get("href"))
+                .and_then(|href| href.as_str())
+                .and_then(|url| url.rsplit('/').next())
+                .map(|id| id.to_string())
+                .ok_or_else(|| report!(errors::ConnectorError::ResponseHandlingFailed));
+        }
+    }
+
+    parsed
+        .get("TokenizationResponse")
+        .and_then(|v| v.get("token"))
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+        .ok_or_else(|| report!(errors::ConnectorError::ResponseDeserializationFailed))
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, DwollaAccessTokenResponse, T, AccessToken>>
@@ -165,23 +190,12 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for DwollaCustomerRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::ConnectorCustomerRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
-            first_name: item.get_billing_first_name().map_err(|_| {
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "first_name",
-                }
-            })?,
-            last_name: item.get_billing_last_name().map_err(|_| {
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "last_name",
-                }
-            })?,
+            first_name: item.get_billing_first_name()?,
+            last_name: item.get_billing_last_name()?,
             email: item
                 .request
                 .get_email()
-                .or_else(|_| item.get_billing_email())
-                .map_err(|_| errors::ConnectorError::MissingRequiredField {
-                    field_name: "email",
-                })?,
+                .or_else(|_| item.get_billing_email())?,
         })
     }
 }
@@ -385,7 +399,7 @@ impl From<DwollaPaymentStatus> for common_enums::AttemptStatus {
             DwollaPaymentStatus::Succeeded => Self::Charged,
             DwollaPaymentStatus::Processed => Self::Charged,
             DwollaPaymentStatus::Failed => Self::Failure,
-            DwollaPaymentStatus::Processing => Self::Authorizing,
+            DwollaPaymentStatus::Processing => Self::Pending,
             DwollaPaymentStatus::Pending => Self::Pending,
         }
     }

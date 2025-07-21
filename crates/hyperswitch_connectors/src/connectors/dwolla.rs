@@ -58,6 +58,7 @@ use hyperswitch_interfaces::{
 };
 
 use transformers as dwolla;
+use transformers::extract_token_from_body;
 
 #[derive(Clone)]
 pub struct Dwolla {
@@ -461,31 +462,6 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
     }
 }
 
-fn extract_token_from_body(body: &[u8]) -> CustomResult<String, errors::ConnectorError> {
-    let parsed: serde_json::Value = serde_json::from_slice(body)
-        .map_err(|_| report!(errors::ConnectorError::ResponseDeserializationFailed))?;
-
-    if let Some(code) = parsed.get("code").and_then(|v| v.as_str()) {
-        if code == "DuplicateResource" {
-            return parsed
-                .get("_links")
-                .and_then(|links| links.get("about"))
-                .and_then(|about| about.get("href"))
-                .and_then(|href| href.as_str())
-                .and_then(|url| url.rsplit('/').next())
-                .map(|id| id.to_string())
-                .ok_or_else(|| report!(errors::ConnectorError::ResponseHandlingFailed));
-        }
-    }
-
-    parsed
-        .get("TokenizationResponse")
-        .and_then(|v| v.get("token"))
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string())
-        .ok_or_else(|| report!(errors::ConnectorError::ResponseDeserializationFailed))
-}
-
 impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Dwolla {}
 
 impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Dwolla {
@@ -514,10 +490,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount_in_minor_unit = MinorUnit::new(req.request.amount);
         let amount = convert_amount(
             self.amount_converter,
-            amount_in_minor_unit,
+            req.request.minor_amount,
             req.request.currency,
         )?;
         let connector_router_data =
