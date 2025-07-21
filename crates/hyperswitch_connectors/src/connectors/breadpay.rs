@@ -26,7 +26,8 @@ use hyperswitch_domain_models::{
         PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
@@ -799,7 +800,28 @@ impl webhooks::IncomingWebhook for Breadpay {
 }
 
 static BREADPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
-    LazyLock::new(SupportedPaymentMethods::new);
+    LazyLock::new(|| {
+        let supported_capture_methods = vec![
+            enums::CaptureMethod::Automatic,
+            enums::CaptureMethod::Manual,
+            enums::CaptureMethod::SequentialAutomatic,
+        ];
+
+        let mut breadpay_supported_payment_methods = SupportedPaymentMethods::new();
+
+        breadpay_supported_payment_methods.add(
+            enums::PaymentMethod::PayLater,
+            enums::PaymentMethodType::Breadpay,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods,
+                specific_features: None,
+            },
+        );
+
+        breadpay_supported_payment_methods
+    });
 
 static BREADPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Breadpay",
