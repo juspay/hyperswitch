@@ -2091,7 +2091,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 routing_approach: storage_model
                     .routing_approach_v2
                     .and_then(|approach| approach.parse::<storage_enums::RoutingApproach>().ok())
-                    .or_else(|| storage_model.routing_approach),
+                    .or(storage_model.routing_approach),
                 connector_request_reference_id: storage_model.connector_request_reference_id,
                 debit_routing_savings: None,
             })
