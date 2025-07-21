@@ -291,6 +291,8 @@ pub struct AdyenPaymentRequest<'a> {
     splits: Option<Vec<AdyenSplitData>>,
     store: Option<String>,
     device_fingerprint: Option<Secret<String>>,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    session_validity: Option<PrimitiveDateTime>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -2922,6 +2924,7 @@ impl
             store,
             splits,
             device_fingerprint,
+            session_validity: None,
         })
     }
 }
@@ -3005,6 +3008,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
             store,
             splits,
             device_fingerprint,
+            session_validity: None,
         })
     }
 }
@@ -3092,6 +3096,7 @@ impl
             store,
             splits,
             device_fingerprint,
+            session_validity: None,
         };
         Ok(request)
     }
@@ -3167,6 +3172,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &VoucherData)>
             store,
             splits,
             device_fingerprint,
+            session_validity: None,
         };
         Ok(request)
     }
@@ -3213,6 +3219,32 @@ impl
         let delivery_address =
             get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
         let telephone_number = item.router_data.get_optional_billing_phone_number();
+        let (session_validity, social_security_number) = match bank_transfer_data {
+            BankTransferData::Pix {
+                pix_key: _,
+                cpf,
+                cnpj,
+                source_bank_account_id: _,
+                destination_bank_account_id: _,
+                expiry_date,
+            } => (expiry_date.clone(), cpf.clone().or(cnpj.clone()).clone()),
+            BankTransferData::LocalBankTransfer { bank_code: _ } => (None, None),
+            BankTransferData::AchBankTransfer {}
+            | BankTransferData::SepaBankTransfer {}
+            | BankTransferData::BacsBankTransfer {}
+            | BankTransferData::MultibancoBankTransfer {}
+            | BankTransferData::PermataBankTransfer {}
+            | BankTransferData::BcaBankTransfer {}
+            | BankTransferData::BniVaBankTransfer {}
+            | BankTransferData::BriVaBankTransfer {}
+            | BankTransferData::CimbVaBankTransfer {}
+            | BankTransferData::DanamonVaBankTransfer {}
+            | BankTransferData::MandiriVaBankTransfer {}
+            | BankTransferData::Pse {}
+            | BankTransferData::InstantBankTransfer {}
+            | BankTransferData::InstantBankTransferFinland {}
+            | BankTransferData::InstantBankTransferPoland {} => (None, None),
+        };
 
         let request = AdyenPaymentRequest {
             amount,
@@ -3228,7 +3260,7 @@ impl
             shopper_name: None,
             shopper_locale: None,
             shopper_email: item.router_data.get_optional_billing_email(),
-            social_security_number: None,
+            social_security_number,
             telephone_number,
             billing_address,
             delivery_address,
@@ -3243,6 +3275,7 @@ impl
             store,
             splits,
             device_fingerprint,
+            session_validity,
         };
         Ok(request)
     }
@@ -3319,6 +3352,7 @@ impl
             store,
             splits,
             device_fingerprint,
+            session_validity: None,
         };
         Ok(request)
     }
@@ -3399,6 +3433,7 @@ impl
             store,
             splits,
             device_fingerprint,
+            session_validity: None,
         })
     }
 }
@@ -3529,6 +3564,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &WalletData)>
             store,
             splits,
             device_fingerprint,
+            session_validity: None,
         })
     }
 }
@@ -3618,6 +3654,7 @@ impl
             store,
             splits,
             device_fingerprint,
+            session_validity: None,
         })
     }
 }
@@ -3699,6 +3736,7 @@ impl
             store,
             splits,
             device_fingerprint,
+            session_validity: None,
         })
     }
 }
@@ -5945,6 +5983,7 @@ impl
             store,
             splits,
             device_fingerprint,
+            session_validity: None,
         })
     }
 }

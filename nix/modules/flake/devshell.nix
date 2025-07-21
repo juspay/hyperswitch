@@ -21,6 +21,11 @@
               postgresql # for libpq
               protobuf
             ];
+            shellHook = ''
+              export OPENSSL_DIR="${pkgs.openssl.dev}"
+              export OPENSSL_LIB_DIR="${pkgs.openssl.out}/lib"
+              export OPENSSL_INCLUDE_DIR="${pkgs.openssl.dev}/include"
+            '';
           };
         dev = pkgs.mkShell {
           name = "hyperswitch-dev-shell";
