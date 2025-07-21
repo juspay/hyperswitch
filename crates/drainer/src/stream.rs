@@ -116,7 +116,7 @@ impl Store {
         stream_name: &str,
         entry_id: &str,
     ) -> errors::DrainerResult<()> {
-        let (trim_result, execution_time) =
+        let (_trim_result, execution_time) =
             common_utils::date_time::time_it::<errors::DrainerResult<_>, _, _>(|| async {
                 self.redis_conn
                     .stream_delete_entries(&stream_name.into(), entry_id)
