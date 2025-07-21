@@ -36,8 +36,6 @@ describe("Wallet Payments", () => {
         "automatic",
         globalState
       );
-
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("payment_methods-call-test", () => {
@@ -56,7 +54,7 @@ describe("Wallet Payments", () => {
         globalState
       );
       
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+      // if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("handle-wallet-redirection", () => {
@@ -110,7 +108,7 @@ describe("Wallet Payments", () => {
         globalState
       );
 
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+      // if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("handle-wallet-redirection", () => {
@@ -150,9 +148,12 @@ describe("Wallet Payments", () => {
 
     it("payment_methods-call-test", () => {
       cy.paymentMethodsCallTest(globalState);
+
+      // skip this if payment method type mb_way is not there in the payment method types
+      shouldContinue = !!globalState.get("paymentMethodTypes")?.includes("mb_way");
     });
 
-    it("alipay-confirm-call-test", () => {
+    it("mb_way-confirm-call-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "wallet_pm"
       ]["MBWay"];
@@ -164,7 +165,7 @@ describe("Wallet Payments", () => {
         globalState
       );
 
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+      // if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("handle-wallet-redirection", () => {

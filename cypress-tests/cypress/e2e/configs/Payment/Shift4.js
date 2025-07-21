@@ -896,5 +896,33 @@ export const connectorDetails = {
         },
       },
     },
+    Alipay: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "ali_pay",
+        payment_method_data: {
+          wallet: {
+            ali_pay_redirect: {},
+          },
+        },
+        billing: {
+          address: {
+            zip: "200001",
+            first_name: "Sakil",
+            last_name: "Mostak",
+            line1: "No. 100, Nanjing East Road",
+            country: "CN",
+            line2: "Huangpu District",
+            city: "Shanghai",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
   },
 };
