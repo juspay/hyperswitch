@@ -1,5 +1,5 @@
 use common_enums::enums;
-use common_utils::{pii::Email, request::Method, types::StringMinorUnit};
+use common_utils::{request::Method, types::StringMinorUnit};
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{self, PaymentsAuthorizeRequestData, RouterData as OtherRouterData},
+    utils::{self, PaymentsAuthorizeRequestData},
 };
 
 pub struct BreadpayRouterData<T> {
@@ -44,19 +44,19 @@ pub struct BreadpayCartOptions {
     order_ref: Option<String>,
     complete_url: String,
     callback_url: String,
-    billing_contact: Option<BillingContact>,
+    // billing_contact: Option<BillingContact>,
 }
 
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct BillingContact {
-    first_name: Secret<String>,
-    last_name: Secret<String>,
-    email: Option<Email>,
-    address: Secret<String>,
-    city: Secret<String>,
-    state: Secret<String>,
-}
+// #[derive(Debug, Serialize)]
+// #[serde(rename_all = "camelCase")]
+// pub struct BillingContact {
+//     first_name: Secret<String>,
+//     last_name: Secret<String>,
+//     email: Option<Email>,
+//     address: Secret<String>,
+//     city: Secret<String>,
+//     state: Secret<String>,
+// }
 
 impl TryFrom<&BreadpayRouterData<&PaymentsAuthorizeRouterData>> for BreadpayCartRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -66,20 +66,20 @@ impl TryFrom<&BreadpayRouterData<&PaymentsAuthorizeRouterData>> for BreadpayCart
         let request = match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::PayLater(pay_later_data) => match pay_later_data{
                 hyperswitch_domain_models::payment_method_data::PayLaterData::BreadpayRedirect {  } => {
-                                let billing_contact = BillingContact {
-                                    first_name: item.router_data.get_billing_first_name()?,
-                                    last_name: item.router_data.get_billing_last_name()?,
-                                    email: item.router_data.get_optional_billing_email(),
-                                    address: item.router_data.get_billing_line1()?,
-                                    city: item.router_data.get_billing_city()?.into(),
-                                    state: item.router_data.get_billing_state()?,
-                                };
+                                // let billing_contact = BillingContact {
+                                //     first_name: item.router_data.get_billing_first_name()?,
+                                //     last_name: item.router_data.get_billing_last_name()?,
+                                //     email: item.router_data.get_optional_billing_email(),
+                                //     address: item.router_data.get_billing_line1()?,
+                                //     city: item.router_data.get_billing_city()?.into(),
+                                //     state: item.router_data.get_billing_state()?,
+                                // };
                                 let options = Some({
                                     BreadpayCartOptions {
                                         order_ref: item.router_data.request.merchant_order_reference_id.clone(),
                                         complete_url: item.router_data.request.get_complete_authorize_url()?,
-                                        callback_url: item.router_data.request.get_router_return_url()?,
-                                        billing_contact: Some(billing_contact)
+                                        callback_url: item.router_data.request.get_router_return_url()?
+                                        // billing_contact: Some(billing_contact)
                                     }
                                 });
                                 Self{

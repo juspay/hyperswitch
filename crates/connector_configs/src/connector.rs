@@ -385,6 +385,7 @@ impl ConnectorConfig {
             Connector::Bluesnap => Ok(connector_data.bluesnap),
             Connector::Boku => Ok(connector_data.boku),
             Connector::Braintree => Ok(connector_data.braintree),
+            Connector::Breadpay => Ok(connector_data.breadpay),
             Connector::Cashtocode => Ok(connector_data.cashtocode),
             Connector::Celero => Ok(connector_data.celero),
             Connector::Chargebee => Ok(connector_data.chargebee),

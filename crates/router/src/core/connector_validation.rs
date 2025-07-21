@@ -134,6 +134,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 braintree::transformers::BraintreeMeta::try_from(self.connector_meta_data)?;
                 Ok(())
             }
+            api_enums::Connector::Breadpay => {
+                breadpay::transformers::BreadpayAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Cashtocode => {
                 cashtocode::transformers::CashtocodeAuthType::try_from(self.auth_type)?;
                 Ok(())
