@@ -13,7 +13,6 @@ pub mod user_role;
 pub mod verify_connector;
 use std::fmt::Debug;
 
-use actix_web::HttpRequest;
 use api_models::{
     enums,
     payments::{self},
@@ -1374,17 +1373,4 @@ pub async fn trigger_payouts_webhook(
     payout_response: &api_models::payouts::PayoutCreateResponse,
 ) -> RouterResult<()> {
     todo!()
-}
-
-pub fn get_request_id(req: &HttpRequest) -> RouterResult<String> {
-    use actix_web::HttpMessage;
-    req.extensions()
-        .get::<router_env::tracing_actix_web::RequestId>()
-        .map(|id| id.as_hyphenated().to_string())
-        .ok_or(
-            errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "x-request-id",
-            }
-            .into(),
-        )
 }
