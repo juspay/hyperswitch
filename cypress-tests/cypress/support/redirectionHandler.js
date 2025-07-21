@@ -273,9 +273,7 @@ function bankRedirectRedirection(
       airwallexIdealOrigin1,
       { args: { constants: CONSTANTS } },
       ({ constants }) => {
-        cy.log(
-          "Executing on Airwallex iDEAL Origin 1"
-        );
+        cy.log("Executing on Airwallex iDEAL Origin 1");
         cy.wait(constants.TIMEOUT / 10); // 2 seconds
         cy.get("button[data-testid=payment-action-button]").click();
         cy.wait(constants.TIMEOUT / 10); // 2 seconds
@@ -293,9 +291,7 @@ function bankRedirectRedirection(
       airwallexIdealOrigin2,
       { args: { constants: CONSTANTS } },
       ({ constants }) => {
-        cy.log(
-          "Executing on Airwallex iDEAL Origin 2"
-        );
+        cy.log("Executing on Airwallex iDEAL Origin 2");
 
         cy.get(".btn.btn-primary.btn-lg")
           .contains("Success")

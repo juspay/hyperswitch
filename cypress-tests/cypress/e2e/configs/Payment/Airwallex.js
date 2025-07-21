@@ -841,14 +841,14 @@ export const connectorDetails = {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "ideal",
-        payment_method_data : {
-          bank_redirect : {
+        payment_method_data: {
+          bank_redirect: {
             ideal: {
               billing_details: {
-                  billing_name: "john doe",
-                  email: "abc@gmail.com"
+                billing_name: "john doe",
+                email: "abc@gmail.com",
               },
-              country: "NL"
+              country: "NL",
             },
           },
         },
@@ -859,6 +859,6 @@ export const connectorDetails = {
           status: "requires_customer_action",
         },
       },
-    }
+    },
   },
 };
