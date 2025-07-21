@@ -1147,6 +1147,9 @@ function walletRedirection(
       verifyReturnUrl(redirectionUrl, expectedUrl, true);
       break;
     case "multisafepay":
+      if (paymentMethodType === "mb_way") {
+        cy.contains("tbody", "Multibanco").click();
+      }
       cy.get("div.alert").should("contain.text", "CSRF validation failed");
       break;
     case "shift4":
