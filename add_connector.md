@@ -26,9 +26,11 @@ By the end, you’ll have a fully functional, production-ready connector—from 
 
 
 ## Development Environment Setup & Configuration
-- **Clone the Hyperswitch monorepo**  
-  ```bash
+- **Clone the Hyperswitch monorepo** 
+ 
+```bash
   git clone git@github.com:juspay/hyperswitch.git
+```
 
 ### Rust installed and configured
 Install Stable (for development) and Nightly (for formatting):
@@ -47,15 +49,19 @@ cargo install wasm-pack
 ### PSP sandbox/UAT credentials
 - Obtain API keys from your payment provider
 - In the `hyperswitch/crates/router/tests/connectors` directory, locate `sample_auth.toml`, copy the provider lines, and save them as a new file named `auth.toml` anywhere, like the project root. For example, if you want to build a stripe connector, your `auth.toml` will look like this: 
+
 ```bash
 [stripebilling]
 api_key="YOUR API KEY"
 ```
+
 - Set the environment variable. 
 ```bash
 export CONNECTOR_AUTH_FILE_PATH="/path/to/your/auth.toml"
 ```
+
 It's recommended that you use a `.envrc` file with **direnv** in the `cypress-tests` directory. This approach automatically loads environment variables when you enter the directory. For example: 
+
 ```bash
 # In cypress-tests/.envrc  
 export CONNECTOR_AUTH_FILE_PATH="/absolute/path/hyperswitch/auth.toml"  
@@ -63,11 +69,13 @@ export CYPRESS_CONNECTOR="stripe"
 export CYPRESS_BASEURL="http://localhost:8080"  # if you are deploying locally
 export CYPRESS_ADMINAPIKEY="test_admin" # if you are deploying locally; see [link] for more details.
 ```
+
 After that, navigate back into the `cypress-tests` directory and run the below command. This approves the `.envrc` and exports your environment variable.
 
 ```bash
 direnv allow
 ```
+
 > **⚠️ Important Notes**
 > - **Never commit `auth.toml`** – It contains sensitive credentials and should never be added to version control  
 > - **Use absolute paths** – This avoids issues when running tests from different directories  
