@@ -3240,7 +3240,7 @@ impl
                     }
                 }
 
-                (expiry_date.clone(), cpf.as_ref().or(cnpj.as_ref()).cloned())
+                (*expiry_date, cpf.as_ref().or(cnpj.as_ref()).cloned())
             }
             BankTransferData::LocalBankTransfer { .. } => (None, None),
             BankTransferData::AchBankTransfer {}
