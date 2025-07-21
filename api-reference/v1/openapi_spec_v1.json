@@ -18613,8 +18613,23 @@
           "created_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "organization_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OrganizationType"
+              }
+            ],
+            "nullable": true
           }
         }
+      },
+      "OrganizationType": {
+        "type": "string",
+        "enum": [
+          "standard",
+          "platform"
+        ]
       },
       "OrganizationUpdateRequest": {
         "type": "object",

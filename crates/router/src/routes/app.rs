@@ -973,6 +973,19 @@ impl Routing {
                 })),
             );
 
+        #[cfg(feature = "dynamic_routing")]
+        {
+            route = route
+                .service(
+                    web::resource("/evaluate")
+                        .route(web::post().to(routing::call_decide_gateway_open_router)),
+                )
+                .service(
+                    web::resource("/feedback")
+                        .route(web::post().to(routing::call_update_gateway_score_open_router)),
+                )
+        }
+
         #[cfg(feature = "payouts")]
         {
             route = route
@@ -1093,6 +1106,10 @@ impl Routing {
                         routing::routing_link_config(state, req, path, payload, None)
                     },
                 )),
+            )
+            .service(
+                web::resource("/rule/evaluate")
+                    .route(web::post().to(routing::evaluate_routing_rule)),
             );
         route
     }

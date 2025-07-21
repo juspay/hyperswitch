@@ -10,6 +10,7 @@ use common_enums::enums as api_enums;
 #[cfg(feature = "v2")]
 use common_utils::ext_traits::OptionExt;
 use common_utils::{
+    ext_traits::StringExt,
     id_type,
     new_type::{
         MaskedBankAccount, MaskedIban, MaskedRoutingNumber, MaskedSortCode, MaskedUpiVpaId,
@@ -72,6 +73,14 @@ impl PaymentMethodData {
             Self::OpenBanking(_) => Some(common_enums::PaymentMethod::OpenBanking),
             Self::MobilePayment(_) => Some(common_enums::PaymentMethod::MobilePayment),
             Self::CardToken(_) | Self::MandatePayment => None,
+        }
+    }
+
+    pub fn get_wallet_data(&self) -> Option<&WalletData> {
+        if let Self::Wallet(wallet_data) = self {
+            Some(wallet_data)
+        } else {
+            None
         }
     }
 
@@ -271,6 +280,32 @@ pub enum WalletData {
     RevolutPay(RevolutPayData),
 }
 
+impl WalletData {
+    pub fn get_paze_wallet_data(&self) -> Option<&PazeWalletData> {
+        if let Self::Paze(paze_wallet_data) = self {
+            Some(paze_wallet_data)
+        } else {
+            None
+        }
+    }
+
+    pub fn get_apple_pay_wallet_data(&self) -> Option<&ApplePayWalletData> {
+        if let Self::ApplePay(apple_pay_wallet_data) = self {
+            Some(apple_pay_wallet_data)
+        } else {
+            None
+        }
+    }
+
+    pub fn get_google_pay_wallet_data(&self) -> Option<&GooglePayWalletData> {
+        if let Self::GooglePay(google_pay_wallet_data) = self {
+            Some(google_pay_wallet_data)
+        } else {
+            None
+        }
+    }
+}
+
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct MifinityData {
     pub date_of_birth: Secret<Date>,
@@ -438,6 +473,26 @@ pub struct ApplePayWalletData {
     pub payment_method: ApplepayPaymentMethod,
     /// The unique identifier for the transaction
     pub transaction_identifier: String,
+}
+
+impl ApplePayWalletData {
+    pub fn get_payment_method_type(&self) -> Option<api_enums::PaymentMethodType> {
+        self.payment_method
+            .pm_type
+            .clone()
+            .parse_enum("ApplePayPaymentMethodType")
+            .ok()
+            .and_then(|payment_type| match payment_type {
+                common_enums::ApplePayPaymentMethodType::Debit => {
+                    Some(api_enums::PaymentMethodType::Debit)
+                }
+                common_enums::ApplePayPaymentMethodType::Credit => {
+                    Some(api_enums::PaymentMethodType::Credit)
+                }
+                common_enums::ApplePayPaymentMethodType::Prepaid
+                | common_enums::ApplePayPaymentMethodType::Store => None,
+            })
+    }
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
