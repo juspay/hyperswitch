@@ -2648,6 +2648,8 @@ impl GetPaymentMethodType for WalletData {
             Self::AliPayQr(_) | Self::AliPayRedirect(_) => api_enums::PaymentMethodType::AliPay,
             Self::AliPayHkRedirect(_) => api_enums::PaymentMethodType::AliPayHk,
             Self::AmazonPayRedirect(_) => api_enums::PaymentMethodType::AmazonPay,
+            Self::Skrill(_) => api_enums::PaymentMethodType::Skrill,
+            Self::Paysera(_) => api_enums::PaymentMethodType::Paysera,
             Self::MomoRedirect(_) => api_enums::PaymentMethodType::Momo,
             Self::KakaoPayRedirect(_) => api_enums::PaymentMethodType::KakaoPay,
             Self::GoPayRedirect(_) => api_enums::PaymentMethodType::GoPay,
@@ -3568,6 +3570,10 @@ pub enum WalletData {
     AliPayHkRedirect(AliPayHkRedirection),
     /// The wallet data for Amazon Pay redirect
     AmazonPayRedirect(AmazonPayRedirectData),
+    /// The wallet data for Skrill
+    Skrill(SkrillData),
+    /// The wallet data for Paysera
+    Paysera(PayseraData),
     /// The wallet data for Momo redirect
     MomoRedirect(MomoRedirection),
     /// The wallet data for KakaoPay redirect
@@ -3654,6 +3660,8 @@ impl GetAddressFromPaymentMethodData for WalletData {
             | Self::GoPayRedirect(_)
             | Self::GcashRedirect(_)
             | Self::AmazonPayRedirect(_)
+            | Self::Skrill(_)
+            | Self::Paysera(_)
             | Self::ApplePay(_)
             | Self::ApplePayRedirect(_)
             | Self::ApplePayThirdPartySdk(_)
@@ -3814,6 +3822,12 @@ pub struct ApplePayRedirectData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct AmazonPayRedirectData {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct SkrillData {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct PayseraData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct GooglePayRedirectData {}
@@ -5172,7 +5186,8 @@ pub struct PaymentsResponse {
     pub is_iframe_redirection_enabled: Option<bool>,
 
     /// Contains whole connector response
-    pub whole_connector_response: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub whole_connector_response: Option<Secret<String>>,
 }
 
 #[cfg(feature = "v2")]
@@ -5791,7 +5806,11 @@ pub struct PaymentsResponse {
     pub merchant_reference_id: Option<id_type::PaymentReferenceId>,
 
     /// Stringified connector raw response body. Only returned if `return_raw_connector_response` is true
-    pub raw_connector_response: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub raw_connector_response: Option<Secret<String>>,
+
+    /// Additional data that might be required by hyperswitch based on the additional features.
+    pub feature_metadata: Option<FeatureMetadata>,
 }
 
 #[cfg(feature = "v2")]
@@ -7727,8 +7746,8 @@ pub struct ResponsePaymentMethodTypesForPayments {
     pub payment_method_subtype: common_enums::PaymentMethodType,
 
     /// The payment experience for the payment method
-    #[schema(value_type = Option<PaymentExperience>)]
-    pub payment_experience: Option<common_enums::PaymentExperience>,
+    #[schema(value_type = Option<Vec<PaymentExperience>>)]
+    pub payment_experience: Option<Vec<common_enums::PaymentExperience>>,
 
     /// payment method subtype specific information
     #[serde(flatten)]
@@ -7807,13 +7826,13 @@ pub struct FeatureMetadata {
     /// Recurring payment details required for apple pay Merchant Token
     pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
     /// revenue recovery data for payment intent
-    pub payment_revenue_recovery_metadata: Option<PaymentRevenueRecoveryMetadata>,
+    pub revenue_recovery: Option<PaymentRevenueRecoveryMetadata>,
 }
 
 #[cfg(feature = "v2")]
 impl FeatureMetadata {
     pub fn get_retry_count(&self) -> Option<u16> {
-        self.payment_revenue_recovery_metadata
+        self.revenue_recovery
             .as_ref()
             .map(|metadata| metadata.total_retry_count)
     }
@@ -7826,7 +7845,7 @@ impl FeatureMetadata {
             redirect_response: self.redirect_response,
             search_tags: self.search_tags,
             apple_pay_recurring_details: self.apple_pay_recurring_details,
-            payment_revenue_recovery_metadata: Some(payment_revenue_recovery_metadata),
+            revenue_recovery: Some(payment_revenue_recovery_metadata),
         }
     }
 }

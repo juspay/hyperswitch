@@ -10838,7 +10838,7 @@
             ],
             "nullable": true
           },
-          "payment_revenue_recovery_metadata": {
+          "revenue_recovery": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/PaymentRevenueRecoveryMetadata"
@@ -11095,6 +11095,28 @@
             "enum": [
               "user_bank"
             ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "user_bank_options"
+            ],
+            "properties": {
+              "user_bank_options": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
           },
           {
             "type": "string",
@@ -13802,6 +13824,10 @@
         },
         "additionalProperties": false
       },
+      "MerchantCountryCode": {
+        "type": "string",
+        "description": "A wrapper type for merchant country codes that provides validation and conversion functionality.\n\nThis type stores a country code as a string and provides methods to validate it\nand convert it to a `Country` enum variant."
+      },
       "MerchantDetails": {
         "type": "object",
         "properties": {
@@ -14945,8 +14971,23 @@
           "created_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "organization_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OrganizationType"
+              }
+            ],
+            "nullable": true
           }
         }
+      },
+      "OrganizationType": {
+        "type": "string",
+        "enum": [
+          "standard",
+          "platform"
+        ]
       },
       "OrganizationUpdateRequest": {
         "type": "object",
@@ -17619,10 +17660,7 @@
             ],
             "properties": {
               "bank_names": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/BankCodeResponse"
-                }
+                "$ref": "#/components/schemas/BankNames"
               }
             }
           }
@@ -17640,6 +17678,8 @@
           "ali_pay_hk",
           "alma",
           "amazon_pay",
+          "skrill",
+          "paysera",
           "apple_pay",
           "atome",
           "bacs",
@@ -19294,6 +19334,14 @@
             "type": "string",
             "description": "Stringified connector raw response body. Only returned if `return_raw_connector_response` is true",
             "nullable": true
+          },
+          "feature_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeatureMetadata"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -20720,6 +20768,9 @@
           }
         }
       },
+      "PayseraData": {
+        "type": "object"
+      },
       "PazeSessionTokenResponse": {
         "type": "object",
         "required": [
@@ -21216,6 +21267,14 @@
               }
             ],
             "nullable": true
+          },
+          "merchant_country_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantCountryCode"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -21490,6 +21549,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/MerchantCategoryCode"
+              }
+            ],
+            "nullable": true
+          },
+          "merchant_country_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantCountryCode"
               }
             ],
             "nullable": true
@@ -22329,11 +22396,11 @@
                 "$ref": "#/components/schemas/PaymentMethodType"
               },
               "payment_experience": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/PaymentExperience"
-                  }
-                ],
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PaymentExperience"
+                },
+                "description": "The payment experience for the payment method",
                 "nullable": true
               },
               "required_fields": {
@@ -23684,6 +23751,9 @@
           "cover",
           "contain"
         ]
+      },
+      "SkrillData": {
+        "type": "object"
       },
       "SortBy": {
         "type": "string",
@@ -25303,6 +25373,28 @@
             "properties": {
               "amazon_pay_redirect": {
                 "$ref": "#/components/schemas/AmazonPayRedirectData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "skrill"
+            ],
+            "properties": {
+              "skrill": {
+                "$ref": "#/components/schemas/SkrillData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "paysera"
+            ],
+            "properties": {
+              "paysera": {
+                "$ref": "#/components/schemas/PayseraData"
               }
             }
           },

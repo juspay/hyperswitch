@@ -2176,6 +2176,13 @@ pub struct ProfileCreate {
     /// Four-digit code assigned based on business type to determine processing fees and risk level
     #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
+
+    /// Merchant country code.
+    /// This is a 3-digit ISO 3166-1 numeric country code that represents the country in which the merchant is registered or operates.
+    /// Merchants typically receive this value based on their business registration information or during onboarding via payment processors or acquiring banks.
+    /// It is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior.
+    #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
+    pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
 }
 
 #[nutype::nutype(
@@ -2322,6 +2329,13 @@ pub struct ProfileCreate {
     /// Four-digit code assigned based on business type to determine processing fees and risk level
     #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
+
+    /// Merchant country code.
+    /// This is a 3-digit ISO 3166-1 numeric country code that represents the country in which the merchant is registered or operates.
+    /// Merchants typically receive this value based on their business registration information or during onboarding via payment processors or acquiring banks.
+    /// It is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior.
+    #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
+    pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
 }
 
 #[cfg(feature = "v1")]
@@ -2497,6 +2511,13 @@ pub struct ProfileResponse {
     /// Four-digit code assigned based on business type to determine processing fees and risk level
     #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
+
+    /// Merchant country code.
+    /// This is a 3-digit ISO 3166-1 numeric country code that represents the country in which the merchant is registered or operates.
+    /// Merchants typically receive this value based on their business registration information or during onboarding via payment processors or acquiring banks.
+    /// It is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior.
+    #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
+    pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
 }
 
 #[cfg(feature = "v2")]
@@ -2651,6 +2672,13 @@ pub struct ProfileResponse {
     /// Four-digit code assigned based on business type to determine processing fees and risk level
     #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
+
+    /// Merchant country code.
+    /// This is a 3-digit ISO 3166-1 numeric country code that represents the country in which the merchant is registered or operates.
+    /// Merchants typically receive this value based on their business registration information or during onboarding via payment processors or acquiring banks.
+    /// It is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior.
+    #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
+    pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
 }
 
 #[cfg(feature = "v1")]
@@ -2811,6 +2839,13 @@ pub struct ProfileUpdate {
     /// Four-digit code assigned based on business type to determine processing fees and risk level
     #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
+
+    /// Merchant country code.
+    /// This is a 3-digit ISO 3166-1 numeric country code that represents the country in which the merchant is registered or operates.
+    /// Merchants typically receive this value based on their business registration information or during onboarding via payment processors or acquiring banks.
+    /// It is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior.
+    #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
+    pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
 }
 
 #[cfg(feature = "v2")]
@@ -2947,6 +2982,13 @@ pub struct ProfileUpdate {
     /// Four-digit code assigned based on business type to determine processing fees and risk level
     #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
+
+    /// Merchant country code.
+    /// This is a 3-digit ISO 3166-1 numeric country code that represents the country in which the merchant is registered or operates.
+    /// Merchants typically receive this value based on their business registration information or during onboarding via payment processors or acquiring banks.
+    /// It is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior.
+    #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
+    pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

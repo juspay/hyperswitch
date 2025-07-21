@@ -59,8 +59,8 @@ use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_ve
 #[cfg(feature = "oltp")]
 use super::webhooks::*;
 use super::{
-    admin, api_keys, cache::*, connector_onboarding, disputes, files, gsm, health::*, profiles,
-    relay, user, user_role,
+    admin, api_keys, cache::*, chat, connector_onboarding, disputes, files, gsm, health::*,
+    profiles, relay, user, user_role,
 };
 #[cfg(feature = "v1")]
 use super::{apple_pay_certificates_migration, blocklist, payment_link, webhook_events};
@@ -1098,6 +1098,10 @@ impl Routing {
                         routing::routing_link_config(state, req, path, payload, None)
                     },
                 )),
+            )
+            .service(
+                web::resource("/rule/evaluate")
+                    .route(web::post().to(routing::evaluate_routing_rule)),
             );
         route
     }
@@ -2220,6 +2224,23 @@ impl Gsm {
     }
 }
 
+pub struct Chat;
+
+#[cfg(feature = "olap")]
+impl Chat {
+    pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/chat").app_data(web::Data::new(state.clone()));
+        if state.conf.chat.enabled {
+            route = route.service(
+                web::scope("/ai").service(
+                    web::resource("/data")
+                        .route(web::post().to(chat::get_data_from_hyperswitch_ai_workflow)),
+                ),
+            );
+        }
+        route
+    }
+}
 pub struct ThreeDsDecisionRule;
 
 #[cfg(feature = "oltp")]
