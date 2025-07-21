@@ -6351,3 +6351,7 @@ key1="Secret Key"
 [affirm]
 [affirm.connector_auth.HeaderKey]
 api_key = "API Key"
+
+[blackhawknetwork]
+[blackhawknetwork.connector_auth.HeaderKey]
+api_key = "API Key"

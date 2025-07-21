@@ -13,6 +13,7 @@ pub mod bankofamerica;
 pub mod barclaycard;
 pub mod billwerk;
 pub mod bitpay;
+pub mod blackhawknetwork;
 pub mod bluesnap;
 pub mod boku;
 pub mod braintree;
@@ -119,14 +120,15 @@ pub use self::{
     aci::Aci, adyen::Adyen, adyenplatform::Adyenplatform, affirm::Affirm, airwallex::Airwallex,
     amazonpay::Amazonpay, archipel::Archipel, authipay::Authipay, authorizedotnet::Authorizedotnet,
     bambora::Bambora, bamboraapac::Bamboraapac, bankofamerica::Bankofamerica,
-    barclaycard::Barclaycard, billwerk::Billwerk, bitpay::Bitpay, bluesnap::Bluesnap, boku::Boku,
-    braintree::Braintree, cashtocode::Cashtocode, celero::Celero, chargebee::Chargebee,
-    checkbook::Checkbook, checkout::Checkout, coinbase::Coinbase, coingate::Coingate,
-    cryptopay::Cryptopay, ctp_mastercard::CtpMastercard, cybersource::Cybersource,
-    datatrans::Datatrans, deutschebank::Deutschebank, digitalvirgo::Digitalvirgo, dlocal::Dlocal,
-    dwolla::Dwolla, ebanx::Ebanx, elavon::Elavon, facilitapay::Facilitapay, fiserv::Fiserv,
-    fiservemea::Fiservemea, fiuu::Fiuu, forte::Forte, getnet::Getnet, globalpay::Globalpay,
-    globepay::Globepay, gocardless::Gocardless, gpayments::Gpayments, helcim::Helcim, hipay::Hipay,
+    barclaycard::Barclaycard, billwerk::Billwerk, bitpay::Bitpay,
+    blackhawknetwork::Blackhawknetwork, bluesnap::Bluesnap, boku::Boku, braintree::Braintree,
+    cashtocode::Cashtocode, celero::Celero, chargebee::Chargebee, checkbook::Checkbook,
+    checkout::Checkout, coinbase::Coinbase, coingate::Coingate, cryptopay::Cryptopay,
+    ctp_mastercard::CtpMastercard, cybersource::Cybersource, datatrans::Datatrans,
+    deutschebank::Deutschebank, digitalvirgo::Digitalvirgo, dlocal::Dlocal, dwolla::Dwolla,
+    ebanx::Ebanx, elavon::Elavon, facilitapay::Facilitapay, fiserv::Fiserv, fiservemea::Fiservemea,
+    fiuu::Fiuu, forte::Forte, getnet::Getnet, globalpay::Globalpay, globepay::Globepay,
+    gocardless::Gocardless, gpayments::Gpayments, helcim::Helcim, hipay::Hipay,
     hyperswitch_vault::HyperswitchVault, iatapay::Iatapay, inespay::Inespay, itaubank::Itaubank,
     jpmorgan::Jpmorgan, juspaythreedsserver::Juspaythreedsserver, klarna::Klarna,
     mifinity::Mifinity, mollie::Mollie, moneris::Moneris, multisafepay::Multisafepay,
