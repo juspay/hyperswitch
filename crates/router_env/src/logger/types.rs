@@ -552,6 +552,8 @@ pub enum Flow {
     PaymentStartRedirection,
     /// Volume split on the routing type
     VolumeSplitOnRoutingType,
+    /// Routing evaluate rule flow
+    RoutingEvaluateRule,
     /// Relay flow
     Relay,
     /// Relay retrieve flow
