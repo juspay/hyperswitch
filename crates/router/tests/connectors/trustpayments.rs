@@ -13,7 +13,7 @@ impl utils::Connector for TrustpaymentsTest {
         use router::connector::Trustpayments;
         utils::construct_connector_data_old(
             Box::new(Trustpayments::new()),
-            types::Connector::Plaid,
+            types::Connector::Trustpayments,
             api::GetToken::Connector,
             None,
         )
@@ -36,11 +36,62 @@ impl utils::Connector for TrustpaymentsTest {
 static CONNECTOR: TrustpaymentsTest = TrustpaymentsTest {};
 
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
-    None
+    Some(utils::PaymentInfo {
+        address: Some(types::PaymentAddress::new(
+            None,
+            Some(api::Address {
+                address: Some(api::AddressDetails {
+                    country: Some(api_models::enums::CountryAlpha2::US),
+                    city: Some("New York".to_string()),
+                    postal_code: Some("10001".to_string()),
+                    line1: Some("123 Main St".to_string()),
+                    line2: None,
+                    line3: None,
+                    state: Some(Secret::new("NY".to_string())),
+                    first_name: Some(Secret::new("John".to_string())),
+                    last_name: Some(Secret::new("Doe".to_string())),
+                }),
+                phone: Some(api::PhoneDetails {
+                    number: Some(Secret::new("1234567890".to_string())),
+                    country_code: Some("+1".to_string()),
+                }),
+                email: None,
+            }),
+            None,
+            None,
+        )),
+        access_token: None,
+        connector_customer_id: None,
+        connector_mandate_id: None,
+        return_url: Some("https://hyperswitch.io".to_string()),
+        currency: Some(enums::Currency::USD),
+        minor_amount: Some(100),
+        capture_method: Some(enums::CaptureMethod::Manual),
+        ..Default::default()
+    })
 }
 
 fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
-    None
+    Some(types::PaymentsAuthorizeData {
+        payment_method_data: PaymentMethodData::Card(Card {
+            card_number: Secret::new("4111111111111111".to_string()),
+            card_exp_month: Secret::new("12".to_string()),
+            card_exp_year: Secret::new("2025".to_string()),
+            card_cvc: Secret::new("123".to_string()),
+            card_issuer: None,
+            card_network: None,
+            card_type: None,
+            card_issuing_country: None,
+            bank_code: None,
+            nick_name: None,
+        }),
+        confirm: true,
+        amount: 100,
+        minor_amount: utils::to_minor_unit_asper_currency(100, enums::Currency::USD).unwrap(),
+        currency: enums::Currency::USD,
+        capture_method: Some(enums::CaptureMethod::Manual),
+        ..utils::PaymentAuthorizeType::default().0
+    })
 }
 
 // Cards Positive Tests
