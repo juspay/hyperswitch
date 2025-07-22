@@ -70,6 +70,7 @@ pub struct Settings<S: SecretState> {
     pub server: Server,
     pub proxy: Proxy,
     pub env: Env,
+    pub chat: ChatSettings,
     pub master_database: SecretStateContainer<Database, S>,
     #[cfg(feature = "olap")]
     pub replica_database: SecretStateContainer<Database, S>,
@@ -193,6 +194,13 @@ pub struct CloneConnectorAllowlistConfig {
 pub struct Platform {
     pub enabled: bool,
     pub allow_connected_merchants: bool,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct ChatSettings {
+    pub enabled: bool,
+    pub hyperswitch_ai_host: String,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -1023,6 +1031,7 @@ impl Settings<SecuredSecret> {
         self.secrets.get_inner().validate()?;
         self.locker.validate()?;
         self.connectors.validate("connectors")?;
+        self.chat.validate()?;
 
         self.cors.validate()?;
 

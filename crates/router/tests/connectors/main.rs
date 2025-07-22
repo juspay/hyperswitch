@@ -9,6 +9,7 @@ use test_utils::connector_auth;
 mod aci;
 mod adyen;
 mod adyenplatform;
+mod affirm;
 mod airwallex;
 mod amazonpay;
 mod authorizedotnet;
@@ -20,8 +21,10 @@ mod barclaycard;
 #[cfg(feature = "dummy_connector")]
 mod billwerk;
 mod bitpay;
+mod blackhawknetwork;
 mod bluesnap;
 mod boku;
+mod breadpay;
 mod cashtocode;
 mod celero;
 mod chargebee;
