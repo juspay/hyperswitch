@@ -91,9 +91,12 @@ pub async fn authentication_authenticate(
     path: web::Path<common_utils::id_type::AuthenticationId>,
 ) -> impl Responder {
     let flow = Flow::AuthenticationAuthenticate;
-
+    let authentication_id = path.into_inner();
     let api_auth = auth::ApiKeyAuth::default();
-    let payload = json_payload.into_inner();
+    let payload = AuthenticationAuthenticateRequest {
+        authentication_id,
+        ..json_payload.into_inner()
+    };
 
     let (auth, auth_flow) =
         match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
@@ -101,7 +104,6 @@ pub async fn authentication_authenticate(
             Err(e) => return api::log_and_return_error_response(e),
         };
 
-    let authentication_id = path.into_inner();
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -115,7 +117,6 @@ pub async fn authentication_authenticate(
                 state,
                 merchant_context,
                 req,
-                authentication_id.clone(),
                 auth_flow,
             )
         },

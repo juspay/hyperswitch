@@ -331,6 +331,10 @@ impl ApiEventMetric for AuthenticationEligibilityResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct AuthenticationAuthenticateRequest {
+    /// Authentication ID for the authentication
+    #[serde(skip_deserializing)]
+    pub authentication_id: id_type::AuthenticationId,
+    /// Client secret for the authentication
     #[schema(value_type = String)]
     pub client_secret: Option<masking::Secret<String>>,
     /// SDK Information if request is from SDK
@@ -343,7 +347,9 @@ pub struct AuthenticationAuthenticateRequest {
 
 impl ApiEventMetric for AuthenticationAuthenticateRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        None
+        Some(ApiEventsType::Authentication {
+            authentication_id: self.authentication_id.clone(),
+        })
     }
 }
 
@@ -387,10 +393,15 @@ pub struct AuthenticationAuthenticateResponse {
     /// The connector to be used for authentication, if known.
     #[schema(value_type = Option<AuthenticationConnectors>, example = "netcetera")]
     pub authentication_connector: Option<AuthenticationConnectors>,
+    /// The unique identifier for this authentication.
+    #[schema(value_type = String, example = "auth_mbabizu24mvu3mela5njyhpit4")]
+    pub authentication_id: id_type::AuthenticationId,
 }
 
 impl ApiEventMetric for AuthenticationAuthenticateResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        None
+        Some(ApiEventsType::Authentication {
+            authentication_id: self.authentication_id.clone(),
+        })
     }
 }

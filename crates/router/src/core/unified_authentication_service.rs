@@ -1099,9 +1099,9 @@ pub async fn authentication_authenticate_core(
     state: SessionState,
     merchant_context: domain::MerchantContext,
     req: AuthenticationAuthenticateRequest,
-    authentication_id: common_utils::id_type::AuthenticationId,
     auth_flow: AuthFlow,
 ) -> RouterResponse<AuthenticationAuthenticateResponse> {
+    let authentication_id = req.authentication_id.clone();
     let merchant_account = merchant_context.get_merchant_account();
     let merchant_id = merchant_account.get_id();
     let db = &*state.store;
@@ -1314,6 +1314,7 @@ impl
             status: authentication.authentication_status,
             authentication_connector,
             eci,
+            authentication_id: authentication.authentication_id.clone(),
         })
     }
 }
