@@ -199,6 +199,7 @@ barclaycard.base_url = "https://api.smartpayfuse-test.barclaycard/"
 billwerk.base_url = "https://api.reepay.com/"
 billwerk.secondary_base_url = "https://card.reepay.com/"
 bitpay.base_url = "https://test.bitpay.com"
+blackhawknetwork.base_url = "https://api-sandbox.blackhawknetwork.com/"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
 bluesnap.secondary_base_url = "https://sandpay.bluesnap.com/"
 boku.base_url = "https://$-api4-stage.boku.com"
@@ -1134,3 +1135,7 @@ version = "HOSTNAME"        # value of HOSTNAME from deployment which tells its 
 [platform]
 enabled = true # Enable or disable platform features
 allow_connected_merchants = false # Enable or disable connected merchant account features
+
+[chat]
+enabled = false                                # Enable or disable chat features
+hyperswitch_ai_host = "http://0.0.0.0:8000"    # Hyperswitch ai workflow host
