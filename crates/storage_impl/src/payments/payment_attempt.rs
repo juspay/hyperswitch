@@ -1898,7 +1898,7 @@ impl DataModelExt for PaymentAttempt {
             processor_merchant_id: Some(self.processor_merchant_id),
             created_by: self.created_by.map(|created_by| created_by.to_string()),
             connector_request_reference_id: self.connector_request_reference_id,
-            routing_approach_v2: self.routing_approach.map(|approach| approach.to_string()),
+            routing_strategy: self.routing_approach.map(|approach| approach.to_string()),
         }
     }
 
@@ -2083,7 +2083,7 @@ impl DataModelExt for PaymentAttemptNew {
             setup_future_usage_applied: self.setup_future_usage_applied,
             routing_approach: None,
             connector_request_reference_id: self.connector_request_reference_id,
-            routing_approach_v2: self.routing_approach.map(|approach| approach.to_string()),
+            routing_strategy: self.routing_approach.map(|approach| approach.to_string()),
         }
     }
 

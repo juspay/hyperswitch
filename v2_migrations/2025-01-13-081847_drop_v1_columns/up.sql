@@ -95,7 +95,7 @@ ALTER TABLE payment_attempt DROP COLUMN attempt_id,
     DROP COLUMN issuer_error_message,
     DROP COLUMN setup_future_usage_applied,
     DROP COLUMN routing_approach,
-    DROP COLUMN routing_approach_v2;
+    DROP COLUMN routing_strategy;
 
 
 ALTER TABLE payment_methods

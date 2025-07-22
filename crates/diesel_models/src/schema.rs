@@ -964,7 +964,7 @@ diesel::table! {
         #[max_length = 255]
         connector_request_reference_id -> Nullable<Varchar>,
         #[max_length = 64]
-        routing_approach_v2 -> Nullable<Varchar>,
+        routing_strategy -> Nullable<Varchar>,
     }
 }
 

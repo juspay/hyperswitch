@@ -1451,7 +1451,7 @@ impl PaymentAttemptUpdate {
                 tax_amount,
                 updated_by,
                 merchant_connector_id,
-                routing_approach_v2: routing_approach.map(|approach| approach.to_string()),
+                routing_strategy: routing_approach.map(|approach| approach.to_string()),
             },
             Self::AuthenticationTypeUpdate {
                 authentication_type,
@@ -1553,7 +1553,7 @@ impl PaymentAttemptUpdate {
                 order_tax_amount: net_amount.get_order_tax_amount(),
                 connector_mandate_detail,
                 card_discovery,
-                routing_approach_v2: routing_approach.map(|approach| approach.to_string()),
+                routing_strategy: routing_approach.map(|approach| approach.to_string()),
                 connector_request_reference_id,
             },
             Self::VoidUpdate {
@@ -1617,7 +1617,7 @@ impl PaymentAttemptUpdate {
                 connector_mandate_detail,
                 charges,
                 setup_future_usage_applied,
-                routing_approach_v2: routing_approach.map(|approach| approach.to_string()),
+                routing_strategy: routing_approach.map(|approach| approach.to_string()),
             },
             Self::UnresolvedResponseUpdate {
                 status,
@@ -1992,7 +1992,7 @@ impl behaviour::Conversion for PaymentAttempt {
             created_by: self.created_by.map(|cb| cb.to_string()),
             routing_approach: self.routing_approach,
             connector_request_reference_id: self.connector_request_reference_id,
-            routing_approach_v2: self.routing_approach.map(|approach| approach.to_string()),
+            routing_strategy: self.routing_approach.map(|approach| approach.to_string()),
         })
     }
 
@@ -2089,7 +2089,7 @@ impl behaviour::Conversion for PaymentAttempt {
                     .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
                 setup_future_usage_applied: storage_model.setup_future_usage_applied,
                 routing_approach: storage_model
-                    .routing_approach_v2
+                    .routing_strategy
                     .and_then(|approach| approach.parse::<storage_enums::RoutingApproach>().ok())
                     .or(storage_model.routing_approach),
                 connector_request_reference_id: storage_model.connector_request_reference_id,
@@ -2184,7 +2184,7 @@ impl behaviour::Conversion for PaymentAttempt {
             setup_future_usage_applied: self.setup_future_usage_applied,
             routing_approach: None,
             connector_request_reference_id: self.connector_request_reference_id,
-            routing_approach_v2: self.routing_approach.map(|approach| approach.to_string()),
+            routing_strategy: self.routing_approach.map(|approach| approach.to_string()),
         })
     }
 }
