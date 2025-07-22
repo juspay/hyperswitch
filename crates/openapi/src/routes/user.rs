@@ -21,6 +21,6 @@
     ),
     tag = "User",
     operation_id = "Create a Platform Account",
-    security(("admin_api_key" = []))
+    security(("jwt_key" = []))
 )]
 pub async fn create_platform_account() {}
