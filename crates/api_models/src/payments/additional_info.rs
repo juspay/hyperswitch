@@ -173,6 +173,11 @@ pub struct PixBankTransferAdditionalData {
     /// Partially masked source bank account number
     #[schema(value_type = Option<String>, example = "********-****-4073-****-9fa964d08bc5")]
     pub source_bank_account_id: Option<MaskedBankAccount>,
+
+    /// The expiration date and time for the Pix QR code in ISO 8601 format
+    #[schema(value_type = Option<String>, example = "2025-09-10T10:11:12Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub expiry_date: Option<time::PrimitiveDateTime>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
