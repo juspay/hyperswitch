@@ -468,6 +468,8 @@ dependencies = [
  "router_derive",
  "serde",
  "serde_json",
+ "smithy",
+ "smithy-core",
  "strum 0.26.3",
  "time",
  "url",
@@ -7812,6 +7814,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8917285742e9f3e1683f0a9c4e6b57960b7314d0b08d30d1ecd426713ee2eee9"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "smithy"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "smithy-core",
+ "syn 2.0.101",
+]
+
+[[package]]
+name = "smithy-core"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

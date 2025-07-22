@@ -32,6 +32,8 @@ use router_derive::Setter;
 #[cfg(feature = "v1")]
 use serde::{de, Deserializer};
 use serde::{ser::Serializer, Deserialize, Serialize};
+use smithy::SmithyModel;
+use smithy_core::SmithyModelGenerator;
 use strum::Display;
 use time::{Date, PrimitiveDateTime};
 use url::Url;
@@ -2125,15 +2127,18 @@ impl Card {
     }
 }
 
-#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, Default)]
+#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, Default, SmithyModel)]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.payment")]
 pub struct CardToken {
     /// The card holder's name
     #[schema(value_type = String, example = "John Test")]
+    #[smithy(length = "1..=100")]
     pub card_holder_name: Option<Secret<String>>,
 
     /// The CVC number for the card
     #[schema(value_type = Option<String>)]
+    #[smithy(pattern = r"^[0-9]{3,4}$")] 
     pub card_cvc: Option<Secret<String>>,
 }
 
