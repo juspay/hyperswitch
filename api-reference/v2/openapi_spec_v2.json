@@ -20,7 +20,7 @@
     }
   ],
   "paths": {
-    "/v2/organization": {
+    "/v2/organizations": {
       "post": {
         "tags": [
           "Organization"
@@ -67,7 +67,7 @@
         ]
       }
     },
-    "/v2/organization/{id}": {
+    "/v2/organizations/{id}": {
       "get": {
         "tags": [
           "Organization"
@@ -164,7 +164,7 @@
         ]
       }
     },
-    "/v2/organization/{id}/merchant-accounts": {
+    "/v2/organizations/{id}/merchant-accounts": {
       "get": {
         "tags": [
           "Organization"
@@ -1220,7 +1220,7 @@
         ]
       }
     },
-    "/v2/routing-algorithm": {
+    "/v2/routing-algorithms": {
       "post": {
         "tags": [
           "Routing"
@@ -1275,7 +1275,7 @@
         ]
       }
     },
-    "/v2/routing-algorithm/{id}": {
+    "/v2/routing-algorithms/{id}": {
       "get": {
         "tags": [
           "Routing"
@@ -2850,7 +2850,7 @@
         ]
       }
     },
-    "/v2/payment-method-session": {
+    "/v2/payment-method-sessions": {
       "post": {
         "tags": [
           "Payment Method Session"
@@ -2897,7 +2897,7 @@
         ]
       }
     },
-    "/v2/payment-method-session/{id}": {
+    "/v2/payment-method-sessions/{id}": {
       "get": {
         "tags": [
           "Payment Method Session"
@@ -2994,7 +2994,7 @@
         ]
       }
     },
-    "/v2/payment-method-session/{id}/list-payment-methods": {
+    "/v2/payment-method-sessions/{id}/list-payment-methods": {
       "get": {
         "tags": [
           "Payment Method Session"
@@ -3035,7 +3035,7 @@
         ]
       }
     },
-    "/v2/payment-method-session/{id}/update-saved-payment-method": {
+    "/v2/payment-method-sessions/{id}/update-saved-payment-method": {
       "put": {
         "tags": [
           "Payment Method Session"
@@ -3098,7 +3098,7 @@
         ]
       }
     },
-    "/v2/payment-method-session/{id}/confirm": {
+    "/v2/payment-method-sessions/{id}/confirm": {
       "post": {
         "tags": [
           "Payment Method Session"
@@ -3241,7 +3241,7 @@
         ]
       }
     },
-    "/v2/refunds/{id}/update_metadata": {
+    "/v2/refunds/{id}/update-metadata": {
       "put": {
         "tags": [
           "Refunds"
@@ -3377,7 +3377,7 @@
         ]
       }
     },
-    "/v2/process_tracker/revenue_recovery_workflow/{revenue_recovery_id}": {
+    "/v2/process-trackers/revenue-recovery-workflow/{revenue_recovery_id}": {
       "get": {
         "tags": [
           "Revenue Recovery"
@@ -8153,6 +8153,7 @@
           "checkout",
           "coinbase",
           "coingate",
+          "custombilling",
           "cryptopay",
           "ctp_mastercard",
           "ctp_visa",
@@ -15740,6 +15741,14 @@
               }
             ],
             "nullable": true
+          },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodDataResponseWithBilling"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -22738,6 +22747,7 @@
           "cashtocode",
           "celero",
           "chargebee",
+          "custombilling",
           "checkout",
           "coinbase",
           "coingate",
