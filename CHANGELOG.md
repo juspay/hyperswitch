@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.07.16.0-hotfix2
+
+### Bug Fixes
+
+- Remove straight through routing from routing approach ([#8694](https://github.com/juspay/hyperswitch/pull/8694)) ([`c4452e2`](https://github.com/juspay/hyperswitch/commit/c4452e2972f2e8564df8bf6d244c036e963d6c95))
+
+**Full Changelog:** [`2025.07.16.0-hotfix1...2025.07.16.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2025.07.16.0-hotfix1...2025.07.16.0-hotfix2)
+
+- - -
+
 ## 2025.07.16.0-hotfix1
 
 ### Bug Fixes
