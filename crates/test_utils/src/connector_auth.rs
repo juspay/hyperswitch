@@ -31,6 +31,7 @@ pub struct ConnectorAuthentication {
     pub blackhawknetwork: Option<HeaderKey>,
     pub bluesnap: Option<BodyKey>,
     pub boku: Option<BodyKey>,
+    pub breadpay: Option<BodyKey>,
     pub cashtocode: Option<BodyKey>,
     pub celero: Option<HeaderKey>,
     pub chargebee: Option<HeaderKey>,
