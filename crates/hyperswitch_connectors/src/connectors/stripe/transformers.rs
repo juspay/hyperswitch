@@ -1864,28 +1864,30 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                     let payment_data = match item.request.payment_method_data {
                         PaymentMethodData::CardDetailsForNetworkTransactionId(
                             ref card_details_for_network_transaction_id,
-                        ) => StripePaymentMethodData::Card(StripeCard::StripeCardDataWithoutIncremental(
-                            StripeCardDataWithoutIncremental {
-                                payment_method_data_type: StripePaymentMethodType::Card,
-                                payment_method_data_card_number:
-                                    card_details_for_network_transaction_id.card_number.clone(),
-                                payment_method_data_card_exp_month:
-                                    card_details_for_network_transaction_id
-                                        .card_exp_month
-                                        .clone(),
-                                payment_method_data_card_exp_year:
-                                    card_details_for_network_transaction_id
-                                        .card_exp_year
-                                        .clone(),
-                                payment_method_data_card_cvc: None,
-                                payment_method_auth_type: None,
-                                payment_method_data_card_preferred_network:
-                                    card_details_for_network_transaction_id
-                                        .card_network
-                                        .clone()
-                                        .and_then(get_stripe_card_network),
-                            },
-                        )),
+                        ) => StripePaymentMethodData::Card(
+                            StripeCard::StripeCardDataWithoutIncremental(
+                                StripeCardDataWithoutIncremental {
+                                    payment_method_data_type: StripePaymentMethodType::Card,
+                                    payment_method_data_card_number:
+                                        card_details_for_network_transaction_id.card_number.clone(),
+                                    payment_method_data_card_exp_month:
+                                        card_details_for_network_transaction_id
+                                            .card_exp_month
+                                            .clone(),
+                                    payment_method_data_card_exp_year:
+                                        card_details_for_network_transaction_id
+                                            .card_exp_year
+                                            .clone(),
+                                    payment_method_data_card_cvc: None,
+                                    payment_method_auth_type: None,
+                                    payment_method_data_card_preferred_network:
+                                        card_details_for_network_transaction_id
+                                            .card_network
+                                            .clone()
+                                            .and_then(get_stripe_card_network),
+                                },
+                            ),
+                        ),
                         PaymentMethodData::CardRedirect(_)
                         | PaymentMethodData::Wallet(_)
                         | PaymentMethodData::PayLater(_)
