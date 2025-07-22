@@ -1,6 +1,7 @@
 pub mod aci;
 pub mod adyen;
 pub mod adyenplatform;
+pub mod affirm;
 pub mod airwallex;
 pub mod amazonpay;
 pub mod archipel;
@@ -12,6 +13,7 @@ pub mod bankofamerica;
 pub mod barclaycard;
 pub mod billwerk;
 pub mod bitpay;
+pub mod blackhawknetwork;
 pub mod bluesnap;
 pub mod boku;
 pub mod braintree;
@@ -24,6 +26,7 @@ pub mod coinbase;
 pub mod coingate;
 pub mod cryptopay;
 pub mod ctp_mastercard;
+pub mod custombilling;
 pub mod cybersource;
 pub mod datatrans;
 pub mod deutschebank;
@@ -115,13 +118,14 @@ pub mod zsl;
 #[cfg(feature = "dummy_connector")]
 pub use self::dummyconnector::DummyConnector;
 pub use self::{
-    aci::Aci, adyen::Adyen, adyenplatform::Adyenplatform, airwallex::Airwallex,
+    aci::Aci, adyen::Adyen, adyenplatform::Adyenplatform, affirm::Affirm, airwallex::Airwallex,
     amazonpay::Amazonpay, archipel::Archipel, authipay::Authipay, authorizedotnet::Authorizedotnet,
     bambora::Bambora, bamboraapac::Bamboraapac, bankofamerica::Bankofamerica,
-    barclaycard::Barclaycard, billwerk::Billwerk, bitpay::Bitpay, bluesnap::Bluesnap, boku::Boku,
-    braintree::Braintree, cashtocode::Cashtocode, celero::Celero, chargebee::Chargebee,
-    checkbook::Checkbook, checkout::Checkout, coinbase::Coinbase, coingate::Coingate,
-    cryptopay::Cryptopay, ctp_mastercard::CtpMastercard, cybersource::Cybersource,
+    barclaycard::Barclaycard, billwerk::Billwerk, bitpay::Bitpay,
+    blackhawknetwork::Blackhawknetwork, bluesnap::Bluesnap, boku::Boku, braintree::Braintree,
+    cashtocode::Cashtocode, celero::Celero, chargebee::Chargebee, checkbook::Checkbook,
+    checkout::Checkout, coinbase::Coinbase, coingate::Coingate, cryptopay::Cryptopay,
+    ctp_mastercard::CtpMastercard, custombilling::Custombilling, cybersource::Cybersource,
     datatrans::Datatrans, deutschebank::Deutschebank, digitalvirgo::Digitalvirgo, dlocal::Dlocal,
     dwolla::Dwolla, ebanx::Ebanx, elavon::Elavon, facilitapay::Facilitapay, fiserv::Fiserv,
     fiservemea::Fiservemea, fiuu::Fiuu, forte::Forte, getnet::Getnet, globalpay::Globalpay,
