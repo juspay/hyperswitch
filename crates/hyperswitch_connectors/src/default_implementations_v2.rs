@@ -539,6 +539,7 @@ default_imp_for_new_connector_integration_connector_authentication_token!(
     connectors::Coingate,
     connectors::Cryptopay,
     connectors::CtpMastercard,
+    connectors::Custombilling,
     connectors::Cybersource,
     connectors::Datatrans,
     connectors::Deutschebank,

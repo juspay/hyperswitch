@@ -6724,6 +6724,7 @@ default_imp_for_connector_authentication_token!(
     connectors::Coingate,
     connectors::Cryptopay,
     connectors::CtpMastercard,
+    connectors::Custombilling,
     connectors::Cybersource,
     connectors::Datatrans,
     connectors::Deutschebank,
