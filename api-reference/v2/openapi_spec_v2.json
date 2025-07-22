@@ -20,7 +20,7 @@
     }
   ],
   "paths": {
-    "/v2/organization": {
+    "/v2/organizations": {
       "post": {
         "tags": [
           "Organization"
@@ -67,7 +67,7 @@
         ]
       }
     },
-    "/v2/organization/{id}": {
+    "/v2/organizations/{id}": {
       "get": {
         "tags": [
           "Organization"
@@ -164,7 +164,7 @@
         ]
       }
     },
-    "/v2/organization/{id}/merchant-accounts": {
+    "/v2/organizations/{id}/merchant-accounts": {
       "get": {
         "tags": [
           "Organization"
@@ -1220,7 +1220,7 @@
         ]
       }
     },
-    "/v2/routing-algorithm": {
+    "/v2/routing-algorithms": {
       "post": {
         "tags": [
           "Routing"
@@ -1275,7 +1275,7 @@
         ]
       }
     },
-    "/v2/routing-algorithm/{id}": {
+    "/v2/routing-algorithms/{id}": {
       "get": {
         "tags": [
           "Routing"
@@ -2850,7 +2850,7 @@
         ]
       }
     },
-    "/v2/payment-method-session": {
+    "/v2/payment-method-sessions": {
       "post": {
         "tags": [
           "Payment Method Session"
@@ -2897,7 +2897,7 @@
         ]
       }
     },
-    "/v2/payment-method-session/{id}": {
+    "/v2/payment-method-sessions/{id}": {
       "get": {
         "tags": [
           "Payment Method Session"
@@ -2994,7 +2994,7 @@
         ]
       }
     },
-    "/v2/payment-method-session/{id}/list-payment-methods": {
+    "/v2/payment-method-sessions/{id}/list-payment-methods": {
       "get": {
         "tags": [
           "Payment Method Session"
@@ -3035,7 +3035,7 @@
         ]
       }
     },
-    "/v2/payment-method-session/{id}/update-saved-payment-method": {
+    "/v2/payment-method-sessions/{id}/update-saved-payment-method": {
       "put": {
         "tags": [
           "Payment Method Session"
@@ -3098,7 +3098,7 @@
         ]
       }
     },
-    "/v2/payment-method-session/{id}/confirm": {
+    "/v2/payment-method-sessions/{id}/confirm": {
       "post": {
         "tags": [
           "Payment Method Session"
@@ -3241,7 +3241,7 @@
         ]
       }
     },
-    "/v2/refunds/{id}/update_metadata": {
+    "/v2/refunds/{id}/update-metadata": {
       "put": {
         "tags": [
           "Refunds"
@@ -3377,7 +3377,7 @@
         ]
       }
     },
-    "/v2/process_tracker/revenue_recovery_workflow/{revenue_recovery_id}": {
+    "/v2/process-trackers/revenue-recovery-workflow/{revenue_recovery_id}": {
       "get": {
         "tags": [
           "Revenue Recovery"
@@ -8153,6 +8153,7 @@
           "checkout",
           "coinbase",
           "coingate",
+          "custombilling",
           "cryptopay",
           "ctp_mastercard",
           "ctp_visa",
@@ -10838,7 +10839,7 @@
             ],
             "nullable": true
           },
-          "payment_revenue_recovery_metadata": {
+          "revenue_recovery": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/PaymentRevenueRecoveryMetadata"
@@ -11095,6 +11096,28 @@
             "enum": [
               "user_bank"
             ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "user_bank_options"
+            ],
+            "properties": {
+              "user_bank_options": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
           },
           {
             "type": "string",
@@ -13802,6 +13825,10 @@
         },
         "additionalProperties": false
       },
+      "MerchantCountryCode": {
+        "type": "string",
+        "description": "A wrapper type for merchant country codes that provides validation and conversion functionality.\n\nThis type stores a country code as a string and provides methods to validate it\nand convert it to a `Country` enum variant."
+      },
       "MerchantDetails": {
         "type": "object",
         "properties": {
@@ -14945,8 +14972,23 @@
           "created_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "organization_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OrganizationType"
+              }
+            ],
+            "nullable": true
           }
         }
+      },
+      "OrganizationType": {
+        "type": "string",
+        "enum": [
+          "standard",
+          "platform"
+        ]
       },
       "OrganizationUpdateRequest": {
         "type": "object",
@@ -15696,6 +15738,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/PaymentAttemptFeatureMetadata"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodDataResponseWithBilling"
               }
             ],
             "nullable": true
@@ -17619,10 +17669,7 @@
             ],
             "properties": {
               "bank_names": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/BankCodeResponse"
-                }
+                "$ref": "#/components/schemas/BankNames"
               }
             }
           }
@@ -17640,6 +17687,8 @@
           "ali_pay_hk",
           "alma",
           "amazon_pay",
+          "skrill",
+          "paysera",
           "apple_pay",
           "atome",
           "bacs",
@@ -19294,6 +19343,14 @@
             "type": "string",
             "description": "Stringified connector raw response body. Only returned if `return_raw_connector_response` is true",
             "nullable": true
+          },
+          "feature_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeatureMetadata"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -20720,6 +20777,9 @@
           }
         }
       },
+      "PayseraData": {
+        "type": "object"
+      },
       "PazeSessionTokenResponse": {
         "type": "object",
         "required": [
@@ -21216,6 +21276,14 @@
               }
             ],
             "nullable": true
+          },
+          "merchant_country_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantCountryCode"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -21490,6 +21558,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/MerchantCategoryCode"
+              }
+            ],
+            "nullable": true
+          },
+          "merchant_country_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantCountryCode"
               }
             ],
             "nullable": true
@@ -22329,11 +22405,11 @@
                 "$ref": "#/components/schemas/PaymentMethodType"
               },
               "payment_experience": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/PaymentExperience"
-                  }
-                ],
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PaymentExperience"
+                },
+                "description": "The payment experience for the payment method",
                 "nullable": true
               },
               "required_fields": {
@@ -22671,6 +22747,7 @@
           "cashtocode",
           "celero",
           "chargebee",
+          "custombilling",
           "checkout",
           "coinbase",
           "coingate",
@@ -23684,6 +23761,9 @@
           "cover",
           "contain"
         ]
+      },
+      "SkrillData": {
+        "type": "object"
       },
       "SortBy": {
         "type": "string",
@@ -25303,6 +25383,28 @@
             "properties": {
               "amazon_pay_redirect": {
                 "$ref": "#/components/schemas/AmazonPayRedirectData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "skrill"
+            ],
+            "properties": {
+              "skrill": {
+                "$ref": "#/components/schemas/SkrillData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "paysera"
+            ],
+            "properties": {
+              "paysera": {
+                "$ref": "#/components/schemas/PayseraData"
               }
             }
           },
