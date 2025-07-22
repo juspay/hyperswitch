@@ -20,7 +20,7 @@
     }
   ],
   "paths": {
-    "/v2/organization": {
+    "/v2/organizations": {
       "post": {
         "tags": [
           "Organization"
@@ -67,7 +67,7 @@
         ]
       }
     },
-    "/v2/organization/{id}": {
+    "/v2/organizations/{id}": {
       "get": {
         "tags": [
           "Organization"
@@ -164,7 +164,7 @@
         ]
       }
     },
-    "/v2/organization/{id}/merchant-accounts": {
+    "/v2/organizations/{id}/merchant-accounts": {
       "get": {
         "tags": [
           "Organization"
@@ -1220,7 +1220,7 @@
         ]
       }
     },
-    "/v2/routing-algorithm": {
+    "/v2/routing-algorithms": {
       "post": {
         "tags": [
           "Routing"
@@ -1275,7 +1275,7 @@
         ]
       }
     },
-    "/v2/routing-algorithm/{id}": {
+    "/v2/routing-algorithms/{id}": {
       "get": {
         "tags": [
           "Routing"
@@ -1809,7 +1809,14 @@
             }
           },
           "400": {
-            "description": "Missing Mandatory fields"
+            "description": "Missing Mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1999,7 +2006,14 @@
             }
           },
           "400": {
-            "description": "Missing Mandatory fields"
+            "description": "Missing Mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2122,7 +2136,14 @@
             }
           },
           "400": {
-            "description": "Missing Mandatory fields"
+            "description": "Missing Mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2173,7 +2194,14 @@
             }
           },
           "400": {
-            "description": "Missing mandatory fields"
+            "description": "Missing mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2850,7 +2878,7 @@
         ]
       }
     },
-    "/v2/payment-method-session": {
+    "/v2/payment-method-sessions": {
       "post": {
         "tags": [
           "Payment Method Session"
@@ -2897,7 +2925,7 @@
         ]
       }
     },
-    "/v2/payment-method-session/{id}": {
+    "/v2/payment-method-sessions/{id}": {
       "get": {
         "tags": [
           "Payment Method Session"
@@ -2994,7 +3022,7 @@
         ]
       }
     },
-    "/v2/payment-method-session/{id}/list-payment-methods": {
+    "/v2/payment-method-sessions/{id}/list-payment-methods": {
       "get": {
         "tags": [
           "Payment Method Session"
@@ -3035,7 +3063,7 @@
         ]
       }
     },
-    "/v2/payment-method-session/{id}/update-saved-payment-method": {
+    "/v2/payment-method-sessions/{id}/update-saved-payment-method": {
       "put": {
         "tags": [
           "Payment Method Session"
@@ -3098,7 +3126,7 @@
         ]
       }
     },
-    "/v2/payment-method-session/{id}/confirm": {
+    "/v2/payment-method-sessions/{id}/confirm": {
       "post": {
         "tags": [
           "Payment Method Session"
@@ -3231,7 +3259,14 @@
             }
           },
           "400": {
-            "description": "Missing Mandatory fields"
+            "description": "Missing Mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3241,7 +3276,7 @@
         ]
       }
     },
-    "/v2/refunds/{id}/update_metadata": {
+    "/v2/refunds/{id}/update-metadata": {
       "put": {
         "tags": [
           "Refunds"
@@ -3289,7 +3324,14 @@
             }
           },
           "400": {
-            "description": "Missing Mandatory fields"
+            "description": "Missing Mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3377,7 +3419,7 @@
         ]
       }
     },
-    "/v2/process_tracker/revenue_recovery_workflow/{revenue_recovery_id}": {
+    "/v2/process-trackers/revenue-recovery-workflow/{revenue_recovery_id}": {
       "get": {
         "tags": [
           "Revenue Recovery"
@@ -6543,6 +6585,12 @@
                     "description": "Destination bank account number",
                     "example": "9b95f84e-de61-460b-a14b-f23b4e71c97b",
                     "nullable": true
+                  },
+                  "expiry_date": {
+                    "type": "string",
+                    "description": "The expiration date and time for the Pix QR code in ISO 8601 format",
+                    "example": "2025-09-10T10:11:12Z",
+                    "nullable": true
                   }
                 }
               }
@@ -8153,6 +8201,7 @@
           "checkout",
           "coinbase",
           "coingate",
+          "custombilling",
           "cryptopay",
           "ctp_mastercard",
           "ctp_visa",
@@ -11404,6 +11453,28 @@
       },
       "GcashRedirection": {
         "type": "object"
+      },
+      "GenericErrorResponseOpenApi": {
+        "type": "object",
+        "required": [
+          "error_type",
+          "message",
+          "code"
+        ],
+        "properties": {
+          "error_type": {
+            "type": "string",
+            "example": "invalid_request"
+          },
+          "message": {
+            "type": "string",
+            "example": "Missing required param: {param}"
+          },
+          "code": {
+            "type": "string",
+            "example": "IR_04"
+          }
+        }
       },
       "GenericLinkUiConfig": {
         "type": "object",
@@ -14971,8 +15042,23 @@
           "created_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "organization_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OrganizationType"
+              }
+            ],
+            "nullable": true
           }
         }
+      },
+      "OrganizationType": {
+        "type": "string",
+        "enum": [
+          "standard",
+          "platform"
+        ]
       },
       "OrganizationUpdateRequest": {
         "type": "object",
@@ -15722,6 +15808,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/PaymentAttemptFeatureMetadata"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodDataResponseWithBilling"
               }
             ],
             "nullable": true
@@ -20892,6 +20986,12 @@
             "description": "Partially masked destination bank account number",
             "example": "********-****-460b-****-f23b4e71c97b",
             "nullable": true
+          },
+          "expiry_date": {
+            "type": "string",
+            "description": "The expiration date and time for the Pix QR code in ISO 8601 format",
+            "example": "2025-09-10T10:11:12Z",
+            "nullable": true
           }
         }
       },
@@ -22723,6 +22823,7 @@
           "cashtocode",
           "celero",
           "chargebee",
+          "custombilling",
           "checkout",
           "coinbase",
           "coingate",
