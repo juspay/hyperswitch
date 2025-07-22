@@ -260,6 +260,7 @@ pub async fn profile_update(
     .await
 }
 
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::ProfileDelete))]
 pub async fn profile_delete(
     state: web::Data<AppState>,
@@ -281,6 +282,42 @@ pub async fn profile_delete(
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     )
+    .await
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::ProfileDelete))]
+pub async fn profile_delete(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<common_utils::id_type::ProfileId>,
+) -> HttpResponse {
+    let flow = Flow::ProfileDelete;
+    let profile_id = path.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        profile_id,
+        |state,
+         auth::AuthenticationDataWithoutProfile {
+             merchant_account, ..
+         },
+         profile_id,
+         _| async move {
+            let merchant_id = merchant_account.get_id().clone();
+            delete_profile(state, profile_id, &merchant_id).await
+        },
+        auth::auth_type(
+            &auth::AdminApiAuthWithMerchantIdFromHeader,
+            &auth::JWTAuthMerchantFromHeader {
+                required_permission: permissions::Permission::ProfileAccountWrite,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
     .await
 }
 
