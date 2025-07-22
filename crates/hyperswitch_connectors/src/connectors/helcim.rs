@@ -924,7 +924,7 @@ impl ConnectorTransactionId for Helcim {
     #[cfg(feature = "v1")]
     fn connector_transaction_id(
         &self,
-        payment_attempt: PaymentAttempt,
+        payment_attempt: &PaymentAttempt,
     ) -> Result<Option<String>, ApiErrorResponse> {
         if payment_attempt.get_connector_payment_id().is_none() {
             let metadata =
@@ -940,7 +940,7 @@ impl ConnectorTransactionId for Helcim {
     #[cfg(feature = "v2")]
     fn connector_transaction_id(
         &self,
-        payment_attempt: PaymentAttempt,
+        payment_attempt: &PaymentAttempt,
     ) -> Result<Option<String>, ApiErrorResponse> {
         use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
 
