@@ -157,12 +157,18 @@ pub struct PlatformAccountCreateRequest {
     pub organization_name: Secret<String>,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PlatformAccountCreateResponse {
+    #[schema(value_type = String, max_length = 64, min_length = 1, example = "org_abc")]
     pub org_id: id_type::OrganizationId,
+    #[schema(value_type = String, example = "organization_abc")]
     pub org_name: Option<String>,
+
+    #[schema(value_type = OrganizationType, example = "standard")]
     pub org_type: common_enums::OrganizationType,
+    #[schema(value_type = String, example = "merchant_abc")]
     pub merchant_id: id_type::MerchantId,
+    #[schema(value_type = MerchantAccountType, example = "standard")]
     pub merchant_account_type: common_enums::MerchantAccountType,
 }
 

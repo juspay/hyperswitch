@@ -365,6 +365,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::MerchantProductType,
         api_models::enums::CtpServiceProvider,
         api_models::enums::PaymentLinkSdkLabelType,
+        api_models::enums::OrganizationType,
         api_models::enums::PaymentLinkShowSdkTerms,
         api_models::admin::MerchantConnectorCreate,
         api_models::admin::AdditionalMerchantData,
@@ -802,6 +803,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::authentication::AuthenticationResponse,
         api_models::authentication::AcquirerDetails,
         api_models::user::PlatformAccountCreateRequest,
+        api_models::user::PlatformAccountCreateResponse,
     )),
     modifiers(&SecurityAddon)
 )]

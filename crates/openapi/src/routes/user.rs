@@ -16,7 +16,7 @@
         )
     ),
     responses(
-        (status = 200, description = "Platform Account Created", body =PlatformAccountCreateResponse),
+        (status = 200, description = "Platform Account Created", body = PlatformAccountCreateResponse),
         (status = 400, description = "Invalid data")
     ),
     tag = "User",

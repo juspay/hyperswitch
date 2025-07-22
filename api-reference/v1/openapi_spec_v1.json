@@ -18473,6 +18473,13 @@
           }
         }
       },
+      "OrganizationType": {
+        "type": "string",
+        "enum": [
+          "standard",
+          "platform"
+        ]
+      },
       "OrganizationUpdateRequest": {
         "type": "object",
         "required": [
@@ -26031,6 +26038,38 @@
             "type": "string",
             "example": "organization_abc",
             "maxLength": 64
+          }
+        }
+      },
+      "PlatformAccountCreateResponse": {
+        "type": "object",
+        "required": [
+          "org_id",
+          "org_name",
+          "org_type",
+          "merchant_id",
+          "merchant_account_type"
+        ],
+        "properties": {
+          "org_id": {
+            "type": "string",
+            "example": "org_abc",
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "org_name": {
+            "type": "string",
+            "example": "organization_abc"
+          },
+          "org_type": {
+            "$ref": "#/components/schemas/OrganizationType"
+          },
+          "merchant_id": {
+            "type": "string",
+            "example": "merchant_abc"
+          },
+          "merchant_account_type": {
+            "$ref": "#/components/schemas/MerchantAccountType"
           }
         }
       },
