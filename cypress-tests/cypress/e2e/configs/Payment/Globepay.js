@@ -33,7 +33,7 @@ export const connectorDetails = {
         payment_method_type: "we_chat_pay",
         payment_method_data: {
           wallet: {
-            we_chat_pay_redirect: {},
+            we_chat_pay_qr: {},
           },
         },
         billing: billingDetails,
@@ -51,7 +51,7 @@ export const connectorDetails = {
         payment_method_type: "ali_pay",
         payment_method_data: {
           wallet: {
-            ali_pay_redirect: {},
+            ali_pay_qr: {},
           },
         },
         billing: billingDetails,
