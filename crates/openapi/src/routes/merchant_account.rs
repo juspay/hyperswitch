@@ -311,3 +311,21 @@ pub async fn payment_connector_list_profile() {}
     security(("admin_api_key" = []))
 )]
 pub async fn profiles_list() {}
+
+#[cfg(feature = "v2")]
+/// Merchant Account - Delete
+///
+/// Delete a *merchant* account
+#[utoipa::path(
+    delete,
+    path = "/v2/merchant-accounts/{id}",
+    params (("id" = String, Path, description = "The unique identifier for the merchant account")),
+    responses(
+        (status = 200, description = "Merchant Account Deleted", body = MerchantAccountDeleteResponse),
+        (status = 404, description = "Merchant account not found")
+    ),
+    tag = "Merchant Account",
+    operation_id = "Delete a Merchant Account",
+    security(("admin_api_key" = []))
+)]
+pub async fn delete_merchant_account() {}
