@@ -1629,6 +1629,9 @@ pub struct PaymentAttemptResponse {
 
     /// Additional data that might be required by hyperswitch, to enable some specific features.
     pub feature_metadata: Option<PaymentAttemptFeatureMetadata>,
+
+    /// The payment method information for the payment attempt
+    pub payment_method_data: Option<PaymentMethodDataResponseWithBilling>,
 }
 
 #[cfg(feature = "v2")]
