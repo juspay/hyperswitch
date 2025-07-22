@@ -353,7 +353,7 @@ pub async fn list_customer_payment_method_api() {}
 #[cfg(feature = "v2")]
 #[utoipa::path(
     post,
-    path = "/v2/payment-method-session",
+    path = "/v2/payment-method-sessions",
     request_body(
     content = PaymentMethodSessionRequest,
         examples  (( "Create a payment method session with customer_id" = (
@@ -378,7 +378,7 @@ pub fn payment_method_session_create() {}
 #[cfg(feature = "v2")]
 #[utoipa::path(
     get,
-    path = "/v2/payment-method-session/{id}",
+    path = "/v2/payment-method-sessions/{id}",
     params (
         ("id" = String, Path, description = "The unique identifier for the Payment Method Session"),
     ),
@@ -399,7 +399,7 @@ pub fn payment_method_session_retrieve() {}
 #[cfg(feature = "v2")]
 #[utoipa::path(
     get,
-    path = "/v2/payment-method-session/{id}/list-payment-methods",
+    path = "/v2/payment-method-sessions/{id}/list-payment-methods",
     params (
         ("id" = String, Path, description = "The unique identifier for the Payment Method Session"),
     ),
@@ -419,7 +419,7 @@ pub fn payment_method_session_list_payment_methods() {}
 #[cfg(feature = "v2")]
 #[utoipa::path(
     put,
-    path = "/v2/payment-method-session/{id}/update-saved-payment-method",
+    path = "/v2/payment-method-sessions/{id}/update-saved-payment-method",
     params (
         ("id" = String, Path, description = "The unique identifier for the Payment Method Session"),
     ),
@@ -453,7 +453,7 @@ pub fn payment_method_session_update_saved_payment_method() {}
 #[cfg(feature = "v2")]
 #[utoipa::path(
     delete,
-    path = "/v2/payment-method-session/{id}",
+    path = "/v2/payment-method-sessions/{id}",
     params (
         ("id" = String, Path, description = "The unique identifier for the Payment Method Session"),
     ),
@@ -520,7 +520,7 @@ pub async fn tokenize_card_using_pm_api() {}
 /// **Confirms a payment method session object with the payment method data**
 #[utoipa::path(
   post,
-  path = "/v2/payment-method-session/{id}/confirm",
+  path = "/v2/payment-method-sessions/{id}/confirm",
   params (("id" = String, Path, description = "The unique identifier for the Payment Method Session"),
       (
         "X-Profile-Id" = String, Header,
