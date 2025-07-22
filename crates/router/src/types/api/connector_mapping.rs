@@ -178,6 +178,9 @@ impl ConnectorData {
                 enums::Connector::CtpMastercard => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::CtpMastercard)))
                 }
+                enums::Connector::Custombilling => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Custombilling::new(),
+                ))),
                 enums::Connector::CtpVisa => Ok(ConnectorEnum::Old(Box::new(
                     connector::UnifiedAuthenticationService::new(),
                 ))),
