@@ -11,8 +11,9 @@ use router_env::{instrument, logger, tracing};
 
 use crate::{
     db::errors::chat::ChatErrors,
-    routes::SessionState,
+    routes::{app::SessionStateInfo, SessionState},
     services::{authentication as auth, ApplicationResponse},
+    utils,
 };
 
 #[instrument(skip_all)]
@@ -22,14 +23,16 @@ pub async fn get_data_from_hyperswitch_ai_workflow(
     req: chat_api::ChatRequest,
 ) -> CustomResult<ApplicationResponse<chat_api::ChatResponse>, ChatErrors> {
     let url = format!("{}/webhook", state.conf.chat.hyperswitch_ai_host);
-
+    let request_id = state
+        .get_request_id()
+        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
     let request_body = chat_domain::HyperswitchAiDataRequest {
         query: chat_domain::GetDataMessage {
-            message: req.message,
+            message: req.message.clone(),
         },
-        org_id: user_from_token.org_id,
-        merchant_id: user_from_token.merchant_id,
-        profile_id: user_from_token.profile_id,
+        org_id: user_from_token.org_id.clone(),
+        merchant_id: user_from_token.merchant_id.clone(),
+        profile_id: user_from_token.profile_id.clone(),
     };
     logger::info!("Request for AI service: {:?}", request_body);
 
@@ -48,10 +51,23 @@ pub async fn get_data_from_hyperswitch_ai_workflow(
     .await
     .change_context(ChatErrors::InternalServerError)
     .attach_printable("Error when sending request to AI service")?
-    .json::<_>()
+    .json::<chat_api::ChatResponse>()
     .await
     .change_context(ChatErrors::InternalServerError)
     .attach_printable("Error when deserializing response from AI service")?;
+
+    let db = state.store.as_ref();
+
+    let new_hyperswitch_ai_interaction = utils::chat::construct_hyperswitch_ai_interaction(
+        &user_from_token,
+        &req,
+        &response,
+        &request_id,
+    );
+    // response can be returned instantly encryption and storing part can be continued in the background
+    db.insert_hyperswitch_ai_interaction(new_hyperswitch_ai_interaction)
+        .await
+        .change_context(ChatErrors::InternalServerError)?;
 
     Ok(ApplicationResponse::Json(response))
 }

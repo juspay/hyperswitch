@@ -618,6 +618,34 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    hyperswitch_ai_interaction (id) {
+        #[max_length = 64]
+        id -> Varchar,
+        #[max_length = 64]
+        session_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        user_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        merchant_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        profile_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        org_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        role_id -> Nullable<Varchar>,
+        user_query -> Nullable<Text>,
+        response -> Nullable<Text>,
+        database_query -> Nullable<Text>,
+        #[max_length = 64]
+        interaction_status -> Nullable<Varchar>,
+        created_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     incremental_authorization (authorization_id, merchant_id) {
         #[max_length = 64]
         authorization_id -> Varchar,
@@ -1603,6 +1631,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     fraud_check,
     gateway_status_map,
     generic_link,
+    hyperswitch_ai_interaction,
     incremental_authorization,
     locker_mock_up,
     mandate,

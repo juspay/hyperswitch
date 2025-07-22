@@ -1,0 +1,15 @@
+-- Your SQL goes here
+CREATE TABLE hyperswitch_ai_interaction (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    session_id VARCHAR(64),
+    user_id VARCHAR(64),
+    merchant_id VARCHAR(64),
+    profile_id VARCHAR(64),
+    org_id VARCHAR(64),
+    role_id VARCHAR(64),
+    user_query TEXT,
+    response TEXT,
+    database_query TEXT,
+    interaction_status VARCHAR(64),
+    created_at TIMESTAMP NOT NULL DEFAULT now()
+);

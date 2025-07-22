@@ -1,3 +1,4 @@
+pub mod chat;
 #[cfg(feature = "olap")]
 pub mod connector_onboarding;
 pub mod currency;
