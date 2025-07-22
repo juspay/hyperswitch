@@ -899,6 +899,17 @@ pub struct DynamicRoutingUpdateConfigQuery {
 pub struct ToggleDynamicRoutingWrapper {
     pub profile_id: common_utils::id_type::ProfileId,
     pub feature_to_enable: DynamicRoutingFeatures,
+    //added payload
+    //pub payload: Option<SuccessBasedRoutingConfig>,
+    pub payload: Option<DynamicRoutingPayload>,
+}
+//
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]  
+#[serde(tag = "type", content = "data", rename_all = "snake_case")]  
+pub enum DynamicRoutingPayload {  
+    SuccessBased(SuccessBasedRoutingConfig),  
+    Elimination(EliminationRoutingConfig),  
+      
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -919,6 +930,8 @@ pub struct EliminationRoutingConfig {
     pub elimination_analyser_config: Option<EliminationAnalyserConfig>,
     #[schema(value_type = DecisionEngineEliminationData)]
     pub decision_engine_configs: Option<open_router::DecisionEngineEliminationData>,
+    //added payload
+    //pub payload: Option<EliminationRoutingConfig>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, ToSchema)]

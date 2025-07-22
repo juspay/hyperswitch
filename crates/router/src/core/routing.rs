@@ -1598,6 +1598,7 @@ pub async fn update_default_routing_config_for_profile(
 
 // Toggle the specific routing type as well as add the default configs in RoutingAlgorithm table
 // and update the same in business profile table.
+
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub async fn toggle_specific_dynamic_routing(
     state: SessionState,
@@ -1605,6 +1606,9 @@ pub async fn toggle_specific_dynamic_routing(
     feature_to_enable: routing::DynamicRoutingFeatures,
     profile_id: common_utils::id_type::ProfileId,
     dynamic_routing_type: routing::DynamicRoutingType,
+    //option payload
+    payload: Option<routing_types::DynamicRoutingPayload>,
+
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(
         1,
@@ -1654,6 +1658,7 @@ pub async fn toggle_specific_dynamic_routing(
                 feature_to_enable,
                 dynamic_routing_algo_ref,
                 dynamic_routing_type,
+                payload,
             )
             .await
         }
