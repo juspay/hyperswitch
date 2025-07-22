@@ -690,6 +690,7 @@ pub struct RoutingEvaluateRequest {
     pub parameters: HashMap<String, Option<ValueType>>,
     pub fallback_output: Vec<DeRoutableConnectorChoice>,
 }
+impl common_utils::events::ApiEventMetric for RoutingEvaluateRequest {}
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
 pub struct RoutingEvaluateResponse {
@@ -700,7 +701,7 @@ pub struct RoutingEvaluateResponse {
     #[serde(deserialize_with = "deserialize_connector_choices")]
     pub eligible_connectors: Vec<RoutableConnectorChoice>,
 }
-
+impl common_utils::events::ApiEventMetric for RoutingEvaluateResponse {}
 /// Routable Connector chosen for a payment
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct DeRoutableConnectorChoice {
@@ -1231,7 +1232,7 @@ where
     String(String),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct RoutingEventsResponse<Res>
 where
     Res: Serialize + serde::de::DeserializeOwned + Clone,

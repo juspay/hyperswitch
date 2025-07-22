@@ -6338,6 +6338,10 @@ key1="Secret Key"
 [affirm.connector_auth.HeaderKey]
 api_key = "API Key"
 
+[blackhawknetwork]
+[blackhawknetwork.connector_auth.HeaderKey]
+api_key = "API Key"
+
 [trustpayments]
 [trustpayments.connector_auth.HeaderKey]
 api_key = "API Key"

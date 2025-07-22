@@ -92,6 +92,7 @@ barclaycard.base_url = "https://api.smartpayfuse-test.barclaycard/"
 billwerk.base_url = "https://api.reepay.com/"
 billwerk.secondary_base_url = "https://card.reepay.com/"
 bitpay.base_url = "https://test.bitpay.com"
+blackhawknetwork.base_url = "https://api-sandbox.blackhawknetwork.com/"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
 bluesnap.secondary_base_url = "https://sandpay.bluesnap.com/"
 boku.base_url = "https://country-api4-stage.boku.com"
@@ -238,6 +239,7 @@ cards = [
     "coingate",
     "cryptopay",
     "ctp_visa",
+    "custombilling",
     "cybersource",
     "datatrans",
     "deutschebank",
@@ -725,3 +727,7 @@ redsys = { payment_method = "card" }
 billing_connectors_which_require_payment_sync = "stripebilling, recurly"
 [billing_connectors_invoice_sync]
 billing_connectors_which_requires_invoice_sync_call = "recurly"
+
+[chat]
+enabled = false 
+hyperswitch_ai_host = "http://0.0.0.0:8000"
