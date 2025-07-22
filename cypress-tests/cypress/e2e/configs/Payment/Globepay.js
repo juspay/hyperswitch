@@ -15,6 +15,38 @@ const billingDetails = {
 };
 
 export const connectorDetails = {
+  card_pm: {
+    ZeroAuthPaymentIntent: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        amount: 0,
+        setup_future_usage: "off_session",
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "off_session",
+        },
+      },
+    },
+    ZeroAuthMandate: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Response: {
+        status: 501,
+        body: {
+          code: "IR_00",
+          message: "Setup Mandate flow for Globepay is not implemented",
+          type: "invalid_request"
+        }
+      }
+    }
+  },
   wallet_pm: {
     PaymentIntent: () => ({
       Request: {
