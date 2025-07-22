@@ -4482,22 +4482,10 @@ where
 
             Ok(router_data)
         } else {
-            let router_data = if should_continue_further {
-                router_data
-                    .decide_flows(
-                        state,
-                        &connector,
-                        call_connector_action,
-                        connector_request,
-                        business_profile,
-                        header_payload.clone(),
-                        return_raw_connector_response,
-                    )
-                    .await
-            } else {
-                Ok(router_data)
-            }?;
-            Ok(router_data)
+            Err(
+                errors::ApiErrorResponse::InternalServerError
+            )
+            .attach_printable("Unified connector service is down and traditional connector service fallback is not implemented")
         }
     })
     .await
@@ -8029,10 +8017,6 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed execution of straight through routing")?;
 
-        payment_data.set_routing_approach_in_attempt(Some(
-            common_enums::RoutingApproach::StraightThroughRouting,
-        ));
-
         if check_eligibility {
             let transaction_data = core_routing::PaymentsDslInput::new(
                 payment_data.get_setup_mandate(),
@@ -9246,6 +9230,10 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             authentication.clone(),
             None,
             merchant_context.get_merchant_key_store(),
+            None,
+            None,
+            None,
+            None,
         )
         .await?;
         authentication::AuthenticationResponse::try_from(authentication)?
