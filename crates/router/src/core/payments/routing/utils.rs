@@ -24,6 +24,7 @@ use hyperswitch_domain_models::business_profile;
 use hyperswitch_interfaces::events::routing_api_logs as routing_events;
 use router_env::tracing_actix_web::RequestId;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 use super::RoutingResult;
 use crate::{
@@ -684,15 +685,16 @@ impl DecisionEngineErrorsInterface for or_types::ErrorResponse {
 }
 
 //TODO: temporary change will be refactored afterwards
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, ToSchema)]
 pub struct RoutingEvaluateRequest {
     pub created_by: String,
+    #[schema(value_type = Object)]
     pub parameters: HashMap<String, Option<ValueType>>,
     pub fallback_output: Vec<DeRoutableConnectorChoice>,
 }
 impl common_utils::events::ApiEventMetric for RoutingEvaluateRequest {}
 
-#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 pub struct RoutingEvaluateResponse {
     pub status: String,
     pub output: serde_json::Value,
@@ -703,7 +705,7 @@ pub struct RoutingEvaluateResponse {
 }
 impl common_utils::events::ApiEventMetric for RoutingEvaluateResponse {}
 /// Routable Connector chosen for a payment
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct DeRoutableConnectorChoice {
     pub gateway_name: common_enums::RoutableConnectors,
     pub gateway_id: Option<id_type::MerchantConnectorAccountId>,
@@ -722,14 +724,14 @@ where
         .collect())
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
 pub struct MetadataValue {
     pub key: String,
     pub value: String,
 }
 
 /// Represents a value in the DSL
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type", content = "value", rename_all = "snake_case")]
 pub enum ValueType {
     /// Represents a number literal
@@ -757,7 +759,7 @@ pub enum ValueType {
 
 pub type Metadata = HashMap<String, serde_json::Value>;
 /// Represents a number comparison for "NumberComparisonArrayValue"
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct NumberComparison {
     pub comparison_type: ComparisonType,
@@ -765,7 +767,7 @@ pub struct NumberComparison {
 }
 
 /// Conditional comparison type
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ComparisonType {
     Equal,

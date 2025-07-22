@@ -16,7 +16,7 @@ use crate::{
     payment_methods,
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct OpenRouterDecideGatewayRequest {
     pub payment_info: PaymentInfo,
@@ -26,7 +26,7 @@ pub struct OpenRouterDecideGatewayRequest {
     pub elimination_enabled: Option<bool>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct DecideGatewayResponse {
     pub decided_gateway: Option<String>,
     pub gateway_priority_map: Option<serde_json::Value>,
@@ -189,7 +189,7 @@ pub struct UnifiedError {
     pub developer_message: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateScorePayload {
     pub merchant_id: id_type::ProfileId,
@@ -198,7 +198,7 @@ pub struct UpdateScorePayload {
     pub payment_id: id_type::PaymentId,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, ToSchema)]
 pub struct UpdateScoreResponse {
     pub message: String,
 }

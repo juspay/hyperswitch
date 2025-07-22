@@ -170,6 +170,9 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::routing::toggle_elimination_routing,
         routes::routing::contract_based_routing_setup_config,
         routes::routing::contract_based_routing_update_configs,
+        routes::routing::call_decide_gateway_open_router,
+        routes::routing::call_update_gateway_score_open_router,
+        routes::routing::evaluate_routing_rule,
 
         // Routes for blocklist
         routes::blocklist::remove_entry_from_blocklist,
@@ -806,6 +809,12 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::authentication::ThreeDsData,
         api_models::authentication::AuthenticationEligibilityRequest,
         api_models::authentication::AuthenticationEligibilityResponse,
+        api_models::open_router::OpenRouterDecideGatewayRequest,
+        api_models::open_router::DecideGatewayResponse,
+        api_models::open_router::UpdateScorePayload,
+        api_models::open_router::UpdateScoreResponse,
+        router::core::payments::routing::utils::RoutingEvaluateRequest,
+        router::core::payments::routing::utils::RoutingEvaluateResponse,
     )),
     modifiers(&SecurityAddon)
 )]
