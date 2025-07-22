@@ -42,10 +42,10 @@ export const connectorDetails = {
         body: {
           code: "IR_00",
           message: "Setup Mandate flow for Globepay is not implemented",
-          type: "invalid_request"
-        }
-      }
-    }
+          type: "invalid_request",
+        },
+      },
+    },
   },
   wallet_pm: {
     PaymentIntent: () => ({
