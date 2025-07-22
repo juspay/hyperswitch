@@ -527,6 +527,7 @@ default_imp_for_new_connector_integration_connector_authentication_token!(
     connectors::Barclaycard,
     connectors::Billwerk,
     connectors::Bitpay,
+    connectors::Blackhawknetwork,
     connectors::Bluesnap,
     connectors::Boku,
     connectors::Braintree,
