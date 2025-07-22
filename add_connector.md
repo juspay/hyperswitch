@@ -21,8 +21,9 @@ By the end, you’ll have a fully functional, production-ready connector—from 
 
 ## Prerequisites
 - Before you begin, ensure you’ve completed the initial setup in our [Hyperswitch Contributor Guide](https://github.com/juspay/hyperswitch/blob/main/CONTRIBUTING.md), which covers cloning, tool installation, and access.
+- You'll need to have protobuf installed
 - You should also understanding [connectors and payment methods](https://hyperswitch.io/pm-list).
-- Need help? Join the [Hyperswitch Slack Channel](). We also have weekly office hours every Thursday at 8:00 AM PT (11:00 AM ET, 4:00 PM BST, 5:00 PM CEST, and 8:30 PM IST). Link to office hours are shared in the #general channel.
+- Need help? Join the [Hyperswitch Slack Channel](https://join.slack.com/t/hyperswitch-io/shared_invite/zt-39d4w0043-CgAyb75Kn0YldNyZpd8hWA). We also have weekly office hours every Thursday at 8:00 AM PT (11:00 AM ET, 4:00 PM BST, 5:00 PM CEST, and 8:30 PM IST). Link to office hours are shared in the #general channel.
 
 
 ## Development Environment Setup & Configuration
