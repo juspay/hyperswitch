@@ -818,7 +818,6 @@ export const connectorDetails = {
       },
     },
   },
-
   upi_pm: {
     PaymentIntent: {
       Request: {
@@ -1086,6 +1085,61 @@ export const connectorDetails = {
             ],
           },
         ],
+      },
+    },
+  },
+  wallet_pm: {
+    Alipay: {
+      Request: {
+        billing: {
+          address: {
+            zip: "", // Postal codes are generally not used in Hong Kong
+            first_name: "Joseph",
+            last_name: "Dough",
+            line1: "Flat 8B, Block 3",
+            country: "HK",
+            line2: "The Victoria Towers",
+            city: "Tsim Sha Tsui",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    MBWay: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "mb_way",
+        payment_method_data: {
+          wallet: {
+            mb_way_redirect: {},
+          },
+        },
+        billing: {
+          address: {
+            zip: "1100-279",
+            first_name: "Sakil",
+            last_name: "Mostak",
+            line1: "Rua Augusta 100",
+            country: "PT",
+            line2: "3º Esquerdo",
+            city: "Lisboa",
+          },
+          phone: {
+            number: "912345678",
+            country_code: "+351",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
       },
     },
   },

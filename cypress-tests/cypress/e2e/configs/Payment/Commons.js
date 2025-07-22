@@ -324,6 +324,30 @@ export const payment_methods_enabled = [
         installment_payment_enabled: true,
         payment_experience: "invoke_sdk_client",
       },
+      {
+        payment_method_type: "we_chat_pay",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+        payment_experience: "redirect_to_url",
+      },
+      {
+        payment_method_type: "ali_pay",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+        payment_experience: "redirect_to_url",
+      },
+      {
+        payment_method_type: "mb_way",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+        payment_experience: "redirect_to_url",
+      },
     ],
   },
 ];
@@ -1676,4 +1700,86 @@ export const connectorDetails = {
       },
     },
   }),
+  wallet_pm: {
+    PaymentIntent: (paymentMethodType) =>
+      getCustomExchange({
+        Request: {
+          currency: getCurrency(paymentMethodType),
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      }),
+    WeChatPay: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "we_chat_pay",
+        payment_method_data: {
+          wallet: {
+            we_chat_pay_redirect: {},
+          },
+        },
+        billing: {
+          address: {
+            zip: "1012JS",
+            first_name: "Sakil",
+            last_name: "Mostak",
+            line1: "Damrak 1",
+            country: "NL",
+            line2: "2nd floor",
+            city: "Amsterdam",
+          },
+        },
+      },
+    }),
+    Alipay: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "ali_pay",
+        payment_method_data: {
+          wallet: {
+            ali_pay_redirect: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "Shanghai",
+            state: "Shanghai",
+            zip: "200000",
+            country: "CN",
+            first_name: "Sakil",
+            last_name: "Mostak",
+          },
+        },
+      },
+    }),
+    MBWay: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "mb_way",
+        payment_method_data: {
+          wallet: {
+            mb_way_redirect: {},
+          },
+        },
+        billing: {
+          address: {
+            zip: "1012JS",
+            first_name: "Sakil",
+            last_name: "Mostak",
+            line1: "Damrak 1",
+            country: "NL",
+            line2: "2nd floor",
+            city: "Amsterdam",
+          },
+        },
+      },
+    }),
+  },
 };

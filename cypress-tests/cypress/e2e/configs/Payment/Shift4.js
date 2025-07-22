@@ -856,4 +856,73 @@ export const connectorDetails = {
       },
     },
   },
+  wallet_pm: {
+    PaymentIntent: () => ({
+      Request: {
+        currency: "CNY",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    WeChatPay: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "we_chat_pay",
+        payment_method_data: {
+          wallet: {
+            we_chat_pay_redirect: {},
+          },
+        },
+        billing: {
+          address: {
+            zip: "200001",
+            first_name: "Sakil",
+            last_name: "Mostak",
+            line1: "No. 100, Nanjing East Road",
+            country: "CN",
+            line2: "Huangpu District",
+            city: "Shanghai",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    Alipay: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "ali_pay",
+        payment_method_data: {
+          wallet: {
+            ali_pay_redirect: {},
+          },
+        },
+        billing: {
+          address: {
+            zip: "200001",
+            first_name: "Sakil",
+            last_name: "Mostak",
+            line1: "No. 100, Nanjing East Road",
+            country: "CN",
+            line2: "Huangpu District",
+            city: "Shanghai",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+  },
 };

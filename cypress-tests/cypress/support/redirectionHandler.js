@@ -60,6 +60,14 @@ export function handleRedirection(
         paymentMethodType
       );
       break;
+    case "wallet":
+      walletRedirection(
+        urls.redirectionUrl,
+        urls.expectedUrl,
+        connectorId,
+        paymentMethodType
+      );
+      break;
     default:
       throw new Error(`Unknown redirection type: ${redirectionType}`);
   }
@@ -1123,6 +1131,89 @@ function upiRedirection(
   cy.then(() => {
     verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
   });
+}
+
+function walletRedirection(
+  redirectionUrl,
+  expectedUrl,
+  connectorId,
+  paymentMethodType
+) {
+  if (connectorId != "globepay") {
+    cy.visit(redirectionUrl.href);
+  }
+
+  switch (connectorId) {
+    case "adyen":
+      cy.contains("button", "authorised").click();
+      verifyReturnUrl(redirectionUrl, expectedUrl, true);
+      break;
+    case "globepay":
+      cy.document().then((doc) => {
+        return new Cypress.Promise((resolve) => {
+          const img = new window.Image();
+          img.src = redirectionUrl.href;
+          img.onload = () => {
+            const canvas = Object.assign(doc.createElement("canvas"), {
+              width: img.width,
+              height: img.height,
+            });
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0);
+            const { data, width, height } = ctx.getImageData(
+              0,
+              0,
+              canvas.width,
+              canvas.height
+            );
+
+            // Use jsQR to decode the QR code
+            const qrCode = jsQR(data, width, height);
+            if (qrCode && qrCode.data) {
+              if (paymentMethodType === "we_chat_pay") {
+                // Check if the QR code data matches the expected URL pattern
+                const wechatpayPattern =
+                  /^https:\/\/pay\.globepay\.co\/api\/v1\.0\/payment\/partners\/PINE\/orders\/\d+\/retail_pay$/;
+                expect(qrCode.data).to.match(wechatpayPattern);
+                cy.request({
+                  url: qrCode.data,
+                  failOnStatusCode: false,
+                }).then((response) => {
+                  // Testing requires using the actual WeChat mobile app with a real account, ideally one linked with a bank card
+                  expect(response.status).not.to.eq("403");
+                  expect(response.error).not.to.eq("Forbidden");
+                  expect(response.message).not.to.eq(
+                    "Please use WeChat client to visit this page."
+                  );
+                });
+              } else if (paymentMethodType === "ali_pay") {
+                // Check if the QR code data matches the expected Alipay URL pattern
+                const alipayPattern =
+                  /^alipays:\/\/platformapi\/startApp\?appId=10000007&actionType=route&qrcode=[\w\d]+$/;
+                expect(qrCode.data).to.match(alipayPattern);
+              }
+              resolve();
+            } else {
+              throw new Error("QR code not found or unreadable");
+            }
+          };
+        });
+      });
+      break;
+
+    case "multisafepay":
+      if (paymentMethodType === "mb_way") {
+        cy.contains("tbody", "Multibanco").click();
+      }
+      cy.get("div.alert").should("contain.text", "CSRF validation failed");
+      break;
+    case "shift4":
+      cy.contains("button", "Succeed payment").click();
+      verifyReturnUrl(redirectionUrl, expectedUrl, true);
+      break;
+    default:
+      return;
+  }
 }
 
 function verifyReturnUrl(redirectionUrl, expectedUrl, forwardFlow) {
