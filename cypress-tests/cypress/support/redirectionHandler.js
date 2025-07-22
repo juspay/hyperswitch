@@ -1149,24 +1149,31 @@ function walletRedirection(
       verifyReturnUrl(redirectionUrl, expectedUrl, true);
       break;
     case "globepay":
-      const src = redirectionUrl.href;
-      const img = new window.Image();
-      img.src = src;
       cy.document().then((doc) => {
         return new Cypress.Promise((resolve) => {
+          const img = new window.Image();
+          img.src = redirectionUrl.href;
           img.onload = () => {
-            const canvas = doc.createElement('canvas');
-            canvas.width = img.width;
-            canvas.height = img.height;
-            const ctx = canvas.getContext('2d');
+            const canvas = Object.assign(doc.createElement("canvas"), {
+              width: img.width,
+              height: img.height,
+            });
+            const ctx = canvas.getContext("2d");
             ctx.drawImage(img, 0, 0);
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const { data, width, height } = ctx.getImageData(
+              0,
+              0,
+              canvas.width,
+              canvas.height
+            );
+
             // Use jsQR to decode the QR code
-            const qrCode = jsQR(imageData.data, imageData.width, imageData.height);
+            const qrCode = jsQR(data, width, height);
             if (qrCode && qrCode.data) {
               if (paymentMethodType === "we_chat_pay") {
                 // Check if the QR code data matches the expected URL pattern
-                const wechatpayPattern = /^https:\/\/pay\.globepay\.co\/api\/v1\.0\/payment\/partners\/PINE\/orders\/\d+\/retail_pay$/;
+                const wechatpayPattern =
+                  /^https:\/\/pay\.globepay\.co\/api\/v1\.0\/payment\/partners\/PINE\/orders\/\d+\/retail_pay$/;
                 expect(qrCode.data).to.match(wechatpayPattern);
                 cy.request({
                   url: qrCode.data,
@@ -1175,21 +1182,25 @@ function walletRedirection(
                   // Testing requires using the actual WeChat mobile app with a real account, ideally one linked with a bank card
                   expect(response.status).not.to.eq("403");
                   expect(response.error).not.to.eq("Forbidden");
-                  expect(response.message).not.to.eq("Please use WeChat client to visit this page.");
+                  expect(response.message).not.to.eq(
+                    "Please use WeChat client to visit this page."
+                  );
                 });
               } else if (paymentMethodType === "ali_pay") {
                 // Check if the QR code data matches the expected Alipay URL pattern
-                const alipayPattern = /^alipays:\/\/platformapi\/startApp\?appId=10000007&actionType=route&qrcode=[\w\d]+$/;
+                const alipayPattern =
+                  /^alipays:\/\/platformapi\/startApp\?appId=10000007&actionType=route&qrcode=[\w\d]+$/;
                 expect(qrCode.data).to.match(alipayPattern);
               }
               resolve();
             } else {
-              throw new Error('QR code not found or unreadable');
+              throw new Error("QR code not found or unreadable");
             }
           };
         });
       });
       break;
+
     case "multisafepay":
       if (paymentMethodType === "mb_way") {
         cy.contains("tbody", "Multibanco").click();
