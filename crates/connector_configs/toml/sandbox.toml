@@ -6320,3 +6320,7 @@ api_key = "API Key"
 [blackhawknetwork]
 [blackhawknetwork.connector_auth.HeaderKey]
 api_key = "API Key"
+
+[flexiti]
+[flexiti.connector_auth.HeaderKey]
+api_key = "API Key"

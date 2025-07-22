@@ -44,6 +44,7 @@ mod facilitapay;
 mod fiserv;
 mod fiservemea;
 mod fiuu;
+mod flexiti;
 mod forte;
 mod getnet;
 mod globalpay;
