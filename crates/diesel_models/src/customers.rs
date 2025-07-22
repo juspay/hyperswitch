@@ -114,7 +114,7 @@ impl From<CustomerNew> for Customer {
             default_shipping_address: customer_new.default_shipping_address,
             id: customer_new.id,
             version: customer_new.version,
-            status: customer_new.status,
+            status: Some(customer_new.status),
         }
     }
 }
@@ -164,7 +164,7 @@ pub struct Customer {
     pub merchant_reference_id: Option<common_utils::id_type::CustomerId>,
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
-    pub status: DeleteStatus,
+    pub status: Option<DeleteStatus>,
     pub id: common_utils::id_type::GlobalCustomerId,
 }
 
@@ -276,7 +276,7 @@ impl CustomerUpdateInternal {
                 .map_or(source.default_billing_address, Some),
             default_shipping_address: default_shipping_address
                 .map_or(source.default_shipping_address, Some),
-            status: status.unwrap_or(source.status),
+            status: status.or(source.status),
             ..source
         }
     }

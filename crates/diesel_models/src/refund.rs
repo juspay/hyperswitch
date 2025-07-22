@@ -115,7 +115,7 @@ pub struct Refund {
     pub processor_refund_data: Option<String>,
     pub processor_transaction_data: Option<String>,
     pub id: common_utils::id_type::GlobalRefundId,
-    pub merchant_reference_id: common_utils::id_type::RefundReferenceId,
+    pub merchant_reference_id: Option<common_utils::id_type::RefundReferenceId>,
     pub connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
