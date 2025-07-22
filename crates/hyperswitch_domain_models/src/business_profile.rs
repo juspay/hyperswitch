@@ -82,8 +82,7 @@ pub struct Profile {
     pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
     pub acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
-    pub dispute_polling_interval:
-        Option<primitive_wrappers::DisputePollingIntervalInHours>,
+    pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
 }
 
 #[cfg(feature = "v1")]
@@ -138,8 +137,7 @@ pub struct ProfileSetter {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: bool,
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
-    pub dispute_polling_interval:
-        Option<primitive_wrappers::DisputePollingIntervalInHours>,
+    pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
 }
 
 #[cfg(feature = "v1")]
@@ -933,7 +931,7 @@ impl super::behaviour::Conversion for Profile {
                 three_ds_decision_rule_algorithm: item.three_ds_decision_rule_algorithm,
                 acquirer_config_map: item.acquirer_config_map,
                 merchant_category_code: item.merchant_category_code,
-                dispute_polling_interval: item.dispute_polling_interval
+                dispute_polling_interval: item.dispute_polling_interval,
             })
         }
         .await

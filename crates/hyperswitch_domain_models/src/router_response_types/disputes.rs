@@ -21,3 +21,19 @@ pub struct FileInfo {
     pub provider_file_id: Option<String>,
     pub file_type: Option<String>,
 }
+
+#[derive(Default, Clone, Debug)]
+pub struct DisputeFetchPayload {
+    pub amount: common_utils::types::MinorUnit,
+    pub currency: common_enums::enums::Currency,
+    pub dispute_stage: common_enums::enums::DisputeStage,
+    pub connector_status: String,
+    pub connector_dispute_id: String,
+    pub connector_reason: Option<String>,
+    pub connector_reason_code: Option<String>,
+    pub challenge_required_by: Option<time::PrimitiveDateTime>,
+    pub created_at: Option<time::PrimitiveDateTime>,
+    pub updated_at: Option<time::PrimitiveDateTime>,
+}
+
+pub type FetchDisputesResponse = Vec<DisputeFetchPayload>;

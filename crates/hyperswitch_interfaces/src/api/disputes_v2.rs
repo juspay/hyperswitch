@@ -1,11 +1,14 @@
 //! Disputes V2 interface
 use hyperswitch_domain_models::{
     router_data_v2::DisputesFlowData,
-    router_flow_types::dispute::{Accept, Defend, Evidence},
+    router_flow_types::dispute::{Accept, Defend, Evidence, Fetch},
     router_request_types::{
-        AcceptDisputeRequestData, DefendDisputeRequestData, SubmitEvidenceRequestData,
+        AcceptDisputeRequestData, DefendDisputeRequestData, FetchDisputesRequestData,
+        SubmitEvidenceRequestData,
     },
-    router_response_types::{AcceptDisputeResponse, DefendDisputeResponse, SubmitEvidenceResponse},
+    router_response_types::{
+        AcceptDisputeResponse, DefendDisputeResponse, FetchDisputesResponse, SubmitEvidenceResponse,
+    },
 };
 
 use crate::api::ConnectorIntegrationV2;
@@ -35,6 +38,12 @@ pub trait DefendDisputeV2:
 
 /// trait DisputeV2
 pub trait DisputeV2:
-    super::ConnectorCommon + AcceptDisputeV2 + SubmitEvidenceV2 + DefendDisputeV2
+    super::ConnectorCommon + AcceptDisputeV2 + SubmitEvidenceV2 + DefendDisputeV2 + FetchDisputesV2
+{
+}
+
+/// trait FetchDisputeV2
+pub trait FetchDisputesV2:
+    ConnectorIntegrationV2<Fetch, DisputesFlowData, FetchDisputesRequestData, FetchDisputesResponse>
 {
 }

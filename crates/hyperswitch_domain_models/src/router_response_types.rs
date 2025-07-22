@@ -4,7 +4,9 @@ pub mod revenue_recovery;
 use std::collections::HashMap;
 
 use common_utils::{request::Method, types::MinorUnit};
-pub use disputes::{AcceptDisputeResponse, DefendDisputeResponse, SubmitEvidenceResponse};
+pub use disputes::{
+    AcceptDisputeResponse, DefendDisputeResponse, FetchDisputesResponse, SubmitEvidenceResponse,
+};
 
 use crate::{
     errors::api_error_response::ApiErrorResponse,

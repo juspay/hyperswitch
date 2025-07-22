@@ -23,7 +23,8 @@ use crate::{
         storage::enums as storage_enums,
         transformers::ForeignFrom,
         AcceptDisputeRequestData, AcceptDisputeResponse, DefendDisputeRequestData,
-        DefendDisputeResponse, SubmitEvidenceRequestData, SubmitEvidenceResponse,
+        DefendDisputeResponse, FetchDisputesRequestData, FetchDisputesResponse,
+        SubmitEvidenceRequestData, SubmitEvidenceResponse,
     },
 };
 
@@ -599,4 +600,75 @@ pub async fn get_aggregates_for_disputes(
             status_with_count: status_map,
         },
     ))
+}
+
+#[cfg(feature = "v1")]
+#[instrument(skip(state))]
+pub async fn fetch_disputes_from_connector(
+    state: SessionState,
+    merchant_context: &domain::MerchantContext,
+    merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
+    profile_id: Option<common_utils::id_type::ProfileId>,
+    req: FetchDisputesRequestData,
+) -> RouterResponse<FetchDisputesResponse> {
+    let key_manager_state = &(&state).into();
+    let merchant_id = merchant_context.get_merchant_account().get_id();
+    let merchant_connector_account = state
+        .store
+        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            key_manager_state,
+            merchant_id,
+            &merchant_connector_id,
+            merchant_context.get_merchant_key_store(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: merchant_connector_id.get_string_repr().to_string(),
+        })?;
+
+    let connector_name = merchant_connector_account.connector_name.clone();
+
+    let connector_data = api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        &connector_name,
+        api::GetToken::Connector,
+        Some(merchant_connector_id.clone()),
+    )?;
+
+    let connector_integration: services::BoxedDisputeConnectorIntegrationInterface<
+        api::Fetch,
+        FetchDisputesRequestData,
+        FetchDisputesResponse,
+    > = connector_data.connector.get_connector_integration();
+
+    let router_data = core_utils::construct_dispute_list_api_router_data(
+        &state,
+        merchant_connector_account,
+        req,
+    )
+    .await?;
+
+    let response = services::execute_connector_processing_step(
+        &state,
+        connector_integration,
+        &router_data,
+        payments::CallConnectorAction::Trigger,
+        None,
+        None,
+    )
+    .await
+    .to_dispute_failed_response()
+    .attach_printable("Failed while calling accept dispute connector api")?;
+    let fetch_dispute_response =
+        response
+            .response
+            .map_err(|err| errors::ApiErrorResponse::ExternalConnectorError {
+                code: err.code,
+                message: err.message,
+                connector: connector_name,
+                status_code: err.status_code,
+                reason: err.reason,
+            })?;
+
+    Ok(services::ApplicationResponse::Json(fetch_dispute_response))
 }

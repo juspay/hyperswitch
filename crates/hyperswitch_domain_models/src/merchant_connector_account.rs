@@ -89,6 +89,10 @@ impl MerchantConnectorAccount {
     pub fn get_connector_name_as_string(&self) -> String {
         self.connector_name.clone()
     }
+
+    pub fn get_metadata(&self) -> Option<Secret<Value>> {
+        self.metadata.clone()
+    }
 }
 
 #[cfg(feature = "v2")]

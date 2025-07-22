@@ -12,7 +12,7 @@ use hyperswitch_domain_models::{
         authentication::{
             Authentication, PostAuthentication, PreAuthentication, PreAuthenticationVersionCall,
         },
-        dispute::{Accept, Defend, Evidence},
+        dispute::{Accept, Defend, Evidence, Fetch},
         files::{Retrieve, Upload},
         mandate_revoke::MandateRevoke,
         payments::{
@@ -37,11 +37,11 @@ use hyperswitch_domain_models::{
         },
         AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
         CompleteAuthorizeData, ConnectorCustomerData, CreateOrderRequestData,
-        DefendDisputeRequestData, MandateRevokeRequestData, PaymentMethodTokenizationData,
-        PaymentsApproveData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
-        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
+        DefendDisputeRequestData, FetchDisputesRequestData, MandateRevokeRequestData,
+        PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
+        PaymentsRejectData, PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
         PaymentsUpdateMetadataData, RefundsData, RetrieveFileRequestData,
         SdkPaymentsSessionUpdateData, SetupMandateRequestData, SubmitEvidenceRequestData,
         UploadFileRequestData, VaultRequestData, VerifyWebhookSourceRequestData,
@@ -52,8 +52,9 @@ use hyperswitch_domain_models::{
             RevenueRecoveryRecordBackResponse,
         },
         AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
-        MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData, RetrieveFileResponse,
-        SubmitEvidenceResponse, TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
+        FetchDisputesResponse, MandateRevokeResponseData, PaymentsResponseData,
+        RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
+        TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
         VerifyWebhookSourceResponseData,
     },
 };
@@ -93,7 +94,9 @@ use hyperswitch_interfaces::{
             ConnectorAuthenticationV2, ConnectorPostAuthenticationV2, ConnectorPreAuthenticationV2,
             ConnectorPreAuthenticationVersionCallV2, ExternalAuthenticationV2,
         },
-        disputes_v2::{AcceptDisputeV2, DefendDisputeV2, DisputeV2, SubmitEvidenceV2},
+        disputes_v2::{
+            AcceptDisputeV2, DefendDisputeV2, DisputeV2, FetchDisputesV2, SubmitEvidenceV2,
+        },
         files_v2::{FileUploadV2, RetrieveFileV2, UploadFileV2},
         payments_v2::{
             ConnectorCustomerV2, MandateSetupV2, PaymentApproveV2, PaymentAuthorizeSessionTokenV2,
@@ -745,23 +748,23 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connectors::Zsl
 );
 
-macro_rules! default_imp_for_new_connector_integration_submit_evidence {
+macro_rules! default_imp_for_new_connector_integration_fetch_disputes {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl SubmitEvidenceV2 for $path::$connector {}
+            impl FetchDisputesV2 for $path::$connector {}
             impl
                 ConnectorIntegrationV2<
-                Evidence,
+                Fetch,
                 DisputesFlowData,
-                SubmitEvidenceRequestData,
-                SubmitEvidenceResponse,
+                FetchDisputesRequestData,
+                FetchDisputesResponse,
             > for $path::$connector
             {}
     )*
     };
 }
 
-default_imp_for_new_connector_integration_submit_evidence!(
+default_imp_for_new_connector_integration_fetch_disputes!(
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -918,6 +921,135 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connectors::Cryptopay,
     connectors::CtpMastercard,
     connectors::Cybersource,
+    connectors::Datatrans,
+    connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
+    connectors::Dwolla,
+    connectors::Ebanx,
+    connectors::Elavon,
+    connectors::Facilitapay,
+    connectors::Fiserv,
+    connectors::Fiservemea,
+    connectors::Fiuu,
+    connectors::Forte,
+    connectors::Getnet,
+    connectors::Globalpay,
+    connectors::Globepay,
+    connectors::Gocardless,
+    connectors::Gpayments,
+    connectors::Hipay,
+    connectors::Helcim,
+    connectors::HyperswitchVault,
+    connectors::Iatapay,
+    connectors::Inespay,
+    connectors::Itaubank,
+    connectors::Jpmorgan,
+    connectors::Juspaythreedsserver,
+    connectors::Klarna,
+    connectors::Nomupay,
+    connectors::Noon,
+    connectors::Nordea,
+    connectors::Novalnet,
+    connectors::Netcetera,
+    connectors::Nexinets,
+    connectors::Nexixpay,
+    connectors::Nmi,
+    connectors::Payone,
+    connectors::Opayo,
+    connectors::Opennode,
+    connectors::Nuvei,
+    connectors::Paybox,
+    connectors::Payeezy,
+    connectors::Payload,
+    connectors::Payme,
+    connectors::Paypal,
+    connectors::Paystack,
+    connectors::Payu,
+    connectors::Placetopay,
+    connectors::Plaid,
+    connectors::Powertranz,
+    connectors::Prophetpay,
+    connectors::Mifinity,
+    connectors::Mollie,
+    connectors::Moneris,
+    connectors::Multisafepay,
+    connectors::Rapyd,
+    connectors::Razorpay,
+    connectors::Recurly,
+    connectors::Redsys,
+    connectors::Riskified,
+    connectors::Santander,
+    connectors::Shift4,
+    connectors::Silverflow,
+    connectors::Signifyd,
+    connectors::Stax,
+    connectors::Stripe,
+    connectors::Square,
+    connectors::Stripebilling,
+    connectors::Taxjar,
+    connectors::Threedsecureio,
+    connectors::Thunes,
+    connectors::Tokenio,
+    connectors::Trustpay,
+    connectors::Tsys,
+    connectors::UnifiedAuthenticationService,
+    connectors::Wise,
+    connectors::Worldline,
+    connectors::Volt,
+    connectors::Worldpay,
+    connectors::Worldpayvantiv,
+    connectors::Worldpayxml,
+    connectors::Wellsfargo,
+    connectors::Wellsfargopayout,
+    connectors::Xendit,
+    connectors::Zen,
+    connectors::Zsl
+);
+
+macro_rules! default_imp_for_new_connector_integration_submit_evidence {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl SubmitEvidenceV2 for $path::$connector {}
+            impl
+                ConnectorIntegrationV2<
+                Evidence,
+                DisputesFlowData,
+                SubmitEvidenceRequestData,
+                SubmitEvidenceResponse,
+            > for $path::$connector
+            {}
+    )*
+    };
+}
+
+default_imp_for_new_connector_integration_submit_evidence!(
+    connectors::Vgs,
+    connectors::Aci,
+    connectors::Adyen,
+    connectors::Adyenplatform,
+    connectors::Airwallex,
+    connectors::Amazonpay,
+    connectors::Authipay,
+    connectors::Authorizedotnet,
+    connectors::Bambora,
+    connectors::Bamboraapac,
+    connectors::Bankofamerica,
+    connectors::Barclaycard,
+    connectors::Billwerk,
+    connectors::Bitpay,
+    connectors::Bluesnap,
+    connectors::Braintree,
+    connectors::Boku,
+    connectors::Cashtocode,
+    connectors::Celero,
+    connectors::Chargebee,
+    connectors::Checkbook,
+    connectors::Checkout,
+    connectors::Coinbase,
+    connectors::Coingate,
+    connectors::Cryptopay,
+    connectors::CtpMastercard,
     connectors::Datatrans,
     connectors::Deutschebank,
     connectors::Digitalvirgo,
