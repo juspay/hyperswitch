@@ -26,6 +26,8 @@ use common_utils::{
     pii::{self, Email},
     types::{MinorUnit, StringMajorUnit},
 };
+#[cfg(feature = "v2")]
+use deserialize_form_style_query_parameter::option_form_vec_deserialize;
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret, WithType};
 use router_derive::Setter;
@@ -7707,6 +7709,7 @@ pub struct PaymentMethodsListRequest {
     pub client_secret: Option<String>,
 
     /// The two-letter ISO currency code
+    #[serde(deserialize_with = "option_form_vec_deserialize", default)]
     #[schema(value_type = Option<Vec<CountryAlpha2>>, example = json!(["US", "UK", "IN"]))]
     pub accepted_countries: Option<Vec<api_enums::CountryAlpha2>>,
 
@@ -7715,6 +7718,7 @@ pub struct PaymentMethodsListRequest {
     pub amount: Option<MinorUnit>,
 
     /// The three-letter ISO currency code
+    #[serde(deserialize_with = "option_form_vec_deserialize", default)]
     #[schema(value_type = Option<Vec<Currency>>,example = json!(["USD", "EUR"]))]
     pub accepted_currencies: Option<Vec<api_enums::Currency>>,
 
@@ -7722,7 +7726,8 @@ pub struct PaymentMethodsListRequest {
     #[schema(example = true)]
     pub recurring_enabled: Option<bool>,
 
-    /// Indicates whether the payment method is eligible for card netwotks
+    /// Indicates whether the payment method is eligible for card networks
+    #[serde(deserialize_with = "option_form_vec_deserialize", default)]
     #[schema(value_type = Option<Vec<CardNetwork>>, example = json!(["visa", "mastercard"]))]
     pub card_networks: Option<Vec<api_enums::CardNetwork>>,
 
