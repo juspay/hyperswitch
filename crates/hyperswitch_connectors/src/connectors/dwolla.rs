@@ -965,6 +965,11 @@ static DWOLLA_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
 };
 
+static DWOLLA_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] = [
+    enums::EventClass::Payments,
+    enums::EventClass::Refunds,
+];
+
 impl ConnectorSpecifications for Dwolla {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&DWOLLA_CONNECTOR_INFO)
@@ -972,5 +977,9 @@ impl ConnectorSpecifications for Dwolla {
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
         Some(&*DWOLLA_SUPPORTED_PAYMENT_METHODS)
+    }
+
+        fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&DWOLLA_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

@@ -124,10 +124,9 @@ impl<'a, T> TryFrom<(StringMajorUnit, T, &'a str)> for DwollaRouterData<'a, T> {
 }
 
 #[derive(Default, Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct DwollaCustomerRequest {
-    #[serde(rename = "firstName")]
     first_name: Secret<String>,
-    #[serde(rename = "lastName")]
     last_name: Secret<String>,
     email: common_utils::pii::Email,
 }
@@ -139,10 +138,9 @@ pub struct DwollaCustomerResponse {}
 pub struct DwollaFundingSourceResponse {}
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DwollaFundingSourceRequest {
-    #[serde(rename = "routingNumber")]
     routing_number: Secret<String>,
-    #[serde(rename = "accountNumber")]
     account_number: Secret<String>,
     #[serde(rename = "type")]
     account_type: common_enums::BankType,
@@ -150,11 +148,11 @@ pub struct DwollaFundingSourceRequest {
 }
 
 #[derive(Debug, Serialize, PartialEq, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct DwollaPaymentsRequest {
     #[serde(rename = "_links")]
     links: DwollaPaymentLinks,
     amount: DwollaAmount,
-    #[serde(rename = "correlationId")]
     correlation_id: String,
 }
 
@@ -209,11 +207,11 @@ pub struct DwollaMetaData {
 }
 
 #[derive(Debug, Serialize, PartialEq, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct DwollaRefundsRequest {
     #[serde(rename = "_links")]
     links: DwollaPaymentLinks,
     amount: DwollaAmount,
-    #[serde(rename = "correlationId")]
     correlation_id: String,
 }
 
@@ -308,7 +306,7 @@ impl<'a> TryFrom<&DwollaRouterData<'a, &PaymentsAuthorizeRouterData>> for Dwolla
                 currency: item.router_data.request.currency,
                 value: item.amount.to_owned(),
             },
-            correlation_id: format!("payment_{}", uuid::Uuid::new_v4()),
+            correlation_id: format!("payment_{}", item.router_data.connector_request_reference_id),
         };
 
         Ok(request)
@@ -415,7 +413,7 @@ impl<'a, F> TryFrom<&DwollaRouterData<'a, &RefundsRouterData<F>>> for DwollaRefu
                 currency: item.router_data.request.currency,
                 value: item.amount.to_owned(),
             },
-            correlation_id: format!("refund_{}", uuid::Uuid::new_v4()),
+            correlation_id: format!("refund_{}", item.router_data.connector_request_reference_id),
         };
 
         Ok(request)
@@ -511,10 +509,8 @@ pub struct DwollaErrorDetail {
 #[serde(rename_all = "camelCase")]
 pub struct DwollaWebhookDetails {
     pub id: String,
-    #[serde(rename = "resourceId")]
     pub resource_id: String,
     pub topic: String,
-    #[serde(rename = "correlationId")]
     pub correlation_id: Option<String>,
 }
 
