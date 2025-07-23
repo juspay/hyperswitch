@@ -4,8 +4,10 @@ use std::sync::LazyLock;
 
 use common_enums::enums;
 
+use ring::hmac;
+
 use error_stack::{report, ResultExt};
-use masking::{ExposeInterface, Mask};
+use masking::{ExposeInterface, Mask, Secret};
 
 use base64::engine::Engine;
 use common_utils::{
@@ -851,6 +853,35 @@ impl webhooks::IncomingWebhook for Dwolla {
         hex::decode(sig).map_err(|_| errors::ConnectorError::WebhookSignatureNotFound.into())
     }
 
+    async fn verify_webhook_source(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        merchant_id: &common_utils::id_type::MerchantId,
+        connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: crypto::Encryptable<Secret<serde_json::Value>>,
+        connector_name: &str,
+    ) -> CustomResult<bool, errors::ConnectorError> {
+        let connector_webhook_secrets = self
+            .get_webhook_source_verification_merchant_secret(
+                merchant_id,
+                connector_name,
+                connector_webhook_details,
+            )
+            .await?;
+
+        let signature = self
+            .get_webhook_source_verification_signature(request, &connector_webhook_secrets)
+            .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
+
+        let secret_bytes = connector_webhook_secrets.secret.as_ref();
+        let key = hmac::Key::new(hmac::HMAC_SHA256, secret_bytes);
+
+        let verify = hmac::verify(&key, request.body, &signature)
+            .map(|_| true)
+            .map_err(|_| errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        Ok(verify)
+    }
+
     fn get_webhook_object_reference_id(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
@@ -859,22 +890,38 @@ impl webhooks::IncomingWebhook for Dwolla {
             .body
             .parse_struct("DwollaWebhookDetails")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            api_models::payments::PaymentIdType::ConnectorTransactionId(details.resource_id),
-        ))
+
+        if let Some(correlation_id) = &details.correlation_id {
+            if correlation_id.starts_with("refund_") {
+                Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                    api_models::webhooks::RefundIdType::ConnectorRefundId(
+                        details.resource_id.clone(),
+                    ),
+                ))
+            } else if correlation_id.starts_with("payment_") {
+                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                    api_models::payments::PaymentIdType::ConnectorTransactionId(
+                        details.resource_id.clone(),
+                    ),
+                ))
+            } else {
+                Err(report!(errors::ConnectorError::WebhookReferenceIdNotFound))
+            }
+        } else {
+            Err(report!(errors::ConnectorError::WebhookReferenceIdNotFound))
+        }
     }
 
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        let topic = request
-            .headers
-            .get("X-Dwolla-Topic")
-            .and_then(|h| h.to_str().ok())
-            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
-        let event_type = dwolla::DwollaWebhookEventType::from(topic);
-        let incoming = api_models::webhooks::IncomingWebhookEvent::try_from(event_type)?;
+        let details: dwolla::DwollaWebhookDetails = request
+            .body
+            .parse_struct("DwollaWebhookDetails")
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+
+        let incoming = api_models::webhooks::IncomingWebhookEvent::try_from(details)?;
         Ok(incoming)
     }
 

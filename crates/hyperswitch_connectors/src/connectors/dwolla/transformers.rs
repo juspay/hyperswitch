@@ -2,7 +2,7 @@ use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{self, CustomerData, RouterData as _},
 };
-use common_enums::enums;
+use common_enums::{enums, AttemptStatus};
 use common_utils::{errors::CustomResult, types::StringMajorUnit};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -73,6 +73,19 @@ pub fn extract_token_from_body(body: &[u8]) -> CustomResult<String, errors::Conn
         .ok_or_else(|| report!(errors::ConnectorError::ResponseDeserializationFailed))
 }
 
+fn map_topic_to_status(topic: &str) -> DwollaPaymentStatus {
+    match topic {
+        "customer_transfer_created" | "customer_bank_transfer_created" => {
+            DwollaPaymentStatus::Pending
+        }
+        "customer_transfer_completed" | "customer_bank_transfer_completed" => {
+            DwollaPaymentStatus::Succeeded
+        }
+        "customer_transfer_failed" | "customer_bank_transfer_failed" => DwollaPaymentStatus::Failed,
+        _ => DwollaPaymentStatus::Pending,
+    }
+}
+
 impl<F, T> TryFrom<ResponseRouterData<F, DwollaAccessTokenResponse, T, AccessToken>>
     for RouterData<F, T, AccessToken>
 {
@@ -136,11 +149,13 @@ pub struct DwollaFundingSourceRequest {
     name: Secret<String>,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq, Deserialize, Clone)]
+#[derive(Debug, Serialize, PartialEq, Deserialize, Clone)]
 pub struct DwollaPaymentsRequest {
     #[serde(rename = "_links")]
     links: DwollaPaymentLinks,
     amount: DwollaAmount,
+    #[serde(rename = "correlationId")]
+    correlation_id: String,
 }
 
 #[derive(Default, Debug, Serialize, PartialEq, Deserialize, Clone)]
@@ -154,21 +169,35 @@ pub struct DwollaRequestLink {
     href: String,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq, Deserialize, Clone)]
+#[derive(Debug, Serialize, PartialEq, Deserialize, Clone)]
 pub struct DwollaAmount {
     pub currency: common_enums::Currency,
     pub value: StringMajorUnit,
 }
 
-#[derive(Default, Debug, PartialEq, Serialize, Deserialize, Clone)]
-pub struct DwollaPSyncResponse {
+#[derive(Debug, Serialize, PartialEq, Deserialize, Clone)]
+#[serde(untagged)]
+pub enum DwollaPSyncResponse {
+    Payment(DwollaPaymentSyncResponse),
+    Webhook(DwollaWebhookDetails),
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+pub struct DwollaPaymentSyncResponse {
     pub id: String,
     pub status: DwollaPaymentStatus,
     pub amount: DwollaAmount,
 }
 
-#[derive(Default, Debug, PartialEq, Serialize, Deserialize, Clone)]
-pub struct DwollaRSyncResponse {
+#[derive(Debug, Serialize, PartialEq, Deserialize, Clone)]
+#[serde(untagged)]
+pub enum DwollaRSyncResponse {
+    Payment(DwollaRefundSyncResponse),
+    Webhook(DwollaWebhookDetails),
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+pub struct DwollaRefundSyncResponse {
     id: String,
     status: DwollaPaymentStatus,
     amount: DwollaAmount,
@@ -179,11 +208,13 @@ pub struct DwollaMetaData {
     pub merchant_funding_source: Secret<String>,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq, Deserialize, Clone)]
+#[derive(Debug, Serialize, PartialEq, Deserialize, Clone)]
 pub struct DwollaRefundsRequest {
     #[serde(rename = "_links")]
     links: DwollaPaymentLinks,
     amount: DwollaAmount,
+    #[serde(rename = "correlationId")]
+    correlation_id: String,
 }
 
 impl TryFrom<&types::ConnectorCustomerRouterData> for DwollaCustomerRequest {
@@ -277,6 +308,7 @@ impl<'a> TryFrom<&DwollaRouterData<'a, &PaymentsAuthorizeRouterData>> for Dwolla
                 currency: item.router_data.request.currency,
                 value: item.amount.to_owned(),
             },
+            correlation_id: format!("payment_{}", uuid::Uuid::new_v4()),
         };
 
         Ok(request)
@@ -290,8 +322,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, DwollaPSyncResponse, T, PaymentsRespons
     fn try_from(
         item: ResponseRouterData<F, DwollaPSyncResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let payment_id = item.response.id.clone();
-        let status = item.response.status;
         let connector_metadata =
             item.data
                 .payment_method_token
@@ -302,20 +332,46 @@ impl<F, T> TryFrom<ResponseRouterData<F, DwollaPSyncResponse, T, PaymentsRespons
                     }
                     _ => None,
                 });
-        Ok(Self {
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(payment_id.clone()),
-                redirection_data: Box::new(None),
-                mandate_reference: Box::new(None),
-                connector_metadata,
-                network_txn_id: None,
-                connector_response_reference_id: Some(payment_id.clone()),
-                incremental_authorization_allowed: None,
-                charges: None,
-            }),
-            status: common_enums::AttemptStatus::from(status),
-            ..item.data
-        })
+        match item.response {
+            DwollaPSyncResponse::Payment(payment_response) => {
+                let payment_id = payment_response.id.clone();
+                let status = payment_response.status;
+                Ok(Self {
+                    response: Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(payment_id.clone()),
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
+                        connector_metadata,
+                        network_txn_id: None,
+                        connector_response_reference_id: Some(payment_id.clone()),
+                        incremental_authorization_allowed: None,
+                        charges: None,
+                    }),
+                    status: AttemptStatus::from(status),
+                    ..item.data
+                })
+            }
+            DwollaPSyncResponse::Webhook(webhook_response) => {
+                let payment_id = webhook_response.resource_id.clone();
+
+                Ok(Self {
+                    response: Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(payment_id.clone()),
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
+                        connector_metadata,
+                        network_txn_id: None,
+                        connector_response_reference_id: Some(payment_id.clone()),
+                        incremental_authorization_allowed: None,
+                        charges: None,
+                    }),
+                    status: AttemptStatus::from(map_topic_to_status(
+                        webhook_response.topic.as_str(),
+                    )),
+                    ..item.data
+                })
+            }
+        }
     }
 }
 
@@ -359,6 +415,7 @@ impl<'a, F> TryFrom<&DwollaRouterData<'a, &RefundsRouterData<F>>> for DwollaRefu
                 currency: item.router_data.request.currency,
                 value: item.amount.to_owned(),
             },
+            correlation_id: format!("refund_{}", uuid::Uuid::new_v4()),
         };
 
         Ok(request)
@@ -370,18 +427,33 @@ impl TryFrom<RefundsResponseRouterData<RSync, DwollaRSyncResponse>> for RefundsR
     fn try_from(
         item: RefundsResponseRouterData<RSync, DwollaRSyncResponse>,
     ) -> Result<Self, Self::Error> {
-        let refund_status = enums::RefundStatus::from(item.response.status);
-        Ok(Self {
-            response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id,
-                refund_status,
-            }),
-            ..item.data
-        })
+        match item.response {
+            DwollaRSyncResponse::Payment(refund_response) => {
+                let refund_id = refund_response.id.clone();
+                let status = refund_response.status;
+                Ok(Self {
+                    response: Ok(RefundsResponseData {
+                        connector_refund_id: refund_id,
+                        refund_status: enums::RefundStatus::from(status),
+                    }),
+                    ..item.data
+                })
+            }
+            DwollaRSyncResponse::Webhook(webhook_response) => {
+                let refund_id = webhook_response.resource_id.clone();
+                let status = map_topic_to_status(webhook_response.topic.as_str());
+                Ok(Self {
+                    response: Ok(RefundsResponseData {
+                        connector_refund_id: refund_id,
+                        refund_status: enums::RefundStatus::from(status),
+                    }),
+                    ..item.data
+                })
+            }
+        }
     }
 }
 
-// PaymentsResponse
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum DwollaPaymentStatus {
@@ -393,7 +465,7 @@ pub enum DwollaPaymentStatus {
     Processed,
 }
 
-impl From<DwollaPaymentStatus> for common_enums::AttemptStatus {
+impl From<DwollaPaymentStatus> for AttemptStatus {
     fn from(item: DwollaPaymentStatus) -> Self {
         match item {
             DwollaPaymentStatus::Succeeded => Self::Charged,
@@ -435,11 +507,15 @@ pub struct DwollaErrorDetail {
     pub message: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct DwollaWebhookDetails {
+    pub id: String,
+    #[serde(rename = "resourceId")]
     pub resource_id: String,
-    pub topic: DwollaWebhookEventType,
+    pub topic: String,
+    #[serde(rename = "correlationId")]
+    pub correlation_id: Option<String>,
 }
 
 impl From<&str> for DwollaWebhookEventType {
@@ -464,7 +540,7 @@ impl From<&str> for DwollaWebhookEventType {
             "customer_transfer_failed" => Self::CustomerTransferFailed,
             "transfer_created" => Self::TransferCreated,
             "transfer_pending" => Self::TransferPending,
-            "transfer_processed" => Self::TransferProcessed,
+            "transfer_completed" => Self::TransferCompleted,
             "transfer_failed" => Self::TransferFailed,
             _ => Self::Unknown,
         }
@@ -493,24 +569,39 @@ pub enum DwollaWebhookEventType {
     CustomerTransferFailed,
     TransferCreated,
     TransferPending,
-    TransferProcessed,
+    TransferCompleted,
     TransferFailed,
     #[serde(other)]
     Unknown,
 }
 
-impl TryFrom<DwollaWebhookEventType> for api_models::webhooks::IncomingWebhookEvent {
+impl TryFrom<DwollaWebhookDetails> for api_models::webhooks::IncomingWebhookEvent {
     type Error = errors::ConnectorError;
-    fn try_from(value: DwollaWebhookEventType) -> Result<Self, Self::Error> {
-        Ok(match value {
-            DwollaWebhookEventType::TransferCreated => Self::PaymentIntentProcessing,
-            DwollaWebhookEventType::TransferProcessed
-            | DwollaWebhookEventType::CustomerBankTransferCompleted
-            | DwollaWebhookEventType::CustomerTransferCompleted => Self::PaymentIntentSuccess,
-            DwollaWebhookEventType::TransferFailed
-            | DwollaWebhookEventType::CustomerBankTransferFailed
-            | DwollaWebhookEventType::CustomerTransferFailed
-            | DwollaWebhookEventType::CustomerBankTransferCreationFailed => {
+    fn try_from(details: DwollaWebhookDetails) -> Result<Self, Self::Error> {
+        let correlation_id = match details.correlation_id.as_deref() {
+            Some(cid) => cid,
+            None => {
+                return Ok(Self::EventNotSupported);
+            }
+        };
+        let event_type = DwollaWebhookEventType::from(details.topic.as_str());
+        let is_refund = correlation_id.starts_with("refund_");
+        Ok(match (event_type, is_refund) {
+            (DwollaWebhookEventType::CustomerTransferCompleted, true)
+            | (DwollaWebhookEventType::CustomerBankTransferCompleted, true) => Self::RefundSuccess,
+            (DwollaWebhookEventType::CustomerTransferFailed, true)
+            | (DwollaWebhookEventType::CustomerBankTransferFailed, true) => Self::RefundFailure,
+
+            (DwollaWebhookEventType::CustomerTransferCreated, false)
+            | (DwollaWebhookEventType::CustomerBankTransferCreated, false) => {
+                Self::PaymentIntentProcessing
+            }
+            (DwollaWebhookEventType::CustomerTransferCompleted, false)
+            | (DwollaWebhookEventType::CustomerBankTransferCompleted, false) => {
+                Self::PaymentIntentSuccess
+            }
+            (DwollaWebhookEventType::CustomerTransferFailed, false)
+            | (DwollaWebhookEventType::CustomerBankTransferFailed, false) => {
                 Self::PaymentIntentFailure
             }
             _ => Self::EventNotSupported,
