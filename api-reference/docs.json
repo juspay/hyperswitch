@@ -25,7 +25,8 @@
                 "pages": [
                   "essentials/error_codes",
                   "essentials/rate_limit",
-                  "essentials/go-live"
+                  "essentials/go-live",
+                  "essentials/authentication"
                 ]
               },
               {
