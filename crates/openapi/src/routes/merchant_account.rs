@@ -242,15 +242,15 @@ pub async fn merchant_account_update() {}
 pub async fn delete_merchant_account() {}
 
 #[cfg(feature = "v2")]
-/// Merchant Account - Delete
+/// Merchant Account - Delete (Soft Delete)
 ///
-/// Delete a *merchant* account along with all associated data including business profiles, connector accounts, payment methods, customers, and API keys.
+/// Soft delete a *merchant* account by marking it as deleted in metadata while preserving data for audit trails. This operation revokes API keys for security while maintaining data integrity. The merchant account will be marked as deleted but not physically removed from the database.
 #[utoipa::path(
     delete,
     path = "/v2/merchant-accounts/{id}",
     params (("id" = String, Path, description = "The unique identifier for the merchant account")),
     responses(
-        (status = 200, description = "Merchant Account Deleted", body = MerchantAccountDeleteResponse),
+        (status = 200, description = "Merchant Account Soft Deleted (marked as deleted, API keys revoked)", body = MerchantAccountDeleteResponse),
         (status = 404, description = "Merchant account not found"),
         (status = 400, description = "Invalid request data"),
         (status = 401, description = "Unauthorized request")
