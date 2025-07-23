@@ -116,6 +116,17 @@
                 ]
               },
               {
+                "group": "User Management APIs",
+                "pages": [
+                  {
+                    "group": "Create Platform Account",
+                    "pages": [
+                      "v1/user/user--create-platform-account"
+                    ]
+                  }
+                ]
+              },
+              {
                 "group": "Account management APIs",
                 "pages": [
                   {
