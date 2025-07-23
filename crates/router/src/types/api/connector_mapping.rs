@@ -433,6 +433,12 @@ impl ConnectorData {
                         .attach_printable(format!("invalid connector name: {connector_name}")))
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                 }
+                enums::Connector::Phonepe => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Phonepe::new())))
+                }
+                enums::Connector::Paytm => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Paytm::new())))
+                }
             },
             Err(_) => Err(report!(errors::ConnectorError::InvalidConnectorName)
                 .attach_printable(format!("invalid connector name: {connector_name}")))
