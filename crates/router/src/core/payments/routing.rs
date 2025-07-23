@@ -521,7 +521,7 @@ pub async fn perform_static_routing_v1(
         Vec::default()
     };
 
-    let (routable_connectors, routing_approach) = match cached_algorithm.as_ref() {
+    let (routable_connectors, routing_strategy) = match cached_algorithm.as_ref() {
         CachedAlgorithm::Single(conn) => (
             vec![(**conn).clone()],
             Some(common_enums::RoutingApproach::StraightThroughRouting),
@@ -552,7 +552,7 @@ pub async fn perform_static_routing_v1(
             de_euclid_connectors,
         )
         .await,
-        routing_approach,
+        routing_strategy,
     ))
 }
 
@@ -1309,7 +1309,7 @@ pub async fn perform_session_flow_routing(
         api_enums::PaymentMethodType,
         Vec<routing_types::SessionRoutingChoice>,
     > = FxHashMap::default();
-    let mut final_routing_approach = None;
+    let mut final_routing_strategy = None;
 
     for (pm_type, allowed_connectors) in pm_type_map {
         let euclid_pmt: euclid_enums::PaymentMethodType = pm_type;
@@ -1328,7 +1328,7 @@ pub async fn perform_session_flow_routing(
             profile_id: &profile_id,
         };
 
-        let (routable_connector_choice_option, routing_approach) =
+        let (routable_connector_choice_option, routing_strategy) =
             perform_session_routing_for_pm_type(
                 &session_pm_input,
                 transaction_type,
@@ -1336,7 +1336,7 @@ pub async fn perform_session_flow_routing(
             )
             .await?;
 
-        final_routing_approach = routing_approach;
+        final_routing_strategy = routing_strategy;
 
         if let Some(routable_connector_choice) = routable_connector_choice_option {
             let mut session_routing_choice: Vec<routing_types::SessionRoutingChoice> = Vec::new();
@@ -1364,7 +1364,7 @@ pub async fn perform_session_flow_routing(
         }
     }
 
-    Ok((result, final_routing_approach))
+    Ok((result, final_routing_strategy))
 }
 
 #[cfg(feature = "v1")]
@@ -1382,7 +1382,7 @@ async fn perform_session_routing_for_pm_type(
         MerchantAccountRoutingAlgorithm::V1(algorithm_ref) => &algorithm_ref.algorithm_id,
     };
 
-    let (chosen_connectors, routing_approach) = if let Some(ref algorithm_id) = algorithm_id {
+    let (chosen_connectors, routing_strategy) = if let Some(ref algorithm_id) = algorithm_id {
         let cached_algorithm = ensure_algorithm_cached_v1(
             &session_pm_input.state.clone(),
             merchant_id,
@@ -1457,9 +1457,9 @@ async fn perform_session_routing_for_pm_type(
     }
 
     if final_selection.is_empty() {
-        Ok((None, routing_approach))
+        Ok((None, routing_strategy))
     } else {
-        Ok((Some(final_selection), routing_approach))
+        Ok((Some(final_selection), routing_strategy))
     }
 }
 

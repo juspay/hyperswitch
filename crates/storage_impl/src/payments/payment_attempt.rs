@@ -685,7 +685,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     processor_merchant_id: payment_attempt.processor_merchant_id.clone(),
                     created_by: payment_attempt.created_by.clone(),
                     setup_future_usage_applied: payment_attempt.setup_future_usage_applied,
-                    routing_approach: payment_attempt.routing_approach,
+                    routing_strategy: payment_attempt.routing_strategy,
                     connector_request_reference_id: payment_attempt
                         .connector_request_reference_id
                         .clone(),
@@ -1892,13 +1892,13 @@ impl DataModelExt for PaymentAttempt {
             issuer_error_code: self.issuer_error_code,
             issuer_error_message: self.issuer_error_message,
             setup_future_usage_applied: self.setup_future_usage_applied,
-            routing_approach: self.routing_approach,
+            routing_approach: self.routing_strategy,
             // Below fields are deprecated. Please add any new fields above this line.
             connector_transaction_data: None,
             processor_merchant_id: Some(self.processor_merchant_id),
             created_by: self.created_by.map(|created_by| created_by.to_string()),
             connector_request_reference_id: self.connector_request_reference_id,
-            routing_strategy: self.routing_approach.map(|approach| approach.to_string()),
+            routing_strategy: self.routing_strategy.map(|approach| approach.to_string()),
         }
     }
 
@@ -1989,7 +1989,9 @@ impl DataModelExt for PaymentAttempt {
                 .created_by
                 .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
             setup_future_usage_applied: storage_model.setup_future_usage_applied,
-            routing_approach: storage_model.routing_approach,
+            routing_strategy: storage_model
+                .routing_strategy
+                .and_then(|approach| approach.parse::<common_enums::RoutingApproach>().ok()),
             connector_request_reference_id: storage_model.connector_request_reference_id,
             debit_routing_savings: None,
         }
@@ -2083,7 +2085,7 @@ impl DataModelExt for PaymentAttemptNew {
             setup_future_usage_applied: self.setup_future_usage_applied,
             routing_approach: None,
             connector_request_reference_id: self.connector_request_reference_id,
-            routing_strategy: self.routing_approach.map(|approach| approach.to_string()),
+            routing_strategy: self.routing_strategy.map(|approach| approach.to_string()),
         }
     }
 
@@ -2166,7 +2168,9 @@ impl DataModelExt for PaymentAttemptNew {
                 .created_by
                 .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
             setup_future_usage_applied: storage_model.setup_future_usage_applied,
-            routing_approach: storage_model.routing_approach,
+            routing_strategy: storage_model
+                .routing_strategy
+                .and_then(|approach| approach.parse::<common_enums::RoutingApproach>().ok()),
             connector_request_reference_id: storage_model.connector_request_reference_id,
         }
     }

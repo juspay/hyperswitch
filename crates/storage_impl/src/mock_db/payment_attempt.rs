@@ -235,7 +235,7 @@ impl PaymentAttemptInterface for MockDb {
             processor_merchant_id: payment_attempt.processor_merchant_id,
             created_by: payment_attempt.created_by,
             setup_future_usage_applied: payment_attempt.setup_future_usage_applied,
-            routing_approach: payment_attempt.routing_approach,
+            routing_strategy: payment_attempt.routing_strategy,
             connector_request_reference_id: payment_attempt.connector_request_reference_id,
             debit_routing_savings: None,
         };
