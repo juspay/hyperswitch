@@ -248,27 +248,28 @@ impl UnifiedConnectorServiceClient {
             .inspect_err(|error| logger::error!(?error))
     }
 
-    // /// Performs Payment repeat (MIT - Merchant Initiated Transaction)
-    // pub async fn payment_repeat_mit(
-    //     &self,
-    //     payment_get_request: payments_grpc::PaymentServiceRepeatEverythingRequest,
-    //     connector_auth_metadata: ConnectorAuthMetadata,
-    //     grpc_headers: GrpcHeaders,
-    // ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::PaymentServiceRepeatEverythingResponse>>
-    // {
-    //     let mut request = tonic::Request::new(payment_get_request);
+    /// Performs Payment repeat (MIT - Merchant Initiated Transaction).
+    pub async fn payment_repeat(
+        &self,
+        payment_repeat_request: payments_grpc::PaymentServiceRepeatEverythingRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeaders,
+    ) -> UnifiedConnectorServiceResult<
+        tonic::Response<payments_grpc::PaymentServiceRepeatEverythingResponse>,
+    > {
+        let mut request = tonic::Request::new(payment_repeat_request);
 
-    //     let metadata =
-    //         build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
-    //     *request.metadata_mut() = metadata;
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
 
-    //     self.client
-    //         .clone()
-    //         .get(request)
-    //         .await
-    //         .change_context(UnifiedConnectorServiceError::PaymentRepeatEverythingFailure)
-    //         .inspect_err(|error| logger::error!(?error))
-    // }
+        self.client
+            .clone()
+            .repeat_everything(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::PaymentRepeatEverythingFailure)
+            .inspect_err(|error| logger::error!(?error))
+    }
 }
 
 /// Build the gRPC Headers for Unified Connector Service Request

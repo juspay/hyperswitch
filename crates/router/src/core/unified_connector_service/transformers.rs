@@ -273,6 +273,66 @@ impl ForeignTryFrom<&RouterData<SetupMandate, SetupMandateRequestData, PaymentsR
     }
 }
 
+impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>>
+    for payments_grpc::PaymentServiceRepeatEverythingRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        router_data: &RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
+
+        let mandate_reference = match &router_data.request.mandate_id {
+            Some(mandate) => match &mandate.mandate_reference_id {
+                Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
+                    connector_mandate_id,
+                )) => Some(payments_grpc::MandateReference {
+                    mandate_id: connector_mandate_id.get_connector_mandate_id(),
+                }),
+                _ => {
+                    return Err(UnifiedConnectorServiceError::MissingRequiredField {
+                        field_name: "connector_mandate_id",
+                    }
+                    .into())
+                }
+            },
+            None => {
+                return Err(UnifiedConnectorServiceError::MissingRequiredField {
+                    field_name: "connector_mandate_id",
+                }
+                .into())
+            }
+        };
+
+        Ok(Self {
+            request_ref_id: Some(Identifier {
+                id_type: Some(payments_grpc::identifier::IdType::Id(
+                    router_data.connector_request_reference_id.clone(),
+                )),
+            }),
+            mandate_reference,
+            amount: router_data.request.amount,
+            currency: currency.into(),
+            minor_amount: router_data.request.amount,
+            merchant_order_reference_id: router_data.request.merchant_order_reference_id.clone(),
+            metadata: router_data
+                .request
+                .metadata
+                .as_ref()
+                .and_then(|val| val.as_object())
+                .map(|map| {
+                    map.iter()
+                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                        .collect::<HashMap<String, String>>()
+                })
+                .unwrap_or_default(),
+            webhook_url: router_data.request.webhook_url.clone(),
+            all_keys_required: None,
+        })
+    }
+}
+
 impl ForeignTryFrom<common_enums::Currency> for payments_grpc::Currency {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
