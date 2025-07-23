@@ -1283,6 +1283,76 @@ pub async fn merchant_account_delete(
     Ok(service_api::ApplicationResponse::Json(response))
 }
 
+#[cfg(feature = "v2")]
+pub async fn merchant_account_delete_v2(
+    state: SessionState,
+    merchant_id: id_type::MerchantId,
+) -> RouterResponse<api::MerchantAccountDeleteResponse> {
+    let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+    
+    // Get merchant key store and validate merchant exists
+    let merchant_key_store = db
+        .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
+            &merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    let merchant_account = db
+        .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &merchant_key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    let mut is_deleted = false;
+
+    // Delete merchant account and key store (core deletion)
+    let is_merchant_account_deleted = db
+        .delete_merchant_account_by_merchant_id(&merchant_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+        
+    if is_merchant_account_deleted {
+        let is_merchant_key_store_deleted = db
+            .delete_merchant_key_store_by_merchant_id(&merchant_id)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+        is_deleted = is_merchant_account_deleted && is_merchant_key_store_deleted;
+    }
+
+    // Revoke API key in authentication service (async job)
+    if is_deleted {
+        let state_clone = state.clone();
+        authentication::decision::spawn_tracked_job(
+            async move {
+                authentication::decision::revoke_api_key(
+                    &state_clone,
+                    merchant_account.publishable_key.into(),
+                )
+                .await
+            },
+            authentication::decision::REVOKE,
+        );
+    }
+
+    // Delete configuration entries
+    if let Err(err) = db.delete_config_by_key(merchant_id.get_requires_cvv_key().as_str()).await {
+        if !err.current_context().is_db_not_found() {
+            crate::logger::error!("Failed to delete requires_cvv config: {err:?}");
+        }
+    }
+
+    crate::logger::info!("Merchant {merchant_id} deletion completed. Status: {is_deleted}");
+
+    let response = api::MerchantAccountDeleteResponse {
+        merchant_id,
+        deleted: is_deleted,
+    };
+    Ok(service_api::ApplicationResponse::Json(response))
+}
+
 #[cfg(feature = "v1")]
 async fn get_parent_merchant(
     state: &SessionState,
