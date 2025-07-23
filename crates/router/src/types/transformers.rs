@@ -1629,10 +1629,10 @@ impl
         &gsm_api_types::GsmUpdateRequest,
         hyperswitch_domain_models::gsm::GatewayStatusMap,
     )>
-    for Option<(
+    for (
         api_enums::GsmFeature,
         hyperswitch_domain_models::gsm::FeatureData,
-    )>
+    )
 {
     fn foreign_from(
         (gsm_update_request, gsm_db_record): (
@@ -1648,10 +1648,10 @@ impl
 
         let gsm_feature = gsm_update_request
             .feature
-            .or(Some(gsm_db_record_infered_feature));
+            .unwrap_or(gsm_db_record_infered_feature);
 
         match gsm_feature {
-            Some(api_enums::GsmFeature::Retry) => {
+            api_enums::GsmFeature::Retry => {
                 let gsm_db_record_retry_feature_data =
                     gsm_db_record.feature_data.get_retry_feature_data();
 
@@ -1680,9 +1680,8 @@ impl
                             .unwrap_or_default(),
                     },
                 );
-                Some((api_enums::GsmFeature::Retry, retry_feature_data))
+                (api_enums::GsmFeature::Retry, retry_feature_data)
             }
-            None => None,
         }
     }
 }
