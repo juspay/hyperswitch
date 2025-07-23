@@ -67,9 +67,7 @@ pub async fn should_call_unified_connector_service<F: Clone, T>(
         .grpc_client
         .unified_connector_service
         .as_ref()
-        .is_some_and(|config| {
-            config.ucs_only_connectors.contains(&connector_name)
-        });
+        .is_some_and(|config| config.ucs_only_connectors.contains(&connector_name));
 
     if is_ucs_only_connector {
         return Ok(true);

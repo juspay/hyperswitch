@@ -73,7 +73,11 @@ impl TryFrom<&ConnectorAuthType> for PhonepeAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::SignatureKey { api_key, key1, api_secret } => Ok(Self {
+            ConnectorAuthType::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            } => Ok(Self {
                 merchant_id: api_key.clone(),
                 salt_key: key1.clone(),
                 key_index: api_secret.peek().clone(), // Use api_secret for key index
