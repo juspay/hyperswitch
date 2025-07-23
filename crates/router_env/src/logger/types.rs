@@ -602,6 +602,8 @@ pub enum Flow {
     CloneConnector,
     /// Authentication Create flow
     AuthenticationCreate,
+    /// Authentication Eligibility flow
+    AuthenticationEligibility,
     ///Proxy Flow
     Proxy,
     /// Profile Acquirer Create flow
@@ -612,6 +614,10 @@ pub enum Flow {
     ThreeDsDecisionRuleExecute,
     /// Incoming Network Token Webhook Receive
     IncomingNetworkTokenWebhookReceive,
+    /// Decision Engine Decide Gateway Call
+    DecisionEngineDecideGatewayCall,
+    /// Decision Engine Gateway Feedback Call
+    DecisionEngineGatewayFeedbackCall,
 }
 
 /// Trait for providing generic behaviour to flow metric
