@@ -65,5 +65,5 @@ pub struct PaymentFilterRow {
     pub card_issuer: Option<String>,
     pub error_reason: Option<String>,
     pub first_attempt: Option<bool>,
-    pub routing_approach: Option<DBEnumWrapper<RoutingApproach>>,
+    pub routing_strategy: Option<DBEnumWrapper<RoutingApproach>>,
 }

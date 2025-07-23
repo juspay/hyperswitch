@@ -110,11 +110,11 @@ where
                 .attach_printable("Error adding first attempt filter")?;
         }
 
-        if !self.routing_approach.is_empty() {
+        if !self.routing_strategy.is_empty() {
             builder
                 .add_filter_in_range_clause(
-                    PaymentDimensions::RoutingApproach,
-                    &self.routing_approach,
+                    PaymentDimensions::RoutingStrategy,
+                    &self.routing_strategy,
                 )
                 .attach_printable("Error adding routing approach filter")?;
         }

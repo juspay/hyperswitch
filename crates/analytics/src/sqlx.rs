@@ -731,8 +731,8 @@ impl<'a> FromRow<'a, PgRow> for super::payments::metrics::PaymentMetricRow {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
         })?;
-        let routing_approach: Option<DBEnumWrapper<RoutingApproach>> =
-            row.try_get("routing_approach").or_else(|e| match e {
+        let routing_strategy: Option<DBEnumWrapper<RoutingApproach>> =
+            row.try_get("routing_strategy").or_else(|e| match e {
                 ColumnNotFound(_) => Ok(Default::default()),
                 e => Err(e),
             })?;
@@ -767,7 +767,7 @@ impl<'a> FromRow<'a, PgRow> for super::payments::metrics::PaymentMetricRow {
             card_issuer,
             error_reason,
             first_attempt,
-            routing_approach,
+            routing_strategy,
             total,
             count,
             start_bucket,
@@ -840,8 +840,8 @@ impl<'a> FromRow<'a, PgRow> for super::payments::distribution::PaymentDistributi
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
         })?;
-        let routing_approach: Option<DBEnumWrapper<RoutingApproach>> =
-            row.try_get("routing_approach").or_else(|e| match e {
+        let routing_strategy: Option<DBEnumWrapper<RoutingApproach>> =
+            row.try_get("routing_strategy").or_else(|e| match e {
                 ColumnNotFound(_) => Ok(Default::default()),
                 e => Err(e),
             })?;
@@ -887,7 +887,7 @@ impl<'a> FromRow<'a, PgRow> for super::payments::distribution::PaymentDistributi
             total,
             count,
             error_message,
-            routing_approach,
+            routing_strategy,
             start_bucket,
             end_bucket,
         })
@@ -962,8 +962,8 @@ impl<'a> FromRow<'a, PgRow> for super::payments::filters::PaymentFilterRow {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
         })?;
-        let routing_approach: Option<DBEnumWrapper<RoutingApproach>> =
-            row.try_get("routing_approach").or_else(|e| match e {
+        let routing_strategy: Option<DBEnumWrapper<RoutingApproach>> =
+            row.try_get("routing_strategy").or_else(|e| match e {
                 ColumnNotFound(_) => Ok(Default::default()),
                 e => Err(e),
             })?;
@@ -983,7 +983,7 @@ impl<'a> FromRow<'a, PgRow> for super::payments::filters::PaymentFilterRow {
             card_issuer,
             error_reason,
             first_attempt,
-            routing_approach,
+            routing_strategy,
         })
     }
 }

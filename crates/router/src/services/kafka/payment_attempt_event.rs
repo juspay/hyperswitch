@@ -70,7 +70,7 @@ pub struct KafkaPaymentAttemptEvent<'a> {
     pub organization_id: &'a id_type::OrganizationId,
     pub card_network: Option<String>,
     pub card_discovery: Option<String>,
-    pub routing_approach: Option<storage_enums::RoutingApproach>,
+    pub routing_strategy: Option<storage_enums::RoutingApproach>,
     pub debit_routing_savings: Option<MinorUnit>,
 }
 
@@ -133,7 +133,7 @@ impl<'a> KafkaPaymentAttemptEvent<'a> {
             card_discovery: attempt
                 .card_discovery
                 .map(|discovery| discovery.to_string()),
-            routing_approach: attempt.routing_strategy,
+            routing_strategy: attempt.routing_strategy,
             debit_routing_savings: attempt.debit_routing_savings,
         }
     }

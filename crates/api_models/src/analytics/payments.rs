@@ -44,7 +44,7 @@ pub struct PaymentFilters {
     #[serde(default)]
     pub first_attempt: Vec<bool>,
     #[serde(default)]
-    pub routing_approach: Vec<RoutingApproach>,
+    pub routing_strategy: Vec<RoutingApproach>,
 }
 
 #[derive(
@@ -86,7 +86,7 @@ pub enum PaymentDimensions {
     CardLast4,
     CardIssuer,
     ErrorReason,
-    RoutingApproach,
+    RoutingStrategy,
 }
 
 #[derive(
