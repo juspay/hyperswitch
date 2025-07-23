@@ -1,11 +1,7 @@
-use crate::types::ResponseRouterData;
-use crate::utils::{get_unimplemented_payment_method_error_message, RouterData as _};
 use api_models::webhooks::IncomingWebhookEvent;
-use common_utils::pii;
-use common_utils::types::FloatMajorUnit;
-use hyperswitch_domain_models::payment_method_data::BankTransferData;
+use common_utils::{pii, types::FloatMajorUnit};
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
+    payment_method_data::{BankTransferData, PaymentMethodData},
     router_data::{ConnectorAuthType, RouterData},
     router_request_types::ResponseId,
     router_response_types::PaymentsResponseData,
@@ -14,6 +10,11 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::errors::ConnectorError;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+
+use crate::{
+    types::ResponseRouterData,
+    utils::{get_unimplemented_payment_method_error_message, RouterData as _},
+};
 
 #[derive(Debug, Serialize)]
 pub struct CheckbookPaymentsRequest {
