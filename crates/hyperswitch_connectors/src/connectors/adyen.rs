@@ -1843,6 +1843,7 @@ impl IncomingWebhook for Adyen {
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+
         Ok(transformers::get_adyen_webhook_event(
             notif.event_code,
             notif.success,

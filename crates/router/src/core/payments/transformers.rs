@@ -270,6 +270,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         .browser_info
         .clone()
         .map(types::BrowserInformation::from);
+
     // TODO: few fields are repeated in both routerdata and request
     let request = types::PaymentsAuthorizeData {
         payment_method_data: payment_data
@@ -325,6 +326,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         merchant_config_currency: None,
         connector_testing_data: None,
         order_id: None,
+        locale: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -3588,6 +3590,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             merchant_config_currency: None,
             connector_testing_data: None,
             order_id: None,
+            locale: None,
         })
     }
 }
@@ -3763,6 +3766,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             payment_data.payment_intent.off_session,
         );
 
+        let locale = Some(additional_data.state.locale.clone());
+
         Ok(Self {
             payment_method_data: (payment_method_data.get_required_value("payment_method_data")?),
             setup_future_usage: payment_data.payment_attempt.setup_future_usage_applied,
@@ -3819,6 +3824,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             merchant_config_currency,
             connector_testing_data,
             order_id: None,
+            locale,
         })
     }
 }
