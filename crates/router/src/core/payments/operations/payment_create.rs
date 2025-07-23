@@ -598,6 +598,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             token_data: None,
             confirm: request.confirm,
             payment_method_data: payment_method_data_after_card_bin_call.map(Into::into),
+            payment_method_token: None,
             payment_method_info,
             refunds: vec![],
             disputes: vec![],
@@ -1181,6 +1182,22 @@ impl PaymentCreate {
                             )))
                         }
                         PaymentMethodsData::WalletDetails(wallet) => match payment_method_type {
+                            Some(enums::PaymentMethodType::ApplePay) => {
+                                Some(api_models::payments::AdditionalPaymentData::Wallet {
+                                    apple_pay: api::payments::ApplepayPaymentMethod::try_from(
+                                        wallet,
+                                    )
+                                    .inspect_err(|err| {
+                                        logger::error!(
+                                            "Unable to transform PaymentMethodDataWalletInfo to ApplepayPaymentMethod: {:?}",
+                                            err
+                                        )
+                                    })
+                                    .ok(),
+                                    google_pay: None,
+                                    samsung_pay: None,
+                                })
+                            }
                             Some(enums::PaymentMethodType::GooglePay) => {
                                 Some(api_models::payments::AdditionalPaymentData::Wallet {
                                     apple_pay: None,

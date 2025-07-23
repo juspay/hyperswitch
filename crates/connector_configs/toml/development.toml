@@ -286,7 +286,7 @@ label = "Payment Processing Details At"
 placeholder = "Enter Payment Processing Details At"
 required = true
 type = "Radio"
-options = ["Connector"]
+options = ["Connector", "Hyperswitch"]
 
 [[adyen.metadata.google_pay]]
 name = "merchant_name"
@@ -1367,8 +1367,8 @@ payment_method_type = "ach"
 key1 = "Checkbook Publishable key"
 api_key = "Checkbook API Secret key"
 [checkbook.connector_webhook_details]
-  merchant_secret="Source verification key"
-  
+merchant_secret = "Source verification key"
+
 [checkout]
 [[checkout.credit]]
 payment_method_type = "Mastercard"
@@ -6341,9 +6341,20 @@ payment_method_type = "Mastercard"
 payment_method_type = "Visa"
 [payload.connector_auth.HeaderKey]
 api_key = "API Key"
-[payload.connector_webhook_details]
-merchant_secret = "Source verification key"
+
 [silverflow]
 [silverflow.connector_auth.BodyKey]
 api_key = "API Key"
 key1 = "Secret Key"
+
+[affirm]
+[affirm.connector_auth.HeaderKey]
+api_key = "API Key"
+
+[blackhawknetwork]
+[blackhawknetwork.connector_auth.HeaderKey]
+api_key = "API Key"
+
+[breadpay]
+[breadpay.connector_auth.HeaderKey]
+api_key = "API Key"
