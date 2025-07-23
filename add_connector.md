@@ -47,14 +47,12 @@ Before running Hyperswitch locally, make sure your Rust environment and system d
 [Configure Rust and install required dependencies based on your OS](https://github.com/juspay/hyperswitch/blob/main/docs/try_local_system.md#set-up-a-rust-environment-and-other-dependencies)
 
 **Quick links by OS**:
-
 * [Ubuntu-based systems](https://github.com/juspay/hyperswitch/blob/main/docs/try_local_system.md#set-up-dependencies-on-ubuntu-based-systems)
 * [Windows (WSL2)](https://github.com/juspay/hyperswitch/blob/main/docs/try_local_system.md#set-up-dependencies-on-windows-ubuntu-on-wsl2)
 * [Windows (native)](https://github.com/juspay/hyperswitch/blob/main/docs/try_local_system.md#set-up-dependencies-on-windows)
 * [macOS](https://github.com/juspay/hyperswitch/blob/main/docs/try_local_system.md#set-up-dependencies-on-macos)
 
 **All OS Systems**:
-
 * [Set up database](https://github.com/juspay/hyperswitch/blob/main/docs/try_local_system.md#set-up-the-database)
 
 * Set up the Rust nightly toolchain installed for code formatting:
@@ -128,17 +126,88 @@ From the root of the project, generate a new connector by running the following 
 ```bash
 sh scripts/add_connector.sh <connector_name> <connector_base_url>
 ```
+
 When you run the script, you should see that some files were created
 ```bash
 # Done! New project created /absolute/path/hyperswitch/crates/hyperswitch_connectors/src/connectors/connectorname
 ```
 
-Don't be alarmed if you see fail tests- we haven't written any tests yet. You can ignore the failures at this point.
+> ⚠️ **Warning**  
+> Don’t be alarmed if you see test failures at this stage.  
+> Tests haven’t been implemented for your new connector yet, so failures are expected.  
+> You can safely ignore output like this:
+>
+> ```bash
+> test result: FAILED. 0 passed; 20 failed; 0 ignored; 0 measured; 1759 filtered out; finished in 0.10s
+> ```
+
+## Test the connection 
+Once you've successfully created your connector using the `add_connector.sh` script, you can verify the integration by starting the Hyperswitch router service:
+
 ```bash
-# test result: FAILED. 0 passed; 20 failed; 0 ignored; 0 measured; 1759 filtered out; finished in 0.10s
+cargo r
 ```
 
-## Implement Request & Response Types
+This launches the router application locally on port 8080, providing access to the complete Hyperswitch API. You can now test your connector implementation by making HTTP requests to the payment endpoints for operations like:
 
+Payment authorization and capture
+Payment synchronization
+Refund processing
+Webhook handling
+
+Once your connector logic is implemented, this environment lets you ensure it behaves correctly within the Hyperswitch orchestration flow—before moving to staging or production. This provides comprehensive status information about all system components including database, Redis, and other services.
+
+**Verify Server Health**
+Once the router service is running, `cargo r`, you can verify it's operational by checking the health endpoint in a separte terminal window:
+
+```bash
+curl --head --request GET 'http://localhost:8080/health'
+```
+> **Action Item**  
+> After creating the connector, run a health check to ensure everything is working smoothly.
+
+### Folder Structure After Running the Script
+When you run the script, it creates a specific folder structure for your new connector. Here's what gets generated:
+
+**Main Connector Files**
+The script creates the primary connector structure in the hyperswitch_connectors crate:
+
+crates/hyperswitch_connectors/src/connectors/  
+├── <connector_name>/  
+│   └── transformers.rs  
+└── <connector_name>.rs  
+add_connector.md:62-71
+
+**Test Files**
+The script also generates test files in the router crate:
+
+crates/router/tests/connectors/  
+└── <connector_name>.rs 
+
+**What Each File Contains**
+`<connector_name>.rs`: The main connector implementation file where you implement the connector traits
+`transformers.rs`: Contains data structures and conversion logic between Hyperswitch's internal format and your payment processor's API format
+**Test file**: Contains boilerplate test cases for your connector connector-template/test.rs:1-36
+
+## Common Payment Flow Types
+As you build your connector, you'll encounter several types of payment flows. While not an exhaustive list, the following are some of the most common patterns you'll come across.
+
+### Pre-processing + Authorization Flow
+This refers to the two-step payment flow where preprocessing steps are executed before the main authorization call. If your connector does not use tokenization or does not require customer or access token flows, implement the pre-processing pattern described below. It's important to note that different connectors implement preprocessing differently. For example, Airwallex creates payment intents during preprocessing as one of the steps while Nuvei performs 3DS enrollment checks as a step. 
+
+The preprocessing general logic includes: 
+- **Preprocessing Execution**: The system creates a preprocessing connector integration and executes it
+- **Data Transformation**: Converts the authorize request data to preprocessing request data
+- **Connector Processing**: Executes the preprocessing step through the connector
+- **Response Handling**: Processes the preprocessing response and updates the router data accordingly
+
+**When to Use This Flow**
+Use this pattern if:
+- The connector issues temporary session credentials.
+- You need to make a discovery or configuration call before authorization.
+- No prior customer setup or vaulting is needed.
+
+**Example Diagram**
+[include flow]
 
 
