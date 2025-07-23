@@ -161,7 +161,7 @@ pub struct PlatformAccountCreateRequest {
 pub struct PlatformAccountCreateResponse {
     #[schema(value_type = String, max_length = 64, min_length = 1, example = "org_abc")]
     pub org_id: id_type::OrganizationId,
-    #[schema(value_type = String, example = "organization_abc")]
+    #[schema(value_type = Option<String>, example = "organization_abc")]
     pub org_name: Option<String>,
 
     #[schema(value_type = OrganizationType, example = "standard")]

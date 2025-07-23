@@ -26369,7 +26369,6 @@
         "type": "object",
         "required": [
           "org_id",
-          "org_name",
           "org_type",
           "merchant_id",
           "merchant_account_type"
@@ -26383,7 +26382,8 @@
           },
           "org_name": {
             "type": "string",
-            "example": "organization_abc"
+            "example": "organization_abc",
+            "nullable": true
           },
           "org_type": {
             "$ref": "#/components/schemas/OrganizationType"
