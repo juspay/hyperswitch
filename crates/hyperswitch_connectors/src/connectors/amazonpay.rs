@@ -104,9 +104,8 @@ impl Amazonpay {
             private_key,
         } = auth;
 
-        let mut signed_headers = format!(
-            "{HEADER_ACCEPT};{HEADER_CONTENT_TYPE};{HEADER_DATE};{HEADER_HOST};",
-        );
+        let mut signed_headers =
+            format!("{HEADER_ACCEPT};{HEADER_CONTENT_TYPE};{HEADER_DATE};{HEADER_HOST};",);
         if *http_method == Method::Post
             && Self::get_last_segment(canonical_uri) != *FINALIZE_SEGMENT.to_string()
         {
