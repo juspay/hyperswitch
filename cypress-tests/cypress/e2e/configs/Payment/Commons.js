@@ -191,6 +191,12 @@ export const payment_methods_enabled = [
         installment_payment_enabled: true,
       },
       {
+        payment_method_type: "ach",
+        minimum_amount: 0,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+      },
+      {
         payment_method_type: "instant_bank_transfer_finland",
         minimum_amount: 1,
         maximum_amount: 68607706,

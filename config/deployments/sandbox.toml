@@ -413,6 +413,9 @@ apple_pay = { currency = "USD" }
 google_pay = { currency = "USD" }
 samsung_pay = { currency = "USD" }
 
+[pm_filters.checkbook]
+ach = { country = "US", currency = "USD" }
+
 [pm_filters.cybersource]
 credit = { currency = "USD,GBP,EUR,PLN,SEK" }
 debit = { currency = "USD,GBP,EUR,PLN,SEK" }

@@ -14,6 +14,7 @@ import { connectorDetails as billwerkConnectorDetails } from "./Billwerk.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
 import { connectorDetails as braintreeConnectorDetails } from "./Braintree.js";
 import { connectorDetails as checkoutConnectorDetails } from "./Checkout.js";
+import { connectorDetails as checkbookConnectorDetails } from "./Checkbook.js";
 import { connectorDetails as commonConnectorDetails } from "./Commons.js";
 import { connectorDetails as cybersourceConnectorDetails } from "./Cybersource.js";
 import { connectorDetails as datatransConnectorDetails } from "./Datatrans.js";
@@ -68,6 +69,7 @@ const connectorDetails = {
   bluesnap: bluesnapConnectorDetails,
   braintree: braintreeConnectorDetails,
   checkout: checkoutConnectorDetails,
+  checkbook: checkbookConnectorDetails,
   commons: commonConnectorDetails,
   cybersource: cybersourceConnectorDetails,
   datatrans: datatransConnectorDetails,
