@@ -127,6 +127,6 @@ pub enum GlobalpayPaymentMethodStatus {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GlobalpayPaymentMethodsResponse {
     #[serde(rename = "id")]
-    pub payment_method_token_id: Option<String>,
+    pub payment_method_token_id: Option<Secret<String>>,
     pub card: Card,
 }

@@ -62,8 +62,6 @@ pub struct CommonPaymentMethodData {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MandatePaymentMethodData {
-    #[serde(flatten)]
-    pub payment_method_data: PaymentMethodData,
     pub entry_mode: PaymentMethodEntryMode,
     pub id: Option<String>,
 }
@@ -88,7 +86,6 @@ pub struct Card {
     pub expiry_month: Secret<String>,
     pub expiry_year: Secret<String>,
     pub number: cards::CardNumber,
-    pub brand_reference: Option<String>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
