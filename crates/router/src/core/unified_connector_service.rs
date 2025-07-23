@@ -1,10 +1,14 @@
+use api_models::payments::QrCodeInformation;
 use common_enums::{AttemptStatus, PaymentMethodType};
-use common_utils::{errors::CustomResult, ext_traits::ValueExt};
+use common_utils::{
+    errors::CustomResult,
+    ext_traits::{Encode, ValueExt},
+};
 use error_stack::ResultExt;
 use external_services::grpc_client::unified_connector_service::{
     ConnectorAuthMetadata, UnifiedConnectorServiceError,
 };
-use hyperswitch_connectors::utils::CardData;
+use hyperswitch_connectors::utils::{CardData, QrImage};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails;
 use hyperswitch_domain_models::{
@@ -17,6 +21,7 @@ use unified_connector_service_client::payments::{
     self as payments_grpc, payment_method::PaymentMethod, CardDetails, CardPaymentMethodType,
     PaymentServiceAuthorizeResponse,
 };
+use url::Url;
 
 use crate::{
     consts,
@@ -57,6 +62,18 @@ pub async fn should_call_unified_connector_service<F: Clone, T>(
     let payment_method = router_data.payment_method.to_string();
     let flow_name = get_flow_name::<F>()?;
 
+    let is_ucs_only_connector = state
+        .conf
+        .grpc_client
+        .unified_connector_service
+        .as_ref()
+        .is_some_and(|config| {
+            config.ucs_only_connectors.contains(&connector_name)
+        });
+
+    if is_ucs_only_connector {
+        return Ok(true);
+    }
     let config_key = format!(
         "{}_{}_{}_{}_{}",
         consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
@@ -135,11 +152,9 @@ pub fn build_unified_connector_service_payment_method(
                     let upi_details = payments_grpc::UpiCollect { vpa_id };
                     PaymentMethod::UpiCollect(upi_details)
                 }
-                _ => {
-                    return Err(UnifiedConnectorServiceError::NotImplemented(format!(
-                        "Unimplemented payment method subtype: {payment_method_type:?}"
-                    ))
-                    .into());
+                hyperswitch_domain_models::payment_method_data::UpiData::UpiIntent(_) => {
+                    let upi_details = payments_grpc::UpiIntent {};
+                    PaymentMethod::UpiIntent(upi_details)
                 }
             };
 
@@ -260,6 +275,35 @@ pub fn handle_unified_connector_service_response_for_payment_authorize(
         })
     });
 
+    let (connector_metadata, redirection_data) = match response.redirection_data.clone() {
+        Some(redirection_data) => match redirection_data.form_type {
+            Some(ref form_type) => match form_type {
+                payments_grpc::redirect_form::FormType::Uri(uri) => {
+                    let image_data = QrImage::new_from_data(uri.uri.clone())
+                        .change_context(UnifiedConnectorServiceError::ParsingFailed)?;
+                    let image_data_url = Url::parse(image_data.data.clone().as_str())
+                        .change_context(UnifiedConnectorServiceError::ParsingFailed)?;
+                    let qr_code_info = QrCodeInformation::QrDataUrl {
+                        image_data_url,
+                        display_to_timestamp: None,
+                    };
+                    (
+                        Some(qr_code_info.encode_to_value())
+                            .transpose()
+                            .change_context(UnifiedConnectorServiceError::ParsingFailed)?,
+                        None,
+                    )
+                }
+                _ => (
+                    None,
+                    Some(RedirectForm::foreign_try_from(redirection_data)).transpose()?,
+                ),
+            },
+            None => (None, None),
+        },
+        None => (None, None),
+    };
+
     let router_data_response = match status {
         AttemptStatus::Charged |
                 AttemptStatus::Authorized |
@@ -275,14 +319,10 @@ pub fn handle_unified_connector_service_response_for_payment_authorize(
                         None => hyperswitch_domain_models::router_request_types::ResponseId::NoResponseId,
                     },
                     redirection_data: Box::new(
-                        response
-                            .redirection_data
-                            .clone()
-                            .map(RedirectForm::foreign_try_from)
-                            .transpose()?
+                            redirection_data
                     ),
                     mandate_reference: Box::new(None),
-                    connector_metadata: None,
+                    connector_metadata,
                     network_txn_id: response.network_txn_id.clone(),
                     connector_response_reference_id,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,

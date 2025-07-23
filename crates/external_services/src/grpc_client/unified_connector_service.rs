@@ -110,6 +110,10 @@ pub struct UnifiedConnectorServiceClientConfig {
 
     /// Contains the connection timeout duration in seconds
     pub connection_timeout: u64,
+
+    /// List of connectors to use with the unified connector service
+    #[serde(default)]
+    pub ucs_only_connectors: Vec<String>,
 }
 
 /// Contains the Connector Auth Type and related authentication data.
