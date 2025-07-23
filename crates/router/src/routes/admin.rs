@@ -466,23 +466,14 @@ pub async fn delete_merchant_account(
     let flow = Flow::MerchantsAccountDelete;
     let merchant_id = mid.into_inner();
 
-    let payload = admin::MerchantId {
-        merchant_id: merchant_id.clone(),
-    };
+    let payload = admin::MerchantId { merchant_id };
     api::server_wrap(
         flow,
         state,
         &req,
         payload,
         |state, _, req, _| merchant_account_delete_v2(state, req.merchant_id),
-        auth::auth_type(
-            &auth::V2AdminApiAuth,
-            &auth::JWTAuthMerchantFromRoute {
-                merchant_id: merchant_id.clone(),
-                required_permission: Permission::MerchantAccountWrite,
-            },
-            req.headers(),
-        ),
+        &auth::V2AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     )
     .await

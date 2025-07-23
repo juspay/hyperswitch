@@ -1337,16 +1337,6 @@ pub async fn merchant_account_delete_v2(
         );
     }
 
-    // Delete configuration entries
-    if let Err(err) = db
-        .delete_config_by_key(merchant_id.get_requires_cvv_key().as_str())
-        .await
-    {
-        if !err.current_context().is_db_not_found() {
-            crate::logger::error!("Failed to delete requires_cvv config: {err:?}");
-        }
-    }
-
     crate::logger::info!("Merchant {merchant_id} deletion completed. Status: {is_deleted}");
 
     let response = api::MerchantAccountDeleteResponse {
