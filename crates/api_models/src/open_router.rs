@@ -44,7 +44,7 @@ pub struct DecideGatewayResponse {
     pub gateway_mga_id_map: Option<serde_json::Value>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize,ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct PriorityLogicOutput {
     pub is_enforcement: Option<bool>,
@@ -55,14 +55,14 @@ pub struct PriorityLogicOutput {
     pub fallback_logic: Option<PriorityLogicData>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize,ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct PriorityLogicData {
     pub name: Option<String>,
     pub status: Option<String>,
     pub failure_reason: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq,ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, ToSchema)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum RankingAlgorithm {
     SrBasedRouting,
@@ -70,7 +70,7 @@ pub enum RankingAlgorithm {
     NtwBasedRouting,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize,ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentInfo {
     #[schema(value_type = String)]
@@ -207,7 +207,7 @@ pub struct UpdateScoreResponse {
     pub message: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize,ToSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum TxnStatus {
     Started,
