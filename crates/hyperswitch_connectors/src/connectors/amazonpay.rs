@@ -105,8 +105,7 @@ impl Amazonpay {
         } = auth;
 
         let mut signed_headers = format!(
-            "{};{};{};{};",
-            HEADER_ACCEPT, HEADER_CONTENT_TYPE, HEADER_DATE, HEADER_HOST
+            "{HEADER_ACCEPT};{HEADER_CONTENT_TYPE};{HEADER_DATE};{HEADER_HOST};",
         );
         if *http_method == Method::Post
             && Self::get_last_segment(canonical_uri) != *FINALIZE_SEGMENT.to_string()
@@ -155,7 +154,7 @@ impl Amazonpay {
                     Maskable::Normal(v) => v.clone(),
                     Maskable::Masked(secret) => secret.clone().expose(),
                 };
-                canonical_request.push_str(&format!("{}:{}\n", key, value));
+                canonical_request.push_str(&format!("{key}:{value}\n"));
             }
         }
 
@@ -168,7 +167,7 @@ impl Amazonpay {
         );
 
         Self::sign(private_key, &string_to_sign)
-            .map_err(|e| format!("Failed to create signature: {}", e))
+            .map_err(|e| format!("Failed to create signature: {e}"))
     }
 
     fn sign(
@@ -182,7 +181,7 @@ impl Amazonpay {
                 string_to_sign.as_bytes(),
             )
             .change_context(errors::ConnectorError::RequestEncodingFailed)
-            .map_err(|e| format!("Crypto operation failed: {:?}", e))?;
+            .map_err(|e| format!("Crypto operation failed: {e:?}"))?;
 
         Ok(STANDARD.encode(signature_bytes))
     }
