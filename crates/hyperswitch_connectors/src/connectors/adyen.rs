@@ -303,6 +303,8 @@ impl ConnectorValidation for Adyen {
                     }
                 },
                 PaymentMethodType::AmazonPay
+                | PaymentMethodType::Paysera
+                | PaymentMethodType::Skrill
                 | PaymentMethodType::CardRedirect
                 | PaymentMethodType::DirectCarrierBilling
                 | PaymentMethodType::Fps
