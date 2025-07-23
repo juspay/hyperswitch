@@ -42,10 +42,12 @@ barclaycard.base_url = "https://api.smartpayfuse-test.barclaycard/"
 billwerk.base_url = "https://api.reepay.com/"
 billwerk.secondary_base_url = "https://card.reepay.com/"
 bitpay.base_url = "https://test.bitpay.com"
+blackhawknetwork.base_url = "https://api-sandbox.blackhawknetwork.com/"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
 bluesnap.secondary_base_url = "https://sandpay.bluesnap.com/"
 boku.base_url = "https://$-api4-stage.boku.com"
 braintree.base_url = "https://payments.sandbox.braintree-api.com/graphql"
+breadpay.base_url = "https://api-sandbox.getbread.com"
 cashtocode.base_url = "https://cluster05.api-test.cashtocode.com"
 celero.base_url = "https://sandbox.gotnpgateway.com"
 checkbook.base_url = "https://api.sandbox.checkbook.io"
@@ -796,7 +798,7 @@ billing_connectors_which_require_payment_sync = "stripebilling, recurly"
 billing_connectors_which_requires_invoice_sync_call = "recurly"
 
 [authentication_providers]
-click_to_pay = {connector_list = "adyen, cybersource"}
+click_to_pay = {connector_list = "adyen, cybersource, trustpay"}
 
 [revenue_recovery]
 monitoring_threshold_in_seconds = 2592000 
