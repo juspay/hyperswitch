@@ -19,7 +19,7 @@ export const connectorDetails = {
             line2: "Fasdf",
             city: "Fasdf",
           },
-          email: "akshaya.shankar@juspay.in",
+          email: "johndoe@mail.com",
         },
         payment_method_data: {
           bank_transfer: {
