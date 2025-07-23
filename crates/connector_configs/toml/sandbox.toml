@@ -6324,3 +6324,15 @@ api_key = "API Key"
 [breadpay]
 [breadpay.connector_auth.HeaderKey]
 api_key = "API Key"
+
+[phonepe]
+[phonepe.connector_auth.SignatureKey]
+api_key="merchant_id"
+api_secret="key_index"
+key1="salt_key"
+
+[paytm]
+[paytm.connector_auth.SignatureKey]
+api_key="Signing key"
+api_secret="website name"
+key1="merchant_id"

@@ -128,7 +128,9 @@ pub enum RoutableConnectors {
     Payone,
     Paypal,
     Paystack,
+    Paytm,
     Payu,
+    Phonepe,
     Placetopay,
     Powertranz,
     Prophetpay,
@@ -295,7 +297,9 @@ pub enum Connector {
     Payone,
     Paypal,
     Paystack,
+    Paytm,
     Payu,
+    Phonepe,
     Placetopay,
     Powertranz,
     Prophetpay,
@@ -514,7 +518,9 @@ impl Connector {
             | Self::Noon
             | Self::Tokenio
             | Self::Stripe
-            | Self::Datatrans => false,
+            | Self::Datatrans
+            | Self::Paytm
+            | Self::Phonepe => false,
             Self::Checkout | Self::Nmi |Self::Cybersource | Self::Archipel => true,
         }
     }
@@ -672,6 +678,8 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Inespay => Self::Inespay,
             RoutableConnectors::Coingate => Self::Coingate,
             RoutableConnectors::Hipay => Self::Hipay,
+            RoutableConnectors::Paytm => Self::Paytm,
+            RoutableConnectors::Phonepe => Self::Phonepe,
         }
     }
 }
@@ -795,6 +803,8 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Hipay => Ok(Self::Hipay),
             Connector::Inespay => Ok(Self::Inespay),
             Connector::Redsys => Ok(Self::Redsys),
+            Connector::Paytm => Ok(Self::Paytm),
+            Connector::Phonepe => Ok(Self::Phonepe),
             Connector::CtpMastercard
             | Connector::Gpayments
             | Connector::HyperswitchVault
