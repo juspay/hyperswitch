@@ -633,8 +633,8 @@
         "tags": [
           "Merchant Account"
         ],
-        "summary": "Merchant Account - Delete",
-        "description": "Delete a *merchant* account along with all associated data including business profiles, connector accounts, payment methods, customers, and API keys.",
+        "summary": "Merchant Account - Delete (Soft Delete)",
+        "description": "Soft delete a *merchant* account by marking it as deleted in metadata while preserving data for audit trails. This operation revokes API keys for security while maintaining data integrity. The merchant account will be marked as deleted but not physically removed from the database.",
         "operationId": "Delete a Merchant Account",
         "parameters": [
           {
@@ -649,7 +649,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Merchant Account Deleted",
+            "description": "Merchant Account Soft Deleted (marked as deleted, API keys revoked)",
             "content": {
               "application/json": {
                 "schema": {
