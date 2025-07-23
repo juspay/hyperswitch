@@ -2,7 +2,7 @@
 //!
 //! Functions that are used to perform the retrieval of merchant's
 //! routing dict, configs, defaults
-//use api_models::routing::DynamicRoutingPayload;
+
 use std::fmt::Debug;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use std::str::FromStr;
@@ -2124,17 +2124,7 @@ pub async fn default_specific_dynamic_routing_setup(
     let timestamp = common_utils::date_time::now();
     // Add this import at the top of the file, or before this function:
 
-    /*let algo = match dynamic_routing_type {
-            routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
-    let default_success_based_routing_config = if let Some(routing_types::DynamicRoutingPayload::SuccessBased(payload_config)) = payload {
-        payload_config
-    } else {
-        if state.conf.open_router.enabled {
-            routing_types::SuccessBasedRoutingConfig::open_router_config_default()
-        } else {
-            routing_types::SuccessBasedRoutingConfig::default()
-        }
-    };*/
+   
     let algo = match dynamic_routing_type {
         routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
             let default_success_based_routing_config =
@@ -2150,12 +2140,7 @@ pub async fn default_specific_dynamic_routing_setup(
                     }
                 };
 
-            /*let default_success_based_routing_config = if state.conf.open_router.enabled {
-                //logic
-                routing_types::SuccessBasedRoutingConfig::open_router_config_default()
-            } else {
-                //routing_types::SuccessBasedRoutingConfig::default()
-            };*/
+           
 
             routing_algorithm::RoutingAlgorithm {
                 algorithm_id: algorithm_id.clone(),
@@ -2184,11 +2169,7 @@ pub async fn default_specific_dynamic_routing_setup(
                         routing_types::EliminationRoutingConfig::default()
                     }
                 };
-            /*let default_elimination_routing_config = if state.conf.open_router.enabled {
-                routing_types::EliminationRoutingConfig::open_router_config_default()
-            } else {
-                routing_types::EliminationRoutingConfig::default()
-            };*/
+
             routing_algorithm::RoutingAlgorithm {
                 algorithm_id: algorithm_id.clone(),
                 profile_id: profile_id.clone(),

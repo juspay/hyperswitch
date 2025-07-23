@@ -2126,7 +2126,7 @@ impl Profile {
 
         #[cfg(feature = "dynamic_routing")]
         {
-            use hyperswitch_connectors::connectors::payload;
+            //use hyperswitch_connectors::connectors::payload;
 
             route = route.service(
                 web::scope("/{profile_id}/dynamic_routing")
