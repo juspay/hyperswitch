@@ -39,8 +39,7 @@ use rustc_hash::FxHashSet;
 use storage_impl::redis::cache;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use storage_impl::redis::cache::Cacheable;
-#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-use storage_impl::redis::kv_store::Op;
+
 
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use crate::db::errors::StorageErrorExt;
@@ -1979,7 +1978,7 @@ pub async fn enable_dynamic_routing_algorithm(
     feature_to_enable: routing_types::DynamicRoutingFeatures,
     dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef,
     dynamic_routing_type: routing_types::DynamicRoutingType,
-    payload: Option<routing_types::DynamicRoutingPayload>
+    payload: Option<routing_types::DynamicRoutingPayload>,
 ) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>> {
     let mut dynamic_routing = dynamic_routing_algo_ref.clone();
     match dynamic_routing_type {
@@ -2030,7 +2029,7 @@ pub async fn enable_specific_routing_algorithm<A>(
     mut dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef,
     dynamic_routing_type: routing_types::DynamicRoutingType,
     algo_type: Option<A>,
-    payload: Option<routing_types::DynamicRoutingPayload>
+    payload: Option<routing_types::DynamicRoutingPayload>,
 ) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>>
 where
     A: routing_types::DynamicRoutingAlgoAccessor + Clone + Debug,
@@ -2124,7 +2123,6 @@ pub async fn default_specific_dynamic_routing_setup(
     let timestamp = common_utils::date_time::now();
     // Add this import at the top of the file, or before this function:
 
-   
     let algo = match dynamic_routing_type {
         routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
             let default_success_based_routing_config =
@@ -2133,14 +2131,12 @@ pub async fn default_specific_dynamic_routing_setup(
                 {
                     payload_config
                 } else {
-                    if state.conf.open_router.dynamic_routing_enabled{
+                    if state.conf.open_router.dynamic_routing_enabled {
                         routing_types::SuccessBasedRoutingConfig::open_router_config_default()
                     } else {
                         routing_types::SuccessBasedRoutingConfig::default()
                     }
                 };
-
-           
 
             routing_algorithm::RoutingAlgorithm {
                 algorithm_id: algorithm_id.clone(),

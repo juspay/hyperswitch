@@ -1451,7 +1451,7 @@ pub async fn toggle_elimination_routing(
     query: web::Query<api_models::routing::ToggleDynamicRoutingQuery>,
     path: web::Path<routing_types::ToggleDynamicRoutingPath>,
     // We need optional pay load here
-        json_payload: Option<web::Json<routing_types::EliminationRoutingConfig>>,
+    json_payload: Option<web::Json<routing_types::EliminationRoutingConfig>>,
 
 
 ) -> impl Responder {
@@ -1460,7 +1460,6 @@ pub async fn toggle_elimination_routing(
         feature_to_enable: query.into_inner().enable,
         profile_id: path.into_inner().profile_id,
         // payload
-        //payload: json_payload.map(|p| p.into_inner()),
         payload: json_payload.map(|p| DynamicRoutingPayload::Elimination(p.into_inner())),
 
     };

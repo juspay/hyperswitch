@@ -900,7 +900,6 @@ pub struct ToggleDynamicRoutingWrapper {
     pub profile_id: common_utils::id_type::ProfileId,
     pub feature_to_enable: DynamicRoutingFeatures,
     //added payload
-    //pub payload: Option<SuccessBasedRoutingConfig>,
     pub payload: Option<DynamicRoutingPayload>,
 }
 //
