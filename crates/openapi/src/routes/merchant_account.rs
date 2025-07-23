@@ -241,6 +241,26 @@ pub async fn merchant_account_update() {}
 )]
 pub async fn delete_merchant_account() {}
 
+#[cfg(feature = "v2")]
+/// Merchant Account - Delete
+///
+/// Delete a *merchant* account along with all associated data including business profiles, connector accounts, payment methods, customers, and API keys.
+#[utoipa::path(
+    delete,
+    path = "/v2/merchant-accounts/{id}",
+    params (("id" = String, Path, description = "The unique identifier for the merchant account")),
+    responses(
+        (status = 200, description = "Merchant Account Deleted", body = MerchantAccountDeleteResponse),
+        (status = 404, description = "Merchant account not found"),
+        (status = 400, description = "Invalid request data"),
+        (status = 401, description = "Unauthorized request")
+    ),
+    tag = "Merchant Account",
+    operation_id = "Delete a Merchant Account",
+    security(("admin_api_key" = []))
+)]
+pub async fn delete_merchant_account_v2() {}
+
 #[cfg(feature = "v1")]
 /// Merchant Account - KV Status
 ///
