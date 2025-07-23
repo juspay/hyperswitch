@@ -1312,9 +1312,9 @@ pub async fn merchant_account_delete_v2(
     // 2. Revoke API keys for security (making the account unusable)
     // 3. Return success without actually deleting the data from database
     // This preserves data integrity while effectively "deleting" the merchant from operational use
-    
+
     let deletion_time = common_utils::date_time::now();
-    
+
     // Revoke API key in authentication service (async job) - Critical for security
     if let Some(publishable_key) = merchant_account.publishable_key.clone() {
         let state_clone = state.clone();
