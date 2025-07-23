@@ -88,6 +88,14 @@ pub enum UnifiedConnectorServiceError {
     /// Failed to perform Payment Get from gRPC Server
     #[error("Failed to perform Payment Get from gRPC Server")]
     PaymentGetFailure,
+
+    /// Failed to perform Payment Get from gRPC Server
+    #[error("Failed to perform Setup Mandate from gRPC Server")]
+    PaymentRegisterFailure,
+
+    /// Failed to perform Payment Get from gRPC Server
+    #[error("Failed to perform Repeat Payment from gRPC Server")]
+    PaymentRepeatEverythingFailure,
 }
 
 /// Result type for Dynamic Routing
@@ -217,6 +225,50 @@ impl UnifiedConnectorServiceClient {
             .change_context(UnifiedConnectorServiceError::PaymentGetFailure)
             .inspect_err(|error| logger::error!(?error))
     }
+
+    /// Performs Payment Setup Mandate
+    pub async fn payment_setup_mandate(
+        &self,
+        payment_register_request: payments_grpc::PaymentServiceRegisterRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeaders,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::PaymentServiceRegisterResponse>>
+    {
+        let mut request = tonic::Request::new(payment_register_request);
+
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+
+        self.client
+            .clone()
+            .register(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::PaymentRegisterFailure)
+            .inspect_err(|error| logger::error!(?error))
+    }
+
+    // /// Performs Payment repeat (MIT - Merchant Initiated Transaction)
+    // pub async fn payment_repeat_mit(
+    //     &self,
+    //     payment_get_request: payments_grpc::PaymentServiceRepeatEverythingRequest,
+    //     connector_auth_metadata: ConnectorAuthMetadata,
+    //     grpc_headers: GrpcHeaders,
+    // ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::PaymentServiceRepeatEverythingResponse>>
+    // {
+    //     let mut request = tonic::Request::new(payment_get_request);
+
+    //     let metadata =
+    //         build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+    //     *request.metadata_mut() = metadata;
+
+    //     self.client
+    //         .clone()
+    //         .get(request)
+    //         .await
+    //         .change_context(UnifiedConnectorServiceError::PaymentRepeatEverythingFailure)
+    //         .inspect_err(|error| logger::error!(?error))
+    // }
 }
 
 /// Build the gRPC Headers for Unified Connector Service Request

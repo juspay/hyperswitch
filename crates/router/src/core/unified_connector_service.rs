@@ -389,3 +389,110 @@ pub fn handle_unified_connector_service_response_for_payment_get(
 
     Ok((status, router_data_response))
 }
+
+pub fn handle_unified_connector_service_response_for_payment_register(
+    response: payments_grpc::PaymentServiceRegisterResponse,
+) -> CustomResult<
+    (AttemptStatus, Result<PaymentsResponseData, ErrorResponse>),
+    UnifiedConnectorServiceError,
+> {
+    // Convert the mandate status to attempt status
+    let status = AttemptStatus::foreign_try_from(response.status())?;
+
+    let connector_response_reference_id =
+        response.response_ref_id.as_ref().and_then(|identifier| {
+            identifier
+                .id_type
+                .clone()
+                .and_then(|id_type| match id_type {
+                    payments_grpc::identifier::IdType::Id(id) => Some(id),
+                    payments_grpc::identifier::IdType::EncodedData(encoded_data) => {
+                        Some(encoded_data)
+                    }
+                    payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
+                })
+        });
+
+    let router_data_response = match status {
+        AttemptStatus::Charged |
+        AttemptStatus::AuthenticationPending |
+        AttemptStatus::Started |
+        AttemptStatus::AuthenticationSuccessful |
+        AttemptStatus::Pending => {
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: response.registration_id.as_ref().and_then(|identifier| {
+                    identifier
+                        .id_type
+                        .clone()
+                        .and_then(|id_type| match id_type {
+                            payments_grpc::identifier::IdType::Id(id) => Some(
+                                hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(id),
+                            ),
+                            payments_grpc::identifier::IdType::EncodedData(encoded_data) => Some(
+                                hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(encoded_data),
+                            ),
+                            payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
+                        })
+                }).unwrap_or(hyperswitch_domain_models::router_request_types::ResponseId::NoResponseId),
+                redirection_data: Box::new(
+                    response
+                        .redirection_data
+                        .clone()
+                        .map(RedirectForm::foreign_try_from)
+                        .transpose()?
+                ),
+                mandate_reference: Box::new(
+                    response.mandate_reference.map(|grpc_mandate| {
+                        hyperswitch_domain_models::router_response_types::MandateReference {
+                            connector_mandate_id: grpc_mandate.mandate_id,
+                            payment_method_id: None,
+                            mandate_metadata: None,
+                            connector_mandate_request_reference_id: None,
+                        }
+                    })
+                ),
+                connector_metadata: None,
+                network_txn_id: response.network_txn_id,
+                connector_response_reference_id,
+                incremental_authorization_allowed: response.incremental_authorization_allowed,
+                charges: None,
+            })
+        }
+        AttemptStatus::AuthenticationFailed
+                | AttemptStatus::Unresolved
+                | AttemptStatus::Failure => {
+            Err(ErrorResponse {
+                code: response.error_code().to_owned(),
+                message: response.error_message().to_owned(),
+                reason: None,
+                status_code: 500,
+                attempt_status: Some(status),
+                connector_transaction_id: connector_response_reference_id,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+            })
+        }
+        AttemptStatus::Authorized |
+        AttemptStatus::DeviceDataCollectionPending |
+        AttemptStatus::Authorizing |
+        AttemptStatus::ConfirmationAwaited |
+        AttemptStatus::RouterDeclined |
+        AttemptStatus::AuthorizationFailed |
+        AttemptStatus::CodInitiated |
+        AttemptStatus::Voided |
+        AttemptStatus::VoidInitiated |
+        AttemptStatus::CaptureInitiated |
+        AttemptStatus::CaptureFailed |
+        AttemptStatus::VoidFailed |
+        AttemptStatus::AutoRefunded |
+        AttemptStatus::PartialCharged |
+        AttemptStatus::PartialChargedAndChargeable |
+        AttemptStatus::PaymentMethodAwaited |
+        AttemptStatus::IntegrityFailure => return Err(UnifiedConnectorServiceError::NotImplemented(format!(
+                "AttemptStatus {status:?} is not implemented for Unified Connector Service"
+            )).into()),
+    };
+
+    Ok((status, router_data_response))
+}

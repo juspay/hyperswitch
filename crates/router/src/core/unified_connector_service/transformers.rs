@@ -7,8 +7,10 @@ use error_stack::ResultExt;
 use external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceError;
 use hyperswitch_domain_models::{
     router_data::RouterData,
-    router_flow_types::payments::{Authorize, PSync},
-    router_request_types::{AuthenticationData, PaymentsAuthorizeData, PaymentsSyncData},
+    router_flow_types::payments::{Authorize, PSync, SetupMandate},
+    router_request_types::{
+        AuthenticationData, PaymentsAuthorizeData, PaymentsSyncData, SetupMandateRequestData,
+    },
     router_response_types::{PaymentsResponseData, RedirectForm},
 };
 use masking::{ExposeInterface, PeekInterface};
@@ -163,6 +165,110 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
                         .collect::<HashMap<String, String>>()
                 })
                 .unwrap_or_default(),
+        })
+    }
+}
+
+impl ForeignTryFrom<&RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>>
+    for payments_grpc::PaymentServiceRegisterRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        router_data: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
+        let payment_method = router_data
+            .request
+            .payment_method_type
+            .map(|payment_method_type| {
+                build_unified_connector_service_payment_method(
+                    router_data.request.payment_method_data.clone(),
+                    payment_method_type,
+                )
+            })
+            .transpose()?;
+        let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
+        let auth_type = payments_grpc::AuthenticationType::foreign_try_from(router_data.auth_type)?;
+        let browser_info = router_data
+            .request
+            .browser_info
+            .clone()
+            .map(payments_grpc::BrowserInformation::foreign_try_from)
+            .transpose()?;
+        let setup_future_usage = router_data
+            .request
+            .setup_future_usage
+            .map(payments_grpc::FutureUsage::foreign_try_from)
+            .transpose()?;
+        let customer_acceptance = router_data
+            .request
+            .customer_acceptance
+            .clone()
+            .map(payments_grpc::CustomerAcceptance::foreign_try_from)
+            .transpose()?;
+
+        Ok(Self {
+            request_ref_id: Some(Identifier {
+                id_type: Some(payments_grpc::identifier::IdType::Id(
+                    router_data.connector_request_reference_id.clone(),
+                )),
+            }),
+            currency: currency.into(),
+            payment_method,
+            minor_amount: router_data.request.amount,
+            email: router_data
+                .request
+                .email
+                .clone()
+                .map(|e| e.expose().expose()),
+            customer_name: router_data
+                .request
+                .customer_name
+                .clone()
+                .map(|customer_name| customer_name.peek().to_owned()),
+            connector_customer_id: router_data
+                .request
+                .customer_id
+                .as_ref()
+                .map(|id| id.get_string_repr().to_string()),
+            address: Some(address),
+            auth_type: auth_type.into(),
+            enrolled_for_3ds: false,
+            authentication_data: None,
+            metadata: router_data
+                .request
+                .metadata
+                .as_ref()
+                .map(|secret| secret.peek())
+                .and_then(|val| val.as_object()) //secret
+                .map(|map| {
+                    map.iter()
+                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                        .collect::<HashMap<String, String>>()
+                })
+                .unwrap_or_default(),
+            return_url: router_data.request.router_return_url.clone(),
+            webhook_url: router_data.request.webhook_url.clone(),
+            complete_authorize_url: router_data.request.complete_authorize_url.clone(),
+            access_token: None,
+            session_token: None,
+            order_tax_amount: None,
+            order_category: None,
+            merchant_order_reference_id: None,
+            shipping_cost: router_data
+                .request
+                .shipping_cost
+                .map(|cost| cost.get_amount_as_i64()),
+            setup_future_usage: setup_future_usage.map(|s| s.into()),
+            off_session: router_data.request.off_session,
+            request_incremental_authorization: router_data
+                .request
+                .request_incremental_authorization,
+            request_extended_authorization: None,
+            customer_acceptance,
+            browser_info,
+            payment_experience: None,
         })
     }
 }
@@ -435,6 +541,33 @@ impl ForeignTryFrom<payments_grpc::PaymentStatus> for AttemptStatus {
     }
 }
 
+impl ForeignTryFrom<payments_grpc::MandateStatus> for AttemptStatus {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(grpc_status: payments_grpc::MandateStatus) -> Result<Self, Self::Error> {
+        match grpc_status {
+            payments_grpc::MandateStatus::Unspecified => Ok(Self::Unresolved),
+            payments_grpc::MandateStatus::MandateInitiated => Ok(Self::Started),
+            payments_grpc::MandateStatus::MandatePending => Ok(Self::Pending),
+            payments_grpc::MandateStatus::MandateAuthenticationPending => {
+                Ok(Self::AuthenticationPending)
+            }
+            payments_grpc::MandateStatus::MandateAuthenticationSuccessful => {
+                Ok(Self::AuthenticationSuccessful)
+            }
+            payments_grpc::MandateStatus::MandateAuthenticationFailed => {
+                Ok(Self::AuthenticationFailed)
+            }
+            payments_grpc::MandateStatus::MandateEstablished => Ok(Self::Charged),
+            payments_grpc::MandateStatus::MandateFailed => Ok(Self::Failure),
+            payments_grpc::MandateStatus::MandateCancelled => Ok(Self::Voided),
+            payments_grpc::MandateStatus::MandateExpired => Ok(Self::Failure),
+            payments_grpc::MandateStatus::MandateRouterDeclined => Ok(Self::RouterDeclined),
+            payments_grpc::MandateStatus::MandateUnresolved => Ok(Self::Unresolved),
+        }
+    }
+}
+
 impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
@@ -478,5 +611,50 @@ impl ForeignTryFrom<payments_grpc::HttpMethod> for Method {
                     .attach_printable("Invalid Http Method")
             }
         }
+    }
+}
+
+impl ForeignTryFrom<storage_enums::FutureUsage> for payments_grpc::FutureUsage {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(future_usage: storage_enums::FutureUsage) -> Result<Self, Self::Error> {
+        match future_usage {
+            storage_enums::FutureUsage::OnSession => Ok(Self::OnSession),
+            storage_enums::FutureUsage::OffSession => Ok(Self::OffSession),
+        }
+    }
+}
+
+impl ForeignTryFrom<common_types::payments::CustomerAcceptance>
+    for payments_grpc::CustomerAcceptance
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        customer_acceptance: common_types::payments::CustomerAcceptance,
+    ) -> Result<Self, Self::Error> {
+        let acceptance_type = match customer_acceptance.acceptance_type {
+            common_types::payments::AcceptanceType::Online => payments_grpc::AcceptanceType::Online,
+            common_types::payments::AcceptanceType::Offline => {
+                payments_grpc::AcceptanceType::Offline
+            }
+        };
+
+        let online_mandate_details =
+            customer_acceptance
+                .online
+                .map(|online| payments_grpc::OnlineMandate {
+                    ip_address: online.ip_address.map(|ip| ip.peek().to_string()),
+                    user_agent: online.user_agent,
+                });
+
+        Ok(Self {
+            acceptance_type: acceptance_type.into(),
+            accepted_at: customer_acceptance
+                .accepted_at
+                .map(|dt| dt.assume_utc().unix_timestamp())
+                .unwrap_or_default(),
+            online_mandate_details,
+        })
     }
 }
