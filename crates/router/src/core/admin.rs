@@ -1308,13 +1308,35 @@ pub async fn merchant_account_delete_v2(
 
     // SOFT DELETE IMPLEMENTATION:
     // Instead of hard deletion, we perform the following actions:
-    // 1. Log the deletion request for audit trails
+    // 1. Mark merchant as deleted in metadata for audit trails and API validation
     // 2. Revoke API keys for security (making the account unusable)
     // 3. Return success without actually deleting the data from database
     // This preserves data integrity while effectively "deleting" the merchant from operational use
 
     let deletion_time = common_utils::date_time::now();
 
+    // Update merchant metadata to mark as deleted - Critical for preventing API key creation
+    let deletion_metadata = serde_json::json!({
+        "deleted": true,
+        "deleted_at": deletion_time.to_string(),
+        "deletion_type": "soft_delete"
+    });
+
+    let merchant_update = storage::MerchantAccountUpdate::Update {
+        metadata: Some(deletion_metadata.into()),
+        modified_at: Some(deletion_time),
+        ..Default::default()
+    };
+
+    let _updated_merchant = db
+        .update_specific_fields_in_merchant(
+            key_manager_state,
+            &merchant_id,
+            merchant_update,
+            &merchant_key_store,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
     // Revoke API key in authentication service (async job) - Critical for security
     if let Some(publishable_key) = merchant_account.publishable_key.clone() {
         let state_clone = state.clone();
@@ -1331,7 +1353,7 @@ pub async fn merchant_account_delete_v2(
         merchant_id = ?merchant_id,
         deletion_time = ?deletion_time,
         deletion_type = "soft_delete",
-        "Merchant account soft deletion completed. API keys revoked. Data preserved for audit trails."
+        "Merchant account soft deletion completed. Metadata updated, API keys revoked. Data preserved for audit trails."
     );
 
     // Mark as successfully "deleted" (soft delete)
