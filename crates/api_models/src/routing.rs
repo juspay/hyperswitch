@@ -1492,6 +1492,7 @@ impl From<DeRoutableConnectorChoice> for RoutableConnectorChoice {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct DeRoutableConnectorChoice {
     pub gateway_name: RoutableConnectors,
+    #[schema(value_type = String)]
     pub gateway_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 /// Represents a value in the DSL

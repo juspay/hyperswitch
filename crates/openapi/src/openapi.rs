@@ -815,6 +815,16 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::open_router::UpdateScoreResponse,
         api_models::routing::RoutingEvaluateRequest,
         api_models::routing::RoutingEvaluateResponse,
+        api_models::routing::ValueType,
+        api_models::routing::DeRoutableConnectorChoice,
+        api_models::routing::RoutableConnectorChoice,
+        api_models::open_router::PaymentInfo,
+        common_utils::id_type::PaymentId,
+        common_utils::id_type::ProfileId,
+        api_models::open_router::RankingAlgorithm,
+        api_models::open_router::TxnStatus,
+        api_models::open_router::PriorityLogicOutput,
+        api_models::open_router::PriorityLogicData,
     )),
     modifiers(&SecurityAddon)
 )]
