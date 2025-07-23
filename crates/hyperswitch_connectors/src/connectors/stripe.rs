@@ -1080,9 +1080,7 @@ impl
             MinorUnit::new(req.request.total_amount),
             req.request.currency,
         )?;
-        let connector_req = stripe::StripeIncrementalAuthRequest {
-            amount,
-        };
+        let connector_req = stripe::StripeIncrementalAuthRequest { amount };
 
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
