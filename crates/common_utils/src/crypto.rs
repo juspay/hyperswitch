@@ -942,7 +942,9 @@ mod crypto_tests {
         );
 
         let mut wrong_signature = signature.clone();
-        wrong_signature[0] ^= 0xFF;
+        if let Some(byte) = wrong_signature.first_mut() {
+            *byte ^= 0xFF;
+        }
 
         assert!(
             public_key.verify(message, &wrong_signature).is_err(),
