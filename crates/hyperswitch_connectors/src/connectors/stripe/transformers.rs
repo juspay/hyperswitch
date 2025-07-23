@@ -33,8 +33,8 @@ use hyperswitch_domain_models::{
     },
     types::{
         ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
-        PaymentsIncrementalAuthorizationRouterData, PaymentsUpdateMetadataRouterData,
-        RefundsRouterData, SetupMandateRouterData, TokenizationRouterData,
+        PaymentsUpdateMetadataRouterData, RefundsRouterData, SetupMandateRouterData,
+        TokenizationRouterData,
     },
 };
 use hyperswitch_interfaces::{consts, errors::ConnectorError};
@@ -265,31 +265,6 @@ pub struct SetupIntentRequest {
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
-pub struct StripeCardDataWithoutIncremental {
-    #[serde(rename = "payment_method_data[type]")]
-    pub payment_method_data_type: StripePaymentMethodType,
-    #[serde(rename = "payment_method_data[card][number]")]
-    pub payment_method_data_card_number: cards::CardNumber,
-    #[serde(rename = "payment_method_data[card][exp_month]")]
-    pub payment_method_data_card_exp_month: Secret<String>,
-    #[serde(rename = "payment_method_data[card][exp_year]")]
-    pub payment_method_data_card_exp_year: Secret<String>,
-    #[serde(rename = "payment_method_data[card][cvc]")]
-    pub payment_method_data_card_cvc: Option<Secret<String>>,
-    #[serde(rename = "payment_method_options[card][request_three_d_secure]")]
-    pub payment_method_auth_type: Option<Auth3ds>,
-    #[serde(rename = "payment_method_options[card][network]")]
-    pub payment_method_data_card_preferred_network: Option<StripeCardNetwork>,
-}
-
-#[derive(Debug, Eq, PartialEq, Serialize)]
-#[serde(untagged)]
-pub enum StripeCard {
-    StripeCardData(StripeCardData),
-    StripeCardDataWithoutIncremental(StripeCardDataWithoutIncremental),
-}
-
-#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeCardData {
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_data_type: StripePaymentMethodType,
@@ -305,6 +280,7 @@ pub struct StripeCardData {
     pub payment_method_auth_type: Option<Auth3ds>,
     #[serde(rename = "payment_method_options[card][network]")]
     pub payment_method_data_card_preferred_network: Option<StripeCardNetwork>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "payment_method_options[card][request_incremental_authorization]")]
     pub request_incremental_authorization: Option<StripeRequestIncrementalAuthorization>,
 }
@@ -536,7 +512,7 @@ pub struct MultibancoCreditTransferSourceRequest {
 #[serde(untagged)]
 pub enum StripePaymentMethodData {
     CardToken(StripeCardToken),
-    Card(StripeCard),
+    Card(StripeCardData),
     PayLater(StripePayLaterData),
     Wallet(StripeWallet),
     BankRedirect(StripeBankRedirectData),
@@ -1508,38 +1484,23 @@ impl TryFrom<(&Card, Auth3ds, bool)> for StripePaymentMethodData {
     fn try_from(
         (card, payment_method_auth_type, request_incremental_authorization): (&Card, Auth3ds, bool),
     ) -> Result<Self, Self::Error> {
-        if request_incremental_authorization {
-            Ok(Self::Card(StripeCard::StripeCardData(StripeCardData {
-                payment_method_data_type: StripePaymentMethodType::Card,
-                payment_method_data_card_number: card.card_number.clone(),
-                payment_method_data_card_exp_month: card.card_exp_month.clone(),
-                payment_method_data_card_exp_year: card.card_exp_year.clone(),
-                payment_method_data_card_cvc: Some(card.card_cvc.clone()),
-                payment_method_auth_type: Some(payment_method_auth_type),
-                payment_method_data_card_preferred_network: card
-                    .card_network
-                    .clone()
-                    .and_then(get_stripe_card_network),
-                request_incremental_authorization: Some(
-                    StripeRequestIncrementalAuthorization::IfAvailable,
-                ),
-            })))
-        } else {
-            Ok(Self::Card(StripeCard::StripeCardDataWithoutIncremental(
-                StripeCardDataWithoutIncremental {
-                    payment_method_data_type: StripePaymentMethodType::Card,
-                    payment_method_data_card_number: card.card_number.clone(),
-                    payment_method_data_card_exp_month: card.card_exp_month.clone(),
-                    payment_method_data_card_exp_year: card.card_exp_year.clone(),
-                    payment_method_data_card_cvc: Some(card.card_cvc.clone()),
-                    payment_method_auth_type: Some(payment_method_auth_type),
-                    payment_method_data_card_preferred_network: card
-                        .card_network
-                        .clone()
-                        .and_then(get_stripe_card_network),
-                },
-            )))
-        }
+        Ok(Self::Card(StripeCardData {
+            payment_method_data_type: StripePaymentMethodType::Card,
+            payment_method_data_card_number: card.card_number.clone(),
+            payment_method_data_card_exp_month: card.card_exp_month.clone(),
+            payment_method_data_card_exp_year: card.card_exp_year.clone(),
+            payment_method_data_card_cvc: Some(card.card_cvc.clone()),
+            payment_method_auth_type: Some(payment_method_auth_type),
+            payment_method_data_card_preferred_network: card
+                .card_network
+                .clone()
+                .and_then(get_stripe_card_network),
+            request_incremental_authorization: if request_incremental_authorization {
+                Some(StripeRequestIncrementalAuthorization::IfAvailable)
+            } else {
+                None
+            },
+        }))
     }
 }
 
@@ -1864,30 +1825,27 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                     let payment_data = match item.request.payment_method_data {
                         PaymentMethodData::CardDetailsForNetworkTransactionId(
                             ref card_details_for_network_transaction_id,
-                        ) => StripePaymentMethodData::Card(
-                            StripeCard::StripeCardDataWithoutIncremental(
-                                StripeCardDataWithoutIncremental {
-                                    payment_method_data_type: StripePaymentMethodType::Card,
-                                    payment_method_data_card_number:
-                                        card_details_for_network_transaction_id.card_number.clone(),
-                                    payment_method_data_card_exp_month:
-                                        card_details_for_network_transaction_id
-                                            .card_exp_month
-                                            .clone(),
-                                    payment_method_data_card_exp_year:
-                                        card_details_for_network_transaction_id
-                                            .card_exp_year
-                                            .clone(),
-                                    payment_method_data_card_cvc: None,
-                                    payment_method_auth_type: None,
-                                    payment_method_data_card_preferred_network:
-                                        card_details_for_network_transaction_id
-                                            .card_network
-                                            .clone()
-                                            .and_then(get_stripe_card_network),
-                                },
-                            ),
-                        ),
+                        ) => StripePaymentMethodData::Card(StripeCardData {
+                            payment_method_data_type: StripePaymentMethodType::Card,
+                            payment_method_data_card_number:
+                                card_details_for_network_transaction_id.card_number.clone(),
+                            payment_method_data_card_exp_month:
+                                card_details_for_network_transaction_id
+                                    .card_exp_month
+                                    .clone(),
+                            payment_method_data_card_exp_year:
+                                card_details_for_network_transaction_id
+                                    .card_exp_year
+                                    .clone(),
+                            payment_method_data_card_cvc: None,
+                            payment_method_auth_type: None,
+                            payment_method_data_card_preferred_network:
+                                card_details_for_network_transaction_id
+                                    .card_network
+                                    .clone()
+                                    .and_then(get_stripe_card_network),
+                            request_incremental_authorization: None,
+                        }),
                         PaymentMethodData::CardRedirect(_)
                         | PaymentMethodData::Wallet(_)
                         | PaymentMethodData::PayLater(_)
@@ -2377,19 +2335,7 @@ impl TryFrom<&PaymentsAuthorizeRouterData> for StripeSplitPaymentRequest {
 
 #[derive(Debug, Serialize)]
 pub struct StripeIncrementalAuthRequest {
-    amount: MinorUnit,
-}
-
-impl TryFrom<(&PaymentsIncrementalAuthorizationRouterData, MinorUnit)>
-    for StripeIncrementalAuthRequest
-{
-    type Error = error_stack::Report<ConnectorError>;
-
-    fn try_from(
-        data: (&PaymentsIncrementalAuthorizationRouterData, MinorUnit),
-    ) -> Result<Self, Self::Error> {
-        Ok(Self { amount: data.1 })
-    }
+    pub amount: MinorUnit,
 }
 
 #[derive(Clone, Default, Debug, Eq, PartialEq, Deserialize, Serialize)]
