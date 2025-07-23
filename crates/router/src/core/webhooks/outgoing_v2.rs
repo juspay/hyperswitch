@@ -396,12 +396,7 @@ async fn build_and_send_request(
 
     state
         .api_client
-        .send_request(
-            state,
-            request,
-            None,
-            false,
-        )
+        .send_request(state, request, None, false)
         .await
 }
 
