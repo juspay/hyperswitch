@@ -62,9 +62,9 @@ impl TryFrom<&PaytmRouterData<&PaymentsAuthorizeRouterData>> for PaytmPaymentsRe
 //TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct PaytmAuthType {
-    pub(super) merchant_id: Secret<String>,
-    pub(super) merchant_key: Secret<String>,
-    pub(super) website: Secret<String>,
+    pub merchant_id: Secret<String>,
+    pub merchant_key: Secret<String>,
+    pub website: Secret<String>,
 }
 
 impl TryFrom<&ConnectorAuthType> for PaytmAuthType {

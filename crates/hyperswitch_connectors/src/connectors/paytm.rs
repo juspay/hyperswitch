@@ -118,7 +118,7 @@ impl ConnectorCommon for Paytm {
         &self,
         _auth_type: &ConnectorAuthType,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        // This method is not implemented for Phonepe, as it will always call the UCS service which has the logic to create headers.
+        // This method is not implemented for Paytm, as it will always call the UCS service which has the logic to create headers.
         Err(errors::ConnectorError::NotImplemented("get_auth_header method".to_string()).into())
     }
 
