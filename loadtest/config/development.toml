@@ -390,6 +390,14 @@ sepa = { country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT,GB", currency = "E
 [pm_filters.razorpay]
 upi_collect = { country = "IN", currency = "INR" }
 
+[pm_filters.phonepe]
+upi_collect = { country = "IN", currency = "INR" }
+upi_intent = { country = "IN", currency = "INR" }
+
+[pm_filters.paytm]
+upi_collect = { country = "IN", currency = "INR" }
+upi_intent = { country = "IN", currency = "INR" }
+
 [pm_filters.adyen]
 boleto = { country = "BR", currency = "BRL" }
 sofort = { country = "AT,BE,DE,ES,CH,NL", currency = "CHF,EUR" }

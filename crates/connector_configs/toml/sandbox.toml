@@ -6326,12 +6326,20 @@ api_key = "API Key"
 api_key = "API Key"
 
 [phonepe]
+[[phonepe.upi]]
+payment_method_type = "upi_collect"
+[[phonepe.upi]]
+payment_method_type = "upi_intent"
 [phonepe.connector_auth.SignatureKey]
 api_key="merchant_id"
 api_secret="key_index"
 key1="salt_key"
 
 [paytm]
+[[paytm.upi]]
+payment_method_type = "upi_collect"
+[[paytm.upi]]
+payment_method_type = "upi_intent"
 [paytm.connector_auth.SignatureKey]
 api_key="Signing key"
 api_secret="website name"

@@ -543,6 +543,14 @@ open_banking_uk = {country = "DE,GB,AT,BE,CY,EE,ES,FI,FR,GR,HR,IE,IT,LT,LU,LV,MT
 [pm_filters.razorpay]
 upi_collect = {country = "IN", currency = "INR"}
 
+[pm_filters.phonepe]
+upi_collect = { country = "IN", currency = "INR" }
+upi_intent = { country = "IN", currency = "INR" }
+
+[pm_filters.paytm]
+upi_collect = { country = "IN", currency = "INR" }
+upi_intent = { country = "IN", currency = "INR" }
+
 [pm_filters.redsys]
 credit = { currency = "AUD,BGN,CAD,CHF,COP,CZK,DKK,EUR,GBP,HRK,HUF,ILS,INR,JPY,MYR,NOK,NZD,PEN,PLN,RUB,SAR,SEK,SGD,THB,USD,ZAR", country="ES" }
 debit = { currency = "AUD,BGN,CAD,CHF,COP,CZK,DKK,EUR,GBP,HRK,HUF,ILS,INR,JPY,MYR,NOK,NZD,PEN,PLN,RUB,SAR,SEK,SGD,THB,USD,ZAR", country="ES" }
