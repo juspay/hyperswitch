@@ -638,6 +638,8 @@ static CHECKBOOK_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
 };
 
+static CHECKBOOK_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];
+
 impl ConnectorSpecifications for Checkbook {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&CHECKBOOK_CONNECTOR_INFO)
@@ -645,5 +647,8 @@ impl ConnectorSpecifications for Checkbook {
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
         Some(&*CHECKBOOK_SUPPORTED_PAYMENT_METHODS)
+    }
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&CHECKBOOK_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
