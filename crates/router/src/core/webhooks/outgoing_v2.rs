@@ -399,7 +399,7 @@ async fn build_and_send_request(
         .send_request(
             state,
             request,
-            Some(types::OUTGOING_WEBHOOK_TIMEOUT_SECS),
+            None,
             false,
         )
         .await
