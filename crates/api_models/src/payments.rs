@@ -7640,7 +7640,7 @@ impl AmazonPayDeliveryOptions {
     ) -> Result<(), ValidationError> {
         if !amazonpay_supported_currencies.contains(&currency_code) {
             return Err(ValidationError::InvalidValue {
-                message: format!("{:?} is not a supported currency.", currency_code),
+                message: format!("{currency_code:?} is not a supported currency."),
             });
         }
 

@@ -914,4 +914,38 @@ mod crypto_tests {
 
         assert!(!wrong_verified);
     }
+
+    use ring::signature::{UnparsedPublicKey, RSA_PSS_2048_8192_SHA256};
+
+    #[test]
+    fn test_rsa_pss_sha256_verify_signature() {
+        let signer = crate::crypto::RsaPssSha256;
+        let message = b"abcdefghijklmnopqrstuvwxyz";
+
+        let private_key_pem_bytes =
+            std::fs::read("../../private_key.pem").expect("Failed to read private key");
+        let parsed_pem = pem::parse(&private_key_pem_bytes).expect("Failed to parse PEM");
+        let private_key_der = parsed_pem.contents();
+
+        let signature = signer
+            .sign_message(&private_key_pem_bytes, message)
+            .expect("Signing failed");
+
+        let key_pair = crate::crypto::RsaKeyPair::from_pkcs8(private_key_der).expect("Failed to parse DER key");
+        let public_key_der = key_pair.public().as_ref().to_vec();
+
+        let public_key = UnparsedPublicKey::new(&RSA_PSS_2048_8192_SHA256, &public_key_der);
+        assert!(
+            public_key.verify(message, &signature).is_ok(),
+            "Right signature should verify"
+        );
+
+        let mut wrong_signature = signature.clone();
+        wrong_signature[0] ^= 0xFF;
+
+        assert!(
+            public_key.verify(message, &wrong_signature).is_err(),
+            "Wrong signature should not verify"
+        );
+    }
 }
