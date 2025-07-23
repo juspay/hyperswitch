@@ -4358,7 +4358,7 @@ pub async fn list_customer_payment_method(
 }
 
 #[cfg(feature = "v1")]
-#[warn(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments)]
 pub async fn get_pm_list_context(
     state: &routes::SessionState,
     payment_method: &enums::PaymentMethod,
