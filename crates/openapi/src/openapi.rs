@@ -813,8 +813,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::open_router::DecideGatewayResponse,
         api_models::open_router::UpdateScorePayload,
         api_models::open_router::UpdateScoreResponse,
-        router::core::payments::routing::utils::RoutingEvaluateRequest,
-        router::core::payments::routing::utils::RoutingEvaluateResponse,
+        api_models::routing::RoutingEvaluateRequest,
+        api_models::routing::RoutingEvaluateResponse,
     )),
     modifiers(&SecurityAddon)
 )]

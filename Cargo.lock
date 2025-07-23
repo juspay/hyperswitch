@@ -5317,7 +5317,6 @@ dependencies = [
  "common_types",
  "common_utils",
  "euclid",
- "router",
  "router_env",
  "serde_json",
  "utoipa",

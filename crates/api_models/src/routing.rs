@@ -1444,3 +1444,102 @@ pub enum RoutingResultSource {
     /// Inbuilt Hyperswitch Routing Engine
     HyperswitchRouting,
 }
+//TODO: temporary change will be refactored afterwards
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, ToSchema)]
+pub struct RoutingEvaluateRequest {
+    pub created_by: String,
+    #[schema(value_type = Object)]
+    pub parameters: std::collections::HashMap<String, Option<ValueType>>,
+    pub fallback_output: Vec<DeRoutableConnectorChoice>,
+}
+impl common_utils::events::ApiEventMetric for RoutingEvaluateRequest {}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct RoutingEvaluateResponse {
+    pub status: String,
+    pub output: serde_json::Value,
+    #[serde(deserialize_with = "deserialize_connector_choices")]
+    pub evaluated_output: Vec<RoutableConnectorChoice>,
+    #[serde(deserialize_with = "deserialize_connector_choices")]
+    pub eligible_connectors: Vec<RoutableConnectorChoice>,
+}
+impl common_utils::events::ApiEventMetric for RoutingEvaluateResponse {}
+
+fn deserialize_connector_choices<'de, D>(
+    deserializer: D,
+) -> Result<Vec<RoutableConnectorChoice>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let infos = Vec::<DeRoutableConnectorChoice>::deserialize(deserializer)?;
+    Ok(infos
+        .into_iter()
+        .map(RoutableConnectorChoice::from)
+        .collect())
+}
+
+impl From<DeRoutableConnectorChoice> for RoutableConnectorChoice {
+    fn from(choice: DeRoutableConnectorChoice) -> Self {
+        Self {
+            choice_kind: RoutableChoiceKind::FullStruct,
+            connector: choice.gateway_name,
+            merchant_connector_id: choice.gateway_id,
+        }
+    }
+}
+
+/// Routable Connector chosen for a payment
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct DeRoutableConnectorChoice {
+    pub gateway_name: RoutableConnectors,
+    pub gateway_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+}
+/// Represents a value in the DSL
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
+#[serde(tag = "type", content = "value", rename_all = "snake_case")]
+pub enum ValueType {
+    /// Represents a number literal
+    Number(u64),
+    /// Represents an enum variant
+    EnumVariant(String),
+    /// Represents a Metadata variant
+    MetadataVariant(MetadataValue),
+    /// Represents a arbitrary String value
+    StrValue(String),
+    /// Represents a global reference, which is a reference to a global variable
+    GlobalRef(String),
+    /// Represents an array of numbers. This is basically used for
+    /// "one of the given numbers" operations
+    /// eg: payment.method.amount = (1, 2, 3)
+    NumberArray(Vec<u64>),
+    /// Similar to NumberArray but for enum variants
+    /// eg: payment.method.cardtype = (debit, credit)
+    EnumVariantArray(Vec<String>),
+    /// Like a number array but can include comparisons. Useful for
+    /// conditions like "500 < amount < 1000"
+    /// eg: payment.amount = (> 500, < 1000)
+    NumberComparisonArray(Vec<NumberComparison>),
+}
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
+pub struct MetadataValue {
+    pub key: String,
+    pub value: String,
+}
+/// Represents a number comparison for "NumberComparisonArrayValue"
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct NumberComparison {
+    pub comparison_type: ComparisonType,
+    pub number: u64,
+}
+/// Conditional comparison type
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ComparisonType {
+    Equal,
+    NotEqual,
+    LessThan,
+    LessThanEqual,
+    GreaterThan,
+    GreaterThanEqual,
+}
