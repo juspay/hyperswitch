@@ -282,7 +282,7 @@ pub enum EligibilityResponseParams {
 pub struct ThreeDsData {
     /// The unique identifier for this authentication from the 3DS server.
     #[schema(value_type = String)]
-    pub threeds_server_transaction_id: Option<String>,
+    pub three_ds_server_transaction_id: Option<String>,
     /// The maximum supported 3DS version.
     #[schema(value_type = String)]
     pub maximum_supported_3ds_version: Option<common_utils::types::SemanticVersion>,
@@ -368,7 +368,7 @@ pub struct AuthenticationAuthenticateResponse {
     /// Unique identifier assigned by the ACS to identify a single transaction
     pub acs_trans_id: Option<String>,
     /// Unique identifier assigned by the 3DS Server to identify a single transaction
-    pub three_dsserver_trans_id: Option<String>,
+    pub three_ds_server_transaction_id: Option<String>,
     /// Contains the JWS object created by the ACS for the ARes(Authentication Response) message
     pub acs_signed_content: Option<String>,
     /// Three DS Requestor URL

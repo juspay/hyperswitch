@@ -45,6 +45,7 @@ use crate::{
     core::{
         authentication::utils as auth_utils,
         errors::utils::StorageErrorExt,
+        payments::helpers,
         unified_authentication_service::types::{
             ClickToPay, ExternalAuthentication, UnifiedAuthenticationService,
             UNIFIED_AUTHENTICATION_SERVICE,
@@ -817,7 +818,7 @@ impl
             .attach_printable("Failed to parse three_ds_method_url")?;
 
         let three_ds_data = Some(api_models::authentication::ThreeDsData {
-            threeds_server_transaction_id: authentication.threeds_server_transaction_id,
+            three_ds_server_transaction_id: authentication.threeds_server_transaction_id,
             maximum_supported_3ds_version: authentication.maximum_supported_version,
             connector_authentication_id: authentication.connector_authentication_id,
             three_ds_method_data: authentication.three_ds_method_data,
@@ -861,17 +862,15 @@ pub async fn authentication_eligibility_core(
             id: authentication_id.get_string_repr().to_owned(),
         })?;
 
-    if let Some(client_secret) = &req.client_secret {
-        let is_client_secret_expired =
+    req.client_secret
+        .clone()
+        .map(|client_secret| {
             utils::authenticate_authentication_client_secret_and_check_expiry(
                 client_secret.peek(),
                 &authentication,
-            )?;
-
-        if is_client_secret_expired {
-            return Err(ApiErrorResponse::ClientSecretExpired.into());
-        };
-    };
+            )
+        })
+        .transpose()?;
     let key_manager_state = (&state).into();
 
     let profile_id = core_utils::get_profile_id_from_business_details(
@@ -1112,17 +1111,15 @@ pub async fn authentication_authenticate_core(
             id: authentication_id.get_string_repr().to_owned(),
         })?;
 
-    if let Some(client_secret) = &req.client_secret {
-        let is_client_secret_expired =
+    req.client_secret
+        .map(|client_secret| {
             utils::authenticate_authentication_client_secret_and_check_expiry(
                 client_secret.peek(),
                 &authentication,
-            )?;
+            )
+        })
+        .transpose()?;
 
-        if is_client_secret_expired {
-            return Err(ApiErrorResponse::ClientSecretExpired.into());
-        };
-    };
     let key_manager_state = (&state).into();
 
     let profile_id = authentication.profile_id.clone();
@@ -1191,7 +1188,7 @@ pub async fn authentication_authenticate_core(
         .map(|mca_id| mca_id.get_string_repr())
         .unwrap_or(&connector_name_string);
 
-    let webhook_url = crate::core::payments::helpers::create_webhook_url(
+    let webhook_url = helpers::create_webhook_url(
         &state.base_url,
         merchant_id,
         merchant_connector_account_id_or_connector_name,
@@ -1304,7 +1301,7 @@ impl
             challenge_request: authentication.challenge_request.clone(),
             acs_reference_number: authentication.acs_reference_number.clone(),
             acs_trans_id: authentication.acs_trans_id.clone(),
-            three_dsserver_trans_id: authentication.threeds_server_transaction_id.clone(),
+            three_ds_server_transaction_id: authentication.threeds_server_transaction_id.clone(),
             acs_signed_content: authentication.acs_signed_content.clone(),
             three_ds_requestor_url: authentication_details.three_ds_requestor_url.clone(),
             three_ds_requestor_app_url: authentication_details.three_ds_requestor_app_url.clone(),

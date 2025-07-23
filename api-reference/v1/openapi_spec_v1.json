@@ -29943,7 +29943,7 @@
       "ThreeDsData": {
         "type": "object",
         "required": [
-          "threeds_server_transaction_id",
+          "three_ds_server_transaction_id",
           "maximum_supported_3ds_version",
           "connector_authentication_id",
           "three_ds_method_data",
@@ -29952,7 +29952,7 @@
           "directory_server_id"
         ],
         "properties": {
-          "threeds_server_transaction_id": {
+          "three_ds_server_transaction_id": {
             "type": "string",
             "description": "The unique identifier for this authentication from the 3DS server."
           },
