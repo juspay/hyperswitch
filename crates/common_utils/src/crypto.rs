@@ -931,7 +931,8 @@ mod crypto_tests {
             .sign_message(&private_key_pem_bytes, message)
             .expect("Signing failed");
 
-        let key_pair = crate::crypto::RsaKeyPair::from_pkcs8(private_key_der).expect("Failed to parse DER key");
+        let key_pair = crate::crypto::RsaKeyPair::from_pkcs8(private_key_der)
+            .expect("Failed to parse DER key");
         let public_key_der = key_pair.public().as_ref().to_vec();
 
         let public_key = UnparsedPublicKey::new(&RSA_PSS_2048_8192_SHA256, &public_key_der);
