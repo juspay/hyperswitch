@@ -8533,7 +8533,6 @@ pub enum TokenDataType {
 
 #[derive(
     Clone,
-    Copy,
     Debug,
     Default,
     Eq,
@@ -8560,6 +8559,9 @@ pub enum RoutingApproach {
     StraightThroughRouting,
     #[default]
     DefaultFallback,
+    #[serde(untagged)]
+    #[strum(default)]
+    Other(String),
 }
 
 impl RoutingApproach {
