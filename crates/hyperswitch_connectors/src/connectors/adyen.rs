@@ -208,6 +208,7 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Sepa
                 | PaymentMethodType::Vipps
                 | PaymentMethodType::Venmo
+                | PaymentMethodType::Skrill
                 | PaymentMethodType::Paypal => match capture_method {
                     enums::CaptureMethod::Automatic
                     | enums::CaptureMethod::SequentialAutomatic
@@ -336,6 +337,7 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::InstantBankTransfer
                 | PaymentMethodType::InstantBankTransferFinland
                 | PaymentMethodType::InstantBankTransferPoland
+                | PaymentMethodType::IndonesianBankTransfer
                 | PaymentMethodType::SepaBankTransfer
                 | PaymentMethodType::RevolutPay => {
                     capture_method_not_supported!(connector, capture_method, payment_method_type)
