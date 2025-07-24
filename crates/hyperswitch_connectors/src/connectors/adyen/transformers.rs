@@ -1727,6 +1727,8 @@ impl TryFrom<&AdyenRouterData<&PaymentsAuthorizeRouterData>> for AdyenPaymentReq
                 | PaymentMethodData::Upi(_)
                 | PaymentMethodData::OpenBanking(_)
                 | PaymentMethodData::CardToken(_)
+                | PaymentMethodData::ExternalProxyCardData(_)
+                | PaymentMethodData::VaultPayment(_)
                 | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("Adyen"),
@@ -2820,7 +2822,9 @@ impl
                     | PaymentMethodData::GiftCard(_)
                     | PaymentMethodData::OpenBanking(_)
                     | PaymentMethodData::CardToken(_)
+                    | PaymentMethodData::VaultPayment(_)
                     | PaymentMethodData::NetworkToken(_)
+                    | PaymentMethodData::ExternalProxyCardData(_)
                     | PaymentMethodData::Card(_) => Err(errors::ConnectorError::NotSupported {
                         message: "Network tokenization for payment method".to_string(),
                         connector: "Adyen",
@@ -2864,7 +2868,9 @@ impl
                     | PaymentMethodData::GiftCard(_)
                     | PaymentMethodData::OpenBanking(_)
                     | PaymentMethodData::CardToken(_)
+                    | PaymentMethodData::VaultPayment(_)
                     | PaymentMethodData::MobilePayment(_)
+                    | PaymentMethodData::ExternalProxyCardData(_)
                     | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: "Network tokenization for payment method".to_string(),

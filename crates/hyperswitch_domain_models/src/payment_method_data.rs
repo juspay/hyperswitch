@@ -26,6 +26,7 @@ use time::Date;
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum PaymentMethodData {
     Card(Card),
+    ExternalProxyCardData(ProxyCard),
     CardDetailsForNetworkTransactionId(CardDetailsForNetworkTransactionId),
     CardRedirect(CardRedirectData),
     Wallet(WalletData),
@@ -44,6 +45,7 @@ pub enum PaymentMethodData {
     OpenBanking(OpenBankingData),
     NetworkToken(NetworkTokenData),
     MobilePayment(MobilePaymentData),
+    VaultPayment(VaultPaymentData),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -72,7 +74,10 @@ impl PaymentMethodData {
             Self::GiftCard(_) => Some(common_enums::PaymentMethod::GiftCard),
             Self::OpenBanking(_) => Some(common_enums::PaymentMethod::OpenBanking),
             Self::MobilePayment(_) => Some(common_enums::PaymentMethod::MobilePayment),
-            Self::CardToken(_) | Self::MandatePayment => None,
+            Self::ExternalProxyCardData(_) => {
+                Some(common_enums::PaymentMethod::ExternalProxyCardData)
+            }
+            Self::VaultPayment(_) | Self::CardToken(_) | Self::MandatePayment => None,
         }
     }
 
@@ -152,6 +157,21 @@ pub struct CardDetail {
     pub nick_name: Option<Secret<String>>,
     pub card_holder_name: Option<Secret<String>>,
     pub co_badged_card_data: Option<payment_methods::CoBadgedCardData>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
+pub struct ProxyCard {
+    pub card_number: Secret<String>,
+    pub card_exp_month: Secret<String>,
+    pub card_exp_year: Secret<String>,
+    pub card_holder_name: Option<Secret<String>>,
+    pub card_cvc: Secret<String>,
+    pub card_issuer: Option<String>,
+    pub card_network: Option<Secret<String>>,
+    pub card_type: Option<Secret<String>>,
+    pub card_issuing_country: Option<Secret<String>>,
+    pub bank_code: Option<Secret<String>>,
+    pub nick_name: Option<Secret<String>>,
 }
 
 impl CardDetailsForNetworkTransactionId {
@@ -788,6 +808,15 @@ pub enum MobilePaymentData {
     },
 }
 
+#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum VaultPaymentData {
+    HyperswitchVault {
+        /// Temporary token referencing vaulted payment method data
+        payment_method_token: Secret<String>,
+    },
+}
+
 #[cfg(feature = "v2")]
 impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodData {
     type Error = error_stack::Report<common_utils::errors::ValidationError>;
@@ -872,6 +901,12 @@ impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
             }
             api_models::payments::PaymentMethodData::MobilePayment(mobile_payment_data) => {
                 Self::MobilePayment(From::from(mobile_payment_data))
+            }
+            api_models::payments::PaymentMethodData::ExternalProxyCardData(
+                external_proxy_card_data,
+            ) => Self::ExternalProxyCardData(From::from(external_proxy_card_data)),
+            api_models::payments::PaymentMethodData::VaultPayment(vault_payment_data) => {
+                Self::VaultPayment(From::from(vault_payment_data))
             }
         }
     }
@@ -1739,6 +1774,18 @@ impl From<api_models::payments::MobilePaymentData> for MobilePaymentData {
     }
 }
 
+impl From<api_models::payments::VaultPaymentData> for VaultPaymentData {
+    fn from(value: api_models::payments::VaultPaymentData) -> Self {
+        match value {
+            api_models::payments::VaultPaymentData::HyperswitchVault {
+                payment_method_token,
+            } => Self::HyperswitchVault {
+                payment_method_token,
+            },
+        }
+    }
+}
+
 impl From<MobilePaymentData> for api_models::payments::MobilePaymentData {
     fn from(value: MobilePaymentData) -> Self {
         match value {
@@ -2316,6 +2363,25 @@ impl From<NetworkTokenData> for payment_methods::CardDetail {
             card_network: network_token_data.card_network.clone(),
             card_issuer: None,
             card_type: None,
+        }
+    }
+}
+
+#[cfg(any(feature = "v1", feature = "v2"))]
+impl From<api_models::payments::ProxyCard> for ProxyCard {
+    fn from(proxy_card: api_models::payments::ProxyCard) -> Self {
+        Self {
+            card_number: proxy_card.card_number,
+            card_exp_month: proxy_card.card_exp_month,
+            card_exp_year: proxy_card.card_exp_year,
+            card_holder_name: proxy_card.card_holder_name,
+            card_cvc: proxy_card.card_cvc,
+            card_issuer: proxy_card.card_issuer,
+            card_network: proxy_card.card_network,
+            card_type: proxy_card.card_type,
+            card_issuing_country: proxy_card.card_issuing_country,
+            bank_code: proxy_card.bank_code,
+            nick_name: proxy_card.nick_name,
         }
     }
 }

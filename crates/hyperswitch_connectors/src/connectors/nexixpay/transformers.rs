@@ -821,6 +821,8 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
                     | PaymentMethodData::GiftCard(_)
                     | PaymentMethodData::OpenBanking(_)
                     | PaymentMethodData::CardToken(_)
+                    | PaymentMethodData::ExternalProxyCardData(_)
+                    | PaymentMethodData::VaultPayment(_)
                     | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
                     | PaymentMethodData::NetworkToken(_) => {
                         Err(errors::ConnectorError::NotImplemented(
@@ -1369,7 +1371,9 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>>
                 | PaymentMethodData::GiftCard(_)
                 | PaymentMethodData::OpenBanking(_)
                 | PaymentMethodData::CardToken(_)
+                | PaymentMethodData::VaultPayment(_)
                 | PaymentMethodData::NetworkToken(_)
+                | PaymentMethodData::ExternalProxyCardData(_)
                 | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         get_unimplemented_payment_method_error_message("nexixpay"),

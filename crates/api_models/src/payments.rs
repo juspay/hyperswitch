@@ -1963,6 +1963,49 @@ pub struct Card {
     pub nick_name: Option<Secret<String>>,
 }
 
+#[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct ProxyCard {
+    /// The card number
+    #[schema(value_type = String, example = "tok_sandbox_2eo812ry192812b")]
+    pub card_number: Secret<String>,
+
+    /// The card's expiry month
+    #[schema(value_type = String, example = "tok_sandbox_2eo812ry192812b")]
+    pub card_exp_month: Secret<String>,
+
+    /// The card's expiry year
+    #[schema(value_type = String, example = "tok_sandbox_2eo812ry192812b")]
+    pub card_exp_year: Secret<String>,
+
+    /// The card holder's name
+    #[schema(value_type = String, example = "tok_sandbox_2eo812ry192812b")]
+    pub card_holder_name: Option<Secret<String>>,
+
+    /// The CVC number for the card
+    #[schema(value_type = String, example = "tok_sandbox_2eo812ry192812b")]
+    pub card_cvc: Secret<String>,
+
+    /// The name of the issuer of card
+    #[schema(example = "chase")]
+    pub card_issuer: Option<String>,
+
+    /// The card network for the card
+    #[schema(value_type = Option<String>, example = "tok_sandbox_2eo812ry192812b")]
+    pub card_network: Option<Secret<String>>,
+
+    #[schema(value_type = Option<String>, example = "CREDIT")]
+    pub card_type: Option<Secret<String>>,
+
+    #[schema(value_type = Option<String>, example = "INDIA")]
+    pub card_issuing_country: Option<Secret<String>>,
+
+    #[schema(value_type = Option<String>, example = "JP_AMEX")]
+    pub bank_code: Option<Secret<String>>,
+    /// The card holder's nick name
+    #[schema(value_type = Option<String>, example = "John")]
+    pub nick_name: Option<Secret<String>>,
+}
+
 #[cfg(feature = "v2")]
 impl TryFrom<payment_methods::CardDetail> for Card {
     type Error = error_stack::Report<ValidationError>;
@@ -2488,6 +2531,7 @@ mod payment_method_data_serde {
                     | PaymentMethodData::Voucher(_)
                     | PaymentMethodData::Card(_)
                     | PaymentMethodData::MandatePayment
+                    | PaymentMethodData::ExternalProxyCardData(_)
                     | PaymentMethodData::OpenBanking(_)
                     | PaymentMethodData::Wallet(_) => {
                         payment_method_data_request.serialize(serializer)
@@ -2521,6 +2565,8 @@ pub struct PaymentMethodDataRequest {
 pub enum PaymentMethodData {
     #[schema(title = "Card")]
     Card(Card),
+    #[schema(title = "ExternalProxyCardData")]
+    ExternalProxyCardData(ProxyCard),
     #[schema(title = "CardRedirect")]
     CardRedirect(CardRedirectData),
     #[schema(title = "Wallet")]
@@ -2553,6 +2599,8 @@ pub enum PaymentMethodData {
     OpenBanking(OpenBankingData),
     #[schema(title = "MobilePayment")]
     MobilePayment(MobilePaymentData),
+    #[schema(title = "VaultPayment")]
+    VaultPayment(VaultPaymentData),
 }
 
 pub trait GetAddressFromPaymentMethodData {
@@ -2578,7 +2626,9 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
             | Self::CardToken(_)
             | Self::OpenBanking(_)
             | Self::MandatePayment
-            | Self::MobilePayment(_) => None,
+            | Self::ExternalProxyCardData(_)
+            | Self::MobilePayment(_)
+            | Self::VaultPayment(_) => None,
         }
     }
 }
@@ -2617,7 +2667,8 @@ impl PaymentMethodData {
             Self::GiftCard(_) => Some(api_enums::PaymentMethod::GiftCard),
             Self::OpenBanking(_) => Some(api_enums::PaymentMethod::OpenBanking),
             Self::MobilePayment(_) => Some(api_enums::PaymentMethod::MobilePayment),
-            Self::CardToken(_) | Self::MandatePayment => None,
+            Self::ExternalProxyCardData(_) => Some(api_enums::PaymentMethod::ExternalProxyCardData),
+            Self::VaultPayment(_) | Self::CardToken(_) | Self::MandatePayment => None,
         }
     }
 }
@@ -2943,6 +2994,7 @@ pub enum AdditionalPaymentData {
         #[serde(flatten)]
         details: Option<additional_info::CardTokenAdditionalData>,
     },
+    VaultPayment {},
     OpenBanking {
         #[serde(flatten)]
         details: Option<OpenBankingData>,
@@ -3813,6 +3865,16 @@ pub enum MobilePaymentData {
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
+pub enum VaultPaymentData {
+    HyperswitchVault {
+        /// Temporary token reference to the vaulted payment method
+        #[schema(value_type = String, example = "token_Dafmj9an9QORtSR2ZUlt")]
+        payment_method_token: Secret<String>,
+    },
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
 pub struct GooglePayWalletData {
     /// The type of payment method
     #[serde(rename = "type")]
@@ -4088,6 +4150,7 @@ where
                 | PaymentMethodDataResponse::Card(_)
                 | PaymentMethodDataResponse::CardRedirect(_)
                 | PaymentMethodDataResponse::CardToken(_)
+                | PaymentMethodDataResponse::VaultPayment {}
                 | PaymentMethodDataResponse::Crypto(_)
                 | PaymentMethodDataResponse::MandatePayment {}
                 | PaymentMethodDataResponse::GiftCard(_)
@@ -4129,6 +4192,7 @@ pub enum PaymentMethodDataResponse {
     GiftCard(Box<GiftCardResponse>),
     CardRedirect(Box<CardRedirectResponse>),
     CardToken(Box<CardTokenResponse>),
+    VaultPayment {},
     OpenBanking(Box<OpenBankingResponse>),
     MobilePayment(Box<MobilePaymentResponse>),
 }
@@ -6466,6 +6530,7 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
             AdditionalPaymentData::CardToken { details } => {
                 Self::CardToken(Box::new(CardTokenResponse { details }))
             }
+            AdditionalPaymentData::VaultPayment {} => Self::VaultPayment {},
             AdditionalPaymentData::OpenBanking { details } => {
                 Self::OpenBanking(Box::new(OpenBankingResponse { details }))
             }
@@ -7764,8 +7829,8 @@ pub struct ResponsePaymentMethodTypesForPayments {
 
     /// Required fields for the payment_method_type.
     /// This is the union of all the required fields for the payment method type enabled in all the connectors.
-    #[schema(value_type = Option<RequiredFieldInfo>)]
-    pub required_fields: Option<Vec<payment_methods::RequiredFieldInfo>>,
+    #[schema(value_type = RequiredFieldInfo)]
+    pub required_fields: Vec<payment_methods::RequiredFieldInfo>,
 
     /// surcharge details for this payment method type if exists
     #[schema(value_type = Option<SurchargeDetailsResponse>)]
