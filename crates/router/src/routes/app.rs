@@ -2058,7 +2058,8 @@ impl Profile {
                     .service(
                         web::resource("")
                             .route(web::get().to(profiles::profile_retrieve))
-                            .route(web::put().to(profiles::profile_update)),
+                            .route(web::put().to(profiles::profile_update))
+                            .route(web::delete().to(profiles::profile_delete_v2)),
                     )
                     .service(
                         web::resource("/connector-accounts")
