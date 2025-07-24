@@ -110,6 +110,7 @@ pub async fn profile_retrieve() {}
     operation_id = "Delete the Profile",
     security(("admin_api_key" = []))
 )]
+#[cfg(feature = "v1")]
 pub async fn profile_delete() {}
 
 /// Profile - List
@@ -203,6 +204,26 @@ pub async fn profile_create() {}
     security(("admin_api_key" = []))
 )]
 pub async fn profile_update() {}
+
+/// Profile - Delete
+///
+/// Delete the *profile*
+#[utoipa::path(
+    delete,
+    path = "/v2/profiles/{id}",
+    params(
+        ("id" = String, Path, description = "The unique identifier for the profile")
+    ),
+    responses(
+        (status = 200, description = "Profiles Deleted", body = bool),
+        (status = 400, description = "Invalid data")
+    ),
+    tag = "Profile",
+    operation_id = "Delete the Profile",
+    security(("admin_api_key" = []))
+)]
+#[cfg(feature = "v2")]
+pub async fn profile_delete() {}
 
 #[cfg(feature = "v2")]
 /// Profile - Activate routing algorithm
