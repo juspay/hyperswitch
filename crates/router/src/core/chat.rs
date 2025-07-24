@@ -20,6 +20,7 @@ pub async fn get_data_from_hyperswitch_ai_workflow(
     state: SessionState,
     user_from_token: auth::UserFromToken,
     req: chat_api::ChatRequest,
+    session_id: Option<&str>,
 ) -> CustomResult<ApplicationResponse<chat_api::ChatResponse>, ChatErrors> {
     let url = format!("{}/webhook", state.conf.chat.hyperswitch_ai_host);
     let request_id = state.get_request_id();
@@ -41,6 +42,9 @@ pub async fn get_data_from_hyperswitch_ai_workflow(
 
     if let Some(request_id) = request_id {
         request_builder = request_builder.header(consts::X_REQUEST_ID, &request_id);
+    }
+    if let Some(session_id) = session_id {
+        request_builder = request_builder.header(consts::X_CHAT_SESSION_ID, session_id);
     }
 
     let request = request_builder.build();
