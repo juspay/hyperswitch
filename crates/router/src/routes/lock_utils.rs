@@ -302,7 +302,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::DeleteTheme
             | Flow::CloneConnector => Self::User,
 
-            Flow::GetDataFromHyperswitchAiFlow => Self::AiWorkflow,
+            Flow::GetDataFromHyperswitchAiFlow | Flow::ListAllChatInteractions => Self::AiWorkflow,
 
             Flow::ListRolesV2
             | Flow::ListInvitableRolesAtEntityLevel

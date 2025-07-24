@@ -7,8 +7,8 @@ CREATE TABLE hyperswitch_ai_interaction (
     profile_id VARCHAR(64),
     org_id VARCHAR(64),
     role_id VARCHAR(64),
-    user_query TEXT,
-    response TEXT,
+    user_query BYTEA,
+    response BYTEA,
     database_query TEXT,
     interaction_status VARCHAR(64),
     created_at TIMESTAMP NOT NULL DEFAULT now()

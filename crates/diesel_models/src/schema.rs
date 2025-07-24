@@ -633,8 +633,8 @@ diesel::table! {
         org_id -> Nullable<Varchar>,
         #[max_length = 64]
         role_id -> Nullable<Varchar>,
-        user_query -> Nullable<Text>,
-        response -> Nullable<Text>,
+        user_query -> Nullable<Bytea>,
+        response -> Nullable<Bytea>,
         database_query -> Nullable<Text>,
         #[max_length = 64]
         interaction_status -> Nullable<Varchar>,

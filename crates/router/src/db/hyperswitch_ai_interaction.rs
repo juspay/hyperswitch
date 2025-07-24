@@ -15,6 +15,13 @@ pub trait HyperswitchAiInteractionInterface {
         &self,
         hyperswitch_ai_intercation: storage::HyperswitchAiInteractionNew,
     ) -> CustomResult<storage::HyperswitchAiInteraction, errors::StorageError>;
+
+    async fn list_hyperswitch_ai_interactions(
+        &self,
+        merchant_id: Option<common_utils::id_type::MerchantId>,
+        limit: i64,
+        offset: i64,
+    ) -> CustomResult<Vec<storage::HyperswitchAiInteraction>, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -29,6 +36,23 @@ impl HyperswitchAiInteractionInterface for Store {
             .insert(&conn)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    async fn list_hyperswitch_ai_interactions(
+        &self,
+        merchant_id: Option<common_utils::id_type::MerchantId>,
+        limit: i64,
+        offset: i64,
+    ) -> CustomResult<Vec<storage::HyperswitchAiInteraction>, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::HyperswitchAiInteraction::filter_by_optional_merchant_id(
+            &conn,
+            merchant_id.as_ref(),
+            limit,
+            offset,
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
 
@@ -55,5 +79,30 @@ impl HyperswitchAiInteractionInterface for MockDb {
         };
         hyperswitch_ai_interactions.push(hyperswitch_ai_interaction.clone());
         Ok(hyperswitch_ai_interaction)
+    }
+
+    async fn list_hyperswitch_ai_interactions(
+        &self,
+        merchant_id: Option<common_utils::id_type::MerchantId>,
+        limit: i64,
+        offset: i64,
+    ) -> CustomResult<Vec<storage::HyperswitchAiInteraction>, errors::StorageError> {
+        todo!()
+        // let hyperswitch_ai_interactions = self.hyperswitch_ai_interactions.lock().await;
+        // let filtered_interactions: Vec<storage::HyperswitchAiInteraction> =
+        //     hyperswitch_ai_interactions
+        //         .iter()
+        //         .filter(|interaction| {
+        //             if let Some(merchant_id) = merchant_id.as_ref() {
+        //                 interaction.merchant_id.as_ref() == Some(&merchant_id.to_string())
+        //             } else {
+        //                 true
+        //             }
+        //         })
+        //         .skip(offset as usize)
+        //         .take(limit as usize)
+        //         .cloned()
+        //         .collect();
+        // Ok(filtered_interactions)
     }
 }

@@ -36,3 +36,24 @@ pub async fn get_data_from_hyperswitch_ai_workflow(
     ))
     .await
 }
+
+#[instrument(skip_all)]
+pub async fn get_all_conversations_for_user(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+    payload: web::Query<chat_api::ChatListRequest>,
+) -> HttpResponse {
+    let flow = Flow::ListAllChatInteractions;
+    Box::pin(api::server_wrap(
+        flow.clone(),
+        state,
+        &http_req,
+        payload.into_inner(),
+        |state, _: (), payload, _| {
+            chat_core::list_chat_conversations(state, payload)
+        },
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
