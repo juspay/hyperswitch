@@ -1,13 +1,13 @@
 /**
  * DDC Race Condition Tests
- * 
+ *
  * These tests ensure that device data collection works properly during payment authentication
  * and prevents issues when multiple requests happen at the same time.
- * 
+ *
  * Server-side validation:
  * - Checks that our backend properly handles duplicate device data submissions
  * - Makes sure that once device data is collected, any additional attempts are rejected
- * 
+ *
  * Client-side validation:
  * - Verifies that the payment page prevents users from accidentally submitting data twice
  * - Ensures that even if someone clicks multiple times, only one submission goes through
@@ -59,7 +59,8 @@ describe("[Payment] DDC Race Condition", () => {
     });
 
     it("[Payment] Server-side DDC race condition handling", () => {
-      const createData = getConnectorDetails(connector)["card_pm"]["PaymentIntent"];
+      const createData =
+        getConnectorDetails(connector)["card_pm"]["PaymentIntent"];
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
@@ -72,7 +73,8 @@ describe("[Payment] DDC Race Condition", () => {
       if (shouldContinue)
         shouldContinue = utils.should_continue_further(createData);
 
-      const confirmData = getConnectorDetails(connector)["card_pm"]["DDCRaceConditionServerSide"];
+      const confirmData =
+        getConnectorDetails(connector)["card_pm"]["DDCRaceConditionServerSide"];
 
       cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
 
@@ -119,7 +121,8 @@ describe("[Payment] DDC Race Condition", () => {
     });
 
     it("[Payment] Client-side DDC race condition handling", () => {
-      const createData = getConnectorDetails(connector)["card_pm"]["PaymentIntent"];
+      const createData =
+        getConnectorDetails(connector)["card_pm"]["PaymentIntent"];
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
@@ -132,7 +135,8 @@ describe("[Payment] DDC Race Condition", () => {
       if (shouldContinue)
         shouldContinue = utils.should_continue_further(createData);
 
-      const confirmData = getConnectorDetails(connector)["card_pm"]["DDCRaceConditionClientSide"];
+      const confirmData =
+        getConnectorDetails(connector)["card_pm"]["DDCRaceConditionClientSide"];
 
       cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
 

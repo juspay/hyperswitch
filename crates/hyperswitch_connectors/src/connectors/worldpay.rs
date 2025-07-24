@@ -800,9 +800,13 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
             enums::AttemptStatus::DeviceDataCollectionPending => "3dsDeviceData".to_string(),
             enums::AttemptStatus::AuthenticationPending => "3dsChallenges".to_string(),
             _ => {
-                return Err(errors::ConnectorError::RequestEncodingFailedWithReason(
-                    format!("Invalid payment status for complete authorize: {:?}", req.status)
-                ).into());
+                return Err(
+                    errors::ConnectorError::RequestEncodingFailedWithReason(format!(
+                        "Invalid payment status for complete authorize: {:?}",
+                        req.status
+                    ))
+                    .into(),
+                );
             }
         };
         Ok(format!(
