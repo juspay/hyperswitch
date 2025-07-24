@@ -36,6 +36,30 @@ describe("[Payment] DDC Race Condition", () => {
           !connectorDetails["card_pm"]["DDCRaceConditionClientSide"]
         ) {
           skip = true;
+          return;
+        }
+
+        const requiredKeys = [
+          "merchantId",
+          "apiKey",
+          "publishableKey",
+          "baseUrl",
+        ];
+        const missingKeys = requiredKeys.filter((key) => !globalState.get(key));
+
+        if (missingKeys.length > 0) {
+          cy.log(
+            `Skipping DDC tests - missing critical state: ${missingKeys.join(", ")}`
+          );
+          skip = true;
+          return;
+        }
+
+        const merchantConnectorId = globalState.get("merchantConnectorId");
+        if (!merchantConnectorId) {
+          cy.log(
+            "Warning: merchantConnectorId missing - may indicate connector configuration issue"
+          );
         }
       })
       .then(() => {
@@ -45,7 +69,7 @@ describe("[Payment] DDC Race Condition", () => {
       });
   });
 
-  afterEach("flush global state", () => {
+  afterEach("comprehensive cleanup", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
@@ -56,11 +80,28 @@ describe("[Payment] DDC Race Condition", () => {
       if (!shouldContinue) {
         this.skip();
       }
+
+      // Only reset payment-specific state, don't clear paymentID here as it might be needed
+      globalState.set("clientSecret", null);
+      globalState.set("nextActionUrl", null);
+
+      if (!globalState.get("customerId")) {
+        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+      }
+
+      if (!globalState.get("profileId")) {
+        const defaultProfileId = globalState.get("defaultProfileId");
+        if (defaultProfileId) {
+          globalState.set("profileId", defaultProfileId);
+        }
+      }
     });
 
     it("[Payment] Server-side DDC race condition handling", () => {
       const createData =
         getConnectorDetails(connector)["card_pm"]["PaymentIntent"];
+      const confirmData =
+        getConnectorDetails(connector)["card_pm"]["DDCRaceConditionServerSide"];
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
@@ -73,49 +114,73 @@ describe("[Payment] DDC Race Condition", () => {
       if (shouldContinue)
         shouldContinue = utils.should_continue_further(createData);
 
-      const confirmData =
-        getConnectorDetails(connector)["card_pm"]["DDCRaceConditionServerSide"];
-
       cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
 
       if (shouldContinue)
         shouldContinue = utils.should_continue_further(confirmData);
 
-      const ddcConfig = confirmData.DDCConfig;
-      const paymentId = globalState.get("paymentID");
-      const merchantId = globalState.get("merchantId");
-      const completeUrl = `${Cypress.env("BASEURL")}/payments/${paymentId}/${merchantId}${ddcConfig.completeUrlPath}`;
+      cy.then(() => {
+        const ddcConfig = confirmData.DDCConfig;
+        const paymentId = globalState.get("paymentID");
+        const merchantId = globalState.get("merchantId");
 
-      cy.request({
-        method: "GET",
-        url: completeUrl,
-        qs: {
-          [ddcConfig.collectionReferenceParam]: ddcConfig.firstSubmissionValue,
-        },
-        failOnStatusCode: false,
-      }).then((firstResponse) => {
-        expect(firstResponse.status).to.be.oneOf([200, 302]);
-        cy.log(`First request status: ${firstResponse.status}`);
+        if (!merchantId) {
+          throw new Error(
+            `Missing merchantId - this indicates a critical state issue`
+          );
+        }
+
+        if (!paymentId) {
+          throw new Error(
+            "Failed to create payment intent - paymentID not found in globalState"
+          );
+        }
+
+        const completeUrl = `${Cypress.env("BASEURL")}/payments/${paymentId}/${merchantId}${ddcConfig.completeUrlPath}`;
 
         cy.request({
           method: "GET",
           url: completeUrl,
           qs: {
             [ddcConfig.collectionReferenceParam]:
-              ddcConfig.secondSubmissionValue,
+              ddcConfig.firstSubmissionValue,
           },
           failOnStatusCode: false,
-        }).then((secondResponse) => {
-          cy.log(`Second request status: ${secondResponse.status}`);
+        }).then((firstResponse) => {
+          if (
+            firstResponse.status === 400 &&
+            firstResponse.body?.error?.message?.includes(
+              "No eligible connector"
+            )
+          ) {
+            throw new Error(
+              `Connector configuration issue detected. This may be due to state pollution from previous tests. Response: ${JSON.stringify(firstResponse.body)}`
+            );
+          }
 
-          expect(secondResponse.status).to.eq(ddcConfig.expectedError.status);
-          expect(secondResponse.body).to.deep.equal(
-            ddcConfig.expectedError.body
-          );
+          expect(firstResponse.status).to.be.oneOf([200, 302]);
+          cy.log(`First request status: ${firstResponse.status}`);
 
-          cy.log(
-            "✅ Server-side race condition protection verified - second submission properly rejected"
-          );
+          cy.request({
+            method: "GET",
+            url: completeUrl,
+            qs: {
+              [ddcConfig.collectionReferenceParam]:
+                ddcConfig.secondSubmissionValue,
+            },
+            failOnStatusCode: false,
+          }).then((secondResponse) => {
+            cy.log(`Second request status: ${secondResponse.status}`);
+
+            expect(secondResponse.status).to.eq(ddcConfig.expectedError.status);
+            expect(secondResponse.body).to.deep.equal(
+              ddcConfig.expectedError.body
+            );
+
+            cy.log(
+              "✅ Server-side race condition protection verified - second submission properly rejected"
+            );
+          });
         });
       });
     });
@@ -123,6 +188,8 @@ describe("[Payment] DDC Race Condition", () => {
     it("[Payment] Client-side DDC race condition handling", () => {
       const createData =
         getConnectorDetails(connector)["card_pm"]["PaymentIntent"];
+      const confirmData =
+        getConnectorDetails(connector)["card_pm"]["DDCRaceConditionClientSide"];
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
@@ -135,50 +202,63 @@ describe("[Payment] DDC Race Condition", () => {
       if (shouldContinue)
         shouldContinue = utils.should_continue_further(createData);
 
-      const confirmData =
-        getConnectorDetails(connector)["card_pm"]["DDCRaceConditionClientSide"];
-
       cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
 
       if (shouldContinue)
         shouldContinue = utils.should_continue_further(confirmData);
 
-      const ddcConfig = confirmData.DDCConfig;
-      const paymentId = globalState.get("paymentID");
-      const merchantId = globalState.get("merchantId");
-      const nextActionUrl = `${Cypress.env("BASEURL")}${ddcConfig.redirectUrlPath}/${paymentId}/${merchantId}/${paymentId}_1`;
+      cy.then(() => {
+        const ddcConfig = confirmData.DDCConfig;
+        const paymentId = globalState.get("paymentID");
+        const merchantId = globalState.get("merchantId");
 
-      cy.intercept("GET", nextActionUrl, (req) => {
-        req.reply((res) => {
-          let modifiedHtml = res.body.toString();
-          modifiedHtml = modifiedHtml.replace(
-            "</body>",
-            ddcConfig.raceConditionScript + "</body>"
+        if (!merchantId) {
+          throw new Error(
+            `Missing merchantId - this indicates a critical state issue`
           );
-          res.send(modifiedHtml);
+        }
+
+        if (!paymentId) {
+          throw new Error(
+            "Failed to create payment intent - paymentID not found in globalState"
+          );
+        }
+
+        const nextActionUrl = `${Cypress.env("BASEURL")}${ddcConfig.redirectUrlPath}/${paymentId}/${merchantId}/${paymentId}_1`;
+
+        cy.intercept("GET", nextActionUrl, (req) => {
+          req.reply((res) => {
+            let modifiedHtml = res.body.toString();
+            modifiedHtml = modifiedHtml.replace(
+              "</body>",
+              ddcConfig.raceConditionScript + "</body>"
+            );
+            res.send(modifiedHtml);
+          });
+        }).as("ddcPageWithRaceCondition");
+
+        cy.intercept("GET", "**/redirect/complete/**").as("ddcSubmission");
+
+        cy.visit(nextActionUrl);
+        cy.wait("@ddcPageWithRaceCondition");
+        cy.wait("@ddcSubmission");
+        cy.wait(2000);
+
+        cy.get("@ddcSubmission.all").should("have.length", 1);
+
+        cy.get("@ddcSubmission").then((interception) => {
+          const collectionRef =
+            interception.request.query[ddcConfig.collectionReferenceParam] ||
+            "";
+          cy.log(
+            `Single submission detected with ${ddcConfig.collectionReferenceParam}: "${collectionRef}"`
+          );
         });
-      }).as("ddcPageWithRaceCondition");
 
-      cy.intercept("GET", "**/redirect/complete/**").as("ddcSubmission");
-
-      cy.visit(nextActionUrl);
-      cy.wait("@ddcPageWithRaceCondition");
-      cy.wait("@ddcSubmission");
-      cy.wait(2000);
-
-      cy.get("@ddcSubmission.all").should("have.length", 1);
-
-      cy.get("@ddcSubmission").then((interception) => {
-        const collectionRef =
-          interception.request.query[ddcConfig.collectionReferenceParam] || "";
         cy.log(
-          `Single submission detected with ${ddcConfig.collectionReferenceParam}: "${collectionRef}"`
+          "✅ Client-side race condition protection verified - only one submission occurred"
         );
       });
-
-      cy.log(
-        "✅ Client-side race condition protection verified - only one submission occurred"
-      );
     });
   });
 });
