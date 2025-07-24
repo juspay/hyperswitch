@@ -8020,6 +8020,10 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed execution of straight through routing")?;
 
+        payment_data.set_routing_approach_in_attempt(Some(
+            common_enums::RoutingApproach::StraightThroughRouting,
+        ));
+
         if check_eligibility {
             let transaction_data = core_routing::PaymentsDslInput::new(
                 payment_data.get_setup_mandate(),
@@ -8621,7 +8625,7 @@ where
         payment_intent: payment_data.get_payment_intent(),
         chosen,
     };
-    let (result, routing_approach) = self_routing::perform_session_flow_routing(
+    let (result, routing_strategy) = self_routing::perform_session_flow_routing(
         sfr,
         business_profile,
         &enums::TransactionType::Payment,
@@ -8630,7 +8634,7 @@ where
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("error performing session flow routing")?;
 
-    payment_data.set_routing_approach_in_attempt(routing_approach);
+    payment_data.set_routing_approach_in_attempt(routing_strategy);
 
     let final_list = connectors.filter_and_validate_for_session_flow(&result)?;
 
@@ -8765,7 +8769,7 @@ where
         algorithm_ref.algorithm_id
     };
 
-    let (connectors, routing_approach) = routing::perform_static_routing_v1(
+    let (connectors, routing_strategy) = routing::perform_static_routing_v1(
         state,
         merchant_context.get_merchant_account().get_id(),
         routing_algorithm_id.as_ref(),
@@ -8775,7 +8779,7 @@ where
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    payment_data.set_routing_approach_in_attempt(routing_approach);
+    payment_data.set_routing_approach_in_attempt(routing_strategy);
 
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
     let payment_attempt = transaction_data.payment_attempt.clone();
@@ -10013,7 +10017,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
         &mut self,
         routing_approach: Option<enums::RoutingApproach>,
     ) {
-        self.payment_attempt.routing_approach = routing_approach;
+        self.payment_attempt.routing_strategy = routing_approach;
     }
 
     fn set_connector_response_reference_id(&mut self, reference_id: Option<String>) {

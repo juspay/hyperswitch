@@ -44,7 +44,7 @@ pub struct PaymentFilters {
     #[serde(default)]
     pub first_attempt: Vec<bool>,
     #[serde(default)]
-    pub routing_approach: Vec<RoutingApproach>,
+    pub routing_strategy: Vec<RoutingApproach>,
 }
 
 #[derive(
@@ -86,7 +86,7 @@ pub enum PaymentDimensions {
     CardLast4,
     CardIssuer,
     ErrorReason,
-    RoutingApproach,
+    RoutingStrategy,
 }
 
 #[derive(
@@ -207,7 +207,7 @@ pub struct PaymentMetricsBucketIdentifier {
     pub card_last_4: Option<String>,
     pub card_issuer: Option<String>,
     pub error_reason: Option<String>,
-    pub routing_approach: Option<RoutingApproach>,
+    pub routing_strategy: Option<RoutingApproach>,
     #[serde(rename = "time_range")]
     pub time_bucket: TimeRange,
     // Coz FE sucks
@@ -233,7 +233,7 @@ impl PaymentMetricsBucketIdentifier {
         card_last_4: Option<String>,
         card_issuer: Option<String>,
         error_reason: Option<String>,
-        routing_approach: Option<RoutingApproach>,
+        routing_strategy: Option<RoutingApproach>,
         normalized_time_range: TimeRange,
     ) -> Self {
         Self {
@@ -251,7 +251,7 @@ impl PaymentMetricsBucketIdentifier {
             card_last_4,
             card_issuer,
             error_reason,
-            routing_approach,
+            routing_strategy,
             time_bucket: normalized_time_range,
             start_time: normalized_time_range.start_time,
         }
@@ -274,7 +274,7 @@ impl Hash for PaymentMetricsBucketIdentifier {
         self.card_last_4.hash(state);
         self.card_issuer.hash(state);
         self.error_reason.hash(state);
-        self.routing_approach.map(|i| i.to_string()).hash(state);
+        self.routing_strategy.map(|i| i.to_string()).hash(state);
         self.time_bucket.hash(state);
     }
 }

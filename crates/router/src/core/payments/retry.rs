@@ -530,6 +530,7 @@ where
                 charges,
                 setup_future_usage_applied: None,
                 debit_routing_savings,
+                routing_strategy: payment_data.get_payment_attempt().routing_strategy,
             };
 
             #[cfg(feature = "v1")]
@@ -726,7 +727,7 @@ pub fn make_new_payment_attempt(
         processor_merchant_id: old_payment_attempt.processor_merchant_id,
         created_by: old_payment_attempt.created_by,
         setup_future_usage_applied: setup_future_usage_intent, // setup future usage is picked from intent for new payment attempt
-        routing_approach: old_payment_attempt.routing_approach,
+        routing_strategy: old_payment_attempt.routing_strategy,
         connector_request_reference_id: Default::default(),
     }
 }

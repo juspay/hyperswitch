@@ -902,7 +902,7 @@ pub struct PaymentAttempt {
     /// merchantwho invoked the resource based api (identifier) and through what source (Api, Jwt(Dashboard))
     pub created_by: Option<CreatedBy>,
     pub setup_future_usage_applied: Option<storage_enums::FutureUsage>,
-    pub routing_approach: Option<storage_enums::RoutingApproach>,
+    pub routing_strategy: Option<storage_enums::RoutingApproach>,
     pub connector_request_reference_id: Option<String>,
     pub debit_routing_savings: Option<MinorUnit>,
 }
@@ -1182,7 +1182,7 @@ pub struct PaymentAttemptNew {
     /// merchantwho invoked the resource based api (identifier) and through what source (Api, Jwt(Dashboard))
     pub created_by: Option<CreatedBy>,
     pub setup_future_usage_applied: Option<storage_enums::FutureUsage>,
-    pub routing_approach: Option<storage_enums::RoutingApproach>,
+    pub routing_strategy: Option<storage_enums::RoutingApproach>,
     pub connector_request_reference_id: Option<String>,
 }
 
@@ -1215,7 +1215,7 @@ pub enum PaymentAttemptUpdate {
         tax_amount: Option<MinorUnit>,
         updated_by: String,
         merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
-        routing_approach: Option<storage_enums::RoutingApproach>,
+        routing_strategy: Option<storage_enums::RoutingApproach>,
     },
     AuthenticationTypeUpdate {
         authentication_type: storage_enums::AuthenticationType,
@@ -1252,7 +1252,7 @@ pub enum PaymentAttemptUpdate {
         customer_acceptance: Option<pii::SecretSerdeValue>,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
         card_discovery: Option<common_enums::CardDiscovery>,
-        routing_approach: Option<storage_enums::RoutingApproach>,
+        routing_strategy: Option<storage_enums::RoutingApproach>,
         connector_request_reference_id: Option<String>,
     },
     RejectUpdate {
@@ -1306,6 +1306,7 @@ pub enum PaymentAttemptUpdate {
         charges: Option<common_types::payments::ConnectorChargeResponseData>,
         setup_future_usage_applied: Option<storage_enums::FutureUsage>,
         debit_routing_savings: Option<MinorUnit>,
+        routing_strategy: Option<storage_enums::RoutingApproach>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -1440,7 +1441,7 @@ impl PaymentAttemptUpdate {
                 surcharge_amount,
                 tax_amount,
                 merchant_connector_id,
-                routing_approach,
+                routing_strategy,
             } => DieselPaymentAttemptUpdate::UpdateTrackers {
                 payment_token,
                 connector,
@@ -1450,7 +1451,7 @@ impl PaymentAttemptUpdate {
                 tax_amount,
                 updated_by,
                 merchant_connector_id,
-                routing_approach,
+                routing_strategy: routing_strategy.map(|approach| approach.to_string()),
             },
             Self::AuthenticationTypeUpdate {
                 authentication_type,
@@ -1515,7 +1516,7 @@ impl PaymentAttemptUpdate {
                 customer_acceptance,
                 connector_mandate_detail,
                 card_discovery,
-                routing_approach,
+                routing_strategy,
                 connector_request_reference_id,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount: net_amount.get_order_amount(),
@@ -1552,7 +1553,7 @@ impl PaymentAttemptUpdate {
                 order_tax_amount: net_amount.get_order_tax_amount(),
                 connector_mandate_detail,
                 card_discovery,
-                routing_approach,
+                routing_strategy: routing_strategy.map(|approach| approach.to_string()),
                 connector_request_reference_id,
             },
             Self::VoidUpdate {
@@ -1590,6 +1591,7 @@ impl PaymentAttemptUpdate {
                 charges,
                 setup_future_usage_applied,
                 debit_routing_savings: _,
+                routing_strategy,
             } => DieselPaymentAttemptUpdate::ResponseUpdate {
                 status,
                 connector,
@@ -1615,6 +1617,7 @@ impl PaymentAttemptUpdate {
                 connector_mandate_detail,
                 charges,
                 setup_future_usage_applied,
+                routing_strategy: routing_strategy.map(|approach| approach.to_string()),
             },
             Self::UnresolvedResponseUpdate {
                 status,
@@ -1987,8 +1990,9 @@ impl behaviour::Conversion for PaymentAttempt {
             connector_transaction_data: None,
             processor_merchant_id: Some(self.processor_merchant_id),
             created_by: self.created_by.map(|cb| cb.to_string()),
-            routing_approach: self.routing_approach,
+            routing_approach: self.routing_strategy,
             connector_request_reference_id: self.connector_request_reference_id,
+            routing_strategy: self.routing_strategy.map(|approach| approach.to_string()),
         })
     }
 
@@ -2084,7 +2088,9 @@ impl behaviour::Conversion for PaymentAttempt {
                     .created_by
                     .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
                 setup_future_usage_applied: storage_model.setup_future_usage_applied,
-                routing_approach: storage_model.routing_approach,
+                routing_strategy: storage_model
+                    .routing_strategy
+                    .and_then(|approach| approach.parse::<storage_enums::RoutingApproach>().ok()),
                 connector_request_reference_id: storage_model.connector_request_reference_id,
                 debit_routing_savings: None,
             })
@@ -2175,8 +2181,9 @@ impl behaviour::Conversion for PaymentAttempt {
             processor_merchant_id: Some(self.processor_merchant_id),
             created_by: self.created_by.map(|cb| cb.to_string()),
             setup_future_usage_applied: self.setup_future_usage_applied,
-            routing_approach: self.routing_approach,
+            routing_approach: None,
             connector_request_reference_id: self.connector_request_reference_id,
+            routing_strategy: self.routing_strategy.map(|approach| approach.to_string()),
         })
     }
 }

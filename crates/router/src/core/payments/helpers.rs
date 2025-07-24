@@ -4452,7 +4452,7 @@ impl AttemptType {
             processor_merchant_id: old_payment_attempt.processor_merchant_id,
             created_by: old_payment_attempt.created_by,
             setup_future_usage_applied: None,
-            routing_approach: old_payment_attempt.routing_approach,
+            routing_strategy: old_payment_attempt.routing_strategy,
             connector_request_reference_id: None,
         }
     }
