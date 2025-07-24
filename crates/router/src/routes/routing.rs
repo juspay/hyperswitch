@@ -1190,9 +1190,7 @@ pub async fn routing_update_default_config_for_profile(
     ))
     .await
 }
-
 use api_models::routing::DynamicRoutingPayload;
-
 #[cfg(all(feature = "olap", feature = "v1", feature = "dynamic_routing"))]
 #[instrument(skip_all)]
 pub async fn toggle_success_based_routing(

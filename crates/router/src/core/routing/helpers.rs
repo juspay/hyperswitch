@@ -2,7 +2,6 @@
 //!
 //! Functions that are used to perform the retrieval of merchant's
 //! routing dict, configs, defaults
-
 use std::fmt::Debug;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use std::str::FromStr;
@@ -39,7 +38,6 @@ use rustc_hash::FxHashSet;
 use storage_impl::redis::cache;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use storage_impl::redis::cache::Cacheable;
-
 
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use crate::db::errors::StorageErrorExt;
@@ -2036,9 +2034,10 @@ where
 {
     logger::debug!(
         "enable_specific_routing_algorithm called with dynamic_routing_type: {:?}, payload: {:?}",
-        dynamic_routing_type, payload
+        dynamic_routing_type,
+        payload
     );
-    if let Some(payload_config) = &payload {
+    if let Some(_payload_config) = &payload {
         return create_specific_dynamic_routing_setup(
             state,
             key_store,
@@ -2046,7 +2045,7 @@ where
             feature_to_enable,
             dynamic_routing_algo_ref,
             dynamic_routing_type,
-            payload, 
+            payload,
         )
         .await;
     }
@@ -2285,7 +2284,7 @@ pub async fn create_specific_dynamic_routing_setup(
                     payload
                 {
                     payload_config
-                }else {
+                } else {
                     return Err(errors::ApiErrorResponse::InvalidRequestData {
                         message: "A payload is required".to_string(),
                     }
@@ -2312,7 +2311,7 @@ pub async fn create_specific_dynamic_routing_setup(
                     payload
                 {
                     payload_config
-                }else {
+                } else {
                     return Err(errors::ApiErrorResponse::InvalidRequestData {
                         message: "A payload is required.".to_string(),
                     }

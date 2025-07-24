@@ -929,8 +929,6 @@ pub struct EliminationRoutingConfig {
     pub elimination_analyser_config: Option<EliminationAnalyserConfig>,
     #[schema(value_type = DecisionEngineEliminationData)]
     pub decision_engine_configs: Option<open_router::DecisionEngineEliminationData>,
-    //added payload
-    //pub payload: Option<EliminationRoutingConfig>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, ToSchema)]
