@@ -190,6 +190,30 @@ impl AttemptStatus {
     }
 }
 
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Hash,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    strum::EnumIter,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ApplePayPaymentMethodType {
+    Debit,
+    Credit,
+    Prepaid,
+    Store,
+}
+
 /// Indicates the method by which a card is discovered during a payment
 #[derive(
     Clone,
@@ -1832,7 +1856,9 @@ pub enum SamsungPayCardBrand {
     Copy,
     Debug,
     Eq,
+    Ord,
     Hash,
+    PartialOrd,
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
@@ -1854,6 +1880,7 @@ pub enum PaymentMethodType {
     AliPayHk,
     Alma,
     AmazonPay,
+    Paysera,
     ApplePay,
     Atome,
     Bacs,
@@ -1925,6 +1952,7 @@ pub enum PaymentMethodType {
     SamsungPay,
     Sepa,
     SepaBankTransfer,
+    Skrill,
     Sofort,
     Swish,
     TouchNGo,
@@ -1952,6 +1980,7 @@ pub enum PaymentMethodType {
     InstantBankTransferFinland,
     InstantBankTransferPoland,
     RevolutPay,
+    IndonesianBankTransfer,
 }
 
 impl PaymentMethodType {
@@ -1972,6 +2001,7 @@ impl PaymentMethodType {
             Self::AliPayHk => "AlipayHK",
             Self::Alma => "Alma",
             Self::AmazonPay => "Amazon Pay",
+            Self::Paysera => "Paysera",
             Self::ApplePay => "Apple Pay",
             Self::Atome => "Atome",
             Self::BancontactCard => "Bancontact Card",
@@ -2045,6 +2075,7 @@ impl PaymentMethodType {
             Self::Sepa => "SEPA Direct Debit",
             Self::SepaBankTransfer => "SEPA Bank Transfer",
             Self::Sofort => "Sofort",
+            Self::Skrill => "Skrill",
             Self::Swish => "Swish",
             Self::TouchNGo => "Touch 'n Go",
             Self::Trustly => "Trustly",
@@ -2067,6 +2098,7 @@ impl PaymentMethodType {
             Self::OpenBankingPIS => "Open Banking PIS",
             Self::DirectCarrierBilling => "Direct Carrier Billing",
             Self::RevolutPay => "RevolutPay",
+            Self::IndonesianBankTransfer => "Indonesian Bank Transfer",
         };
         display_name.to_string()
     }
@@ -2081,6 +2113,8 @@ impl masking::SerializableSecret for PaymentMethodType {}
     Debug,
     Default,
     Eq,
+    PartialOrd,
+    Ord,
     Hash,
     PartialEq,
     serde::Deserialize,
@@ -8534,7 +8568,6 @@ impl RoutingApproach {
             "SR_SELECTION_V3_ROUTING" => Self::SuccessRateExploitation,
             "SR_V3_HEDGING" => Self::SuccessRateExploration,
             "NTW_BASED_ROUTING" => Self::DebitRouting,
-            "DEFAULT" => Self::StraightThroughRouting,
             _ => Self::DefaultFallback,
         }
     }

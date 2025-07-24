@@ -45,7 +45,7 @@ pub use hyperswitch_interfaces::{
         BoxedConnectorIntegrationV2, ConnectorIntegrationAnyV2, ConnectorIntegrationV2,
     },
 };
-use masking::{Maskable, PeekInterface};
+use masking::{Maskable, PeekInterface, Secret};
 use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
 use serde::Serialize;
 use serde_json::json;
@@ -310,7 +310,8 @@ where
                                                         .trim_start_matches('\u{feff}')
                                                         .to_string();
                                                 }
-                                                data.raw_connector_response = Some(decoded);
+                                                data.raw_connector_response =
+                                                    Some(Secret::new(decoded));
                                             }
                                             Ok(data)
                                         }

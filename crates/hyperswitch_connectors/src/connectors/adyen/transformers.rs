@@ -57,9 +57,10 @@ use crate::{
         SubmitEvidenceRouterData,
     },
     utils::{
-        self, is_manual_capture, missing_field_err, AddressDetailsData, BrowserInformationData,
-        CardData, ForeignTryFrom, NetworkTokenData as UtilsNetworkTokenData,
-        PaymentsAuthorizeRequestData, PhoneDetailsData, RouterData as OtherRouterData,
+        self, is_manual_capture, missing_field_err, AddressDetailsData, ApplePayDecrypt,
+        BrowserInformationData, CardData, ForeignTryFrom,
+        NetworkTokenData as UtilsNetworkTokenData, PaymentsAuthorizeRequestData, PhoneDetailsData,
+        RouterData as OtherRouterData,
     },
 };
 
@@ -290,6 +291,8 @@ pub struct AdyenPaymentRequest<'a> {
     splits: Option<Vec<AdyenSplitData>>,
     store: Option<String>,
     device_fingerprint: Option<Secret<String>>,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    session_validity: Option<PrimitiveDateTime>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -309,7 +312,8 @@ struct AdyenSplitData {
 struct AdyenMpiData {
     directory_response: String,
     authentication_response: String,
-    token_authentication_verification_value: Secret<String>,
+    cavv: Option<Secret<String>>,
+    token_authentication_verification_value: Option<Secret<String>>,
     eci: Option<String>,
 }
 
@@ -675,6 +679,7 @@ pub enum AdyenPaymentMethod<'a> {
     #[serde(rename = "alipay_hk")]
     AliPayHk,
     ApplePay(Box<AdyenApplePay>),
+    ApplePayDecrypt(Box<AdyenApplePayDecryptData>),
     Atome,
     #[serde(rename = "scheme")]
     BancontactCard(Box<AdyenCard>),
@@ -1251,6 +1256,18 @@ pub struct AdyenPazeData {
     holder_name: Option<Secret<String>>,
     brand: Option<CardBrand>, //Mandatory for mandate using network_txns_id
     network_payment_reference: Option<Secret<String>>,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenApplePayDecryptData {
+    number: Secret<String>,
+    expiry_month: Secret<String>,
+    expiry_year: Secret<String>,
+    brand: String,
+    #[serde(rename = "type")]
+    payment_type: PaymentType,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -2194,11 +2211,27 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod
                 Ok(AdyenPaymentMethod::Gpay(Box::new(gpay_data)))
             }
             WalletData::ApplePay(data) => {
-                let apple_pay_data = AdyenApplePay {
-                    apple_pay_token: Secret::new(data.payment_data.to_string()),
-                };
-
-                Ok(AdyenPaymentMethod::ApplePay(Box::new(apple_pay_data)))
+                if let Some(PaymentMethodToken::ApplePayDecrypt(apple_pay_decrypte)) =
+                    item.payment_method_token.clone()
+                {
+                    let expiry_year_4_digit = apple_pay_decrypte.get_four_digit_expiry_year()?;
+                    let exp_month = apple_pay_decrypte.get_expiry_month()?;
+                    let apple_pay_decrypted_data = AdyenApplePayDecryptData {
+                        number: apple_pay_decrypte.application_primary_account_number,
+                        expiry_month: exp_month,
+                        expiry_year: expiry_year_4_digit,
+                        brand: data.payment_method.network.clone(),
+                        payment_type: PaymentType::Scheme,
+                    };
+                    Ok(AdyenPaymentMethod::ApplePayDecrypt(Box::new(
+                        apple_pay_decrypted_data,
+                    )))
+                } else {
+                    let apple_pay_data = AdyenApplePay {
+                        apple_pay_token: Secret::new(data.payment_data.to_string()),
+                    };
+                    Ok(AdyenPaymentMethod::ApplePay(Box::new(apple_pay_data)))
+                }
             }
             WalletData::PaypalRedirect(_) => Ok(AdyenPaymentMethod::AdyenPaypal),
             WalletData::AliPayRedirect(_) => Ok(AdyenPaymentMethod::AliPay),
@@ -2266,6 +2299,8 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod
             WalletData::SwishQr(_) => Ok(AdyenPaymentMethod::Swish),
             WalletData::AliPayQr(_)
             | WalletData::AmazonPayRedirect(_)
+            | WalletData::Paysera(_)
+            | WalletData::Skrill(_)
             | WalletData::ApplePayRedirect(_)
             | WalletData::ApplePayThirdPartySdk(_)
             | WalletData::GooglePayRedirect(_)
@@ -2556,6 +2591,7 @@ impl TryFrom<(&BankTransferData, &PaymentsAuthorizeRouterData)> for AdyenPayment
             | BankTransferData::InstantBankTransfer {}
             | BankTransferData::InstantBankTransferFinland {}
             | BankTransferData::InstantBankTransferPoland {}
+            | BankTransferData::IndonesianBankTransfer { .. }
             | BankTransferData::Pse {} => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             )
@@ -2889,6 +2925,7 @@ impl
             store,
             splits,
             device_fingerprint,
+            session_validity: None,
         })
     }
 }
@@ -2972,6 +3009,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
             store,
             splits,
             device_fingerprint,
+            session_validity: None,
         })
     }
 }
@@ -3059,6 +3097,7 @@ impl
             store,
             splits,
             device_fingerprint,
+            session_validity: None,
         };
         Ok(request)
     }
@@ -3134,6 +3173,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &VoucherData)>
             store,
             splits,
             device_fingerprint,
+            session_validity: None,
         };
         Ok(request)
     }
@@ -3180,6 +3220,47 @@ impl
         let delivery_address =
             get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
         let telephone_number = item.router_data.get_optional_billing_phone_number();
+        let (session_validity, social_security_number) = match bank_transfer_data {
+            BankTransferData::Pix {
+                cpf,
+                cnpj,
+                expiry_date,
+                ..
+            } => {
+                // Validate expiry_date doesn't exceed 5 days from now
+                if let Some(expiry) = expiry_date {
+                    let now = OffsetDateTime::now_utc();
+                    let max_expiry = now + Duration::days(5);
+                    let max_expiry_primitive =
+                        PrimitiveDateTime::new(max_expiry.date(), max_expiry.time());
+
+                    if *expiry > max_expiry_primitive {
+                        return Err(report!(errors::ConnectorError::InvalidDataFormat {
+                            field_name: "expiry_date cannot be more than 5 days from now",
+                        }));
+                    }
+                }
+
+                (*expiry_date, cpf.as_ref().or(cnpj.as_ref()).cloned())
+            }
+            BankTransferData::LocalBankTransfer { .. } => (None, None),
+            BankTransferData::AchBankTransfer {}
+            | BankTransferData::SepaBankTransfer {}
+            | BankTransferData::BacsBankTransfer {}
+            | BankTransferData::MultibancoBankTransfer {}
+            | BankTransferData::PermataBankTransfer {}
+            | BankTransferData::BcaBankTransfer {}
+            | BankTransferData::BniVaBankTransfer {}
+            | BankTransferData::BriVaBankTransfer {}
+            | BankTransferData::CimbVaBankTransfer {}
+            | BankTransferData::DanamonVaBankTransfer {}
+            | BankTransferData::MandiriVaBankTransfer {}
+            | BankTransferData::Pse {}
+            | BankTransferData::InstantBankTransfer {}
+            | BankTransferData::InstantBankTransferFinland {}
+            | BankTransferData::InstantBankTransferPoland {}
+            | BankTransferData::IndonesianBankTransfer { .. } => (None, None),
+        };
 
         let request = AdyenPaymentRequest {
             amount,
@@ -3195,7 +3276,7 @@ impl
             shopper_name: None,
             shopper_locale: None,
             shopper_email: item.router_data.get_optional_billing_email(),
-            social_security_number: None,
+            social_security_number,
             telephone_number,
             billing_address,
             delivery_address,
@@ -3210,6 +3291,7 @@ impl
             store,
             splits,
             device_fingerprint,
+            session_validity,
         };
         Ok(request)
     }
@@ -3286,6 +3368,7 @@ impl
             store,
             splits,
             device_fingerprint,
+            session_validity: None,
         };
         Ok(request)
     }
@@ -3366,6 +3449,7 @@ impl
             store,
             splits,
             device_fingerprint,
+            session_validity: None,
         })
     }
 }
@@ -3426,15 +3510,23 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &WalletData)>
         let shopper_email = get_shopper_email(item.router_data, store_payment_method.is_some())?;
         let billing_address =
             get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
-        let mpi_data = if let WalletData::Paze(_) = wallet_data {
+        let mpi_data = if matches!(wallet_data, WalletData::Paze(_) | WalletData::ApplePay(_)) {
             match item.router_data.payment_method_token.clone() {
-                Some(PaymentMethodToken::PazeDecrypt(paze_decrypted_data)) => Some(AdyenMpiData {
+                Some(PaymentMethodToken::PazeDecrypt(paze_data)) => Some(AdyenMpiData {
                     directory_response: "Y".to_string(),
                     authentication_response: "Y".to_string(),
-                    token_authentication_verification_value: paze_decrypted_data
-                        .token
-                        .payment_account_reference,
-                    eci: paze_decrypted_data.eci,
+                    cavv: None,
+                    token_authentication_verification_value: Some(
+                        paze_data.token.payment_account_reference,
+                    ),
+                    eci: paze_data.eci,
+                }),
+                Some(PaymentMethodToken::ApplePayDecrypt(apple_data)) => Some(AdyenMpiData {
+                    directory_response: "Y".to_string(),
+                    authentication_response: "Y".to_string(),
+                    cavv: Some(apple_data.payment_data.online_payment_cryptogram),
+                    token_authentication_verification_value: None,
+                    eci: apple_data.payment_data.eci_indicator,
                 }),
                 _ => None,
             }
@@ -3488,6 +3580,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &WalletData)>
             store,
             splits,
             device_fingerprint,
+            session_validity: None,
         })
     }
 }
@@ -3577,6 +3670,7 @@ impl
             store,
             splits,
             device_fingerprint,
+            session_validity: None,
         })
     }
 }
@@ -3658,6 +3752,7 @@ impl
             store,
             splits,
             device_fingerprint,
+            session_validity: None,
         })
     }
 }
@@ -5852,10 +5947,10 @@ impl
         let mpi_data = AdyenMpiData {
             directory_response: "Y".to_string(),
             authentication_response: "Y".to_string(),
-            token_authentication_verification_value: token_data
-                .get_cryptogram()
-                .clone()
-                .unwrap_or_default(),
+            cavv: None,
+            token_authentication_verification_value: Some(
+                token_data.get_cryptogram().clone().unwrap_or_default(),
+            ),
             eci: Some("02".to_string()),
         };
         let (store, splits) = match item.router_data.request.split_payments.as_ref() {
@@ -5904,6 +5999,7 @@ impl
             store,
             splits,
             device_fingerprint,
+            session_validity: None,
         })
     }
 }

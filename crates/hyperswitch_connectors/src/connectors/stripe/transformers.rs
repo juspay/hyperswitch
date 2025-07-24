@@ -749,6 +749,8 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             // Stripe expects PMT as Card for Recurring Mandates Payments
             enums::PaymentMethodType::GooglePay => Ok(Self::Card),
             enums::PaymentMethodType::Boleto
+            | enums::PaymentMethodType::Paysera
+            | enums::PaymentMethodType::Skrill
             | enums::PaymentMethodType::CardRedirect
             | enums::PaymentMethodType::CryptoCurrency
             | enums::PaymentMethodType::Multibanco
@@ -830,6 +832,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::DuitNow
             | enums::PaymentMethodType::PromptPay
             | enums::PaymentMethodType::VietQr
+            | enums::PaymentMethodType::IndonesianBankTransfer
             | enums::PaymentMethodType::Mifinity => Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
             )
@@ -1119,6 +1122,8 @@ fn get_stripe_payment_method_type_from_wallet_data(
         )),
         WalletData::PaypalRedirect(_)
         | WalletData::AliPayQr(_)
+        | WalletData::Paysera(_)
+        | WalletData::Skrill(_)
         | WalletData::AliPayHkRedirect(_)
         | WalletData::MomoRedirect(_)
         | WalletData::KakaoPayRedirect(_)
@@ -1348,6 +1353,7 @@ fn create_stripe_payment_method(
             | payment_method_data::BankTransferData::BriVaBankTransfer { .. }
             | payment_method_data::BankTransferData::CimbVaBankTransfer { .. }
             | payment_method_data::BankTransferData::DanamonVaBankTransfer { .. }
+            | payment_method_data::BankTransferData::IndonesianBankTransfer { .. }
             | payment_method_data::BankTransferData::MandiriVaBankTransfer { .. } => Err(
                 ConnectorError::NotImplemented(get_unimplemented_payment_method_error_message(
                     "stripe",
@@ -1538,6 +1544,8 @@ impl TryFrom<(&WalletData, Option<PaymentMethodToken>)> for StripePaymentMethodD
                 .into(),
             ),
             WalletData::AliPayQr(_)
+            | WalletData::Paysera(_)
+            | WalletData::Skrill(_)
             | WalletData::AliPayHkRedirect(_)
             | WalletData::MomoRedirect(_)
             | WalletData::KakaoPayRedirect(_)
@@ -4095,6 +4103,7 @@ impl
                 | payment_method_data::BankTransferData::InstantBankTransfer {}
                 | payment_method_data::BankTransferData::InstantBankTransferFinland {}
                 | payment_method_data::BankTransferData::InstantBankTransferPoland {}
+                | payment_method_data::BankTransferData::IndonesianBankTransfer { .. }
                 | payment_method_data::BankTransferData::MandiriVaBankTransfer { .. } => {
                     Err(ConnectorError::NotImplemented(
                         get_unimplemented_payment_method_error_message("stripe"),

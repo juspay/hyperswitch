@@ -154,6 +154,10 @@ pub enum BankTransferAdditionalData {
     InstantBankTransfer {},
     InstantBankTransferFinland {},
     InstantBankTransferPoland {},
+    IndonesianBankTransfer {
+        #[schema(value_type = Option<BankNames>, example = "bri")]
+        bank_name: Option<common_enums::BankNames>,
+    },
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -177,6 +181,11 @@ pub struct PixBankTransferAdditionalData {
     /// Partially masked destination bank account number
     #[schema(value_type = Option<String>, example = "********-****-460b-****-f23b4e71c97b")]
     pub destination_bank_account_id: Option<MaskedBankAccount>,
+
+    /// The expiration date and time for the Pix QR code in ISO 8601 format
+    #[schema(value_type = Option<String>, example = "2025-09-10T10:11:12Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub expiry_date: Option<time::PrimitiveDateTime>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

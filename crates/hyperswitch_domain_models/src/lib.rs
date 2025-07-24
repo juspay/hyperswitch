@@ -1,11 +1,13 @@
 pub mod address;
 pub mod api;
+pub mod authentication;
 pub mod behaviour;
 pub mod bulk_tokenization;
 pub mod business_profile;
 pub mod callback_mapper;
 pub mod card_testing_guard_data;
 pub mod cards_info;
+pub mod chat;
 pub mod connector_endpoints;
 pub mod consts;
 pub mod customer;
@@ -145,7 +147,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             redirect_response,
             search_tags,
             apple_pay_recurring_details,
-            payment_revenue_recovery_metadata,
+            revenue_recovery: payment_revenue_recovery_metadata,
         } = from;
 
         Self {
@@ -172,8 +174,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             search_tags,
             apple_pay_recurring_details: apple_pay_recurring_details
                 .map(|value| value.convert_back()),
-            payment_revenue_recovery_metadata: payment_revenue_recovery_metadata
-                .map(|value| value.convert_back()),
+            revenue_recovery: payment_revenue_recovery_metadata.map(|value| value.convert_back()),
         }
     }
 }
