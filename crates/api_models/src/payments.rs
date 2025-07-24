@@ -2179,6 +2179,8 @@ pub enum PayLaterData {
     },
     /// For PayBright Redirect as PayLater Option
     PayBrightRedirect {},
+    /// For Flexiti Redirect as PayLater long term finance Option
+    FlexitiRedirect {},
     /// For WalleyRedirect as PayLater Option
     WalleyRedirect {},
     /// For Alma Redirection as PayLater Option
@@ -2220,6 +2222,7 @@ impl GetAddressFromPaymentMethodData for PayLaterData {
                 })
             }
             Self::PayBrightRedirect {}
+            | Self::FlexitiRedirect {}
             | Self::WalleyRedirect {}
             | Self::AlmaRedirect {}
             | Self::KlarnaSdk { .. }
@@ -2691,6 +2694,7 @@ impl GetPaymentMethodType for PayLaterData {
             Self::AffirmRedirect {} => api_enums::PaymentMethodType::Affirm,
             Self::AfterpayClearpayRedirect { .. } => api_enums::PaymentMethodType::AfterpayClearpay,
             Self::PayBrightRedirect {} => api_enums::PaymentMethodType::PayBright,
+            Self::FlexitiRedirect {} => api_enums::PaymentMethodType::Flexiti,
             Self::WalleyRedirect {} => api_enums::PaymentMethodType::Walley,
             Self::AlmaRedirect {} => api_enums::PaymentMethodType::Alma,
             Self::AtomeRedirect {} => api_enums::PaymentMethodType::Atome,

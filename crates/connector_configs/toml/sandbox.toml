@@ -6322,5 +6322,6 @@ api_key = "API Key"
 api_key = "API Key"
 
 [flexiti]
-[flexiti.connector_auth.HeaderKey]
-api_key = "API Key"
+[flexiti.connector_auth.bodykey]
+api_key = "Client id"
+key1 = "Client secret"

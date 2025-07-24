@@ -227,6 +227,7 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
             api_enums::PaymentMethodType::Bizum => Ok(dirval!(BankRedirectType = Bizum)),
 
             api_enums::PaymentMethodType::PayBright => Ok(dirval!(PayLaterType = PayBright)),
+            api_enums::PaymentMethodType::Flexiti => Ok(dirval!(PayLaterType = Flexiti)),
             api_enums::PaymentMethodType::Walley => Ok(dirval!(PayLaterType = Walley)),
             api_enums::PaymentMethodType::Przelewy24 => Ok(dirval!(BankRedirectType = Przelewy24)),
             api_enums::PaymentMethodType::WeChatPay => Ok(dirval!(WalletType = WeChatPay)),

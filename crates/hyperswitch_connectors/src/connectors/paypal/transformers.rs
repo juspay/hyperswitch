@@ -1263,6 +1263,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::InstantBankTransferPoland
                     | enums::PaymentMethodType::Mifinity
                     | enums::PaymentMethodType::Paze
+                    | enums::PaymentMethodType::Flexiti
                     | enums::PaymentMethodType::RevolutPay => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message("paypal"),
@@ -1319,6 +1320,7 @@ impl TryFrom<&PayLaterData> for PaypalPaymentsRequest {
             | PayLaterData::AfterpayClearpayRedirect { .. }
             | PayLaterData::PayBrightRedirect {}
             | PayLaterData::WalleyRedirect {}
+            | PayLaterData::FlexitiRedirect {}
             | PayLaterData::AlmaRedirect {}
             | PayLaterData::AtomeRedirect {} => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Paypal"),

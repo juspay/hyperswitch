@@ -2460,6 +2460,7 @@ pub enum PaymentMethodDataType {
     WalleyRedirect,
     AlmaRedirect,
     AtomeRedirect,
+    FlexitiRedirect,
     BancontactCard,
     Bizum,
     Blik,
@@ -2593,6 +2594,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                 domain::payments::PayLaterData::PayBrightRedirect {} => Self::PayBrightRedirect,
                 domain::payments::PayLaterData::WalleyRedirect {} => Self::WalleyRedirect,
                 domain::payments::PayLaterData::AlmaRedirect {} => Self::AlmaRedirect,
+                domain::payments::PayLaterData::FlexitiRedirect {} => Self::FlexitiRedirect,
                 domain::payments::PayLaterData::AtomeRedirect {} => Self::AtomeRedirect,
             },
             domain::payments::PaymentMethodData::BankRedirect(bank_redirect_data) => {

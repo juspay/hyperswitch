@@ -797,6 +797,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                         PayLaterData::KlarnaRedirect {} => item.router_data.get_billing_email()?,
                         PayLaterData::KlarnaSdk { token: _ }
                         | PayLaterData::AffirmRedirect {}
+                        | PayLaterData::FlexitiRedirect {}
                         | PayLaterData::AfterpayClearpayRedirect {}
                         | PayLaterData::PayBrightRedirect {}
                         | PayLaterData::WalleyRedirect {}

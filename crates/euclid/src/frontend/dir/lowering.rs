@@ -28,6 +28,7 @@ impl From<enums::PayLaterType> for global_enums::PaymentMethodType {
             enums::PayLaterType::Affirm => Self::Affirm,
             enums::PayLaterType::AfterpayClearpay => Self::AfterpayClearpay,
             enums::PayLaterType::Alma => Self::Alma,
+            enums::PayLaterType::Flexiti => Self::Flexiti,
             enums::PayLaterType::Klarna => Self::Klarna,
             enums::PayLaterType::PayBright => Self::PayBright,
             enums::PayLaterType::Walley => Self::Walley,

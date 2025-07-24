@@ -7,7 +7,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -42,20 +42,25 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask};
+use masking::PeekInterface;
 use transformers as flexiti;
+use uuid::Uuid;
 
-use crate::{constants::headers, types::ResponseRouterData, utils};
+use crate::{
+    constants::headers,
+    types::{RefreshTokenRouterData, ResponseRouterData},
+    utils,
+};
 
 #[derive(Clone)]
 pub struct Flexiti {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+    amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
 }
 
 impl Flexiti {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &StringMinorUnitForConnector,
+            amount_converter: &FloatMajorUnitForConnector,
         }
     }
 }
@@ -79,6 +84,15 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
     // Not Implemented (R)
 }
 
+impl Flexiti {
+    fn get_default_header() -> (String, masking::Maskable<String>) {
+        (
+            "x-reference-id".to_string(),
+            Uuid::new_v4().to_string().into(),
+        )
+    }
+}
+
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Flexiti
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
@@ -88,12 +102,15 @@ where
         req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        let access_token = req
+            .access_token
+            .clone()
+            .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
         let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            self.get_content_type().to_string().into(),
+            headers::AUTHORIZATION.to_string(),
+            format!("Bearer {}", access_token.token.peek()).into(),
         )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
+        header.push(Self::get_default_header());
         Ok(header)
     }
 }
@@ -105,13 +122,10 @@ impl ConnectorCommon for Flexiti {
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
         api::CurrencyUnit::Base
-        //    TODO! Check connector documentation, on which unit they are processing the currency.
-        //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
-        //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
     }
 
     fn common_get_content_type(&self) -> &'static str {
-        "application/json"
+        "application/x-www-form-urlencoded"
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
@@ -120,14 +134,9 @@ impl ConnectorCommon for Flexiti {
 
     fn get_auth_header(
         &self,
-        auth_type: &ConnectorAuthType,
+        _auth_type: &ConnectorAuthType,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let auth = flexiti::FlexitiAuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
-        )])
+        Ok(vec![])
     }
 
     fn build_error_response(
@@ -145,9 +154,9 @@ impl ConnectorCommon for Flexiti {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: response.error.to_owned(),
+            message: response.message.to_owned(),
+            reason: Some(response.message.to_owned()),
             attempt_status: None,
             connector_transaction_id: None,
             network_advice_code: None,
@@ -183,11 +192,86 @@ impl ConnectorValidation for Flexiti {
     }
 }
 
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Flexiti {
+    fn get_url(
+        &self,
+        _req: &RefreshTokenRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}oauth/token", self.base_url(connectors)))
+    }
+    fn get_content_type(&self) -> &'static str {
+        "application/x-www-form-urlencoded"
+    }
+    fn get_headers(
+        &self,
+        _req: &RefreshTokenRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        Ok(vec![(Self::get_default_header())])
+    }
+    fn get_request_body(
+        &self,
+        req: &RefreshTokenRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = flexiti::FlexitiAccessTokenRequest::try_from(req)?;
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &RefreshTokenRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let req = Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .attach_default_headers()
+                .headers(types::RefreshTokenType::get_headers(self, req, connectors)?)
+                .url(&types::RefreshTokenType::get_url(self, req, connectors)?)
+                .set_body(types::RefreshTokenType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        );
+
+        Ok(req)
+    }
+
+    fn handle_response(
+        &self,
+        data: &RefreshTokenRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<RefreshTokenRouterData, errors::ConnectorError> {
+        let response: flexiti::FlexitiAccessTokenResponse = res
+            .response
+            .parse_struct("FlexitiAccessTokenResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Flexiti {
     //TODO: implement sessions flow
 }
-
-impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Flexiti {}
 
 impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Flexiti {}
 
@@ -206,10 +290,15 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
     fn get_url(
         &self,
-        _req: &PaymentsAuthorizeRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsAuthorizeRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let auth_details = flexiti::FlexitiAuthType::try_from(&req.connector_auth_type)?;
+        Ok(format!(
+            "{}online/v2/client-id/{:?}/systems/init",
+            self.base_url(connectors),
+            auth_details.client_id.peek()
+        ))
     }
 
     fn get_request_body(
