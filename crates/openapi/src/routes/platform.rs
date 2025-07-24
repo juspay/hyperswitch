@@ -1,5 +1,5 @@
 #[cfg(feature = "v1")]
-/// User - Create Platform Account
+/// Platform - Create
 ///
 /// Create a new platform account
 #[utoipa::path(
@@ -19,7 +19,7 @@
         (status = 200, description = "Platform Account Created", body = PlatformAccountCreateResponse),
         (status = 400, description = "Invalid data")
     ),
-    tag = "User",
+    tag = "Platform",
     operation_id = "Create a Platform Account",
     security(("jwt_key" = []))
 )]

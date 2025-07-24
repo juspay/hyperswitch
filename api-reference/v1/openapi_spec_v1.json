@@ -6485,9 +6485,9 @@
     "/create_platform": {
       "post": {
         "tags": [
-          "User"
+          "Platform"
         ],
-        "summary": "User - Create Platform Account",
+        "summary": "Platform - Create",
         "description": "Create a new platform account",
         "operationId": "Create a Platform Account",
         "requestBody": {

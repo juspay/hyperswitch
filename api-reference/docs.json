@@ -116,17 +116,6 @@
                 ]
               },
               {
-                "group": "User Management APIs",
-                "pages": [
-                  {
-                    "group": "Create Platform Account",
-                    "pages": [
-                      "v1/user/user--create-platform-account"
-                    ]
-                  }
-                ]
-              },
-              {
                 "group": "Account management APIs",
                 "pages": [
                   {
@@ -155,6 +144,12 @@
                       "v1/business-profile/business-profile--retrieve",
                       "v1/business-profile/business-profile--delete",
                       "v1/business-profile/business-profile--list"
+                    ]
+                  },
+                  {
+                    "group": "Platform Account",
+                    "pages": [
+                      "v1/platform/platform--create"
                     ]
                   },
                   {
