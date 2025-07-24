@@ -65,8 +65,8 @@ use crate::{
     constants::headers,
     types::ResponseRouterData,
     utils::{
-        convert_amount, get_header_key_value, is_mandate_supported, ForeignTryFrom,
-        PaymentMethodDataType, RefundsRequestData,
+        convert_amount, get_header_key_value, is_html_response_from_headers, is_mandate_supported,
+        ForeignTryFrom, PaymentMethodDataType, RefundsRequestData,
     },
 };
 
@@ -144,9 +144,15 @@ impl ConnectorCommon for Worldpay {
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response = if !res.response.is_empty() {
-            res.response
-                .parse_struct("WorldpayErrorResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
+            // Check if the response is HTML (likely a 404 error from Worldpay)
+            if is_html_response_from_headers(res.headers.as_ref()) {
+                // For HTML responses (like 404), create a default error response
+                WorldpayErrorResponse::default(res.status_code)
+            } else {
+                res.response
+                    .parse_struct("WorldpayErrorResponse")
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
+            }
         } else {
             WorldpayErrorResponse::default(res.status_code)
         };
@@ -458,9 +464,15 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response = if !res.response.is_empty() {
-            res.response
-                .parse_struct("WorldpayErrorResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
+            // Check if the response is HTML (likely a 404 error from Worldpay)
+            if is_html_response_from_headers(res.headers.as_ref()) {
+                // For HTML responses (like 404), create a default error response
+                WorldpayErrorResponse::default(res.status_code)
+            } else {
+                res.response
+                    .parse_struct("WorldpayErrorResponse")
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
+            }
         } else {
             WorldpayErrorResponse::default(res.status_code)
         };
