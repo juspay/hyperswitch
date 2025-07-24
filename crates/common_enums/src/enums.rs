@@ -11,6 +11,7 @@ pub use accounts::{
 };
 pub use payments::ProductType;
 use serde::{Deserialize, Serialize};
+use smithy::SmithyModel;
 pub use ui::*;
 use utoipa::ToSchema;
 

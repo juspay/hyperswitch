@@ -1851,6 +1851,8 @@ dependencies = [
  "router_derive",
  "serde",
  "serde_json",
+ "smithy",
+ "smithy-core",
  "strum 0.26.3",
  "thiserror 1.0.69",
  "utoipa",
@@ -7832,6 +7834,15 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "smithy-generator"
+version = "0.1.0"
+dependencies = [
+ "api_models",
+ "regex",
+ "smithy-core",
 ]
 
 [[package]]

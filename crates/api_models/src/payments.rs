@@ -33,7 +33,6 @@ use router_derive::Setter;
 use serde::{de, Deserializer};
 use serde::{ser::Serializer, Deserialize, Serialize};
 use smithy::SmithyModel;
-use smithy_core::SmithyModelGenerator;
 use strum::Display;
 use time::{Date, PrimitiveDateTime};
 use url::Url;
@@ -865,9 +864,11 @@ impl AmountDetailsUpdate {
     ToSchema,
     router_derive::PolymorphicSchema,
     router_derive::ValidateSchema,
+    SmithyModel
 )]
 #[generate_schemas(PaymentsCreateRequest, PaymentsUpdateRequest, PaymentsConfirmRequest)]
 #[serde(deny_unknown_fields)]
+#[smithy(namespace = "com.hyperswitch.payment.models")]
 pub struct PaymentsRequest {
     /// The primary amount for the payment, provided in the lowest denomination of the specified currency (e.g., 6540 for $65.40 USD). This field is mandatory for creating a payment.
     #[schema(value_type = Option<u64>, example = 6540)]
@@ -2129,16 +2130,14 @@ impl Card {
 
 #[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, Default, SmithyModel)]
 #[serde(rename_all = "snake_case")]
-#[smithy(namespace = "com.hyperswitch.payment")]
+#[smithy(namespace = "com.hyperswitch.payment.models")]
 pub struct CardToken {
     /// The card holder's name
     #[schema(value_type = String, example = "John Test")]
-    #[smithy(length = "1..=100")]
     pub card_holder_name: Option<Secret<String>>,
 
     /// The CVC number for the card
     #[schema(value_type = Option<String>)]
-    #[smithy(pattern = r"^[0-9]{3,4}$")] 
     pub card_cvc: Option<Secret<String>>,
 }
 
@@ -5888,8 +5887,9 @@ pub struct ExternalAuthenticationDetailsResponse {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
+#[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize, SmithyModel)]
 #[serde(deny_unknown_fields)]
+#[smithy(namespace = "com.hyperswitch.payment.models")]
 pub struct PaymentListConstraints {
     /// The identifier for customer
     #[schema(

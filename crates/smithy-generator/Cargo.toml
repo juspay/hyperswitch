@@ -1,21 +1,17 @@
 [package]
-name = "smithy"
+name = "smithy-generator"
 version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-
-[features]
-default = []
-
-[lib]
-proc-macro = true
+build = "build.rs"
 
 [dependencies]
-proc-macro2 = "1.0"
-quote = "1.0"
-syn = { version = "2.0", features = ["full", "extra-traits"] }
 smithy-core = { path = "../smithy-core" }
+api_models = { version = "0.1.0", path = "../api_models", features = ["v1"] }
+
+[build-dependencies]
+regex = "1"
 
 [lints]
 workspace = true

@@ -5,7 +5,7 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use smithy_core::{SmithyConstraint, SmithyField};
 use syn::{
-    parse_macro_input, Attribute, DeriveInput, Expr, Fields, Lit, Meta, PathArguments, Type,
+    parse_macro_input, Attribute, DeriveInput, Fields, Lit, Meta, PathArguments, Type,
 };
 
 /// Derive macro for generating Smithy models from Rust structs
@@ -190,6 +190,24 @@ fn extract_fields(fields: &Fields) -> syn::Result<Vec<SmithyField>> {
 }
 
 fn rust_type_to_smithy_type(ty: &Type) -> syn::Result<String> {
+    fn unwrap_known_wrapper(ty: &Type) -> &Type {
+        if let Type::Path(type_path) = ty {
+            if let Some(last_segment) = type_path.path.segments.last() {
+                let ident_str = last_segment.ident.to_string();
+                if (ident_str == "Secret" || ident_str == "Box") && matches!(&last_segment.arguments, PathArguments::AngleBracketed(_)) {
+                    if let PathArguments::AngleBracketed(args) = &last_segment.arguments {
+                        if let Some(syn::GenericArgument::Type(inner)) = args.args.first() {
+                            return unwrap_known_wrapper(inner);
+                        }
+                    }
+                }
+            }
+        }
+        ty
+    }
+
+    let ty = unwrap_known_wrapper(ty); // <-- unwrapping Secret, Box, etc.
+
     match ty {
         Type::Path(type_path) => {
             let path = &type_path.path;
@@ -262,14 +280,37 @@ fn rust_type_to_smithy_type(ty: &Type) -> syn::Result<String> {
                             ))
                         }
                     }
-                    // Handle fully qualified path names
+                    "Value" => {
+                        // Handle serde_json::Value specifically
+                        if path.segments.len() >= 2 {
+                            let full_path = path.segments.iter()
+                                .map(|seg| seg.ident.to_string())
+                                .collect::<Vec<_>>()
+                                .join("::");
+                            
+                            // Check for serde_json::Value specifically
+                            if full_path.ends_with("serde_json::Value") || full_path == "serde_json::Value" {
+                                return Ok("smithy.api#Document".to_string());
+                            }
+                        }
+                        
+                        // If it's just "Value" without qualification, assume it's serde_json::Value
+                        // This handles cases where it's imported as `use serde_json::Value;`
+                        Ok("smithy.api#Document".to_string())
+                    }
                     _ => {
-                        // Check if this is a fully qualified path
+                        // Handle fully qualified paths that might include serde_json::Value
                         if path.segments.len() > 1 {
                             let full_path = path.segments.iter()
                                 .map(|seg| seg.ident.to_string())
                                 .collect::<Vec<_>>()
                                 .join("::");
+                            
+                            // Special handling for serde_json::Value
+                            if full_path.contains("serde_json") && full_path.ends_with("Value") {
+                                return Ok("smithy.api#Document".to_string());
+                            }
+                            
                             Ok(format!("com.hyperswitch.types#{}", full_path))
                         } else {
                             Ok(format!("com.hyperswitch.types#{}", type_name))
