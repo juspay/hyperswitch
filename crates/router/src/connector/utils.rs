@@ -2529,6 +2529,7 @@ pub enum PaymentMethodDataType {
     InstantBankTransferFinland,
     InstantBankTransferPoland,
     RevolutPay,
+    IndonesianBankTransfer,
 }
 
 impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
@@ -2690,6 +2691,9 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                     }
                     domain::payments::BankTransferData::InstantBankTransferPoland {} => {
                         Self::InstantBankTransferPoland
+                    }
+                    domain::payments::BankTransferData::IndonesianBankTransfer { .. } => {
+                        Self::IndonesianBankTransfer
                     }
                 }
             }
