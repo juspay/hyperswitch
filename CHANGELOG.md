@@ -4,6 +4,55 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+
+## 2025.07.23.0
+
+### Features
+
+- **connector:**
+  - Add template code for breadpay ([#8655](https://github.com/juspay/hyperswitch/pull/8655)) ([`b2ab927`](https://github.com/juspay/hyperswitch/commit/b2ab92771307a0a2bc7c208ddbff50f9bf381d8a))
+  - [AUTHORIZEDOTNET] customer_id length validated and server-too-busy error handled ([#8696](https://github.com/juspay/hyperswitch/pull/8696)) ([`422724c`](https://github.com/juspay/hyperswitch/commit/422724cfe9b38db5a314b2cb3d4ec5365774f3b7))
+- **core:**
+  - Implement UCS kill switch for emergency fallback ([#8651](https://github.com/juspay/hyperswitch/pull/8651)) ([`0c5bbad`](https://github.com/juspay/hyperswitch/commit/0c5bbad9c2bdba44011b36213b446740c78cb842))
+  - Add authentication date in Authentication Flow ([#8661](https://github.com/juspay/hyperswitch/pull/8661)) ([`a93ebda`](https://github.com/juspay/hyperswitch/commit/a93ebda7b520b6df82216bf93ab67ff2ba562002))
+
+### Bug Fixes
+
+- **connector:** Add Trustpay in Authentication Providers Config ([#8622](https://github.com/juspay/hyperswitch/pull/8622)) ([`12ac508`](https://github.com/juspay/hyperswitch/commit/12ac5086a0a67b43f00844a041814bfcef93bb20))
+- **openapi:** Added Error Response Schema for Status Code 400 ([#8684](https://github.com/juspay/hyperswitch/pull/8684)) ([`a01d608`](https://github.com/juspay/hyperswitch/commit/a01d6083b00404b6b1cb3380c10cb6a676cda476))
+
+### Refactors
+
+- **connector:** [Adyen] map ssn and session validity for Pix ([#8702](https://github.com/juspay/hyperswitch/pull/8702)) ([`9bf1e95`](https://github.com/juspay/hyperswitch/commit/9bf1e95f06af4dd0620133cdadca6b2522b27e6e))
+
+**Full Changelog:** [`2025.07.21.1...2025.07.23.0`](https://github.com/juspay/hyperswitch/compare/2025.07.21.1...2025.07.23.0)
+
+- - -
+
+## 2025.07.21.1
+
+### Features
+
+- **authentication:** Added eligibility flow for modular authentication ([#8431](https://github.com/juspay/hyperswitch/pull/8431)) ([`82eb3ca`](https://github.com/juspay/hyperswitch/commit/82eb3ca7b4b0f513ed3d8281523d7d646c8129a9))
+- **connector:** [BLACKHAWKNETWORK] Add Template Code ([#8632](https://github.com/juspay/hyperswitch/pull/8632)) ([`7f6a126`](https://github.com/juspay/hyperswitch/commit/7f6a1266a1868d336a0ce9a85e5b8a5a9c736adb))
+- **routing:** Add API key auth for decision engine endpoints ([#8640](https://github.com/juspay/hyperswitch/pull/8640)) ([`f4da057`](https://github.com/juspay/hyperswitch/commit/f4da057ca8252719a18d5eb804828184bc3c1b00))
+
+### Bug Fixes
+
+- **connector:**
+  - [Access Worldpay] correct enum deserialization for payment responses for ([#8689](https://github.com/juspay/hyperswitch/pull/8689)) ([`58f8429`](https://github.com/juspay/hyperswitch/commit/58f8429f507c32e75fea7365504ae8573103c912))
+  - [Cybersource] Add type_selection_indicator as 1 for all cards ([#8663](https://github.com/juspay/hyperswitch/pull/8663)) ([`2bac3e0`](https://github.com/juspay/hyperswitch/commit/2bac3e0a65283326a3050b0ce2af2e54aa1ea496))
+- **router:** Make v2 endpoints follow standard naming conventions ([#8630](https://github.com/juspay/hyperswitch/pull/8630)) ([`db14764`](https://github.com/juspay/hyperswitch/commit/db14764671d18fbbd8d699f0c7c97a327bc1d0db))
+- Remove straight through routing from routing approach ([#8695](https://github.com/juspay/hyperswitch/pull/8695)) ([`53e7e7f`](https://github.com/juspay/hyperswitch/commit/53e7e7fa819183eaad1e8321f7e2b89b22867163))
+
+### Refactors
+
+- **payments:** Fetch payment method information in attempts list api v2 and add custom billing connector template ([#8681](https://github.com/juspay/hyperswitch/pull/8681)) ([`110beaf`](https://github.com/juspay/hyperswitch/commit/110beaff9a809f30a704b5ef9cb7dc75cc31a7bf))
+
+**Full Changelog:** [`2025.07.21.0...2025.07.21.1`](https://github.com/juspay/hyperswitch/compare/2025.07.21.0...2025.07.21.1)
+
+- - -
+
 ## 2025.07.21.0
 
 ### Features

@@ -291,6 +291,8 @@ pub struct AdyenPaymentRequest<'a> {
     splits: Option<Vec<AdyenSplitData>>,
     store: Option<String>,
     device_fingerprint: Option<Secret<String>>,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    session_validity: Option<PrimitiveDateTime>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -2589,6 +2591,7 @@ impl TryFrom<(&BankTransferData, &PaymentsAuthorizeRouterData)> for AdyenPayment
             | BankTransferData::InstantBankTransfer {}
             | BankTransferData::InstantBankTransferFinland {}
             | BankTransferData::InstantBankTransferPoland {}
+            | BankTransferData::IndonesianBankTransfer { .. }
             | BankTransferData::Pse {} => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             )
@@ -2922,6 +2925,7 @@ impl
             store,
             splits,
             device_fingerprint,
+            session_validity: None,
         })
     }
 }
@@ -3005,6 +3009,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
             store,
             splits,
             device_fingerprint,
+            session_validity: None,
         })
     }
 }
@@ -3092,6 +3097,7 @@ impl
             store,
             splits,
             device_fingerprint,
+            session_validity: None,
         };
         Ok(request)
     }
@@ -3167,6 +3173,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &VoucherData)>
             store,
             splits,
             device_fingerprint,
+            session_validity: None,
         };
         Ok(request)
     }
@@ -3213,6 +3220,47 @@ impl
         let delivery_address =
             get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
         let telephone_number = item.router_data.get_optional_billing_phone_number();
+        let (session_validity, social_security_number) = match bank_transfer_data {
+            BankTransferData::Pix {
+                cpf,
+                cnpj,
+                expiry_date,
+                ..
+            } => {
+                // Validate expiry_date doesn't exceed 5 days from now
+                if let Some(expiry) = expiry_date {
+                    let now = OffsetDateTime::now_utc();
+                    let max_expiry = now + Duration::days(5);
+                    let max_expiry_primitive =
+                        PrimitiveDateTime::new(max_expiry.date(), max_expiry.time());
+
+                    if *expiry > max_expiry_primitive {
+                        return Err(report!(errors::ConnectorError::InvalidDataFormat {
+                            field_name: "expiry_date cannot be more than 5 days from now",
+                        }));
+                    }
+                }
+
+                (*expiry_date, cpf.as_ref().or(cnpj.as_ref()).cloned())
+            }
+            BankTransferData::LocalBankTransfer { .. } => (None, None),
+            BankTransferData::AchBankTransfer {}
+            | BankTransferData::SepaBankTransfer {}
+            | BankTransferData::BacsBankTransfer {}
+            | BankTransferData::MultibancoBankTransfer {}
+            | BankTransferData::PermataBankTransfer {}
+            | BankTransferData::BcaBankTransfer {}
+            | BankTransferData::BniVaBankTransfer {}
+            | BankTransferData::BriVaBankTransfer {}
+            | BankTransferData::CimbVaBankTransfer {}
+            | BankTransferData::DanamonVaBankTransfer {}
+            | BankTransferData::MandiriVaBankTransfer {}
+            | BankTransferData::Pse {}
+            | BankTransferData::InstantBankTransfer {}
+            | BankTransferData::InstantBankTransferFinland {}
+            | BankTransferData::InstantBankTransferPoland {}
+            | BankTransferData::IndonesianBankTransfer { .. } => (None, None),
+        };
 
         let request = AdyenPaymentRequest {
             amount,
@@ -3228,7 +3276,7 @@ impl
             shopper_name: None,
             shopper_locale: None,
             shopper_email: item.router_data.get_optional_billing_email(),
-            social_security_number: None,
+            social_security_number,
             telephone_number,
             billing_address,
             delivery_address,
@@ -3243,6 +3291,7 @@ impl
             store,
             splits,
             device_fingerprint,
+            session_validity,
         };
         Ok(request)
     }
@@ -3319,6 +3368,7 @@ impl
             store,
             splits,
             device_fingerprint,
+            session_validity: None,
         };
         Ok(request)
     }
@@ -3399,6 +3449,7 @@ impl
             store,
             splits,
             device_fingerprint,
+            session_validity: None,
         })
     }
 }
@@ -3529,6 +3580,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &WalletData)>
             store,
             splits,
             device_fingerprint,
+            session_validity: None,
         })
     }
 }
@@ -3618,6 +3670,7 @@ impl
             store,
             splits,
             device_fingerprint,
+            session_validity: None,
         })
     }
 }
@@ -3699,6 +3752,7 @@ impl
             store,
             splits,
             device_fingerprint,
+            session_validity: None,
         })
     }
 }
@@ -5945,6 +5999,7 @@ impl
             store,
             splits,
             device_fingerprint,
+            session_validity: None,
         })
     }
 }

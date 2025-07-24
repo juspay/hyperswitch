@@ -1581,7 +1581,21 @@ fn get_bank_redirect_required_fields() -> HashMap<enums::PaymentMethodType, Conn
         ),
         (
             enums::PaymentMethodType::Trustly,
-            connectors(vec![(Connector::Adyen, fields(vec![], vec![], vec![]))]),
+            connectors(vec![
+                (Connector::Adyen, fields(vec![], vec![], vec![])),
+                (
+                    Connector::Airwallex,
+                    RequiredFieldFinal {
+                        mandate: HashMap::new(),
+                        non_mandate: HashMap::from([
+                            RequiredField::BillingUserFirstName.to_tuple(),
+                            RequiredField::BillingUserLastName.to_tuple(),
+                            RequiredField::BillingAddressCountries(vec!["ALL"]).to_tuple(),
+                        ]),
+                        common: HashMap::new(),
+                    },
+                ),
+            ]),
         ),
         (
             enums::PaymentMethodType::OnlineBankingCzechRepublic,
@@ -2212,6 +2226,17 @@ fn get_bank_redirect_required_fields() -> HashMap<enums::PaymentMethodType, Conn
                         ]),
                     },
                 ),
+                (
+                    Connector::Airwallex,
+                    RequiredFieldFinal {
+                        mandate: HashMap::new(),
+                        non_mandate: HashMap::from([
+                            RequiredField::BillingUserFirstName.to_tuple(),
+                            RequiredField::BillingUserLastName.to_tuple(),
+                        ]),
+                        common: HashMap::new(),
+                    },
+                ),
             ]),
         ),
     ])
@@ -2571,6 +2596,18 @@ fn get_wallet_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorFi
                         ]),
                     },
                 ),
+                (
+                    Connector::Airwallex,
+                    RequiredFieldFinal {
+                        mandate: HashMap::new(),
+                        non_mandate: HashMap::from([
+                            RequiredField::BillingUserFirstName.to_tuple(),
+                            RequiredField::BillingUserLastName.to_tuple(),
+                            RequiredField::BillingAddressCountries(vec!["ALL"]).to_tuple(),
+                        ]),
+                        common: HashMap::new(),
+                    },
+                ),
             ]),
         ),
         (
@@ -2618,6 +2655,22 @@ fn get_wallet_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorFi
                         ]),
                     ],
                 ),
+            )]),
+        ),
+        (
+            enums::PaymentMethodType::Skrill,
+            connectors(vec![(
+                Connector::Airwallex,
+                RequiredFieldFinal {
+                    mandate: HashMap::new(),
+                    non_mandate: HashMap::from([
+                        RequiredField::BillingUserFirstName.to_tuple(),
+                        RequiredField::BillingUserLastName.to_tuple(),
+                        RequiredField::BillingAddressCountries(vec!["ALL"]).to_tuple(),
+                        RequiredField::BillingEmail.to_tuple(),
+                    ]),
+                    common: HashMap::new(),
+                },
             )]),
         ),
     ])
@@ -2736,6 +2789,17 @@ fn get_pay_later_required_fields() -> HashMap<enums::PaymentMethodType, Connecto
                         ])],
                     ),
                 ),
+                (
+                    Connector::Airwallex,
+                    RequiredFieldFinal {
+                        mandate: HashMap::new(),
+                        non_mandate: HashMap::from([RequiredField::BillingAddressCountries(vec![
+                            "ALL",
+                        ])
+                        .to_tuple()]),
+                        common: HashMap::new(),
+                    },
+                ),
             ]),
         ),
         (
@@ -2838,26 +2902,39 @@ fn get_pay_later_required_fields() -> HashMap<enums::PaymentMethodType, Connecto
         ),
         (
             enums::PaymentMethodType::Atome,
-            connectors(vec![(
-                Connector::Adyen,
-                RequiredFieldFinal {
-                    mandate: HashMap::new(),
-                    non_mandate: HashMap::from([
-                        RequiredField::BillingUserFirstName.to_tuple(),
-                        RequiredField::BillingUserLastName.to_tuple(),
-                        RequiredField::BillingAddressCity.to_tuple(),
-                        RequiredField::BillingAddressState.to_tuple(),
-                        RequiredField::BillingAddressZip.to_tuple(),
-                        RequiredField::BillingAddressCountries(vec!["MY", "SG"]).to_tuple(),
-                        RequiredField::BillingPhone.to_tuple(),
-                        RequiredField::BillingPhoneCountryCode.to_tuple(),
-                        RequiredField::BillingEmail.to_tuple(),
-                        RequiredField::BillingAddressLine1.to_tuple(),
-                        RequiredField::BillingAddressLine2.to_tuple(),
-                    ]),
-                    common: HashMap::new(),
-                },
-            )]),
+            connectors(vec![
+                (
+                    Connector::Adyen,
+                    RequiredFieldFinal {
+                        mandate: HashMap::new(),
+                        non_mandate: HashMap::from([
+                            RequiredField::BillingUserFirstName.to_tuple(),
+                            RequiredField::BillingUserLastName.to_tuple(),
+                            RequiredField::BillingAddressCity.to_tuple(),
+                            RequiredField::BillingAddressState.to_tuple(),
+                            RequiredField::BillingAddressZip.to_tuple(),
+                            RequiredField::BillingAddressCountries(vec!["MY", "SG"]).to_tuple(),
+                            RequiredField::BillingPhone.to_tuple(),
+                            RequiredField::BillingPhoneCountryCode.to_tuple(),
+                            RequiredField::BillingEmail.to_tuple(),
+                            RequiredField::BillingAddressLine1.to_tuple(),
+                            RequiredField::BillingAddressLine2.to_tuple(),
+                        ]),
+                        common: HashMap::new(),
+                    },
+                ),
+                (
+                    Connector::Airwallex,
+                    RequiredFieldFinal {
+                        mandate: HashMap::new(),
+                        non_mandate: HashMap::from([
+                            RequiredField::BillingPhone.to_tuple(),
+                            RequiredField::BillingPhoneCountryCode.to_tuple(),
+                        ]),
+                        common: HashMap::new(),
+                    },
+                ),
+            ]),
         ),
     ])
 }
