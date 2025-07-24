@@ -6345,3 +6345,8 @@ api_key = "API Key"
 [breadpay]
 [breadpay.connector_auth.HeaderKey]
 api_key = "API Key"
+
+[mpgs]
+[mpgs.connector_auth.HeaderKey]
+api_key = "API Key"
+
