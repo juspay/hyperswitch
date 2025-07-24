@@ -741,26 +741,25 @@ export const connectorDetails = {
       },
     },
     DDCRaceConditionServerSide: {
-      Request: {
-        payment_method: "card",
-        payment_method_type: "debit",
-        payment_method_data: {
-          card: successfulThreeDsTestCardDetailsRequest,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-        billing: billing,
-        browser_info,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
+      ...getCustomExchange({
+        Request: {
+          payment_method: "card",
+          payment_method_type: "debit",
+          payment_method_data: {
+            card: successfulThreeDsTestCardDetailsRequest,
+          },
+          currency: "USD",
+          customer_acceptance: null,
           setup_future_usage: "on_session",
-          payment_method_data: paymentMethodDataThreeDsResponse,
+          browser_info,
         },
-      },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_customer_action",
+          },
+        },
+      }),
       DDCConfig: {
         completeUrlPath: "/redirect/complete/worldpay",
         collectionReferenceParam: "collectionReference",
@@ -780,28 +779,29 @@ export const connectorDetails = {
       },
     },
     DDCRaceConditionClientSide: {
-      Request: {
-        payment_method: "card",
-        payment_method_type: "debit",
-        payment_method_data: {
-          card: successfulThreeDsTestCardDetailsRequest,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-        browser_info,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
+      ...getCustomExchange({
+        Request: {
+          payment_method: "card",
+          payment_method_type: "debit",
+          payment_method_data: {
+            card: successfulThreeDsTestCardDetailsRequest,
+          },
+          currency: "USD",
+          customer_acceptance: null,
           setup_future_usage: "on_session",
-          payment_method_data: paymentMethodDataThreeDsResponse,
+          browser_info,
         },
-      },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_customer_action",
+          },
+        },
+      }),
       DDCConfig: {
         redirectUrlPath: "/payments/redirect",
         collectionReferenceParam: "collectionReference",
+        delayBeforeSubmission: 2000,
         raceConditionScript: `
           <script>
             console.log("INJECTING_RACE_CONDITION_TEST");
