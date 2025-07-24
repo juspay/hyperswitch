@@ -41,7 +41,7 @@ pub struct GatewayStatusMap {
     pub error_category: Option<ErrorCategory>,
     pub clear_pan_possible: bool,
     pub feature_data: Option<SecretSerdeValue>,
-    pub feature: Option<String>,
+    pub feature: Option<common_enums::GsmFeature>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Insertable)]
@@ -61,7 +61,7 @@ pub struct GatewayStatusMappingNew {
     pub error_category: Option<ErrorCategory>,
     pub clear_pan_possible: bool,
     pub feature_data: Option<SecretSerdeValue>,
-    pub feature: Option<String>,
+    pub feature: Option<common_enums::GsmFeature>,
 }
 
 #[derive(
@@ -84,7 +84,7 @@ pub struct GatewayStatusMapperUpdateInternal {
     pub last_modified: PrimitiveDateTime,
     pub clear_pan_possible: Option<bool>,
     pub feature_data: Option<SecretSerdeValue>,
-    pub feature: Option<String>,
+    pub feature: Option<common_enums::GsmFeature>,
 }
 
 #[derive(Debug)]
@@ -98,7 +98,7 @@ pub struct GatewayStatusMappingUpdate {
     pub error_category: Option<ErrorCategory>,
     pub clear_pan_possible: Option<bool>,
     pub feature_data: Option<SecretSerdeValue>,
-    pub feature: Option<String>,
+    pub feature: Option<common_enums::GsmFeature>,
 }
 
 impl From<GatewayStatusMappingUpdate> for GatewayStatusMapperUpdateInternal {

@@ -300,6 +300,7 @@ pub enum GsmDecision {
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[router_derive::diesel_enum(storage_type = "text")]
 pub enum GsmFeature {
     Retry,
 }

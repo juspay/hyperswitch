@@ -112,7 +112,7 @@ impl TryFrom<GatewayStatusMap> for diesel_models::gsm::GatewayStatusMappingNew {
                     },
                 )?,
             )),
-            feature: Some(value.feature.to_string()),
+            feature: Some(value.feature),
         })
     }
 }
@@ -139,7 +139,7 @@ impl TryFrom<GatewayStatusMappingUpdate> for diesel_models::gsm::GatewayStatusMa
                 })
                 .transpose()?
                 .map(Secret::new),
-            feature: value.feature.map(|gsm_feature| gsm_feature.to_string()),
+            feature: value.feature,
         })
     }
 }
@@ -177,13 +177,6 @@ impl TryFrom<diesel_models::gsm::GatewayStatusMap> for GatewayStatusMap {
 
         let feature = item
             .feature
-            .map(|gsm_feature| {
-                StringExt::<common_enums::GsmFeature>::parse_enum(gsm_feature, "GsmFeature")
-                    .map_err(|_| ValidationError::InvalidValue {
-                        message: "Failed to parse GsmFeature".to_string(),
-                    })
-            })
-            .transpose()?
             .unwrap_or(common_enums::GsmFeature::Retry);
         Ok(Self {
             connector: item.connector,
