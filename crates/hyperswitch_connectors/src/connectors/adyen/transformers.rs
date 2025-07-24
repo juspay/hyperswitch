@@ -428,7 +428,7 @@ impl ForeignTryFrom<(bool, AdyenWebhookStatus)> for storage_enums::AttemptStatus
             AdyenWebhookStatus::CancelFailed => Ok(Self::VoidFailed),
             AdyenWebhookStatus::Captured => Ok(Self::Charged),
             AdyenWebhookStatus::CaptureFailed => Ok(Self::CaptureFailed),
-            AdyenWebhookStatus::Expired => Ok(Self::Voided),
+            AdyenWebhookStatus::Expired => Ok(Self::Expired),
             //If Unexpected Event is received, need to understand how it reached this point
             //Webhooks with Payment Events only should try to conume this resource object.
             AdyenWebhookStatus::UnexpectedEvent | AdyenWebhookStatus::Reversed => {
@@ -4931,7 +4931,7 @@ pub(crate) fn get_adyen_webhook_event(
             api_models::webhooks::IncomingWebhookEvent::PaymentIntentCaptureFailure
         }
         WebhookEventCode::OfferClosed => {
-            api_models::webhooks::IncomingWebhookEvent::PaymentIntentCancelled
+            api_models::webhooks::IncomingWebhookEvent::PaymentIntentExpired
         }
         #[cfg(feature = "payouts")]
         WebhookEventCode::PayoutThirdparty => {
@@ -5013,13 +5013,14 @@ impl From<AdyenNotificationRequestItemWH> for AdyenWebhookResponse {
                         AdyenWebhookStatus::AuthorisationFailed
                     }
                 }
-                WebhookEventCode::OfferClosed | WebhookEventCode::Cancellation => {
+                WebhookEventCode::Cancellation => {
                     if is_success_scenario(notif.success) {
                         AdyenWebhookStatus::Cancelled
                     } else {
                         AdyenWebhookStatus::CancelFailed
                     }
                 }
+                WebhookEventCode::OfferClosed => AdyenWebhookStatus::Expired,
                 WebhookEventCode::Capture => {
                     if is_success_scenario(notif.success) {
                         AdyenWebhookStatus::Captured

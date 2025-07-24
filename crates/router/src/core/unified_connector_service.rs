@@ -313,7 +313,7 @@ pub fn handle_unified_connector_service_response_for_payment_authorize(
                     AttemptStatus::PartialChargedAndChargeable |
                     AttemptStatus::PaymentMethodAwaited |
                     AttemptStatus::CaptureFailed |
-                    AttemptStatus::IntegrityFailure => return Err(UnifiedConnectorServiceError::NotImplemented(format!(
+                    AttemptStatus::IntegrityFailure | AttemptStatus::Expired => return Err(UnifiedConnectorServiceError::NotImplemented(format!(
                         "AttemptStatus {status:?} is not implemented for Unified Connector Service"
                     )).into()),
                 };
@@ -394,7 +394,7 @@ pub fn handle_unified_connector_service_response_for_payment_get(
                     AttemptStatus::Unresolved |
                     AttemptStatus::PaymentMethodAwaited |
                     AttemptStatus::CaptureFailed |
-                    AttemptStatus::IntegrityFailure => return Err(UnifiedConnectorServiceError::NotImplemented(format!(
+                    AttemptStatus::IntegrityFailure | AttemptStatus::Expired => return Err(UnifiedConnectorServiceError::NotImplemented(format!(
                         "AttemptStatus {status:?} is not implemented for Unified Connector Service"
                     )).into()),
     };
