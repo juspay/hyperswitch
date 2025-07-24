@@ -85,7 +85,7 @@ pub async fn fetch_disputes(
         state,
         &req,
         (),
-        |state, auth: auth::AuthenticationData, req, _| {
+        |state, auth: auth::AuthenticationData, _req, _| {
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
