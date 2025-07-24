@@ -15,7 +15,7 @@ use crate::{
     services::{authentication as auth, ApplicationResponse},
 };
 
-#[instrument(skip_all)]
+#[instrument(skip_all, fields(?session_id))]
 pub async fn get_data_from_hyperswitch_ai_workflow(
     state: SessionState,
     user_from_token: auth::UserFromToken,

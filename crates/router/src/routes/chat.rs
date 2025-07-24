@@ -1,7 +1,6 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 #[cfg(feature = "olap")]
 use api_models::chat as chat_api;
-use common_utils;
 use router_env::{instrument, tracing, Flow};
 
 use super::AppState;
