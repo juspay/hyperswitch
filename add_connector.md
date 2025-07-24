@@ -187,7 +187,7 @@ crates/router/tests/connectors/
 **What Each File Contains**
 - `<connector_name>.rs`: The main connector implementation file where you implement the connector traits
 - `transformers.rs`: Contains data structures and conversion logic between Hyperswitch's internal format and your payment processor's API format
-**Test file**: Contains boilerplate test cases for your connector connector-template/test.rs:1-36
+- **Test file**: Contains boilerplate test cases for your connector connector-template/test.rs:1-36
 
 ## Common Payment Flow Types
 As you build your connector, you'll encounter several types of payment flows. While not an exhaustive list, the following are some of the most common patterns you'll come across.
@@ -225,6 +225,7 @@ This flow represents the core payment authorization logic that executes after al
 - **Connector Customer Creation**: Creates customer records at the connector level
 
 **Decision Logic**
+
 The flow includes intelligent decision-making capabilities:
 
 - **Authentication Type Decision**: Automatically steps up Google Pay transactions to 3DS when risk indicators are present
