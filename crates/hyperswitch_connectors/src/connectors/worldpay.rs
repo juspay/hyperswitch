@@ -146,6 +146,12 @@ impl ConnectorCommon for Worldpay {
         let response = if !res.response.is_empty() {
             // Check if the response is HTML (likely a 404 error from Worldpay)
             if is_html_response_from_headers(res.headers.as_ref()) {
+                // Log the HTML body for debugging purposes (contains RequestID and other details)
+                router_env::logger::info!(
+                    "Worldpay returned HTML response: status_code={}, body={}",
+                    res.status_code,
+                    String::from_utf8_lossy(&res.response)
+                );
                 // For HTML responses (like 404), create a default error response
                 WorldpayErrorResponse::default(res.status_code)
             } else {
@@ -466,6 +472,12 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
         let response = if !res.response.is_empty() {
             // Check if the response is HTML (likely a 404 error from Worldpay)
             if is_html_response_from_headers(res.headers.as_ref()) {
+                // Log the HTML body for debugging purposes (contains RequestID and other details)
+                router_env::logger::info!(
+                    "Worldpay returned HTML response: status_code={}, body={}",
+                    res.status_code,
+                    String::from_utf8_lossy(&res.response)
+                );
                 // For HTML responses (like 404), create a default error response
                 WorldpayErrorResponse::default(res.status_code)
             } else {
