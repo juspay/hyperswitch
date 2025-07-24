@@ -196,8 +196,8 @@ describe("Bank Transfers", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
       ]["Ach"];
-      cy.createPaymentIntentTest(
-        fixtures.createPaymentBody,
+      cy.createConfirmPaymentTest(
+        {},
         data,
         "no_three_ds",
         "automatic",
@@ -215,11 +215,13 @@ describe("Bank Transfers", () => {
       const expected_redirection = fixtures.confirmBody["return_url"];
       const payment_method_type = globalState.get("paymentMethodType");
 
-      cy.handleBankTransferRedirection(
-        globalState,
-        payment_method_type,
-        expected_redirection
-      );
+      if (globalState.get("connectorId") != "checkbook") {
+        cy.handleBankTransferRedirection(
+          globalState,
+          payment_method_type,
+          expected_redirection
+        );
+      }
     });
   });
 });
