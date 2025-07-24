@@ -6580,6 +6580,13 @@
                     "example": "8b******-****-****-****-*******08bc5",
                     "nullable": true
                   },
+                  "destination_bank_account_id": {
+                    "type": "string",
+                    "description": "Partially masked destination bank account number _Deprecated: Will be removed in next stable release._",
+                    "deprecated": true,
+                    "example": "********-****-460b-****-f23b4e71c97b",
+                    "nullable": true
+                  },
                   "expiry_date": {
                     "type": "string",
                     "description": "The expiration date and time for the Pix QR code in ISO 8601 format",
@@ -20973,6 +20980,13 @@
             "type": "string",
             "description": "Partially masked source bank account number",
             "example": "********-****-4073-****-9fa964d08bc5",
+            "nullable": true
+          },
+          "destination_bank_account_id": {
+            "type": "string",
+            "description": "Partially masked destination bank account number _Deprecated: Will be removed in next stable release._",
+            "deprecated": true,
+            "example": "********-****-460b-****-f23b4e71c97b",
             "nullable": true
           },
           "expiry_date": {
