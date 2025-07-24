@@ -1091,6 +1091,9 @@ impl Authenticate for api_models::payments::PaymentsConfirmIntentRequest {
 #[cfg(feature = "v2")]
 impl Authenticate for api_models::payments::ProxyPaymentsRequest {}
 
+#[cfg(feature = "v2")]
+impl Authenticate for api_models::payments::PaymentsRequest {}
+
 #[cfg(feature = "v1")]
 impl Authenticate for api_models::payments::PaymentsRequest {
     fn get_client_secret(&self) -> Option<&String> {
@@ -1349,7 +1352,15 @@ pub fn build_redirection_form(
                 {logging_template}
                 window.addEventListener(\"message\", function(event) {{
                     if (event.origin === \"https://centinelapistag.cardinalcommerce.com\" || event.origin === \"https://centinelapi.cardinalcommerce.com\") {{
-                      window.location.href = window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/cybersource?referenceId={reference_id}\");
+                                        var currentUrl = window.location.href;
+                    var updatedUrl = currentUrl.replace(/start-redirection/, 'continue-redirection');
+                    if (updatedUrl.indexOf('?') !== -1) {{
+                        updatedUrl += '&referenceId={reference_id}';
+                }} else {{
+                        updatedUrl += '?referenceId={reference_id}';
+                }}
+                    window.location.href = updatedUrl;
+
                     }}
                   }}, false);
                 </script>

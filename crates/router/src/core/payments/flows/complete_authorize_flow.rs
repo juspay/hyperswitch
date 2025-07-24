@@ -359,3 +359,73 @@ async fn process_capture_flow(
     router_data.response = Ok(updated_response);
     Ok(router_data)
 }
+
+#[cfg(feature = "v2")]
+#[async_trait]
+impl
+    ConstructFlowSpecificData<
+        api::CompleteAuthorize,
+        types::CompleteAuthorizeData,
+        types::PaymentsResponseData,
+    > for hyperswitch_domain_models::payments::PaymentConfirmData<api::CompleteAuthorize>
+{
+    async fn construct_router_data<'a>(
+        &self,
+        state: &SessionState,
+        connector_id: &str,
+        merchant_context: &domain::MerchantContext,
+        customer: &Option<domain::Customer>,
+        merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
+        merchant_recipient_data: Option<types::MerchantRecipientData>,
+        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+    ) -> RouterResult<
+        types::RouterData<
+            api::CompleteAuthorize,
+            types::CompleteAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+    > {
+        Box::pin(
+            transformers::construct_payment_router_data_for_completeauthorize(
+                state,
+                self.clone(),
+                connector_id,
+                merchant_context,
+                customer,
+                merchant_connector_account,
+                merchant_recipient_data,
+                header_payload,
+            ),
+        )
+        .await
+    }
+
+    async fn get_merchant_recipient_data<'a>(
+        &self,
+        state: &SessionState,
+        merchant_context: &domain::MerchantContext,
+        merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        connector: &api::ConnectorData,
+    ) -> RouterResult<Option<types::MerchantRecipientData>> {
+        use common_enums::enums;
+        use common_utils::ext_traits::OptionExt;
+
+        let is_open_banking = &self
+            .payment_attempt
+            .get_payment_method()
+            .unwrap()
+            .eq(&enums::PaymentMethod::OpenBanking);
+
+        if *is_open_banking {
+            payments::get_merchant_bank_data_for_open_banking_connectors(
+                merchant_connector_account,
+                merchant_context,
+                connector,
+                state,
+            )
+            .await
+        } else {
+            Ok(None)
+        }
+    }
+}

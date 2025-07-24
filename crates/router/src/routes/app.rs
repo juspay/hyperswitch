@@ -700,6 +700,10 @@ impl Payments {
                         .route(web::get().to(payments::payments_finish_redirection)),
                 )
                 .service(
+                    web::resource("/continue-redirection")
+                        .route(web::get().to(payments::payments_continue_redirection)),
+                )
+                .service(
                     web::resource("/capture").route(web::post().to(payments::payments_capture)),
                 ),
         );
