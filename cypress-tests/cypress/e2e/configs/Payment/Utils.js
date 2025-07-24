@@ -46,6 +46,7 @@ import { connectorDetails as payuConnectorDetails } from "./Payu.js";
 import { connectorDetails as powertranzConnectorDetails } from "./PowerTranz.js";
 import { connectorDetails as redsysConnectorDetails } from "./Redsys.js";
 import { connectorDetails as shift4ConnectorDetails } from "./Shift4.js";
+import { connectorDetails as silverflowConnectorDetails } from "./Silverflow.js";
 import { connectorDetails as squareConnectorDetails } from "./Square.js";
 import { connectorDetails as staxConnectorDetails } from "./Stax.js";
 import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
@@ -102,6 +103,7 @@ const connectorDetails = {
   powertranz: powertranzConnectorDetails,
   redsys: redsysConnectorDetails,
   shift4: shift4ConnectorDetails,
+  silverflow: silverflowConnectorDetails,
   square: squareConnectorDetails,
   stax: staxConnectorDetails,
   stripe: stripeConnectorDetails,
