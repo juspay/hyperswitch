@@ -5544,6 +5544,7 @@ pub enum PaymentMethodDataType {
     InstantBankTransferFinland,
     InstantBankTransferPoland,
     RevolutPay,
+    IndonesianBankTransfer,
 }
 
 impl From<PaymentMethodData> for PaymentMethodDataType {
@@ -5700,6 +5701,9 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 }
                 payment_method_data::BankTransferData::InstantBankTransferPoland {} => {
                     Self::InstantBankTransferPoland
+                }
+                payment_method_data::BankTransferData::IndonesianBankTransfer { .. } => {
+                    Self::IndonesianBankTransfer
                 }
             },
             PaymentMethodData::Crypto(_) => Self::Crypto,
