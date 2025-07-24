@@ -175,9 +175,7 @@ impl TryFrom<diesel_models::gsm::GatewayStatusMap> for GatewayStatusMap {
             }),
         };
 
-        let feature = item
-            .feature
-            .unwrap_or(common_enums::GsmFeature::Retry);
+        let feature = item.feature.unwrap_or(common_enums::GsmFeature::Retry);
         Ok(Self {
             connector: item.connector,
             flow: item.flow,
