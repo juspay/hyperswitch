@@ -425,7 +425,21 @@ payment_method_type = "CartesBancaires"
 [[airwallex.debit]]
 payment_method_type = "UnionPay"
 [[airwallex.wallet]]
-payment_method_type = "google_pay"
+  payment_method_type = "google_pay"
+[[airwallex.wallet]]
+  payment_method_type = "paypal"
+[[airwallex.wallet]]
+  payment_method_type = "skrill"
+[[airwallex.bank_redirect]]
+  payment_method_type = "trustly"
+[[airwallex.bank_redirect]]
+  payment_method_type = "blik"
+[[airwallex.bank_redirect]]
+  payment_method_type = "ideal"
+[[airwallex.pay_later]]
+  payment_method_type = "klarna"
+[[airwallex.pay_later]]
+  payment_method_type = "atome"
 [airwallex.connector_auth.BodyKey]
 api_key = "API Key"
 key1 = "Client ID"
