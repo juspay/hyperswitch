@@ -96,7 +96,7 @@ impl TryFrom<&BreadpayRouterData<&PaymentsAuthorizeRouterData>> for BreadpayCart
                             hyperswitch_domain_models::payment_method_data::PayLaterData::AlmaRedirect {  } |
                             hyperswitch_domain_models::payment_method_data::PayLaterData::AtomeRedirect {  } => {
                                 Err(errors::ConnectorError::NotImplemented(
-                                utils::get_unimplemented_payment_method_error_message("bluesnap"),
+                                utils::get_unimplemented_payment_method_error_message("breadpay"),
                             ))
                             }?,
             },
@@ -121,7 +121,7 @@ impl TryFrom<&BreadpayRouterData<&PaymentsAuthorizeRouterData>> for BreadpayCart
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::MobilePayment(_) => {
                 Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("bluesnap"),
+                    utils::get_unimplemented_payment_method_error_message("breadpay"),
                 ))
             }?
         };

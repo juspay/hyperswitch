@@ -102,6 +102,7 @@ mod stripebilling;
 mod taxjar;
 mod tokenio;
 mod trustpay;
+mod trustpayments;
 mod tsys;
 mod unified_authentication_service;
 mod utils;

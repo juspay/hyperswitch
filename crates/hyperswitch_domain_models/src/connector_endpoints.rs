@@ -117,6 +117,7 @@ pub struct Connectors {
     pub thunes: ConnectorParams,
     pub tokenio: ConnectorParams,
     pub trustpay: ConnectorParamsWithMoreUrls,
+    pub trustpayments: ConnectorParams,
     pub tsys: ConnectorParams,
     pub unified_authentication_service: ConnectorParams,
     pub vgs: ConnectorParams,
