@@ -708,6 +708,8 @@ pub enum BankTransferData {
         cnpj: Option<Secret<String>>,
         /// Source bank account UUID
         source_bank_account_id: Option<MaskedBankAccount>,
+        /// Destination bank account UUID.
+        destination_bank_account_id: Option<MaskedBankAccount>,
         /// The expiration date and time for the Pix QR code
         expiry_date: Option<time::PrimitiveDateTime>,
     },
@@ -1617,12 +1619,14 @@ impl From<api_models::payments::BankTransferData> for BankTransferData {
                 cpf,
                 cnpj,
                 source_bank_account_id,
+                destination_bank_account_id,
                 expiry_date,
             } => Self::Pix {
                 pix_key,
                 cpf,
                 cnpj,
                 source_bank_account_id,
+                destination_bank_account_id,
                 expiry_date,
             },
             api_models::payments::BankTransferData::Pse {} => Self::Pse {},
@@ -1661,6 +1665,7 @@ impl From<BankTransferData> for api_models::payments::additional_info::BankTrans
                 cpf,
                 cnpj,
                 source_bank_account_id,
+                destination_bank_account_id,
                 expiry_date,
             } => Self::Pix(Box::new(
                 api_models::payments::additional_info::PixBankTransferAdditionalData {
@@ -1668,6 +1673,7 @@ impl From<BankTransferData> for api_models::payments::additional_info::BankTrans
                     cpf: cpf.map(MaskedBankAccount::from),
                     cnpj: cnpj.map(MaskedBankAccount::from),
                     source_bank_account_id,
+                    destination_bank_account_id,
                     expiry_date,
                 },
             )),
