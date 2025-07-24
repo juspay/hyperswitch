@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.07.23.0-hotfix1
+
+### Bug Fixes
+
+- **router:** Add payment method Wallet check for decrypted wallet payment method token logic ([#8747](https://github.com/juspay/hyperswitch/pull/8747)) ([`52e193c`](https://github.com/juspay/hyperswitch/commit/52e193c817b43c7342afea0c8bb2e0ba89f7bf7c))
+
+**Full Changelog:** [`2025.07.23.0...2025.07.23.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.07.23.0...2025.07.23.0-hotfix1)
+
+- - -
+
 ## 2025.07.23.0
 
 ### Features
