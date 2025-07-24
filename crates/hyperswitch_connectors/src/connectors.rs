@@ -103,6 +103,7 @@ pub mod threedsecureio;
 pub mod thunes;
 pub mod tokenio;
 pub mod trustpay;
+pub mod trustpayments;
 pub mod tsys;
 pub mod unified_authentication_service;
 pub mod vgs;
@@ -135,16 +136,16 @@ pub use self::{
     gpayments::Gpayments, helcim::Helcim, hipay::Hipay, hyperswitch_vault::HyperswitchVault,
     iatapay::Iatapay, inespay::Inespay, itaubank::Itaubank, jpmorgan::Jpmorgan,
     juspaythreedsserver::Juspaythreedsserver, klarna::Klarna, mifinity::Mifinity, mollie::Mollie,
-    moneris::Moneris, mpgs::Mpgs, multisafepay::Multisafepay, netcetera::Netcetera,
-    nexinets::Nexinets, nexixpay::Nexixpay, nmi::Nmi, nomupay::Nomupay, noon::Noon, nordea::Nordea,
-    novalnet::Novalnet, nuvei::Nuvei, opayo::Opayo, opennode::Opennode, paybox::Paybox,
-    payeezy::Payeezy, payload::Payload, payme::Payme, payone::Payone, paypal::Paypal,
-    paystack::Paystack, payu::Payu, placetopay::Placetopay, plaid::Plaid, powertranz::Powertranz,
-    prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay, recurly::Recurly, redsys::Redsys,
-    riskified::Riskified, santander::Santander, shift4::Shift4, signifyd::Signifyd,
-    silverflow::Silverflow, square::Square, stax::Stax, stripe::Stripe,
-    stripebilling::Stripebilling, taxjar::Taxjar, threedsecureio::Threedsecureio, thunes::Thunes,
-    tokenio::Tokenio, trustpay::Trustpay, tsys::Tsys,
+    moneris::Moneris, mpgs::Mpgs, multisafepay::Multisafepay, netcetera::Netcetera, nexinets::Nexinets,
+    nexixpay::Nexixpay, nmi::Nmi, nomupay::Nomupay, noon::Noon, nordea::Nordea, novalnet::Novalnet,
+    nuvei::Nuvei, opayo::Opayo, opennode::Opennode, paybox::Paybox, payeezy::Payeezy,
+    payload::Payload, payme::Payme, payone::Payone, paypal::Paypal, paystack::Paystack, payu::Payu,
+    placetopay::Placetopay, plaid::Plaid, powertranz::Powertranz, prophetpay::Prophetpay,
+    rapyd::Rapyd, razorpay::Razorpay, recurly::Recurly, redsys::Redsys, riskified::Riskified,
+    santander::Santander, shift4::Shift4, signifyd::Signifyd, silverflow::Silverflow,
+    square::Square, stax::Stax, stripe::Stripe, stripebilling::Stripebilling, taxjar::Taxjar,
+    threedsecureio::Threedsecureio, thunes::Thunes, tokenio::Tokenio, trustpay::Trustpay,
+    trustpayments::Trustpayments, tsys::Tsys,
     unified_authentication_service::UnifiedAuthenticationService, vgs::Vgs, volt::Volt,
     wellsfargo::Wellsfargo, wellsfargopayout::Wellsfargopayout, wise::Wise, worldline::Worldline,
     worldpay::Worldpay, worldpayvantiv::Worldpayvantiv, worldpayxml::Worldpayxml, xendit::Xendit,
