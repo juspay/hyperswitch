@@ -192,14 +192,19 @@ crates/router/tests/connectors/
 ## Common Payment Flow Types
 As you build your connector, you'll encounter several types of payment flows. While not an exhaustive list, the following are some of the most common patterns you'll come across.
 
-### Pre-processing + Authorization Flow
-This refers to the two-step payment flow where preprocessing steps are executed before the main authorization call. If your connector does not use tokenization or does not require customer or access token flows, implement the pre-processing pattern described below. It's important to note that different connectors implement preprocessing differently. For example, Airwallex creates payment intents during preprocessing as one of the steps while Nuvei performs 3DS enrollment checks as a step. 
+### Pre-processing
+This refers to the two-step payment flow where preprocessing steps are executed before the main authorization call. If your connector does not use tokenization or does not require customer or access token flows, implement the pre-processing pattern described below. It's important to note that different connectors implement preprocessing differently. For example, Airwallex creates payment intents during preprocessing as one of the steps while Nuvei performs 3DS enrollment checks as a step. The preprocessing call does make a separate (second) call for the authorize flow. The preprocessing and authorization are implemented as distinct, sequential operations in Hyperswitch's payment processing pipeline.
 
-The preprocessing general logic includes: 
+The preprocessing steps are executed first:  
 - **Preprocessing Execution**: The system creates a preprocessing connector integration and executes it
 - **Data Transformation**: Converts the authorize request data to preprocessing request data
 - **Connector Processing**: Executes the preprocessing step through the connector
 - **Response Handling**: Processes the preprocessing response and updates the router data accordingly
+
+Then, the system proceeds to build the actual authorization request: 
+**First Call | Preprocessing**: The system creates a preprocessing connector integration and executes it
+**Response Processing**: The preprocessing response updates the router data
+**Second Call | Authorization**: After preprocessing completes, the system proceeds with the actual authorization flow
 
 **When to Use This Flow**
 Use this pattern if:
@@ -210,4 +215,20 @@ Use this pattern if:
 **Example Diagram**
 [include flow]
 
+### Authorization Flow
+This flow represents the core payment authorization logic that executes after all prerequisite steps are completed. For example, after the pre-processing steps, this flow will be executed. The authorize flow follows this sequence in the payment processing pipeline:
 
+- **Access Token Addition**: Adds access tokens if required by the connector
+- **Session Token Addition**: Handles session tokens for wallet payments
+- **Payment Method Tokenization**: Tokenizes payment methods if needed
+- **Preprocessing Steps**: Executes preprocessing logic
+- **Connector Customer Creation**: Creates customer records at the connector level
+
+**Decision Logic**
+The flow includes intelligent decision-making capabilities:
+
+- **Authentication Type Decision**: Automatically steps up Google Pay transactions to 3DS when risk indicators are present
+- **Proceed Decision**: Determines whether to proceed with authorization based on preprocessing responses (e.g., skips authorization if redirection is required)
+
+**Example Diagram**
+[include flow]
