@@ -185,8 +185,8 @@ crates/router/tests/connectors/
 └── <connector_name>.rs 
 
 **What Each File Contains**
-`<connector_name>.rs`: The main connector implementation file where you implement the connector traits
-`transformers.rs`: Contains data structures and conversion logic between Hyperswitch's internal format and your payment processor's API format
+- `<connector_name>.rs`: The main connector implementation file where you implement the connector traits
+- `transformers.rs`: Contains data structures and conversion logic between Hyperswitch's internal format and your payment processor's API format
 **Test file**: Contains boilerplate test cases for your connector connector-template/test.rs:1-36
 
 ## Common Payment Flow Types
@@ -202,9 +202,9 @@ The preprocessing steps are executed first:
 - **Response Handling**: Processes the preprocessing response and updates the router data accordingly
 
 Then, the system proceeds to build the actual authorization request: 
-**First Call | Preprocessing**: The system creates a preprocessing connector integration and executes it
-**Response Processing**: The preprocessing response updates the router data
-**Second Call | Authorization**: After preprocessing completes, the system proceeds with the actual authorization flow
+- **First Call | Preprocessing**: The system creates a preprocessing connector integration and executes it
+- **Response Processing**: The preprocessing response updates the router data
+- **Second Call | Authorization**: After preprocessing completes, the system proceeds with the actual authorization flow
 
 **When to Use This Flow**
 Use this pattern if:
