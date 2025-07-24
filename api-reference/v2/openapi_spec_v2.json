@@ -628,6 +628,45 @@
             "admin_api_key": []
           }
         ]
+      },
+      "delete": {
+        "tags": [
+          "Merchant Account"
+        ],
+        "summary": "Merchant Account - Delete",
+        "description": "Delete a *merchant* account",
+        "operationId": "Delete a Merchant Account",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the merchant account",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Merchant Account Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantAccountDeleteResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Merchant account not found"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
       }
     },
     "/v2/merchant-accounts/{id}/profiles": {
