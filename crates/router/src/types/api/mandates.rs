@@ -108,7 +108,7 @@ impl MandateResponseExt for MandateResponse {
                     ip_address: mandate.customer_ip_address,
                     // Using customer_user_agent as a fallback
                     user_agent: mandate
-                        .customer_device_user_agent
+                        .customer_user_agent_extended
                         .or(mandate.customer_user_agent)
                         .unwrap_or_default(),
                 }),

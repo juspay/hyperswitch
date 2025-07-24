@@ -3421,7 +3421,7 @@ pub fn generate_mandate(
                         .get_ip_address()
                         .map(masking::Secret::new),
                 )
-                .set_customer_device_user_agent(customer_acceptance.get_user_agent())
+                .set_customer_user_agent_extended(customer_acceptance.get_user_agent())
                 .set_customer_accepted_at(Some(customer_acceptance.get_accepted_at()))
                 .set_metadata(payment_method_data_option.map(|payment_method_data| {
                     pii::SecretSerdeValue::new(
