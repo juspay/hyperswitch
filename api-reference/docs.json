@@ -23,10 +23,10 @@
               {
                 "group": "Essentials",
                 "pages": [
+                  "essentials/authentication",
                   "essentials/error_codes",
                   "essentials/rate_limit",
-                  "essentials/go-live",
-                  "essentials/authentication"
+                  "essentials/go-live"
                 ]
               },
               {
