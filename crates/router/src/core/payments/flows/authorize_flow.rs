@@ -520,9 +520,6 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             call_unified_connector_service_repeat_payment(
                 self,
                 state,
-                #[cfg(feature = "v1")]
-                merchant_connector_account,
-                #[cfg(feature = "v2")]
                 merchant_connector_account,
                 merchant_context,
             )

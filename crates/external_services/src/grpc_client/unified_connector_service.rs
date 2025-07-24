@@ -89,11 +89,11 @@ pub enum UnifiedConnectorServiceError {
     #[error("Failed to perform Payment Get from gRPC Server")]
     PaymentGetFailure,
 
-    /// Failed to perform Payment Get from gRPC Server
+    /// Failed to perform Payment Setup Mandate from gRPC Server
     #[error("Failed to perform Setup Mandate from gRPC Server")]
     PaymentRegisterFailure,
 
-    /// Failed to perform Payment Get from gRPC Server
+    /// Failed to perform Payment Repeat Payment from gRPC Server
     #[error("Failed to perform Repeat Payment from gRPC Server")]
     PaymentRepeatEverythingFailure,
 }
