@@ -238,10 +238,12 @@ barclaycard.base_url = "https://api.smartpayfuse-test.barclaycard/"
 billwerk.base_url = "https://api.reepay.com/"
 billwerk.secondary_base_url = "https://card.reepay.com/"
 bitpay.base_url = "https://test.bitpay.com"
+blackhawknetwork.base_url = "https://api-sandbox.blackhawknetwork.com/"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
 bluesnap.secondary_base_url = "https://sandpay.bluesnap.com/"
 boku.base_url = "https://$-api4-stage.boku.com"
 braintree.base_url = "https://payments.sandbox.braintree-api.com/graphql"
+breadpay.base_url = "https://api-sandbox.getbread.com"
 cashtocode.base_url = "https://cluster05.api-test.cashtocode.com"
 celero.base_url = "https://sandbox.gotnpgateway.com"
 chargebee.base_url = "https://$.chargebee.com/api/"
@@ -342,7 +344,7 @@ worldpayxml.base_url = "https://secure-test.worldpay.com/jsp/merchant/xml/paymen
 xendit.base_url = "https://api.xendit.co"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 tsys.base_url = "https://stagegw.transnox.com/"
-unified_authentication_service.base_url = "http://localhost:8080/"
+unified_authentication_service.base_url = "http://localhost:8000/"
 vgs.base_url = "https://sandbox.vault-api.verygoodvault.com"
 volt.base_url = "https://api.sandbox.volt.io/"
 wellsfargo.base_url = "https://apitest.cybersource.com/"
@@ -1203,7 +1205,7 @@ enabled = true
 allow_connected_merchants = true
 
 [authentication_providers]
-click_to_pay = {connector_list = "adyen, cybersource"}
+click_to_pay = {connector_list = "adyen, cybersource, trustpay"}
 
 [open_router]
 dynamic_routing_enabled = false
