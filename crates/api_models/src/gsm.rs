@@ -33,7 +33,7 @@ pub struct GsmCreateRequest {
     pub clear_pan_possible: Option<bool>,
     /// indicates if retry with alternate network possible
     pub alternate_network_possible: Option<bool>,
-    /// Indicates the GSM feature associated with the request, 
+    /// Indicates the GSM feature associated with the request,
     /// such as retry mechanisms or other specific functionalities provided by the system.
     pub feature: Option<common_enums::GsmFeature>,
 }
@@ -82,7 +82,7 @@ pub struct GsmUpdateRequest {
     pub clear_pan_possible: Option<bool>,
     /// indicates if retry with alternate network possible
     pub alternate_network_possible: Option<bool>,
-    /// Indicates the GSM feature associated with the request, 
+    /// Indicates the GSM feature associated with the request,
     /// such as retry mechanisms or other specific functionalities provided by the system.
     pub feature: Option<common_enums::GsmFeature>,
 }
@@ -144,7 +144,7 @@ pub struct GsmResponse {
     pub clear_pan_possible: bool,
     /// indicates if retry with alternate network possible
     pub alternate_network_possible: bool,
-    /// Indicates the GSM feature associated with the request, 
+    /// Indicates the GSM feature associated with the request,
     /// such as retry mechanisms or other specific functionalities provided by the system.
     pub feature: common_enums::GsmFeature,
 }
