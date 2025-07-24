@@ -3545,7 +3545,10 @@ where
     F: Send + Clone + Sync,
     D: OperationSessionGetters<F> + Send + Sync + Clone,
 {
-    if is_operation_confirm(operation) {
+    if is_operation_confirm(operation)
+        && payment_data.get_payment_attempt().payment_method
+            == Some(storage_enums::PaymentMethod::Wallet)
+    {
         let wallet_type = payment_data
             .get_payment_attempt()
             .payment_method_type
