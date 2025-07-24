@@ -94,10 +94,10 @@ impl TryFrom<&ForteRouterData<&types::PaymentsAuthorizeRouterData>> for FortePay
         item_data: &ForteRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let item = item_data.router_data;
-        if item.request.currency != enums::Currency::USD {
+        if item.is_three_ds() {
             Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Forte"),
-            ))?
+                utils::get_unimplemented_payment_method_error_message("forte"),
+            ))?;
         }
         match item.request.payment_method_data {
             PaymentMethodData::Card(ref ccard) => {

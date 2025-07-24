@@ -49,6 +49,11 @@ pub struct BamboraapacMeta {
 pub fn get_payment_body(
     req: &BamboraapacRouterData<&types::PaymentsAuthorizeRouterData>,
 ) -> Result<Vec<u8>, Error> {
+    if req.router_data.is_three_ds() {
+        Err(errors::ConnectorError::NotImplemented(
+            utils::get_unimplemented_payment_method_error_message("bamboraapac"),
+        ))?;
+    }
     let transaction_data = get_transaction_body(req)?;
     let body = format!(
         r#"

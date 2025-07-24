@@ -61,10 +61,10 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
     fn try_from(
         item: &StaxRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        if item.router_data.request.currency != enums::Currency::USD {
+        if item.router_data.is_three_ds() {
             Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Stax"),
-            ))?
+                utils::get_unimplemented_payment_method_error_message("stax"),
+            ))?;
         }
         let total = item.amount;
 

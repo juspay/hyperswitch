@@ -132,6 +132,12 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
     fn try_from(
         item: &FiservRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
+        if item.router_data.is_three_ds() {
+            Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("fiserv"),
+            ))?;
+        }
+
         let auth: FiservAuthType = FiservAuthType::try_from(&item.router_data.connector_auth_type)?;
         let amount = Amount {
             total: item.amount,
