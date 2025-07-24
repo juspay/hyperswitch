@@ -255,6 +255,10 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
 
         self.status = status;
         self.response = router_data_response;
+        // UCS does not return raw connector response for setup mandate right now
+        // self.raw_connector_response = payment_register_response
+        //     .raw_connector_response
+        //     .map(Secret::new);
 
         Ok(())
     }

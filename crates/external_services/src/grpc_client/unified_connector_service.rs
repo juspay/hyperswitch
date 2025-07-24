@@ -168,7 +168,10 @@ impl UnifiedConnectorServiceClient {
                 .await;
 
                 match connect_result {
-                    Ok(Ok(client)) => Some(Self { client }),
+                    Ok(Ok(client)) => {
+                        logger::info!("Successfully connected to Unified Connector Service");
+                        Some(Self { client })
+                    }
                     Ok(Err(err)) => {
                         logger::error!(error = ?err, "Failed to connect to Unified Connector Service");
                         None

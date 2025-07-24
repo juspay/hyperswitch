@@ -328,7 +328,6 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
                 })
                 .unwrap_or_default(),
             webhook_url: router_data.request.webhook_url.clone(),
-            all_keys_required: None,
         })
     }
 }
