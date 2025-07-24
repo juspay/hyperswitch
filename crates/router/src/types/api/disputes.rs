@@ -11,6 +11,12 @@ pub struct DisputeId {
     pub dispute_id: String,
 }
 
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct DisputeFetchQueryData {
+    pub fetch_for: String
+}
+
 pub use hyperswitch_domain_models::router_flow_types::dispute::{Accept, Defend, Evidence, Fetch};
 
 pub use super::disputes_v2::{

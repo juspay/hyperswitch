@@ -1941,6 +1941,9 @@ impl Disputes {
             .service(
                 web::resource("/{dispute_id}").route(web::get().to(disputes::retrieve_dispute)),
             )
+            .service(
+                web::resource("/{connector_id}").route(web::get().to(disputes::fetch_disputes)),
+            )
     }
 }
 

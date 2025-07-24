@@ -64,6 +64,48 @@ pub async fn retrieve_dispute(
     ))
     .await
 }
+
+pub async fn fetch_disputes(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+    json_payload: web::Query<dispute_types::DisputeFetchQueryData>,
+) -> HttpResponse {
+    let flow = Flow::DisputesList;
+    let connector_id = common_utils::id_type::MerchantConnectorAccountId::wrap(path.into_inner()).unwrap();
+    let format = time::format_description::parse("[year]-[month]-[day]T[hour]:[minute]:[second]").unwrap();
+    let fetch_for = time::PrimitiveDateTime::parse(&json_payload.fetch_for, &format).unwrap();
+    let fetch_dispute_request =  crate::types::FetchDisputesRequestData { 
+        created_from: fetch_for,
+        created_to: None,
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth: auth::AuthenticationData, req, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            disputes::fetch_disputes_from_connector(state, merchant_context, connector_id.clone(), auth.profile_id, fetch_dispute_request.clone())
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
+            &auth::JWTAuth {
+                permission: Permission::ProfileDisputeRead,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 /// Disputes - List Disputes
 #[utoipa::path(
     get,

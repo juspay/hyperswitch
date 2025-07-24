@@ -606,7 +606,7 @@ pub async fn get_aggregates_for_disputes(
 #[instrument(skip(state))]
 pub async fn fetch_disputes_from_connector(
     state: SessionState,
-    merchant_context: &domain::MerchantContext,
+    merchant_context: domain::MerchantContext,
     merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
     profile_id: Option<common_utils::id_type::ProfileId>,
     req: FetchDisputesRequestData,
@@ -669,6 +669,5 @@ pub async fn fetch_disputes_from_connector(
                 status_code: err.status_code,
                 reason: err.reason,
             })?;
-
     Ok(services::ApplicationResponse::Json(fetch_dispute_response))
 }

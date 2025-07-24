@@ -18,14 +18,15 @@ use hyperswitch_domain_models::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
+        Fetch,
     },
     router_request_types::{
+        FetchDisputesRequestData,
         AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{
-        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+    router_response_types::{FetchDisputesResponse, ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
         SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
@@ -35,7 +36,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::{
     api::{
-        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
+        self, disputes::{FetchDisputes}, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
         ConnectorValidation,
     },
     configs::Connectors,
@@ -48,7 +49,7 @@ use hyperswitch_interfaces::{
 use masking::{Mask, PeekInterface};
 use transformers as worldpayvantiv;
 
-use crate::{constants::headers, types::ResponseRouterData, utils as connector_utils};
+use crate::{constants::headers, types::{ResponseRouterData,FetchDisputeRouterData}, utils as connector_utils};
 
 #[derive(Clone)]
 pub struct Worldpayvantiv {
@@ -626,6 +627,76 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Worldpa
             data: data.clone(),
             http_code: res.status_code,
         })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+impl FetchDisputes for Worldpayvantiv {}
+impl ConnectorIntegration<Fetch, FetchDisputesRequestData, FetchDisputesResponse> for Worldpayvantiv {
+    fn get_headers(
+        &self,
+        req: &FetchDisputeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.get_auth_header(&req.connector_auth_type)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &FetchDisputeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let date = req.request.created_from.date();
+        let day = date.day();
+        let month = date.month() as u8;
+        let year = date.year();
+
+        Ok(format!(
+            "{}/services/chargebacks/?date={year}-{month}-{day}",
+            connectors.worldpayvantiv.third_base_url.to_owned()
+        ))
+    }
+
+    fn build_request(
+        &self,
+        req: &FetchDisputeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Get)
+            .url(&types::FetchDisputesType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(types::FetchDisputesType::get_headers(
+                self, req, connectors,
+            )?)
+            .build();
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &FetchDisputeRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<FetchDisputeRouterData, errors::ConnectorError> {
+        println!("[Worldpayvantiv] Fetch Disputes Response: {:?}", res.response);
+        Ok(
+            FetchDisputeRouterData {
+                response: Ok(Vec::new()),
+                ..data.clone()
+            }
+        )
     }
 
     fn get_error_response(

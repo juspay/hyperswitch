@@ -22,7 +22,7 @@ pub struct FileInfo {
     pub file_type: Option<String>,
 }
 
-#[derive(Default, Clone, Debug)]
+#[derive(serde::Serialize, Clone, Debug)]
 pub struct DisputeFetchPayload {
     pub amount: common_utils::types::MinorUnit,
     pub currency: common_enums::enums::Currency,

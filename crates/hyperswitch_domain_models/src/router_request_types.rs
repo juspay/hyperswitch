@@ -873,10 +873,10 @@ pub struct SubmitEvidenceRequestData {
     pub uncategorized_text: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Serialize, Clone)]
 pub struct FetchDisputesRequestData {
     pub created_from: time::PrimitiveDateTime,
-    pub created_to: time::PrimitiveDateTime,
+    pub created_to: Option<time::PrimitiveDateTime>,
 }
 
 #[derive(Clone, Debug)]
