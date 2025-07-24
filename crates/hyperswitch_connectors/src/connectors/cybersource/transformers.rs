@@ -4,7 +4,7 @@ use api_models::payouts::PayoutMethodData;
 use base64::Engine;
 use common_enums::{enums, FutureUsage};
 use common_utils::{
-    consts,
+    consts, date_time,
     ext_traits::{OptionExt, ValueExt},
     pii,
     types::{SemanticVersion, StringMajorUnit},
@@ -391,6 +391,8 @@ pub struct CybersourceConsumerAuthInformation {
     /// This field is supported only on Asia, Middle East, and Africa Gateway
     /// This field is only applicable for Mastercard and Visa Transactions
     pares_status: Option<CybersourceParesStatus>,
+    //This field is used to send the authentication date in yyyyMMDDHHMMSS format
+    authentication_date: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -1323,6 +1325,11 @@ impl
                     } else {
                         (None, Some(authn_data.cavv.clone()), None)
                     };
+                let authentication_date = date_time::format_date(
+                    authn_data.created_at,
+                    date_time::DateFormat::YYYYMMDDHHmmss,
+                )
+                .ok();
                 CybersourceConsumerAuthInformation {
                     pares_status,
                     ucaf_collection_indicator,
@@ -1337,6 +1344,7 @@ impl
                     pa_specification_version: authn_data.message_version.clone(),
                     veres_enrolled: Some("Y".to_string()),
                     eci_raw: authn_data.eci.clone(),
+                    authentication_date,
                 }
             });
 
@@ -1416,6 +1424,11 @@ impl
                     } else {
                         (None, Some(authn_data.cavv.clone()), None)
                     };
+                let authentication_date = date_time::format_date(
+                    authn_data.created_at,
+                    date_time::DateFormat::YYYYMMDDHHmmss,
+                )
+                .ok();
                 CybersourceConsumerAuthInformation {
                     pares_status,
                     ucaf_collection_indicator,
@@ -1430,6 +1443,7 @@ impl
                     pa_specification_version: authn_data.message_version.clone(),
                     veres_enrolled: Some("Y".to_string()),
                     eci_raw: authn_data.eci.clone(),
+                    authentication_date,
                 }
             });
 
@@ -1512,6 +1526,11 @@ impl
                     } else {
                         (None, Some(authn_data.cavv.clone()), None)
                     };
+                let authentication_date = date_time::format_date(
+                    authn_data.created_at,
+                    date_time::DateFormat::YYYYMMDDHHmmss,
+                )
+                .ok();
                 CybersourceConsumerAuthInformation {
                     pares_status,
                     ucaf_collection_indicator,
@@ -1526,6 +1545,7 @@ impl
                     pa_specification_version: authn_data.message_version.clone(),
                     veres_enrolled: Some("Y".to_string()),
                     eci_raw: authn_data.eci.clone(),
+                    authentication_date,
                 }
             });
 
@@ -1709,6 +1729,7 @@ impl
             pa_specification_version: None,
             veres_enrolled: None,
             eci_raw: None,
+            authentication_date: None,
         });
 
         let merchant_defined_information = item
@@ -1805,6 +1826,7 @@ impl
                 pa_specification_version: None,
                 veres_enrolled: None,
                 eci_raw: None,
+                authentication_date: None,
             }),
             merchant_defined_information,
         })
@@ -1948,6 +1970,7 @@ impl
                 pa_specification_version: None,
                 veres_enrolled: None,
                 eci_raw: None,
+                authentication_date: None,
             }),
             merchant_defined_information,
         })
@@ -2148,6 +2171,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
                                                 pa_specification_version: None,
                                                 veres_enrolled: None,
                                                 eci_raw: None,
+                                                authentication_date: None,
                                             },
                                         ),
                                     })
