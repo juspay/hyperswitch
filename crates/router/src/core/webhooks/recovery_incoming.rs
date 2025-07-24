@@ -1277,7 +1277,7 @@ impl RecoveryPaymentTuple {
         let revenue_recovery_feature_metadata = recovery_payment_intent
             .feature_metadata
             .as_ref()
-            .and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref());
+            .and_then(|metadata| metadata.revenue_recovery.as_ref());
 
         let billing_city = recovery_payment_intent
             .billing_address
@@ -1298,14 +1298,9 @@ impl RecoveryPaymentTuple {
             .and_then(|billing_address| billing_address.address.as_ref())
             .and_then(|address| address.country);
 
-        let card_info = recovery_payment_intent
-            .feature_metadata
-            .as_ref()
+        let card_info = revenue_recovery_feature_metadata
             .and_then(|metadata| {
-                metadata
-                    .payment_revenue_recovery_metadata
-                    .as_ref()
-                    .and_then(|data| data.billing_connector_payment_method_details.as_ref())
+                    metadata.billing_connector_payment_method_details.as_ref()
                     .and_then(|details| details.get_billing_connector_card_info())
             });
 
