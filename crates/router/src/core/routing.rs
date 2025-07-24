@@ -1608,7 +1608,6 @@ pub async fn toggle_specific_dynamic_routing(
     dynamic_routing_type: routing::DynamicRoutingType,
     //option payload
     payload: Option<routing_types::DynamicRoutingPayload>,
-
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(
         1,

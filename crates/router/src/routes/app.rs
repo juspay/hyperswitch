@@ -2126,17 +2126,17 @@ impl Profile {
 
         #[cfg(feature = "dynamic_routing")]
         {
-
             route = route.service(
                 web::scope("/{profile_id}/dynamic_routing")
                     .service(
                         web::scope("/success_based")
-                            .service(
-                                web::resource("/toggle")
-                                    .route(web::post().to(|state, req, path, payload, query| {
-                                        routing::toggle_success_based_routing(state, req,   query, path, payload)
-                                    })),
-                            )
+                            .service(web::resource("/toggle").route(web::post().to(
+                                |state, req, path, payload, query| {
+                                    routing::toggle_success_based_routing(
+                                        state, req, query, path, payload,
+                                    )
+                                },
+                            )))
                             .service(web::resource("/config/{algorithm_id}").route(
                                 web::patch().to(|state, req, path, payload| {
                                     routing::success_based_routing_update_configs(

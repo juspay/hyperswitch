@@ -903,12 +903,11 @@ pub struct ToggleDynamicRoutingWrapper {
     pub payload: Option<DynamicRoutingPayload>,
 }
 //
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]  
-#[serde(tag = "type", content = "data", rename_all = "snake_case")]  
-pub enum DynamicRoutingPayload {  
-    SuccessBased(SuccessBasedRoutingConfig),  
-    Elimination(EliminationRoutingConfig),  
-      
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(tag = "type", content = "data", rename_all = "snake_case")]
+pub enum DynamicRoutingPayload {
+    SuccessBased(SuccessBasedRoutingConfig),
+    Elimination(EliminationRoutingConfig),
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

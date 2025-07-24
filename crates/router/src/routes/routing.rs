@@ -1200,7 +1200,6 @@ pub async fn toggle_success_based_routing(
     path: web::Path<routing_types::ToggleDynamicRoutingPath>,
     // We need optional pay load here
     json_payload: Option<web::Json<routing_types::SuccessBasedRoutingConfig>>,
-
 ) -> impl Responder {
     let flow = Flow::ToggleDynamicRouting;
     let wrapper = routing_types::ToggleDynamicRoutingWrapper {
@@ -1208,8 +1207,7 @@ pub async fn toggle_success_based_routing(
         profile_id: path.into_inner().profile_id,
         // payload
         //payload: json_payload.map(|p| p.into_inner()),
-        payload: json_payload.map(|p| DynamicRoutingPayload::SuccessBased(p.into_inner())),  
-
+        payload: json_payload.map(|p| DynamicRoutingPayload::SuccessBased(p.into_inner())),
     };
     Box::pin(oss_api::server_wrap(
         flow,
@@ -1274,7 +1272,6 @@ pub async fn success_based_routing_update_configs(
                 wrapper.updated_config,
                 wrapper.algorithm_id,
                 wrapper.profile_id,
-                
             ))
             .await
         },
@@ -1450,8 +1447,6 @@ pub async fn toggle_elimination_routing(
     path: web::Path<routing_types::ToggleDynamicRoutingPath>,
     // We need optional pay load here
     json_payload: Option<web::Json<routing_types::EliminationRoutingConfig>>,
-
-
 ) -> impl Responder {
     let flow = Flow::ToggleDynamicRouting;
     let wrapper = routing_types::ToggleDynamicRoutingWrapper {
@@ -1459,7 +1454,6 @@ pub async fn toggle_elimination_routing(
         profile_id: path.into_inner().profile_id,
         // payload
         payload: json_payload.map(|p| DynamicRoutingPayload::Elimination(p.into_inner())),
-
     };
     Box::pin(oss_api::server_wrap(
         flow,
