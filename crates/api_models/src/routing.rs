@@ -1449,6 +1449,25 @@ pub enum RoutingResultSource {
 pub struct RoutingEvaluateRequest {
     pub created_by: String,
     #[schema(value_type = Object)]
+    ///Parameters that can be used in the routing evaluate request.
+    ///eg: {"parameters": {
+    ///    "payment_method": {"type": "enum_variant", "value": "card"},
+    ///    "payment_method_type": {"type": "enum_variant", "value": "credit"},
+    ///    "amount": {"type": "number", "value": 10},
+    ///    "currency": {"type": "str_value", "value": "INR"},
+    ///    "authentication_type": {"type": "enum_variant", "value": "three_ds"},
+    /// "card_bin": {"type": "str_value", "value": "424242"},
+    ///    "capture_method": {"type": "enum_variant", "value": "scheduled"},
+    ///    "business_country": {"type": "str_value", "value": "IN"},
+    ///    "billing_country": {"type": "str_value", "value": "IN"},
+    ///    "business_label": {"type": "str_value", "value": "business_label"},
+    ///    "setup_future_usage": {"type": "enum_variant", "value": "off_session"},
+    ///    "card_network": {"type": "enum_variant", "value": "visa"},
+    ///    "payment_type": {"type": "enum_variant", "value": "recurring_mandate"},
+    ///    "mandate_type": {"type": "enum_variant", "value": "single_use"},
+    ///    "mandate_acceptance_type": {"type": "enum_variant", "value": "online"},
+    ///    "metadata":{"type": "metadata_variant", "value": {"key": "key1", "value": "value1"}}
+    ///  }}
     pub parameters: std::collections::HashMap<String, Option<ValueType>>,
     pub fallback_output: Vec<DeRoutableConnectorChoice>,
 }
