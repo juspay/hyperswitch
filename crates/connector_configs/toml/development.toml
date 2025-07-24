@@ -6330,9 +6330,20 @@ type="Text"
 api_key="API Key"
 
 [silverflow]
-[silverflow.connector_auth.BodyKey]
+[[silverflow.credit]]
+  payment_method_type = "Mastercard"
+[[silverflow.credit]]
+  payment_method_type = "Visa"
+[[silverflow.debit]]
+  payment_method_type = "Mastercard"
+[[silverflow.debit]]
+  payment_method_type = "Visa"
+[silverflow.connector_auth.SignatureKey]
 api_key="API Key"
-key1="Secret Key"
+api_secret="API Secret"
+key1="Merchant Acceptor Key"
+[silverflow.connector_webhook_details]
+merchant_secret="Source verification key"
 
 [affirm]
 [affirm.connector_auth.HeaderKey]
@@ -6349,3 +6360,4 @@ api_key = "API Key"
 [flexiti]
 [flexiti.connector_auth.HeaderKey]
 api_key = "API Key"
+
