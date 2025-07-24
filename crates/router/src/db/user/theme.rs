@@ -369,8 +369,7 @@ impl ThemeInterface for MockDb {
             .iter()
             .position(|theme| theme.theme_id == theme_id)
             .ok_or(errors::StorageError::ValueNotFound(format!(
-                "Theme with id {} not found",
-                theme_id
+                "Theme with id {theme_id} not found"
             )))?;
 
         let theme = themes.remove(index);
