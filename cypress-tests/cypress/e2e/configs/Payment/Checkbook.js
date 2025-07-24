@@ -8,7 +8,7 @@ export const connectorDetails = {
         capture_method: "automatic",
         payment_method: "bank_transfer",
         payment_method_type: "ach",
-        description: "hellow world",
+        description: "hello world",
         billing: {
           address: {
             zip: "560095",
