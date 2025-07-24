@@ -258,9 +258,10 @@ impl TryFrom<&HelcimRouterData<&PaymentsAuthorizeRouterData>> for HelcimPayments
         item: &HelcimRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         if item.router_data.is_three_ds() {
-            Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("helcim"),
-            ))?;
+            Err(errors::ConnectorError::NotSupported {
+                message: "Cards 3DS".to_string(),
+                connector: "Helcim",
+            })?
         }
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => Self::try_from((item, &req_card)),

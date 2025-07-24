@@ -95,9 +95,10 @@ impl TryFrom<&ForteRouterData<&types::PaymentsAuthorizeRouterData>> for FortePay
     ) -> Result<Self, Self::Error> {
         let item = item_data.router_data;
         if item.is_three_ds() {
-            Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("forte"),
-            ))?;
+            Err(errors::ConnectorError::NotSupported {
+                message: "Cards 3DS".to_string(),
+                connector: "Forte",
+            })?
         }
         match item.request.payment_method_data {
             PaymentMethodData::Card(ref ccard) => {

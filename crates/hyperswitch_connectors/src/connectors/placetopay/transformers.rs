@@ -105,9 +105,10 @@ impl TryFrom<&PlacetopayRouterData<&types::PaymentsAuthorizeRouterData>>
         item: &PlacetopayRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         if item.router_data.is_three_ds() {
-            Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("placetopay"),
-            ))?;
+            Err(errors::ConnectorError::NotSupported {
+                message: "Cards 3DS".to_string(),
+                connector: "Placetopay",
+            })?
         }
         let browser_info = item.router_data.request.get_browser_info()?;
         let ip_address = browser_info.get_ip_address()?;
