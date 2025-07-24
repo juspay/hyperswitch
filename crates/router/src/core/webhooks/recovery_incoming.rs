@@ -1298,11 +1298,12 @@ impl RecoveryPaymentTuple {
             .and_then(|billing_address| billing_address.address.as_ref())
             .and_then(|address| address.country);
 
-        let card_info = revenue_recovery_feature_metadata
-            .and_then(|metadata| {
-                    metadata.billing_connector_payment_method_details.as_ref()
-                    .and_then(|details| details.get_billing_connector_card_info())
-            });
+        let card_info = revenue_recovery_feature_metadata.and_then(|metadata| {
+            metadata
+                .billing_connector_payment_method_details
+                .as_ref()
+                .and_then(|details| details.get_billing_connector_card_info())
+        });
 
         #[allow(clippy::as_conversions)]
         let retry_count = Some(retry_count.unwrap_or_else(|| {
