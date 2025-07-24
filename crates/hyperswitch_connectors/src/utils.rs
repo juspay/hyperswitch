@@ -6202,6 +6202,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         merchant_config_currency: None,
         connector_testing_data: data.request.connector_testing_data.clone(),
         order_id: None,
+        locale: None,
     }
 }
 

@@ -183,6 +183,7 @@ impl AdyenTest {
             metadata: None,
             authentication_data: None,
             customer_acceptance: None,
+            locale: None,
             ..utils::PaymentAuthorizeType::default().0
         })
     }
