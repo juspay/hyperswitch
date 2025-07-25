@@ -130,7 +130,7 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 Ok(())
             }
             // api_enums::Connector::Bluecode => {
-            //     bluesnap::transformers::BluecodeAuthType::try_from(self.auth_type)?;
+            //     bluecode::transformers::BluecodeAuthType::try_from(self.auth_type)?;
             //     Ok(())
             // }
             api_enums::Connector::Braintree => {
