@@ -1541,7 +1541,7 @@ pub async fn insert_cvc_using_payment_token(
     payment_token: &String,
     payment_method_data: api_models::payment_methods::PaymentMethodCreateData,
     payment_method: common_enums::PaymentMethod,
-    fullfillment_time: i64,
+    fulfillment_time: i64,
     encryption_key: &masking::Secret<Vec<u8>>,
 ) -> RouterResult<()> {
     let card_cvc = domain::PaymentMethodVaultingData::from(payment_method_data)
@@ -1573,7 +1573,7 @@ pub async fn insert_cvc_using_payment_token(
             .set_key_if_not_exists_with_expiry(
                 &key.as_str().into(),
                 bytes::Bytes::from(encrypted_payload),
-                Some(fullfillment_time),
+                Some(fulfillment_time),
             )
             .await
             .change_context(errors::StorageError::KVError)

@@ -130,6 +130,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
                 score: None,
                 reason: None,
             }),
+            authentication_token: None,
             access_token: None,
             session_token: None,
             reference_id: None,

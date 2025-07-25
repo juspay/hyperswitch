@@ -1210,7 +1210,9 @@ pub enum ConnectorAuthType {
         auth_key_map: HashMap<common_enums::Currency, pii::SecretSerdeValue>,
     },
     CertificateAuth {
+        // certificate should be base64 encoded
         certificate: Secret<String>,
+        // private_key should be base64 encoded
         private_key: Secret<String>,
     },
     #[default]

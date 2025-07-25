@@ -40,14 +40,14 @@ use hyperswitch_domain_models::{
     connector_endpoints::Connectors,
     errors::api_error_response::ApiErrorResponse,
     payment_method_data::PaymentMethodData,
-    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_data::{AccessToken, AuthenticationToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_data_v2::{
-        flow_common_types::WebhookSourceVerifyData, AccessTokenFlowData, MandateRevokeFlowData,
-        UasFlowData,
+        flow_common_types::{AuthenticationTokenFlowData, WebhookSourceVerifyData},
+        AccessTokenFlowData, MandateRevokeFlowData, UasFlowData,
     },
     router_flow_types::{
         mandate_revoke::MandateRevoke, AccessTokenAuth, Authenticate, AuthenticationConfirmation,
-        PostAuthenticate, PreAuthenticate, VerifyWebhookSource,
+        AuthenticationTokenCreation, PostAuthenticate, PreAuthenticate, VerifyWebhookSource,
     },
     router_request_types::{
         unified_authentication_service::{
@@ -55,7 +55,8 @@ use hyperswitch_domain_models::{
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
         },
-        AccessTokenRequestData, MandateRevokeRequestData, VerifyWebhookSourceRequestData,
+        AccessTokenRequestData, AuthenticationTokenCreationRequestData, MandateRevokeRequestData,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails, SupportedPaymentMethods,
@@ -87,6 +88,7 @@ pub trait Connector:
     + ConnectorRedirectResponse
     + webhooks::IncomingWebhook
     + ConnectorAccessToken
+    + ConnectorAuthenticationToken
     + disputes::Dispute
     + files::FileUpload
     + ConnectorTransactionId
@@ -109,6 +111,7 @@ impl<
             + Send
             + webhooks::IncomingWebhook
             + ConnectorAccessToken
+            + ConnectorAuthenticationToken
             + disputes::Dispute
             + files::FileUpload
             + ConnectorTransactionId
@@ -383,6 +386,12 @@ pub trait ConnectorSpecifications {
         None
     }
 
+    /// Check if connector should make another request to create an access token
+    /// Connectors should override this method if they require an authentication token to create a new access token
+    fn authentication_token_for_token_creation(&self) -> bool {
+        false
+    }
+
     #[cfg(not(feature = "v2"))]
     /// Generate connector request reference ID
     fn generate_connector_request_reference_id(
@@ -441,6 +450,27 @@ pub trait ConnectorMandateRevokeV2:
     MandateRevokeFlowData,
     MandateRevokeRequestData,
     MandateRevokeResponseData,
+>
+{
+}
+
+/// trait ConnectorAuthenticationToken
+pub trait ConnectorAuthenticationToken:
+    ConnectorIntegration<
+    AuthenticationTokenCreation,
+    AuthenticationTokenCreationRequestData,
+    AuthenticationToken,
+>
+{
+}
+
+/// trait ConnectorAuthenticationTokenV2
+pub trait ConnectorAuthenticationTokenV2:
+    ConnectorIntegrationV2<
+    AuthenticationTokenCreation,
+    AuthenticationTokenFlowData,
+    AuthenticationTokenCreationRequestData,
+    AuthenticationToken,
 >
 {
 }

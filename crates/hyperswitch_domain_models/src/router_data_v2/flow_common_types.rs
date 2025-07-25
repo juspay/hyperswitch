@@ -133,6 +133,9 @@ pub struct WebhookSourceVerifyData {
 }
 
 #[derive(Debug, Clone)]
+pub struct AuthenticationTokenFlowData {}
+
+#[derive(Debug, Clone)]
 pub struct AccessTokenFlowData {}
 
 #[derive(Debug, Clone)]
