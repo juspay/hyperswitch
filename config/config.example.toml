@@ -996,6 +996,7 @@ payout_analytics_topic = "topic"         # Kafka topic to be used for Payouts an
 consolidated_events_topic = "topic"      # Kafka topic to be used for Consolidated events
 authentication_analytics_topic = "topic" # Kafka topic to be used for Authentication events
 routing_logs_topic = "topic"             # Kafka topic to be used for Routing events
+revenue_recovery_topic = "topic"         # Kafka topic to be used for revenue recovery events
 
 # File storage configuration
 [file_storage]
