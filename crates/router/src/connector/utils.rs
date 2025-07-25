@@ -2437,6 +2437,7 @@ pub enum PaymentMethodDataType {
     DanaRedirect,
     DuitNow,
     GooglePay,
+    Bluecode,
     GooglePayRedirect,
     GooglePayThirdPartySdk,
     MbWayRedirect,
@@ -2564,6 +2565,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                 }
                 domain::payments::WalletData::DanaRedirect {} => Self::DanaRedirect,
                 domain::payments::WalletData::GooglePay(_) => Self::GooglePay,
+                domain::payments::WalletData::Bluecode(_) => Self::Bluecode,
                 domain::payments::WalletData::GooglePayRedirect(_) => Self::GooglePayRedirect,
                 domain::payments::WalletData::GooglePayThirdPartySdk(_) => {
                     Self::GooglePayThirdPartySdk

@@ -242,6 +242,7 @@ pub enum WalletData {
     AliPayRedirect(AliPayRedirection),
     AliPayHkRedirect(AliPayHkRedirection),
     AmazonPayRedirect(Box<AmazonPayRedirect>),
+    Bluecode(Box<BluecodeQrRedirect>),
     Paysera(Box<PayseraData>),
     Skrill(Box<SkrillData>),
     MomoRedirect(MomoRedirection),
@@ -393,6 +394,11 @@ pub struct AliPayHkRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct AmazonPayRedirect {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct BluecodeQrRedirect {
+    pub shop_name: String,
+}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct PayseraData {}
@@ -1083,6 +1089,11 @@ impl From<api_models::payments::WalletData> for WalletData {
                     date_of_birth: mifinity_data.date_of_birth,
                     language_preference: mifinity_data.language_preference,
                 })
+            }
+            api_models::payments::WalletData::Bluecode(bluecode_data) => {
+                Self::Bluecode(Box::new(BluecodeQrRedirect {
+                    shop_name: bluecode_data.shop_name,
+                }))
             }
             api_models::payments::WalletData::RevolutPay(_) => Self::RevolutPay(RevolutPayData {}),
         }
@@ -1854,6 +1865,7 @@ impl GetPaymentMethodType for WalletData {
             Self::GooglePay(_) | Self::GooglePayRedirect(_) | Self::GooglePayThirdPartySdk(_) => {
                 api_enums::PaymentMethodType::GooglePay
             }
+            Self::Bluecode(_) => api_enums::PaymentMethodType::Bluecode,
             Self::MbWayRedirect(_) => api_enums::PaymentMethodType::MbWay,
             Self::MobilePayRedirect(_) => api_enums::PaymentMethodType::MobilePay,
             Self::PaypalRedirect(_) | Self::PaypalSdk(_) => api_enums::PaymentMethodType::Paypal,

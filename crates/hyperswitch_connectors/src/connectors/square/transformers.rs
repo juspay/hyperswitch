@@ -103,6 +103,7 @@ impl TryFrom<(&types::TokenizationRouterData, WalletData)> for SquareTokenReques
         match wallet_data {
             WalletData::ApplePay(_)
             | WalletData::GooglePay(_)
+            | WalletData::Bluecode(_)
             | WalletData::AliPayQr(_)
             | WalletData::AliPayRedirect(_)
             | WalletData::AliPayHkRedirect(_)

@@ -543,6 +543,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentExperience::RedirectToUrl
                         | common_enums::PaymentExperience::CollectOtp,
                         common_enums::PaymentMethodType::Ach
+                        | common_enums::PaymentMethodType::Bluecode
                         | common_enums::PaymentMethodType::Affirm
                         | common_enums::PaymentMethodType::AfterpayClearpay
                         | common_enums::PaymentMethodType::Alfamart
@@ -662,6 +663,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentExperience::RedirectToUrl
                         | common_enums::PaymentExperience::CollectOtp,
                         common_enums::PaymentMethodType::Ach
+                        | common_enums::PaymentMethodType::Bluecode
                         | common_enums::PaymentMethodType::Affirm
                         | common_enums::PaymentMethodType::AfterpayClearpay
                         | common_enums::PaymentMethodType::Alfamart
@@ -791,6 +793,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentExperience::RedirectToUrl
                         | common_enums::PaymentExperience::CollectOtp,
                         common_enums::PaymentMethodType::Ach
+                        | common_enums::PaymentMethodType::Bluecode
                         | common_enums::PaymentMethodType::Affirm
                         | common_enums::PaymentMethodType::AfterpayClearpay
                         | common_enums::PaymentMethodType::Alfamart
@@ -910,6 +913,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentExperience::RedirectToUrl
                         | common_enums::PaymentExperience::CollectOtp,
                         common_enums::PaymentMethodType::Ach
+                        | common_enums::PaymentMethodType::Bluecode
                         | common_enums::PaymentMethodType::Affirm
                         | common_enums::PaymentMethodType::AfterpayClearpay
                         | common_enums::PaymentMethodType::Alfamart

@@ -1,28 +1,37 @@
+use std::collections::HashMap;
+
 use common_enums::enums;
-use common_utils::types::FloatMajorUnit;
+use common_utils::{
+    errors::CustomResult,
+    ext_traits::ByteSliceExt,
+    pii::{Email, IpAddress},
+    request::Method,
+    types::FloatMajorUnit,
+};
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
+    payment_method_data::{PaymentMethodData, WalletData},
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types::{PaymentsAuthorizeRouterData, RefundsRouterData},
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
-use crate::types::{RefundsResponseRouterData, ResponseRouterData};
+use crate::{
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils::{PaymentsAuthorizeRequestData, RouterData as OtherRouterData},
+};
 
-//TODO: Fill the struct with respective fields
 pub struct BluecodeRouterData<T> {
-    pub amount: FloatMajorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: FloatMajorUnit,
     pub router_data: T,
 }
 
 impl<T> From<(FloatMajorUnit, T)> for BluecodeRouterData<T> {
     fn from((amount, item): (FloatMajorUnit, T)) -> Self {
-        //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Self {
             amount,
             router_data: item,
@@ -30,11 +39,23 @@ impl<T> From<(FloatMajorUnit, T)> for BluecodeRouterData<T> {
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq)]
 pub struct BluecodePaymentsRequest {
-    amount: FloatMajorUnit,
-    card: BluecodeCard,
+    pub amount: FloatMajorUnit,
+    pub currency: enums::Currency,
+    pub payment_provider: String,
+    pub shop_name: String,
+    pub reference: String,
+    pub ip_address: Option<Secret<String, IpAddress>>,
+    pub first_name: Secret<String>,
+    pub last_name: Secret<String>,
+    pub billing_address_country_code_iso: enums::CountryAlpha2,
+    pub billing_address_city: String,
+    pub billing_address_line1: Secret<String>,
+    pub billing_address_postal_code: Secret<String>,
+    pub webhook_url: String,
+    pub success_url: String,
+    pub failure_url: String,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -51,18 +72,66 @@ impl TryFrom<&BluecodeRouterData<&PaymentsAuthorizeRouterData>> for BluecodePaym
     fn try_from(
         item: &BluecodeRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
+        if item.router_data.request.capture_method != Some(enums::CaptureMethod::Automatic) {
+            return Err(errors::ConnectorError::FlowNotSupported {
+                flow: format!("{:?}", item.router_data.request.capture_method),
+                connector: "Santander".to_string(),
+            }
+            .into());
+        }
         match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(_) => Err(errors::ConnectorError::NotImplemented(
-                "Card payment method not implemented".to_string(),
-            )
-            .into()),
+            PaymentMethodData::Wallet(WalletData::Bluecode(ref wallet_data)) => {
+                let wallet_data_ref = WalletData::Bluecode(wallet_data.clone());
+                Self::try_from((item, &wallet_data_ref))
+            }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
-// Auth Struct
+impl
+    TryFrom<(
+        &BluecodeRouterData<&PaymentsAuthorizeRouterData>,
+        &WalletData,
+    )> for BluecodePaymentsRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        value: (
+            &BluecodeRouterData<&PaymentsAuthorizeRouterData>,
+            &WalletData,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let item = value.0;
+
+        let shop_name = match value.1 {
+            WalletData::Bluecode(b) => b.shop_name.clone(),
+            _ => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "shop_name",
+            })?,
+        };
+
+        Ok(Self {
+            amount: item.amount,
+            currency: item.router_data.request.currency,
+            payment_provider: "bluecode_payment".to_string(),
+            shop_name,
+            reference: item.router_data.payment_id.clone(),
+            ip_address: item.router_data.request.get_ip_address_as_optional(),
+            first_name: item.router_data.get_billing_first_name()?,
+            last_name: item.router_data.get_billing_last_name()?,
+            billing_address_country_code_iso: item.router_data.get_billing_country()?,
+            billing_address_city: item.router_data.get_billing_city()?,
+            billing_address_line1: item.router_data.get_billing_line1()?,
+            billing_address_postal_code: item.router_data.get_billing_zip()?,
+            webhook_url: item.router_data.request.get_webhook_url()?,
+            success_url: item.router_data.request.get_router_return_url()?,
+            failure_url: item.router_data.request.get_router_return_url()?,
+        })
+    }
+}
+
 pub struct BluecodeAuthType {
     pub(super) api_key: Secret<String>,
 }
@@ -78,32 +147,88 @@ impl TryFrom<&ConnectorAuthType> for BluecodeAuthType {
         }
     }
 }
-// PaymentsResponse
-//TODO: Append the remaining status flags
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum BluecodePaymentStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
 
 impl From<BluecodePaymentStatus> for common_enums::AttemptStatus {
     fn from(item: BluecodePaymentStatus) -> Self {
         match item {
-            BluecodePaymentStatus::Succeeded => Self::Charged,
+            BluecodePaymentStatus::ManualProcessing => Self::Pending,
+            BluecodePaymentStatus::Pending | BluecodePaymentStatus::PaymentInitiated => {
+                Self::AuthenticationPending
+            }
             BluecodePaymentStatus::Failed => Self::Failure,
-            BluecodePaymentStatus::Processing => Self::Authorizing,
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct BluecodePaymentsResponse {
-    status: BluecodePaymentStatus,
-    id: String,
+    pub id: i64,
+    pub order_id: String,
+    pub amount: FloatMajorUnit,
+    pub currency: enums::Currency,
+    pub charged_amount: FloatMajorUnit,
+    pub charged_currency: enums::Currency,
+    pub status: BluecodePaymentStatus,
+    pub payment_link: url::Url,
+    pub etoken: Secret<String>,
+    pub payment_request_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct BluecodeSyncResponse {
+    pub id: i64,
+    pub order_id: String,
+    pub user_id: i64,
+    pub customer_id: Option<String>,
+    pub customer_email: Option<Email>,
+    pub customer_phone: Option<String>,
+    pub status: BluecodePaymentStatus,
+    pub payment_provider: String,
+    pub payment_connector: Option<String>,
+    pub payment_method: Option<String>,
+    pub payment_method_type: Option<String>,
+    pub shop_name: String,
+    pub sender_name: Option<String>,
+    pub sender_email: Option<String>,
+    pub description: Option<String>,
+    pub amount: FloatMajorUnit,
+    pub currency: enums::Currency,
+    pub charged_amount: Option<FloatMajorUnit>,
+    pub charged_amount_currency: Option<String>,
+    pub charged_fx_amount: Option<FloatMajorUnit>,
+    pub charged_fx_amount_currency: Option<enums::Currency>,
+    pub is_underpaid: bool,
+    pub billing_amount: FloatMajorUnit,
+    pub billing_currency: enums::Currency,
+    pub language: String,
+    pub ip_address: Option<Secret<String, IpAddress>>,
+    pub first_name: Secret<String>,
+    pub last_name: Secret<String>,
+    pub billing_address_line1: Secret<String>,
+    pub billing_address_city: Secret<String>,
+    pub billing_address_postal_code: Secret<String>,
+    pub billing_address_country: Option<String>,
+    pub billing_address_country_code_iso: enums::CountryAlpha2,
+    pub shipping_address_country_code_iso: Option<enums::CountryAlpha2>,
+    pub success_url: String,
+    pub failure_url: String,
+    pub source: Option<String>,
+    pub bonus_code: Option<String>,
+    pub dob: Option<String>,
+    pub fees_amount: Option<f64>,
+    pub fx_margin_amount: Option<f64>,
+    pub fx_margin_percent: Option<f64>,
+    pub fees_percent: Option<f64>,
+    pub reseller_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum BluecodePaymentStatus {
+    Pending,
+    PaymentInitiated,
+    ManualProcessing,
+    Failed,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, BluecodePaymentsResponse, T, PaymentsResponseData>>
@@ -113,10 +238,36 @@ impl<F, T> TryFrom<ResponseRouterData<F, BluecodePaymentsResponse, T, PaymentsRe
     fn try_from(
         item: ResponseRouterData<F, BluecodePaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        let url = item.response.payment_link.clone();
+        let redirection_data = Some(RedirectForm::from((url, Method::Get)));
         Ok(Self {
             status: common_enums::AttemptStatus::from(item.response.status),
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: ResponseId::ConnectorTransactionId(item.response.order_id),
+                redirection_data: Box::new(redirection_data),
+                mandate_reference: Box::new(None),
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: Some(item.response.payment_request_id),
+                incremental_authorization_allowed: None,
+                charges: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl<F, T> TryFrom<ResponseRouterData<F, BluecodeSyncResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, BluecodeSyncResponse, T, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: common_enums::AttemptStatus::from(item.response.status),
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.order_id), // mapping resource Id with order_id is correct or not
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
@@ -130,9 +281,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, BluecodePaymentsResponse, T, PaymentsRe
     }
 }
 
-//TODO: Fill the struct with respective fields
-// REFUND :
-// Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
 pub struct BluecodeRefundRequest {
     pub amount: FloatMajorUnit,
@@ -206,14 +354,31 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct BluecodeErrorResponse {
-    pub status_code: u16,
-    pub code: String,
     pub message: String,
-    pub reason: Option<String>,
-    pub network_advice_code: Option<String>,
-    pub network_decline_code: Option<String>,
-    pub network_error_message: Option<String>,
+    pub context_data: HashMap<String, serde_json::Value>,
+}
+
+pub(crate) fn get_bluecode_webhook_event(
+    status: BluecodePaymentStatus,
+) -> api_models::webhooks::IncomingWebhookEvent {
+    match status {
+        BluecodePaymentStatus::PaymentInitiated
+        | BluecodePaymentStatus::ManualProcessing
+        | BluecodePaymentStatus::Pending => {
+            api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing
+        }
+        BluecodePaymentStatus::Failed => {
+            api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure
+        }
+    }
+}
+
+pub(crate) fn get_webhook_object_from_body(
+    body: &[u8],
+) -> CustomResult<BluecodeSyncResponse, common_utils::errors::ParsingError> {
+    let webhook: BluecodeSyncResponse = body.parse_struct("BluecodeIncomingWebhook")?;
+
+    Ok(webhook)
 }

@@ -277,6 +277,8 @@ pub enum FieldType {
     UserMsisdn,
     UserClientIdentifier,
     OrderDetailsProductName,
+    UserIpAddress,
+    MerchantReturnUrl,
 }
 
 impl FieldType {
@@ -309,6 +311,8 @@ impl FieldType {
 impl PartialEq for FieldType {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
+            (Self::UserIpAddress, Self::UserIpAddress) => true,
+            (Self::MerchantReturnUrl, Self::MerchantReturnUrl) => true,
             (Self::UserCardNumber, Self::UserCardNumber) => true,
             (Self::UserCardExpiryMonth, Self::UserCardExpiryMonth) => true,
             (Self::UserCardExpiryYear, Self::UserCardExpiryYear) => true,

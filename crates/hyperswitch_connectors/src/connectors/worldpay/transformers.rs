@@ -158,6 +158,7 @@ fn fetch_payment_instrument(
             | WalletData::MomoRedirect(_)
             | WalletData::KakaoPayRedirect(_)
             | WalletData::GoPayRedirect(_)
+            | WalletData::Bluecode(_)
             | WalletData::GcashRedirect(_)
             | WalletData::ApplePayRedirect(_)
             | WalletData::ApplePayThirdPartySdk(_)
