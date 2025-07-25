@@ -22,6 +22,17 @@ pub struct ConnectorFields {
     pub fields: HashMap<enums::Connector, RequiredFieldFinal>,
 }
 
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct BankRedirectConfig(pub HashMap<enums::PaymentMethodType, ConnectorBankNames>);
+#[derive(Debug, Deserialize, Clone)]
+pub struct ConnectorBankNames(pub HashMap<String, BanksVector>);
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct BanksVector {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub banks: HashSet<common_enums::enums::BankNames>,
+}
+
 #[cfg(feature = "v1")]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct RequiredFieldFinal {
