@@ -350,6 +350,30 @@ where
                                             error_res
                                         }
                                         _ => {
+                                            if req.connector == "dwolla"
+                                                && body.status_code == 400
+                                                && std::any::type_name::<T>()
+                                                    .contains("PaymentMethodToken")
+                                            {
+                                                if let Ok(response_body) =
+                                                    str::from_utf8(body.response.as_ref())
+                                                {
+                                                    if response_body.contains("Duplicate") {
+                                                        let response = types::Response {
+                                                            headers: body.headers,
+                                                            response: body.response,
+                                                            status_code: 200,
+                                                        };
+                                                        return connector_integration
+                                                            .handle_response(
+                                                                req,
+                                                                Some(&mut connector_event),
+                                                                response,
+                                                            );
+                                                    }
+                                                }
+                                            }
+
                                             let error_res = connector_integration
                                                 .get_error_response(
                                                     body,
@@ -452,7 +476,6 @@ async fn handle_response(
             logger::info!(?response);
             let status_code = response.status().as_u16();
             let headers = Some(response.headers().to_owned());
-
             match status_code {
                 200..=202 | 302 | 204 => {
                     // If needed add log line

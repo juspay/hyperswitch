@@ -274,6 +274,8 @@ pub enum FieldType {
     UserBsbNumber,
     UserBankSortCode,
     UserBankRoutingNumber,
+    UserBankType { options: Vec<String> },
+    UserBankAccountHolderName,
     UserMsisdn,
     UserClientIdentifier,
     OrderDetailsProductName,
