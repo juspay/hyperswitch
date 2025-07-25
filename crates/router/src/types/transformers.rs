@@ -1587,8 +1587,7 @@ impl ForeignFrom<gsm_api_types::GsmCreateRequest>
     for hyperswitch_domain_models::gsm::GatewayStatusMap
 {
     fn foreign_from(value: gsm_api_types::GsmCreateRequest) -> Self {
-        let inferred_feature_data =
-        common_types::domain::GsmFeatureData::foreign_from(&value);
+        let inferred_feature_data = common_types::domain::GsmFeatureData::foreign_from(&value);
         Self {
             connector: value.connector.to_string(),
             flow: value.flow,
@@ -1609,9 +1608,7 @@ impl ForeignFrom<gsm_api_types::GsmCreateRequest>
     }
 }
 
-impl ForeignFrom<&gsm_api_types::GsmCreateRequest>
-    for common_types::domain::GsmFeatureData
-{
+impl ForeignFrom<&gsm_api_types::GsmCreateRequest> for common_types::domain::GsmFeatureData {
     fn foreign_from(value: &gsm_api_types::GsmCreateRequest) -> Self {
         // Defaulting alternate_network_possible to false as it is provided only in the Retry feature
         // If the retry feature is not used, we assume alternate network as false
@@ -1634,11 +1631,7 @@ impl
     ForeignFrom<(
         &gsm_api_types::GsmUpdateRequest,
         hyperswitch_domain_models::gsm::GatewayStatusMap,
-    )>
-    for (
-        api_enums::GsmFeature,
-        common_types::domain::GsmFeatureData,
-    )
+    )> for (api_enums::GsmFeature, common_types::domain::GsmFeatureData)
 {
     fn foreign_from(
         (gsm_update_request, gsm_db_record): (

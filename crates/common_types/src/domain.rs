@@ -114,8 +114,6 @@ pub struct ConnectorResponseData {
     pub raw_connector_response: Option<Secret<String>>,
 }
 
-
-
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, AsExpression)]
 #[diesel(sql_type = Jsonb)]
 /// Contains the data relevant to the specified GSM feature, if applicable.
