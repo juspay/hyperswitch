@@ -236,7 +236,6 @@ The folder structure of this directory is as follows:
    **Include Relevant Information:** Populate the file with all the necessary details specific to that connector.
 
    **Handling Unsupported Features:**
-
    - If a connector does not support a specific payment method or a feature:
    - The relevant configurations in the `<connector_name>.js` file can be omitted
    - The handling of unsupported or unimplemented features will be managed by the [`Commons.js`](cypress/e2e/PaymentUtils/Commons.js) file, which will throw the appropriate `unsupported` or `not implemented` error
