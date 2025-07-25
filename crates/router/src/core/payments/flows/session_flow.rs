@@ -1289,14 +1289,6 @@ async fn create_amazon_pay_session_token(
         .change_context(errors::ApiErrorResponse::AmountConversionFailed {
             amount_type: "StringMajorUnit",
         })?;
-    let total_shipping_amount = required_amount_type
-        .convert(
-            router_data.request.shipping_cost.unwrap_or_default(),
-            router_data.request.currency,
-        )
-        .change_context(errors::ApiErrorResponse::AmountConversionFailed {
-            amount_type: "StringMajorUnit",
-        })?;
     let total_base_amount = required_amount_type
         .convert(
             router_data.request.minor_amount,
@@ -1328,10 +1320,12 @@ async fn create_amazon_pay_session_token(
             expected_format: r#""delivery_options": [{"id": String, "price": {"amount": Number, "currency_code": String}, "shipping_method":{"shipping_method_name": String, "shipping_method_code": String}, "is_default": Boolean}]"#.to_string(),
         })?;
 
-    payment_types::AmazonPayDeliveryOptions::validate_is_default_count(delivery_options.clone())
-        .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "is_default",
-        })?;
+    let default_amount = payment_types::AmazonPayDeliveryOptions::get_default_delivery_amount(
+        delivery_options.clone(),
+    )
+    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+        field_name: "is_default",
+    })?;
 
     for option in &delivery_options {
         payment_types::AmazonPayDeliveryOptions::validate_currency(
@@ -1350,6 +1344,31 @@ async fn create_amazon_pay_session_token(
     .change_context(errors::ApiErrorResponse::AmountConversionFailed {
         amount_type: "StringMajorUnit",
     })?;
+
+    let total_shipping_amount = match router_data.request.shipping_cost {
+        Some(shipping_cost) => {
+            if shipping_cost == default_amount {
+                required_amount_type
+                    .convert(shipping_cost, router_data.request.currency)
+                    .change_context(errors::ApiErrorResponse::AmountConversionFailed {
+                        amount_type: "StringMajorUnit",
+                    })?
+            } else {
+                return Err(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "shipping_cost",
+                })
+                .attach_printable(format!(
+                    "Provided shipping_cost ({shipping_cost}) does not match the default delivery amount ({default_amount})"
+                ));
+            }
+        }
+        None => {
+            return Err(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "shipping_cost",
+            }
+            .into());
+        }
+    };
 
     Ok(types::PaymentsSessionRouterData {
         response: Ok(types::PaymentsResponseData::SessionResponse {

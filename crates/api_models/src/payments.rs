@@ -7616,22 +7616,20 @@ impl AmazonPayDeliveryOptions {
             .collect()
     }
 
-    pub fn validate_is_default_count(
+    pub fn get_default_delivery_amount(
         delivery_options: Vec<Self>,
-    ) -> Result<(), error_stack::Report<ValidationError>> {
-        let is_default_count = delivery_options
-            .iter()
-            .filter(|delivery_option| delivery_option.is_default)
-            .count();
+    ) -> Result<MinorUnit, error_stack::Report<ValidationError>> {
+        let mut default_options = delivery_options
+            .into_iter()
+            .filter(|delivery_option| delivery_option.is_default);
 
-        if is_default_count != 1 {
-            return Err(ValidationError::InvalidValue {
+        match (default_options.next(), default_options.next()) {
+            (Some(default_option), None) => Ok(default_option.price.amount),
+            _ => Err(ValidationError::InvalidValue {
                 message: "Amazon Pay Delivery Option".to_string(),
             })
-            .attach_printable("Expected one default Amazon Pay Delivery Option");
+            .attach_printable("Expected exactly one default Amazon Pay Delivery Option"),
         }
-
-        Ok(())
     }
 
     pub fn validate_currency(
