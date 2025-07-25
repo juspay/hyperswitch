@@ -168,6 +168,10 @@ impl AuthenticationInterface for MockDb {
             browser_info: authentication.browser_info,
             email: authentication.email,
             profile_acquirer_id: authentication.profile_acquirer_id,
+            challenge_code: authentication.challenge_code,
+            challenge_cancel: authentication.challenge_cancel,
+            challenge_code_reason: authentication.challenge_code_reason,
+            message_extension: authentication.message_extension,
         };
         authentications.push(authentication.clone());
         Ok(authentication)
