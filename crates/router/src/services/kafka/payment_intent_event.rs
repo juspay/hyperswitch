@@ -97,7 +97,7 @@ pub struct KafkaPaymentIntentEvent<'a> {
     pub surcharge_applicable: Option<bool>,
     pub request_incremental_authorization: RequestIncrementalAuthorization,
     pub authorization_count: Option<i32>,
-    #[serde(with = "time::serde::timestamp")]
+    #[serde(default, with = "time::serde::timestamp::nanoseconds::option")]
     pub session_expiry: OffsetDateTime,
     pub request_external_three_ds_authentication: common_enums::External3dsAuthenticationRequest,
     pub frm_metadata: Option<Secret<&'a Value>>,
