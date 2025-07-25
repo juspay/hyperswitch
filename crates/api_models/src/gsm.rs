@@ -20,11 +20,13 @@ pub struct GsmCreateRequest {
     /// optional error provided by the router
     pub router_error: Option<String>,
     /// decision to be taken for auto retries flow
+    /// **Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.
+    #[schema(deprecated)]
     pub decision: common_enums::GsmDecision,
     /// indicates if step_up retry is possible
     /// **Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.
-    #[deprecated]
-    pub step_up_possible: Option<bool>,
+    #[schema(deprecated)]
+    pub step_up_possible: bool,
     /// error code unified across the connectors
     pub unified_code: Option<String>,
     /// error message unified across the connectors
@@ -33,8 +35,8 @@ pub struct GsmCreateRequest {
     pub error_category: Option<ErrorCategory>,
     /// indicates if retry with pan is possible
     /// **Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.
-    #[deprecated]
-    pub clear_pan_possible: Option<bool>,
+    #[schema(deprecated)]
+    pub clear_pan_possible: bool,
     /// Indicates the GSM feature associated with the request,
     /// such as retry mechanisms or other specific functionalities provided by the system.
     pub feature: Option<common_enums::GsmFeature>,
@@ -94,10 +96,12 @@ pub struct GsmUpdateRequest {
     /// optional error provided by the router
     pub router_error: Option<String>,
     /// decision to be taken for auto retries flow
+    /// **Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.
+    #[schema(deprecated)]
     pub decision: Option<common_enums::GsmDecision>,
     /// indicates if step_up retry is possible
     /// **Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.
-    #[deprecated]
+    #[schema(deprecated)]
     pub step_up_possible: Option<bool>,
     /// error code unified across the connectors
     pub unified_code: Option<String>,
@@ -107,7 +111,7 @@ pub struct GsmUpdateRequest {
     pub error_category: Option<ErrorCategory>,
     /// indicates if retry with pan is possible
     /// **Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.
-    #[deprecated]
+    #[schema(deprecated)]
     pub clear_pan_possible: Option<bool>,
     /// Indicates the GSM feature associated with the request,
     /// such as retry mechanisms or other specific functionalities provided by the system.
@@ -162,11 +166,13 @@ pub struct GsmResponse {
     /// optional error provided by the router
     pub router_error: Option<String>,
     /// decision to be taken for auto retries flow
+    /// **Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.
+    #[schema(deprecated)]
     pub decision: common_enums::GsmDecision,
     /// indicates if step_up retry is possible
     /// **Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.
-    #[deprecated]
-    pub step_up_possible: Option<bool>,
+    #[schema(deprecated)]
+    pub step_up_possible: bool,
     /// error code unified across the connectors
     pub unified_code: Option<String>,
     /// error message unified across the connectors
@@ -175,8 +181,8 @@ pub struct GsmResponse {
     pub error_category: Option<ErrorCategory>,
     /// indicates if retry with pan is possible
     /// **Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.
-    #[deprecated]
-    pub clear_pan_possible: Option<bool>,
+    #[schema(deprecated)]
+    pub clear_pan_possible: bool,
     /// Indicates the GSM feature associated with the request,
     /// such as retry mechanisms or other specific functionalities provided by the system.
     pub feature: common_enums::GsmFeature,
