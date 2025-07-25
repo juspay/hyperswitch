@@ -396,8 +396,7 @@ export const CONNECTOR_LISTS = {
       // "cybersource"    // issues with MULTIPLE_CONNECTORS handling
       "paypal",
     ],
-    DDC_RACE_CONDITION_SERVER_SIDE: ["worldpay"],
-    DDC_RACE_CONDITION_CLIENT_SIDE: ["worldpay"],
+    DDC_RACE_CONDITION: ["worldpay"],
     // Add more inclusion lists
   },
 };
