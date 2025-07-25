@@ -1110,7 +1110,6 @@ default_imp_for_incremental_authorization!(
     connectors::Flexiti,
     connectors::Forte,
     connectors::Getnet,
-    connectors::Globalpay,
     connectors::Globepay,
     connectors::Gocardless,
     connectors::Gpayments,
