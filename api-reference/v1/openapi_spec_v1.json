@@ -14065,6 +14065,7 @@
           "payment_cancelled",
           "payment_authorized",
           "payment_captured",
+          "payment_expired",
           "action_required",
           "refund_succeeded",
           "refund_failed",
