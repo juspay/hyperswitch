@@ -13,13 +13,12 @@ pub mod setup_mandate_flow;
 pub mod update_metadata_flow;
 
 use async_trait::async_trait;
+use common_types::payments::CustomerAcceptance;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_flow_types::{
     BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, RecoveryRecordBack,
 };
-use hyperswitch_domain_models::{
-    mandates::CustomerAcceptance, router_request_types::PaymentsCaptureData,
-};
+use hyperswitch_domain_models::router_request_types::PaymentsCaptureData;
 
 use crate::{
     core::{
@@ -61,11 +60,13 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
 
     async fn get_merchant_recipient_data<'a>(
         &self,
-        state: &SessionState,
-        merchant_context: &domain::MerchantContext,
-        merchant_connector_account: &helpers::MerchantConnectorAccountType,
-        connector: &api::ConnectorData,
-    ) -> RouterResult<Option<types::MerchantRecipientData>>;
+        _state: &SessionState,
+        _merchant_context: &domain::MerchantContext,
+        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        _connector: &api::ConnectorData,
+    ) -> RouterResult<Option<types::MerchantRecipientData>> {
+        Ok(None)
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -79,7 +80,7 @@ pub trait Feature<F, T> {
         connector_request: Option<services::Request>,
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-        all_keys_required: Option<bool>,
+        return_raw_connector_response: Option<bool>,
     ) -> RouterResult<Self>
     where
         Self: Sized,
@@ -183,14 +184,36 @@ pub trait Feature<F, T> {
         &mut self,
         _state: &SessionState,
         _connector: &api::ConnectorData,
-        should_continue_payment: bool,
-    ) -> RouterResult<bool>
+        _should_continue_payment: bool,
+    ) -> RouterResult<Option<types::CreateOrderResult>>
     where
         F: Clone,
         Self: Sized,
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
     {
-        Ok(should_continue_payment)
+        Ok(None)
+    }
+
+    fn update_router_data_with_create_order_response(
+        &mut self,
+        _create_order_result: types::CreateOrderResult,
+    ) {
+    }
+
+    async fn call_unified_connector_service<'a>(
+        &mut self,
+        _state: &SessionState,
+        #[cfg(feature = "v1")] _merchant_connector_account: helpers::MerchantConnectorAccountType,
+        #[cfg(feature = "v2")]
+        _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
+        _merchant_context: &domain::MerchantContext,
+    ) -> RouterResult<()>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(())
     }
 }
 

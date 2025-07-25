@@ -18,11 +18,11 @@ pub struct WorldpayPaymentsResponse {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum WorldpayPaymentResponseFields {
-    AuthorizedResponse(Box<AuthorizedResponse>),
-    DDCResponse(DDCResponse),
-    FraudHighRisk(FraudHighRiskResponse),
     RefusedResponse(RefusedResponse),
+    DDCResponse(DDCResponse),
     ThreeDsChallenged(ThreeDsChallengedResponse),
+    FraudHighRisk(FraudHighRiskResponse),
+    AuthorizedResponse(Box<AuthorizedResponse>),
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -416,7 +416,7 @@ impl WorldpayErrorResponse {
     pub fn default(status_code: u16) -> Self {
         match status_code {
             code @ 404 => Self {
-                error_name: format!("{} Not found", code),
+                error_name: format!("{code} Not found"),
                 message: "Resource not found".to_string(),
                 validation_errors: None,
             },

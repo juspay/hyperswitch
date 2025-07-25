@@ -15,6 +15,7 @@ use crate::{
 
 mod avg_ticket_size;
 mod connector_success_rate;
+mod debit_routing;
 mod payment_count;
 mod payment_processed_amount;
 mod payment_success_count;
@@ -24,6 +25,7 @@ mod success_rate;
 
 use avg_ticket_size::AvgTicketSize;
 use connector_success_rate::ConnectorSuccessRate;
+use debit_routing::DebitRouting;
 use payment_count::PaymentCount;
 use payment_processed_amount::PaymentProcessedAmount;
 use payment_success_count::PaymentSuccessCount;
@@ -130,6 +132,11 @@ where
                     .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }
+            Self::DebitRouting => {
+                DebitRouting
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
             Self::SessionizedPaymentSuccessRate => {
                 sessionized_metrics::PaymentSuccessRate
                     .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
@@ -172,6 +179,11 @@ where
             }
             Self::FailureReasons => {
                 sessionized_metrics::FailureReasons
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::SessionizedDebitRouting => {
+                sessionized_metrics::DebitRouting
                     .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }

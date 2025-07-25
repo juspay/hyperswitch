@@ -95,7 +95,7 @@ impl MerchantConnectorAccount {
 #[derive(Clone, Debug)]
 pub enum MerchantConnectorAccountTypeDetails {
     MerchantConnectorAccount(Box<MerchantConnectorAccount>),
-    MerchantConnectorDetails(api_models::payments::MerchantConnectorDetails),
+    MerchantConnectorDetails(common_types::domain::MerchantConnectorAuthDetails),
 }
 
 #[cfg(feature = "v2")]
@@ -163,7 +163,9 @@ impl MerchantConnectorAccountTypeDetails {
             Self::MerchantConnectorAccount(merchant_connector_account) => {
                 Some(merchant_connector_account.connector_name)
             }
-            Self::MerchantConnectorDetails(_) => None,
+            Self::MerchantConnectorDetails(merchant_connector_details) => {
+                Some(merchant_connector_details.connector_name)
+            }
         }
     }
 

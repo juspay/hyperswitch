@@ -1,5 +1,6 @@
 use api_models::payments as api_payments;
 use common_enums::enums;
+use common_types::payments as common_payments_types;
 use common_utils::errors::CustomResult;
 use diesel_models::Mandate;
 use error_stack::ResultExt;
@@ -49,7 +50,7 @@ pub fn get_mandate_type(
     mandate_data: Option<api_payments::MandateData>,
     off_session: Option<bool>,
     setup_future_usage: Option<enums::FutureUsage>,
-    customer_acceptance: Option<api_payments::CustomerAcceptance>,
+    customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
     token: Option<String>,
     payment_method: Option<enums::PaymentMethod>,
 ) -> CustomResult<Option<api::MandateTransactionType>, errors::ValidationError> {

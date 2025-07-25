@@ -1,5 +1,8 @@
 {
   "openapi": "3.0.3",
+  "x-mcp": {
+    "enabled": true
+  },
   "info": {
     "title": "Hyperswitch - API Documentation",
     "description": "\n## Get started\n\nHyperswitch provides a collection of APIs that enable you to process and manage payments.\nOur APIs accept and return JSON in the HTTP body, and return standard HTTP response codes.\n\nYou can consume the APIs directly using your favorite HTTP/REST library.\n\nWe have a testing environment referred to \"sandbox\", which you can setup to test API calls without\naffecting production data.\nCurrently, our sandbox environment is live while our production environment is under development\nand will be available soon.\nYou can sign up on our Dashboard to get API keys to access Hyperswitch API.\n\n### Environment\n\nUse the following base URLs when making requests to the APIs:\n\n| Environment   |  Base URL                          |\n|---------------|------------------------------------|\n| Sandbox       | <https://sandbox.hyperswitch.io>   |\n| Production    | <https://api.hyperswitch.io>       |\n\n## Authentication\n\nWhen you sign up on our [dashboard](https://app.hyperswitch.io) and create a merchant\naccount, you are given a secret key (also referred as api-key) and a publishable key.\nYou may authenticate all API requests with Hyperswitch server by providing the appropriate key in\nthe request Authorization header.\n\n| Key             |  Description                                                                                  |\n|-----------------|-----------------------------------------------------------------------------------------------|\n| api-key         | Private key. Used to authenticate all API requests from your merchant server                  |\n| publishable key | Unique identifier for your account. Used to authenticate API requests from your app's client  |\n\nNever share your secret api keys. Keep them guarded and secure.\n",
@@ -630,7 +633,14 @@
             }
           },
           "400": {
-            "description": "Missing Mandatory fields"
+            "description": "Missing Mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -709,7 +719,14 @@
             }
           },
           "400": {
-            "description": "Missing mandatory fields"
+            "description": "Missing mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -870,7 +887,14 @@
             }
           },
           "400": {
-            "description": "Missing mandatory fields"
+            "description": "Missing mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -934,7 +958,14 @@
             }
           },
           "400": {
-            "description": "Missing mandatory fields"
+            "description": "Missing mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -974,7 +1005,14 @@
             }
           },
           "400": {
-            "description": "Missing mandatory fields"
+            "description": "Missing mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1028,7 +1066,14 @@
             "description": "Payment canceled"
           },
           "400": {
-            "description": "Missing mandatory fields"
+            "description": "Missing mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1210,7 +1255,14 @@
             }
           },
           "400": {
-            "description": "Missing mandatory fields"
+            "description": "Missing mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1315,7 +1367,14 @@
             }
           },
           "400": {
-            "description": "Missing mandatory fields"
+            "description": "Missing mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1365,7 +1424,14 @@
             }
           },
           "400": {
-            "description": "Missing mandatory fields"
+            "description": "Missing mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1415,7 +1481,14 @@
             }
           },
           "400": {
-            "description": "Missing mandatory fields"
+            "description": "Missing mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1465,7 +1538,14 @@
             }
           },
           "400": {
-            "description": "Missing mandatory fields"
+            "description": "Missing mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1656,7 +1736,14 @@
             }
           },
           "400": {
-            "description": "Missing Mandatory fields"
+            "description": "Missing Mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1753,7 +1840,14 @@
             }
           },
           "400": {
-            "description": "Missing Mandatory fields"
+            "description": "Missing Mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -6705,7 +6799,6 @@
         "required": [
           "acquirer_assigned_merchant_id",
           "merchant_name",
-          "merchant_country_code",
           "network",
           "acquirer_bin",
           "acquirer_fraud_rate"
@@ -6720,11 +6813,6 @@
             "type": "string",
             "description": "merchant name",
             "example": "NewAge Retailer"
-          },
-          "merchant_country_code": {
-            "type": "string",
-            "description": "Merchant country code assigned by acquirer",
-            "example": "US"
           },
           "network": {
             "type": "string",
@@ -7579,7 +7667,8 @@
         "type": "object",
         "required": [
           "amount",
-          "currency"
+          "currency",
+          "profile_acquirer_id"
         ],
         "properties": {
           "authentication_id": {
@@ -7593,14 +7682,6 @@
             "description": "The business profile that is associated with this authentication",
             "nullable": true
           },
-          "authentication_connector": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/AuthenticationConnectors"
-              }
-            ],
-            "nullable": true
-          },
           "customer": {
             "allOf": [
               {
@@ -7611,6 +7692,14 @@
           },
           "amount": {
             "$ref": "#/components/schemas/MinorUnit"
+          },
+          "authentication_connector": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationConnectors"
+              }
+            ],
+            "nullable": true
           },
           "currency": {
             "$ref": "#/components/schemas/Currency"
@@ -7641,6 +7730,149 @@
               }
             ],
             "nullable": true
+          },
+          "profile_acquirer_id": {
+            "type": "string",
+            "description": "Profile Acquirer ID get from profile acquirer configuration"
+          }
+        }
+      },
+      "AuthenticationEligibilityRequest": {
+        "type": "object",
+        "required": [
+          "payment_method_data",
+          "payment_method"
+        ],
+        "properties": {
+          "payment_method_data": {
+            "$ref": "#/components/schemas/PaymentMethodData"
+          },
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "Optional secret value used to identify and authorize the client making the request.\nThis can help ensure that the payment session is secure and valid.",
+            "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "Optional identifier for the business profile associated with the payment.\nThis determines which configurations, rules, and branding are applied to the transaction.",
+            "nullable": true
+          },
+          "billing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "shipping": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "browser_information": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "description": "Optional email address of the customer.\nUsed for customer identification, communication, and possibly for 3DS or fraud checks.",
+            "nullable": true
+          }
+        }
+      },
+      "AuthenticationEligibilityResponse": {
+        "type": "object",
+        "required": [
+          "authentication_id",
+          "next_action",
+          "status",
+          "connector_metadata",
+          "profile_id"
+        ],
+        "properties": {
+          "authentication_id": {
+            "type": "string",
+            "description": "The unique identifier for this authentication.",
+            "example": "auth_mbabizu24mvu3mela5njyhpit4"
+          },
+          "next_action": {
+            "$ref": "#/components/schemas/NextAction"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AuthenticationStatus"
+          },
+          "eligibility_response_params": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EligibilityResponseParams"
+              }
+            ],
+            "nullable": true
+          },
+          "connector_metadata": {
+            "description": "The metadata for this authentication."
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The unique identifier for this authentication."
+          },
+          "error_message": {
+            "type": "string",
+            "description": "The error message for this authentication.",
+            "nullable": true
+          },
+          "error_code": {
+            "type": "string",
+            "description": "The error code for this authentication.",
+            "nullable": true
+          },
+          "authentication_connector": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationConnectors"
+              }
+            ],
+            "nullable": true
+          },
+          "billing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "shipping": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "browser_information": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "description": "Email",
+            "nullable": true
           }
         }
       },
@@ -7651,7 +7883,8 @@
           "merchant_id",
           "status",
           "amount",
-          "currency"
+          "currency",
+          "profile_acquirer_id"
         ],
         "properties": {
           "authentication_id": {
@@ -7679,17 +7912,17 @@
           "currency": {
             "$ref": "#/components/schemas/Currency"
           },
-          "force_3ds_challenge": {
-            "type": "boolean",
-            "description": "Whether 3DS challenge was forced.",
-            "nullable": true
-          },
           "authentication_connector": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/AuthenticationConnectors"
               }
             ],
+            "nullable": true
+          },
+          "force_3ds_challenge": {
+            "type": "boolean",
+            "description": "Whether 3DS challenge was forced.",
             "nullable": true
           },
           "return_url": {
@@ -7734,6 +7967,10 @@
               }
             ],
             "nullable": true
+          },
+          "profile_acquirer_id": {
+            "type": "string",
+            "description": "Profile Acquirer ID get from profile acquirer configuration"
           }
         }
       },
@@ -9136,6 +9373,27 @@
                 "type": "object"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "indonesian_bank_transfer"
+            ],
+            "properties": {
+              "indonesian_bank_transfer": {
+                "type": "object",
+                "properties": {
+                  "bank_name": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankNames"
+                      }
+                    ],
+                    "nullable": true
+                  }
+                }
+              }
+            }
           }
         ]
       },
@@ -9416,6 +9674,12 @@
                     "description": "Destination bank account number",
                     "example": "9b95f84e-de61-460b-a14b-f23b4e71c97b",
                     "nullable": true
+                  },
+                  "expiry_date": {
+                    "type": "string",
+                    "description": "The expiration date and time for the Pix QR code in ISO 8601 format",
+                    "example": "2025-09-10T10:11:12Z",
+                    "nullable": true
                   }
                 }
               }
@@ -9479,6 +9743,27 @@
             "properties": {
               "instant_bank_transfer_poland": {
                 "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "indonesian_bank_transfer"
+            ],
+            "properties": {
+              "indonesian_bank_transfer": {
+                "type": "object",
+                "properties": {
+                  "bank_name": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankNames"
+                      }
+                    ],
+                    "nullable": true
+                  }
+                }
               }
             }
           }
@@ -10913,6 +11198,7 @@
       "Connector": {
         "type": "string",
         "enum": [
+          "authipay",
           "adyenplatform",
           "stripe_billing_test",
           "phonypay",
@@ -10936,11 +11222,14 @@
           "bluesnap",
           "boku",
           "braintree",
+          "breadpay",
           "cashtocode",
+          "celero",
           "chargebee",
           "checkout",
           "coinbase",
           "coingate",
+          "custombilling",
           "cryptopay",
           "ctp_mastercard",
           "ctp_visa",
@@ -10984,6 +11273,7 @@
           "nuvei",
           "opennode",
           "paybox",
+          "payload",
           "payme",
           "payone",
           "paypal",
@@ -10996,6 +11286,7 @@
           "razorpay",
           "recurly",
           "redsys",
+          "santander",
           "shift4",
           "square",
           "stax",
@@ -13514,6 +13805,21 @@
           }
         ]
       },
+      "EligibilityResponseParams": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "ThreeDsData"
+            ],
+            "properties": {
+              "ThreeDsData": {
+                "$ref": "#/components/schemas/ThreeDsData"
+              }
+            }
+          }
+        ]
+      },
       "EliminationAnalyserConfig": {
         "type": "object",
         "properties": {
@@ -14275,6 +14581,28 @@
             ]
           },
           {
+            "type": "object",
+            "required": [
+              "user_bank_options"
+            ],
+            "properties": {
+              "user_bank_options": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
             "type": "string",
             "enum": [
               "user_bank_account_number"
@@ -14553,6 +14881,28 @@
       },
       "GcashRedirection": {
         "type": "object"
+      },
+      "GenericErrorResponseOpenApi": {
+        "type": "object",
+        "required": [
+          "error_type",
+          "message",
+          "code"
+        ],
+        "properties": {
+          "error_type": {
+            "type": "string",
+            "example": "invalid_request"
+          },
+          "message": {
+            "type": "string",
+            "example": "Missing required param: {param}"
+          },
+          "code": {
+            "type": "string",
+            "example": "IR_04"
+          }
+        }
       },
       "GenericLinkUiConfig": {
         "type": "object",
@@ -17433,6 +17783,10 @@
         },
         "additionalProperties": false
       },
+      "MerchantCountryCode": {
+        "type": "string",
+        "description": "A wrapper type for merchant country codes that provides validation and conversion functionality.\n\nThis type stores a country code as a string and provides methods to validate it\nand convert it to a `Country` enum variant."
+      },
       "MerchantDetails": {
         "type": "object",
         "properties": {
@@ -17609,6 +17963,16 @@
             "type": "string"
           }
         }
+      },
+      "Method": {
+        "type": "string",
+        "enum": [
+          "GET",
+          "POST",
+          "PUT",
+          "DELETE",
+          "PATCH"
+        ]
       },
       "MifinityData": {
         "type": "object",
@@ -17797,6 +18161,22 @@
           "network_transaction_id": {
             "type": "string",
             "description": "The network transaction ID provided by the card network during a CIT (Customer Initiated Transaction),\nwhere `setup_future_usage` is set to `off_session`."
+          }
+        }
+      },
+      "NextAction": {
+        "type": "object",
+        "required": [
+          "url",
+          "http_method"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "The URL for authenticatating the user."
+          },
+          "http_method": {
+            "$ref": "#/components/schemas/Method"
           }
         }
       },
@@ -18194,6 +18574,7 @@
       },
       "OnlineMandate": {
         "type": "object",
+        "description": "Details of online mandate",
         "required": [
           "ip_address",
           "user_agent"
@@ -18395,8 +18776,23 @@
           "created_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "organization_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OrganizationType"
+              }
+            ],
+            "nullable": true
           }
         }
+      },
+      "OrganizationType": {
+        "type": "string",
+        "enum": [
+          "standard",
+          "platform"
+        ]
       },
       "OrganizationUpdateRequest": {
         "type": "object",
@@ -18781,6 +19177,17 @@
             ],
             "properties": {
               "atome_redirect": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "breadpay_redirect"
+            ],
+            "properties": {
+              "breadpay_redirect": {
                 "type": "object"
               }
             }
@@ -20555,6 +20962,7 @@
           "ali_pay_hk",
           "alma",
           "amazon_pay",
+          "paysera",
           "apple_pay",
           "atome",
           "bacs",
@@ -20566,6 +20974,7 @@
           "boleto",
           "bca_bank_transfer",
           "bni_va",
+          "breadpay",
           "bri_va",
           "card_redirect",
           "cimb_va",
@@ -20623,6 +21032,7 @@
           "samsung_pay",
           "sepa",
           "sepa_bank_transfer",
+          "skrill",
           "sofort",
           "swish",
           "touch_n_go",
@@ -20648,7 +21058,8 @@
           "instant_bank_transfer",
           "instant_bank_transfer_finland",
           "instant_bank_transfer_poland",
-          "revolut_pay"
+          "revolut_pay",
+          "indonesian_bank_transfer"
         ]
       },
       "PaymentMethodUpdate": {
@@ -24299,6 +24710,13 @@
           "client_secret"
         ],
         "properties": {
+          "merchant_order_reference_id": {
+            "type": "string",
+            "description": "Your unique identifier for this payout or order. This ID helps you reconcile payouts on your system. If provided, it is passed to the connector if supported.",
+            "example": "merchant_order_ref_123",
+            "nullable": true,
+            "maxLength": 255
+          },
           "amount": {
             "type": "integer",
             "format": "int64",
@@ -24605,6 +25023,13 @@
             "example": "merchant_1668273825",
             "maxLength": 255
           },
+          "merchant_order_reference_id": {
+            "type": "string",
+            "description": "Your unique identifier for this payout or order. This ID helps you reconcile payouts on your system. If provided, it is passed to the connector if supported.",
+            "example": "merchant_order_ref_123",
+            "nullable": true,
+            "maxLength": 255
+          },
           "amount": {
             "type": "integer",
             "format": "int64",
@@ -24898,13 +25323,13 @@
               "starting_after": {
                 "type": "string",
                 "description": "A cursor for use in pagination, fetch the next list after some object",
-                "example": "pay_fafa124123",
+                "example": "payout_fafa124123",
                 "nullable": true
               },
               "ending_before": {
                 "type": "string",
                 "description": "A cursor for use in pagination, fetch the previous list before some object",
-                "example": "pay_fafa124123",
+                "example": "payout_fafa124123",
                 "nullable": true
               },
               "limit": {
@@ -24950,6 +25375,13 @@
                 "nullable": true,
                 "maxLength": 30,
                 "minLength": 30
+              },
+              "merchant_order_reference_id": {
+                "type": "string",
+                "description": "The merchant order reference ID for payout",
+                "example": "merchant_order_ref_123",
+                "nullable": true,
+                "maxLength": 255
               },
               "profile_id": {
                 "type": "string",
@@ -25245,6 +25677,13 @@
       "PayoutUpdateRequest": {
         "type": "object",
         "properties": {
+          "merchant_order_reference_id": {
+            "type": "string",
+            "description": "Your unique identifier for this payout or order. This ID helps you reconcile payouts on your system. If provided, it is passed to the connector if supported.",
+            "example": "merchant_order_ref_123",
+            "nullable": true,
+            "maxLength": 255
+          },
           "amount": {
             "type": "integer",
             "format": "int64",
@@ -25475,6 +25914,13 @@
           "currency"
         ],
         "properties": {
+          "merchant_order_reference_id": {
+            "type": "string",
+            "description": "Your unique identifier for this payout or order. This ID helps you reconcile payouts on your system. If provided, it is passed to the connector if supported.",
+            "example": "merchant_order_ref_123",
+            "nullable": true,
+            "maxLength": 255
+          },
           "amount": {
             "type": "integer",
             "format": "int64",
@@ -25767,6 +26213,9 @@
           }
         }
       },
+      "PayseraData": {
+        "type": "object"
+      },
       "PazeSessionTokenResponse": {
         "type": "object",
         "required": [
@@ -25903,6 +26352,12 @@
             "description": "Partially masked destination bank account number",
             "example": "********-****-460b-****-f23b4e71c97b",
             "nullable": true
+          },
+          "expiry_date": {
+            "type": "string",
+            "description": "The expiration date and time for the Pix QR code in ISO 8601 format",
+            "example": "2025-09-10T10:11:12Z",
+            "nullable": true
           }
         }
       },
@@ -26024,7 +26479,6 @@
         "required": [
           "acquirer_assigned_merchant_id",
           "merchant_name",
-          "merchant_country_code",
           "network",
           "acquirer_bin",
           "acquirer_fraud_rate",
@@ -26040,11 +26494,6 @@
             "type": "string",
             "description": "merchant name",
             "example": "NewAge Retailer"
-          },
-          "merchant_country_code": {
-            "type": "string",
-            "description": "Merchant country code assigned by acquirer",
-            "example": "US"
           },
           "network": {
             "type": "string",
@@ -26081,7 +26530,6 @@
           "profile_acquirer_id",
           "acquirer_assigned_merchant_id",
           "merchant_name",
-          "merchant_country_code",
           "network",
           "acquirer_bin",
           "acquirer_fraud_rate",
@@ -26102,11 +26550,6 @@
             "type": "string",
             "description": "Merchant name",
             "example": "NewAge Retailer"
-          },
-          "merchant_country_code": {
-            "type": "string",
-            "description": "Merchant country code assigned by acquirer",
-            "example": "US"
           },
           "network": {
             "type": "string",
@@ -26148,11 +26591,6 @@
           "merchant_name": {
             "type": "string",
             "example": "Updated Retailer Name",
-            "nullable": true
-          },
-          "merchant_country_code": {
-            "type": "string",
-            "example": "CA",
             "nullable": true
           },
           "network": {
@@ -26421,6 +26859,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/MerchantCategoryCode"
+              }
+            ],
+            "nullable": true
+          },
+          "merchant_country_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantCountryCode"
               }
             ],
             "nullable": true
@@ -26727,6 +27173,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/MerchantCategoryCode"
+              }
+            ],
+            "nullable": true
+          },
+          "merchant_country_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantCountryCode"
               }
             ],
             "nullable": true
@@ -27884,6 +28338,7 @@
         "type": "string",
         "description": "RoutableConnectors are the subset of Connectors that are eligible for payments routing",
         "enum": [
+          "authipay",
           "adyenplatform",
           "stripe_billing_test",
           "phonypay",
@@ -27907,8 +28362,11 @@
           "bluesnap",
           "boku",
           "braintree",
+          "breadpay",
           "cashtocode",
+          "celero",
           "chargebee",
+          "custombilling",
           "checkout",
           "coinbase",
           "coingate",
@@ -27950,6 +28408,7 @@
           "opennode",
           "paybox",
           "payme",
+          "payload",
           "payone",
           "paypal",
           "paystack",
@@ -27962,6 +28421,7 @@
           "recurly",
           "redsys",
           "riskified",
+          "santander",
           "shift4",
           "signifyd",
           "square",
@@ -28933,6 +29393,9 @@
           "contain"
         ]
       },
+      "SkrillData": {
+        "type": "object"
+      },
       "SplitPaymentsRequest": {
         "oneOf": [
           {
@@ -29549,35 +30012,43 @@
       "ThreeDsData": {
         "type": "object",
         "required": [
-          "three_ds_authentication_url",
-          "three_ds_authorize_url",
-          "three_ds_method_details",
-          "poll_config"
+          "three_ds_server_transaction_id",
+          "maximum_supported_3ds_version",
+          "connector_authentication_id",
+          "three_ds_method_data",
+          "three_ds_method_url",
+          "message_version",
+          "directory_server_id"
         ],
         "properties": {
-          "three_ds_authentication_url": {
+          "three_ds_server_transaction_id": {
             "type": "string",
-            "description": "ThreeDS authentication url - to initiate authentication"
+            "description": "The unique identifier for this authentication from the 3DS server."
           },
-          "three_ds_authorize_url": {
+          "maximum_supported_3ds_version": {
             "type": "string",
-            "description": "ThreeDS authorize url - to complete the payment authorization after authentication"
+            "description": "The maximum supported 3DS version."
           },
-          "three_ds_method_details": {
-            "$ref": "#/components/schemas/ThreeDsMethodData"
+          "connector_authentication_id": {
+            "type": "string",
+            "description": "The unique identifier for this authentication from the connector."
           },
-          "poll_config": {
-            "$ref": "#/components/schemas/PollConfigResponse"
+          "three_ds_method_data": {
+            "type": "string",
+            "description": "The data required to perform the 3DS method."
+          },
+          "three_ds_method_url": {
+            "type": "string",
+            "description": "The URL to which the user should be redirected after authentication.",
+            "example": "https://example.com/redirect"
           },
           "message_version": {
             "type": "string",
-            "description": "Message Version",
-            "nullable": true
+            "description": "The version of the message."
           },
           "directory_server_id": {
             "type": "string",
-            "description": "Directory Server ID",
-            "nullable": true
+            "description": "The unique identifier for this authentication."
           }
         }
       },
@@ -30517,6 +30988,28 @@
           {
             "type": "object",
             "required": [
+              "skrill"
+            ],
+            "properties": {
+              "skrill": {
+                "$ref": "#/components/schemas/SkrillData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "paysera"
+            ],
+            "properties": {
+              "paysera": {
+                "$ref": "#/components/schemas/PayseraData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "momo_redirect"
             ],
             "properties": {
@@ -30877,6 +31370,10 @@
       },
       "WebhookDetails": {
         "type": "object",
+        "required": [
+          "payment_statuses_enabled",
+          "refund_statuses_enabled"
+        ],
         "properties": {
           "webhook_version": {
             "type": "string",
@@ -30921,6 +31418,42 @@
             "type": "boolean",
             "description": "If this property is true, a webhook message is posted whenever a payment fails",
             "example": true,
+            "nullable": true
+          },
+          "payment_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IntentStatus"
+            },
+            "description": "List of payment statuses that triggers a webhook for payment intents",
+            "example": [
+              "succeeded",
+              "failed",
+              "partially_captured",
+              "requires_merchant_action"
+            ]
+          },
+          "refund_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IntentStatus"
+            },
+            "description": "List of refund statuses that triggers a webhook for refunds",
+            "example": [
+              "success",
+              "failure"
+            ]
+          },
+          "payout_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PayoutStatus"
+            },
+            "description": "List of payout statuses that triggers a webhook for payouts",
+            "example": [
+              "success",
+              "failed"
+            ],
             "nullable": true
           }
         },

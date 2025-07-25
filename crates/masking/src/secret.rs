@@ -192,7 +192,7 @@ impl Strategy<serde_json::Value> for JsonMaskStrategy {
                         write!(f, ", ")?;
                     }
                     first = false;
-                    write!(f, "\"{}\":", key)?;
+                    write!(f, "\"{key}\":")?;
                     Self::fmt(val, f)?;
                 }
                 write!(f, "}}")
@@ -224,14 +224,14 @@ impl Strategy<serde_json::Value> for JsonMaskStrategy {
                         &s[s.len() - 1..s.len()]
                     )
                 };
-                write!(f, "\"{}\"", masked)
+                write!(f, "\"{masked}\"")
             }
             serde_json::Value::Number(n) => {
                 // For numbers, we can show the order of magnitude
                 if n.is_i64() || n.is_u64() {
                     let num_str = n.to_string();
                     let masked_num = "*".repeat(num_str.len());
-                    write!(f, "{}", masked_num)
+                    write!(f, "{masked_num}")
                 } else if n.is_f64() {
                     // For floats, just use a generic mask
                     write!(f, "**.**")
@@ -245,6 +245,38 @@ impl Strategy<serde_json::Value> for JsonMaskStrategy {
             }
             serde_json::Value::Null => write!(f, "null"),
         }
+    }
+}
+
+#[cfg(feature = "proto_tonic")]
+impl<T> prost::Message for Secret<T, crate::WithType>
+where
+    T: prost::Message + Default + Clone,
+{
+    fn encode_raw(&self, buf: &mut impl bytes::BufMut) {
+        self.peek().encode_raw(buf);
+    }
+
+    fn merge_field(
+        &mut self,
+        tag: u32,
+        wire_type: prost::encoding::WireType,
+        buf: &mut impl bytes::Buf,
+        ctx: prost::encoding::DecodeContext,
+    ) -> Result<(), prost::DecodeError> {
+        if tag == 1 {
+            self.peek_mut().merge_field(tag, wire_type, buf, ctx)
+        } else {
+            prost::encoding::skip_field(wire_type, tag, buf, ctx)
+        }
+    }
+
+    fn encoded_len(&self) -> usize {
+        self.peek().encoded_len()
+    }
+
+    fn clear(&mut self) {
+        self.peek_mut().clear();
     }
 }
 
@@ -263,7 +295,7 @@ mod tests {
 
         // Apply the JsonMaskStrategy
         let secret = Secret::<_, JsonMaskStrategy>::new(original.clone());
-        let masked_str = format!("{:?}", secret);
+        let masked_str = format!("{secret:?}");
 
         // Get specific values from original
         let original_obj = original.as_object().expect("Original should be an object");
@@ -340,45 +372,37 @@ mod tests {
         // Check that the masked output includes the expected masked patterns
         assert!(
             masked_str.contains(&expected_name_mask),
-            "Name not masked correctly. Expected: {}",
-            expected_name_mask
+            "Name not masked correctly. Expected: {expected_name_mask}"
         );
         assert!(
             masked_str.contains(&expected_email_mask),
-            "Email not masked correctly. Expected: {}",
-            expected_email_mask
+            "Email not masked correctly. Expected: {expected_email_mask}",
         );
         assert!(
             masked_str.contains(&expected_card_mask),
-            "Card number not masked correctly. Expected: {}",
-            expected_card_mask
+            "Card number not masked correctly. Expected: {expected_card_mask}",
         );
         assert!(
             masked_str.contains(&expected_tag1_mask),
-            "Tag not masked correctly. Expected: {}",
-            expected_tag1_mask
+            "Tag not masked correctly. Expected: {expected_tag1_mask}",
         );
         assert!(
             masked_str.contains(&expected_short_mask),
-            "Short string not masked correctly. Expected: {}",
-            expected_short_mask
+            "Short string not masked correctly. Expected: {expected_short_mask}",
         );
 
         assert!(
             masked_str.contains(&expected_age_mask),
-            "Age not masked correctly. Expected: {}",
-            expected_age_mask
+            "Age not masked correctly. Expected: {expected_age_mask}",
         );
         assert!(
             masked_str.contains(&expected_cvv_mask),
-            "CVV not masked correctly. Expected: {}",
-            expected_cvv_mask
+            "CVV not masked correctly. Expected: {expected_cvv_mask}",
         );
 
         assert!(
             masked_str.contains(expected_verified_mask),
-            "Boolean not masked correctly. Expected: {}",
-            expected_verified_mask
+            "Boolean not masked correctly. Expected: {expected_verified_mask}",
         );
 
         // Check structure preservation

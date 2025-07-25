@@ -129,7 +129,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        let customer_acceptance = request.customer_acceptance.clone().map(From::from);
+        let customer_acceptance = request.customer_acceptance.clone();
         let recurring_details = request.recurring_details.clone();
 
         let mandate_type = m_helpers::get_mandate_type(
@@ -475,6 +475,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 .payment_method_data
                 .as_ref()
                 .and_then(|pmd| pmd.payment_method_data.clone().map(Into::into)),
+            payment_method_token: None,
             payment_method_info,
             force_sync: None,
             all_keys_required: None,

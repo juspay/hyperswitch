@@ -38,7 +38,9 @@ crates/common_utils/src/events/ @juspay/hyperswitch-analytics
 crates/common_utils/src/events.rs @juspay/hyperswitch-analytics
 crates/analytics/ @juspay/hyperswitch-analytics
 
+scripts/add_connector.sh @juspay/hyperswitch-connector
 connector-template/ @juspay/hyperswitch-connector
+crates/router/src/core/connector_validation.rs @juspay/hyperswitch-connector
 crates/router/src/connector/ @juspay/hyperswitch-connector
 crates/router/tests/connectors/ @juspay/hyperswitch-connector
 crates/test_utils/tests/connectors/ @juspay/hyperswitch-connector
@@ -49,6 +51,9 @@ crates/api_models/src/connector_enums.rs @juspay/hyperswitch-connector
 crates/common_enums/src/connector_enums.rs @juspay/hyperswitch-connector
 crates/router/src/configs/defaults/payment_connector_required_fields.rs @juspay/hyperswitch-connector
 crates/hyperswitch_interfaces/src/configs.rs @juspay/hyperswitch-connector
+crates/hyperswitch_domain_models/src/connector_endpoints.rs @juspay/hyperswitch-connector
+crates/router/src/types/api/connector_mapping.rs @juspay/hyperswitch-connector
+crates/router/src/types/connector_transformers.rs @juspay/hyperswitch-connector
 
 crates/router/src/compatibility/ @juspay/hyperswitch-compatibility
 
