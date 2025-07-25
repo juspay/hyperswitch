@@ -6379,3 +6379,7 @@ key1 = "API Secret"
 [flexiti]
 [flexiti.connector_auth.HeaderKey]
 api_key = "API Key"
+
+[mpgs]
+[mpgs.connector_auth.HeaderKey]
+api_key = "API Key"
