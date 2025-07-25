@@ -48,7 +48,7 @@ pub trait Payment:
     + PaymentPostSessionTokens
     + PaymentUpdateMetadata
     + PaymentsCreateOrder
-    + ExternalVaultProxyPayments
+    + ExternalVaultProxyPaymentsCreateV1
 {
 }
 
@@ -176,8 +176,8 @@ pub trait PaymentsCreateOrder:
 {
 }
 
-// /// trait PaymentsCreateOrder
-// pub trait ExternalVaultProxyPaymentsCreate:
-//     api::ConnectorIntegration<ExternalVaultProxy, ExternalVaultProxyPaymentsData, PaymentsResponseData>
-// {
-// }
+/// trait ExternalVaultProxyPaymentsCreate
+pub trait ExternalVaultProxyPaymentsCreateV1:
+    api::ConnectorIntegration<ExternalVaultProxy, ExternalVaultProxyPaymentsData, PaymentsResponseData>
+{
+}

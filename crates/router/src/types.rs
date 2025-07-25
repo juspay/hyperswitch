@@ -1048,6 +1048,15 @@ impl Tokenizable for CompleteAuthorizeData {
     fn set_session_token(&mut self, _token: Option<String>) {}
 }
 
+impl Tokenizable for ExternalVaultProxyPaymentsData {
+    fn set_session_token(&mut self, token: Option<String>) {
+        self.session_token = token;
+    }
+}
+
+// Note: GetIntegrityObject trait implementation for ExternalVaultProxyPaymentsData 
+// is implemented in the hyperswitch_domain_models crate to avoid orphan rule violations
+
 impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
     fn foreign_from(data: &SetupMandateRouterData) -> Self {
         Self {

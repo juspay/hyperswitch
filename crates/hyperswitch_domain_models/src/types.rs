@@ -10,7 +10,7 @@ use crate::{
         CompleteAuthorize, CreateConnectorCustomer, CreateOrder, Execute, IncrementalAuthorization,
         PSync, PaymentMethodToken, PostAuthenticate, PostSessionTokens, PreAuthenticate,
         PreProcessing, RSync, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata,
-        VerifyWebhookSource, Void,
+        VerifyWebhookSource, Void, ExternalVaultProxy
     },
     router_request_types::{
         revenue_recovery::{
@@ -29,7 +29,7 @@ use crate::{
         PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
         PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData,
         SdkPaymentsSessionUpdateData, SetupMandateRequestData, VaultRequestData,
-        VerifyWebhookSourceRequestData,
+        VerifyWebhookSourceRequestData, ExternalVaultProxyPaymentsData,
     },
     router_response_types::{
         revenue_recovery::{
@@ -45,6 +45,8 @@ pub use crate::{router_request_types::PayoutsData, router_response_types::Payout
 
 pub type PaymentsAuthorizeRouterData =
     RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
+pub type ExternalVaultProxyPaymentsRouterData =
+    RouterData<ExternalVaultProxy, ExternalVaultProxyPaymentsData, PaymentsResponseData>;
 pub type PaymentsAuthorizeSessionTokenRouterData =
     RouterData<AuthorizeSessionToken, AuthorizeSessionTokenData, PaymentsResponseData>;
 pub type PaymentsPreProcessingRouterData =

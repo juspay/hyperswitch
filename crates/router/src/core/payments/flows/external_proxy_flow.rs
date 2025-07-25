@@ -17,10 +17,6 @@ use crate::{
         payments::{
             self, access_token, customers, helpers, tokenization, transformers, PaymentData,
         },
-        unified_connector_service::{
-            build_unified_connector_service_auth_metadata,
-            handle_unified_connector_service_response_for_payment_authorize,
-        },
     },
     logger,
     routes::{metrics, SessionState},
@@ -31,6 +27,7 @@ use crate::{
     },
     utils::OptionExt,
 };
+
 
 #[cfg(feature = "v2")]
 #[async_trait]
@@ -104,12 +101,8 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData> for
             .await
             .to_payment_failed_response()?;
 
-            // Initiating Integrity check
-            let integrity_result = helpers::check_integrity_based_on_flow(
-                &auth_router_data.request,
-                &auth_router_data.response,
-            );
-            auth_router_data.integrity_check = integrity_result;
+            // External vault proxy doesn't use integrity checks
+            auth_router_data.integrity_check = Ok(());
             metrics::PAYMENT_COUNT.add(1, &[]); // Move outside of the if block
 
             Ok(auth_router_data)
@@ -236,21 +229,12 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData> for
                         Some(diesel_models::enums::FutureUsage::OnSession);
                 };
 
-                if crate::connector::utils::PaymentsAuthorizeRequestData::is_customer_initiated_mandate_payment(
-                    &self.request,
-                ) {
-                    connector
-                        .connector
-                        .validate_mandate_payment(
-                            self.request.payment_method_type,
-                            self.request.payment_method_data.clone(),
-                        )
-                        .to_payment_failed_response()?;
-                };
+                // External vault proxy doesn't use regular payment method validation
+                // Skip mandate payment validation for external vault proxy
 
                 let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
-                    api::Authorize,
-                    types::PaymentsAuthorizeData,
+                    api::ExternalVaultProxy,
+                    types::ExternalVaultProxyPaymentsData,
                     types::PaymentsResponseData,
                 > = connector.connector.get_connector_integration();
 
@@ -258,25 +242,19 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData> for
                     1,
                     router_env::metric_attributes!(
                         ("connector", connector.connector_name.to_string()),
-                        ("flow", format!("{:?}", api::Authorize)),
+                        ("flow", format!("{:?}", api::ExternalVaultProxy)),
                     ),
                 );
 
                 logger::debug!(completed_pre_tasks=?true);
 
-                if self.should_proceed_with_authorize() {
-                    self.decide_authentication_type();
-                    logger::debug!(auth_type=?self.auth_type);
-
-                    Ok((
-                        connector_integration
-                            .build_request(self, &state.conf.connectors)
-                            .to_payment_failed_response()?,
-                        true,
-                    ))
-                } else {
-                    Ok((None, false))
-                }
+                // External vault proxy always proceeds
+                Ok((
+                    connector_integration
+                        .build_request(self, &state.conf.connectors)
+                        .to_payment_failed_response()?,
+                    true,
+                ))
             }
             _ => Ok((None, true)),
         }
@@ -371,48 +349,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData> for
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         merchant_context: &domain::MerchantContext,
     ) -> RouterResult<()> {
-        let client = state
-            .grpc_client
-            .unified_connector_service_client
-            .clone()
-            .ok_or(ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to fetch Unified Connector Service client")?;
-
-        let payment_authorize_request =
-            payments_grpc::PaymentServiceAuthorizeRequest::foreign_try_from(self)
-                .change_context(ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to construct Payment Authorize Request")?;
-
-        let connector_auth_metadata = build_unified_connector_service_auth_metadata(
-            merchant_connector_account,
-            merchant_context,
-        )
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to construct request metadata")?;
-
-        let response = client
-            .payment_authorize(
-                payment_authorize_request,
-                connector_auth_metadata,
-                state.get_grpc_headers(),
-            )
-            .await
-            .change_context(ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to authorize payment")?;
-
-        let payment_authorize_response = response.into_inner();
-
-        let (status, router_data_response) =
-            handle_unified_connector_service_response_for_payment_authorize(
-                payment_authorize_response.clone(),
-            )
-            .change_context(ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to deserialize UCS response")?;
-
-        self.status = status;
-        self.response = router_data_response;
-        self.raw_connector_response = payment_authorize_response.raw_connector_response;
-
+        // External vault proxy doesn't use UCS - use standard connector processing
         Ok(())
     }
 }

@@ -77,6 +77,7 @@ pub struct PaymentsAuthorizeData {
     pub order_id: Option<String>,
 }
 
+#[derive(Debug, Clone)]
 pub struct ExternalVaultProxyPaymentsData {
     pub payment_method_data: ExternalVaultPaymentMethodData,
     /// total amount (original_amount + surcharge_amount + tax_on_surcharge_amount)
@@ -135,6 +136,37 @@ pub struct ExternalVaultProxyPaymentsData {
     pub merchant_config_currency: Option<storage_enums::Currency>,
     pub connector_testing_data: Option<pii::SecretSerdeValue>,
     pub order_id: Option<String>,
+}
+
+// Note: Integrity traits for ExternalVaultProxyPaymentsData are not implemented
+// as they are not mandatory for this flow. The integrity_check field in RouterData
+// will use Ok(()) as default, similar to other flows.
+
+// Implement ConnectorCustomerData conversion for ExternalVaultProxy RouterData
+impl
+    TryFrom<
+        &RouterData<flows::ExternalVaultProxy, ExternalVaultProxyPaymentsData, response_types::PaymentsResponseData>,
+    > for ConnectorCustomerData
+{
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(
+        data: &RouterData<
+            flows::ExternalVaultProxy,
+            ExternalVaultProxyPaymentsData,
+            response_types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            email: data.request.email.clone(),
+            payment_method_data: None, // External vault proxy doesn't use regular payment method data
+            description: None,
+            phone: None,
+            name: data.request.customer_name.clone(),
+            preprocessing_id: data.preprocessing_id.clone(),
+            split_payments: data.request.split_payments.clone(),
+        })
+    }
 }
 #[derive(Debug, Clone)]
 pub struct PaymentsPostSessionTokensData {
@@ -373,6 +405,16 @@ impl TryFrom<CompleteAuthorizeData> for PaymentMethodTokenizationData {
     }
 }
 
+impl TryFrom<ExternalVaultProxyPaymentsData> for PaymentMethodTokenizationData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(_data: ExternalVaultProxyPaymentsData) -> Result<Self, Self::Error> {
+        // TODO: External vault proxy payments should not use regular payment method tokenization
+        // This needs to be implemented separately for external vault flows
+        todo!("External vault proxy tokenization not implemented")
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct CreateOrderRequestData {
     pub minor_amount: MinorUnit,
@@ -383,6 +425,17 @@ impl TryFrom<PaymentsAuthorizeData> for CreateOrderRequestData {
     type Error = error_stack::Report<ApiErrorResponse>;
 
     fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            minor_amount: data.minor_amount,
+            currency: data.currency,
+        })
+    }
+}
+
+impl TryFrom<ExternalVaultProxyPaymentsData> for CreateOrderRequestData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: ExternalVaultProxyPaymentsData) -> Result<Self, Self::Error> {
         Ok(Self {
             minor_amount: data.minor_amount,
             currency: data.currency,

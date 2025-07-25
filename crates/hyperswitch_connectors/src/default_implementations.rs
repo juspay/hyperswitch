@@ -57,7 +57,7 @@ use hyperswitch_domain_models::{
         },
         webhooks::VerifyWebhookSource,
         Authenticate, AuthenticationConfirmation, ExternalVaultCreateFlow, ExternalVaultDeleteFlow,
-        ExternalVaultInsertFlow, ExternalVaultRetrieveFlow, PostAuthenticate, PreAuthenticate,
+        ExternalVaultInsertFlow, ExternalVaultRetrieveFlow, ExternalVaultProxy, PostAuthenticate, PreAuthenticate,
     },
     router_request_types::{
         authentication,
@@ -68,7 +68,7 @@ use hyperswitch_domain_models::{
         },
         AcceptDisputeRequestData, AuthorizeSessionTokenData, CompleteAuthorizeData,
         ConnectorCustomerData, CreateOrderRequestData, DefendDisputeRequestData,
-        MandateRevokeRequestData, PaymentsApproveData, PaymentsIncrementalAuthorizationData,
+        ExternalVaultProxyPaymentsData, MandateRevokeRequestData, PaymentsApproveData, PaymentsIncrementalAuthorizationData,
         PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
         PaymentsRejectData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData,
         RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SubmitEvidenceRequestData,
@@ -109,7 +109,7 @@ use hyperswitch_interfaces::{
         disputes::{AcceptDispute, DefendDispute, Dispute, SubmitEvidence},
         files::{FileUpload, RetrieveFile, UploadFile},
         payments::{
-            ConnectorCustomer, PaymentApprove, PaymentAuthorizeSessionToken,
+            ConnectorCustomer, ExternalVaultProxyPaymentsCreateV1, PaymentApprove, PaymentAuthorizeSessionToken,
             PaymentIncrementalAuthorization, PaymentPostSessionTokens, PaymentReject,
             PaymentSessionUpdate, PaymentUpdateMetadata, PaymentsCompleteAuthorize,
             PaymentsCreateOrder, PaymentsPostProcessing, PaymentsPreProcessing, TaxCalculation,
@@ -6478,6 +6478,135 @@ default_imp_for_external_vault_create!(
     connectors::Zsl
 );
 
+macro_rules! default_imp_for_external_vault_proxy_payments_create {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl ExternalVaultProxyPaymentsCreateV1 for $path::$connector {}
+            impl
+            ConnectorIntegration<
+            ExternalVaultProxy,
+            ExternalVaultProxyPaymentsData,
+            PaymentsResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+default_imp_for_external_vault_proxy_payments_create!(
+    connectors::Aci,
+    connectors::Adyen,
+    connectors::Adyenplatform,
+    connectors::Airwallex,
+    connectors::Amazonpay,
+    connectors::Archipel,
+    connectors::Authipay,
+    connectors::Authorizedotnet,
+    connectors::Bambora,
+    connectors::Bamboraapac,
+    connectors::Bankofamerica,
+    connectors::Barclaycard,
+    connectors::Billwerk,
+    connectors::Bitpay,
+    connectors::Bluesnap,
+    connectors::Braintree,
+    connectors::Boku,
+    connectors::Cashtocode,
+    connectors::Celero,
+    connectors::Chargebee,
+    connectors::Checkbook,
+    connectors::Checkout,
+    connectors::Coinbase,
+    connectors::Coingate,
+    connectors::Cryptopay,
+    connectors::Cybersource,
+    connectors::Datatrans,
+    connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
+    connectors::Dwolla,
+    connectors::Ebanx,
+    connectors::Elavon,
+    connectors::Facilitapay,
+    connectors::Fiserv,
+    connectors::Fiservemea,
+    connectors::Fiuu,
+    connectors::Forte,
+    connectors::Getnet,
+    connectors::Globalpay,
+    connectors::Globepay,
+    connectors::Gocardless,
+    connectors::Gpayments,
+    connectors::Hipay,
+    connectors::Helcim,
+    connectors::HyperswitchVault,
+    connectors::Iatapay,
+    connectors::Inespay,
+    connectors::Itaubank,
+    connectors::Jpmorgan,
+    connectors::Juspaythreedsserver,
+    connectors::Klarna,
+    connectors::Mifinity,
+    connectors::Mollie,
+    connectors::Moneris,
+    connectors::Multisafepay,
+    connectors::Netcetera,
+    connectors::Nmi,
+    connectors::Nomupay,
+    connectors::Noon,
+    connectors::Nordea,
+    connectors::Novalnet,
+    connectors::Nexinets,
+    connectors::Nexixpay,
+    connectors::Opayo,
+    connectors::Opennode,
+    connectors::Nuvei,
+    connectors::Paybox,
+    connectors::Payeezy,
+    connectors::Payload,
+    connectors::Payme,
+    connectors::Payone,
+    connectors::Paypal,
+    connectors::Paystack,
+    connectors::Payu,
+    connectors::Placetopay,
+    connectors::Plaid,
+    connectors::Powertranz,
+    connectors::Prophetpay,
+    connectors::Rapyd,
+    connectors::Razorpay,
+    connectors::Recurly,
+    connectors::Redsys,
+    connectors::Riskified,
+    connectors::Santander,
+    connectors::Shift4,
+    connectors::Silverflow,
+    connectors::Signifyd,
+    connectors::Stax,
+    connectors::Square,
+    connectors::Stripebilling,
+    connectors::Taxjar,
+    connectors::Threedsecureio,
+    connectors::Thunes,
+    connectors::Tokenio,
+    connectors::Trustpay,
+    connectors::Tsys,
+    connectors::UnifiedAuthenticationService,
+    connectors::Wise,
+    connectors::Worldline,
+    connectors::Worldpay,
+    connectors::Worldpayvantiv,
+    connectors::Worldpayxml,
+    connectors::Wellsfargo,
+    connectors::Wellsfargopayout,
+    connectors::Vgs,
+    connectors::Volt,
+    connectors::Xendit,
+    connectors::Zen,
+    connectors::Zsl,
+    connectors::CtpMastercard
+);
+
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> PaymentsCompleteAuthorize for connectors::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
@@ -6977,6 +7106,15 @@ impl<const T: u8> ConnectorIntegration<ExternalVaultDeleteFlow, VaultRequestData
 impl<const T: u8> ExternalVaultCreate for connectors::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> ConnectorIntegration<ExternalVaultCreateFlow, VaultRequestData, VaultResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ExternalVaultProxyPaymentsCreateV1 for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<ExternalVaultProxy, ExternalVaultProxyPaymentsData, PaymentsResponseData>
     for connectors::DummyConnector<T>
 {
 }

@@ -6,7 +6,7 @@ use hyperswitch_domain_models::{
         Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
         CreateConnectorCustomer, CreateOrder, IncrementalAuthorization, PSync, PaymentMethodToken,
         PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
-        SetupMandate, UpdateMetadata, Void,
+        SetupMandate, UpdateMetadata, Void, ExternalVaultProxy
     },
     router_request_types::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
@@ -15,7 +15,7 @@ use hyperswitch_domain_models::{
         PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
         PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
         PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
-        PaymentsUpdateMetadataData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
+        PaymentsUpdateMetadataData, SdkPaymentsSessionUpdateData, SetupMandateRequestData, ExternalVaultProxyPaymentsData,
     },
     router_response_types::{PaymentsResponseData, TaxCalculationResponseData},
 };
@@ -199,6 +199,12 @@ pub trait PaymentsPostProcessingV2:
 {
 }
 
+/// trait ExternalVaultProxyPaymentsCreate
+pub trait ExternalVaultProxyPaymentsCreate:
+    ConnectorIntegrationV2<ExternalVaultProxy, PaymentFlowData, ExternalVaultProxyPaymentsData, PaymentsResponseData>
+{
+}
+
 /// trait PaymentV2
 pub trait PaymentV2:
     ConnectorCommon
@@ -224,5 +230,6 @@ pub trait PaymentV2:
     + PaymentPostSessionTokensV2
     + PaymentUpdateMetadataV2
     + PaymentCreateOrderV2
+    + ExternalVaultProxyPaymentsCreate
 {
 }
