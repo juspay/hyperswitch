@@ -22,6 +22,8 @@ pub struct GsmCreateRequest {
     /// decision to be taken for auto retries flow
     pub decision: common_enums::GsmDecision,
     /// indicates if step_up retry is possible
+    /// **Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.
+    #[deprecated]
     pub step_up_possible: Option<bool>,
     /// error code unified across the connectors
     pub unified_code: Option<String>,
@@ -30,6 +32,8 @@ pub struct GsmCreateRequest {
     /// category in which error belongs to
     pub error_category: Option<ErrorCategory>,
     /// indicates if retry with pan is possible
+    /// **Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.
+    #[deprecated]
     pub clear_pan_possible: Option<bool>,
     /// Indicates the GSM feature associated with the request,
     /// such as retry mechanisms or other specific functionalities provided by the system.
@@ -92,6 +96,8 @@ pub struct GsmUpdateRequest {
     /// decision to be taken for auto retries flow
     pub decision: Option<common_enums::GsmDecision>,
     /// indicates if step_up retry is possible
+    /// **Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.
+    #[deprecated]
     pub step_up_possible: Option<bool>,
     /// error code unified across the connectors
     pub unified_code: Option<String>,
@@ -100,6 +106,8 @@ pub struct GsmUpdateRequest {
     /// category in which error belongs to
     pub error_category: Option<ErrorCategory>,
     /// indicates if retry with pan is possible
+    /// **Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.
+    #[deprecated]
     pub clear_pan_possible: Option<bool>,
     /// Indicates the GSM feature associated with the request,
     /// such as retry mechanisms or other specific functionalities provided by the system.
@@ -156,7 +164,9 @@ pub struct GsmResponse {
     /// decision to be taken for auto retries flow
     pub decision: common_enums::GsmDecision,
     /// indicates if step_up retry is possible
-    pub step_up_possible: bool,
+    /// **Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.
+    #[deprecated]
+    pub step_up_possible: Option<bool>,
     /// error code unified across the connectors
     pub unified_code: Option<String>,
     /// error message unified across the connectors
@@ -164,7 +174,9 @@ pub struct GsmResponse {
     /// category in which error belongs to
     pub error_category: Option<ErrorCategory>,
     /// indicates if retry with pan is possible
-    pub clear_pan_possible: bool,
+    /// **Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.
+    #[deprecated]
+    pub clear_pan_possible: Option<bool>,
     /// Indicates the GSM feature associated with the request,
     /// such as retry mechanisms or other specific functionalities provided by the system.
     pub feature: common_enums::GsmFeature,
