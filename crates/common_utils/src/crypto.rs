@@ -4,9 +4,11 @@ use std::ops::Deref;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use md5;
+use pem;
 use ring::{
     aead::{self, BoundKey, OpeningKey, SealingKey, UnboundKey},
-    hmac,
+    hmac, rand as ring_rand,
+    signature::{RsaKeyPair, RSA_PSS_SHA256},
 };
 #[cfg(feature = "logs")]
 use router_env::logger;
@@ -680,6 +682,42 @@ pub type EncryptableName = Encryptable<Secret<String>>;
 /// Type alias for `Encryptable<Secret<String>>` used for `email` field
 pub type EncryptableEmail = Encryptable<Secret<String, pii::EmailStrategy>>;
 
+/// Represents the RSA-PSS-SHA256 signing algorithm
+#[derive(Debug)]
+pub struct RsaPssSha256;
+
+impl SignMessage for RsaPssSha256 {
+    fn sign_message(
+        &self,
+        private_key_pem_bytes: &[u8],
+        msg_to_sign: &[u8],
+    ) -> CustomResult<Vec<u8>, errors::CryptoError> {
+        let parsed_pem = pem::parse(private_key_pem_bytes)
+            .change_context(errors::CryptoError::EncodingFailed)
+            .attach_printable("Failed to parse PEM string")?;
+        let key_pair = match parsed_pem.tag() {
+            "PRIVATE KEY" => RsaKeyPair::from_pkcs8(parsed_pem.contents())
+                .change_context(errors::CryptoError::InvalidKeyLength)
+                .attach_printable("Failed to parse PKCS#8 DER with ring"),
+            "RSA PRIVATE KEY" => RsaKeyPair::from_der(parsed_pem.contents())
+                .change_context(errors::CryptoError::InvalidKeyLength)
+                .attach_printable("Failed to parse PKCS#1 DER (using from_der) with ring"),
+            tag => Err(errors::CryptoError::InvalidKeyLength).attach_printable(format!(
+                "Unexpected PEM tag: {tag}. Expected 'PRIVATE KEY' or 'RSA PRIVATE KEY'",
+            )),
+        }?;
+        let rng = ring_rand::SystemRandom::new();
+        let signature_len = key_pair.public().modulus_len();
+        let mut signature_bytes = vec![0; signature_len];
+        key_pair
+            .sign(&RSA_PSS_SHA256, &rng, msg_to_sign, &mut signature_bytes)
+            .change_context(errors::CryptoError::EncodingFailed)
+            .attach_printable("Failed to sign data with ring")?;
+
+        Ok(signature_bytes)
+    }
+}
+
 #[cfg(test)]
 mod crypto_tests {
     #![allow(clippy::expect_used)]
@@ -875,5 +913,42 @@ mod crypto_tests {
             .expect("Wrong signature verification result");
 
         assert!(!wrong_verified);
+    }
+
+    use ring::signature::{UnparsedPublicKey, RSA_PSS_2048_8192_SHA256};
+
+    #[test]
+    fn test_rsa_pss_sha256_verify_signature() {
+        let signer = crate::crypto::RsaPssSha256;
+        let message = b"abcdefghijklmnopqrstuvwxyz";
+
+        let private_key_pem_bytes =
+            std::fs::read("../../private_key.pem").expect("Failed to read private key");
+        let parsed_pem = pem::parse(&private_key_pem_bytes).expect("Failed to parse PEM");
+        let private_key_der = parsed_pem.contents();
+
+        let signature = signer
+            .sign_message(&private_key_pem_bytes, message)
+            .expect("Signing failed");
+
+        let key_pair = crate::crypto::RsaKeyPair::from_pkcs8(private_key_der)
+            .expect("Failed to parse DER key");
+        let public_key_der = key_pair.public().as_ref().to_vec();
+
+        let public_key = UnparsedPublicKey::new(&RSA_PSS_2048_8192_SHA256, &public_key_der);
+        assert!(
+            public_key.verify(message, &signature).is_ok(),
+            "Right signature should verify"
+        );
+
+        let mut wrong_signature = signature.clone();
+        if let Some(byte) = wrong_signature.first_mut() {
+            *byte ^= 0xFF;
+        }
+
+        assert!(
+            public_key.verify(message, &wrong_signature).is_err(),
+            "Wrong signature should not verify"
+        );
     }
 }

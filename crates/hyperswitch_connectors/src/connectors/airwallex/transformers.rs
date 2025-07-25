@@ -811,6 +811,7 @@ fn get_wallet_details(
         | WalletData::KakaoPayRedirect(_)
         | WalletData::GoPayRedirect(_)
         | WalletData::GcashRedirect(_)
+        | WalletData::AmazonPay(_)
         | WalletData::ApplePay(_)
         | WalletData::ApplePayRedirect(_)
         | WalletData::ApplePayThirdPartySdk(_)
