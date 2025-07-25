@@ -6,7 +6,7 @@ use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceError;
 use hyperswitch_domain_models::{
-    router_data::RouterData,
+    router_data::{ErrorResponse, RouterData},
     router_flow_types::payments::{Authorize, PSync, SetupMandate},
     router_request_types::{
         AuthenticationData, PaymentsAuthorizeData, PaymentsSyncData, SetupMandateRequestData,
@@ -329,6 +329,280 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
                 .unwrap_or_default(),
             webhook_url: router_data.request.webhook_url.clone(),
         })
+    }
+}
+
+impl ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse>
+    for Result<PaymentsResponseData, ErrorResponse>
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        response: payments_grpc::PaymentServiceAuthorizeResponse,
+    ) -> Result<Self, Self::Error> {
+        let status = AttemptStatus::foreign_try_from(response.status())?;
+
+        let connector_response_reference_id =
+            response.response_ref_id.as_ref().and_then(|identifier| {
+                identifier
+                    .id_type
+                    .clone()
+                    .and_then(|id_type| match id_type {
+                        payments_grpc::identifier::IdType::Id(id) => Some(id),
+                        payments_grpc::identifier::IdType::EncodedData(encoded_data) => {
+                            Some(encoded_data)
+                        }
+                        payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
+                    })
+            });
+
+        let transaction_id = response.transaction_id.as_ref().and_then(|id| {
+            id.id_type.clone().and_then(|id_type| match id_type {
+                payments_grpc::identifier::IdType::Id(id) => Some(id),
+                payments_grpc::identifier::IdType::EncodedData(encoded_data) => Some(encoded_data),
+                payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
+            })
+        });
+
+        let response = if response.error_code.is_some() {
+            Err(ErrorResponse {
+                code: response.error_code().to_owned(),
+                message: response.error_message().to_owned(),
+                reason: Some(response.error_message().to_owned()),
+                status_code: 500, //TODO: To be handled once UCS sends proper status codes
+                attempt_status: Some(status),
+                connector_transaction_id: connector_response_reference_id,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: match transaction_id.as_ref() {
+                    Some(transaction_id) => hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(transaction_id.clone()),
+                    None => hyperswitch_domain_models::router_request_types::ResponseId::NoResponseId,
+                },
+                redirection_data: Box::new(
+                    response
+                        .redirection_data
+                        .clone()
+                        .map(RedirectForm::foreign_try_from)
+                        .transpose()?
+                ),
+                mandate_reference: Box::new(None),
+                connector_metadata: None,
+                network_txn_id: response.network_txn_id.clone(),
+                connector_response_reference_id,
+                incremental_authorization_allowed: response.incremental_authorization_allowed,
+                charges: None,
+            })
+        };
+
+        Ok(response)
+    }
+}
+
+impl ForeignTryFrom<payments_grpc::PaymentServiceGetResponse>
+    for Result<PaymentsResponseData, ErrorResponse>
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        response: payments_grpc::PaymentServiceGetResponse,
+    ) -> Result<Self, Self::Error> {
+        let status = AttemptStatus::foreign_try_from(response.status())?;
+
+        let connector_response_reference_id =
+            response.response_ref_id.as_ref().and_then(|identifier| {
+                identifier
+                    .id_type
+                    .clone()
+                    .and_then(|id_type| match id_type {
+                        payments_grpc::identifier::IdType::Id(id) => Some(id),
+                        payments_grpc::identifier::IdType::EncodedData(encoded_data) => {
+                            Some(encoded_data)
+                        }
+                        payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
+                    })
+            });
+
+        let response = if response.error_code.is_some() {
+            Err(ErrorResponse {
+                code: response.error_code().to_owned(),
+                message: response.error_message().to_owned(),
+                reason: Some(response.error_message().to_owned()),
+                status_code: 500, //TODO: To be handled once UCS sends proper status codes
+                attempt_status: Some(status),
+                connector_transaction_id: connector_response_reference_id,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: match connector_response_reference_id.as_ref() {
+                    Some(connector_response_reference_id) => hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(connector_response_reference_id.clone()),
+                    None => hyperswitch_domain_models::router_request_types::ResponseId::NoResponseId,
+                },
+                redirection_data: Box::new(
+                    None
+                ),
+                mandate_reference: Box::new(None),
+                connector_metadata: None,
+                network_txn_id: response.network_txn_id.clone(),
+                connector_response_reference_id,
+                incremental_authorization_allowed: None,
+                charges: None,
+                }
+            )
+        };
+
+        Ok(response)
+    }
+}
+
+impl ForeignTryFrom<payments_grpc::PaymentServiceRegisterResponse>
+    for Result<PaymentsResponseData, ErrorResponse>
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        response: payments_grpc::PaymentServiceRegisterResponse,
+    ) -> Result<Self, Self::Error> {
+        let status = AttemptStatus::foreign_try_from(response.status())?;
+
+        let connector_response_reference_id =
+            response.response_ref_id.as_ref().and_then(|identifier| {
+                identifier
+                    .id_type
+                    .clone()
+                    .and_then(|id_type| match id_type {
+                        payments_grpc::identifier::IdType::Id(id) => Some(id),
+                        payments_grpc::identifier::IdType::EncodedData(encoded_data) => {
+                            Some(encoded_data)
+                        }
+                        payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
+                    })
+            });
+
+        let response = if response.error_code.is_some() {
+            Err(ErrorResponse {
+                code: response.error_code().to_owned(),
+                message: response.error_message().to_owned(),
+                reason: Some(response.error_message().to_owned()),
+                status_code: 500, //TODO: To be handled once UCS sends proper status codes
+                attempt_status: Some(status),
+                connector_transaction_id: connector_response_reference_id,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: response.registration_id.as_ref().and_then(|identifier| {
+                    identifier
+                        .id_type
+                        .clone()
+                        .and_then(|id_type| match id_type {
+                            payments_grpc::identifier::IdType::Id(id) => Some(
+                                hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(id),
+                            ),
+                            payments_grpc::identifier::IdType::EncodedData(encoded_data) => Some(
+                                hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(encoded_data),
+                            ),
+                            payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
+                        })
+                }).unwrap_or(hyperswitch_domain_models::router_request_types::ResponseId::NoResponseId),
+                redirection_data: Box::new(
+                    response
+                        .redirection_data
+                        .clone()
+                        .map(RedirectForm::foreign_try_from)
+                        .transpose()?
+                ),
+                mandate_reference: Box::new(
+                    response.mandate_reference.map(|grpc_mandate| {
+                        hyperswitch_domain_models::router_response_types::MandateReference {
+                            connector_mandate_id: grpc_mandate.mandate_id,
+                            payment_method_id: None,
+                            mandate_metadata: None,
+                            connector_mandate_request_reference_id: None,
+                        }
+                    })
+                ),
+                connector_metadata: None,
+                network_txn_id: response.network_txn_id,
+                connector_response_reference_id,
+                incremental_authorization_allowed: response.incremental_authorization_allowed,
+                charges: None,
+            })
+        };
+
+        Ok(response)
+    }
+}
+
+impl ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingResponse>
+    for Result<PaymentsResponseData, ErrorResponse>
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        response: payments_grpc::PaymentServiceRepeatEverythingResponse,
+    ) -> Result<Self, Self::Error> {
+        let status = AttemptStatus::foreign_try_from(response.status())?;
+
+        let connector_response_reference_id =
+            response.response_ref_id.as_ref().and_then(|identifier| {
+                identifier
+                    .id_type
+                    .clone()
+                    .and_then(|id_type| match id_type {
+                        payments_grpc::identifier::IdType::Id(id) => Some(id),
+                        payments_grpc::identifier::IdType::EncodedData(encoded_data) => {
+                            Some(encoded_data)
+                        }
+                        payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
+                    })
+            });
+
+        let transaction_id = response.transaction_id.as_ref().and_then(|id| {
+            id.id_type.clone().and_then(|id_type| match id_type {
+                payments_grpc::identifier::IdType::Id(id) => Some(id),
+                payments_grpc::identifier::IdType::EncodedData(encoded_data) => Some(encoded_data),
+                payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
+            })
+        });
+
+        let response = if response.error_code.is_some() {
+            Err(ErrorResponse {
+                code: response.error_code().to_owned(),
+                message: response.error_message().to_owned(),
+                reason: Some(response.error_message().to_owned()),
+                status_code: 500, //TODO: To be handled once UCS sends proper status codes
+                attempt_status: Some(status),
+                connector_transaction_id: transaction_id,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: match transaction_id.as_ref() {
+                    Some(transaction_id) => hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(transaction_id.clone()),
+                    None => hyperswitch_domain_models::router_request_types::ResponseId::NoResponseId,
+                },
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
+                connector_metadata: None,
+                network_txn_id: response.network_txn_id.clone(),
+                connector_response_reference_id,
+                incremental_authorization_allowed: None,
+                charges: None,
+            })
+        };
+
+        Ok(response)
     }
 }
 
