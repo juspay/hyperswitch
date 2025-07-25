@@ -4,6 +4,32 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.07.25.0
+
+### Features
+
+- **connector:**
+  - [SILVERFLOW] Integrate cards non 3ds payments ([#8591](https://github.com/juspay/hyperswitch/pull/8591)) ([`b521951`](https://github.com/juspay/hyperswitch/commit/b521951942dd653f6a78729926d91e8e793cd999))
+  - [TRUSTPAYMENTS] Add Template Code ([#8672](https://github.com/juspay/hyperswitch/pull/8672)) ([`3159071`](https://github.com/juspay/hyperswitch/commit/3159071839f2fb14a11d3af7f657d7c62b53105b))
+  - [AIRWALLEX] Added Ideal & Skrill payment methods ([#8535](https://github.com/juspay/hyperswitch/pull/8535)) ([`15d589d`](https://github.com/juspay/hyperswitch/commit/15d589d27bf8375367c0f922ed76783ad210b5b0))
+  - [Breadpay]Add support for Breadpay connector ([#8676](https://github.com/juspay/hyperswitch/pull/8676)) ([`0d9750c`](https://github.com/juspay/hyperswitch/commit/0d9750cd2405a8da9132d24ba8770a416935fa47))
+- **core:** Consuming locale in PaymentsAuthorizeData from SessionState ([#8731](https://github.com/juspay/hyperswitch/pull/8731)) ([`be03dd2`](https://github.com/juspay/hyperswitch/commit/be03dd2ae9a4df9b592aa3fc482e5356843a7163))
+
+### Bug Fixes
+
+- **core:** Fixed invalid merchant country code error object ([#8665](https://github.com/juspay/hyperswitch/pull/8665)) ([`20b37bd`](https://github.com/juspay/hyperswitch/commit/20b37bdb7a25ec053e7671332d4837a0ad743983))
+- **feature_matrix:** Refunds are supported by jpmorgan ([#8699](https://github.com/juspay/hyperswitch/pull/8699)) ([`5c78abd`](https://github.com/juspay/hyperswitch/commit/5c78abd77ef886b2c81addbd8094132ec7aecf5f))
+- **payment-methods:** Fetch payment method details in payouts flow ([#8729](https://github.com/juspay/hyperswitch/pull/8729)) ([`56d8ed7`](https://github.com/juspay/hyperswitch/commit/56d8ed72458f189084bf09450276bbce3a80e62a))
+- **router:** Add payment method Wallet check for decrypted wallet payment method token logic ([#8744](https://github.com/juspay/hyperswitch/pull/8744)) ([`be00272`](https://github.com/juspay/hyperswitch/commit/be002728a365b92df52125d445e1e8a4c3181f0b))
+
+### Refactors
+
+- **core:** Remove hardcoded timeout limit of 5s for outgoing webhook requests ([#8725](https://github.com/juspay/hyperswitch/pull/8725)) ([`8c7ddaa`](https://github.com/juspay/hyperswitch/commit/8c7ddaa46d484973056e63471b0ec4fdf2e4f412))
+
+**Full Changelog:** [`2025.07.24.0...2025.07.25.0`](https://github.com/juspay/hyperswitch/compare/2025.07.24.0...2025.07.25.0)
+
+- - -
+
 
 ## 2025.07.23.0
 
