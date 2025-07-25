@@ -57,6 +57,7 @@ pub struct Connectors {
     pub fiserv: ConnectorParams,
     pub fiservemea: ConnectorParams,
     pub fiuu: ConnectorParamsWithThreeUrls,
+    pub flexiti: ConnectorParams,
     pub forte: ConnectorParams,
     pub getnet: ConnectorParams,
     pub globalpay: ConnectorParams,

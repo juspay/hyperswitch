@@ -42,6 +42,7 @@ pub mod facilitapay;
 pub mod fiserv;
 pub mod fiservemea;
 pub mod fiuu;
+pub mod flexiti;
 pub mod forte;
 pub mod getnet;
 pub mod globalpay;
@@ -130,8 +131,8 @@ pub use self::{
     cryptopay::Cryptopay, ctp_mastercard::CtpMastercard, custombilling::Custombilling,
     cybersource::Cybersource, datatrans::Datatrans, deutschebank::Deutschebank,
     digitalvirgo::Digitalvirgo, dlocal::Dlocal, dwolla::Dwolla, ebanx::Ebanx, elavon::Elavon,
-    facilitapay::Facilitapay, fiserv::Fiserv, fiservemea::Fiservemea, fiuu::Fiuu, forte::Forte,
-    getnet::Getnet, globalpay::Globalpay, globepay::Globepay, gocardless::Gocardless,
+    facilitapay::Facilitapay, fiserv::Fiserv, fiservemea::Fiservemea, fiuu::Fiuu, flexiti::Flexiti,
+    forte::Forte, getnet::Getnet, globalpay::Globalpay, globepay::Globepay, gocardless::Gocardless,
     gpayments::Gpayments, helcim::Helcim, hipay::Hipay, hyperswitch_vault::HyperswitchVault,
     iatapay::Iatapay, inespay::Inespay, itaubank::Itaubank, jpmorgan::Jpmorgan,
     juspaythreedsserver::Juspaythreedsserver, klarna::Klarna, mifinity::Mifinity, mollie::Mollie,

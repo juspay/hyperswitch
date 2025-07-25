@@ -4986,3 +4986,7 @@ api_key = "API Key"
 [breadpay.connector_auth.BodyKey]
 api_key = "API Key"
 key1 = "API Secret"
+
+[flexiti]
+[flexiti.connector_auth.HeaderKey]
+api_key = "API Key"
