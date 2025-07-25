@@ -2134,7 +2134,7 @@ impl From<IntentStatus> for Option<EventType> {
             | IntentStatus::RequiresCustomerAction
             | IntentStatus::Conflicted => Some(EventType::ActionRequired),
             IntentStatus::Cancelled => Some(EventType::PaymentCancelled),
-            | IntentStatus::Expired => Some(EventType::PaymentExpired),
+            IntentStatus::Expired => Some(EventType::PaymentExpired),
             IntentStatus::PartiallyCaptured | IntentStatus::PartiallyCapturedAndCapturable => {
                 Some(EventType::PaymentCaptured)
             }
