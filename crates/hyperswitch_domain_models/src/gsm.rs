@@ -1,3 +1,4 @@
+use api_models::gsm as gsm_api_types;
 use common_utils::{errors::ValidationError, ext_traits::StringExt};
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
@@ -15,11 +16,11 @@ pub struct GatewayStatusMap {
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
     pub error_category: Option<common_enums::ErrorCategory>,
-    pub feature_data: FeatureData,
+    pub feature_data: GsmFeatureData,
     pub feature: common_enums::GsmFeature,
 }
 
-impl FeatureData {
+impl GsmFeatureData {
     pub fn get_retry_feature_data(&self) -> Option<RetryFeatureData> {
         match self {
             Self::Retry(data) => Some(data.clone()),
@@ -51,9 +52,47 @@ impl RetryFeatureData {
     }
 }
 
+impl From<gsm_api_types::GsmFeatureData> for GsmFeatureData {
+    fn from(value: gsm_api_types::GsmFeatureData) -> Self {
+        match value {
+            gsm_api_types::GsmFeatureData::Retry(data) => Self::Retry(data.into()),
+        }
+    }
+}
+
+impl From<gsm_api_types::RetryFeatureData> for RetryFeatureData {
+    fn from(value: gsm_api_types::RetryFeatureData) -> Self {
+        Self {
+            step_up_possible: value.step_up_possible,
+            clear_pan_possible: value.clear_pan_possible,
+            alternate_network_possible: value.alternate_network_possible,
+            decision: value.decision,
+        }
+    }
+}
+
+impl From<GsmFeatureData> for gsm_api_types::GsmFeatureData {
+    fn from(value: GsmFeatureData) -> Self {
+        match value {
+            GsmFeatureData::Retry(data) => Self::Retry(data.into()),
+        }
+    }
+}
+
+impl From<RetryFeatureData> for gsm_api_types::RetryFeatureData {
+    fn from(value: RetryFeatureData) -> Self {
+        Self {
+            step_up_possible: value.step_up_possible,
+            clear_pan_possible: value.clear_pan_possible,
+            alternate_network_possible: value.alternate_network_possible,
+            decision: value.decision,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
-pub enum FeatureData {
+pub enum GsmFeatureData {
     Retry(RetryFeatureData),
 }
 
@@ -75,7 +114,7 @@ pub struct GatewayStatusMappingUpdate {
     pub unified_message: Option<String>,
     pub error_category: Option<common_enums::ErrorCategory>,
     pub clear_pan_possible: Option<bool>,
-    pub feature_data: Option<FeatureData>,
+    pub feature_data: Option<GsmFeatureData>,
     pub feature: Option<common_enums::GsmFeature>,
 }
 
@@ -153,7 +192,7 @@ impl TryFrom<diesel_models::gsm::GatewayStatusMap> for GatewayStatusMap {
                 .map_err(|_| ValidationError::InvalidValue {
                     message: "Failed to parse GsmDecision".to_string(),
                 })?;
-        let db_feature_data: Option<FeatureData> = item
+        let db_feature_data: Option<GsmFeatureData> = item
             .feature_data
             .map(|data| {
                 serde_json::from_value(data.expose()).map_err(|_| ValidationError::InvalidValue {
@@ -166,8 +205,8 @@ impl TryFrom<diesel_models::gsm::GatewayStatusMap> for GatewayStatusMap {
         // (i.e., records created before `FeatureData` and related features were introduced).
         // At that time, the only supported feature was `Retry`, so it's safe to default to it.
         let feature_data = match db_feature_data {
-            Some(FeatureData::Retry(data)) => FeatureData::Retry(data),
-            None => FeatureData::Retry(RetryFeatureData {
+            Some(GsmFeatureData::Retry(data)) => GsmFeatureData::Retry(data),
+            None => GsmFeatureData::Retry(RetryFeatureData {
                 step_up_possible: item.step_up_possible,
                 clear_pan_possible: item.clear_pan_possible,
                 alternate_network_possible: false,
@@ -175,9 +214,7 @@ impl TryFrom<diesel_models::gsm::GatewayStatusMap> for GatewayStatusMap {
             }),
         };
 
-        let feature = item
-            .feature
-            .unwrap_or(common_enums::GsmFeature::Retry);
+        let feature = item.feature.unwrap_or(common_enums::GsmFeature::Retry);
         Ok(Self {
             connector: item.connector,
             flow: item.flow,

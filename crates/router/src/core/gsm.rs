@@ -64,9 +64,9 @@ pub async fn update_gsm_rule(
                 message: "GSM with given key does not exist in our records".to_string(),
             })?;
 
-    let feature_info = <(
+    let inferred_feature_info = <(
         common_enums::GsmFeature,
-        hyperswitch_domain_models::gsm::FeatureData,
+        hyperswitch_domain_models::gsm::GsmFeatureData,
     )>::foreign_from((&gsm_request, gsm_db_record));
 
     let gsm_api_types::GsmUpdateRequest {
@@ -83,8 +83,8 @@ pub async fn update_gsm_rule(
         unified_message,
         error_category,
         clear_pan_possible,
-        alternate_network_possible: _,
-        feature: _,
+        feature,
+        feature_data,
     } = gsm_request;
     GsmInterface::update_gsm_rule(
         db,
@@ -102,8 +102,8 @@ pub async fn update_gsm_rule(
             unified_message,
             error_category,
             clear_pan_possible,
-            feature_data: Some(feature_info.1),
-            feature: Some(feature_info.0),
+            feature_data: feature_data.map(|data|data.into()).or(Some(inferred_feature_info.1)),
+            feature: feature.or(Some(inferred_feature_info.0)),
         },
     )
     .await

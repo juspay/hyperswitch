@@ -31,11 +31,32 @@ pub struct GsmCreateRequest {
     pub error_category: Option<ErrorCategory>,
     /// indicates if retry with pan is possible
     pub clear_pan_possible: Option<bool>,
-    /// indicates if retry with alternate network possible
-    pub alternate_network_possible: Option<bool>,
     /// Indicates the GSM feature associated with the request,
     /// such as retry mechanisms or other specific functionalities provided by the system.
     pub feature: Option<common_enums::GsmFeature>,
+    /// Contains the data relevant to the specified GSM feature, if applicable.
+    /// For example, if the `feature` is `Retry`, this will include configuration
+    /// details specific to the retry behavior.
+    pub feature_data: Option<GsmFeatureData>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, PartialEq, Eq, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum GsmFeatureData {
+    /// Represents the data associated with a retry feature in GSM.
+    Retry(RetryFeatureData),
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, PartialEq, Eq, ToSchema)]
+pub struct RetryFeatureData {
+    /// indicates if step_up retry is possible
+    pub step_up_possible: bool,
+    /// indicates if retry with pan is possible
+    pub clear_pan_possible: bool,
+    /// indicates if retry with alternate network possible
+    pub alternate_network_possible: bool,
+    /// decision to be taken for auto retries flow
+    pub decision: common_enums::GsmDecision,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -80,11 +101,13 @@ pub struct GsmUpdateRequest {
     pub error_category: Option<ErrorCategory>,
     /// indicates if retry with pan is possible
     pub clear_pan_possible: Option<bool>,
-    /// indicates if retry with alternate network possible
-    pub alternate_network_possible: Option<bool>,
     /// Indicates the GSM feature associated with the request,
     /// such as retry mechanisms or other specific functionalities provided by the system.
     pub feature: Option<common_enums::GsmFeature>,
+    /// Contains the data relevant to the specified GSM feature, if applicable.
+    /// For example, if the `feature` is `Retry`, this will include configuration
+    /// details specific to the retry behavior.
+    pub feature_data: Option<GsmFeatureData>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -142,9 +165,11 @@ pub struct GsmResponse {
     pub error_category: Option<ErrorCategory>,
     /// indicates if retry with pan is possible
     pub clear_pan_possible: bool,
-    /// indicates if retry with alternate network possible
-    pub alternate_network_possible: bool,
     /// Indicates the GSM feature associated with the request,
     /// such as retry mechanisms or other specific functionalities provided by the system.
     pub feature: common_enums::GsmFeature,
+    /// Contains the data relevant to the specified GSM feature, if applicable.
+    /// For example, if the `feature` is `Retry`, this will include configuration
+    /// details specific to the retry behavior.
+    pub feature_data: Option<GsmFeatureData>,
 }

@@ -1587,7 +1587,8 @@ impl ForeignFrom<gsm_api_types::GsmCreateRequest>
     for hyperswitch_domain_models::gsm::GatewayStatusMap
 {
     fn foreign_from(value: gsm_api_types::GsmCreateRequest) -> Self {
-        let feature_data = hyperswitch_domain_models::gsm::FeatureData::foreign_from(&value);
+        let inferred_feature_data =
+            hyperswitch_domain_models::gsm::GsmFeatureData::foreign_from(&value);
         Self {
             connector: value.connector.to_string(),
             flow: value.flow,
@@ -1599,17 +1600,24 @@ impl ForeignFrom<gsm_api_types::GsmCreateRequest>
             unified_code: value.unified_code,
             unified_message: value.unified_message,
             error_category: value.error_category,
-            feature_data,
+            feature_data: value
+                .feature_data
+                .map(|data| data.into())
+                .unwrap_or(inferred_feature_data),
             feature: value.feature.unwrap_or(api_enums::GsmFeature::Retry),
         }
     }
 }
 
-impl ForeignFrom<&gsm_api_types::GsmCreateRequest> for hyperswitch_domain_models::gsm::FeatureData {
+impl ForeignFrom<&gsm_api_types::GsmCreateRequest>
+    for hyperswitch_domain_models::gsm::GsmFeatureData
+{
     fn foreign_from(value: &gsm_api_types::GsmCreateRequest) -> Self {
         let step_up_possible = value.step_up_possible.unwrap_or_default();
         let clear_pan_possible = value.clear_pan_possible.unwrap_or_default();
-        let alternate_network_possible = value.alternate_network_possible.unwrap_or_default();
+        // Defaulting alternate_network_possible to false as it is provided only in the Retry feature
+        // If the retry feature is not used, we assume alternate network as false
+        let alternate_network_possible = false;
 
         match value.feature {
             Some(api_enums::GsmFeature::Retry) | None => {
@@ -1631,7 +1639,7 @@ impl
     )>
     for (
         api_enums::GsmFeature,
-        hyperswitch_domain_models::gsm::FeatureData,
+        hyperswitch_domain_models::gsm::GsmFeatureData,
     )
 {
     fn foreign_from(
@@ -1655,7 +1663,7 @@ impl
                 let gsm_db_record_retry_feature_data =
                     gsm_db_record.feature_data.get_retry_feature_data();
 
-                let retry_feature_data = hyperswitch_domain_models::gsm::FeatureData::Retry(
+                let retry_feature_data = hyperswitch_domain_models::gsm::GsmFeatureData::Retry(
                     hyperswitch_domain_models::gsm::RetryFeatureData {
                         step_up_possible: gsm_update_request
                             .step_up_possible
@@ -1669,10 +1677,8 @@ impl
                                 .clone()
                                 .map(|data| data.clear_pan_possible))
                             .unwrap_or_default(),
-                        alternate_network_possible: gsm_update_request
-                            .alternate_network_possible
-                            .or(gsm_db_record_retry_feature_data
-                                .map(|data| data.alternate_network_possible))
+                        alternate_network_possible: gsm_db_record_retry_feature_data
+                            .map(|data| data.alternate_network_possible)
                             .unwrap_or_default(),
                         decision: gsm_update_request
                             .decision
@@ -1710,11 +1716,7 @@ impl ForeignFrom<hyperswitch_domain_models::gsm::GatewayStatusMap> for gsm_api_t
                 .get_retry_feature_data()
                 .map(|data| data.is_clear_pan_possible())
                 .unwrap_or(false),
-            alternate_network_possible: value
-                .feature_data
-                .get_retry_feature_data()
-                .map(|data| data.is_alternate_network_possible())
-                .unwrap_or(false),
+            feature_data: Some(value.feature_data.into()),
             feature: value.feature,
         }
     }
