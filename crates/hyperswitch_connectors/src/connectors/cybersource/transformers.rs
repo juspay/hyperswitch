@@ -14,9 +14,9 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     address::{AddressDetails, PhoneDetails},
     router_flow_types::PoFulfill,
+    router_request_types::authentication::MessageExtensionAttribute,
     router_response_types::PayoutsResponseData,
     types::PayoutsRouterData,
-    router_request_types::authentication::MessageExtensionAttribute
 };
 use hyperswitch_domain_models::{
     network_tokenization::NetworkTokenNumber,
@@ -1249,9 +1249,7 @@ fn convert_metadata_to_merchant_defined_info(metadata: Value) -> Vec<MerchantDef
     }
     vector
 }
-fn extract_score_id(
-    message_extensions: &[MessageExtensionAttribute],
-) -> Option<u32> {
+fn extract_score_id(message_extensions: &[MessageExtensionAttribute]) -> Option<u32> {
     message_extensions
         .iter()
         .find(|attr| attr.id.ends_with("CB-SCORE"))
@@ -1375,17 +1373,21 @@ impl
                     date_time::DateFormat::YYYYMMDDHHmmss,
                 )
                 .ok();
-                let effective_authentication_type = map_to_effective_type(authn_data.authentication_type);
-                let network_score: Option<u32> = if ccard.card_network == Some(common_enums::CardNetwork::CartesBancaires) {
-                    authn_data
-                        .message_extension
-                        .clone()
-                        .and_then(|v| serde_json::from_value::<Vec<MessageExtensionAttribute>>(v).ok())
-                        .as_ref()
-                        .and_then(|exts| extract_score_id(exts))
-                } else {
-                    None
-                };
+                let effective_authentication_type =
+                    map_to_effective_type(authn_data.authentication_type);
+                let network_score: Option<u32> =
+                    if ccard.card_network == Some(common_enums::CardNetwork::CartesBancaires) {
+                        authn_data
+                            .message_extension
+                            .clone()
+                            .and_then(|v| {
+                                serde_json::from_value::<Vec<MessageExtensionAttribute>>(v).ok()
+                            })
+                            .as_ref()
+                            .and_then(|exts| extract_score_id(exts))
+                    } else {
+                        None
+                    };
                 CybersourceConsumerAuthInformation {
                     pares_status,
                     ucaf_collection_indicator,
@@ -1492,16 +1494,19 @@ impl
                     date_time::DateFormat::YYYYMMDDHHmmss,
                 )
                 .ok();
-                let network_score: Option<u32> = if ccard.card_network == Some(common_enums::CardNetwork::CartesBancaires) {
-                    authn_data
-                        .message_extension
-                        .clone()
-                        .and_then(|v| serde_json::from_value::<Vec<MessageExtensionAttribute>>(v).ok())
-                        .as_ref()
-                        .and_then(|exts| extract_score_id(exts))
-                } else {
-                    None
-                };
+                let network_score: Option<u32> =
+                    if ccard.card_network == Some(common_enums::CardNetwork::CartesBancaires) {
+                        authn_data
+                            .message_extension
+                            .clone()
+                            .and_then(|v| {
+                                serde_json::from_value::<Vec<MessageExtensionAttribute>>(v).ok()
+                            })
+                            .as_ref()
+                            .and_then(|exts| extract_score_id(exts))
+                    } else {
+                        None
+                    };
                 CybersourceConsumerAuthInformation {
                     pares_status,
                     ucaf_collection_indicator,
@@ -1612,11 +1617,15 @@ impl
                     date_time::DateFormat::YYYYMMDDHHmmss,
                 )
                 .ok();
-                let network_score: Option<u32> = if token_data.card_network == Some(common_enums::CardNetwork::CartesBancaires) {
+                let network_score: Option<u32> = if token_data.card_network
+                    == Some(common_enums::CardNetwork::CartesBancaires)
+                {
                     authn_data
                         .message_extension
                         .clone()
-                        .and_then(|v| serde_json::from_value::<Vec<MessageExtensionAttribute>>(v).ok())
+                        .and_then(|v| {
+                            serde_json::from_value::<Vec<MessageExtensionAttribute>>(v).ok()
+                        })
                         .as_ref()
                         .and_then(|exts| extract_score_id(exts))
                 } else {

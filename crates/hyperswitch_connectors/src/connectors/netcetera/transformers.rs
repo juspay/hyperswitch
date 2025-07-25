@@ -5,7 +5,8 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse},
     router_flow_types::authentication::{Authentication, PreAuthentication},
     router_request_types::authentication::{
-        AuthNFlowType, ChallengeParams, ConnectorAuthenticationRequestData, PreAuthNRequestData,MessageExtensionAttribute
+        AuthNFlowType, ChallengeParams, ConnectorAuthenticationRequestData,
+        MessageExtensionAttribute, PreAuthNRequestData,
     },
     router_response_types::AuthenticationResponseData,
 };
@@ -651,7 +652,7 @@ pub struct NetceteraAuthenticationSuccessResponse {
     pub trans_status_reason: Option<String>,
     #[serde(rename = "threeDSRequestorChallengeInd")]
     pub three_ds_requestor_challenge_ind: Option<String>,
-    pub message_extension: Option<Vec<MessageExtensionAttribute>>
+    pub message_extension: Option<Vec<MessageExtensionAttribute>>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

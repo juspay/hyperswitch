@@ -20,10 +20,11 @@ use hyperswitch_domain_models::{
         Authorize, Capture, CompleteAuthorize, PSync, Void,
     },
     router_request_types::{
-        BrowserInformation, PaymentsAuthorizeData, PaymentsPreProcessingData, ResponseId, authentication::MessageExtensionAttribute
+        authentication::MessageExtensionAttribute, BrowserInformation, PaymentsAuthorizeData,
+        PaymentsPreProcessingData, ResponseId,
     },
     router_response_types::{
-        MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData
+        MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
     },
     types,
 };
@@ -504,7 +505,6 @@ pub struct NuveiACSResponse {
     pub message_extension: Vec<MessageExtensionAttribute>,
     pub acs_signed_content: Option<serde_json::Value>,
 }
-
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum LiabilityShift {
