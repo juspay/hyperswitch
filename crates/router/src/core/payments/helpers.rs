@@ -2039,8 +2039,7 @@ pub fn decide_payment_method_retrieval_action(
 
 pub async fn is_ucs_enabled(state: &SessionState, config_key: &str) -> bool {
     let db = state.store.as_ref();
-    let is_enabled = db
-        .find_config_by_key_unwrap_or(config_key, Some("false".to_string()))
+    db.find_config_by_key_unwrap_or(config_key, Some("false".to_string()))
         .await
         .map_err(|error| {
             logger::error!(
@@ -2053,9 +2052,7 @@ pub async fn is_ucs_enabled(state: &SessionState, config_key: &str) -> bool {
                 logger::error!(?error, "Failed to parse `{config_key}` UCS enabled config");
             })
         })
-        .unwrap_or(false);
-
-    is_enabled
+        .unwrap_or(false)
 }
 
 pub async fn should_execute_based_on_rollout(
