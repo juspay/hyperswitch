@@ -1,4 +1,5 @@
 pub use common_enums::{ApiClientError, ApplicationError, ApplicationResult};
+use common_utils::errors::ValidationError;
 pub use redis_interface::errors::RedisError;
 
 use crate::store::errors::DatabaseError;
@@ -66,6 +67,21 @@ impl From<error_stack::Report<DatabaseError>> for StorageError {
                 key: None,
             },
             _ => Self::DatabaseError(err),
+        }
+    }
+}
+
+impl From<error_stack::Report<ValidationError>> for StorageError {
+    fn from(err: error_stack::Report<ValidationError>) -> Self {
+        match err.current_context() {
+            ValidationError::InvalidValue { message } => Self::ValueNotFound(message.to_string()),
+            ValidationError::MissingRequiredField { field_name } => {
+                Self::ValueNotFound(format!("Missing required field: {field_name}"))
+            }
+            ValidationError::IncorrectValueProvided { field_name } => {
+                Self::ValueNotFound(format!("Incorrect Value for field: {field_name}"))
+            }
+            ValidationError::DecryptionError { .. } => Self::DecryptionError,
         }
     }
 }

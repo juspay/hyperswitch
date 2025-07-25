@@ -298,6 +298,33 @@ impl super::behaviour::Conversion for PaymentMethod {
         })
     }
 
+    fn validate(
+        item: &Self::DstType,
+        key_manager_identifier: &keymanager::Identifier,
+    ) -> CustomResult<(), ValidationError>
+    where
+        Self: Sized,
+    {
+        match key_manager_identifier {
+            keymanager::Identifier::Merchant(merchant_id) => {
+                if &item.merchant_id != merchant_id {
+                    return Err(ValidationError::IncorrectValueProvided {
+                        field_name: "Payment Method ID",
+                    }
+                    .into());
+                }
+
+                Ok(())
+            }
+            keymanager::Identifier::User(_) | keymanager::Identifier::UserAuth(_) => {
+                Err(ValidationError::InvalidValue {
+                    message: "Key manager identifier is not a merchant".to_string(),
+                }
+                .into())
+            }
+        }
+    }
+
     async fn convert_back(
         state: &keymanager::KeyManagerState,
         item: Self::DstType,
@@ -385,8 +412,8 @@ impl super::behaviour::Conversion for PaymentMethod {
             })
         }
         .await
-        .change_context(ValidationError::InvalidValue {
-            message: "Failed while decrypting payment method data".to_string(),
+        .change_context(ValidationError::DecryptionError {
+            message: "payment method data".to_string(),
         })
     }
 
@@ -469,6 +496,28 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .map(|val| val.into()),
             external_vault_source: self.external_vault_source,
         })
+    }
+
+    fn validate(
+        item: Self::DstType,
+        key_manager_identifier: keymanager::Identifier,
+    ) -> CustomResult<(), ValidationError>
+    where
+        Self: Sized,
+    {
+        match key_manager_identifier {
+            keymanager::Identifier::Merchant(merchant_id) => {
+                if item.merchant_id != merchant_id {
+                    return Err(ValidationError::IncorrectValueProvided {
+                        field_name: "Payment Method ID",
+                    }
+                    .into());
+                }
+
+                Ok(())
+            }
+            _ => Ok(()),
+        }
     }
 
     async fn convert_back(
@@ -563,8 +612,8 @@ impl super::behaviour::Conversion for PaymentMethod {
             })
         }
         .await
-        .change_context(ValidationError::InvalidValue {
-            message: "Failed while decrypting payment method data".to_string(),
+        .change_context(ValidationError::DecryptionError {
+            message: "payment method data".to_string(),
         })
     }
 
@@ -638,6 +687,16 @@ impl super::behaviour::Conversion for PaymentMethodSession {
         })
     }
 
+    fn validate(
+        item: Self::DstType,
+        key_manager_identifier: keymanager::Identifier,
+    ) -> CustomResult<(), ValidationError>
+    where
+        Self: Sized,
+    {
+        Ok(())
+    }
+
     async fn convert_back(
         state: &keymanager::KeyManagerState,
         storage_model: Self::DstType,
@@ -692,8 +751,8 @@ impl super::behaviour::Conversion for PaymentMethodSession {
             })
         }
         .await
-        .change_context(ValidationError::InvalidValue {
-            message: "Failed while decrypting payment method data".to_string(),
+        .change_context(ValidationError::DecryptionError {
+            message: "payment method session data".to_string(),
         })
     }
 

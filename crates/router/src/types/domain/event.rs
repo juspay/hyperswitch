@@ -133,6 +133,34 @@ impl super::behaviour::Conversion for Event {
         })
     }
 
+    fn validate(
+        item: &Self::DstType,
+        key_manager_identifier: &common_utils::types::keymanager::Identifier,
+    ) -> CustomResult<(), ValidationError>
+    where
+        Self: Sized,
+    {
+        match key_manager_identifier {
+            common_utils::types::keymanager::Identifier::Merchant(merchant_id) => {
+                if item.merchant_id.as_ref() != Some(merchant_id) {
+                    return Err(ValidationError::IncorrectValueProvided {
+                        field_name: "Event ID",
+                    }
+                    .into());
+                }
+
+                Ok(())
+            }
+            common_utils::types::keymanager::Identifier::User(_)
+            | common_utils::types::keymanager::Identifier::UserAuth(_) => {
+                Err(ValidationError::InvalidValue {
+                    message: "Key manager identifier is not a merchant".to_string(),
+                }
+                .into())
+            }
+        }
+    }
+
     async fn convert_back(
         state: &KeyManagerState,
         item: Self::DstType,
@@ -154,12 +182,12 @@ impl super::behaviour::Conversion for Event {
         )
         .await
         .and_then(|val| val.try_into_batchoperation())
-        .change_context(ValidationError::InvalidValue {
-            message: "Failed while decrypting event data".to_string(),
+        .change_context(ValidationError::DecryptionError {
+            message: "event data".to_string(),
         })?;
         let encryptable_event = EncryptedEvent::from_encryptable(decrypted).change_context(
-            ValidationError::InvalidValue {
-                message: "Failed while decrypting event data".to_string(),
+            ValidationError::DecryptionError {
+                message: "event data".to_string(),
             },
         )?;
         Ok(Self {
