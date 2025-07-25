@@ -681,6 +681,7 @@ pub struct AuthenticationData {
     pub threeds_server_transaction_id: Option<String>,
     pub message_version: Option<common_utils::types::SemanticVersion>,
     pub ds_trans_id: Option<String>,
+    pub created_at: time::PrimitiveDateTime,
 }
 
 #[derive(Debug, Clone)]
