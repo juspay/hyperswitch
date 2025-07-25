@@ -2,14 +2,8 @@ pub mod transformers;
 
 use std::sync::LazyLock;
 
-use common_enums::enums;
-
-use ring::hmac;
-
-use error_stack::{report, ResultExt};
-use masking::{ExposeInterface, Mask, Secret};
-
 use base64::engine::Engine;
+use common_enums::enums;
 use common_utils::{
     consts::BASE64_ENGINE,
     crypto,
@@ -18,12 +12,7 @@ use common_utils::{
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector},
 };
-
-use crate::{
-    constants::headers,
-    types::ResponseRouterData,
-    utils::{convert_amount, get_http_header, RefundsRequestData, RouterData as RD},
-};
+use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ErrorResponse, PaymentMethodToken as PMT, RouterData},
     router_flow_types::{
@@ -46,7 +35,6 @@ use hyperswitch_domain_models::{
         RefreshTokenRouterData, RefundSyncRouterData, RefundsRouterData, TokenizationRouterData,
     },
 };
-
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
@@ -58,9 +46,16 @@ use hyperswitch_interfaces::{
     types::{self, RefreshTokenType, Response, TokenizationType},
     webhooks,
 };
-
+use masking::{ExposeInterface, Mask, Secret};
+use ring::hmac;
 use transformers as dwolla;
 use transformers::extract_token_from_body;
+
+use crate::{
+    constants::headers,
+    types::ResponseRouterData,
+    utils::{convert_amount, get_http_header, RefundsRequestData, RouterData as RD},
+};
 
 #[derive(Clone)]
 pub struct Dwolla {
@@ -965,10 +960,8 @@ static DWOLLA_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
 };
 
-static DWOLLA_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] = [
-    enums::EventClass::Payments,
-    enums::EventClass::Refunds,
-];
+static DWOLLA_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
+    [enums::EventClass::Payments, enums::EventClass::Refunds];
 
 impl ConnectorSpecifications for Dwolla {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
@@ -979,7 +972,7 @@ impl ConnectorSpecifications for Dwolla {
         Some(&*DWOLLA_SUPPORTED_PAYMENT_METHODS)
     }
 
-        fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&DWOLLA_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

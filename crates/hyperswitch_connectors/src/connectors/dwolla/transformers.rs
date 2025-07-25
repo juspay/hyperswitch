@@ -1,7 +1,3 @@
-use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{self, CustomerData, RouterData as _},
-};
 use common_enums::{enums, AttemptStatus};
 use common_utils::{errors::CustomResult, types::StringMajorUnit};
 use error_stack::{report, ResultExt};
@@ -17,6 +13,11 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::errors;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
+
+use crate::{
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils::{self, CustomerData, RouterData as _},
+};
 
 pub struct DwollaAuthType {
     pub(super) client_id: Secret<String>,
@@ -306,7 +307,10 @@ impl<'a> TryFrom<&DwollaRouterData<'a, &PaymentsAuthorizeRouterData>> for Dwolla
                 currency: item.router_data.request.currency,
                 value: item.amount.to_owned(),
             },
-            correlation_id: format!("payment_{}", item.router_data.connector_request_reference_id),
+            correlation_id: format!(
+                "payment_{}",
+                item.router_data.connector_request_reference_id
+            ),
         };
 
         Ok(request)
