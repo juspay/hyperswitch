@@ -347,7 +347,6 @@ pub fn handle_unified_connector_service_response_for_payment_register(
     (AttemptStatus, Result<PaymentsResponseData, ErrorResponse>),
     UnifiedConnectorServiceError,
 > {
-    // Convert the mandate status to attempt status
     let status = AttemptStatus::foreign_try_from(response.status())?;
 
     let connector_response_reference_id =

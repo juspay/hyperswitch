@@ -600,33 +600,6 @@ impl ForeignTryFrom<payments_grpc::PaymentStatus> for AttemptStatus {
     }
 }
 
-impl ForeignTryFrom<payments_grpc::MandateStatus> for AttemptStatus {
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
-
-    fn foreign_try_from(grpc_status: payments_grpc::MandateStatus) -> Result<Self, Self::Error> {
-        match grpc_status {
-            payments_grpc::MandateStatus::Unspecified => Ok(Self::Unresolved),
-            payments_grpc::MandateStatus::MandateInitiated => Ok(Self::Started),
-            payments_grpc::MandateStatus::MandatePending => Ok(Self::Pending),
-            payments_grpc::MandateStatus::MandateAuthenticationPending => {
-                Ok(Self::AuthenticationPending)
-            }
-            payments_grpc::MandateStatus::MandateAuthenticationSuccessful => {
-                Ok(Self::AuthenticationSuccessful)
-            }
-            payments_grpc::MandateStatus::MandateAuthenticationFailed => {
-                Ok(Self::AuthenticationFailed)
-            }
-            payments_grpc::MandateStatus::MandateEstablished => Ok(Self::Charged),
-            payments_grpc::MandateStatus::MandateFailed => Ok(Self::Failure),
-            payments_grpc::MandateStatus::MandateCancelled => Ok(Self::Voided),
-            payments_grpc::MandateStatus::MandateExpired => Ok(Self::Failure),
-            payments_grpc::MandateStatus::MandateRouterDeclined => Ok(Self::RouterDeclined),
-            payments_grpc::MandateStatus::MandateUnresolved => Ok(Self::Unresolved),
-        }
-    }
-}
-
 impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
