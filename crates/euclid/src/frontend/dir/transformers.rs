@@ -103,6 +103,7 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
 
             global_enums::PaymentMethodType::PayBright => Ok(dirval!(PayLaterType = PayBright)),
             global_enums::PaymentMethodType::Walley => Ok(dirval!(PayLaterType = Walley)),
+            global_enums::PaymentMethodType::Breadpay => Ok(dirval!(PayLaterType = Breadpay)),
             global_enums::PaymentMethodType::Przelewy24 => {
                 Ok(dirval!(BankRedirectType = Przelewy24))
             }
@@ -198,6 +199,9 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
                 Ok(dirval!(MobilePaymentType = DirectCarrierBilling))
             }
             global_enums::PaymentMethodType::Eft => Ok(dirval!(BankRedirectType = Eft)),
+            global_enums::PaymentMethodType::IndonesianBankTransfer => {
+                Ok(dirval!(BankTransferType = IndonesianBankTransfer))
+            }
         }
     }
 }

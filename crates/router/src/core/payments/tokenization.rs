@@ -1275,6 +1275,7 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
                 router_data
                     .request
                     .set_session_token(pm_token_router_data.session_token.clone());
+                
                 let resp = services::execute_connector_processing_step(
                     state,
                     connector_integration,
@@ -1285,6 +1286,7 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
                 )
                 .await
                 .to_payment_failed_response()?;
+
                 metrics::CONNECTOR_PAYMENT_METHOD_TOKENIZATION.add(
                     1,
                     router_env::metric_attributes!(
@@ -1300,6 +1302,7 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
                         None
                     }
                 });
+                
                 Ok(types::PaymentMethodTokenResult {
                     payment_method_token_result: payment_token_resp,
                     is_payment_method_tokenization_performed: true,
