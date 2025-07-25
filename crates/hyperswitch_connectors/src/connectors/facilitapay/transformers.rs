@@ -414,7 +414,13 @@ impl<F, T> TryFrom<ResponseRouterData<F, FacilitapayPaymentsResponse, T, Payment
         let status = if item.data.payment_method == PaymentMethod::BankTransfer
             && item.response.data.status == FacilitapayPaymentStatus::Identified
         {
-            common_enums::AttemptStatus::AuthenticationPending
+            if item.response.data.currency != item.response.data.exchange_currency {
+                // Cross-currency: Identified is not terminal
+                common_enums::AttemptStatus::Pending
+            } else {
+                // Local currency: Identified is terminal
+                common_enums::AttemptStatus::Charged
+            }
         } else {
             common_enums::AttemptStatus::from(item.response.data.status.clone())
         };
