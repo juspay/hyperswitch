@@ -44,5 +44,4 @@ npx @mintlify/scraping@latest openapi-file v1/openapi_spec_v1.json  -o v1
 
 This will generate files in [api-reference](api-reference) folder. These routes should be added to the [mint.json](mint.json) file under navigation, under respective group.
 
-
 NOTE: For working with V2 API reference, replace every occurrence of `v1` with `v2` in above commands
