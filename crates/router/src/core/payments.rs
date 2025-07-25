@@ -35,6 +35,8 @@ use api_models::{
     payments::{self as payments_api},
 };
 pub use common_enums::enums::CallConnectorAction;
+#[cfg(feature = "v2")]
+use common_enums::MerchantStorageScheme;
 use common_types::payments as common_payments_types;
 use common_utils::{
     ext_traits::{AsyncExt, StringExt},
@@ -213,6 +215,17 @@ where
         .to_domain()?
         .perform_routing(&merchant_context, profile, state, &mut payment_data)
         .await?;
+
+    // payment_data = tokenize_in_router_when_confirm_false_or_external_authentication(
+    //     state,
+    //     &operation,
+    //     &mut payment_data,
+    //     &merchant_context.get_merchant_account().storage_scheme,
+    //     merchant_context.get_merchant_key_store(),
+    //     &customer,
+    //     &profile,
+    // )
+    // .await?;
 
     let (payment_data, connector_response_data) = match connector {
         ConnectorCallType::PreDetermined(connector_data) => {
@@ -572,6 +585,9 @@ where
         )
         .await?;
 
+    println!("mauj: after gettrackers");
+    dbg!(payment_data.get_payment_method_data());
+
     operation
         .to_get_tracker()?
         .validate_request_with_state(state, &req, &mut payment_data, &business_profile)
@@ -599,6 +615,9 @@ where
     let authentication_type =
         call_decision_manager(state, merchant_context, &business_profile, &payment_data).await?;
 
+    println!("mauj: after decisionmanager");
+    dbg!(payment_data.get_payment_method_data());
+
     payment_data.set_authentication_type_in_attempt(authentication_type);
 
     let connector = get_connector_choice(
@@ -612,6 +631,9 @@ where
         mandate_type,
     )
     .await?;
+
+    println!("mauj: after getconnectorchoice");
+    dbg!(payment_data.get_payment_method_data());
 
     let payment_method_token = get_decrypted_wallet_payment_method_token(
         &operation,
@@ -3248,6 +3270,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
         Ok(router_types::RedirectPaymentFlowResponse {
             payment_data,
             profile,
+            next_action: None,
         })
     }
     fn generate_response(
@@ -3280,6 +3303,309 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
 
     fn get_payment_action(&self) -> services::PaymentAction {
         services::PaymentAction::PSync
+    }
+}
+
+#[cfg(feature = "v2")]
+#[async_trait::async_trait]
+impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
+    type PaymentFlowResponse =
+        router_types::RedirectPaymentFlowResponse<PaymentConfirmData<api::CompleteAuthorize>>;
+
+    #[allow(clippy::too_many_arguments)]
+    async fn call_payment_flow(
+        &self,
+        state: &SessionState,
+        req_state: ReqState,
+        merchant_context: domain::MerchantContext,
+        profile: domain::Profile,
+        req: PaymentsRedirectResponseData,
+    ) -> RouterResult<Self::PaymentFlowResponse> {
+        use crate::core::payments::transformers::GenerateResponse as _;
+
+        let payment_id = req.payment_id.clone();
+
+        let payment_sync_request = api::PaymentsRequest {
+            merchant_connector_details: None,
+            feature_metadata: Some(api_models::payments::FeatureMetadata {
+                redirect_response: Some(api_models::payments::RedirectResponse {
+                    param: Some(Secret::new(req.query_params.clone())),
+                    json_payload: Some(
+                        req.json_payload
+                            .clone()
+                            .unwrap_or(serde_json::json!({}))
+                            .into(),
+                    ),
+                }),
+                search_tags: None,
+                apple_pay_recurring_details: None,
+                revenue_recovery: None,
+            }),
+            payment_method_data: None,
+            ..Default::default()
+        };
+
+        let operation = operations::CompleteAuthorize;
+        let boxed_operation: BoxedOperation<
+            '_,
+            api::CompleteAuthorize,
+            api::PaymentsRequest,
+            PaymentConfirmData<api::CompleteAuthorize>,
+        > = Box::new(operation);
+
+        let get_tracker_response = boxed_operation
+            .to_get_tracker()?
+            .get_trackers(
+                state,
+                &payment_id,
+                &payment_sync_request,
+                &merchant_context,
+                &profile,
+                &HeaderPayload::default(),
+            )
+            .await?;
+
+        let payment_data = &get_tracker_response.payment_data;
+        // self.validate_status_for_operation(payment_data.payment_intent.status)?;
+
+        let payment_attempt = payment_data.payment_attempt.clone();
+
+        let connector = payment_attempt
+            .connector
+            .as_ref()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "connector is not set in payment attempt in finish redirection flow",
+            )?;
+
+        // This connector data is ephemeral, the call payment flow will get new connector data
+        // with merchant account details, so the connector_id can be safely set to None here
+        let connector_data = api::ConnectorData::get_connector_by_name(
+            &state.conf.connectors,
+            connector,
+            api::GetToken::Connector,
+            None,
+        )?;
+
+        let call_connector_action = connector_data
+            .connector
+            .get_flow_type(
+                &req.query_params,
+                req.json_payload.clone(),
+                self.get_payment_action(),
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to decide the response flow")?;
+
+        let (
+            payment_data,
+            _req,
+            _customer,
+            connector_http_status_code,
+            external_latency,
+            connector_response_data,
+        ) = Box::pin(
+            payments_operation_core::<api::CompleteAuthorize, _, _, _, _>(
+                state,
+                req_state,
+                merchant_context.clone(),
+                &profile,
+                operation,
+                payment_sync_request,
+                get_tracker_response,
+                call_connector_action,
+                HeaderPayload::default(),
+            ),
+        )
+        .await?;
+
+        let output = payment_data.clone().generate_response(
+            &state,
+            connector_http_status_code,
+            external_latency,
+            // header_payload.x_hs_latency,
+            None,
+            &merchant_context,
+            &profile,
+            Some(connector_response_data),
+        )?;
+
+        let next_action = if let services::ApplicationResponse::JsonWithHeaders((resp, _)) = output
+        {
+            resp.next_action
+        } else {
+            None
+        };
+
+        Ok(router_types::RedirectPaymentFlowResponse {
+            payment_data,
+            profile,
+            next_action,
+        })
+    }
+
+    fn get_payment_action(&self) -> services::PaymentAction {
+        services::PaymentAction::CompleteAuthorize
+    }
+
+    fn generate_response(
+        &self,
+        payment_flow_response: &Self::PaymentFlowResponse,
+        // payment_id: id_type::PaymentId,
+        // connector: String,
+    ) -> RouterResult<services::ApplicationResponse<api::RedirectionResponse>> {
+        // let payments_response = &payment_flow_response.payments_response;
+        // There might be multiple redirections needed for some flows
+        // If the status is requires customer action, then send the startpay url again
+        // The redirection data must have been provided and updated by the connector
+        // let redirection_response = match payments_response.status {
+        //     enums::IntentStatus::RequiresCustomerAction => {
+        //         let startpay_url = payments_response
+        //             .next_action
+        //             .clone()
+        //             .and_then(|next_action_data| match next_action_data {
+        //                 api_models::payments::NextActionData::RedirectToUrl { redirect_to_url } => Some(redirect_to_url),
+        //                 // api_models::payments::NextActionData::RedirectInsidePopup{popup_url, ..} => Some(popup_url),
+        //                 api_models::payments::NextActionData::DisplayBankTransferInformation { .. } => None,
+        //                 api_models::payments::NextActionData::ThirdPartySdkSessionToken { .. } => None,
+        //                 api_models::payments::NextActionData::QrCodeInformation{..} => None,
+        //                 api_models::payments::NextActionData::FetchQrCodeInformation{..} => None,
+        //                 api_models::payments::NextActionData::DisplayVoucherInformation{ .. } => None,
+        //                 api_models::payments::NextActionData::WaitScreenInformation{..} => None,
+        //                 api_models::payments::NextActionData::ThreeDsInvoke{..} => None,
+        //                 api_models::payments::NextActionData::InvokeSdkClient{..} => None,
+        //                 api_models::payments::NextActionData::CollectOtp{ .. } => None,
+        //                 api_models::payments::NextActionData::InvokeHiddenIframe{ .. } => None,
+        //             })
+        //             .ok_or(errors::ApiErrorResponse::InternalServerError)
+
+        //             .attach_printable(
+        //                 "did not receive redirect to url when status is requires customer action",
+        //             )?;
+        //         Ok(api::RedirectionResponse {
+        //             // return_url: String::new(),
+        //             // params: vec![],
+        //             return_url_with_query_params: startpay_url,
+        //             // http_method: "GET".to_string(),
+        //             // headers: vec![],
+        //         })
+        //     }
+        //     // If the status is terminal status, then redirect to merchant return url to provide status
+        //     // enums::IntentStatus::Succeeded
+        //     // | enums::IntentStatus::Failed
+        //     // | enums::IntentStatus::Cancelled | enums::IntentStatus::RequiresCapture| enums::IntentStatus::Processing=> helpers::get_handle_response_url(
+        //     //     payment_id,
+        //     //     &payment_flow_response.business_profile,
+        //     //     payments_response,
+        //     //     connector,
+        //     // ),
+        //     _ => Err(errors::ApiErrorResponse::InternalServerError).attach_printable_lazy(|| format!("Could not proceed with payment as payment status {} cannot be handled during redirection",payments_response.status))?
+        // }?;
+        // if payments_response
+        //     .is_iframe_redirection_enabled
+        //     .unwrap_or(false)
+        // {
+        //     // html script to check if inside iframe, then send post message to parent for redirection else redirect self to return_url
+        //     let html = core_utils::get_html_redirect_response_popup(
+        //         redirection_response.return_url_with_query_params,
+        //     )?;
+        //     Ok(services::ApplicationResponse::Form(Box::new(
+        //         services::RedirectionFormData {
+        //             redirect_form: services::RedirectForm::Html { html_data: html },
+        //             payment_method_data: None,
+        //             amount: payments_response.amount.to_string(),
+        //             currency: payments_response.currency.clone(),
+        //         },
+        //     )))
+        // } else {
+        // Ok(services::ApplicationResponse::JsonForRedirection(
+        //     redirection_response,
+        // ))
+        // }
+        let payment_intent = &payment_flow_response.payment_data.payment_intent;
+        // let profile = &payment_flow_response.profile;
+
+        // let return_url = payment_intent
+        //     .return_url
+        //     .as_ref()
+        //     .or(profile.return_url.as_ref())
+        //     .ok_or(errors::ApiErrorResponse::InternalServerError)
+        //     .attach_printable("return url not found in payment intent and profile")?
+        //     .to_owned();
+
+        // let return_url = return_url
+        //     .add_query_params(("id", payment_intent.id.get_string_repr()))
+        //     .add_query_params(("status", &payment_intent.status.to_string()));
+
+        // let redirect_to_url = payment_intent.create_start_redirection_url(
+        //     &state.base_url,
+        //     merchant_context
+        //         .get_merchant_account()
+        //         .publishable_key
+        //         .clone(),
+        // )?;
+        // let return_url_str = return_url.into_inner().to_string();
+
+        let startpay_url = payment_flow_response
+            .next_action
+            .clone()
+            .and_then(|next_action_data| match next_action_data {
+                api_models::payments::NextActionData::RedirectToUrl { redirect_to_url } => {
+                    Some(redirect_to_url)
+                }
+                // api_models::payments::NextActionData::RedirectInsidePopup{popup_url, ..} => Some(popup_url),
+                api_models::payments::NextActionData::DisplayBankTransferInformation { .. } => None,
+                api_models::payments::NextActionData::ThirdPartySdkSessionToken { .. } => None,
+                api_models::payments::NextActionData::QrCodeInformation { .. } => None,
+                api_models::payments::NextActionData::FetchQrCodeInformation { .. } => None,
+                api_models::payments::NextActionData::DisplayVoucherInformation { .. } => None,
+                api_models::payments::NextActionData::WaitScreenInformation { .. } => None,
+                api_models::payments::NextActionData::ThreeDsInvoke { .. } => None,
+                api_models::payments::NextActionData::InvokeSdkClient { .. } => None,
+                api_models::payments::NextActionData::CollectOtp { .. } => None,
+                api_models::payments::NextActionData::InvokeHiddenIframe { .. } => None,
+            })
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "did not receive redirect to url when status is requires customer action",
+            )?;
+        // Ok(api::RedirectionResponse {
+        //     // return_url: String::new(),
+        //     // params: vec![],
+        //     return_url_with_query_params: startpay_url,
+        //     // http_method: "GET".to_string(),
+        //     // headers: vec![],
+        // })
+
+        match payment_intent.status {
+            enums::IntentStatus::Succeeded => {
+                let profile = &payment_flow_response.profile;
+
+                let return_url = payment_intent
+                    .return_url
+                    .as_ref()
+                    .or(profile.return_url.as_ref())
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("return url not found in payment intent and profile")?
+                    .to_owned();
+
+                let return_url = return_url
+                    .add_query_params(("id", payment_intent.id.get_string_repr()))
+                    .add_query_params(("status", &payment_intent.status.to_string()));
+
+                Ok(services::ApplicationResponse::JsonForRedirection(
+                    api::RedirectionResponse {
+                        return_url_with_query_params: return_url.get_string_repr().to_owned(),
+                    },
+                ))
+            }
+
+            _ => Ok(services::ApplicationResponse::JsonForRedirection(
+                api::RedirectionResponse {
+                    return_url_with_query_params: startpay_url.as_str().to_owned(),
+                },
+            )),
+        }
     }
 }
 
@@ -4139,7 +4465,7 @@ where
 
     router_data = router_data.add_session_token(state, &connector).await?;
 
-    let should_continue_further = access_token::update_router_data_with_access_token_result(
+    let mut should_continue_further = access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
         &mut router_data,
         &call_connector_action,
@@ -4163,17 +4489,37 @@ where
         None => Some(()),
     };
 
+    println!("mauj: continue before preprocessing steps");
+    dbg!(&should_continue_further);
+
+    (router_data, should_continue_further) = complete_preprocessing_steps_if_required(
+        state,
+        &connector,
+        payment_data,
+        router_data,
+        operation,
+        should_continue_further,
+    )
+    .await?;
+
+    println!("mauj: continue after preprocessing steps");
+    dbg!(&should_continue_further);
+
     // In case of authorize flow, pre-task and post-tasks are being called in build request
     // if we do not want to proceed further, then the function will return Ok(None, false)
     let (connector_request, should_continue_further) = match should_continue {
         Some(_) => {
-            router_data
-                .build_flow_specific_connector_request(
-                    state,
-                    &connector,
-                    call_connector_action.clone(),
-                )
-                .await?
+            if should_continue_further {
+                router_data
+                    .build_flow_specific_connector_request(
+                        state,
+                        &connector,
+                        call_connector_action.clone(),
+                    )
+                    .await?
+            } else {
+                (None, false)
+            }
         }
         None => (None, false),
     };
@@ -10529,8 +10875,8 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
         self.payment_attempt = payment_attempt;
     }
 
-    fn set_payment_method_data(&mut self, _payment_method_data: Option<domain::PaymentMethodData>) {
-        todo!()
+    fn set_payment_method_data(&mut self, payment_method_data: Option<domain::PaymentMethodData>) {
+        self.payment_method_data = payment_method_data
     }
 
     fn set_payment_method_token(&mut self, _payment_method_token: Option<PaymentMethodToken>) {

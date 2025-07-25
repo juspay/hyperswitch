@@ -3084,11 +3084,11 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPreProcessingRouterData>>
                 let reference_id = param
                     .clone()
                     .peek()
-                    .split_once('=')
+                    .split('=')
+                    .last()
                     .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
                         field_name: "request.redirect_response.params.reference_id",
                     })?
-                    .1
                     .to_string();
                 let email = item
                     .router_data

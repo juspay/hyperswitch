@@ -1836,6 +1836,7 @@ pub enum PaymentAttemptUpdate {
         authentication_type: storage_enums::AuthenticationType,
         connector_request_reference_id: Option<String>,
         connector_response_reference_id: Option<String>,
+        payment_token: Option<String>,
     },
     /// Update the payment attempt on confirming the intent, before calling the connector, when payment_method_id is present
     ConfirmIntentTokenized {
@@ -1845,6 +1846,7 @@ pub enum PaymentAttemptUpdate {
         merchant_connector_id: id_type::MerchantConnectorAccountId,
         authentication_type: storage_enums::AuthenticationType,
         payment_method_id: id_type::GlobalPaymentMethodId,
+        payment_token: Option<String>,
     },
     /// Update the payment attempt on confirming the intent, after calling the connector on success response
     ConfirmIntentResponse(Box<ConfirmIntentResponseUpdate>),
@@ -2634,6 +2636,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 authentication_type,
                 connector_request_reference_id,
                 connector_response_reference_id,
+                payment_token,
             } => Self {
                 status: Some(status),
                 payment_method_id: None,
@@ -2660,6 +2663,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 network_error_message: None,
                 connector_request_reference_id,
                 connector_response_reference_id,
+                payment_token,
             },
             PaymentAttemptUpdate::ErrorUpdate {
                 status,
@@ -2693,6 +2697,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 network_error_message: error.network_error_message,
                 connector_request_reference_id: None,
                 connector_response_reference_id: None,
+                payment_token: None,
             },
             PaymentAttemptUpdate::ConfirmIntentResponse(confirm_intent_response_update) => {
                 let ConfirmIntentResponseUpdate {
@@ -2732,6 +2737,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                     network_error_message: None,
                     connector_request_reference_id: None,
                     connector_response_reference_id,
+                    payment_token: None,
                 }
             }
             PaymentAttemptUpdate::SyncUpdate {
@@ -2764,6 +2770,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 network_error_message: None,
                 connector_request_reference_id: None,
                 connector_response_reference_id: None,
+                payment_token: None,
             },
             PaymentAttemptUpdate::CaptureUpdate {
                 status,
@@ -2795,6 +2802,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 network_error_message: None,
                 connector_request_reference_id: None,
                 connector_response_reference_id: None,
+                payment_token: None,
             },
             PaymentAttemptUpdate::PreCaptureUpdate {
                 amount_to_capture,
@@ -2825,6 +2833,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 network_error_message: None,
                 connector_request_reference_id: None,
                 connector_response_reference_id: None,
+                payment_token: None,
             },
             PaymentAttemptUpdate::ConfirmIntentTokenized {
                 status,
@@ -2833,6 +2842,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 merchant_connector_id,
                 authentication_type,
                 payment_method_id,
+                payment_token,
             } => Self {
                 status: Some(status),
                 payment_method_id: Some(payment_method_id),
@@ -2859,6 +2869,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 network_error_message: None,
                 connector_request_reference_id: None,
                 connector_response_reference_id: None,
+                payment_token,
             },
         }
     }
