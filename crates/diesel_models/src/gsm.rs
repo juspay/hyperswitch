@@ -3,7 +3,6 @@ use common_enums::ErrorCategory;
 use common_utils::{
     custom_serde,
     events::{ApiEventMetric, ApiEventsType},
-    pii::SecretSerdeValue,
 };
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use time::PrimitiveDateTime;
@@ -40,7 +39,7 @@ pub struct GatewayStatusMap {
     pub unified_message: Option<String>,
     pub error_category: Option<ErrorCategory>,
     pub clear_pan_possible: bool,
-    pub feature_data: Option<SecretSerdeValue>,
+    pub feature_data: Option<common_types::domain::GsmFeatureData>,
     pub feature: Option<common_enums::GsmFeature>,
 }
 
@@ -60,7 +59,7 @@ pub struct GatewayStatusMappingNew {
     pub unified_message: Option<String>,
     pub error_category: Option<ErrorCategory>,
     pub clear_pan_possible: bool,
-    pub feature_data: Option<SecretSerdeValue>,
+    pub feature_data: Option<common_types::domain::GsmFeatureData>,
     pub feature: Option<common_enums::GsmFeature>,
 }
 
@@ -83,7 +82,7 @@ pub struct GatewayStatusMapperUpdateInternal {
     pub error_category: Option<ErrorCategory>,
     pub last_modified: PrimitiveDateTime,
     pub clear_pan_possible: Option<bool>,
-    pub feature_data: Option<SecretSerdeValue>,
+    pub feature_data: Option<common_types::domain::GsmFeatureData>,
     pub feature: Option<common_enums::GsmFeature>,
 }
 
@@ -97,7 +96,7 @@ pub struct GatewayStatusMappingUpdate {
     pub unified_message: Option<String>,
     pub error_category: Option<ErrorCategory>,
     pub clear_pan_possible: Option<bool>,
-    pub feature_data: Option<SecretSerdeValue>,
+    pub feature_data: Option<common_types::domain::GsmFeatureData>,
     pub feature: Option<common_enums::GsmFeature>,
 }
 

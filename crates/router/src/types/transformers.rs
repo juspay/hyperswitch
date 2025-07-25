@@ -1588,7 +1588,7 @@ impl ForeignFrom<gsm_api_types::GsmCreateRequest>
 {
     fn foreign_from(value: gsm_api_types::GsmCreateRequest) -> Self {
         let inferred_feature_data =
-            hyperswitch_domain_models::gsm::GsmFeatureData::foreign_from(&value);
+        common_types::domain::GsmFeatureData::foreign_from(&value);
         Self {
             connector: value.connector.to_string(),
             flow: value.flow,
@@ -1610,20 +1610,18 @@ impl ForeignFrom<gsm_api_types::GsmCreateRequest>
 }
 
 impl ForeignFrom<&gsm_api_types::GsmCreateRequest>
-    for hyperswitch_domain_models::gsm::GsmFeatureData
+    for common_types::domain::GsmFeatureData
 {
     fn foreign_from(value: &gsm_api_types::GsmCreateRequest) -> Self {
-        let step_up_possible = value.step_up_possible.unwrap_or_default();
-        let clear_pan_possible = value.clear_pan_possible.unwrap_or_default();
         // Defaulting alternate_network_possible to false as it is provided only in the Retry feature
         // If the retry feature is not used, we assume alternate network as false
         let alternate_network_possible = false;
 
         match value.feature {
             Some(api_enums::GsmFeature::Retry) | None => {
-                Self::Retry(hyperswitch_domain_models::gsm::RetryFeatureData {
-                    step_up_possible,
-                    clear_pan_possible,
+                Self::Retry(common_types::domain::RetryFeatureData {
+                    step_up_possible: value.step_up_possible,
+                    clear_pan_possible: value.clear_pan_possible,
                     alternate_network_possible,
                     decision: value.decision,
                 })
@@ -1639,7 +1637,7 @@ impl
     )>
     for (
         api_enums::GsmFeature,
-        hyperswitch_domain_models::gsm::GsmFeatureData,
+        common_types::domain::GsmFeatureData,
     )
 {
     fn foreign_from(
@@ -1663,8 +1661,8 @@ impl
                 let gsm_db_record_retry_feature_data =
                     gsm_db_record.feature_data.get_retry_feature_data();
 
-                let retry_feature_data = hyperswitch_domain_models::gsm::GsmFeatureData::Retry(
-                    hyperswitch_domain_models::gsm::RetryFeatureData {
+                let retry_feature_data = common_types::domain::GsmFeatureData::Retry(
+                    common_types::domain::RetryFeatureData {
                         step_up_possible: gsm_update_request
                             .step_up_possible
                             .or(gsm_db_record_retry_feature_data

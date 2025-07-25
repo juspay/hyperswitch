@@ -66,7 +66,7 @@ pub async fn update_gsm_rule(
 
     let inferred_feature_info = <(
         common_enums::GsmFeature,
-        hyperswitch_domain_models::gsm::GsmFeatureData,
+        common_types::domain::GsmFeatureData,
     )>::foreign_from((&gsm_request, gsm_db_record));
 
     let gsm_api_types::GsmUpdateRequest {

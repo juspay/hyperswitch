@@ -1,7 +1,4 @@
-use api_models::gsm as gsm_api_types;
 use common_utils::{errors::ValidationError, ext_traits::StringExt};
-use error_stack::ResultExt;
-use masking::{ExposeInterface, Secret};
 use serde::{self, Deserialize, Serialize};
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
@@ -16,92 +13,8 @@ pub struct GatewayStatusMap {
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
     pub error_category: Option<common_enums::ErrorCategory>,
-    pub feature_data: GsmFeatureData,
+    pub feature_data: common_types::domain::GsmFeatureData,
     pub feature: common_enums::GsmFeature,
-}
-
-impl GsmFeatureData {
-    pub fn get_retry_feature_data(&self) -> Option<RetryFeatureData> {
-        match self {
-            Self::Retry(data) => Some(data.clone()),
-        }
-    }
-
-    pub fn get_decision(&self) -> common_enums::GsmDecision {
-        match self {
-            Self::Retry(data) => data.decision,
-        }
-    }
-}
-
-impl RetryFeatureData {
-    pub fn is_step_up_possible(&self) -> bool {
-        self.step_up_possible
-    }
-
-    pub fn is_clear_pan_possible(&self) -> bool {
-        self.clear_pan_possible
-    }
-
-    pub fn is_alternate_network_possible(&self) -> bool {
-        self.alternate_network_possible
-    }
-
-    pub fn get_decision(&self) -> common_enums::GsmDecision {
-        self.decision
-    }
-}
-
-impl From<gsm_api_types::GsmFeatureData> for GsmFeatureData {
-    fn from(value: gsm_api_types::GsmFeatureData) -> Self {
-        match value {
-            gsm_api_types::GsmFeatureData::Retry(data) => Self::Retry(data.into()),
-        }
-    }
-}
-
-impl From<gsm_api_types::RetryFeatureData> for RetryFeatureData {
-    fn from(value: gsm_api_types::RetryFeatureData) -> Self {
-        Self {
-            step_up_possible: value.step_up_possible,
-            clear_pan_possible: value.clear_pan_possible,
-            alternate_network_possible: value.alternate_network_possible,
-            decision: value.decision,
-        }
-    }
-}
-
-impl From<GsmFeatureData> for gsm_api_types::GsmFeatureData {
-    fn from(value: GsmFeatureData) -> Self {
-        match value {
-            GsmFeatureData::Retry(data) => Self::Retry(data.into()),
-        }
-    }
-}
-
-impl From<RetryFeatureData> for gsm_api_types::RetryFeatureData {
-    fn from(value: RetryFeatureData) -> Self {
-        Self {
-            step_up_possible: value.step_up_possible,
-            clear_pan_possible: value.clear_pan_possible,
-            alternate_network_possible: value.alternate_network_possible,
-            decision: value.decision,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum GsmFeatureData {
-    Retry(RetryFeatureData),
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
-pub struct RetryFeatureData {
-    pub step_up_possible: bool,
-    pub clear_pan_possible: bool,
-    pub alternate_network_possible: bool,
-    pub decision: common_enums::GsmDecision,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -114,7 +27,7 @@ pub struct GatewayStatusMappingUpdate {
     pub unified_message: Option<String>,
     pub error_category: Option<common_enums::ErrorCategory>,
     pub clear_pan_possible: Option<bool>,
-    pub feature_data: Option<GsmFeatureData>,
+    pub feature_data: Option<common_types::domain::GsmFeatureData>,
     pub feature: Option<common_enums::GsmFeature>,
 }
 
@@ -144,13 +57,7 @@ impl TryFrom<GatewayStatusMap> for diesel_models::gsm::GatewayStatusMappingNew {
                 .get_retry_feature_data()
                 .map(|retry_feature_data| retry_feature_data.is_clear_pan_possible())
                 .unwrap_or(false),
-            feature_data: Some(Secret::new(
-                serde_json::to_value(value.feature_data).change_context(
-                    ValidationError::InvalidValue {
-                        message: "Failed to serialize gsm feature data".to_string(),
-                    },
-                )?,
-            )),
+            feature_data: Some(value.feature_data),
             feature: Some(value.feature),
         })
     }
@@ -169,15 +76,7 @@ impl TryFrom<GatewayStatusMappingUpdate> for diesel_models::gsm::GatewayStatusMa
             unified_message: value.unified_message,
             error_category: value.error_category,
             clear_pan_possible: value.clear_pan_possible,
-            feature_data: value
-                .feature_data
-                .map(|data| {
-                    serde_json::to_value(data).change_context(ValidationError::InvalidValue {
-                        message: "Failed to serialize gsm feature data".to_string(),
-                    })
-                })
-                .transpose()?
-                .map(Secret::new),
+            feature_data: value.feature_data,
             feature: value.feature,
         })
     }
@@ -192,26 +91,23 @@ impl TryFrom<diesel_models::gsm::GatewayStatusMap> for GatewayStatusMap {
                 .map_err(|_| ValidationError::InvalidValue {
                     message: "Failed to parse GsmDecision".to_string(),
                 })?;
-        let db_feature_data: Option<GsmFeatureData> = item
-            .feature_data
-            .map(|data| {
-                serde_json::from_value(data.expose()).map_err(|_| ValidationError::InvalidValue {
-                    message: "Failed to deserialize gsm feature data".to_string(),
-                })
-            })
-            .transpose()?;
+        let db_feature_data = item.feature_data;
 
         // The only case where `FeatureData` can be null is for legacy records
         // (i.e., records created before `FeatureData` and related features were introduced).
         // At that time, the only supported feature was `Retry`, so it's safe to default to it.
         let feature_data = match db_feature_data {
-            Some(GsmFeatureData::Retry(data)) => GsmFeatureData::Retry(data),
-            None => GsmFeatureData::Retry(RetryFeatureData {
-                step_up_possible: item.step_up_possible,
-                clear_pan_possible: item.clear_pan_possible,
-                alternate_network_possible: false,
-                decision,
-            }),
+            Some(common_types::domain::GsmFeatureData::Retry(data)) => {
+                common_types::domain::GsmFeatureData::Retry(data)
+            }
+            None => common_types::domain::GsmFeatureData::Retry(
+                common_types::domain::RetryFeatureData {
+                    step_up_possible: item.step_up_possible,
+                    clear_pan_possible: item.clear_pan_possible,
+                    alternate_network_possible: false,
+                    decision,
+                },
+            ),
         };
 
         let feature = item.feature.unwrap_or(common_enums::GsmFeature::Retry);
