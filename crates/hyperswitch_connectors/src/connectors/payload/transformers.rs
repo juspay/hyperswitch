@@ -1,25 +1,34 @@
+use std::collections::HashMap;
+
 use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::enums;
-use common_utils::types::StringMajorUnit;
+use common_utils::{ext_traits::ValueExt, types::StringMajorUnit};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::ResponseId,
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_request_types::{PaymentsAuthorizeData, ResponseId},
+    router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
     types::{PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, RefundsRouterData},
 };
 use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
 };
-use masking::Secret;
+use masking::{ExposeOptionInterface, Secret};
+use serde::Deserialize;
 
 use super::{requests, responses};
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{is_manual_capture, AddressDetailsData, CardData, RouterData as OtherRouterData},
+    utils::{
+        is_manual_capture, AddressDetailsData, CardData, PaymentsAuthorizeRequestData,
+        RouterData as OtherRouterData,
+    },
 };
+
+type Error = error_stack::Report<errors::ConnectorError>;
 
 //TODO: Fill the struct with respective fields
 pub struct PayloadRouterData<T> {
@@ -36,10 +45,69 @@ impl<T> From<(StringMajorUnit, T)> for PayloadRouterData<T> {
     }
 }
 
+// Auth Struct
+#[derive(Debug, Clone, Deserialize)]
+pub struct PayloadAuth {
+    pub api_key: Secret<String>,
+    pub processing_account_id: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PayloadAuthType {
+    pub auths: HashMap<enums::Currency, PayloadAuth>,
+}
+
+impl TryFrom<(&ConnectorAuthType, enums::Currency)> for PayloadAuth {
+    type Error = Error;
+    fn try_from(value: (&ConnectorAuthType, enums::Currency)) -> Result<Self, Self::Error> {
+        let (auth_type, currency) = value;
+        match auth_type {
+            ConnectorAuthType::CurrencyAuthKey { auth_key_map } => {
+                let auth_key = auth_key_map.get(&currency).ok_or(
+                    errors::ConnectorError::CurrencyNotSupported {
+                        message: currency.to_string(),
+                        connector: "Payload",
+                    },
+                )?;
+
+                auth_key
+                    .to_owned()
+                    .parse_value("PayloadAuth")
+                    .change_context(errors::ConnectorError::FailedToObtainAuthType)
+            }
+            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+        }
+    }
+}
+
+impl TryFrom<&ConnectorAuthType> for PayloadAuthType {
+    type Error = Error;
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
+        match auth_type {
+            ConnectorAuthType::CurrencyAuthKey { auth_key_map } => {
+                let auths = auth_key_map
+                    .iter()
+                    .map(|(currency, auth_key)| {
+                        let auth: PayloadAuth = auth_key
+                            .to_owned()
+                            .parse_value("PayloadAuth")
+                            .change_context(errors::ConnectorError::InvalidDataFormat {
+                                field_name: "auth_key_map",
+                            })?;
+                        Ok((*currency, auth))
+                    })
+                    .collect::<Result<_, Self::Error>>()?;
+                Ok(Self { auths })
+            }
+            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+        }
+    }
+}
+
 impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
     for requests::PayloadPaymentsRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(
         item: &PayloadRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
@@ -52,6 +120,10 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
 
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => {
+                let payload_auth = PayloadAuth::try_from((
+                    &item.router_data.connector_auth_type,
+                    item.router_data.request.currency,
+                ))?;
                 let card = requests::PayloadCard {
                     number: req_card.clone().card_number,
                     expiry: req_card
@@ -59,6 +131,7 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
                         .get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned())?,
                     cvc: req_card.card_cvc,
                 };
+                let is_mandate = item.router_data.request.is_mandate_payment();
                 let address = item.router_data.get_billing_address()?;
 
                 // Check for required fields and fail if they're missing
@@ -83,7 +156,7 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
                     None
                 };
 
-                Ok(Self::PayloadCardsRequest(
+                Ok(Self::PayloadCardsRequest(Box::new(
                     requests::PayloadCardsRequestData {
                         amount: item.amount.clone(),
                         card,
@@ -91,27 +164,31 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
                         payment_method_type: "card".to_string(),
                         status,
                         billing_address,
+                        processing_id: payload_auth.processing_account_id,
+                        keep_active: is_mandate,
                     },
-                ))
+                )))
+            }
+            PaymentMethodData::MandatePayment => {
+                // For manual capture, set status to "authorized"
+                let status = if is_manual_capture(item.router_data.request.capture_method) {
+                    Some(responses::PayloadPaymentStatus::Authorized)
+                } else {
+                    None
+                };
+
+                Ok(Self::PayloadMandateRequest(Box::new(
+                    requests::PayloadMandateRequestData {
+                        amount: item.amount.clone(),
+                        transaction_types: requests::TransactionTypes::Payment,
+                        payment_method_id: Secret::new(
+                            item.router_data.request.get_connector_mandate_id()?,
+                        ),
+                        status,
+                    },
+                )))
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
-        }
-    }
-}
-
-// Auth Struct
-pub struct PayloadAuthType {
-    pub(super) api_key: Secret<String>,
-}
-
-impl TryFrom<&ConnectorAuthType> for PayloadAuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
-        match auth_type {
-            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_owned(),
-            }),
-            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
     }
 }
@@ -132,15 +209,39 @@ impl From<responses::PayloadPaymentStatus> for common_enums::AttemptStatus {
 impl<F, T>
     TryFrom<ResponseRouterData<F, responses::PayloadPaymentsResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
+where
+    T: 'static,
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(
         item: ResponseRouterData<F, responses::PayloadPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         match item.response.clone() {
             responses::PayloadPaymentsResponse::PayloadCardsResponse(response) => {
                 let status = enums::AttemptStatus::from(response.status);
-                let connector_customer = response.processing_id.clone();
+
+                let request_any: &dyn std::any::Any = &item.data.request;
+                let is_mandate_payment = request_any
+                    .downcast_ref::<PaymentsAuthorizeData>()
+                    .is_some_and(|req| req.is_mandate_payment());
+
+                let mandate_reference = if is_mandate_payment {
+                    let connector_payment_method_id =
+                        response.connector_payment_method_id.clone().expose_option();
+                    if connector_payment_method_id.is_some() {
+                        Some(MandateReference {
+                            connector_mandate_id: connector_payment_method_id,
+                            payment_method_id: None,
+                            mandate_metadata: None,
+                            connector_mandate_request_reference_id: None,
+                        })
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+
                 let response_result = if status == enums::AttemptStatus::Failure {
                     Err(ErrorResponse {
                         attempt_status: None,
@@ -163,7 +264,7 @@ impl<F, T>
                     Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::ConnectorTransactionId(response.transaction_id),
                         redirection_data: Box::new(None),
-                        mandate_reference: Box::new(None),
+                        mandate_reference: Box::new(mandate_reference),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: response.ref_number,
@@ -174,7 +275,6 @@ impl<F, T>
                 Ok(Self {
                     status,
                     response: response_result,
-                    connector_customer,
                     ..item.data
                 })
             }
@@ -183,7 +283,7 @@ impl<F, T>
 }
 
 impl<T> TryFrom<&PayloadRouterData<T>> for requests::PayloadCancelRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(_item: &PayloadRouterData<T>) -> Result<Self, Self::Error> {
         Ok(Self {
             status: responses::PayloadPaymentStatus::Voided,
@@ -192,7 +292,7 @@ impl<T> TryFrom<&PayloadRouterData<T>> for requests::PayloadCancelRequest {
 }
 
 impl TryFrom<&PayloadRouterData<&PaymentsCaptureRouterData>> for requests::PayloadCaptureRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(
         _item: &PayloadRouterData<&PaymentsCaptureRouterData>,
     ) -> Result<Self, Self::Error> {
@@ -203,7 +303,7 @@ impl TryFrom<&PayloadRouterData<&PaymentsCaptureRouterData>> for requests::Paylo
 }
 
 impl<F> TryFrom<&PayloadRouterData<&RefundsRouterData<F>>> for requests::PayloadRefundRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(item: &PayloadRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         let connector_transaction_id = item.router_data.request.connector_transaction_id.clone();
 
@@ -228,7 +328,7 @@ impl From<responses::RefundStatus> for enums::RefundStatus {
 impl TryFrom<RefundsResponseRouterData<Execute, responses::PayloadRefundResponse>>
     for RefundsRouterData<Execute>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(
         item: RefundsResponseRouterData<Execute, responses::PayloadRefundResponse>,
     ) -> Result<Self, Self::Error> {
@@ -245,7 +345,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, responses::PayloadRefundResponse
 impl TryFrom<RefundsResponseRouterData<RSync, responses::PayloadRefundResponse>>
     for RefundsRouterData<RSync>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(
         item: RefundsResponseRouterData<RSync, responses::PayloadRefundResponse>,
     ) -> Result<Self, Self::Error> {
