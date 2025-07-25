@@ -33,7 +33,7 @@ const PaymentMethodCardDetails = {
   card_holder_name: "Joseph Doe",
 };
 
-const singleUseMandateData = {
+export const singleUseMandateData = {
   customer_acceptance: customerAcceptance,
   mandate_type: {
     single_use: {
@@ -43,7 +43,7 @@ const singleUseMandateData = {
   },
 };
 
-const multiUseMandateData = {
+export const multiUseMandateData = {
   customer_acceptance: customerAcceptance,
   mandate_type: {
     multi_use: {
