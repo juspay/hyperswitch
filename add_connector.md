@@ -35,8 +35,9 @@ This guide will walk you through your environment setup and configuration.
 ### Clone the Hyperswitch monorepo\*\*
 
 ```bash
-  git clone git@github.com:juspay/hyperswitch.git
-  cd hyperswitch
+git clone git@github.com:juspay/hyperswitch.git
+
+cd hyperswitch
 ```
 
 ### Rust Environment & Dependencies Setup
@@ -44,6 +45,7 @@ This guide will walk you through your environment setup and configuration.
 Before running Hyperswitch locally, make sure your Rust environment and system dependencies are properly configured.
 
 **Follow the guide**:
+
 [Configure Rust and install required dependencies based on your OS](https://github.com/juspay/hyperswitch/blob/main/docs/try_local_system.md#set-up-a-rust-environment-and-other-dependencies)
 
 **Quick links by OS**:
@@ -79,47 +81,6 @@ You're ready to run Hyperswitch:
 ```bash
 cargo run
 ```
-
-### PSP sandbox/UAT credentials
-
-* Obtain API keys from your payment provider
-* In the `hyperswitch/crates/router/tests/connectors` directory, locate `sample_auth.toml`, copy the provider lines, and save them as a new file named `auth.toml` anywhere, like the project root. For example, if you want to build a stripe connector, your `auth.toml` will look like this:
-
-```bash
-# This is an example of auth.toml file with the Stripe provider.
-# Please update the code accordingly to your provider.
-[stripebilling]
-api_key="YOUR API KEY"
-```
-
-* Set the environment variable.
-
-```bash
-export CONNECTOR_AUTH_FILE_PATH="/path/to/your/auth.toml"
-```
-
-It's recommended that you use a `.envrc` file with **direnv** in the `cypress-tests` directory. This approach automatically loads environment variables when you enter the directory. For example:
-
-```bash
-# In cypress-tests/.envrc  
-export CONNECTOR_AUTH_FILE_PATH="/absolute/path/hyperswitch/auth.toml"  
-export CYPRESS_CONNECTOR="stripe"  
-export CYPRESS_BASEURL="http://localhost:8080"  # if you are deploying locally
-export CYPRESS_ADMINAPIKEY="test_admin" # if you are deploying locally; see [link] for more details.
-```
-
-After that, navigate back into the `cypress-tests` directory and run the below command. This approves the `.envrc` and exports your environment variable.
-
-```bash
-direnv allow
-```
-
-> **⚠️ Important Notes**
->
-> * **Never commit `auth.toml`** – It contains sensitive credentials and should never be added to version control
-> * **Use absolute paths** – This avoids issues when running tests from different directories
-> * **Populate with real credentials** – Replace the placeholder values from the sample file with actual sandbox/UAT credentials from your payment processors
-
 ## Create a Connector
 From the root of the project, generate a new connector by running the following command. Use a single-word name for your connector:
 
@@ -128,6 +89,7 @@ sh scripts/add_connector.sh <connector_name> <connector_base_url>
 ```
 
 When you run the script, you should see that some files were created
+
 ```bash
 # Done! New project created /absolute/path/hyperswitch/crates/hyperswitch_connectors/src/connectors/connectorname
 ```
@@ -150,14 +112,15 @@ cargo r
 
 This launches the router application locally on port 8080, providing access to the complete Hyperswitch API. You can now test your connector implementation by making HTTP requests to the payment endpoints for operations like:
 
-Payment authorization and capture
-Payment synchronization
-Refund processing
-Webhook handling
+- Payment authorization and capture
+- Payment synchronization
+- Refund processing
+- Webhook handling
 
 Once your connector logic is implemented, this environment lets you ensure it behaves correctly within the Hyperswitch orchestration flow—before moving to staging or production. This provides comprehensive status information about all system components including database, Redis, and other services.
 
 **Verify Server Health**
+
 Once the router service is running, `cargo r`, you can verify it's operational by checking the health endpoint in a separte terminal window:
 
 ```bash
@@ -170,6 +133,7 @@ curl --head --request GET 'http://localhost:8080/health'
 When you run the script, it creates a specific folder structure for your new connector. Here's what gets generated:
 
 **Main Connector Files**
+
 The script creates the primary connector structure in the hyperswitch_connectors crate:
 
 crates/hyperswitch_connectors/src/connectors/  
@@ -179,57 +143,191 @@ crates/hyperswitch_connectors/src/connectors/
 add_connector.md:62-71
 
 **Test Files**
+
 The script also generates test files in the router crate:
 
 crates/router/tests/connectors/  
 └── <connector_name>.rs 
 
 **What Each File Contains**
+
 - `<connector_name>.rs`: The main connector implementation file where you implement the connector traits
 - `transformers.rs`: Contains data structures and conversion logic between Hyperswitch's internal format and your payment processor's API format
 - **Test file**: Contains boilerplate test cases for your connector connector-template/test.rs:1-36
 
 ## Common Payment Flow Types
-As you build your connector, you'll encounter several types of payment flows. While not an exhaustive list, the following are some of the most common patterns you'll come across.
 
-### Pre-processing
-This refers to the two-step payment flow where preprocessing steps are executed before the main authorization call. If your connector does not use tokenization or does not require customer or access token flows, implement the pre-processing pattern described below. It's important to note that different connectors implement preprocessing differently. For example, Airwallex creates payment intents during preprocessing as one of the steps while Nuvei performs 3DS enrollment checks as a step. The preprocessing call does make a separate (second) call for the authorize flow. The preprocessing and authorization are implemented as distinct, sequential operations in Hyperswitch's payment processing pipeline.
+As you build your connector, you'll encounter several types of payment flows. While not an exhaustive list, the following are some of the most common patterns you'll come across. Please review the [Connector Payment Flow](#) documentation for more details.
 
-The preprocessing steps are executed first:  
-- **Preprocessing Execution**: The system creates a preprocessing connector integration and executes it
-- **Data Transformation**: Converts the authorize request data to preprocessing request data
-- **Connector Processing**: Executes the preprocessing step through the connector
-- **Response Handling**: Processes the preprocessing response and updates the router data accordingly
+## Integrate a New Connector
+Integrating a connector is mainly an API integration task. You'll define request and response types and implement required traits.
 
-Then, the system proceeds to build the actual authorization request: 
-- **First Call | Preprocessing**: The system creates a preprocessing connector integration and executes it
-- **Response Processing**: The preprocessing response updates the router data
-- **Second Call | Authorization**: After preprocessing completes, the system proceeds with the actual authorization flow
+This section covers card payments via Billwerk. Review the API reference and test APIs before starting.
 
-**When to Use This Flow**
-Use this pattern if:
-- The connector issues temporary session credentials.
-- You need to make a discovery or configuration call before authorization.
-- No prior customer setup or vaulting is needed.
+### Build Payment Request and Response from JSON Schema
 
-**Example Diagram**
-[include flow]
+1. **To generate Rust types from your connector’s OpenAPI or JSON schema, you’ll need to install the [OpenAPI Generator](https://openapi-generator.tech/).**
 
-### Authorization Flow
-This flow represents the core payment authorization logic that executes after all prerequisite steps are completed. For example, after the pre-processing steps, this flow will be executed. The authorize flow follows this sequence in the payment processing pipeline:
+**Example (macOS using Homebrew)**:
+```bash
+brew install openapi-generator
+```
+> 💡 **Note:**  
+> On **Linux**, you can install OpenAPI Generator using `apt`, `snap`, or by downloading the JAR from the [official site](https://openapi-generator.tech/docs/installation).  
+> On **Windows**, use [Scoop](https://scoop.sh/) or manually download the JAR file.
 
-- **Access Token Addition**: Adds access tokens if required by the connector
-- **Session Token Addition**: Handles session tokens for wallet payments
-- **Payment Method Tokenization**: Tokenizes payment methods if needed
-- **Preprocessing Steps**: Executes preprocessing logic
-- **Connector Customer Creation**: Creates customer records at the connector level
+2. **Download the OpenAPI Specification**
 
-**Decision Logic**
+**Download the Connector's OpenAPI Schema**
 
-The flow includes intelligent decision-making capabilities:
+First, obtain the OpenAPI specification from your payment processor's developer documentation. Most processors provide these specifications at standardized endpoints.
 
-- **Authentication Type Decision**: Automatically steps up Google Pay transactions to 3DS when risk indicators are present
-- **Proceed Decision**: Determines whether to proceed with authorization based on preprocessing responses (e.g., skips authorization if redirection is required)
+```bash
+curl -o <connector-name>-openapi.json <schema-url>
+```
+**Specific Example**:
 
-**Example Diagram**
-[include flow]
+For Billwerk (using their sandbox environment):
+
+```bash
+curl -o billwerk-openapi.json https://sandbox.billwerk.com/swagger/v1/swagger.json
+```
+For other connectors, check their developer documentation for similar endpoints like:
+
+- `/swagger/v1/swagger.json`
+- `/openapi.json`
+- `/api-docs`
+
+After running the complete command, you'll have:
+
+`crates/hyperswitch_connectors/src/connectors/{CONNECTOR_NAME}/temp.rs `
+
+This single file contains all the Rust structs and types generated from your payment processor's OpenAPI specification.
+
+The generated `temp.rs` file typically contains:
+
+- **Request structs**: Data structures for API requests
+- **Response structs**: Data structures for API responses
+- **Enum types**: Status codes, payment methods, error types
+- **Nested objects**: Complex data structures used within requests/responses
+- **Serde annotations**: Serialization/deserialization attributes.
+
+Otherwise, you can manually define it and create the `crates/hyperswitch_connectors/src/connectors/{CONNECTOR_NAME}/temp.rs ` file. We highly recommend using the openapi-generator for ease. 
+
+**Usage in Connector Development**
+
+You can then copy and adapt these generated structs into your connector's `transformers.rs` file, following the pattern shown in the connector integration documentation. The generated code serves as a starting point that you customize for your specific connector implementation needs.
+
+3. **Configure Required Environment Variables**
+
+Set up the necessary environment variables for the OpenAPI generation process:
+
+#### Connector name (must match the name used in add_connector.sh script) 
+
+```bash
+export CONNECTOR_NAME="your_connector_name"  
+``` 
+
+#### Path to the downloaded OpenAPI specification  
+```bash
+export SCHEMA_PATH="/absolute/path/to/your/connector-openapi.json"
+```
+
+
+
+
+
+
+
+## Test the Connector Integration
+After successfully creating your connector using the `add_connector.sh` script, you need to configure authentication credentials and test the integration. This section covers the complete testing setup process.
+
+### Authentication Setup
+1. **Obtain PSP Credentials**
+
+First, obtain sandbox/UAT API credentials from your payment service provider. These are typically available through their developer portal or dashboard.
+
+2. **Create Authentication File**
+
+Copy the sample authentication template and create your credentials file:
+
+```bash 
+cp crates/router/tests/connectors/sample_auth.toml auth.toml
+```
+
+The sample file `crates/router/tests/connectors/sample_auth.toml` contains templates for all supported connectors. Edit your `auth.toml` file to include your connector's credentials:
+
+**Example for the Billwerk connector**  
+
+```text
+[billewerk]  
+api_key = "sk_test_your_actual_billwerk_test_key_here"  
+```
+
+3. **Configure Environment Variables**
+
+Set the path to your authentication file:
+
+```bash
+export CONNECTOR_AUTH_FILE_PATH="/absolute/path/to/your/auth.toml"
+```
+
+4. **Use `direnv` for Environment Management (recommended)**
+
+For better environment variable management, use `direnv` with a `.envrc` file in the `cypress-tests` directory.
+
+5. **Create `.envrc` in the `cypress-tests` directory**
+
+```bash
+cd cypress-tests
+```
+**Create a `.envrc` file with the following content**:
+
+```bash
+export CONNECTOR_AUTH_FILE_PATH="/absolute/path/to/your/auth.toml"
+export CYPRESS_CONNECTOR="your_connector_name"
+export CYPRESS_BASEURL="http://localhost:8080"
+export CYPRESS_ADMINAPIKEY="test_admin"
+export DEBUG=cypress:cli
+```
+
+6. **Allow `direnv` to load the variables inside the `cypress-tests` directory**: 
+
+``` bash
+direnv allow
+```
+
+### Test the Connector Integration
+
+1. **Start the Hyperswitch Router Service locally**:
+
+```bash
+cargo r
+```
+
+2. **Verify Server Health**
+
+```bash 
+curl --head --request GET 'http://localhost:8080/health'
+```
+  
+**Detailed health check**
+
+```bash
+curl --request GET 'http://localhost:8080/health/ready'
+```
+
+3. **Run Connector Tests for Your Connector**
+
+```bash
+cargo test --package router --test connectors -- your_connector_name --test-threads=1
+```
+
+The authentication system will load your credentials from the specified path and use them for testing.
+
+> **⚠️ Important Notes**
+>
+> * **Never commit `auth.toml`** – It contains sensitive credentials and should never be added to version control
+> * **Use absolute paths** – This avoids issues when running tests from different directories
+> * **Populate with real test credentials** – Replace the placeholder values from the sample file with actual sandbox/UAT credentials from your payment processors. Please don't use production credentials. 
+> * **Rotate credentials regularly** – Update test keys periodically for security.
