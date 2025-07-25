@@ -137,6 +137,10 @@ diesel::table! {
         email -> Nullable<Bytea>,
         #[max_length = 128]
         profile_acquirer_id -> Nullable<Varchar>,
+        challenge_code-> Nullable<Varchar>,
+        challenge_cancel-> Nullable<Varchar>,
+        challenge_code_reason-> Nullable<Varchar>,
+        message_extension->Nullable<Jsonb>,
     }
 }
 

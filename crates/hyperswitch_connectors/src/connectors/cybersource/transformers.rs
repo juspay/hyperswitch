@@ -16,6 +16,7 @@ use hyperswitch_domain_models::{
     router_flow_types::PoFulfill,
     router_response_types::PayoutsResponseData,
     types::PayoutsRouterData,
+    router_request_types::authentication::MessageExtensionAttribute
 };
 use hyperswitch_domain_models::{
     network_tokenization::NetworkTokenNumber,
@@ -377,7 +378,7 @@ pub struct CybersourceConsumerAuthInformation {
     ucaf_authentication_data: Option<Secret<String>>,
     xid: Option<String>,
     directory_server_transaction_id: Option<Secret<String>>,
-    specification_version: Option<String>,
+    specification_version: Option<SemanticVersion>,
     /// This field specifies the 3ds version
     pa_specification_version: Option<SemanticVersion>,
     /// Verification response enrollment status.
@@ -393,6 +394,23 @@ pub struct CybersourceConsumerAuthInformation {
     pares_status: Option<CybersourceParesStatus>,
     //This field is used to send the authentication date in yyyyMMDDHHMMSS format
     authentication_date: Option<String>,
+    /// This field indicates the authentication type or challenge presented to the cardholder at checkout.
+    challenge_code: Option<String>,
+    /// This field indicates the reason for payer authentication response status. It is only supported for secure transactions in France.
+    pares_status_reason: Option<String>,
+    /// This field indicates the reason why strong authentication was cancelled. It is only supported for secure transactions in France.
+    challenge_cancel_code: Option<String>,
+    /// This field indicates the score calculated by the 3D Securing platform. It is only supported for secure transactions in France.
+    network_score: Option<u32>,
+    /// This field indicates the 3D Secure transaction flow. It is only supported for secure transactions in France.
+    /// The possible values are - CH (Challenge), FD (Frictionless with delegation), FR (Frictionless)
+    effective_authentication_type: Option<EffectiveAuthenticationType>,
+}
+
+#[derive(Debug, Serialize)]
+pub enum EffectiveAuthenticationType {
+    CH,
+    FR,
 }
 
 #[derive(Debug, Serialize)]
@@ -1231,6 +1249,33 @@ fn convert_metadata_to_merchant_defined_info(metadata: Value) -> Vec<MerchantDef
     }
     vector
 }
+fn extract_score_id(
+    message_extensions: &[MessageExtensionAttribute],
+) -> Option<u32> {
+    message_extensions
+        .iter()
+        .find(|attr| attr.id.ends_with("CB-SCORE"))
+        .and_then(|attr| {
+            attr.id
+                .split('_')
+                .next()
+                .and_then(|prefix| prefix.trim_start_matches('A').parse::<u32>().ok())
+        })
+}
+
+pub fn map_to_effective_type(
+    auth_type: Option<common_enums::DecoupledAuthenticationType>,
+) -> Option<EffectiveAuthenticationType> {
+    match auth_type {
+        Some(common_enums::DecoupledAuthenticationType::Challenge) => {
+            Some(EffectiveAuthenticationType::CH)
+        }
+        Some(common_enums::DecoupledAuthenticationType::Frictionless) => {
+            Some(EffectiveAuthenticationType::FR)
+        }
+        None => None,
+    }
+}
 
 impl
     TryFrom<(
@@ -1330,6 +1375,17 @@ impl
                     date_time::DateFormat::YYYYMMDDHHmmss,
                 )
                 .ok();
+                let effective_authentication_type = map_to_effective_type(authn_data.authentication_type);
+                let network_score: Option<u32> = if ccard.card_network == Some(common_enums::CardNetwork::CartesBancaires) {
+                    authn_data
+                        .message_extension
+                        .clone()
+                        .and_then(|v| serde_json::from_value::<Vec<MessageExtensionAttribute>>(v).ok())
+                        .as_ref()
+                        .and_then(|exts| extract_score_id(exts))
+                } else {
+                    None
+                };
                 CybersourceConsumerAuthInformation {
                     pares_status,
                     ucaf_collection_indicator,
@@ -1340,11 +1396,16 @@ impl
                         .ds_trans_id
                         .clone()
                         .map(Secret::new),
-                    specification_version: None,
+                    specification_version: authn_data.message_version.clone(),
                     pa_specification_version: authn_data.message_version.clone(),
                     veres_enrolled: Some("Y".to_string()),
                     eci_raw: authn_data.eci.clone(),
                     authentication_date,
+                    challenge_code: authn_data.challenge_code.clone(),
+                    pares_status_reason: authn_data.challenge_code_reason.clone(),
+                    challenge_cancel_code: authn_data.challenge_cancel.clone(),
+                    network_score,
+                    effective_authentication_type,
                 }
             });
 
@@ -1418,6 +1479,8 @@ impl
             .authentication_data
             .as_ref()
             .map(|authn_data| {
+                let effective_authentication_type =
+                    map_to_effective_type(authn_data.authentication_type);
                 let (ucaf_authentication_data, cavv, ucaf_collection_indicator) =
                     if ccard.card_network == Some(common_enums::CardNetwork::Mastercard) {
                         (Some(authn_data.cavv.clone()), None, Some("2".to_string()))
@@ -1429,6 +1492,16 @@ impl
                     date_time::DateFormat::YYYYMMDDHHmmss,
                 )
                 .ok();
+                let network_score: Option<u32> = if ccard.card_network == Some(common_enums::CardNetwork::CartesBancaires) {
+                    authn_data
+                        .message_extension
+                        .clone()
+                        .and_then(|v| serde_json::from_value::<Vec<MessageExtensionAttribute>>(v).ok())
+                        .as_ref()
+                        .and_then(|exts| extract_score_id(exts))
+                } else {
+                    None
+                };
                 CybersourceConsumerAuthInformation {
                     pares_status,
                     ucaf_collection_indicator,
@@ -1439,11 +1512,16 @@ impl
                         .ds_trans_id
                         .clone()
                         .map(Secret::new),
-                    specification_version: None,
+                    specification_version: authn_data.message_version.clone(),
                     pa_specification_version: authn_data.message_version.clone(),
                     veres_enrolled: Some("Y".to_string()),
                     eci_raw: authn_data.eci.clone(),
                     authentication_date,
+                    challenge_code: authn_data.challenge_code.clone(),
+                    pares_status_reason: authn_data.challenge_code_reason.clone(),
+                    challenge_cancel_code: authn_data.challenge_cancel.clone(),
+                    network_score,
+                    effective_authentication_type,
                 }
             });
 
@@ -1520,6 +1598,9 @@ impl
             .authentication_data
             .as_ref()
             .map(|authn_data| {
+                let effective_authentication_type =
+                    map_to_effective_type(authn_data.authentication_type);
+
                 let (ucaf_authentication_data, cavv, ucaf_collection_indicator) =
                     if token_data.card_network == Some(common_enums::CardNetwork::Mastercard) {
                         (Some(authn_data.cavv.clone()), None, Some("2".to_string()))
@@ -1531,6 +1612,16 @@ impl
                     date_time::DateFormat::YYYYMMDDHHmmss,
                 )
                 .ok();
+                let network_score: Option<u32> = if token_data.card_network == Some(common_enums::CardNetwork::CartesBancaires) {
+                    authn_data
+                        .message_extension
+                        .clone()
+                        .and_then(|v| serde_json::from_value::<Vec<MessageExtensionAttribute>>(v).ok())
+                        .as_ref()
+                        .and_then(|exts| extract_score_id(exts))
+                } else {
+                    None
+                };
                 CybersourceConsumerAuthInformation {
                     pares_status,
                     ucaf_collection_indicator,
@@ -1541,11 +1632,16 @@ impl
                         .ds_trans_id
                         .clone()
                         .map(Secret::new),
-                    specification_version: None,
+                    specification_version: authn_data.message_version.clone(),
                     pa_specification_version: authn_data.message_version.clone(),
                     veres_enrolled: Some("Y".to_string()),
                     eci_raw: authn_data.eci.clone(),
                     authentication_date,
+                    challenge_code: authn_data.challenge_code.clone(),
+                    pares_status_reason: authn_data.challenge_code_reason.clone(),
+                    challenge_cancel_code: authn_data.challenge_cancel.clone(),
+                    network_score,
+                    effective_authentication_type,
                 }
             });
 
@@ -1725,11 +1821,16 @@ impl
             directory_server_transaction_id: three_ds_info
                 .three_ds_data
                 .directory_server_transaction_id,
-            specification_version: three_ds_info.three_ds_data.specification_version,
-            pa_specification_version: None,
+            specification_version: three_ds_info.three_ds_data.specification_version.clone(),
+            pa_specification_version: three_ds_info.three_ds_data.specification_version.clone(),
             veres_enrolled: None,
             eci_raw: None,
             authentication_date: None,
+            challenge_code: None,
+            pares_status_reason: None,
+            challenge_cancel_code: None,
+            network_score: None,
+            effective_authentication_type: None,
         });
 
         let merchant_defined_information = item
@@ -1827,6 +1928,11 @@ impl
                 veres_enrolled: None,
                 eci_raw: None,
                 authentication_date: None,
+                challenge_code: None,
+                pares_status_reason: None,
+                challenge_cancel_code: None,
+                network_score: None,
+                effective_authentication_type: None,
             }),
             merchant_defined_information,
         })
@@ -1971,6 +2077,11 @@ impl
                 veres_enrolled: None,
                 eci_raw: None,
                 authentication_date: None,
+                challenge_code: None,
+                pares_status_reason: None,
+                challenge_cancel_code: None,
+                network_score: None,
+                effective_authentication_type: None,
             }),
             merchant_defined_information,
         })
@@ -2172,6 +2283,11 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
                                                 veres_enrolled: None,
                                                 eci_raw: None,
                                                 authentication_date: None,
+                                                challenge_code: None,
+                                                pares_status_reason: None,
+                                                challenge_cancel_code: None,
+                                                network_score: None,
+                                                effective_authentication_type: None,
                                             },
                                         ),
                                     })
@@ -3221,7 +3337,7 @@ pub struct CybersourceConsumerAuthValidateResponse {
     cavv: Option<Secret<String>>,
     ucaf_authentication_data: Option<Secret<String>>,
     xid: Option<String>,
-    specification_version: Option<String>,
+    specification_version: Option<SemanticVersion>,
     directory_server_transaction_id: Option<Secret<String>>,
     indicator: Option<String>,
 }

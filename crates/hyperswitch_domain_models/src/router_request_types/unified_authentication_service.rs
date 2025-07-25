@@ -130,6 +130,10 @@ pub struct AuthenticationDetails {
     pub connector_metadata: Option<serde_json::Value>,
     pub ds_trans_id: Option<String>,
     pub eci: Option<String>,
+    pub challenge_code: Option<String>,
+    pub challenge_cancel: Option<String>,
+    pub challenge_code_reason: Option<String>,
+    pub message_extension: Option<serde_json::Value>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
