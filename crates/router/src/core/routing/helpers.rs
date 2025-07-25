@@ -2037,12 +2037,11 @@ where
         dynamic_routing_type,
         payload
     );
+    //Check for payload
     if let Some(_payload_config) = &payload {
         return create_specific_dynamic_routing_setup(
             state,
-            key_store,
             business_profile,
-            feature_to_enable,
             dynamic_routing_algo_ref,
             dynamic_routing_type,
             payload,
@@ -2058,8 +2057,6 @@ where
             feature_to_enable,
             dynamic_routing_algo_ref,
             dynamic_routing_type,
-            //payload
-            payload,
         )
         .await;
     };
@@ -2077,8 +2074,6 @@ where
             feature_to_enable,
             dynamic_routing_algo_ref,
             dynamic_routing_type,
-            //payload
-            payload,
         )
         .await;
     };
@@ -2127,8 +2122,6 @@ pub async fn default_specific_dynamic_routing_setup(
     feature_to_enable: routing_types::DynamicRoutingFeatures,
     mut dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef,
     dynamic_routing_type: routing_types::DynamicRoutingType,
-    //payload
-    payload: Option<routing_types::DynamicRoutingPayload>,
 ) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>> {
     let db = state.store.as_ref();
     let key_manager_state = &state.into();
@@ -2138,24 +2131,13 @@ pub async fn default_specific_dynamic_routing_setup(
     let timestamp = common_utils::date_time::now();
     // Add this import at the top of the file, or before this function:
 
-    logger::debug!(
-        "default_specific_dynamic_routing_setup called with dynamic_routing_type: {:?}, payload: {:?}",
-        dynamic_routing_type, payload
-    );
-
     let algo = match dynamic_routing_type {
         routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
             let default_success_based_routing_config =
-                if let Some(routing_types::DynamicRoutingPayload::SuccessBased(payload_config)) =
-                    payload
-                {
-                    payload_config
+                if state.conf.open_router.dynamic_routing_enabled {
+                    routing_types::SuccessBasedRoutingConfig::open_router_config_default()
                 } else {
-                    if state.conf.open_router.dynamic_routing_enabled {
-                        routing_types::SuccessBasedRoutingConfig::open_router_config_default()
-                    } else {
-                        routing_types::SuccessBasedRoutingConfig::default()
-                    }
+                    routing_types::SuccessBasedRoutingConfig::default()
                 };
 
             routing_algorithm::RoutingAlgorithm {
@@ -2174,16 +2156,10 @@ pub async fn default_specific_dynamic_routing_setup(
         }
         routing_types::DynamicRoutingType::EliminationRouting => {
             let default_elimination_routing_config =
-                if let Some(routing_types::DynamicRoutingPayload::Elimination(payload_config)) =
-                    payload
-                {
-                    payload_config
+                if state.conf.open_router.dynamic_routing_enabled {
+                    routing_types::EliminationRoutingConfig::open_router_config_default()
                 } else {
-                    if state.conf.open_router.dynamic_routing_enabled {
-                        routing_types::EliminationRoutingConfig::open_router_config_default()
-                    } else {
-                        routing_types::EliminationRoutingConfig::default()
-                    }
+                    routing_types::EliminationRoutingConfig::default()
                 };
 
             routing_algorithm::RoutingAlgorithm {
@@ -2256,16 +2232,13 @@ pub async fn default_specific_dynamic_routing_setup(
 #[instrument(skip_all)]
 pub async fn create_specific_dynamic_routing_setup(
     state: &SessionState,
-    key_store: domain::MerchantKeyStore,
     business_profile: domain::Profile,
-    feature_to_enable: routing_types::DynamicRoutingFeatures,
     mut dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef,
     dynamic_routing_type: routing_types::DynamicRoutingType,
     //payload
     payload: Option<routing_types::DynamicRoutingPayload>,
 ) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>> {
     let db = state.store.as_ref();
-    let key_manager_state = &state.into();
     let profile_id = business_profile.get_id().clone();
     let merchant_id = business_profile.merchant_id.clone();
     let algorithm_id = common_utils::generate_routing_id_of_default_length();
@@ -2279,17 +2252,7 @@ pub async fn create_specific_dynamic_routing_setup(
 
     let algo = match dynamic_routing_type {
         routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
-            let default_success_based_routing_config =
-                if let Some(routing_types::DynamicRoutingPayload::SuccessBased(payload_config)) =
-                    payload
-                {
-                    payload_config
-                } else {
-                    return Err(errors::ApiErrorResponse::InvalidRequestData {
-                        message: "A payload is required".to_string(),
-                    }
-                    .into());
-                };
+            let default_success_based_routing_config = payload;
 
             routing_algorithm::RoutingAlgorithm {
                 algorithm_id: algorithm_id.clone(),
@@ -2306,17 +2269,8 @@ pub async fn create_specific_dynamic_routing_setup(
             }
         }
         routing_types::DynamicRoutingType::EliminationRouting => {
-            let default_elimination_routing_config =
-                if let Some(routing_types::DynamicRoutingPayload::Elimination(payload_config)) =
-                    payload
-                {
-                    payload_config
-                } else {
-                    return Err(errors::ApiErrorResponse::InvalidRequestData {
-                        message: "A payload is required.".to_string(),
-                    }
-                    .into());
-                };
+            let default_elimination_routing_config = payload;
+
             routing_algorithm::RoutingAlgorithm {
                 algorithm_id: algorithm_id.clone(),
                 profile_id: profile_id.clone(),
@@ -2359,20 +2313,6 @@ pub async fn create_specific_dynamic_routing_setup(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to insert record in routing algorithm table")?;
-
-    dynamic_routing_algo_ref.update_algorithm_id(
-        algorithm_id,
-        feature_to_enable,
-        dynamic_routing_type,
-    );
-    update_business_profile_active_dynamic_algorithm_ref(
-        db,
-        key_manager_state,
-        &key_store,
-        business_profile,
-        dynamic_routing_algo_ref,
-    )
-    .await?;
 
     let new_record = record.foreign_into();
 

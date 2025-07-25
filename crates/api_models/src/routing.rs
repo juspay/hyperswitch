@@ -871,6 +871,11 @@ pub struct ToggleDynamicRoutingQuery {
     pub enable: DynamicRoutingFeatures,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct CreateDynamicRoutingQuery {
+    pub enable: DynamicRoutingFeatures,
+}
+
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct DynamicRoutingVolumeSplitQuery {
     pub split: u8,
@@ -899,6 +904,18 @@ pub struct DynamicRoutingUpdateConfigQuery {
 pub struct ToggleDynamicRoutingWrapper {
     pub profile_id: common_utils::id_type::ProfileId,
     pub feature_to_enable: DynamicRoutingFeatures,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct ToggleDynamicRoutingPath {
+    #[schema(value_type = String)]
+    pub profile_id: common_utils::id_type::ProfileId,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct CreateDynamicRoutingWrapper {
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub feature_to_enable: DynamicRoutingFeatures,
     //added payload
     pub payload: Option<DynamicRoutingPayload>,
 }
@@ -908,12 +925,6 @@ pub struct ToggleDynamicRoutingWrapper {
 pub enum DynamicRoutingPayload {
     SuccessBased(SuccessBasedRoutingConfig),
     Elimination(EliminationRoutingConfig),
-}
-
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct ToggleDynamicRoutingPath {
-    #[schema(value_type = String)]
-    pub profile_id: common_utils::id_type::ProfileId,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
