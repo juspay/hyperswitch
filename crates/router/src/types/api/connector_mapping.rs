@@ -151,6 +151,9 @@ impl ConnectorData {
                 enums::Connector::Braintree => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Braintree::new())))
                 }
+                enums::Connector::Breadpay => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Breadpay::new())))
+                }
                 enums::Connector::Cashtocode => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Cashtocode::new())))
                 }

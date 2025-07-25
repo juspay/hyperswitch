@@ -45,8 +45,6 @@ use crate::{
     workflows::outgoing_webhook_retry,
 };
 
-const OUTGOING_WEBHOOK_TIMEOUT_SECS: u64 = 5;
-
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 pub(crate) async fn create_event_and_trigger_outgoing_webhook(
@@ -338,7 +336,7 @@ async fn trigger_webhook_to_merchant(
 
     let response = state
         .api_client
-        .send_request(&state, request, Some(OUTGOING_WEBHOOK_TIMEOUT_SECS), false)
+        .send_request(&state, request, None, false)
         .await;
 
     metrics::WEBHOOK_OUTGOING_COUNT.add(
