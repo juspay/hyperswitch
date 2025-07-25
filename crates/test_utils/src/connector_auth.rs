@@ -29,6 +29,7 @@ pub struct ConnectorAuthentication {
     pub billwerk: Option<HeaderKey>,
     pub bitpay: Option<HeaderKey>,
     pub blackhawknetwork: Option<HeaderKey>,
+    pub bluecode: Option<HeaderKey>,
     pub bluesnap: Option<BodyKey>,
     pub boku: Option<BodyKey>,
     pub breadpay: Option<BodyKey>,

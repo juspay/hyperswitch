@@ -28,6 +28,7 @@ pub struct Connectors {
     pub billwerk: ConnectorParams,
     pub bitpay: ConnectorParams,
     pub blackhawknetwork: ConnectorParams,
+    pub bluecode: ConnectorParams,
     pub bluesnap: ConnectorParamsWithSecondaryBaseUrl,
     pub boku: ConnectorParams,
     pub braintree: ConnectorParams,
