@@ -74,11 +74,11 @@ pub struct KafkaPaymentIntentEvent<'a> {
     pub return_url: Option<&'a common_types::Url>,
     pub metadata: Option<&'a Secret<Value>>,
     pub statement_descriptor: Option<&'a common_types::StatementDescriptor>,
-    #[serde(with = "time::serde::timestamp")]
+    #[serde(with = "time::serde::timestamp::nanoseconds")]
     pub created_at: OffsetDateTime,
-    #[serde(with = "time::serde::timestamp")]
+    #[serde(with = "time::serde::timestamp::nanoseconds")]
     pub modified_at: OffsetDateTime,
-    #[serde(default, with = "time::serde::timestamp::option")]
+    #[serde(with = "time::serde::timestamp::nanoseconds::option")]
     pub last_synced: Option<OffsetDateTime>,
     pub setup_future_usage: storage_enums::FutureUsage,
     pub off_session: bool,
