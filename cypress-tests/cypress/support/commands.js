@@ -4074,19 +4074,6 @@ Cypress.Commands.add(
     const ddcConfig = confirmData.DDCConfig;
     const paymentId = globalState.get("paymentID");
     const merchantId = globalState.get("merchantId");
-
-    if (!merchantId) {
-      throw new Error(
-        "Missing merchantId - this indicates a critical state issue"
-      );
-    }
-
-    if (!paymentId) {
-      throw new Error(
-        "Failed to create payment intent - paymentID not found in globalState"
-      );
-    }
-
     const completeUrl = `${Cypress.env("BASEURL")}/payments/${paymentId}/${merchantId}${ddcConfig.completeUrlPath}`;
 
     cy.request({
@@ -4136,19 +4123,6 @@ Cypress.Commands.add(
     const ddcConfig = confirmData.DDCConfig;
     const paymentId = globalState.get("paymentID");
     const merchantId = globalState.get("merchantId");
-
-    if (!merchantId) {
-      throw new Error(
-        "Missing merchantId - this indicates a critical state issue"
-      );
-    }
-
-    if (!paymentId) {
-      throw new Error(
-        "Failed to create payment intent - paymentID not found in globalState"
-      );
-    }
-
     const nextActionUrl = `${Cypress.env("BASEURL")}${ddcConfig.redirectUrlPath}/${paymentId}/${merchantId}/${paymentId}_1`;
 
     cy.intercept("GET", nextActionUrl, (req) => {

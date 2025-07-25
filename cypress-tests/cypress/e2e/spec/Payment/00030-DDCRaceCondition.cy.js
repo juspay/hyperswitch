@@ -37,11 +37,7 @@ describe("[Payment] DDC Race Condition", () => {
         if (
           shouldIncludeConnector(
             connector,
-            CONNECTOR_LISTS.INCLUDE.DDC_RACE_CONDITION_SERVER_SIDE
-          ) &&
-          shouldIncludeConnector(
-            connector,
-            CONNECTOR_LISTS.INCLUDE.DDC_RACE_CONDITION_CLIENT_SIDE
+            CONNECTOR_LISTS.INCLUDE.DDC_RACE_CONDITION
           )
         ) {
           skip = true;
