@@ -425,11 +425,11 @@ jobs:
         run: |
           # Start mock servers for each alpha connector
           for connector in ${{ env.ALPHA_PAYMENTS_CONNECTORS }}; do
-            if [ -f "cypress-tests/cypress/e2e/configs/mock-server/${connector}.js" ]; then
+            pascal_case_connector="$(echo "$connector" | sed -E 's/(^|_)([a-z])/\U\2/g')"
+            if [ -f "cypress-tests/cypress/e2e/configs/mock-server/${pascal_case_connector}.js" ]; then
               echo "Starting mock server for ${connector}"
               cd cypress-tests
 
-              pascal_case_connector="$(echo "$connector" | sed -E 's/(^|_)([a-z])/\U\2/g')"
               node "cypress/e2e/configs/mock-server/${pascal_case_connector}.js" &
 
               MOCK_PID=$!
