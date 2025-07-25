@@ -178,8 +178,8 @@ pub struct PixBankTransferAdditionalData {
     #[schema(value_type = Option<String>, example = "********-****-4073-****-9fa964d08bc5")]
     pub source_bank_account_id: Option<MaskedBankAccount>,
 
-    /// Partially masked destination bank account number
-    #[schema(value_type = Option<String>, example = "********-****-460b-****-f23b4e71c97b")]
+    /// Partially masked destination bank account number _Deprecated: Will be removed in next stable release._
+    #[schema(value_type = Option<String>, example = "********-****-460b-****-f23b4e71c97b", deprecated)]
     pub destination_bank_account_id: Option<MaskedBankAccount>,
 
     /// The expiration date and time for the Pix QR code in ISO 8601 format

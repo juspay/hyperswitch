@@ -96,6 +96,14 @@ impl PaymentMethodData {
         }
     }
 
+    pub fn get_card_data(&self) -> Option<&Card> {
+        if let Self::Card(card) = self {
+            Some(card)
+        } else {
+            None
+        }
+    }
+
     pub fn extract_debit_routing_saving_percentage(
         &self,
         network: &common_enums::CardNetwork,
