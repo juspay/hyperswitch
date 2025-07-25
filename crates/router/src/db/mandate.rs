@@ -671,7 +671,7 @@ impl MandateInterface for MockDb {
             mandate_type: mandate_new.mandate_type,
             customer_accepted_at: mandate_new.customer_accepted_at,
             customer_ip_address: mandate_new.customer_ip_address,
-            customer_user_agent: mandate_new.customer_user_agent,
+            customer_user_agent: None,
             network_transaction_id: mandate_new.network_transaction_id,
             previous_attempt_id: mandate_new.previous_attempt_id,
             created_at: mandate_new
@@ -688,6 +688,10 @@ impl MandateInterface for MockDb {
             connector_mandate_ids: mandate_new.connector_mandate_ids,
             merchant_connector_id: mandate_new.merchant_connector_id,
             updated_by: mandate_new.updated_by,
+            // Using customer_user_agent as a fallback
+            customer_user_agent_extended: mandate_new
+                .customer_user_agent_extended
+                .or_else(|| mandate_new.customer_user_agent.clone()),
         };
         mandates.push(mandate.clone());
         Ok(mandate)

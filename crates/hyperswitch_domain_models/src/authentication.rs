@@ -55,10 +55,10 @@ pub struct Authentication {
     pub return_url: Option<String>,
     pub amount: Option<common_utils::types::MinorUnit>,
     pub currency: Option<common_enums::Currency>,
-    #[encrypt]
-    pub billing_address: Option<Encryptable<Secret<Value>>>,
-    #[encrypt]
-    pub shipping_address: Option<Encryptable<Secret<Value>>>,
+    #[encrypt(ty = Value)]
+    pub billing_address: Option<Encryptable<crate::address::Address>>,
+    #[encrypt(ty = Value)]
+    pub shipping_address: Option<Encryptable<crate::address::Address>>,
     pub browser_info: Option<Value>,
     pub email: Option<Encryptable<Secret<String, pii::EmailStrategy>>>,
 }
