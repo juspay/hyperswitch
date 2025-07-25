@@ -22,15 +22,16 @@ use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
-        AccessTokenAuth, Authorize, Capture, CreateConnectorCustomer, Evidence, Execute, PSync,
-        PaymentMethodToken, RSync, Retrieve, Session, SetupMandate, UpdateMetadata, Upload, Void,
+        AccessTokenAuth, Authorize, Capture, CreateConnectorCustomer, Evidence, Execute,
+        IncrementalAuthorization, PSync, PaymentMethodToken, RSync, Retrieve, Session,
+        SetupMandate, UpdateMetadata, Upload, Void,
     },
     router_request_types::{
         AccessTokenRequestData, ConnectorCustomerData, PaymentMethodTokenizationData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
-        PaymentsSyncData, PaymentsUpdateMetadataData, RefundsData, RetrieveFileRequestData,
-        SetupMandateRequestData, SplitRefundsRequest, SubmitEvidenceRequestData,
-        UploadFileRequestData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        PaymentsIncrementalAuthorizationData, PaymentsSessionData, PaymentsSyncData,
+        PaymentsUpdateMetadataData, RefundsData, RetrieveFileRequestData, SetupMandateRequestData,
+        SplitRefundsRequest, SubmitEvidenceRequestData, UploadFileRequestData,
     },
     router_response_types::{
         PaymentsResponseData, RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
@@ -38,8 +39,9 @@ use hyperswitch_domain_models::{
     },
     types::{
         ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
-        PaymentsCaptureRouterData, PaymentsSyncRouterData, PaymentsUpdateMetadataRouterData,
-        RefundsRouterData, TokenizationRouterData,
+        PaymentsCaptureRouterData, PaymentsIncrementalAuthorizationRouterData,
+        PaymentsSyncRouterData, PaymentsUpdateMetadataRouterData, RefundsRouterData,
+        TokenizationRouterData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -58,7 +60,7 @@ use hyperswitch_interfaces::{
         disputes::SubmitEvidence,
         files::{FilePurpose, FileUpload, RetrieveFile, UploadFile},
         ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse,
-        ConnectorSpecifications, ConnectorValidation,
+        ConnectorSpecifications, ConnectorValidation, PaymentIncrementalAuthorization,
     },
     configs::Connectors,
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
@@ -66,9 +68,10 @@ use hyperswitch_interfaces::{
     errors::ConnectorError,
     events::connector_api_logs::ConnectorEvent,
     types::{
-        ConnectorCustomerType, PaymentsAuthorizeType, PaymentsCaptureType, PaymentsSyncType,
-        PaymentsUpdateMetadataType, PaymentsVoidType, RefundExecuteType, RefundSyncType, Response,
-        RetrieveFileType, SubmitEvidenceType, TokenizationType, UploadFileType,
+        ConnectorCustomerType, IncrementalAuthorizationType, PaymentsAuthorizeType,
+        PaymentsCaptureType, PaymentsSyncType, PaymentsUpdateMetadataType, PaymentsVoidType,
+        RefundExecuteType, RefundSyncType, Response, RetrieveFileType, SubmitEvidenceType,
+        TokenizationType, UploadFileType,
     },
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
@@ -987,6 +990,150 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             router_data.request.integrity_object = Some(response_integrity_object);
             router_data
         })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
+        let response: stripe::ErrorResponse = res
+            .response
+            .parse_struct("ErrorResponse")
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_error_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: response
+                .error
+                .code
+                .clone()
+                .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+            message: response
+                .error
+                .code
+                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+            reason: response.error.message.map(|message| {
+                response
+                    .error
+                    .decline_code
+                    .clone()
+                    .map(|decline_code| {
+                        format!("message - {message}, decline_code - {decline_code}")
+                    })
+                    .unwrap_or(message)
+            }),
+            attempt_status: None,
+            connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            network_advice_code: response.error.network_advice_code,
+            network_decline_code: response.error.network_decline_code,
+            network_error_message: response.error.decline_code.or(response.error.advice_code),
+        })
+    }
+}
+
+impl PaymentIncrementalAuthorization for Stripe {}
+
+impl
+    ConnectorIntegration<
+        IncrementalAuthorization,
+        PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData,
+    > for Stripe
+{
+    fn get_headers(
+        &self,
+        req: &PaymentsIncrementalAuthorizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_http_method(&self) -> Method {
+        Method::Post
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &PaymentsIncrementalAuthorizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, ConnectorError> {
+        Ok(format!(
+            "{}v1/payment_intents/{}/increment_authorization",
+            self.base_url(connectors),
+            req.request.connector_transaction_id,
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsIncrementalAuthorizationRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, ConnectorError> {
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            MinorUnit::new(req.request.total_amount),
+            req.request.currency,
+        )?;
+        let connector_req = stripe::StripeIncrementalAuthRequest { amount };
+
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsIncrementalAuthorizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&IncrementalAuthorizationType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(IncrementalAuthorizationType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(IncrementalAuthorizationType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsIncrementalAuthorizationRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<
+        RouterData<
+            IncrementalAuthorization,
+            PaymentsIncrementalAuthorizationData,
+            PaymentsResponseData,
+        >,
+        ConnectorError,
+    > {
+        let response: stripe::PaymentIntentResponse = res
+            .response
+            .parse_struct("PaymentIntentResponse")
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
