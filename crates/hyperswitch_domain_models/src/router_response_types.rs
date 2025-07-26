@@ -5,7 +5,8 @@ use std::collections::HashMap;
 
 use common_utils::{request::Method, types::MinorUnit};
 pub use disputes::{
-    AcceptDisputeResponse, DefendDisputeResponse, FetchDisputesResponse, SubmitEvidenceResponse,
+    AcceptDisputeResponse, DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse,
+    SubmitEvidenceResponse,
 };
 
 use crate::{

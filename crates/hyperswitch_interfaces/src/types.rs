@@ -5,7 +5,7 @@ use hyperswitch_domain_models::{
     router_data_v2::flow_common_types,
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
-        dispute::{Accept, Defend, Evidence, Fetch},
+        dispute::{Accept, Defend, Dsync, Evidence, Fetch},
         files::{Retrieve, Upload},
         mandate_revoke::MandateRevoke,
         payments::{
@@ -38,21 +38,21 @@ use hyperswitch_domain_models::{
         },
         AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
         CompleteAuthorizeData, ConnectorCustomerData, CreateOrderRequestData,
-        DefendDisputeRequestData, FetchDisputesRequestData, MandateRevokeRequestData,
-        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
-        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsSessionData,
-        PaymentsSyncData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData,
-        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
-        SubmitEvidenceRequestData, UploadFileRequestData, VaultRequestData,
-        VerifyWebhookSourceRequestData,
+        DefendDisputeRequestData, DisputeSyncData, FetchDisputesRequestData,
+        MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
+        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
+        PaymentsUpdateMetadataData, RefundsData, RetrieveFileRequestData,
+        SdkPaymentsSessionUpdateData, SetupMandateRequestData, SubmitEvidenceRequestData,
+        UploadFileRequestData, VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         revenue_recovery::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
             RevenueRecoveryRecordBackResponse,
         },
-        AcceptDisputeResponse, DefendDisputeResponse, FetchDisputesResponse,
+        AcceptDisputeResponse, DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse,
         MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData, RetrieveFileResponse,
         SubmitEvidenceResponse, TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
         VerifyWebhookSourceResponseData,
@@ -222,6 +222,9 @@ pub type DefendDisputeType =
 /// Type alias for `ConnectorIntegration<Fetch, FetchDisputesRequestData, FetchDisputesResponse>`
 pub type FetchDisputesType =
     dyn ConnectorIntegration<Fetch, FetchDisputesRequestData, FetchDisputesResponse>;
+
+/// Type alias for `ConnectorIntegration<Dsync, DisputeSyncData, DisputeSyncResponse>`
+pub type DisputeSyncType = dyn ConnectorIntegration<Dsync, DisputeSyncData, DisputeSyncResponse>;
 
 /// Type alias for `ConnectorIntegration<PreAuthenticate, UasPreAuthenticationRequestData, UasAuthenticationResponseData>`
 pub type UasPreAuthenticationType = dyn ConnectorIntegration<

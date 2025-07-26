@@ -1,13 +1,14 @@
 //! Disputes V2 interface
 use hyperswitch_domain_models::{
     router_data_v2::DisputesFlowData,
-    router_flow_types::dispute::{Accept, Defend, Evidence, Fetch},
+    router_flow_types::dispute::{Accept, Defend, Dsync, Evidence, Fetch},
     router_request_types::{
-        AcceptDisputeRequestData, DefendDisputeRequestData, FetchDisputesRequestData,
-        SubmitEvidenceRequestData,
+        AcceptDisputeRequestData, DefendDisputeRequestData, DisputeSyncData,
+        FetchDisputesRequestData, SubmitEvidenceRequestData,
     },
     router_response_types::{
-        AcceptDisputeResponse, DefendDisputeResponse, FetchDisputesResponse, SubmitEvidenceResponse,
+        AcceptDisputeResponse, DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse,
+        SubmitEvidenceResponse,
     },
 };
 
@@ -38,12 +39,23 @@ pub trait DefendDisputeV2:
 
 /// trait DisputeV2
 pub trait DisputeV2:
-    super::ConnectorCommon + AcceptDisputeV2 + SubmitEvidenceV2 + DefendDisputeV2 + FetchDisputesV2
+    super::ConnectorCommon
+    + AcceptDisputeV2
+    + SubmitEvidenceV2
+    + DefendDisputeV2
+    + FetchDisputesV2
+    + DisputeSyncV2
 {
 }
 
 /// trait FetchDisputeV2
 pub trait FetchDisputesV2:
     ConnectorIntegrationV2<Fetch, DisputesFlowData, FetchDisputesRequestData, FetchDisputesResponse>
+{
+}
+
+/// trait DisputeSyncV2
+pub trait DisputeSyncV2:
+    ConnectorIntegrationV2<Dsync, DisputesFlowData, DisputeSyncData, DisputeSyncResponse>
 {
 }

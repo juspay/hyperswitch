@@ -1008,3 +1008,9 @@ pub struct VaultRequestData {
     pub connector_vault_id: Option<String>,
     pub connector_customer_id: Option<String>,
 }
+
+#[derive(Debug, Serialize, Clone)]
+pub struct DisputeSyncData {
+    pub dispute_id: String,
+    pub connector_dispute_id: String,
+}

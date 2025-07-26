@@ -21,13 +21,13 @@ use hyperswitch_domain_models::{
         Fetch,
     },
     router_request_types::{
-        FetchDisputesRequestData,
-        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
-        RefundsData, SetupMandateRequestData,
+        AccessTokenRequestData, FetchDisputesRequestData, PaymentMethodTokenizationData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
+        PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{FetchDisputesResponse, ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
-        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    router_response_types::{
+        ConnectorInfo, FetchDisputesResponse, PaymentMethodDetails, PaymentsResponseData,
+        RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
@@ -36,8 +36,8 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::{
     api::{
-        self, disputes::{FetchDisputes}, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
-        ConnectorValidation,
+        self, disputes::FetchDisputes, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration,
+        ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
     consts::NO_ERROR_CODE,
@@ -49,7 +49,11 @@ use hyperswitch_interfaces::{
 use masking::{Mask, PeekInterface};
 use transformers as worldpayvantiv;
 
-use crate::{constants::headers, types::{ResponseRouterData,FetchDisputeRouterData}, utils as connector_utils};
+use crate::{
+    constants::headers,
+    types::{FetchDisputeRouterData, ResponseRouterData},
+    utils as connector_utils,
+};
 
 #[derive(Clone)]
 pub struct Worldpayvantiv {
@@ -639,11 +643,13 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Worldpa
 }
 
 impl FetchDisputes for Worldpayvantiv {}
-impl ConnectorIntegration<Fetch, FetchDisputesRequestData, FetchDisputesResponse> for Worldpayvantiv {
+impl ConnectorIntegration<Fetch, FetchDisputesRequestData, FetchDisputesResponse>
+    for Worldpayvantiv
+{
     fn get_headers(
         &self,
         req: &FetchDisputeRouterData,
-        connectors: &Connectors,
+        _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.get_auth_header(&req.connector_auth_type)
     }
@@ -690,13 +696,14 @@ impl ConnectorIntegration<Fetch, FetchDisputesRequestData, FetchDisputesResponse
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<FetchDisputeRouterData, errors::ConnectorError> {
-        println!("[Worldpayvantiv] Fetch Disputes Response: {:?}", res.response);
-        Ok(
-            FetchDisputeRouterData {
-                response: Ok(Vec::new()),
-                ..data.clone()
-            }
-        )
+        println!(
+            "[Worldpayvantiv] Fetch Disputes Response: {:?}",
+            res.response
+        );
+        Ok(FetchDisputeRouterData {
+            response: Ok(Vec::new()),
+            ..data.clone()
+        })
     }
 
     fn get_error_response(

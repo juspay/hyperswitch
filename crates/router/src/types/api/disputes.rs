@@ -1,5 +1,7 @@
 pub use hyperswitch_interfaces::{
-    api::disputes::{AcceptDispute, DefendDispute, Dispute, FetchDisputes, SubmitEvidence},
+    api::disputes::{
+        AcceptDispute, DefendDispute, Dispute, DisputeSync, FetchDisputes, SubmitEvidence,
+    },
     disputes::DisputePayload,
 };
 use masking::{Deserialize, Serialize};
@@ -11,16 +13,17 @@ pub struct DisputeId {
     pub dispute_id: String,
 }
 
-
 #[derive(Debug, Deserialize, Serialize)]
 pub struct DisputeFetchQueryData {
-    pub fetch_for: String
+    pub fetch_for: String,
 }
 
-pub use hyperswitch_domain_models::router_flow_types::dispute::{Accept, Defend, Evidence, Fetch};
+pub use hyperswitch_domain_models::router_flow_types::dispute::{
+    Accept, Defend, Dsync, Evidence, Fetch,
+};
 
 pub use super::disputes_v2::{
-    AcceptDisputeV2, DefendDisputeV2, DisputeV2, FetchDisputesV2, SubmitEvidenceV2,
+    AcceptDisputeV2, DefendDisputeV2, DisputeSyncV2, DisputeV2, FetchDisputesV2, SubmitEvidenceV2,
 };
 
 #[derive(Default, Debug, Deserialize, Serialize)]

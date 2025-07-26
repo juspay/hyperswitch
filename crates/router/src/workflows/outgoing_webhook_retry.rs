@@ -360,6 +360,7 @@ async fn get_outgoing_webhook_content_and_event_type(
     tracking_data: &OutgoingWebhookTrackingData,
 ) -> Result<(OutgoingWebhookContent, Option<EventType>), errors::ProcessTrackerError> {
     use api_models::{
+        disputes::DisputeRetrieveRequest,
         mandates::MandateId,
         payments::{PaymentIdType, PaymentsResponse, PaymentsRetrieveRequest},
         refunds::{RefundResponse, RefundsRetrieveRequest},
@@ -374,7 +375,7 @@ async fn get_outgoing_webhook_content_and_event_type(
         },
         services::{ApplicationResponse, AuthFlow},
         types::{
-            api::{DisputeId, PSync},
+            api::PSync,
             transformers::ForeignFrom,
         },
     };
@@ -474,7 +475,10 @@ async fn get_outgoing_webhook_content_and_event_type(
 
         diesel_models::enums::EventClass::Disputes => {
             let dispute_id = tracking_data.primary_object_id.clone();
-            let request = DisputeId { dispute_id };
+            let request = DisputeRetrieveRequest {
+                dispute_id:  dispute_id,
+                force_sync: None,
+            };
 
             let dispute_response =
                 match retrieve_dispute(state, merchant_context.clone(), None, request).await? {

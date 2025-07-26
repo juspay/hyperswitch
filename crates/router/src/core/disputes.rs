@@ -14,26 +14,41 @@ use super::{
     metrics,
 };
 use crate::{
-    core::{files, payments, utils as core_utils},
+    core::{files, payments, utils as core_utils, webhooks},
     routes::SessionState,
     services,
     types::{
         api::{self, disputes},
         domain,
         storage::enums as storage_enums,
-        transformers::ForeignFrom,
+        transformers::{ForeignFrom, ForeignInto},
         AcceptDisputeRequestData, AcceptDisputeResponse, DefendDisputeRequestData,
-        DefendDisputeResponse, FetchDisputesRequestData, FetchDisputesResponse,
-        SubmitEvidenceRequestData, SubmitEvidenceResponse,
+        DefendDisputeResponse, DisputePayload, DisputeSyncData, DisputeSyncResponse,
+        FetchDisputesRequestData, FetchDisputesResponse, SubmitEvidenceRequestData,
+        SubmitEvidenceResponse,
     },
 };
+
+
+pub(crate) fn should_call_connector_for_dispute_sync(
+    force_sync: Option<bool>,
+    dispute_status: storage_enums::DisputeStatus,
+) -> bool {
+    force_sync == Some(true)
+    && matches!(
+        dispute_status,
+        common_enums::DisputeStatus::DisputeAccepted
+            | common_enums::DisputeStatus::DisputeChallenged
+            | common_enums::DisputeStatus::DisputeOpened
+    )
+}
 
 #[instrument(skip(state))]
 pub async fn retrieve_dispute(
     state: SessionState,
     merchant_context: domain::MerchantContext,
     profile_id: Option<common_utils::id_type::ProfileId>,
-    req: disputes::DisputeId,
+    req: dispute_models::DisputeRetrieveRequest,
 ) -> RouterResponse<api_models::disputes::DisputeResponse> {
     let dispute = state
         .store
@@ -45,8 +60,103 @@ pub async fn retrieve_dispute(
         .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
             dispute_id: req.dispute_id,
         })?;
-    core_utils::validate_profile_id_from_auth_layer(profile_id, &dispute)?;
-    let dispute_response = api_models::disputes::DisputeResponse::foreign_from(dispute);
+    core_utils::validate_profile_id_from_auth_layer(profile_id.clone(), &dispute)?;
+
+    let dispute_response = if should_call_connector_for_dispute_sync(
+        req.force_sync,
+        dispute.dispute_status.clone(),
+    ) {
+        let db = &state.store;
+        core_utils::validate_profile_id_from_auth_layer(profile_id.clone(), &dispute)?;
+        let payment_intent = db
+            .find_payment_intent_by_payment_id_merchant_id(
+                &(&state).into(),
+                &dispute.payment_id,
+                merchant_context.get_merchant_account().get_id(),
+                merchant_context.get_merchant_key_store(),
+                merchant_context.get_merchant_account().storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        let payment_attempt = db
+            .find_payment_attempt_by_attempt_id_merchant_id(
+                &dispute.attempt_id,
+                merchant_context.get_merchant_account().get_id(),
+                merchant_context.get_merchant_account().storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        let connector_data = api::ConnectorData::get_connector_by_name(
+            &state.conf.connectors,
+            &dispute.connector,
+            api::GetToken::Connector,
+            dispute.merchant_connector_id.clone(),
+        )?;
+
+        let connector_integration: services::BoxedDisputeConnectorIntegrationInterface<
+            api::Dsync,
+            DisputeSyncData,
+            DisputeSyncResponse,
+        > = connector_data.connector.get_connector_integration();
+        let router_data = core_utils::construct_dispute_sync_router_data(
+            &state,
+            &payment_intent,
+            &payment_attempt,
+            &merchant_context,
+            &dispute,
+        )
+        .await?;
+        let response = services::execute_connector_processing_step(
+            &state,
+            connector_integration,
+            &router_data,
+            payments::CallConnectorAction::Trigger,
+            None,
+            None,
+        )
+        .await
+        .to_dispute_failed_response()
+        .attach_printable("Failed while calling accept dispute connector api")?;
+
+        let dispute_sync_response =
+            response
+                .response
+                .map_err(|err| errors::ApiErrorResponse::ExternalConnectorError {
+                    code: err.code,
+                    message: err.message,
+                    connector: dispute.connector.clone(),
+                    status_code: err.status_code,
+                    reason: err.reason,
+                })?;
+
+        let business_profile = state
+            .store
+            .find_business_profile_by_profile_id(
+                &(&state).into(),
+                merchant_context.get_merchant_key_store(),
+                &payment_attempt.profile_id,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+                id: payment_attempt.profile_id.get_string_repr().to_owned(),
+            })?;
+
+        update_dispute_data(
+            state,
+            merchant_context,
+            business_profile,
+            Some(dispute.clone()),
+            dispute_sync_response,
+            payment_attempt,
+            dispute.connector.as_str(),
+        ) .await
+        .attach_printable("Dispute update failed")?
+    } else {
+        api_models::disputes::DisputeResponse::foreign_from(dispute)
+    };
+
     Ok(services::ApplicationResponse::Json(dispute_response))
 }
 
@@ -641,12 +751,9 @@ pub async fn fetch_disputes_from_connector(
         FetchDisputesResponse,
     > = connector_data.connector.get_connector_integration();
 
-    let router_data = core_utils::construct_dispute_list_api_router_data(
-        &state,
-        merchant_connector_account,
-        req,
-    )
-    .await?;
+    let router_data =
+        core_utils::construct_dispute_list_router_data(&state, merchant_connector_account, req)
+            .await?;
 
     let response = services::execute_connector_processing_step(
         &state,
@@ -670,4 +777,47 @@ pub async fn fetch_disputes_from_connector(
                 reason: err.reason,
             })?;
     Ok(services::ApplicationResponse::Json(fetch_dispute_response))
+}
+
+#[instrument(skip_all)]
+async fn update_dispute_data(
+    state: SessionState,
+    merchant_context: domain::MerchantContext,
+    business_profile: domain::Profile,
+    option_dispute: Option<diesel_models::dispute::Dispute>,
+    dispute_details: DisputeSyncResponse,
+    payment_attempt: domain::PaymentAttempt,
+    connector_name: &str,
+)->  errors::CustomResult<api_models::disputes::DisputeResponse, errors::ApiErrorResponse> {
+    let db = &state.store;
+    let dispute_data = DisputePayload::from(dispute_details.clone());
+
+    let dispute_object = webhooks::incoming::get_or_update_dispute_object(
+        state.clone(),
+        option_dispute,
+        dispute_data,
+        merchant_context.get_merchant_account().get_id(),
+        &merchant_context.get_merchant_account().organization_id,
+        &payment_attempt,
+        dispute_details.dispute_status,
+        &business_profile,
+        connector_name,
+    )
+    .await?;
+    let disputes_response: dispute_models::DisputeResponse = dispute_object.clone().foreign_into();
+    let event_type: storage_enums::EventType = dispute_details.dispute_status.into();
+
+    Box::pin(webhooks::create_event_and_trigger_outgoing_webhook(
+        state,
+        merchant_context,
+        business_profile,
+        event_type,
+        storage_enums::EventClass::Disputes,
+        dispute_object.dispute_id.clone(),
+        storage_enums::EventObjectType::DisputeDetails,
+        api::OutgoingWebhookContent::DisputeDetails(Box::new(disputes_response.clone())),
+        Some(dispute_object.created_at),
+    ))
+    .await?;
+    Ok(disputes_response)
 }

@@ -224,10 +224,24 @@ pub struct DeleteEvidenceRequest {
     pub evidence_type: EvidenceType,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+pub struct DisputeRetrieveRequest {
+    /// The identifier for dispute
+    pub dispute_id: String,
+    /// Decider to enable or disable the connector call for dispute retrieve request
+    pub force_sync: Option<bool>,
+}
+
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct DisputesAggregateResponse {
     /// Different status of disputes with their count
     pub status_with_count: HashMap<DisputeStatus, i64>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct DisputeRetrieveBody {
+    /// Decider to enable or disable the connector call for dispute retrieve request
+    pub force_sync: Option<bool>,
 }
 
 fn parse_comma_separated<'de, D, T>(v: D) -> Result<Option<Vec<T>>, D::Error>

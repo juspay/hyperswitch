@@ -23,10 +23,12 @@ pub struct FileInfo {
 }
 
 #[derive(serde::Serialize, Clone, Debug)]
-pub struct DisputeFetchPayload {
-    pub amount: common_utils::types::MinorUnit,
+pub struct DisputeSyncResponse {
+    pub attempt_id: String,
+    pub amount: common_utils::types::StringMinorUnit,
     pub currency: common_enums::enums::Currency,
     pub dispute_stage: common_enums::enums::DisputeStage,
+    pub dispute_status: api_models::enums::DisputeStatus,
     pub connector_status: String,
     pub connector_dispute_id: String,
     pub connector_reason: Option<String>,
@@ -36,4 +38,4 @@ pub struct DisputeFetchPayload {
     pub updated_at: Option<time::PrimitiveDateTime>,
 }
 
-pub type FetchDisputesResponse = Vec<DisputeFetchPayload>;
+pub type FetchDisputesResponse = Vec<DisputeSyncResponse>;
