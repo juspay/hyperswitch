@@ -182,4 +182,46 @@ describe("Bank Transfers", () => {
       );
     });
   });
+
+  context("Bank transfer - Ach forward flow", () => {
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("create-payment-call-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "bank_transfer_pm"
+      ]["Ach"];
+      cy.createConfirmPaymentTest(
+        {},
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("payment_methods-call-test", () => {
+      cy.paymentMethodsCallTest(globalState);
+    });
+
+    it("Handle bank transfer redirection", () => {
+      const expected_redirection = fixtures.confirmBody["return_url"];
+      const payment_method_type = globalState.get("paymentMethodType");
+
+      if (globalState.get("connectorId") != "checkbook") {
+        cy.handleBankTransferRedirection(
+          globalState,
+          payment_method_type,
+          expected_redirection
+        );
+      }
+    });
+  });
 });
