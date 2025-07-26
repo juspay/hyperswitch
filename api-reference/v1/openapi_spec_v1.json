@@ -7710,14 +7710,6 @@
             "example": "https://example.com/redirect",
             "nullable": true
           },
-          "acquirer_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/AcquirerDetails"
-              }
-            ],
-            "nullable": true
-          },
           "force_3ds_challenge": {
             "type": "boolean",
             "description": "Force 3DS challenge.",
@@ -7872,6 +7864,14 @@
           "email": {
             "type": "string",
             "description": "Email",
+            "nullable": true
+          },
+          "acquirer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AcquirerDetails"
+              }
+            ],
             "nullable": true
           }
         }

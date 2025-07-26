@@ -4235,6 +4235,14 @@ impl ClientSecretFetch for api_models::authentication::AuthenticationAuthenticat
     }
 }
 
+impl ClientSecretFetch for api_models::authentication::AuthenticationSyncRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret
+            .as_ref()
+            .map(|client_secret| client_secret.peek())
+    }
+}
+
 pub fn get_auth_type_and_flow<A: SessionStateInfo + Sync + Send>(
     headers: &HeaderMap,
     api_auth: ApiKeyAuth,

@@ -1,8 +1,7 @@
 use common_enums::{enums, MerchantCategoryCode};
 use common_types::payments::MerchantCountryCode;
-use common_utils::types::FloatMajorUnit;
+use common_utils::{ext_traits::OptionExt as _, types::FloatMajorUnit};
 use hyperswitch_domain_models::{
-    ext_traits::OptionExt,
     router_data::{ConnectorAuthType, RouterData},
     router_request_types::{
         authentication::{AuthNFlowType, ChallengeParams},
