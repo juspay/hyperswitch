@@ -4,96 +4,262 @@
 
 1. [Introduction](#introduction)
 2. [Prerequisites](#prerequisites)
-3. [Understanding Connectors and Payment Methods](#understanding-connectors-and-payment-methods)
-4. [Integration Steps](#integration-steps)
-   - [Generate Template](#generate-template)
-   - [Implement Request & Response Types](#implement-request--response-types)
-   - [Implement transformers.rs](#implementing-transformersrs)
-   - [Handle Response Mapping](#handle-response-mapping)
-   - [Recommended Fields for Connector Request and Response](#recommended-fields-for-connector-request-and-response)
-   - [Error Handling](#error-handling)
-5. [Implementing the Traits](#implementing-the-traits)
-   - [ConnectorCommon](#connectorcommon)
-   - [ConnectorIntegration](#connectorintegration)
-   - [ConnectorCommonExt](#connectorcommonext)
-   - [Other Traits](#othertraits)
-6. [Set the Currency Unit](#set-the-currency-unit)
-7. [Connector utility functions](#connector-utility-functions)
-8. [Connector configs for control center](#connector-configs-for-control-center)
-9. [Update `ConnectorTypes.res` and `ConnectorUtils.res`](#update-connectortypesres-and-connectorutilsres)
-10. [Add Connector Icon](#add-connector-icon)
-11. [Test the Connector](#test-the-connector)
-12. [Build Payment Request and Response from JSON Schema](#build-payment-request-and-response-from-json-schema)
+3. [Development Environment Setup & Configuration](#development-environment-setup--configuration)
 
 ## Introduction
 
-This guide provides instructions on integrating a new connector with Router, from setting up the environment to implementing API interactions.
+This guide provides instructions on integrating a new connector with Router, from setting up the environment to implementing API interactions. In this document you’ll learn how to:
+
+* Scaffold a new connector template
+* Define Rust request/response types directly from your PSP’s JSON schema
+* Implement transformers and the ConnectorIntegration trait for both standard auth and tokenization-first flows
+* Enforce PII best practices (Secret wrappers, common\_utils::pii types) and robust error-handling
+* Update the Control-Center (ConnectorTypes.res, ConnectorUtils.res, icons)
+* Validate your connector with end-to-end tests
+
+By the end, you’ll have a fully functional, production-ready connector—from blank slate to live in the Control-Center.
 
 ## Prerequisites
 
-- Familiarity with the Connector API you’re integrating
-- A locally set up and running Router repository
-- API credentials for testing (sign up for sandbox/UAT credentials on the connector’s website).
-- Rust nightly toolchain installed for code formatting:
-  ```bash
-  rustup toolchain install nightly
-  ```
+* Before you begin, ensure you’ve completed the initial setup in our [Hyperswitch Contributor Guide](https://github.com/juspay/hyperswitch/blob/main/CONTRIBUTING.md), which covers cloning, tool installation, and access.
+* You should also understanding [connectors and payment methods](https://hyperswitch.io/pm-list).
+* Familiarity with the Connector API you’re integrating
+* A locally set up and running Router repository
+* API credentials for testing (sign up for sandbox/UAT credentials on the connector’s website).
+* Need help? Join the [Hyperswitch Slack Channel](https://join.slack.com/t/hyperswitch-io/shared_invite/zt-39d4w0043-CgAyb75Kn0YldNyZpd8hWA). We also have weekly office hours every Thursday at 8:00 AM PT (11:00 AM ET, 4:00 PM BST, 5:00 PM CEST, and 8:30 PM IST). Link to office hours are shared in the #general channel.
 
-## Understanding Connectors and Payment Methods
+## Development Environment Setup & Configuration
 
-A **Connector** processes payments (e.g., Stripe, Adyen) or manages fraud risk (e.g., Signifyd). A **Payment Method** is a specific way to transact (e.g., credit card, PayPal). See the [Hyperswitch Payment Matrix](https://hyperswitch.io/pm-list) for details.
+This guide will walk you through your environment setup and configuration.
 
-## Integration Steps
+### Clone the Hyperswitch monorepo\*\*
+
+```bash
+git clone git@github.com:juspay/hyperswitch.git
+
+cd hyperswitch
+```
+
+### Rust Environment & Dependencies Setup
+
+Before running Hyperswitch locally, make sure your Rust environment and system dependencies are properly configured.
+
+**Follow the guide**:
+
+[Configure Rust and install required dependencies based on your OS](https://github.com/juspay/hyperswitch/blob/main/docs/try_local_system.md#set-up-a-rust-environment-and-other-dependencies)
+
+**Quick links by OS**:
+* [Ubuntu-based systems](https://github.com/juspay/hyperswitch/blob/main/docs/try_local_system.md#set-up-dependencies-on-ubuntu-based-systems)
+* [Windows (WSL2)](https://github.com/juspay/hyperswitch/blob/main/docs/try_local_system.md#set-up-dependencies-on-windows-ubuntu-on-wsl2)
+* [Windows (native)](https://github.com/juspay/hyperswitch/blob/main/docs/try_local_system.md#set-up-dependencies-on-windows)
+* [macOS](https://github.com/juspay/hyperswitch/blob/main/docs/try_local_system.md#set-up-dependencies-on-macos)
+
+**All OS Systems**:
+* [Set up database](https://github.com/juspay/hyperswitch/blob/main/docs/try_local_system.md#set-up-the-database)
+
+* Set up the Rust nightly toolchain installed for code formatting:
+
+```bash
+rustup toolchain install nightly
+```
+
+* Install [Protobuf](https://protobuf.dev/installation/)
+
+If you've completed the setup, you should now have:
+
+* ✅ Rust & Cargo
+* ✅ PostgreSQL (with a user and database created)
+* ✅ Redis
+* ✅ `diesel_cli`
+* ✅ The `just` command runner
+* ✅ Database migrations applied
+* ✅ Set up the Rust nightly toolchain
+* ✅ Installed Protobuf
+
+You're ready to run Hyperswitch:
+
+```bash
+cargo run
+```
+## Create a Connector
+From the root of the project, generate a new connector by running the following command. Use a single-word name for your connector:
+
+```bash
+sh scripts/add_connector.sh <connector_name> <connector_base_url>
+```
+
+When you run the script, you should see that some files were created
+
+```bash
+# Done! New project created /absolute/path/hyperswitch/crates/hyperswitch_connectors/src/connectors/connectorname
+```
+
+> ⚠️ **Warning**  
+> Don’t be alarmed if you see test failures at this stage.  
+> Tests haven’t been implemented for your new connector yet, so failures are expected.  
+> You can safely ignore output like this:
+>
+> ```bash
+> test result: FAILED. 0 passed; 20 failed; 0 ignored; 0 measured; 1759 filtered out; finished in 0.10s
+> ```
+
+## Test the connection 
+Once you've successfully created your connector using the `add_connector.sh` script, you can verify the integration by starting the Hyperswitch router service:
+
+```bash
+cargo r
+```
+
+This launches the router application locally on port 8080, providing access to the complete Hyperswitch API. You can now test your connector implementation by making HTTP requests to the payment endpoints for operations like:
+
+- Payment authorization and capture
+- Payment synchronization
+- Refund processing
+- Webhook handling
+
+Once your connector logic is implemented, this environment lets you ensure it behaves correctly within the Hyperswitch orchestration flow—before moving to staging or production. This provides comprehensive status information about all system components including database, Redis, and other services.
+
+**Verify Server Health**
+
+Once the router service is running, `cargo r`, you can verify it's operational by checking the health endpoint in a separte terminal window:
+
+```bash
+curl --head --request GET 'http://localhost:8080/health'
+```
+> **Action Item**  
+> After creating the connector, run a health check to ensure everything is working smoothly.
+
+### Folder Structure After Running the Script
+When you run the script, it creates a specific folder structure for your new connector. Here's what gets generated:
+
+**Main Connector Files**
+
+The script creates the primary connector structure in the hyperswitch_connectors crate:
+
+crates/hyperswitch_connectors/src/connectors/  
+├── <connector_name>/  
+│   └── transformers.rs  
+└── <connector_name>.rs  
+add_connector.md:62-71
+
+**Test Files**
+
+The script also generates test files in the router crate:
+
+crates/router/tests/connectors/  
+└── <connector_name>.rs 
+
+**What Each File Contains**
+
+- `<connector_name>.rs`: The main connector implementation file where you implement the connector traits
+- `transformers.rs`: Contains data structures and conversion logic between Hyperswitch's internal format and your payment processor's API format
+- **Test file**: Contains boilerplate test cases for your connector connector-template/test.rs:1-36
+
+## Common Payment Flow Types
+
+As you build your connector, you'll encounter several types of payment flows. While not an exhaustive list, the following are some of the most common patterns you'll come across. Please review the [Connector Payment Flow](#) documentation for more details.
+
+## Integrate a New Connector
 
 Integrating a connector is mainly an API integration task. You'll define request and response types and implement required traits.
 
-This tutorial covers card payments via [Billwerk](https://optimize-docs.billwerk.com/). Review the API reference and test APIs before starting.
+This section covers card payments via Billwerk. Review the API reference and test APIs before starting.
 
-Follow these steps to integrate a new connector.
+### Build Payment Request and Response from JSON Schema
 
-### Generate Template
+1. **To generate Rust types from your connector’s OpenAPI or JSON schema, you’ll need to install the [OpenAPI Generator](https://openapi-generator.tech/).**
 
-Run the following script to create the connector structure:
+**Example (macOS using Homebrew)**:
+```bash
+brew install openapi-generator
+```
+> 💡 **Note:**  
+> On **Linux**, you can install OpenAPI Generator using `apt`, `snap`, or by downloading the JAR from the [official site](https://openapi-generator.tech/docs/installation).  
+> On **Windows**, use [Scoop](https://scoop.sh/) or manually download the JAR file.
+
+2. **Download the OpenAPI Specification**
+
+**Download the Connector's OpenAPI Schema**
+
+First, obtain the OpenAPI specification from your payment processor's developer documentation. Most processors provide these specifications at standardized endpoints.
 
 ```bash
-sh scripts/add_connector.sh <connector-name> <connector-base-url>
+curl -o <connector-name>-openapi.json <schema-url>
+```
+**Specific Example**:
+
+For Billwerk (using their sandbox environment):
+
+```bash
+curl -o billwerk-openapi.json https://sandbox.billwerk.com/swagger/v1/swagger.json
+```
+For other connectors, check their developer documentation for similar endpoints like:
+
+- `/swagger/v1/swagger.json`
+- `/openapi.json`
+- `/api-docs`
+
+After running the complete command, you'll have:
+
+`crates/hyperswitch_connectors/src/connectors/{CONNECTOR_NAME}/temp.rs `
+
+This single file contains all the Rust structs and types generated from your payment processor's OpenAPI specification.
+
+The generated `temp.rs` file typically contains:
+
+- **Request structs**: Data structures for API requests
+- **Response structs**: Data structures for API responses
+- **Enum types**: Status codes, payment methods, error types
+- **Nested objects**: Complex data structures used within requests/responses
+- **Serde annotations**: Serialization/deserialization attributes.
+
+Otherwise, you can manually define it and create the `crates/hyperswitch_connectors/src/connectors/{CONNECTOR_NAME}/temp.rs ` file. We highly recommend using the openapi-generator for ease. 
+
+**Usage in Connector Development**
+
+You can then copy and adapt these generated structs into your connector's `transformers.rs` file, following the pattern shown in the connector integration documentation. The generated code serves as a starting point that you customize for your specific connector implementation needs.
+
+3. **Configure Required Environment Variables**
+
+Set up the necessary environment variables for the OpenAPI generation process:
+
+#### Connector name (must match the name used in add_connector.sh script) 
+
+```bash
+export CONNECTOR_NAME="your_connector_name"  
+``` 
+
+#### Path to the downloaded OpenAPI specification  
+```bash
+export SCHEMA_PATH="/absolute/path/to/your/connector-openapi.json"
 ```
 
-Example folder structure:
+## Code Walkthrough
+
+We'll walk through the `transformer.rs` file, and what needs to be implemented.
+
+1. **Converts Hyperswitch's internal payment data into your connector's API request format**
+ This part of the code takes your internal representation of a payment request, pulls out the token, gathers all the customer and payment fields, and packages them into a clean, JSON-serializable struct ready to send to Billwerk. You'll have to implement the customer and payment fields, as necessary, but you can implement it below: 
+
+```rust
+impl TryFrom<&ConnectorAuthType> for NadinebillwerkAuthType {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
+        match auth_type {
+            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+                api_key: api_key.to_owned(),
+            }),
+            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+        }
+    }
+}
 
 ```
-hyperswitch_connectors/src/connectors
-├── billwerk
-│   └── transformers.rs
-└── billwerk.rs
-crates/router/tests/connectors
-└── billwerk.rs
-```
-
-**Note:** move the file `crates/hyperswitch_connectors/src/connectors/connector_name/test.rs` to `crates/router/tests/connectors/connector_name.rs`
-
-
-Define API request/response types and conversions in `hyperswitch_connectors/src/connector/billwerk/transformers.rs`
-
-Implement connector traits in `hyperswitch_connectors/src/connector/billwerk.rs`
-
-Write basic payment flow tests in `crates/router/tests/connectors/billwerk.rs`
-
-Boilerplate code with todo!() is provided—follow the guide and complete the necessary implementations.
-
-### Implement Request & Response Types
-
-Integrating a new connector involves transforming Router's core data into the connector's API format. Since the Connector module is stateless, Router handles data persistence.
-
-#### Implementing transformers.rs
-
-Design request/response structures based on the connector's API spec.
-
-Define request format in `transformers.rs`:
+Here's an implementation example with the Billwerk connector:
 
 ```rust
 #[derive(Debug, Serialize)]
-pub struct BillwerkCustomerObject {
+pub struct NadinebillwerkCustomerObject {
     handle: Option<id_type::CustomerId>,
     email: Option<Email>,
     address: Option<Secret<String>>,
@@ -104,35 +270,22 @@ pub struct BillwerkCustomerObject {
     last_name: Option<Secret<String>>,
 }
 
-#[derive(Debug, Serialize)]
-pub struct BillwerkPaymentsRequest {
-    handle: String,
-    amount: MinorUnit,
-    source: Secret<String>,
-    currency: common_enums::Currency,
-    customer: BillwerkCustomerObject,
-    metadata: Option<SecretSerdeValue>,
-    settle: bool,
-}
-```
-
-Since Router is connector agnostic, only minimal data is sent to connector and optional fields may be ignored.
-
-We transform our `PaymentsAuthorizeRouterData` into Billwerk's `PaymentsRequest` structure by employing the `try_from` function.
-
-```rust
-impl TryFrom<&BillwerkRouterData<&types::PaymentsAuthorizeRouterData>> for BillwerkPaymentsRequest {
+impl TryFrom<&NadinebillwerkRouterData<&PaymentsAuthorizeRouterData>>
+    for NadinebillwerkPaymentsRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &BillwerkRouterData<&types::PaymentsAuthorizeRouterData>,
+        item: &NadinebillwerkRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
+
         if item.router_data.is_three_ds() {
             return Err(errors::ConnectorError::NotImplemented(
                 "Three_ds payments through Billwerk".to_string(),
             )
             .into());
         };
-        let source = match item.router_data.get_payment_method_token()? {
+
+          let source = match item.router_data.get_payment_method_token()? {
             PaymentMethodToken::Token(pm_token) => Ok(pm_token),
             _ => Err(errors::ConnectorError::MissingRequiredField {
                 field_name: "payment_method_token",
@@ -143,7 +296,7 @@ impl TryFrom<&BillwerkRouterData<&types::PaymentsAuthorizeRouterData>> for Billw
             amount: item.amount,
             source,
             currency: item.router_data.request.currency,
-            customer: BillwerkCustomerObject {
+            customer: NadinebillwerkCustomerObject {
                 handle: item.router_data.customer_id.clone(),
                 email: item.router_data.request.email.clone(),
                 address: item.router_data.get_optional_billing_line1(),
@@ -160,9 +313,13 @@ impl TryFrom<&BillwerkRouterData<&types::PaymentsAuthorizeRouterData>> for Billw
 }
 ```
 
-### Handle Response Mapping
+2. **Handle Response Mapping**
 
-When implementing the response type, the key enum to define for each connector is `PaymentStatus`. It represents the different status types returned by the connector, as specified in its API spec. Below is the definition for Billwerk.
+Response mapping is a critical component of connector implementation that translates payment processor–specific statuses into Hyperswitch’s standardized internal representation. This ensures consistent payment state management across all integrated payment processors.
+
+**Define Payment Status Enum**
+
+Create an enum that represents all possible payment statuses returned by your payment processor’s API. This enum should match the exact status values specified in your connector’s API documentation.
 
 ```rust
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -175,7 +332,14 @@ pub enum BillwerkPaymentState {
     Failed,
     Cancelled,
 }
+```
+The enum uses `#[serde(rename_all = "lowercase")]` to automatically handle JSON serialization/deserialization in the connector’s expected format.
 
+**Implement Status Conversion**
+
+Implement From<ConnectorStatus> for Hyperswitch’s `AttemptStatus` enum:
+
+```rs
 impl From<BillwerkPaymentState> for enums::AttemptStatus {
     fn from(item: BillwerkPaymentState) -> Self {
         match item {
@@ -187,534 +351,119 @@ impl From<BillwerkPaymentState> for enums::AttemptStatus {
         }
     }
 }
+
 ```
+| Connector Status       | Hyperswitch Status            | Description                          |
+|------------------------|-------------------------------|--------------------------------------|
+| `Created`, `Pending`   | `AttemptStatus::Pending`      | Payment is being processed           |
+| `Authorized`           | `AttemptStatus::Authorized`   | Payment authorized, awaiting capture |
+| `Settled`              | `AttemptStatus::Charged`      | Payment successfully completed       |
+| `Failed`               | `AttemptStatus::Failure`      | Payment failed or was declined       |
+| `Cancelled`            | `AttemptStatus::Voided`       | Payment was cancelled/voided         |
 
-Here are common payment attempt statuses:
-
-- **Charged:** Payment succeeded.
-- **Pending:** Payment is processing.
-- **Failure:** Payment failed.
-- **Authorized:** Payment authorized; can be voided, captured, or partially captured.
-- **AuthenticationPending:** Customer action required.
-- **Voided:** Payment voided, funds returned to the customer.
-
-**Note:** Default status should be `Pending`. Only explicit success or failure from the connector should mark the payment as `Charged` or `Failure`.
-
-Define response format in `transformers.rs`:
-
-```rust
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct BillwerkPaymentsResponse {
-    state: BillwerkPaymentState,
-    handle: String,
-    error: Option<String>,
-    error_state: Option<String>,
-}
-```
-
-We transform our `ResponseRouterData` into `PaymentsResponseData` by employing the `try_from` function.
-
-```rust
-impl<F, T> TryFrom<ResponseRouterData<F, BillwerkPaymentsResponse, T, PaymentsResponseData>>
-    for RouterData<F, T, PaymentsResponseData>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: ResponseRouterData<F, BillwerkPaymentsResponse, T, PaymentsResponseData>,
-    ) -> Result<Self, Self::Error> {
-        let error_response = if item.response.error.is_some() || item.response.error_state.is_some()
-        {
-            Some(ErrorResponse {
-                code: item
-                    .response
-                    .error_state
-                    .clone()
-                    .unwrap_or(NO_ERROR_CODE.to_string()),
-                message: item
-                    .response
-                    .error_state
-                    .unwrap_or(NO_ERROR_MESSAGE.to_string()),
-                reason: item.response.error,
-                status_code: item.http_code,
-                attempt_status: None,
-                connector_transaction_id: Some(item.response.handle.clone()),
-            })
-        } else {
-            None
-        };
-        let payments_response = PaymentsResponseData::TransactionResponse {
-            resource_id: ResponseId::ConnectorTransactionId(item.response.handle.clone()),
-            redirection_data: Box::new(None),
-            mandate_reference: Box::new(None),
-            connector_metadata: None,
-            network_txn_id: None,
-            connector_response_reference_id: Some(item.response.handle),
-            incremental_authorization_allowed: None,
-            charges: None,
-        };
-        Ok(Self {
-            status: enums::AttemptStatus::from(item.response.state),
-            response: error_response.map_or_else(|| Ok(payments_response), Err),
-            ..item.data
-        })
-    }
-}
-```
-
-### Recommended Fields for Connector Request and Response
-
-- **connector_request_reference_id:** Merchant's reference ID in the payment request (e.g., `reference` in Checkout).
-
-```rust
-  reference: item.router_data.connector_request_reference_id.clone(),
-```
-- **connector_response_reference_id:** ID used for transaction identification in the connector dashboard, linked to merchant_reference or connector_transaction_id.
-
-```rust
-    connector_response_reference_id: item.response.reference.or(Some(item.response.id)),
-```
-
-- **resource_id:** The connector's connector_transaction_id is used as the resource_id. If unavailable, set to NoResponseId.
-
-```rust
-    resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
-```
-
-- **redirection_data:** For redirection flows (e.g., 3D Secure), assign the redirection link.
-
-```rust
-    let redirection_data = item.response.links.redirect.map(|href| {
-        services::RedirectForm::from((href.redirection_url, services::Method::Get))
-    });
-```
-
-### Error Handling
-
-Define error responses:
-
-```rust
-#[derive(Debug, Serialize, Deserialize)]
-pub struct BillwerkErrorResponse {
-    pub code: Option<i32>,
-    pub error: String,
-    pub message: Option<String>,
-}
-```
-
-By following these steps, you can integrate a new connector efficiently while ensuring compatibility with Router's architecture.
-
-## Implementing the Traits
-
-The `mod.rs` file contains trait implementations using connector types in transformers. A struct with the connector name holds these implementations. Below are the mandatory traits:
-
-### ConnectorCommon
-Contains common description of the connector, like the base endpoint, content-type, error response handling, id, currency unit.
-
-Within the `ConnectorCommon` trait, you'll find the following methods :
-
-- `id` method corresponds directly to the connector name.
-
-```rust
-  fn id(&self) -> &'static str {
-      "Billwerk"
-  }
-```
-
-- `get_currency_unit` method anticipates you to [specify the accepted currency unit](#set-the-currency-unit) for the connector.
-
-```rust
-  fn get_currency_unit(&self) -> api::CurrencyUnit {
-      api::CurrencyUnit::Minor
-  }
-```
-
-- `common_get_content_type` method requires you to provide the accepted content type for the connector API.
-
-```rust
-  fn common_get_content_type(&self) -> &'static str {
-      "application/json"
-  }
-```
-
-- `get_auth_header` method accepts common HTTP Authorization headers that are accepted in all `ConnectorIntegration` flows.
-
-```rust
-    fn get_auth_header(
-        &self,
-        auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let auth = BillwerkAuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let encoded_api_key = BASE64_ENGINE.encode(format!("{}:", auth.api_key.peek()));
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            format!("Basic {encoded_api_key}").into_masked(),
-        )])
-    }
-```
-
-- `base_url` method is for fetching the base URL of connector's API. Base url needs to be consumed from configs.
-
-```rust
-    fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
-        connectors.billwerk.base_url.as_ref()
-    }
-```
-
-- `build_error_response` method is common error response handling for a connector if it is same in all cases
-
-```rust
-    fn build_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: BillwerkErrorResponse = res
-            .response
-            .parse_struct("BillwerkErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response
-                .code
-                .map_or(NO_ERROR_CODE.to_string(), |code| code.to_string()),
-            message: response.message.unwrap_or(NO_ERROR_MESSAGE.to_string()),
-            reason: Some(response.error),
-            attempt_status: None,
-            connector_transaction_id: None,
-        })
-    }
-```
-
-### ConnectorIntegration
-For every api endpoint contains the url, using request transform and response transform and headers.
-Within the `ConnectorIntegration` trait, you'll find the following methods implemented(below mentioned is example for authorized flow):
-
-- `get_url` method defines endpoint for authorize flow, base url is consumed from `ConnectorCommon` trait.
-
-```rust
-    fn get_url(
-        &self,
-        _req: &TokenizationRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        let base_url = connectors
-            .billwerk
-            .secondary_base_url
-            .as_ref()
-            .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
-        Ok(format!("{base_url}v1/token"))
-    }
-```
-
-- `get_headers` method accepts HTTP headers that are accepted for authorize flow. In this context, it is utilized from the `ConnectorCommonExt` trait, as the connector adheres to common headers across various flows.
-
-```rust
-    fn get_headers(
-        &self,
-        req: &TokenizationRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-```
-
-- `get_request_body` method uses transformers to convert the Hyperswitch payment request to the connector's format. If successful, it returns the request as `RequestContent::Json`, supporting formats like JSON, form-urlencoded, XML, and raw bytes.
-
-```rust
-    fn get_request_body(
-        &self,
-        req: &TokenizationRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = BillwerkTokenRequest::try_from(req)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
-    }
-```
-
-- `build_request` method assembles the API request by providing the method, URL, headers, and request body as parameters.
-
-```rust
-    fn build_request(
-        &self,
-        req: &TokenizationRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Ok(Some(
-            RequestBuilder::new()
-                .method(Method::Post)
-                .url(&types::TokenizationType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::TokenizationType::get_headers(self, req, connectors)?)
-                .set_body(types::TokenizationType::get_request_body(
-                    self, req, connectors,
-                )?)
-                .build(),
-        ))
-    }
-```
-
-- `handle_response` method calls transformers where connector response data is transformed into hyperswitch response.
-
-```rust
-    fn handle_response(
-        &self,
-        data: &TokenizationRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<TokenizationRouterData, errors::ConnectorError>
-    where
-        PaymentsResponseData: Clone,
-    {
-        let response: BillwerkTokenResponse = res
-            .response
-            .parse_struct("BillwerkTokenResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
-    }
-```
-
-- `get_error_response` method to manage error responses. As the handling of checkout errors remains consistent across various flows, we've incorporated it from the `build_error_response` method within the `ConnectorCommon` trait.
-
-```rust
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
-```
-
-### ConnectorCommonExt
-Adds functions with a generic type, including the `build_headers` method. This method constructs both common headers and Authorization headers (from `get_auth_header`), returning them as a vector.
-
-```rust
-    impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Billwerk
-    where
-        Self: ConnectorIntegration<Flow, Request, Response>,
-    {
-        fn build_headers(
-            &self,
-            req: &RouterData<Flow, Request, Response>,
-            _connectors: &Connectors,
-        ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-            let mut header = vec![(
-                headers::CONTENT_TYPE.to_string(),
-                self.get_content_type().to_string().into(),
-            )];
-            let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-            header.append(&mut api_key);
-            Ok(header)
-        }
-    }
-```
-
-### OtherTraits
-**Payment :** This trait includes several other traits and is meant to represent the functionality related to payments.
-
-**PaymentAuthorize :** This trait extends the `api::ConnectorIntegration `trait with specific types related to payment authorization.
-
-**PaymentCapture :** This trait extends the `api::ConnectorIntegration `trait with specific types related to manual payment capture.
-
-**PaymentSync :** This trait extends the `api::ConnectorIntegration `trait with specific types related to payment retrieve.
-
-**Refund :** This trait includes several other traits and is meant to represent the functionality related to Refunds.
-
-**RefundExecute :** This trait extends the `api::ConnectorIntegration `trait with specific types related to refunds create.
-
-**RefundSync :** This trait extends the `api::ConnectorIntegration `trait with specific types related to refunds retrieve.
-
-And the below derive traits
-
-- **Debug**
-- **Clone**
-- **Copy**
-
-### **Set the currency Unit**
-
-Part of the `ConnectorCommon` trait, it allows connectors to specify their accepted currency unit as either `Base` or `Minor`. For example, PayPal uses the base unit (e.g., USD), while Hyperswitch uses the minor unit (e.g., cents). Conversion is required if the connector uses the base unit.
-
-```rust
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for PaypalRouterData<T>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (currency_unit, currency, amount, item): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
-    ) -> Result<Self, Self::Error> {
-        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
-        Ok(Self {
-            amount,
-            router_data: item,
-        })
-    }
-}
-```
-
-### **Connector utility functions**
-
-Contains utility functions for constructing connector requests and responses. Use these helpers for retrieving fields like `get_billing_country`, `get_browser_info`, and `get_expiry_date_as_yyyymm`, as well as for validations like `is_three_ds` and `is_auto_capture`.
-
-```rust
-  let json_wallet_data: CheckoutGooglePayData = wallet_data.get_wallet_token_as_json()?;
-```
-
-### **Connector configs for control center**
-
-This section is for developers using the [Hyperswitch Control Center](https://github.com/juspay/hyperswitch-control-center). Update the connector configuration in development.toml and run the wasm-pack build command. Replace placeholders with actual paths.
-
-1. Install wasm-pack:
+> **Note:** Default status should be `Pending`. Only explicit success or failure from the connector should mark the payment as `Charged` or `Failure`.
+
+
+
+
+
+
+
+
+
+
+--
+
+
+## Test the Connector Integration
+After successfully creating your connector using the `add_connector.sh` script, you need to configure authentication credentials and test the integration. This section covers the complete testing setup process.
+
+### Authentication Setup
+1. **Obtain PSP Credentials**
+
+First, obtain sandbox/UAT API credentials from your payment service provider. These are typically available through their developer portal or dashboard.
+
+2. **Create Authentication File**
+
+Copy the sample authentication template and create your credentials file:
 
 ```bash 
-cargo install wasm-pack
+cp crates/router/tests/connectors/sample_auth.toml auth.toml
 ```
 
-2. Add connector configuration:
+The sample file `crates/router/tests/connectors/sample_auth.toml` contains templates for all supported connectors. Edit your `auth.toml` file to include your connector's credentials:
 
-    Open the development.toml file located at crates/connector_configs/toml/development.toml in your Hyperswitch project.
-    Find the [stripe] section and add the configuration for example_connector. Example:
+**Example for the Billwerk connector**  
 
-    ```toml
-   # crates/connector_configs/toml/development.toml
+```text
+[billewerk]  
+api_key = "sk_test_your_actual_billwerk_test_key_here"  
+```
 
-   # Other connector configurations...
+3. **Configure Environment Variables**
 
-   [stripe]
-   [stripe.connector_auth.HeaderKey]
-   api_key="Secret Key"
+Set the path to your authentication file:
 
-   # Add any other Stripe-specific configuration here
+```bash
+export CONNECTOR_AUTH_FILE_PATH="/absolute/path/to/your/auth.toml"
+```
 
-   [example_connector]
-   # Your specific connector configuration for reference
-   # ...
+4. **Use `direnv` for Environment Management (recommended)**
 
-   ```
+For better environment variable management, use `direnv` with a `.envrc` file in the `cypress-tests` directory.
 
-3. Update paths:
-    Replace /absolute/path/to/hyperswitch-control-center and /absolute/path/to/hyperswitch with actual paths.
+5. **Create `.envrc` in the `cypress-tests` directory**
 
-4. Run `wasm-pack` build:
-    wasm-pack build --target web --out-dir /absolute/path/to/hyperswitch-control-center/public/hyperswitch/wasm --out-name euclid /absolute/path/to/hyperswitch/crates/euclid_wasm -- --features dummy_connector
+```bash
+cd cypress-tests
+```
+**Create a `.envrc` file with the following content**:
 
-By following these steps, you should be able to update the connector configuration and build the WebAssembly files successfully.
+```bash
+export CONNECTOR_AUTH_FILE_PATH="/absolute/path/to/your/auth.toml"
+export CYPRESS_CONNECTOR="your_connector_name"
+export CYPRESS_BASEURL="http://localhost:8080"
+export CYPRESS_ADMINAPIKEY="test_admin"
+export DEBUG=cypress:cli
+```
 
-### Update `ConnectorTypes.res` and `ConnectorUtils.res`
+6. **Allow `direnv` to load the variables inside the `cypress-tests` directory**: 
 
-1. **Update `ConnectorTypes.res`**:
-   - Open `src/screens/HyperSwitch/Connectors/ConnectorTypes.res`.
-   - Add your connector to the `connectorName` enum:
-     ```reason
-     type connectorName =
-       | Stripe
-       | DummyConnector
-       | YourNewConnector
-     ```
-   - Save the file.
+``` bash
+direnv allow
+```
 
-2. **Update `ConnectorUtils.res`**:
-   - Open `src/screens/HyperSwitch/Connectors/ConnectorUtils.res`.
-   - Update functions with your connector:
-     ```reason
-     let connectorList : array<connectorName> = [Stripe, YourNewConnector]
+### Test the Connector Integration
 
-     let getConnectorNameString = (connectorName: connectorName) =>
-       switch connectorName {
-       | Stripe => "Stripe"
-       | YourNewConnector => "Your New Connector"
-       };
+1. **Start the Hyperswitch Router Service locally**:
 
-     let getConnectorInfo = (connectorName: connectorName) =>
-       switch connectorName {
-       | Stripe => "Stripe description."
-       | YourNewConnector => "Your New Connector description."
-       };
-     ```
-   - Save the file.
+```bash
+cargo r
+```
 
-### Add Connector Icon
+2. **Verify Server Health**
 
-1. **Prepare the Icon**:  
-   Name your connector icon in uppercase (e.g., `YOURCONNECTOR.SVG`).
+```bash 
+curl --head --request GET 'http://localhost:8080/health'
+```
+  
+**Detailed health check**
 
-2. **Add the Icon**:  
-   Navigate to `public/hyperswitch/Gateway` and copy your SVG icon file there.
+```bash
+curl --request GET 'http://localhost:8080/health/ready'
+```
 
-3. **Verify Structure**:  
-   Ensure the file is correctly placed in `public/hyperswitch/Gateway`:
+3. **Run Connector Tests for Your Connector**
 
-   ```
-   public
-   └── hyperswitch
-       └── Gateway
-           └── YOURCONNECTOR.SVG
-   ```
-   Save the changes made to the `Gateway` folder.
+```bash
+cargo test --package router --test connectors -- your_connector_name --test-threads=1
+```
 
-### **Test the Connector**
+The authentication system will load your credentials from the specified path and use them for testing.
 
-1. **Template Code**  
-
-   The template script generates a test file with 20 sanity tests. Implement these tests when adding a new connector.
-
-   Example test:
-   ```rust
-    #[serial_test::serial]
-    #[actix_web::test]
-    async fn should_only_authorize_payment() {
-        let response = CONNECTOR
-            .authorize_payment(payment_method_details(), get_default_payment_info())
-            .await
-            .expect("Authorize payment response");
-        assert_eq!(response.status, enums::AttemptStatus::Authorized);
-    }
-   ```
-
-2. **Utility Functions** 
-
-    Helper functions for tests are available in `tests/connector/utils`, making test writing easier.
-
-3. **Set API Keys**
-
-    Before running tests, configure API keys in sample_auth.toml and set the environment variable:
-
-    ```bash
-    export CONNECTOR_AUTH_FILE_PATH="/hyperswitch/crates/router/tests/connectors/sample_auth.toml"
-    cargo test --package router --test connectors -- checkout --test-threads=1
-    ```
-
-### **Build Payment Request and Response from JSON Schema**
-
-1. **Install OpenAPI Generator:**
-   ```bash
-   brew install openapi-generator
-   ```
-
-2. **Generate Rust Code:**
-    ```bash
-    export CONNECTOR_NAME="<CONNECTOR-NAME>"
-    export SCHEMA_PATH="<PATH-TO-SCHEMA>"
-    openapi-generator generate -g rust -i ${SCHEMA_PATH} -o temp && cat temp/src/models/* > crates/router/src/connector/${CONNECTOR_NAME}/temp.rs && rm -rf temp && sed -i'' -r "s/^pub use.*//;s/^pub mod.*//;s/^\/.*//;s/^.\*.*//;s/crate::models:://g;" crates/router/src/connector/${CONNECTOR_NAME}/temp.rs && cargo +nightly fmt
-    ```
+> **⚠️ Important Notes**
+>
+> * **Never commit `auth.toml`** – It contains sensitive credentials and should never be added to version control
+> * **Use absolute paths** – This avoids issues when running tests from different directories
+> * **Populate with real test credentials** – Replace the placeholder values from the sample file with actual sandbox/UAT credentials from your payment processors. Please don't use production credentials. 
+> * **Rotate credentials regularly** – Update test keys periodically for security.
