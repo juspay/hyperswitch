@@ -55,7 +55,7 @@ pub struct AuthenticationCreateRequest {
     pub psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
 
     /// Profile Acquirer ID get from profile acquirer configuration
-    #[schema(value_type = id_type::ProfileAcquirerId)]
+    #[schema(value_type = String)]
     pub profile_acquirer_id: id_type::ProfileAcquirerId,
 }
 
@@ -133,7 +133,7 @@ pub struct AuthenticationResponse {
     pub acquirer_details: Option<AcquirerDetails>,
 
     /// Profile Acquirer ID get from profile acquirer configuration
-    #[schema(value_type = id_type::ProfileAcquirerId)]
+    #[schema(value_type = String)]
     pub profile_acquirer_id: id_type::ProfileAcquirerId,
 }
 
@@ -517,7 +517,6 @@ pub struct AuthenticationSyncResponse {
     #[schema(value_type = Option<pii::Email>)]
     pub email: common_utils::crypto::OptionalEncryptableEmail,
 
-    // Authentication Execution Fields (from AuthenticationAuthenticateResponse)
     /// Indicates the transaction status.
     #[serde(rename = "trans_status")]
     #[schema(value_type = Option<TransactionStatus>)]
@@ -561,6 +560,7 @@ pub struct AuthenticationSyncResponse {
     pub error_code: Option<String>,
 
     /// Profile Acquirer ID
+    #[schema(value_type = String)]
     pub profile_acquirer_id: id_type::ProfileAcquirerId,
 }
 
