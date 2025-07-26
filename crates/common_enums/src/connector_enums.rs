@@ -141,6 +141,7 @@ pub enum RoutableConnectors {
     Santander,
     Shift4,
     Signifyd,
+    Silverflow,
     Square,
     Stax,
     Stripe,
@@ -307,6 +308,7 @@ pub enum Connector {
     Redsys,
     Santander,
     Shift4,
+    Silverflow,
     Square,
     Stax,
     Stripe,
@@ -485,6 +487,7 @@ impl Connector {
             | Self::Redsys
             | Self::Santander
             | Self::Shift4
+            | Self::Silverflow
             | Self::Square
             | Self::Stax
             | Self::Stripebilling
@@ -654,6 +657,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Santander => Self::Santander,
             RoutableConnectors::Shift4 => Self::Shift4,
             RoutableConnectors::Signifyd => Self::Signifyd,
+            RoutableConnectors::Silverflow => Self::Silverflow,
             RoutableConnectors::Square => Self::Square,
             RoutableConnectors::Stax => Self::Stax,
             RoutableConnectors::Stripe => Self::Stripe,
@@ -777,6 +781,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Santander => Ok(Self::Santander),
             Connector::Shift4 => Ok(Self::Shift4),
             Connector::Signifyd => Ok(Self::Signifyd),
+            Connector::Silverflow => Ok(Self::Silverflow),
             Connector::Square => Ok(Self::Square),
             Connector::Stax => Ok(Self::Stax),
             Connector::Stripe => Ok(Self::Stripe),
