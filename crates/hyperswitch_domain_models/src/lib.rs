@@ -14,6 +14,7 @@ pub mod customer;
 pub mod disputes;
 pub mod errors;
 pub mod ext_traits;
+pub mod gsm;
 pub mod mandates;
 pub mod merchant_account;
 pub mod merchant_connector_account;
