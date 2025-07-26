@@ -1,16 +1,20 @@
 use common_enums::{enums, AuthenticationConnectors};
+#[cfg(feature = "v1")]
+use common_utils::errors::{self, CustomResult};
 use common_utils::{
     crypto::Encryptable,
     events::{ApiEventMetric, ApiEventsType},
-    id_type, pii,
+    id_type,
 };
+#[cfg(feature = "v1")]
+use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
 #[cfg(feature = "v1")]
-use crate::payments::BrowserInformation;
-use crate::payments::{Address, CustomerDetails};
+use crate::payments::{Address, BrowserInformation, PaymentMethodData};
+use crate::payments::{CustomerDetails, DeviceChannel, SdkInformation, ThreeDsCompletionIndicator};
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct AuthenticationCreateRequest {
@@ -41,10 +45,6 @@ pub struct AuthenticationCreateRequest {
     /// The URL to which the user should be redirected after authentication.
     #[schema(value_type = Option<String>, example = "https://example.com/redirect")]
     pub return_url: Option<String>,
-
-    /// Acquirer details information
-    #[schema(value_type = Option<AcquirerDetails>)]
-    pub acquirer_details: Option<AcquirerDetails>,
 
     /// Force 3DS challenge.
     #[serde(default)]
@@ -101,7 +101,7 @@ pub struct AuthenticationResponse {
 
     /// The connector to be used for authentication, if known.
     #[schema(value_type = Option<AuthenticationConnectors>, example = "netcetera")]
-    pub authentication_connector: Option<String>,
+    pub authentication_connector: Option<AuthenticationConnectors>,
 
     /// Whether 3DS challenge was forced.
     pub force_3ds_challenge: Option<bool>,
@@ -146,6 +146,7 @@ impl ApiEventMetric for AuthenticationCreateRequest {
             })
     }
 }
+
 impl ApiEventMetric for AuthenticationResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Authentication {
@@ -157,38 +158,59 @@ impl ApiEventMetric for AuthenticationResponse {
 #[cfg(feature = "v1")]
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct AuthenticationEligibilityRequest {
-    pub payment_method_data: crate::payments::PaymentMethodData,
+    /// Payment method-specific data such as card details, wallet info, etc.
+    /// This holds the raw information required to process the payment method.
+    #[schema(value_type = PaymentMethodData)]
+    pub payment_method_data: PaymentMethodData,
 
-    /// Payment method
+    /// Enum representing the type of payment method being used
+    /// (e.g., Card, Wallet, UPI, BankTransfer, etc.).
+    #[schema(value_type = PaymentMethod)]
     pub payment_method: common_enums::PaymentMethod,
 
+    /// Optional secret value used to identify and authorize the client making the request.
+    /// This can help ensure that the payment session is secure and valid.
+    #[schema(value_type = Option<String>)]
     pub client_secret: Option<masking::Secret<String>>,
 
-    /// The business profile that is associated with this payment
+    /// Optional identifier for the business profile associated with the payment.
+    /// This determines which configurations, rules, and branding are applied to the transaction.
     #[schema(value_type = Option<String>)]
     pub profile_id: Option<id_type::ProfileId>,
 
-    /// Billing address
+    /// Optional billing address of the customer.
+    /// This can be used for fraud detection, authentication, or compliance purposes.
     #[schema(value_type = Option<Address>)]
     pub billing: Option<Address>,
 
-    /// Shipping address
+    /// Optional shipping address of the customer.
+    /// This can be useful for logistics, verification, or additional risk checks.
     #[schema(value_type = Option<Address>)]
     pub shipping: Option<Address>,
 
-    /// Browser information
+    /// Optional information about the customer's browser (user-agent, language, etc.).
+    /// This is typically used to support 3DS authentication flows and improve risk assessment.
     #[schema(value_type = Option<BrowserInformation>)]
     pub browser_information: Option<BrowserInformation>,
 
-    /// Email
-    #[schema(value_type = Option<pii::Email>)]
-    pub email: Option<pii::Email>,
+    /// Optional email address of the customer.
+    /// Used for customer identification, communication, and possibly for 3DS or fraud checks.
+    #[schema(value_type = Option<String>)]
+    pub email: Option<common_utils::pii::Email>,
 }
 
 #[cfg(feature = "v1")]
 impl AuthenticationEligibilityRequest {
-    pub fn get_next_action_api(&self, base_url: String, authentication_id: String) -> String {
-        format!("{base_url}/authentication/{authentication_id}/authenticate")
+    pub fn get_next_action_api(
+        &self,
+        base_url: String,
+        authentication_id: String,
+    ) -> CustomResult<NextAction, errors::ParsingError> {
+        let url = format!("{base_url}/authentication/{authentication_id}/authenticate");
+        Ok(NextAction {
+            url: url::Url::parse(&url).change_context(errors::ParsingError::UrlParsingError)?,
+            http_method: common_utils::request::Method::Post,
+        })
     }
 
     pub fn get_billing_address(&self) -> Option<Address> {
@@ -211,16 +233,58 @@ pub struct AuthenticationEligibilityResponse {
     #[schema(value_type = String, example = "auth_mbabizu24mvu3mela5njyhpit4")]
     pub authentication_id: id_type::AuthenticationId,
     /// The URL to which the user should be redirected after authentication.
-    #[schema(value_type = String, example = "https://example.com/redirect")]
-    pub next_api_action: String,
+    #[schema(value_type = NextAction)]
+    pub next_action: NextAction,
     /// The current status of the authentication (e.g., Started).
     #[schema(value_type = AuthenticationStatus)]
     pub status: common_enums::AuthenticationStatus,
+    /// The 3DS data for this authentication.
+    #[schema(value_type = Option<EligibilityResponseParams>)]
+    pub eligibility_response_params: Option<EligibilityResponseParams>,
+    /// The metadata for this authentication.
+    #[schema(value_type = serde_json::Value)]
+    pub connector_metadata: Option<serde_json::Value>,
+    /// The unique identifier for this authentication.
+    #[schema(value_type = String)]
+    pub profile_id: id_type::ProfileId,
+    /// The error message for this authentication.
+    #[schema(value_type = Option<String>)]
+    pub error_message: Option<String>,
+    /// The error code for this authentication.
+    #[schema(value_type = Option<String>)]
+    pub error_code: Option<String>,
+    /// The connector used for this authentication.
+    #[schema(value_type = Option<AuthenticationConnectors>)]
+    pub authentication_connector: Option<AuthenticationConnectors>,
+    /// Billing address
+    #[schema(value_type = Option<Address>)]
+    pub billing: Option<Address>,
+    /// Shipping address
+    #[schema(value_type = Option<Address>)]
+    pub shipping: Option<Address>,
+    /// Browser information
+    #[schema(value_type = Option<BrowserInformation>)]
+    pub browser_information: Option<BrowserInformation>,
+    /// Email
+    #[schema(value_type = Option<String>)]
+    pub email: common_utils::crypto::OptionalEncryptableEmail,
+    /// Acquirer details information.
+    #[schema(value_type = Option<AcquirerDetails>)]
+    pub acquirer_details: Option<AcquirerDetails>,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub enum EligibilityResponseParams {
+    ThreeDsData(ThreeDsData),
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct ThreeDsData {
     /// The unique identifier for this authentication from the 3DS server.
     #[schema(value_type = String)]
-    pub threeds_server_transaction_id: Option<String>,
+    pub three_ds_server_transaction_id: Option<String>,
     /// The maximum supported 3DS version.
-    #[schema(value_type = SemanticVersion)]
+    #[schema(value_type = String)]
     pub maximum_supported_3ds_version: Option<common_utils::types::SemanticVersion>,
     /// The unique identifier for this authentication from the connector.
     #[schema(value_type = String)]
@@ -230,43 +294,23 @@ pub struct AuthenticationEligibilityResponse {
     pub three_ds_method_data: Option<String>,
     /// The URL to which the user should be redirected after authentication.
     #[schema(value_type = String, example = "https://example.com/redirect")]
-    pub three_ds_method_url: Option<String>,
+    pub three_ds_method_url: Option<url::Url>,
     /// The version of the message.
-    #[schema(value_type = SemanticVersion)]
+    #[schema(value_type = String)]
     pub message_version: Option<common_utils::types::SemanticVersion>,
-    /// The metadata for this authentication.
-    #[schema(value_type = serde_json::Value)]
-    pub connector_metadata: Option<serde_json::Value>,
     /// The unique identifier for this authentication.
     #[schema(value_type = String)]
     pub directory_server_id: Option<String>,
-    /// The unique identifier for this authentication.
-    #[schema(value_type = String)]
-    pub profile_id: id_type::ProfileId,
-    /// The error message for this authentication.
-    #[schema(value_type = String)]
-    pub error_message: Option<String>,
-    /// The error code for this authentication.
-    #[schema(value_type = String)]
-    pub error_code: Option<String>,
-    /// The connector used for this authentication.
-    #[schema(value_type = String)]
-    pub authentication_connector: Option<String>,
-    /// Billing address
-    #[schema(value_type = Option<Address>)]
-    pub billing: Option<Address>,
+}
 
-    /// Shipping address
-    #[schema(value_type = Option<Address>)]
-    pub shipping: Option<Address>,
-
-    /// Browser information
-    #[schema(value_type = Option<BrowserInformation>)]
-    pub browser_information: Option<BrowserInformation>,
-
-    /// Email
-    #[schema(value_type = Option<pii::Email>)]
-    pub email: common_utils::crypto::OptionalEncryptableEmail,
+#[derive(Debug, Serialize, ToSchema)]
+pub struct NextAction {
+    /// The URL for authenticatating the user.
+    #[schema(value_type = String)]
+    pub url: url::Url,
+    /// The HTTP method to use for the request.
+    #[schema(value_type = Method)]
+    pub http_method: common_utils::request::Method,
 }
 
 #[cfg(feature = "v1")]
@@ -287,19 +331,25 @@ impl ApiEventMetric for AuthenticationEligibilityResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct AuthenticationAuthenticateRequest {
+    /// Authentication ID for the authentication
+    #[serde(skip_deserializing)]
+    pub authentication_id: id_type::AuthenticationId,
+    /// Client secret for the authentication
     #[schema(value_type = String)]
     pub client_secret: Option<masking::Secret<String>>,
     /// SDK Information if request is from SDK
-    pub sdk_information: Option<crate::payments::SdkInformation>,
+    pub sdk_information: Option<SdkInformation>,
     /// Device Channel indicating whether request is coming from App or Browser
-    pub device_channel: crate::payments::DeviceChannel,
+    pub device_channel: DeviceChannel,
     /// Indicates if 3DS method data was successfully completed or not
-    pub threeds_method_comp_ind: crate::payments::ThreeDsCompletionIndicator,
+    pub threeds_method_comp_ind: ThreeDsCompletionIndicator,
 }
 
 impl ApiEventMetric for AuthenticationAuthenticateRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        None
+        Some(ApiEventsType::Authentication {
+            authentication_id: self.authentication_id.clone(),
+        })
     }
 }
 
@@ -310,7 +360,7 @@ pub struct AuthenticationAuthenticateResponse {
     #[schema(value_type = Option<TransactionStatus>)]
     pub transaction_status: Option<common_enums::TransactionStatus>,
     /// Access Server URL to be used for challenge submission
-    pub acs_url: Option<String>,
+    pub acs_url: Option<url::Url>,
     /// Challenge request which should be sent to acs_url
     pub challenge_request: Option<String>,
     /// Unique identifier assigned by the EMVCo(Europay, Mastercard and Visa)
@@ -318,7 +368,7 @@ pub struct AuthenticationAuthenticateResponse {
     /// Unique identifier assigned by the ACS to identify a single transaction
     pub acs_trans_id: Option<String>,
     /// Unique identifier assigned by the 3DS Server to identify a single transaction
-    pub three_dsserver_trans_id: Option<String>,
+    pub three_ds_server_transaction_id: Option<String>,
     /// Contains the JWS object created by the ACS for the ARes(Authentication Response) message
     pub acs_signed_content: Option<String>,
     /// Three DS Requestor URL
@@ -342,12 +392,26 @@ pub struct AuthenticationAuthenticateResponse {
 
     /// The connector to be used for authentication, if known.
     #[schema(value_type = Option<AuthenticationConnectors>, example = "netcetera")]
-    pub authentication_connector: Option<String>,
+    pub authentication_connector: Option<AuthenticationConnectors>,
+
+    /// The unique identifier for this authentication.
+    #[schema(value_type = AuthenticationId, example = "auth_mbabizu24mvu3mela5njyhpit4")]
+    pub authentication_id: id_type::AuthenticationId,
+
+    /// The ECI value for this authentication.
+    #[schema(value_type = String)]
+    pub eci: Option<String>,
+
+    /// Acquirer details information.
+    #[schema(value_type = Option<AcquirerDetails>)]
+    pub acquirer_details: Option<AcquirerDetails>,
 }
 
 impl ApiEventMetric for AuthenticationAuthenticateResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        None
+        Some(ApiEventsType::Authentication {
+            authentication_id: self.authentication_id.clone(),
+        })
     }
 }
 
@@ -513,10 +577,15 @@ pub struct AuthenticationSyncRequest {
     /// The client secret for this authentication.
     #[schema(value_type = String)]
     pub client_secret: Option<masking::Secret<String>>,
+    /// Authentication ID for the authentication
+    #[serde(skip_deserializing)]
+    pub authentication_id: id_type::AuthenticationId,
 }
 
 impl ApiEventMetric for AuthenticationSyncRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        None
+        Some(ApiEventsType::Authentication {
+            authentication_id: self.authentication_id.clone(),
+        })
     }
 }

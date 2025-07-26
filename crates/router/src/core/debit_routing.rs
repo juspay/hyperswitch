@@ -6,7 +6,7 @@ use common_utils::{
     errors::CustomResult, ext_traits::ValueExt, id_type, types::keymanager::KeyManagerState,
 };
 use error_stack::ResultExt;
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 
 use super::{
     payments::{OperationSessionGetters, OperationSessionSetters},
@@ -123,7 +123,7 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    if business_profile.is_debit_routing_enabled && state.conf.open_router.enabled {
+    if business_profile.is_debit_routing_enabled && state.conf.open_router.dynamic_routing_enabled {
         logger::info!("Debit routing is enabled for the profile");
 
         let debit_routing_config = &state.conf.debit_routing_config;
@@ -157,33 +157,76 @@ where
     match format!("{operation:?}").as_str() {
         "PaymentConfirm" => {
             logger::info!("Checking if debit routing is required");
-            let payment_intent = payment_data.get_payment_intent();
-            let payment_attempt = payment_data.get_payment_attempt();
 
-            request_validation(payment_intent, payment_attempt, debit_routing_config)
+            request_validation(payment_data, debit_routing_config)
         }
         _ => false,
     }
 }
 
-pub fn request_validation(
-    payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
-    payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+fn request_validation<F: Clone, D>(
+    payment_data: &D,
     debit_routing_config: &settings::DebitRoutingConfig,
-) -> bool {
-    logger::debug!("Validating request for debit routing");
-    let is_currency_supported = payment_intent.currency.map(|currency| {
-        debit_routing_config
-            .supported_currencies
-            .contains(&currency)
-    });
+) -> bool
+where
+    D: OperationSessionGetters<F> + Send + Sync + Clone,
+{
+    let payment_intent = payment_data.get_payment_intent();
+    let payment_attempt = payment_data.get_payment_attempt();
+
+    let is_currency_supported = is_currency_supported(payment_intent, debit_routing_config);
+
+    let is_valid_payment_method = validate_payment_method_for_debit_routing(payment_data);
 
     payment_intent.setup_future_usage != Some(enums::FutureUsage::OffSession)
         && payment_intent.amount.is_greater_than(0)
-        && is_currency_supported == Some(true)
-        && payment_attempt.authentication_type != Some(enums::AuthenticationType::ThreeDs)
-        && payment_attempt.payment_method == Some(enums::PaymentMethod::Card)
-        && payment_attempt.payment_method_type == Some(enums::PaymentMethodType::Debit)
+        && is_currency_supported
+        && payment_attempt.authentication_type == Some(enums::AuthenticationType::NoThreeDs)
+        && is_valid_payment_method
+}
+
+fn is_currency_supported(
+    payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+    debit_routing_config: &settings::DebitRoutingConfig,
+) -> bool {
+    payment_intent
+        .currency
+        .map(|currency| {
+            debit_routing_config
+                .supported_currencies
+                .contains(&currency)
+        })
+        .unwrap_or(false)
+}
+
+fn validate_payment_method_for_debit_routing<F: Clone, D>(payment_data: &D) -> bool
+where
+    D: OperationSessionGetters<F> + Send + Sync + Clone,
+{
+    let payment_attempt = payment_data.get_payment_attempt();
+    match payment_attempt.payment_method {
+        Some(enums::PaymentMethod::Card) => {
+            payment_attempt.payment_method_type == Some(enums::PaymentMethodType::Debit)
+        }
+        Some(enums::PaymentMethod::Wallet) => {
+            payment_attempt.payment_method_type == Some(enums::PaymentMethodType::ApplePay)
+                && payment_data
+                    .get_payment_method_data()
+                    .and_then(|data| data.get_wallet_data())
+                    .and_then(|data| data.get_apple_pay_wallet_data())
+                    .and_then(|data| data.get_payment_method_type())
+                    == Some(enums::PaymentMethodType::Debit)
+                && matches!(
+                    payment_data.get_payment_method_token().cloned(),
+                    Some(
+                        hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(
+                            _
+                        )
+                    )
+                )
+        }
+        _ => false,
+    }
 }
 
 pub async fn check_for_debit_routing_connector_in_profile<
@@ -281,7 +324,10 @@ where
             &profile_id,
             &key_store,
             vec![connector_data.clone()],
-            debit_routing_output.get_co_badged_card_networks(),
+            debit_routing_output
+                .co_badged_card_networks_info
+                .clone()
+                .get_card_networks(),
         )
         .await
         .map_err(|error| {
@@ -315,8 +361,11 @@ pub async fn get_debit_routing_output<
 ) -> Option<open_router::DebitRoutingOutput> {
     logger::debug!("Fetching sorted card networks");
 
-    let (saved_co_badged_card_data, saved_card_type, card_isin) =
-        extract_saved_card_info(payment_data);
+    let card_info = extract_card_info(payment_data);
+
+    let saved_co_badged_card_data = card_info.co_badged_card_data;
+    let saved_card_type = card_info.card_type;
+    let card_isin = card_info.card_isin;
 
     match (
         saved_co_badged_card_data
@@ -367,46 +416,131 @@ pub async fn get_debit_routing_output<
     }
 }
 
-fn extract_saved_card_info<F, D>(
-    payment_data: &D,
-) -> (
-    Option<api_models::payment_methods::CoBadgedCardData>,
-    Option<String>,
-    Option<Secret<String>>,
-)
+#[derive(Debug, Clone)]
+struct ExtractedCardInfo {
+    co_badged_card_data: Option<api_models::payment_methods::CoBadgedCardData>,
+    card_type: Option<String>,
+    card_isin: Option<Secret<String>>,
+}
+
+impl ExtractedCardInfo {
+    fn new(
+        co_badged_card_data: Option<api_models::payment_methods::CoBadgedCardData>,
+        card_type: Option<String>,
+        card_isin: Option<Secret<String>>,
+    ) -> Self {
+        Self {
+            co_badged_card_data,
+            card_type,
+            card_isin,
+        }
+    }
+
+    fn empty() -> Self {
+        Self::new(None, None, None)
+    }
+}
+
+fn extract_card_info<F, D>(payment_data: &D) -> ExtractedCardInfo
 where
     D: OperationSessionGetters<F>,
 {
-    let payment_method_data_optional = payment_data.get_payment_method_data();
-    match payment_data
-        .get_payment_method_info()
-        .and_then(|info| info.get_payment_methods_data())
+    extract_from_saved_payment_method(payment_data)
+        .unwrap_or_else(|| extract_from_payment_method_data(payment_data))
+}
+
+fn extract_from_saved_payment_method<F, D>(payment_data: &D) -> Option<ExtractedCardInfo>
+where
+    D: OperationSessionGetters<F>,
+{
+    let payment_methods_data = payment_data
+        .get_payment_method_info()?
+        .get_payment_methods_data()?;
+
+    if let hyperswitch_domain_models::payment_method_data::PaymentMethodsData::Card(card) =
+        payment_methods_data
     {
-        Some(hyperswitch_domain_models::payment_method_data::PaymentMethodsData::Card(card)) => {
-            match (&card.co_badged_card_data, &card.card_isin) {
-                (Some(co_badged), _) => {
-                    logger::debug!("Co-badged card data found in saved payment method");
-                    (Some(co_badged.clone()), card.card_type, None)
-                }
-                (None, Some(card_isin)) => {
-                    logger::debug!("No co-badged data; using saved card ISIN");
-                    (None, None, Some(Secret::new(card_isin.clone())))
-                }
-                _ => (None, None, None),
-            }
-        }
-        _ => match payment_method_data_optional {
-            Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(card)) => {
-                logger::debug!("Using card data from payment request");
-                (
-                    None,
-                    None,
-                    Some(Secret::new(card.card_number.get_card_isin())),
-                )
-            }
-            _ => (None, None, None),
-        },
+        return Some(extract_card_info_from_saved_card(&card));
     }
+
+    None
+}
+
+fn extract_card_info_from_saved_card(
+    card: &hyperswitch_domain_models::payment_method_data::CardDetailsPaymentMethod,
+) -> ExtractedCardInfo {
+    match (&card.co_badged_card_data, &card.card_isin) {
+        (Some(co_badged), _) => {
+            logger::debug!("Co-badged card data found in saved payment method");
+            ExtractedCardInfo::new(Some(co_badged.clone()), card.card_type.clone(), None)
+        }
+        (None, Some(card_isin)) => {
+            logger::debug!("No co-badged data; using saved card ISIN");
+            ExtractedCardInfo::new(None, None, Some(Secret::new(card_isin.clone())))
+        }
+        _ => ExtractedCardInfo::empty(),
+    }
+}
+
+fn extract_from_payment_method_data<F, D>(payment_data: &D) -> ExtractedCardInfo
+where
+    D: OperationSessionGetters<F>,
+{
+    match payment_data.get_payment_method_data() {
+        Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(card)) => {
+            logger::debug!("Using card data from payment request");
+            ExtractedCardInfo::new(
+                None,
+                None,
+                Some(Secret::new(card.card_number.get_extended_card_bin())),
+            )
+        }
+        Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(
+            wallet_data,
+        )) => extract_from_wallet_data(wallet_data, payment_data),
+        _ => ExtractedCardInfo::empty(),
+    }
+}
+
+fn extract_from_wallet_data<F, D>(
+    wallet_data: &hyperswitch_domain_models::payment_method_data::WalletData,
+    payment_data: &D,
+) -> ExtractedCardInfo
+where
+    D: OperationSessionGetters<F>,
+{
+    match wallet_data {
+        hyperswitch_domain_models::payment_method_data::WalletData::ApplePay(_) => {
+            logger::debug!("Using Apple Pay data from payment request");
+            let apple_pay_isin = extract_apple_pay_isin(payment_data);
+            ExtractedCardInfo::new(None, None, apple_pay_isin)
+        }
+        _ => ExtractedCardInfo::empty(),
+    }
+}
+
+fn extract_apple_pay_isin<F, D>(payment_data: &D) -> Option<Secret<String>>
+where
+    D: OperationSessionGetters<F>,
+{
+    payment_data.get_payment_method_token().and_then(|token| {
+        if let hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(
+            apple_pay_decrypt_data,
+        ) = token
+        {
+            logger::debug!("Using Apple Pay decrypt data from payment method token");
+            Some(Secret::new(
+                apple_pay_decrypt_data
+                    .application_primary_account_number
+                    .peek()
+                    .chars()
+                    .take(8)
+                    .collect::<String>(),
+            ))
+        } else {
+            None
+        }
+    })
 }
 
 async fn handle_retryable_connector<F, D>(
@@ -454,7 +588,10 @@ where
             &profile_id,
             &key_store,
             connector_data_list.clone(),
-            debit_routing_output.get_co_badged_card_networks(),
+            debit_routing_output
+                .co_badged_card_networks_info
+                .clone()
+                .get_card_networks(),
         )
         .await
         .map_err(|error| {

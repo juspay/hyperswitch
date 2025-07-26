@@ -18,6 +18,7 @@ use super::types::{
     IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_AUTHENTICATION_FLOW,
 };
 use crate::{
+    consts::DEFAULT_SESSION_EXPIRY,
     core::{
         errors::{utils::ConnectorErrorExt, RouterResult},
         payments,
@@ -125,7 +126,8 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
         connector_mandate_request_reference_id: None,
         authentication_id,
         psd2_sca_exemption_type: None,
-        whole_connector_response: None,
+        raw_connector_response: None,
+        is_payment_id_from_merchant: None,
     })
 }
 
@@ -320,7 +322,7 @@ pub fn get_checkout_event_status_and_reason(
 pub fn authenticate_authentication_client_secret_and_check_expiry(
     req_client_secret: &String,
     authentication: &diesel_models::authentication::Authentication,
-) -> RouterResult<bool> {
+) -> RouterResult<()> {
     let stored_client_secret = authentication
         .authentication_client_secret
         .clone()
@@ -336,12 +338,12 @@ pub fn authenticate_authentication_client_secret_and_check_expiry(
         let current_timestamp = common_utils::date_time::now();
         let session_expiry = authentication
             .created_at
-            .saturating_add(time::Duration::seconds(
-                crate::consts::DEFAULT_SESSION_EXPIRY,
-            ));
+            .saturating_add(time::Duration::seconds(DEFAULT_SESSION_EXPIRY));
 
-        let expired = current_timestamp > session_expiry;
-
-        Ok(expired)
+        if current_timestamp > session_expiry {
+            Err(report!(ApiErrorResponse::ClientSecretExpired))
+        } else {
+            Ok(())
+        }
     }
 }

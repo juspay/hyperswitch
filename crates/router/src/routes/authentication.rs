@@ -83,17 +83,20 @@ pub async fn authentication_eligibility(
 }
 
 #[cfg(feature = "v1")]
-#[instrument(skip_all, fields(flow = ?Flow::AuthenticationEligibility))]
+#[instrument(skip_all, fields(flow = ?Flow::AuthenticationAuthenticate))]
 pub async fn authentication_authenticate(
     state: web::Data<app::AppState>,
     req: HttpRequest,
     json_payload: web::Json<AuthenticationAuthenticateRequest>,
     path: web::Path<common_utils::id_type::AuthenticationId>,
 ) -> impl Responder {
-    let flow = Flow::AuthenticationEligibility;
-
+    let flow = Flow::AuthenticationAuthenticate;
+    let authentication_id = path.into_inner();
     let api_auth = auth::ApiKeyAuth::default();
-    let payload = json_payload.into_inner();
+    let payload = AuthenticationAuthenticateRequest {
+        authentication_id,
+        ..json_payload.into_inner()
+    };
 
     let (auth, auth_flow) =
         match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
@@ -101,7 +104,6 @@ pub async fn authentication_authenticate(
             Err(e) => return api::log_and_return_error_response(e),
         };
 
-    let authentication_id = path.into_inner();
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -115,7 +117,6 @@ pub async fn authentication_authenticate(
                 state,
                 merchant_context,
                 req,
-                authentication_id.clone(),
                 auth_flow,
             )
         },
@@ -136,7 +137,10 @@ pub async fn authentication_sync(
     let flow = Flow::AuthenticationSync;
     let api_auth = auth::ApiKeyAuth::default();
     let authentication_id = path.into_inner();
-    let payload = json_payload.into_inner();
+    let payload = AuthenticationSyncRequest {
+        authentication_id,
+        ..json_payload.into_inner()
+    };
     let (auth, auth_flow) =
         match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
             Ok((auth, auth_flow)) => (auth, auth_flow),
@@ -155,7 +159,6 @@ pub async fn authentication_sync(
             unified_authentication_service::authentication_sync_core(
                 state,
                 merchant_context,
-                authentication_id.clone(),
                 auth_flow,
                 req,
             )

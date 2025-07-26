@@ -114,7 +114,7 @@ impl TryFrom<Connector> for PayoutConnectors {
             Connector::Paypal => Ok(Self::Paypal),
             Connector::Stripe => Ok(Self::Stripe),
             Connector::Wise => Ok(Self::Wise),
-            _ => Err(format!("Invalid payout connector {}", value)),
+            _ => Err(format!("Invalid payout connector {value}")),
         }
     }
 }
@@ -166,6 +166,7 @@ pub enum BillingConnectors {
     Chargebee,
     Recurly,
     Stripebilling,
+    Custombilling,
     #[cfg(feature = "dummy_connector")]
     DummyBillingConnector,
 }
@@ -257,6 +258,7 @@ pub enum FieldType {
     UserSocialSecurityNumber,
     UserBlikCode,
     UserBank,
+    UserBankOptions { options: Vec<String> },
     UserBankAccountNumber,
     UserSourceBankAccountId,
     UserDestinationBankAccountId,

@@ -1569,8 +1569,8 @@ where
                         return Err(error_stack::Report::new(
                             errors::api_error_response::ApiErrorResponse::PreconditionFailed {
                                 message: format!(
-                                    "Access not available for the given profile_id {:?}",
-                                    inaccessible_profile_ids
+                                    "Access not available for the given profile_id {inaccessible_profile_ids:?}",
+
                                 ),
                             },
                         ));
@@ -1640,6 +1640,7 @@ impl behaviour::Conversion for PaymentIntent {
             processor_merchant_id,
             created_by,
             is_iframe_redirection_enabled,
+            is_payment_id_from_merchant,
         } = self;
         Ok(DieselPaymentIntent {
             skip_external_tax_calculation: Some(amount_details.get_external_tax_action_as_bool()),
@@ -1725,6 +1726,7 @@ impl behaviour::Conversion for PaymentIntent {
             processor_merchant_id: Some(processor_merchant_id),
             created_by: created_by.map(|cb| cb.to_string()),
             is_iframe_redirection_enabled,
+            is_payment_id_from_merchant,
         })
     }
     async fn convert_back(
@@ -1866,6 +1868,7 @@ impl behaviour::Conversion for PaymentIntent {
                     .created_by
                     .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
                 is_iframe_redirection_enabled: storage_model.is_iframe_redirection_enabled,
+                is_payment_id_from_merchant: storage_model.is_payment_id_from_merchant,
             })
         }
         .await
@@ -1953,6 +1956,7 @@ impl behaviour::Conversion for PaymentIntent {
             created_by: self.created_by.map(|cb| cb.to_string()),
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
             routing_algorithm_id: self.routing_algorithm_id,
+            is_payment_id_from_merchant: self.is_payment_id_from_merchant,
         })
     }
 }
@@ -2027,6 +2031,7 @@ impl behaviour::Conversion for PaymentIntent {
             force_3ds_challenge_trigger: self.force_3ds_challenge_trigger,
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
             extended_return_url: self.return_url,
+            is_payment_id_from_merchant: self.is_payment_id_from_merchant,
         })
     }
 
@@ -2127,6 +2132,7 @@ impl behaviour::Conversion for PaymentIntent {
                 force_3ds_challenge: storage_model.force_3ds_challenge,
                 force_3ds_challenge_trigger: storage_model.force_3ds_challenge_trigger,
                 is_iframe_redirection_enabled: storage_model.is_iframe_redirection_enabled,
+                is_payment_id_from_merchant: storage_model.is_payment_id_from_merchant,
             })
         }
         .await
@@ -2199,6 +2205,7 @@ impl behaviour::Conversion for PaymentIntent {
             force_3ds_challenge_trigger: self.force_3ds_challenge_trigger,
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
             extended_return_url: self.return_url,
+            is_payment_id_from_merchant: self.is_payment_id_from_merchant,
         })
     }
 }

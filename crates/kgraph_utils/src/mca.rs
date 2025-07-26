@@ -22,6 +22,8 @@ fn get_dir_value_payment_method(
 ) -> Result<dir::DirValue, KgraphError> {
     match from {
         api_enums::PaymentMethodType::AmazonPay => Ok(dirval!(WalletType = AmazonPay)),
+        api_enums::PaymentMethodType::Skrill => Ok(dirval!(WalletType = Skrill)),
+        api_enums::PaymentMethodType::Paysera => Ok(dirval!(WalletType = Paysera)),
         api_enums::PaymentMethodType::Credit => Ok(dirval!(CardType = Credit)),
         api_enums::PaymentMethodType::Debit => Ok(dirval!(CardType = Debit)),
         #[cfg(feature = "v2")]
@@ -114,6 +116,7 @@ fn get_dir_value_payment_method(
         }
         api_enums::PaymentMethodType::BniVa => Ok(dirval!(BankTransferType = BniVa)),
         api_enums::PaymentMethodType::BriVa => Ok(dirval!(BankTransferType = BriVa)),
+        api_enums::PaymentMethodType::Breadpay => Ok(dirval!(PayLaterType = Breadpay)),
         api_enums::PaymentMethodType::CimbVa => Ok(dirval!(BankTransferType = CimbVa)),
         api_enums::PaymentMethodType::DanamonVa => Ok(dirval!(BankTransferType = DanamonVa)),
         api_enums::PaymentMethodType::Indomaret => Ok(dirval!(VoucherType = Indomaret)),
@@ -135,6 +138,9 @@ fn get_dir_value_payment_method(
         }
         api_enums::PaymentMethodType::PermataBankTransfer => {
             Ok(dirval!(BankTransferType = PermataBankTransfer))
+        }
+        api_enums::PaymentMethodType::IndonesianBankTransfer => {
+            Ok(dirval!(BankTransferType = IndonesianBankTransfer))
         }
         api_enums::PaymentMethodType::PaySafeCard => Ok(dirval!(GiftCardType = PaySafeCard)),
         api_enums::PaymentMethodType::SevenEleven => Ok(dirval!(VoucherType = SevenEleven)),

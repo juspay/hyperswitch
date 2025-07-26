@@ -736,6 +736,8 @@ diesel::table! {
         merchant_connector_id -> Nullable<Varchar>,
         #[max_length = 64]
         updated_by -> Nullable<Varchar>,
+        #[max_length = 2048]
+        customer_user_agent_extended -> Nullable<Varchar>,
     }
 }
 
@@ -995,6 +997,7 @@ diesel::table! {
         #[max_length = 255]
         created_by -> Nullable<Varchar>,
         is_iframe_redirection_enabled -> Nullable<Bool>,
+        is_payment_id_from_merchant -> Nullable<Bool>,
         #[max_length = 64]
         merchant_reference_id -> Nullable<Varchar>,
         billing_address -> Nullable<Bytea>,

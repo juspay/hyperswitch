@@ -115,6 +115,7 @@ pub struct PaymentIntent {
     pub force_3ds_challenge: Option<bool>,
     pub force_3ds_challenge_trigger: Option<bool>,
     pub is_iframe_redirection_enabled: Option<bool>,
+    pub is_payment_id_from_merchant: Option<bool>,
 }
 
 impl PaymentIntent {
@@ -502,6 +503,10 @@ pub struct PaymentIntent {
 
     /// Indicates if the redirection has to open in the iframe
     pub is_iframe_redirection_enabled: Option<bool>,
+
+    /// Indicates whether the payment_id was provided by the merchant (true),
+    /// or generated internally by Hyperswitch (false)
+    pub is_payment_id_from_merchant: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -668,6 +673,7 @@ impl PaymentIntent {
             processor_merchant_id: merchant_context.get_merchant_account().get_id().clone(),
             created_by: None,
             is_iframe_redirection_enabled: None,
+            is_payment_id_from_merchant: None,
         })
     }
 
@@ -738,6 +744,7 @@ impl PaymentIntent {
             network_error_message: None,
             retry_count: None,
             invoice_next_billing_time: None,
+            invoice_billing_started_at_time: None,
             card_isin: None,
             card_network: None,
             // No charge id is present here since it is an internal payment and we didn't call connector yet.
@@ -1062,6 +1069,9 @@ where
                     errors::api_error_response::ApiErrorResponse::InternalServerError
                 })?,
                 invoice_next_billing_time: self.revenue_recovery_data.invoice_next_billing_time,
+                invoice_billing_started_at_time: self
+                    .revenue_recovery_data
+                    .invoice_next_billing_time,
                 billing_connector_payment_method_details,
                 first_payment_attempt_network_advice_code: first_network_advice_code,
                 first_payment_attempt_network_decline_code: first_network_decline_code,

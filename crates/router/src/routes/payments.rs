@@ -2283,6 +2283,11 @@ pub fn get_or_generate_payment_id(
 
     let payment_id = given_payment_id.unwrap_or(common_utils::id_type::PaymentId::default());
 
+    payload.is_payment_id_from_merchant = matches!(
+        &payload.payment_id,
+        Some(payment_types::PaymentIdType::PaymentIntentId(_))
+    );
+
     payload.payment_id = Some(api_models::payments::PaymentIdType::PaymentIntentId(
         payment_id,
     ));
@@ -2953,7 +2958,7 @@ pub async fn payment_status(
         force_sync: payload.force_sync,
         expand_attempts: payload.expand_attempts,
         param: payload.param.clone(),
-        all_keys_required: payload.all_keys_required,
+        return_raw_connector_response: payload.return_raw_connector_response,
         merchant_connector_details: None,
     };
 

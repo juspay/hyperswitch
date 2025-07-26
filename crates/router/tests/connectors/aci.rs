@@ -81,6 +81,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
             metadata: None,
             authentication_data: None,
             customer_acceptance: None,
+            locale: None,
             ..utils::PaymentAuthorizeType::default().0
         },
         response: Err(types::ErrorResponse::default()),
@@ -133,7 +134,8 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
-        whole_connector_response: None,
+        raw_connector_response: None,
+        is_payment_id_from_merchant: None,
     }
 }
 
@@ -206,7 +208,8 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
-        whole_connector_response: None,
+        raw_connector_response: None,
+        is_payment_id_from_merchant: None,
     }
 }
 

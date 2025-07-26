@@ -152,6 +152,12 @@ pub const APPLEPAY_VALIDATION_URL: &str =
 /// Request ID
 pub const X_REQUEST_ID: &str = "x-request-id";
 
+/// Chat Session ID
+pub const X_CHAT_SESSION_ID: &str = "x-chat-session-id";
+
+/// Merchant ID Header
+pub const X_MERCHANT_ID: &str = "x-merchant-id";
+
 /// Default Tenant ID for the `Global` tenant
 pub const DEFAULT_GLOBAL_TENANT_ID: &str = "global";
 
@@ -188,3 +194,6 @@ pub const METRICS_HOST_TAG_NAME: &str = "host";
 
 /// API client request timeout (in seconds)
 pub const REQUEST_TIME_OUT: u64 = 30;
+
+/// API client request timeout for ai service (in seconds)
+pub const REQUEST_TIME_OUT_FOR_AI_SERVICE: u64 = 120;
