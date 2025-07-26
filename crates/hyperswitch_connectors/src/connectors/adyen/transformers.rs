@@ -428,6 +428,7 @@ impl ForeignTryFrom<(bool, AdyenWebhookStatus)> for storage_enums::AttemptStatus
             AdyenWebhookStatus::CancelFailed => Ok(Self::VoidFailed),
             AdyenWebhookStatus::Captured => Ok(Self::Charged),
             AdyenWebhookStatus::CaptureFailed => Ok(Self::CaptureFailed),
+            AdyenWebhookStatus::Expired => Ok(Self::Expired),
             //If Unexpected Event is received, need to understand how it reached this point
             //Webhooks with Payment Events only should try to conume this resource object.
             AdyenWebhookStatus::UnexpectedEvent | AdyenWebhookStatus::Reversed => {
@@ -513,6 +514,7 @@ pub enum AdyenWebhookStatus {
     CaptureFailed,
     Reversed,
     UnexpectedEvent,
+    Expired,
 }
 
 //Creating custom struct which can be consumed in Psync Handler triggered from Webhooks
@@ -4798,6 +4800,7 @@ pub enum WebhookEventCode {
     SecondChargeback,
     PrearbitrationWon,
     PrearbitrationLost,
+    OfferClosed,
     #[cfg(feature = "payouts")]
     PayoutThirdparty,
     #[cfg(feature = "payouts")]
@@ -4811,7 +4814,10 @@ pub enum WebhookEventCode {
 }
 
 pub fn is_transaction_event(event_code: &WebhookEventCode) -> bool {
-    matches!(event_code, WebhookEventCode::Authorisation)
+    matches!(
+        event_code,
+        WebhookEventCode::Authorisation | WebhookEventCode::OfferClosed
+    )
 }
 
 pub fn is_capture_or_cancel_event(event_code: &WebhookEventCode) -> bool {
@@ -4928,6 +4934,9 @@ pub(crate) fn get_adyen_webhook_event(
         WebhookEventCode::CaptureFailed => {
             api_models::webhooks::IncomingWebhookEvent::PaymentIntentCaptureFailure
         }
+        WebhookEventCode::OfferClosed => {
+            api_models::webhooks::IncomingWebhookEvent::PaymentIntentExpired
+        }
         #[cfg(feature = "payouts")]
         WebhookEventCode::PayoutThirdparty => {
             api_models::webhooks::IncomingWebhookEvent::PayoutCreated
@@ -5015,6 +5024,7 @@ impl From<AdyenNotificationRequestItemWH> for AdyenWebhookResponse {
                         AdyenWebhookStatus::CancelFailed
                     }
                 }
+                WebhookEventCode::OfferClosed => AdyenWebhookStatus::Expired,
                 WebhookEventCode::Capture => {
                     if is_success_scenario(notif.success) {
                         AdyenWebhookStatus::Captured

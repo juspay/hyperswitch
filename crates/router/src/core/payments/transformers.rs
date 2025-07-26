@@ -1943,17 +1943,21 @@ where
         let next_action_containing_wait_screen =
             wait_screen_next_steps_check(payment_attempt.clone())?;
 
-        let next_action = payment_attempt
-            .redirection_data
-            .as_ref()
-            .map(|_| api_models::payments::NextActionData::RedirectToUrl { redirect_to_url })
-            .or(next_action_containing_wait_screen.map(|wait_screen_data| {
-                api_models::payments::NextActionData::WaitScreenInformation {
-                    display_from_timestamp: wait_screen_data.display_from_timestamp,
-                    display_to_timestamp: wait_screen_data.display_to_timestamp,
-                    poll_config: wait_screen_data.poll_config,
-                }
-            }));
+        let next_action = if payment_intent.status.is_in_terminal_state() {
+            None
+        } else {
+            payment_attempt
+                .redirection_data
+                .as_ref()
+                .map(|_| api_models::payments::NextActionData::RedirectToUrl { redirect_to_url })
+                .or(next_action_containing_wait_screen.map(|wait_screen_data| {
+                    api_models::payments::NextActionData::WaitScreenInformation {
+                        display_from_timestamp: wait_screen_data.display_from_timestamp,
+                        display_to_timestamp: wait_screen_data.display_to_timestamp,
+                        poll_config: wait_screen_data.poll_config,
+                    }
+                }))
+        };
 
         let connector_token_details = payment_attempt
             .connector_token_details
@@ -2641,136 +2645,142 @@ where
     } else {
         let mut next_action_response = None;
 
-        let bank_transfer_next_steps = bank_transfer_next_steps_check(payment_attempt.clone())?;
+        // Early exit for terminal payment statuses - don't evaluate next_action at all
+        if payment_intent.status.is_in_terminal_state() {
+            next_action_response = None;
+        } else {
+            let bank_transfer_next_steps = bank_transfer_next_steps_check(payment_attempt.clone())?;
 
-        let next_action_voucher = voucher_next_steps_check(payment_attempt.clone())?;
+            let next_action_voucher = voucher_next_steps_check(payment_attempt.clone())?;
 
-        let next_action_mobile_payment = mobile_payment_next_steps_check(&payment_attempt)?;
+            let next_action_mobile_payment = mobile_payment_next_steps_check(&payment_attempt)?;
 
-        let next_action_containing_qr_code_url = qr_code_next_steps_check(payment_attempt.clone())?;
+            let next_action_containing_qr_code_url =
+                qr_code_next_steps_check(payment_attempt.clone())?;
 
-        let papal_sdk_next_action = paypal_sdk_next_steps_check(payment_attempt.clone())?;
+            let papal_sdk_next_action = paypal_sdk_next_steps_check(payment_attempt.clone())?;
 
-        let next_action_containing_fetch_qr_code_url =
-            fetch_qr_code_url_next_steps_check(payment_attempt.clone())?;
+            let next_action_containing_fetch_qr_code_url =
+                fetch_qr_code_url_next_steps_check(payment_attempt.clone())?;
 
-        let next_action_containing_wait_screen =
-            wait_screen_next_steps_check(payment_attempt.clone())?;
+            let next_action_containing_wait_screen =
+                wait_screen_next_steps_check(payment_attempt.clone())?;
 
-        let next_action_invoke_hidden_frame = next_action_invoke_hidden_frame(&payment_attempt)?;
+            let next_action_invoke_hidden_frame =
+                next_action_invoke_hidden_frame(&payment_attempt)?;
 
-        if payment_intent.status == enums::IntentStatus::RequiresCustomerAction
-            || bank_transfer_next_steps.is_some()
-            || next_action_voucher.is_some()
-            || next_action_containing_qr_code_url.is_some()
-            || next_action_containing_wait_screen.is_some()
-            || papal_sdk_next_action.is_some()
-            || next_action_containing_fetch_qr_code_url.is_some()
-            || payment_data.get_authentication().is_some()
-        {
-            next_action_response = bank_transfer_next_steps
-                        .map(|bank_transfer| {
-                            api_models::payments::NextActionData::DisplayBankTransferInformation {
-                                bank_transfer_steps_and_charges_details: bank_transfer,
-                            }
-                        })
-                        .or(next_action_voucher.map(|voucher_data| {
-                            api_models::payments::NextActionData::DisplayVoucherInformation {
-                                voucher_details: voucher_data,
-                            }
-                        }))
-                        .or(next_action_mobile_payment.map(|mobile_payment_data| {
-                            api_models::payments::NextActionData::CollectOtp {
-                                consent_data_required: mobile_payment_data.consent_data_required,
-                            }
-                        }))
-                        .or(next_action_containing_qr_code_url.map(|qr_code_data| {
-                            api_models::payments::NextActionData::foreign_from(qr_code_data)
-                        }))
-                        .or(next_action_containing_fetch_qr_code_url.map(|fetch_qr_code_data| {
-                            api_models::payments::NextActionData::FetchQrCodeInformation {
-                                qr_code_fetch_url: fetch_qr_code_data.qr_code_fetch_url
-                            }
-                        }))
-                        .or(papal_sdk_next_action.map(|paypal_next_action_data| {
-                            api_models::payments::NextActionData::InvokeSdkClient{
-                                next_action_data: paypal_next_action_data
-                            }
-                        }))
-                        .or(next_action_containing_wait_screen.map(|wait_screen_data| {
-                            api_models::payments::NextActionData::WaitScreenInformation {
-                                display_from_timestamp: wait_screen_data.display_from_timestamp,
-                                display_to_timestamp: wait_screen_data.display_to_timestamp,
-                                poll_config: wait_screen_data.poll_config,
-                            }
-                        }))
-                        .or(payment_attempt.authentication_data.as_ref().map(|_| {
-                            // Check if iframe redirection is enabled in the business profile
-                            let redirect_url = helpers::create_startpay_url(
-                                base_url,
-                                &payment_attempt,
-                                &payment_intent,
-                            );
-                            // Check if redirection inside popup is enabled in the payment intent
-                            if payment_intent.is_iframe_redirection_enabled.unwrap_or(false) {
-                                api_models::payments::NextActionData::RedirectInsidePopup {
-                                    popup_url: redirect_url,
-                                    redirect_response_url:router_return_url
+            if payment_intent.status == enums::IntentStatus::RequiresCustomerAction
+                || bank_transfer_next_steps.is_some()
+                || next_action_voucher.is_some()
+                || next_action_containing_qr_code_url.is_some()
+                || next_action_containing_wait_screen.is_some()
+                || papal_sdk_next_action.is_some()
+                || next_action_containing_fetch_qr_code_url.is_some()
+                || payment_data.get_authentication().is_some()
+            {
+                next_action_response = bank_transfer_next_steps
+                            .map(|bank_transfer| {
+                                api_models::payments::NextActionData::DisplayBankTransferInformation {
+                                    bank_transfer_steps_and_charges_details: bank_transfer,
                                 }
-                            } else {
-                                api_models::payments::NextActionData::RedirectToUrl {
-                                    redirect_to_url: redirect_url,
+                            })
+                            .or(next_action_voucher.map(|voucher_data| {
+                                api_models::payments::NextActionData::DisplayVoucherInformation {
+                                    voucher_details: voucher_data,
                                 }
-                            }
-                        }))
-                        .or(match payment_data.get_authentication(){
-                            Some(authentication_store) => {
-                                let authentication = &authentication_store.authentication;
-                                if payment_intent.status == common_enums::IntentStatus::RequiresCustomerAction && authentication_store.cavv.is_none() && authentication.is_separate_authn_required(){
-                                    // if preAuthn and separate authentication needed.
-                                    let poll_config = payment_data.get_poll_config().unwrap_or_default();
-                                    let request_poll_id = core_utils::get_external_authentication_request_poll_id(&payment_intent.payment_id);
-                                    let payment_connector_name = payment_attempt.connector
-                                        .as_ref()
-                                        .get_required_value("connector")?;
-                                    Some(api_models::payments::NextActionData::ThreeDsInvoke {
-                                        three_ds_data: api_models::payments::ThreeDsData {
-                                            three_ds_authentication_url: helpers::create_authentication_url(base_url, &payment_attempt),
-                                            three_ds_authorize_url: helpers::create_authorize_url(
-                                                base_url,
-                                                &payment_attempt,
-                                                payment_connector_name,
-                                            ),
-                                            three_ds_method_details: authentication.three_ds_method_url.as_ref().zip(authentication.three_ds_method_data.as_ref()).map(|(three_ds_method_url,three_ds_method_data )|{
-                                                api_models::payments::ThreeDsMethodData::AcsThreeDsMethodData {
-                                                    three_ds_method_data_submission: true,
-                                                    three_ds_method_data: Some(three_ds_method_data.clone()),
-                                                    three_ds_method_url: Some(three_ds_method_url.to_owned()),
-                                                }
-                                            }).unwrap_or(api_models::payments::ThreeDsMethodData::AcsThreeDsMethodData {
-                                                    three_ds_method_data_submission: false,
-                                                    three_ds_method_data: None,
-                                                    three_ds_method_url: None,
-                                            }),
-                                            poll_config: api_models::payments::PollConfigResponse {poll_id: request_poll_id, delay_in_secs: poll_config.delay_in_secs, frequency: poll_config.frequency},
-                                            message_version: authentication.message_version.as_ref()
-                                            .map(|version| version.to_string()),
-                                            directory_server_id: authentication.directory_server_id.clone(),
-                                        },
-                                    })
-                                }else{
-                                    None
+                            }))
+                            .or(next_action_mobile_payment.map(|mobile_payment_data| {
+                                api_models::payments::NextActionData::CollectOtp {
+                                    consent_data_required: mobile_payment_data.consent_data_required,
                                 }
-                            },
-                            None => None
-                        })
-                        .or(match next_action_invoke_hidden_frame{
-                            Some(threeds_invoke_data) => Some(construct_connector_invoke_hidden_frame(
-                                threeds_invoke_data,
-                            )?),
-                            None => None
-
-        });
+                            }))
+                            .or(next_action_containing_qr_code_url.map(|qr_code_data| {
+                                api_models::payments::NextActionData::foreign_from(qr_code_data)
+                            }))
+                            .or(next_action_containing_fetch_qr_code_url.map(|fetch_qr_code_data| {
+                                api_models::payments::NextActionData::FetchQrCodeInformation {
+                                    qr_code_fetch_url: fetch_qr_code_data.qr_code_fetch_url
+                                }
+                            }))
+                            .or(papal_sdk_next_action.map(|paypal_next_action_data| {
+                                api_models::payments::NextActionData::InvokeSdkClient{
+                                    next_action_data: paypal_next_action_data
+                                }
+                            }))
+                            .or(next_action_containing_wait_screen.map(|wait_screen_data| {
+                                api_models::payments::NextActionData::WaitScreenInformation {
+                                    display_from_timestamp: wait_screen_data.display_from_timestamp,
+                                    display_to_timestamp: wait_screen_data.display_to_timestamp,
+                                    poll_config: wait_screen_data.poll_config,
+                                }
+                            }))
+                            .or(payment_attempt.authentication_data.as_ref().map(|_| {
+                                // Check if iframe redirection is enabled in the business profile
+                                let redirect_url = helpers::create_startpay_url(
+                                    base_url,
+                                    &payment_attempt,
+                                    &payment_intent,
+                                );
+                                // Check if redirection inside popup is enabled in the payment intent
+                                if payment_intent.is_iframe_redirection_enabled.unwrap_or(false) {
+                                    api_models::payments::NextActionData::RedirectInsidePopup {
+                                        popup_url: redirect_url,
+                                        redirect_response_url:router_return_url
+                                    }
+                                } else {
+                                    api_models::payments::NextActionData::RedirectToUrl {
+                                        redirect_to_url: redirect_url,
+                                    }
+                                }
+                            }))
+                            .or(match payment_data.get_authentication(){
+                                Some(authentication_store) => {
+                                    let authentication = &authentication_store.authentication;
+                                    if payment_intent.status == common_enums::IntentStatus::RequiresCustomerAction && authentication_store.cavv.is_none() && authentication.is_separate_authn_required(){
+                                        // if preAuthn and separate authentication needed.
+                                        let poll_config = payment_data.get_poll_config().unwrap_or_default();
+                                        let request_poll_id = core_utils::get_external_authentication_request_poll_id(&payment_intent.payment_id);
+                                        let payment_connector_name = payment_attempt.connector
+                                            .as_ref()
+                                            .get_required_value("connector")?;
+                                        Some(api_models::payments::NextActionData::ThreeDsInvoke {
+                                            three_ds_data: api_models::payments::ThreeDsData {
+                                                three_ds_authentication_url: helpers::create_authentication_url(base_url, &payment_attempt),
+                                                three_ds_authorize_url: helpers::create_authorize_url(
+                                                    base_url,
+                                                    &payment_attempt,
+                                                    payment_connector_name,
+                                                ),
+                                                three_ds_method_details: authentication.three_ds_method_url.as_ref().zip(authentication.three_ds_method_data.as_ref()).map(|(three_ds_method_url,three_ds_method_data )|{
+                                                    api_models::payments::ThreeDsMethodData::AcsThreeDsMethodData {
+                                                        three_ds_method_data_submission: true,
+                                                        three_ds_method_data: Some(three_ds_method_data.clone()),
+                                                        three_ds_method_url: Some(three_ds_method_url.to_owned()),
+                                                    }
+                                                }).unwrap_or(api_models::payments::ThreeDsMethodData::AcsThreeDsMethodData {
+                                                        three_ds_method_data_submission: false,
+                                                        three_ds_method_data: None,
+                                                        three_ds_method_url: None,
+                                                }),
+                                                poll_config: api_models::payments::PollConfigResponse {poll_id: request_poll_id, delay_in_secs: poll_config.delay_in_secs, frequency: poll_config.frequency},
+                                                message_version: authentication.message_version.as_ref()
+                                                .map(|version| version.to_string()),
+                                                directory_server_id: authentication.directory_server_id.clone(),
+                                            },
+                                        })
+                                    }else{
+                                        None
+                                    }
+                                },
+                                None => None
+                            })
+                            .or(match next_action_invoke_hidden_frame{
+                                Some(threeds_invoke_data) => Some(construct_connector_invoke_hidden_frame(
+                                    threeds_invoke_data,
+                                )?),
+                                None => None
+                            });
+            }
         };
 
         // next action check for third party sdk session (for ex: Apple pay through trustpay has third party sdk session response)

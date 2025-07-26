@@ -156,6 +156,7 @@ pub enum AttemptStatus {
     ConfirmationAwaited,
     DeviceDataCollectionPending,
     IntegrityFailure,
+    Expired,
 }
 
 impl AttemptStatus {
@@ -168,7 +169,8 @@ impl AttemptStatus {
             | Self::VoidFailed
             | Self::CaptureFailed
             | Self::Failure
-            | Self::PartialCharged => true,
+            | Self::PartialCharged
+            | Self::Expired => true,
             Self::Started
             | Self::AuthenticationFailed
             | Self::AuthenticationPending
@@ -1461,6 +1463,7 @@ impl EventClass {
                 EventType::PaymentCancelled,
                 EventType::PaymentAuthorized,
                 EventType::PaymentCaptured,
+                EventType::PaymentExpired,
                 EventType::ActionRequired,
             ]),
             Self::Refunds => HashSet::from([EventType::RefundSucceeded, EventType::RefundFailed]),
@@ -1514,6 +1517,7 @@ pub enum EventType {
     PaymentCancelled,
     PaymentAuthorized,
     PaymentCaptured,
+    PaymentExpired,
     ActionRequired,
     RefundSucceeded,
     RefundFailed,
@@ -1635,13 +1639,19 @@ pub enum IntentStatus {
     PartiallyCapturedAndCapturable,
     /// There has been a discrepancy between the amount/currency sent in the request and the amount/currency received by the processor
     Conflicted,
+    /// The payment expired before it could be captured.
+    Expired,
 }
 
 impl IntentStatus {
     /// Indicates whether the payment intent is in terminal state or not
     pub fn is_in_terminal_state(self) -> bool {
         match self {
-            Self::Succeeded | Self::Failed | Self::Cancelled | Self::PartiallyCaptured => true,
+            Self::Succeeded
+            | Self::Failed
+            | Self::Cancelled
+            | Self::PartiallyCaptured
+            | Self::Expired => true,
             Self::Processing
             | Self::RequiresCustomerAction
             | Self::RequiresMerchantAction
@@ -1664,7 +1674,7 @@ impl IntentStatus {
             | Self::Failed
             | Self::Cancelled
             |  Self::PartiallyCaptured
-            |  Self::RequiresCapture | Self::Conflicted => false,
+            |  Self::RequiresCapture | Self::Conflicted | Self::Expired=> false,
             Self::Processing
             | Self::RequiresCustomerAction
             | Self::RequiresMerchantAction
@@ -1796,7 +1806,8 @@ impl From<AttemptStatus> for PaymentMethodStatus {
             | AttemptStatus::PartialChargedAndChargeable
             | AttemptStatus::ConfirmationAwaited
             | AttemptStatus::DeviceDataCollectionPending
-            | AttemptStatus::IntegrityFailure => Self::Inactive,
+            | AttemptStatus::IntegrityFailure
+            | AttemptStatus::Expired => Self::Inactive,
             AttemptStatus::Charged | AttemptStatus::Authorized => Self::Active,
         }
     }

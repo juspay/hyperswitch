@@ -2195,7 +2195,8 @@ impl FrmTransactionRouterDataRequest for fraud_check::FrmTransactionRouterData {
             | storage_enums::AttemptStatus::Voided
             | storage_enums::AttemptStatus::CaptureFailed
             | storage_enums::AttemptStatus::Failure
-            | storage_enums::AttemptStatus::AutoRefunded => Some(false),
+            | storage_enums::AttemptStatus::AutoRefunded
+            | storage_enums::AttemptStatus::Expired => Some(false),
 
             storage_enums::AttemptStatus::AuthenticationSuccessful
             | storage_enums::AttemptStatus::PartialChargedAndChargeable
@@ -2226,7 +2227,8 @@ pub fn is_payment_failure(status: enums::AttemptStatus) -> bool {
         | common_enums::AttemptStatus::AuthorizationFailed
         | common_enums::AttemptStatus::CaptureFailed
         | common_enums::AttemptStatus::VoidFailed
-        | common_enums::AttemptStatus::Failure => true,
+        | common_enums::AttemptStatus::Failure
+        | common_enums::AttemptStatus::Expired => true,
         common_enums::AttemptStatus::Started
         | common_enums::AttemptStatus::RouterDeclined
         | common_enums::AttemptStatus::AuthenticationPending

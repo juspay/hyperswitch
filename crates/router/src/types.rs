@@ -296,12 +296,15 @@ impl Capturable for PaymentsAuthorizeData {
     {
         match payment_data.get_capture_method().unwrap_or_default()
         {
-            common_enums::CaptureMethod::Automatic|common_enums::CaptureMethod::SequentialAutomatic  => {
+            common_enums::CaptureMethod::Automatic
+            | common_enums::CaptureMethod::SequentialAutomatic => {
                 let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
                 match intent_status {
                     common_enums::IntentStatus::Succeeded
                     | common_enums::IntentStatus::Failed
-                    | common_enums::IntentStatus::Processing | common_enums::IntentStatus::Conflicted => Some(0),
+                    | common_enums::IntentStatus::Processing
+                    | common_enums::IntentStatus::Conflicted
+                    | common_enums::IntentStatus::Expired => Some(0),
                     common_enums::IntentStatus::Cancelled
                     | common_enums::IntentStatus::PartiallyCaptured
                     | common_enums::IntentStatus::RequiresCustomerAction
@@ -341,7 +344,8 @@ impl Capturable for PaymentsCaptureData {
         match intent_status {
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::Conflicted => Some(0),
+            | common_enums::IntentStatus::Conflicted
+            | common_enums::IntentStatus::Expired => Some(0),
             common_enums::IntentStatus::Processing
             | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::Failed
@@ -383,9 +387,11 @@ impl Capturable for CompleteAuthorizeData {
             common_enums::CaptureMethod::Automatic | common_enums::CaptureMethod::SequentialAutomatic => {
                 let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
                 match intent_status {
-                    common_enums::IntentStatus::Succeeded|
-                    common_enums::IntentStatus::Failed|
-                    common_enums::IntentStatus::Processing | common_enums::IntentStatus::Conflicted => Some(0),
+                    common_enums::IntentStatus::Succeeded
+                    | common_enums::IntentStatus::Failed
+                    | common_enums::IntentStatus::Processing
+                    | common_enums::IntentStatus::Conflicted
+                    | common_enums::IntentStatus::Expired => Some(0),
                     common_enums::IntentStatus::Cancelled | common_enums::IntentStatus::PartiallyCaptured
                     | common_enums::IntentStatus::RequiresCustomerAction
                     | common_enums::IntentStatus::RequiresMerchantAction
@@ -433,7 +439,8 @@ impl Capturable for PaymentsCancelData {
             common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::Processing
             | common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::Conflicted => Some(0),
+            | common_enums::IntentStatus::Conflicted
+            | common_enums::IntentStatus::Expired => Some(0),
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::RequiresCustomerAction

@@ -421,7 +421,7 @@ impl From<api_enums::IntentStatus> for StripePaymentStatus {
             api_enums::IntentStatus::Succeeded | api_enums::IntentStatus::PartiallyCaptured => {
                 Self::Succeeded
             }
-            api_enums::IntentStatus::Failed => Self::Canceled,
+            api_enums::IntentStatus::Failed | api_enums::IntentStatus::Expired => Self::Canceled,
             api_enums::IntentStatus::Processing => Self::Processing,
             api_enums::IntentStatus::RequiresCustomerAction
             | api_enums::IntentStatus::RequiresMerchantAction
