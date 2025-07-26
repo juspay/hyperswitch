@@ -160,6 +160,7 @@ crates/router/tests/connectors/
 As you build your connector, you'll encounter several types of payment flows. While not an exhaustive list, the following are some of the most common patterns you'll come across. Please review the [Connector Payment Flow](#) documentation for more details.
 
 ## Integrate a New Connector
+
 Integrating a connector is mainly an API integration task. You'll define request and response types and implement required traits.
 
 This section covers card payments via Billwerk. Review the API reference and test APIs before starting.
@@ -233,10 +234,145 @@ export CONNECTOR_NAME="your_connector_name"
 export SCHEMA_PATH="/absolute/path/to/your/connector-openapi.json"
 ```
 
+## Code Walkthrough
+
+We'll walk through the `transformer.rs` file, and what needs to be implemented.
+
+1. **Converts Hyperswitch's internal payment data into your connector's API request format**
+ This part of the code takes your internal representation of a payment request, pulls out the token, gathers all the customer and payment fields, and packages them into a clean, JSON-serializable struct ready to send to Billwerk. You'll have to implement the customer and payment fields, as necessary, but you can implement it below: 
+
+```rust
+impl TryFrom<&ConnectorAuthType> for NadinebillwerkAuthType {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
+        match auth_type {
+            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+                api_key: api_key.to_owned(),
+            }),
+            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+        }
+    }
+}
+
+```
+Here's an implementation example with the Billwerk connector:
+
+```rust
+#[derive(Debug, Serialize)]
+pub struct NadinebillwerkCustomerObject {
+    handle: Option<id_type::CustomerId>,
+    email: Option<Email>,
+    address: Option<Secret<String>>,
+    address2: Option<Secret<String>>,
+    city: Option<String>,
+    country: Option<common_enums::CountryAlpha2>,
+    first_name: Option<Secret<String>>,
+    last_name: Option<Secret<String>>,
+}
+
+impl TryFrom<&NadinebillwerkRouterData<&PaymentsAuthorizeRouterData>>
+    for NadinebillwerkPaymentsRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &NadinebillwerkRouterData<&PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+
+        if item.router_data.is_three_ds() {
+            return Err(errors::ConnectorError::NotImplemented(
+                "Three_ds payments through Billwerk".to_string(),
+            )
+            .into());
+        };
+
+          let source = match item.router_data.get_payment_method_token()? {
+            PaymentMethodToken::Token(pm_token) => Ok(pm_token),
+            _ => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "payment_method_token",
+            }),
+        }?;
+        Ok(Self {
+            handle: item.router_data.connector_request_reference_id.clone(),
+            amount: item.amount,
+            source,
+            currency: item.router_data.request.currency,
+            customer: NadinebillwerkCustomerObject {
+                handle: item.router_data.customer_id.clone(),
+                email: item.router_data.request.email.clone(),
+                address: item.router_data.get_optional_billing_line1(),
+                address2: item.router_data.get_optional_billing_line2(),
+                city: item.router_data.get_optional_billing_city(),
+                country: item.router_data.get_optional_billing_country(),
+                first_name: item.router_data.get_optional_billing_first_name(),
+                last_name: item.router_data.get_optional_billing_last_name(),
+            },
+            metadata: item.router_data.request.metadata.clone().map(Into::into),
+            settle: item.router_data.request.is_auto_capture()?,
+        })
+    }
+}
+```
+
+2. **Handle Response Mapping**
+
+Response mapping is a critical component of connector implementation that translates payment processor–specific statuses into Hyperswitch’s standardized internal representation. This ensures consistent payment state management across all integrated payment processors.
+
+**Define Payment Status Enum**
+
+Create an enum that represents all possible payment statuses returned by your payment processor’s API. This enum should match the exact status values specified in your connector’s API documentation.
+
+```rust
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum BillwerkPaymentState {
+    Created,
+    Authorized,
+    Pending,
+    Settled,
+    Failed,
+    Cancelled,
+}
+```
+The enum uses `#[serde(rename_all = "lowercase")]` to automatically handle JSON serialization/deserialization in the connector’s expected format.
+
+**Implement Status Conversion**
+
+Implement From<ConnectorStatus> for Hyperswitch’s `AttemptStatus` enum:
+
+```rs
+impl From<BillwerkPaymentState> for enums::AttemptStatus {
+    fn from(item: BillwerkPaymentState) -> Self {
+        match item {
+            BillwerkPaymentState::Created | BillwerkPaymentState::Pending => Self::Pending,
+            BillwerkPaymentState::Authorized => Self::Authorized,
+            BillwerkPaymentState::Settled => Self::Charged,
+            BillwerkPaymentState::Failed => Self::Failure,
+            BillwerkPaymentState::Cancelled => Self::Voided,
+        }
+    }
+}
+
+```
+| Connector Status       | Hyperswitch Status            | Description                          |
+|------------------------|-------------------------------|--------------------------------------|
+| `Created`, `Pending`   | `AttemptStatus::Pending`      | Payment is being processed           |
+| `Authorized`           | `AttemptStatus::Authorized`   | Payment authorized, awaiting capture |
+| `Settled`              | `AttemptStatus::Charged`      | Payment successfully completed       |
+| `Failed`               | `AttemptStatus::Failure`      | Payment failed or was declined       |
+| `Cancelled`            | `AttemptStatus::Voided`       | Payment was cancelled/voided         |
+
+> **Note:** Default status should be `Pending`. Only explicit success or failure from the connector should mark the payment as `Charged` or `Failure`.
 
 
 
 
+
+
+
+
+
+
+--
 
 
 ## Test the Connector Integration
