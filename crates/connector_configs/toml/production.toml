@@ -4653,6 +4653,13 @@ payment_method_type = "pix"
 api_key = "Password"
 key1 = "Username"
 
+[facilitapay.metadata.destination_account_number]
+name="destination_account_number"
+label="Destination Account Number"
+placeholder="Enter Destination Account Number"
+required=true
+type="Text"
+
 [archipel]
 [archipel.connector_auth.HeaderKey]
 api_key = "Enter CA Certificate PEM"
@@ -4983,6 +4990,15 @@ api_key = "API Key"
 api_key = "API Key"
 
 [breadpay]
-[breadpay.connector_auth.HeaderKey]
+[breadpay.connector_auth.BodyKey]
+api_key = "API Key"
+key1 = "API Secret"
+
+
+[flexiti]
+[flexiti.connector_auth.HeaderKey]
 api_key = "API Key"
 
+[mpgs]
+[mpgs.connector_auth.HeaderKey]
+api_key = "API Key"

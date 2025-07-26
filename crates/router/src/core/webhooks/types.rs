@@ -11,8 +11,6 @@ use crate::{
     types::storage::{self, enums},
 };
 
-pub const OUTGOING_WEBHOOK_TIMEOUT_SECS: u64 = 5;
-
 #[derive(Debug)]
 pub enum ScheduleWebhookRetry {
     WithProcessTracker(Box<storage::ProcessTracker>),

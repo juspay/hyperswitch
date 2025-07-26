@@ -11,9 +11,9 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::payments::CustomerDetails;
 #[cfg(feature = "v1")]
 use crate::payments::{Address, BrowserInformation, PaymentMethodData};
+use crate::payments::{CustomerDetails, DeviceChannel, SdkInformation, ThreeDsCompletionIndicator};
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct AuthenticationCreateRequest {
@@ -282,7 +282,7 @@ pub enum EligibilityResponseParams {
 pub struct ThreeDsData {
     /// The unique identifier for this authentication from the 3DS server.
     #[schema(value_type = String)]
-    pub threeds_server_transaction_id: Option<String>,
+    pub three_ds_server_transaction_id: Option<String>,
     /// The maximum supported 3DS version.
     #[schema(value_type = String)]
     pub maximum_supported_3ds_version: Option<common_utils::types::SemanticVersion>,
@@ -322,6 +322,83 @@ impl ApiEventMetric for AuthenticationEligibilityRequest {
 
 #[cfg(feature = "v1")]
 impl ApiEventMetric for AuthenticationEligibilityResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Authentication {
+            authentication_id: self.authentication_id.clone(),
+        })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct AuthenticationAuthenticateRequest {
+    /// Authentication ID for the authentication
+    #[serde(skip_deserializing)]
+    pub authentication_id: id_type::AuthenticationId,
+    /// Client secret for the authentication
+    #[schema(value_type = String)]
+    pub client_secret: Option<masking::Secret<String>>,
+    /// SDK Information if request is from SDK
+    pub sdk_information: Option<SdkInformation>,
+    /// Device Channel indicating whether request is coming from App or Browser
+    pub device_channel: DeviceChannel,
+    /// Indicates if 3DS method data was successfully completed or not
+    pub threeds_method_comp_ind: ThreeDsCompletionIndicator,
+}
+
+impl ApiEventMetric for AuthenticationAuthenticateRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Authentication {
+            authentication_id: self.authentication_id.clone(),
+        })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct AuthenticationAuthenticateResponse {
+    /// Indicates the transaction status
+    #[serde(rename = "trans_status")]
+    #[schema(value_type = Option<TransactionStatus>)]
+    pub transaction_status: Option<common_enums::TransactionStatus>,
+    /// Access Server URL to be used for challenge submission
+    pub acs_url: Option<url::Url>,
+    /// Challenge request which should be sent to acs_url
+    pub challenge_request: Option<String>,
+    /// Unique identifier assigned by the EMVCo(Europay, Mastercard and Visa)
+    pub acs_reference_number: Option<String>,
+    /// Unique identifier assigned by the ACS to identify a single transaction
+    pub acs_trans_id: Option<String>,
+    /// Unique identifier assigned by the 3DS Server to identify a single transaction
+    pub three_ds_server_transaction_id: Option<String>,
+    /// Contains the JWS object created by the ACS for the ARes(Authentication Response) message
+    pub acs_signed_content: Option<String>,
+    /// Three DS Requestor URL
+    pub three_ds_requestor_url: String,
+    /// Merchant app declaring their URL within the CReq message so that the Authentication app can call the Merchant app after OOB authentication has occurred
+    pub three_ds_requestor_app_url: Option<String>,
+
+    /// The error message for this authentication.
+    #[schema(value_type = String)]
+    pub error_message: Option<String>,
+    /// The error code for this authentication.
+    #[schema(value_type = String)]
+    pub error_code: Option<String>,
+    /// The authentication value for this authentication, only available in case of server to server request. Unavailable in case of client request due to security concern.
+    #[schema(value_type = String)]
+    pub authentication_value: Option<masking::Secret<String>>,
+    /// ECI indicator of the card, only available in case of server to server request. Unavailable in case of client request due to security concern.
+    pub eci: Option<String>,
+    /// The current status of the authentication (e.g., Started).
+    #[schema(value_type = AuthenticationStatus)]
+    pub status: common_enums::AuthenticationStatus,
+    /// The connector to be used for authentication, if known.
+    #[schema(value_type = Option<AuthenticationConnectors>, example = "netcetera")]
+    pub authentication_connector: Option<AuthenticationConnectors>,
+    /// The unique identifier for this authentication.
+    #[schema(value_type = String, example = "auth_mbabizu24mvu3mela5njyhpit4")]
+    pub authentication_id: id_type::AuthenticationId,
+}
+
+impl ApiEventMetric for AuthenticationAuthenticateResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Authentication {
             authentication_id: self.authentication_id.clone(),

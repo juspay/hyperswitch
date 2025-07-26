@@ -2428,10 +2428,12 @@ impl
                 check_required_field(billing_address, "billing")?;
                 Ok(AdyenPaymentMethod::Atome)
             }
-            PayLaterData::KlarnaSdk { .. } => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Adyen"),
-            )
-            .into()),
+            PayLaterData::KlarnaSdk { .. } | PayLaterData::BreadpayRedirect {} => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Adyen"),
+                )
+                .into())
+            }
         }
     }
 }
@@ -2910,7 +2912,7 @@ impl
             telephone_number,
             shopper_name: None,
             shopper_email: None,
-            shopper_locale: None,
+            shopper_locale: item.router_data.request.locale.clone(),
             social_security_number: None,
             billing_address,
             delivery_address,
@@ -2994,7 +2996,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
             telephone_number,
             shopper_name,
             shopper_email,
-            shopper_locale: None,
+            shopper_locale: item.router_data.request.locale.clone(),
             social_security_number: None,
             billing_address,
             delivery_address,
@@ -3080,7 +3082,7 @@ impl
             additional_data,
             mpi_data: None,
             shopper_name: None,
-            shopper_locale: None,
+            shopper_locale: item.router_data.request.locale.clone(),
             shopper_email: item.router_data.get_optional_billing_email(),
             social_security_number: None,
             telephone_number,
@@ -3155,7 +3157,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &VoucherData)>
             recurring_processing_model,
             additional_data,
             shopper_name,
-            shopper_locale: None,
+            shopper_locale: item.router_data.request.locale.clone(),
             shopper_email: item.router_data.get_optional_billing_email(),
             social_security_number,
             mpi_data: None,
@@ -3274,7 +3276,7 @@ impl
             additional_data: None,
             mpi_data: None,
             shopper_name: None,
-            shopper_locale: None,
+            shopper_locale: item.router_data.request.locale.clone(),
             shopper_email: item.router_data.get_optional_billing_email(),
             social_security_number,
             telephone_number,
@@ -3351,7 +3353,7 @@ impl
             additional_data: None,
             mpi_data: None,
             shopper_name: None,
-            shopper_locale: None,
+            shopper_locale: item.router_data.request.locale.clone(),
             shopper_email: item.router_data.get_optional_billing_email(),
             telephone_number,
             billing_address,
@@ -3462,7 +3464,7 @@ fn get_redirect_extra_details(
             BankRedirectData::Trustly { .. } | BankRedirectData::OpenBankingUk { .. },
         ) => {
             let country = item.get_optional_billing_country();
-            Ok((None, country))
+            Ok((item.request.locale.clone(), country))
         }
         _ => Ok((None, None)),
     }
@@ -3565,7 +3567,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &WalletData)>
             telephone_number,
             shopper_name: None,
             shopper_email,
-            shopper_locale: None,
+            shopper_locale: item.router_data.request.locale.clone(),
             social_security_number: None,
             billing_address,
             delivery_address,
@@ -3655,7 +3657,7 @@ impl
             shopper_name,
             shopper_email,
             mpi_data: None,
-            shopper_locale: None,
+            shopper_locale: item.router_data.request.locale.clone(),
             social_security_number: None,
             billing_address,
             delivery_address,
@@ -3737,7 +3739,7 @@ impl
             telephone_number,
             shopper_name,
             shopper_email,
-            shopper_locale: None,
+            shopper_locale: item.router_data.request.locale.clone(),
             billing_address,
             delivery_address,
             country_code: None,
@@ -5983,7 +5985,7 @@ impl
             telephone_number,
             shopper_name,
             shopper_email,
-            shopper_locale: None,
+            shopper_locale: item.router_data.request.locale.clone(),
             social_security_number: None,
             billing_address,
             delivery_address,

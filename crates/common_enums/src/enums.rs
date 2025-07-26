@@ -1892,6 +1892,7 @@ pub enum PaymentMethodType {
     Boleto,
     BcaBankTransfer,
     BniVa,
+    Breadpay,
     BriVa,
     #[cfg(feature = "v2")]
     Card,
@@ -2012,6 +2013,7 @@ impl PaymentMethodType {
             Self::Boleto => "Boleto Bancário",
             Self::BcaBankTransfer => "BCA Bank Transfer",
             Self::BniVa => "BNI Virtual Account",
+            Self::Breadpay => "Breadpay",
             Self::BriVa => "BRI Virtual Account",
             Self::CardRedirect => "Card Redirect",
             Self::CimbVa => "CIMB Virtual Account",
