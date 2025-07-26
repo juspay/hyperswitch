@@ -64,15 +64,17 @@ pub struct FraudHighRiskResponse {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RefusedResponse {
-    pub refusal_description: String,
-    // Access Worldpay returns a raw response code in the refusalCode field (if enabled) containing the unmodified response code received either directly from the card scheme for Worldpay-acquired transactions, or from third party acquirers.
-    pub refusal_code: String,
+    #[serde(default)]
+    pub refusal_description: Option<String>,
+    #[serde(default)]
+    pub refusal_code: Option<String>,
     pub risk_factors: Option<Vec<RiskFactorsInner>>,
     pub fraud: Option<Fraud>,
     #[serde(rename = "threeDS")]
     pub three_ds: Option<ThreeDsResponse>,
     pub advice: Option<Advice>,
 }
+
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Advice {
@@ -278,25 +280,55 @@ where
             WorldpayPaymentResponseFields::AuthorizedResponse(res) => res
                 .links
                 .as_ref()
-                .and_then(|link| link.self_link.href.rsplit_once('/').map(|(_, h)| h)),
-            WorldpayPaymentResponseFields::DDCResponse(res) => {
-                res.actions.supply_ddc_data.href.split('/').nth_back(1)
-            }
+                .and_then(|link| {
+                    link.self_link
+                        .href
+                        .rsplit_once('/')
+                        .map(|(_, h)| h.to_string())
+                }),
+            WorldpayPaymentResponseFields::DDCResponse(res) => res
+                .actions
+                .supply_ddc_data
+                .href
+                .split('/')
+                .nth_back(1)
+                .map(|s| s.to_string()),
             WorldpayPaymentResponseFields::ThreeDsChallenged(res) => res
                 .actions
                 .complete_three_ds_challenge
                 .href
                 .split('/')
-                .nth_back(1),
-            WorldpayPaymentResponseFields::FraudHighRisk(_)
-            | WorldpayPaymentResponseFields::RefusedResponse(_) => None,
+                .nth_back(1)
+                .map(|s| s.to_string()),
+            WorldpayPaymentResponseFields::FraudHighRisk(_) => None,
+            WorldpayPaymentResponseFields::RefusedResponse(res) => {
+                let refusal_code = res
+                    .refusal_code
+                    .as_deref()
+                    .filter(|s| !s.trim().is_empty())
+                    .unwrap_or(crate::utils::NO_ERROR_CODE);
+
+                let refusal_description = res
+                    .refusal_description
+                    .as_deref()
+                    .filter(|s| !s.trim().is_empty())
+                    .unwrap_or(crate::utils::NO_ERROR_MESSAGE);
+
+                tracing::warn!(
+                    error_code = refusal_code,
+                    error_message = refusal_description,
+                    "Received a refused response with possibly missing error fields"
+                );
+                None
+            }
         })
         .map(|href| {
-            urlencoding::decode(href)
+            urlencoding::decode(&href)
                 .map(|s| transform_fn(s.into_owned()))
                 .change_context(errors::ConnectorError::ResponseHandlingFailed)
         })
         .transpose()?;
+
     optional_reference_id
         .or_else(|| connector_transaction_id.map(transform_fn))
         .ok_or_else(|| {
