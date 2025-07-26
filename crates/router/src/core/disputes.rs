@@ -15,7 +15,7 @@ use super::{
 };
 use crate::{
     core::{files, payments, utils as core_utils, webhooks},
-    routes::SessionState,
+    routes::{SessionState, app::StorageInterface, metrics::TASKS_ADDED_COUNT},
     services,
     types::{
         api::{self, disputes},
@@ -144,7 +144,7 @@ pub async fn retrieve_dispute(
             })?;
 
         update_dispute_data(
-            state,
+            &state,
             merchant_context,
             business_profile,
             Some(dispute.clone()),
@@ -735,16 +735,13 @@ pub async fn fetch_disputes_from_connector(
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: merchant_connector_id.get_string_repr().to_string(),
         })?;
-
     let connector_name = merchant_connector_account.connector_name.clone();
-
     let connector_data = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
         &connector_name,
         api::GetToken::Connector,
         Some(merchant_connector_id.clone()),
     )?;
-
     let connector_integration: services::BoxedDisputeConnectorIntegrationInterface<
         api::Fetch,
         FetchDisputesRequestData,
@@ -780,8 +777,8 @@ pub async fn fetch_disputes_from_connector(
 }
 
 #[instrument(skip_all)]
-async fn update_dispute_data(
-    state: SessionState,
+pub async fn update_dispute_data(
+    state: &SessionState,
     merchant_context: domain::MerchantContext,
     business_profile: domain::Profile,
     option_dispute: Option<diesel_models::dispute::Dispute>,
@@ -789,9 +786,7 @@ async fn update_dispute_data(
     payment_attempt: domain::PaymentAttempt,
     connector_name: &str,
 )->  errors::CustomResult<api_models::disputes::DisputeResponse, errors::ApiErrorResponse> {
-    let db = &state.store;
     let dispute_data = DisputePayload::from(dispute_details.clone());
-
     let dispute_object = webhooks::incoming::get_or_update_dispute_object(
         state.clone(),
         option_dispute,
@@ -808,7 +803,7 @@ async fn update_dispute_data(
     let event_type: storage_enums::EventType = dispute_details.dispute_status.into();
 
     Box::pin(webhooks::create_event_and_trigger_outgoing_webhook(
-        state,
+        state.clone(),
         merchant_context,
         business_profile,
         event_type,
@@ -820,4 +815,51 @@ async fn update_dispute_data(
     ))
     .await?;
     Ok(disputes_response)
+}
+
+#[cfg(feature = "v1")]
+pub async fn add_task_to_process_dispute<Op>(
+    operation: &Op,
+    db: &dyn StorageInterface,
+    connector_name: String,
+    profile_id: common_utils::id_type::ProfileId,
+    dispute_payload: DisputeSyncResponse,
+    merchant_id: common_utils::id_type::MerchantId,
+    schedule_time: time::PrimitiveDateTime,
+) -> common_utils::errors::CustomResult<(), errors::StorageError>
+where
+    Op: std::fmt::Debug
+{
+    TASKS_ADDED_COUNT.add(
+        1,
+        router_env::metric_attributes!(("flow", format!("{:#?}", operation))),
+    );
+    let tracking_data = disputes::ProcessDisputePTData {
+        connector_name,
+        profile_id,
+        dispute_payload: dispute_payload.clone(),
+        merchant_id: merchant_id.clone(),
+    };
+    let runner = common_enums::ProcessTrackerRunner::ProcessDisputeWorkflow;
+    let task = "DISPUTE_PROCESS";
+    let tag = ["PROCESS", "DISPUTE"];
+    let process_tracker_id = scheduler::utils::get_process_tracker_id(
+        runner,
+        task,
+        &dispute_payload.connector_dispute_id.clone(),
+        &merchant_id,
+    );
+    let process_tracker_entry = diesel_models::ProcessTrackerNew::new(
+        process_tracker_id,
+        task,
+        runner,
+        tag,
+        tracking_data,
+        None,
+        schedule_time,
+        common_types::consts::API_VERSION,
+    )
+    .map_err(errors::StorageError::from)?;
+    db.insert_process(process_tracker_entry).await?;
+    Ok(())
 }

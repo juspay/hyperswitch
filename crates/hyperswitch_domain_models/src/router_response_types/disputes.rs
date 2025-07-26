@@ -22,9 +22,9 @@ pub struct FileInfo {
     pub file_type: Option<String>,
 }
 
-#[derive(serde::Serialize, Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct DisputeSyncResponse {
-    pub attempt_id: String,
+    pub object_reference_id: api_models::webhooks::ObjectReferenceId,
     pub amount: common_utils::types::StringMinorUnit,
     pub currency: common_enums::enums::Currency,
     pub dispute_stage: common_enums::enums::DisputeStage,

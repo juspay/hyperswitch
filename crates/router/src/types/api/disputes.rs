@@ -61,3 +61,11 @@ pub enum EvidenceType {
     RecurringTransactionAgreement,
     UncategorizedFile,
 }
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct ProcessDisputePTData {
+    pub connector_name: String,
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub dispute_payload: types::DisputeSyncResponse,
+    pub merchant_id: common_utils::id_type::MerchantId,
+}
