@@ -358,14 +358,14 @@ impl<F, T>
             .as_ref()
             .map(|acs_protocol_version| acs_protocol_version.version.clone());
         let three_ds_method_data =
-        three_ds_eligibility_response
-            .as_ref()
-            .and_then(|three_ds_eligibility_response| {
-                three_ds_eligibility_response
-                    .three_ds_method_data_form
-                    .as_ref()
-                    .and_then(|form| form.three_ds_method_data.clone())
-            });
+            three_ds_eligibility_response
+                .as_ref()
+                .and_then(|three_ds_eligibility_response| {
+                    three_ds_eligibility_response
+                        .three_ds_method_data_form
+                        .as_ref()
+                        .and_then(|form| form.three_ds_method_data.clone())
+                });
         let three_ds_method_url = max_acs_protocol_version
             .and_then(|acs_protocol_version| acs_protocol_version.three_ds_method_url);
         Ok(Self {
