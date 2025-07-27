@@ -374,10 +374,7 @@ async fn get_outgoing_webhook_content_and_event_type(
             refunds::refund_retrieve_core_with_refund_id,
         },
         services::{ApplicationResponse, AuthFlow},
-        types::{
-            api::PSync,
-            transformers::ForeignFrom,
-        },
+        types::{api::PSync, transformers::ForeignFrom},
     };
 
     let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
@@ -476,7 +473,7 @@ async fn get_outgoing_webhook_content_and_event_type(
         diesel_models::enums::EventClass::Disputes => {
             let dispute_id = tracking_data.primary_object_id.clone();
             let request = DisputeRetrieveRequest {
-                dispute_id:  dispute_id,
+                dispute_id: dispute_id,
                 force_sync: None,
             };
 

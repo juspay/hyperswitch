@@ -18,16 +18,16 @@ use hyperswitch_domain_models::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
-        Fetch,
+        Fetch, Dsync, Defend, Accept,
     },
     router_request_types::{
-        AccessTokenRequestData, FetchDisputesRequestData, PaymentMethodTokenizationData,
+        AccessTokenRequestData, AcceptDisputeRequestData, FetchDisputesRequestData, DisputeSyncData, PaymentMethodTokenizationData,
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
-        PaymentsSyncData, RefundsData, SetupMandateRequestData,
+        PaymentsSyncData, RefundsData, SetupMandateRequestData, DefendDisputeRequestData,
     },
     router_response_types::{
-        ConnectorInfo, FetchDisputesResponse, PaymentMethodDetails, PaymentsResponseData,
-        RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt,
+        AcceptDisputeResponse, ConnectorInfo, FetchDisputesResponse, DisputeSyncResponse, PaymentMethodDetails, PaymentsResponseData,
+        RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt, DefendDisputeResponse,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
@@ -36,7 +36,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::{
     api::{
-        self, disputes::FetchDisputes, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration,
+        self, disputes::{FetchDisputes, DisputeSync, DefendDispute, AcceptDispute}, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration,
         ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
@@ -51,7 +51,7 @@ use transformers as worldpayvantiv;
 
 use crate::{
     constants::headers,
-    types::{FetchDisputeRouterData, ResponseRouterData},
+    types::{FetchDisputeRouterData, DisputeSyncRouterData, DefendDisputeRouterData, AcceptDisputeRouterData, ResponseRouterData},
     utils as connector_utils,
 };
 
@@ -643,6 +643,11 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Worldpa
 }
 
 impl FetchDisputes for Worldpayvantiv {}
+impl DisputeSync for Worldpayvantiv {}
+impl DefendDispute for Worldpayvantiv {}
+impl AcceptDispute for Worldpayvantiv{}
+
+
 impl ConnectorIntegration<Fetch, FetchDisputesRequestData, FetchDisputesResponse>
     for Worldpayvantiv
 {
@@ -696,12 +701,169 @@ impl ConnectorIntegration<Fetch, FetchDisputesRequestData, FetchDisputesResponse
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<FetchDisputeRouterData, errors::ConnectorError> {
-        println!(
-            "[Worldpayvantiv] Fetch Disputes Response: {:?}",
-            res.response
-        );
-        Ok(FetchDisputeRouterData {
-            response: Ok(Vec::new()),
+        let response: worldpayvantiv::ChargebackRetrievalResponse =
+            connector_utils::deserialize_xml_to_struct(&res.response)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        handle_vantiv_dispute_error_response(res, event_builder)
+    }
+}
+
+impl ConnectorIntegration<Dsync, DisputeSyncData, DisputeSyncResponse>
+    for Worldpayvantiv
+{
+    fn get_headers(
+        &self,
+        req: &DisputeSyncRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.get_auth_header(&req.connector_auth_type)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &DisputeSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}/services/chargebacks/{}",
+            connectors.worldpayvantiv.third_base_url.to_owned(),
+            req.request.connector_dispute_id
+        ))
+    }
+
+    fn build_request(
+        &self,
+        req: &DisputeSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Get)
+            .url(&types::DisputeSyncType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(types::DisputeSyncType::get_headers(
+                self, req, connectors,
+            )?)
+            .build();
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &DisputeSyncRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<DisputeSyncRouterData, errors::ConnectorError> {
+        let response: worldpayvantiv::ChargebackRetrievalResponse =
+            connector_utils::deserialize_xml_to_struct(&res.response)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        handle_vantiv_dispute_error_response(res, event_builder)
+    }
+}
+
+impl ConnectorIntegration<Defend, DefendDisputeRequestData, DefendDisputeResponse> for Worldpayvantiv {
+    fn get_headers(
+        &self,
+        req: &DefendDisputeRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.get_auth_header(&req.connector_auth_type)
+    }
+
+    fn get_url(
+        &self,
+        req: &DefendDisputeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}/services/chargebacks/{}",
+            connectors.worldpayvantiv.third_base_url.to_owned(),
+            req.request.connector_dispute_id
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &DefendDisputeRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req_object =
+            worldpayvantiv::ChargebackUpdateRequest::from(req);
+        router_env::logger::info!(raw_connector_request=?connector_req_object);
+        let connector_req = connector_utils::XmlSerializer::serialize_to_xml_bytes(
+            &connector_req_object,
+            worldpayvantiv::worldpayvantiv_constants::XML_VERSION,
+            Some(worldpayvantiv::worldpayvantiv_constants::XML_ENCODING),
+            None,
+            None,
+        )?;
+
+        Ok(RequestContent::RawBytes(connector_req))
+    }
+
+
+    fn build_request(
+        &self,
+        req: &DefendDisputeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Put)
+                .url(&types::DefendDisputeType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::DefendDisputeType::get_headers(self, req, connectors)?)
+                .set_body(types::DefendDisputeType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &DefendDisputeRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<DefendDisputeRouterData, errors::ConnectorError> {
+        let response: worldpayvantiv::ChargebackUpdateResponse =
+        connector_utils::deserialize_xml_to_struct(&res.response)?;
+    event_builder.map(|i| i.set_response_body(&response));
+    router_env::logger::info!(connector_response=?response);
+        Ok(DefendDisputeRouterData {
+            response: Ok(DefendDisputeResponse {
+                dispute_status: common_enums::DisputeStatus::DisputeChallenged,
+                connector_status: None,
+            }),
             ..data.clone()
         })
     }
@@ -711,7 +873,94 @@ impl ConnectorIntegration<Fetch, FetchDisputesRequestData, FetchDisputesResponse
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
+        handle_vantiv_dispute_error_response(res, event_builder)
+    }
+}
+
+
+impl ConnectorIntegration<Accept, AcceptDisputeRequestData, AcceptDisputeResponse> for Worldpayvantiv {
+    fn get_headers(
+        &self,
+        req: &AcceptDisputeRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.get_auth_header(&req.connector_auth_type)
+    }
+
+    fn get_url(
+        &self,
+        req: &AcceptDisputeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}/services/chargebacks/{}",
+            connectors.worldpayvantiv.third_base_url.to_owned(),
+            req.request.connector_dispute_id
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &AcceptDisputeRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req_object =
+            worldpayvantiv::ChargebackUpdateRequest::from(req);
+        router_env::logger::info!(raw_connector_request=?connector_req_object);
+        let connector_req = connector_utils::XmlSerializer::serialize_to_xml_bytes(
+            &connector_req_object,
+            worldpayvantiv::worldpayvantiv_constants::XML_VERSION,
+            Some(worldpayvantiv::worldpayvantiv_constants::XML_ENCODING),
+            None,
+            None,
+        )?;
+
+        Ok(RequestContent::RawBytes(connector_req))
+    }
+
+    fn build_request(
+        &self,
+        req: &AcceptDisputeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::AcceptDisputeType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::AcceptDisputeType::get_headers(self, req, connectors)?)
+                .set_body(types::AcceptDisputeType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &AcceptDisputeRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<AcceptDisputeRouterData, errors::ConnectorError> {
+        let response: worldpayvantiv::ChargebackUpdateResponse =
+        connector_utils::deserialize_xml_to_struct(&res.response)?;
+    event_builder.map(|i| i.set_response_body(&response));
+    router_env::logger::info!(connector_response=?response);
+        Ok(AcceptDisputeRouterData {
+            response: Ok(AcceptDisputeResponse {
+                dispute_status: common_enums::DisputeStatus::DisputeAccepted,
+                connector_status: None,
+            }),
+            ..data.clone()
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        handle_vantiv_dispute_error_response(res, event_builder)
     }
 }
 
@@ -923,3 +1172,48 @@ fn handle_vantiv_json_error_response(
         }
     }
 }
+
+
+fn handle_vantiv_dispute_error_response(
+    res: Response,
+    event_builder: Option<&mut ConnectorEvent>,
+) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    let response: Result<worldpayvantiv::VantivDisputeErrorResponse, _> = res
+        .response
+        .parse_struct("VantivDisputeErrorResponse")
+        .change_context(errors::ConnectorError::ResponseDeserializationFailed);
+
+    match response {
+        Ok(response_data) => {
+            event_builder.map(|i| i.set_response_body(&response_data));
+            router_env::logger::info!(connector_response=?response_data);
+            let error_reason = response_data
+            .errors
+            .iter()
+            .map(|error_info| {
+                error_info.error.clone()
+            })
+            .collect::<Vec<String>>()
+            .join(" & ");
+
+            Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: NO_ERROR_CODE.to_string(),
+                message: error_reason.clone(),
+                reason: Some(error_reason.clone()),
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+            })
+        }
+        Err(error_msg) => {
+            event_builder.map(|event| event.set_error(serde_json::json!({"error": res.response.escape_ascii().to_string(), "status_code": res.status_code})));
+            router_env::logger::error!(deserialization_error =? error_msg);
+            connector_utils::handle_json_response_deserialization_failure(res, "worldpayvantiv")
+        }
+    }
+}
+
+

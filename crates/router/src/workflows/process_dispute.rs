@@ -1,4 +1,4 @@
-use common_utils::ext_traits::{OptionExt, StringExt, ValueExt};
+use common_utils::ext_traits::{StringExt, ValueExt};
 use diesel_models::process_tracker::business_status;
 use error_stack::ResultExt;
 use router_env::logger;
@@ -8,22 +8,11 @@ use scheduler::{
 };
 
 use crate::{
-    consts,
-    core::{
-        errors::StorageErrorExt,
-        payments::{self as payment_flows, operations},
-        webhooks::incoming::get_payment_attempt_from_object_reference_id,
-        disputes,
-    },
+    core::{disputes, webhooks::incoming::get_payment_attempt_from_object_reference_id},
     db::StorageInterface,
     errors,
     routes::SessionState,
-    services,
-    types::{
-        api, domain,
-        storage::{self, enums},
-    },
-    utils,
+    types::{api, domain, storage},
 };
 
 pub struct ProcessDisputeWorkflow;
@@ -54,8 +43,7 @@ impl ProcessTrackerWorkflow<SessionState> for ProcessDisputeWorkflow {
         let key_store = db
             .get_merchant_key_store_by_merchant_id(
                 key_manager_state,
-                &tracking_data
-                    .merchant_id,
+                &tracking_data.merchant_id,
                 &db.get_master_key().to_vec().into(),
             )
             .await?;
@@ -63,8 +51,7 @@ impl ProcessTrackerWorkflow<SessionState> for ProcessDisputeWorkflow {
         let merchant_account = db
             .find_merchant_account_by_merchant_id(
                 key_manager_state,
-                &tracking_data
-                    .merchant_id,
+                &tracking_data.merchant_id,
                 &key_store,
             )
             .await?;
@@ -95,11 +82,11 @@ impl ProcessTrackerWorkflow<SessionState> for ProcessDisputeWorkflow {
             .find_by_merchant_id_payment_id_connector_dispute_id(
                 merchant_context.get_merchant_account().get_id(),
                 &payment_attempt.payment_id,
-                &tracking_data.dispute_payload.connector_dispute_id
+                &tracking_data.dispute_payload.connector_dispute_id,
             )
             .await?;
-            // .map_err(|error| sch_errors::ProcessTrackerError::EStorageError(report!(errors::StorageError::from(error))))?;
-        
+        // .map_err(|error| sch_errors::ProcessTrackerError::EStorageError(report!(errors::StorageError::from(error))))?;
+
         let response = disputes::update_dispute_data(
             state,
             merchant_context,
@@ -108,17 +95,19 @@ impl ProcessTrackerWorkflow<SessionState> for ProcessDisputeWorkflow {
             tracking_data.dispute_payload,
             payment_attempt,
             tracking_data.connector_name.as_str(),
-        ) .await
+        )
+        .await
         .attach_printable("Dispute update failed");
 
-    if response.is_err(){
-        retry_sync_task(
-            db,
-            tracking_data.connector_name,
-            tracking_data.merchant_id,
-            process,
-        ) .await?;
-    }
+        if response.is_err() {
+            retry_sync_task(
+                db,
+                tracking_data.connector_name,
+                tracking_data.merchant_id,
+                process,
+            )
+            .await?;
+        }
 
         Ok(())
     }

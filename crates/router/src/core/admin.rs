@@ -3491,7 +3491,6 @@ impl ProfileCreateBridge for api::ProfileCreate {
                 .unwrap_or_default(),
             merchant_category_code: self.merchant_category_code,
             dispute_polling_interval: self.dispute_polling_interval,
-
         }))
     }
 

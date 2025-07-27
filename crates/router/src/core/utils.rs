@@ -49,7 +49,6 @@ use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
         payments::PaymentData,
-        disputes,
     },
     db::StorageInterface,
     routes::{metrics, SessionState},
@@ -879,7 +878,7 @@ mod tests {
     }
 }
 
-// Dispute Stage can move linearly from PreDispute -> Dispute -> PreArbitration
+// Dispute Stage can move linearly from PreDispute -> Dispute -> PreArbitration -> Arbitration -> DisputeReversal
 pub fn validate_dispute_stage(
     prev_dispute_stage: DisputeStage,
     dispute_stage: DisputeStage,
@@ -887,7 +886,9 @@ pub fn validate_dispute_stage(
     match prev_dispute_stage {
         DisputeStage::PreDispute => true,
         DisputeStage::Dispute => !matches!(dispute_stage, DisputeStage::PreDispute),
-        DisputeStage::PreArbitration => matches!(dispute_stage, DisputeStage::PreArbitration),
+        DisputeStage::PreArbitration => matches!(dispute_stage, DisputeStage::PreArbitration|  DisputeStage::Arbitration | DisputeStage::DisputeReversal),
+        DisputeStage::Arbitration => matches!(dispute_stage, DisputeStage::Arbitration | DisputeStage::DisputeReversal),
+        DisputeStage::DisputeReversal => matches!(dispute_stage, DisputeStage::DisputeReversal),
     }
 }
 

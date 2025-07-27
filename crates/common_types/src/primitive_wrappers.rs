@@ -191,7 +191,8 @@ mod u32_wrappers {
         }
     }
 
-    impl diesel::deserialize::FromSql<diesel::sql_types::Integer, diesel::pg::Pg> for DisputePollingIntervalInHours
+    impl diesel::deserialize::FromSql<diesel::sql_types::Integer, diesel::pg::Pg>
+        for DisputePollingIntervalInHours
     {
         fn from_sql(value: diesel::pg::PgValue<'_>) -> diesel::deserialize::Result<Self> {
             let val = i32::from_sql(value)?;
@@ -203,10 +204,16 @@ mod u32_wrappers {
         }
     }
 
-    impl diesel::serialize::ToSql<diesel::sql_types::Integer, diesel::pg::Pg> for DisputePollingIntervalInHours
+    impl diesel::serialize::ToSql<diesel::sql_types::Integer, diesel::pg::Pg>
+        for DisputePollingIntervalInHours
     {
-        fn to_sql<'b>(&'b self, out: &mut diesel::serialize::Output<'b, '_, diesel::pg::Pg>) -> diesel::serialize::Result {
-            <i32 as diesel::serialize::ToSql<diesel::sql_types::Integer, diesel::pg::Pg>>::to_sql(&self.0, out)
+        fn to_sql<'b>(
+            &'b self,
+            out: &mut diesel::serialize::Output<'b, '_, diesel::pg::Pg>,
+        ) -> diesel::serialize::Result {
+            <i32 as diesel::serialize::ToSql<diesel::sql_types::Integer, diesel::pg::Pg>>::to_sql(
+                &self.0, out,
+            )
         }
     }
 }

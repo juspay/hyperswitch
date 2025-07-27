@@ -587,7 +587,6 @@ pub struct NetworkTransactionIdSupportedConnectors {
     pub connector_list: HashSet<enums::Connector>,
 }
 
-
 /// Connectors that support only dispute list API for syncing disputes with Hyperswitch
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct ListDiputeSupportedConnectors {
