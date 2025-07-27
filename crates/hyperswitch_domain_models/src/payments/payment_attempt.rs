@@ -2274,9 +2274,9 @@ impl behaviour::Conversion for PaymentAttempt {
             status,
             error_message: error.as_ref().map(|details| details.message.clone()),
             payment_method_id,
-            payment_method_type_v2: payment_method_type,
+            payment_method_type_v2: Some(payment_method_type),
             connector_payment_id,
-            authentication_type,
+            authentication_type: Some(authentication_type),
             created_at,
             modified_at,
             last_synced,
@@ -2304,7 +2304,7 @@ impl behaviour::Conversion for PaymentAttempt {
             unified_message: error
                 .as_ref()
                 .and_then(|details| details.unified_message.clone()),
-            net_amount,
+            net_amount: Some(net_amount),
             external_three_ds_authentication_attempted,
             authentication_connector,
             authentication_id,
@@ -2356,11 +2356,10 @@ impl behaviour::Conversion for PaymentAttempt {
     where
         Self: Sized,
     {
-        async {
-            let connector_payment_id = storage_model
-                .get_optional_connector_transaction_id()
-                .cloned();
-
+        let connector_payment_id = storage_model
+            .get_optional_connector_transaction_id()
+            .cloned();
+        let decrypted_data = async {
             let decrypted_data = crypto_operation(
                 state,
                 common_utils::type_name!(Self::DstType),
@@ -2376,102 +2375,106 @@ impl behaviour::Conversion for PaymentAttempt {
             .await
             .and_then(|val| val.try_into_batchoperation())?;
 
-            let decrypted_data = EncryptedPaymentAttempt::from_encryptable(decrypted_data)
+            EncryptedPaymentAttempt::from_encryptable(decrypted_data)
                 .change_context(common_utils::errors::CryptoError::DecodingFailed)
-                .attach_printable("Invalid batch operation data")?;
-
-            let payment_method_billing_address = decrypted_data
-                .payment_method_billing_address
-                .map(|billing| {
-                    billing.deserialize_inner_value(|value| value.parse_value("Address"))
-                })
-                .transpose()
-                .change_context(common_utils::errors::CryptoError::DecodingFailed)
-                .attach_printable("Error while deserializing Address")?;
-
-            let amount_details = AttemptAmountDetails {
-                net_amount: storage_model.net_amount,
-                tax_on_surcharge: storage_model.tax_on_surcharge,
-                surcharge_amount: storage_model.surcharge_amount,
-                order_tax_amount: storage_model.order_tax_amount,
-                shipping_cost: storage_model.shipping_cost,
-                amount_capturable: storage_model.amount_capturable,
-                amount_to_capture: storage_model.amount_to_capture,
-            };
-
-            let error = storage_model
-                .error_code
-                .zip(storage_model.error_message)
-                .map(|(error_code, error_message)| ErrorDetails {
-                    code: error_code,
-                    message: error_message,
-                    reason: storage_model.error_reason,
-                    unified_code: storage_model.unified_code,
-                    unified_message: storage_model.unified_message,
-                    network_advice_code: storage_model.network_advice_code,
-                    network_decline_code: storage_model.network_decline_code,
-                    network_error_message: storage_model.network_error_message,
-                });
-
-            Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
-                payment_id: storage_model.payment_id,
-                merchant_id: storage_model.merchant_id.clone(),
-                id: storage_model.id,
-                status: storage_model.status,
-                amount_details,
-                error,
-                payment_method_id: storage_model.payment_method_id,
-                payment_method_type: storage_model.payment_method_type_v2,
-                connector_payment_id,
-                authentication_type: storage_model.authentication_type,
-                created_at: storage_model.created_at,
-                modified_at: storage_model.modified_at,
-                last_synced: storage_model.last_synced,
-                cancellation_reason: storage_model.cancellation_reason,
-                browser_info: storage_model.browser_info,
-                payment_token: storage_model.payment_token,
-                connector_metadata: storage_model.connector_metadata,
-                payment_experience: storage_model.payment_experience,
-                payment_method_data: storage_model.payment_method_data,
-                routing_result: storage_model.routing_result,
-                preprocessing_step_id: storage_model.preprocessing_step_id,
-                multiple_capture_count: storage_model.multiple_capture_count,
-                connector_response_reference_id: storage_model.connector_response_reference_id,
-                updated_by: storage_model.updated_by,
-                redirection_data: storage_model.redirection_data.map(From::from),
-                encoded_data: storage_model.encoded_data,
-                merchant_connector_id: storage_model.merchant_connector_id,
-                external_three_ds_authentication_attempted: storage_model
-                    .external_three_ds_authentication_attempted,
-                authentication_connector: storage_model.authentication_connector,
-                authentication_id: storage_model.authentication_id,
-                fingerprint_id: storage_model.fingerprint_id,
-                charges: storage_model.charges,
-                client_source: storage_model.client_source,
-                client_version: storage_model.client_version,
-                customer_acceptance: storage_model.customer_acceptance,
-                profile_id: storage_model.profile_id,
-                organization_id: storage_model.organization_id,
-                payment_method_subtype: storage_model.payment_method_subtype,
-                authentication_applied: storage_model.authentication_applied,
-                external_reference_id: storage_model.external_reference_id,
-                connector: storage_model.connector,
-                payment_method_billing_address,
-                connector_token_details: storage_model.connector_token_details,
-                card_discovery: storage_model.card_discovery,
-                feature_metadata: storage_model.feature_metadata.map(From::from),
-                processor_merchant_id: storage_model
-                    .processor_merchant_id
-                    .unwrap_or(storage_model.merchant_id),
-                created_by: storage_model
-                    .created_by
-                    .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
-                connector_request_reference_id: storage_model.connector_request_reference_id,
-            })
+                .attach_printable("Invalid batch operation data")
         }
         .await
         .change_context(ValidationError::InvalidValue {
             message: "Failed while decrypting payment attempt".to_string(),
+        })?;
+
+        let payment_method_billing_address = decrypted_data
+            .payment_method_billing_address
+            .map(|billing| billing.deserialize_inner_value(|value| value.parse_value("Address")))
+            .transpose()
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed to deserialize payment_method_billing_address".to_string(),
+            })
+            .attach_printable("Error while deserializing Address")?;
+
+        let amount_details = AttemptAmountDetails {
+            net_amount: storage_model.net_amount.get_required_value("net_amount")?,
+            tax_on_surcharge: storage_model.tax_on_surcharge,
+            surcharge_amount: storage_model.surcharge_amount,
+            order_tax_amount: storage_model.order_tax_amount,
+            shipping_cost: storage_model.shipping_cost,
+            amount_capturable: storage_model.amount_capturable,
+            amount_to_capture: storage_model.amount_to_capture,
+        };
+
+        let error = storage_model
+            .error_code
+            .zip(storage_model.error_message)
+            .map(|(error_code, error_message)| ErrorDetails {
+                code: error_code,
+                message: error_message,
+                reason: storage_model.error_reason,
+                unified_code: storage_model.unified_code,
+                unified_message: storage_model.unified_message,
+                network_advice_code: storage_model.network_advice_code,
+                network_decline_code: storage_model.network_decline_code,
+                network_error_message: storage_model.network_error_message,
+            });
+
+        Ok(Self {
+            payment_id: storage_model.payment_id,
+            merchant_id: storage_model.merchant_id.clone(),
+            id: storage_model.id,
+            status: storage_model.status,
+            amount_details,
+            error,
+            payment_method_id: storage_model.payment_method_id,
+            payment_method_type: storage_model
+                .payment_method_type_v2
+                .get_required_value("payment_method_type")?,
+            connector_payment_id,
+            authentication_type: storage_model
+                .authentication_type
+                .get_required_value("authentication_type")?,
+            created_at: storage_model.created_at,
+            modified_at: storage_model.modified_at,
+            last_synced: storage_model.last_synced,
+            cancellation_reason: storage_model.cancellation_reason,
+            browser_info: storage_model.browser_info,
+            payment_token: storage_model.payment_token,
+            connector_metadata: storage_model.connector_metadata,
+            payment_experience: storage_model.payment_experience,
+            payment_method_data: storage_model.payment_method_data,
+            routing_result: storage_model.routing_result,
+            preprocessing_step_id: storage_model.preprocessing_step_id,
+            multiple_capture_count: storage_model.multiple_capture_count,
+            connector_response_reference_id: storage_model.connector_response_reference_id,
+            updated_by: storage_model.updated_by,
+            redirection_data: storage_model.redirection_data.map(From::from),
+            encoded_data: storage_model.encoded_data,
+            merchant_connector_id: storage_model.merchant_connector_id,
+            external_three_ds_authentication_attempted: storage_model
+                .external_three_ds_authentication_attempted,
+            authentication_connector: storage_model.authentication_connector,
+            authentication_id: storage_model.authentication_id,
+            fingerprint_id: storage_model.fingerprint_id,
+            charges: storage_model.charges,
+            client_source: storage_model.client_source,
+            client_version: storage_model.client_version,
+            customer_acceptance: storage_model.customer_acceptance,
+            profile_id: storage_model.profile_id,
+            organization_id: storage_model.organization_id,
+            payment_method_subtype: storage_model.payment_method_subtype,
+            authentication_applied: storage_model.authentication_applied,
+            external_reference_id: storage_model.external_reference_id,
+            connector: storage_model.connector,
+            payment_method_billing_address,
+            connector_token_details: storage_model.connector_token_details,
+            card_discovery: storage_model.card_discovery,
+            feature_metadata: storage_model.feature_metadata.map(From::from),
+            processor_merchant_id: storage_model
+                .processor_merchant_id
+                .unwrap_or(storage_model.merchant_id),
+            created_by: storage_model
+                .created_by
+                .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
+            connector_request_reference_id: storage_model.connector_request_reference_id,
         })
     }
 

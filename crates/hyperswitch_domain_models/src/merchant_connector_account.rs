@@ -607,7 +607,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
                 created_at: self.created_at,
                 modified_at: self.modified_at,
                 connector_webhook_details: self.connector_webhook_details,
-                profile_id: self.profile_id,
+                profile_id: Some(self.profile_id),
                 applepay_verified_domains: self.applepay_verified_domains,
                 pm_auth_config: self.pm_auth_config,
                 status: self.status,
@@ -625,6 +625,8 @@ impl behaviour::Conversion for MerchantConnectorAccount {
         key: &Secret<Vec<u8>>,
         _key_manager_identifier: Identifier,
     ) -> CustomResult<Self, ValidationError> {
+        use common_utils::ext_traits::OptionExt;
+
         let identifier = Identifier::Merchant(other.merchant_id.clone());
 
         let decrypted_data = crypto_operation(
@@ -666,7 +668,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             created_at: other.created_at,
             modified_at: other.modified_at,
             connector_webhook_details: other.connector_webhook_details,
-            profile_id: other.profile_id,
+            profile_id: other.profile_id.get_required_value("prodile_id")?,
             applepay_verified_domains: other.applepay_verified_domains,
             pm_auth_config: other.pm_auth_config,
             status: other.status,

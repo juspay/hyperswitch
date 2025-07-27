@@ -246,7 +246,7 @@ impl behaviour::Conversion for Customer {
             default_billing_address: self.default_billing_address,
             default_shipping_address: self.default_shipping_address,
             version: self.version,
-            status: self.status,
+            status: Some(self.status),
         })
     }
 
@@ -259,6 +259,8 @@ impl behaviour::Conversion for Customer {
     where
         Self: Sized,
     {
+        use common_utils::ext_traits::OptionExt;
+
         let decrypted = types::crypto_operation(
             state,
             common_utils::type_name!(Self::DstType),
@@ -307,7 +309,7 @@ impl behaviour::Conversion for Customer {
             default_billing_address: item.default_billing_address,
             default_shipping_address: item.default_shipping_address,
             version: item.version,
-            status: item.status,
+            status: item.status.get_required_value("status")?,
         })
     }
 
