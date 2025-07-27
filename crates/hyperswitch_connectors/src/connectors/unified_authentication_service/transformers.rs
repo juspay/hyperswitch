@@ -113,8 +113,9 @@ pub struct PaymentDetails {
     pub card_expiry_month: Secret<String>,
     pub card_expiry_year: Secret<String>,
     pub cardholder_name: Option<Secret<String>>,
-    pub card_token_number: Secret<String>,
+    pub card_token_number: Option<Secret<String>>,
     pub account_type: Option<common_enums::PaymentMethodType>,
+    pub card_cvc: Option<Secret<String>>,
 }
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
@@ -357,14 +358,14 @@ impl<F, T>
             .as_ref()
             .map(|acs_protocol_version| acs_protocol_version.version.clone());
         let three_ds_method_data =
-            three_ds_eligibility_response
-                .as_ref()
-                .and_then(|three_ds_eligibility_response| {
-                    three_ds_eligibility_response
-                        .three_ds_method_data_form
-                        .three_ds_method_data
-                        .clone()
-                });
+        three_ds_eligibility_response
+            .as_ref()
+            .and_then(|three_ds_eligibility_response| {
+                three_ds_eligibility_response
+                    .three_ds_method_data_form
+                    .as_ref()
+                    .and_then(|form| form.three_ds_method_data.clone())
+            });
         let three_ds_method_url = max_acs_protocol_version
             .and_then(|acs_protocol_version| acs_protocol_version.three_ds_method_url);
         Ok(Self {
@@ -548,6 +549,7 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasAuthenticationConfirmat
     }
 }
 
+// ThreeDs request
 impl TryFrom<&UasPreAuthenticationRouterData>
     for UnifiedAuthenticationServicePreAuthenticateRequest
 {
@@ -642,6 +644,7 @@ impl TryFrom<&UasPreAuthenticationRouterData>
                     account_type: details.account_type,
                     card_expiry_month: details.card_expiry_month,
                     card_expiry_year: details.card_expiry_year,
+                    card_cvc: details.card_cvc,
                 }),
             auth_creds: auth_type,
             transaction_details: None,
@@ -661,6 +664,7 @@ pub enum UnifiedAuthenticationServiceAuthType {
         certificate: Secret<String>,
         private_key: Secret<String>,
     },
+    NoKey,
 }
 
 impl TryFrom<&ConnectorAuthType> for UnifiedAuthenticationServiceAuthType {
@@ -677,6 +681,7 @@ impl TryFrom<&ConnectorAuthType> for UnifiedAuthenticationServiceAuthType {
                 certificate: certificate.clone(),
                 private_key: private_key.clone(),
             }),
+            ConnectorAuthType::NoKey => Ok(Self::NoKey),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
     }
@@ -736,7 +741,7 @@ pub struct ThreeDsEligibilityResponse {
     pub scheme_id: Option<String>,
     pub acs_protocol_versions: Option<Vec<AcsProtocolVersion>>,
     pub ds_protocol_versions: Option<Vec<String>>,
-    pub three_ds_method_data_form: ThreeDsMethodDataForm,
+    pub three_ds_method_data_form: Option<ThreeDsMethodDataForm>,
     pub three_ds_method_data: Option<ThreeDsMethodData>,
     pub error_details: Option<String>,
     pub is_card_found_in_2x_ranges: bool,

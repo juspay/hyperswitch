@@ -304,8 +304,9 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
                     card_expiry_month: card.card_exp_month.clone(),
                     card_expiry_year: card.card_exp_year.clone(),
                     cardholder_name: card.card_holder_name.clone(),
-                    card_token_number: card.card_cvc.clone(),
+                    card_token_number: None,
                     account_type: None,
+                    card_cvc: Some(card.card_cvc.clone()),
                 })
             } else {
                 None
