@@ -6,7 +6,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
+    payment_method_data::{PaymentMethodData, WalletData},
     router_data::{ConnectorAuthType, PaymentMethodToken, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{
@@ -47,6 +47,8 @@ pub const CHARGE_AND_VAULT_TRANSACTION_MUTATION: &str ="mutation ChargeCreditCar
 pub const DELETE_PAYMENT_METHOD_FROM_VAULT_MUTATION: &str = "mutation deletePaymentMethodFromVault($input: DeletePaymentMethodFromVaultInput!) { deletePaymentMethodFromVault(input: $input) { clientMutationId } }";
 pub const TRANSACTION_QUERY: &str = "query($input: TransactionSearchInput!) { search { transactions(input: $input) { edges { node { id status } } } } }";
 pub const REFUND_QUERY: &str = "query($input: RefundSearchInput!) { search { refunds(input: $input, first: 1) { edges { node { id status createdAt amount { value currencyCode } orderId } } } } }";
+pub const CHARGE_PAYPAL_MUTATION: &str = "mutation Charge($input: ChargePaymentMethodInput!) { chargePaymentMethod(input: $input) { transaction { id status amount { value currencyCode } } } }";
+pub const CHARGE_GOOGLE_PAY_MUTATION: &str = "mutation ChargeGPay($input: ChargePaymentMethodInput!) { chargePaymentMethod(input: $input) { transaction { id status amount { value currencyCode } } } }";
 
 pub type CardPaymentRequest = GenericBraintreeRequest<VariablePaymentInput>;
 pub type MandatePaymentRequest = GenericBraintreeRequest<VariablePaymentInput>;
@@ -56,6 +58,7 @@ pub type BraintreeCaptureRequest = GenericBraintreeRequest<VariableCaptureInput>
 pub type BraintreeRefundRequest = GenericBraintreeRequest<BraintreeRefundVariables>;
 pub type BraintreePSyncRequest = GenericBraintreeRequest<PSyncInput>;
 pub type BraintreeRSyncRequest = GenericBraintreeRequest<RSyncInput>;
+pub type BraintreePayPalRequest = GenericBraintreeRequest<GenericVariableInput<PayPalPaymentInput>>;
 
 pub type BraintreeRefundResponse = GenericBraintreeResponse<RefundResponse>;
 pub type BraintreeCaptureResponse = GenericBraintreeResponse<CaptureResponse>;
@@ -68,6 +71,38 @@ pub type VariableCaptureInput = GenericVariableInput<CaptureInputData>;
 pub type BraintreeRefundVariables = GenericVariableInput<BraintreeRefundInput>;
 pub type PSyncInput = GenericVariableInput<TransactionSearchInput>;
 pub type RSyncInput = GenericVariableInput<RefundSearchInput>;
+
+pub type BraintreeGooglePayRequest =
+    GenericBraintreeRequest<GenericVariableInput<GooglePayPaymentInput>>;
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GooglePayTransactionBody {
+    amount: StringMajorUnit,
+    merchant_account_id: Secret<String>,
+    order_id: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PayPalTransactionBody {
+    amount: StringMajorUnit,
+    merchant_account_id: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GooglePayPaymentInput {
+    payment_method_id: String,
+    transaction: GooglePayTransactionBody,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PayPalPaymentInput {
+    payment_method_id: String,
+    transaction: PayPalTransactionBody,
+}
 
 #[derive(Debug, Clone, Serialize)]
 pub struct GenericBraintreeRequest<T> {
@@ -188,6 +223,8 @@ pub enum BraintreePaymentsRequest {
     Card(CardPaymentRequest),
     CardThreeDs(BraintreeClientTokenRequest),
     Mandate(MandatePaymentRequest),
+    GooglePay(BraintreeGooglePayRequest),
+    PayPal(BraintreePayPalRequest),
 }
 
 #[derive(Debug, Deserialize)]
@@ -342,8 +379,48 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
                     metadata,
                 ))?))
             }
+            PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
+                WalletData::GooglePay(ref req_wallet) => {
+                    let payment_method_id = req_wallet.tokenization_data.token.clone();
+
+                    Ok(Self::GooglePay(BraintreeGooglePayRequest {
+                        query: CHARGE_GOOGLE_PAY_MUTATION.to_string(),
+                        variables: GenericVariableInput {
+                            input: GooglePayPaymentInput {
+                                payment_method_id,
+                                transaction: GooglePayTransactionBody {
+                                    amount: item.amount.clone(),
+                                    merchant_account_id: metadata.merchant_account_id,
+                                    order_id: item
+                                        .router_data
+                                        .connector_request_reference_id
+                                        .clone(),
+                                },
+                            },
+                        },
+                    }))
+                }
+                WalletData::PaypalSdk(ref req_wallet) => {
+                    let payment_method_id = req_wallet.token.clone();
+                    Ok(Self::PayPal(BraintreePayPalRequest {
+                        query: CHARGE_PAYPAL_MUTATION.to_string(),
+                        variables: GenericVariableInput {
+                            input: PayPalPaymentInput {
+                                payment_method_id,
+                                transaction: PayPalTransactionBody {
+                                    amount: item.amount.clone(),
+                                    merchant_account_id: metadata.merchant_account_id,
+                                },
+                            },
+                        },
+                    }))
+                }
+                _ => Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("braintree"),
+                )
+                .into()),
+            },
             PaymentMethodData::CardRedirect(_)
-            | PaymentMethodData::Wallet(_)
             | PaymentMethodData::PayLater(_)
             | PaymentMethodData::BankRedirect(_)
             | PaymentMethodData::BankDebit(_)
@@ -415,6 +492,8 @@ pub enum BraintreeAuthResponse {
     AuthResponse(Box<AuthResponse>),
     ClientTokenResponse(Box<ClientTokenResponse>),
     ErrorResponse(Box<ErrorResponse>),
+    GooglePayResponse(Box<GooglePayPaymentsResponse>),
+    PayPalResponse(Box<PayPalPaymentsResponse>),
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -454,6 +533,7 @@ impl<F>
     > for RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
+
     fn try_from(
         item: ResponseRouterData<
             F,
@@ -468,14 +548,15 @@ impl<F>
                     .map_err(|err| *err),
                 ..item.data
             }),
+
             BraintreeAuthResponse::AuthResponse(auth_response) => {
                 let transaction_data = auth_response.data.authorize_credit_card.transaction;
                 let status = enums::AttemptStatus::from(transaction_data.status.clone());
                 let response = if utils::is_payment_failure(status) {
                     Err(hyperswitch_domain_models::router_data::ErrorResponse {
-                        code: transaction_data.status.to_string().clone(),
-                        message: transaction_data.status.to_string().clone(),
-                        reason: Some(transaction_data.status.to_string().clone()),
+                        code: transaction_data.status.to_string(),
+                        message: transaction_data.status.to_string(),
+                        reason: Some(transaction_data.status.to_string()),
                         attempt_status: None,
                         connector_transaction_id: Some(transaction_data.id),
                         status_code: item.http_code,
@@ -502,12 +583,14 @@ impl<F>
                         charges: None,
                     })
                 };
+
                 Ok(Self {
                     status,
                     response,
                     ..item.data
                 })
             }
+
             BraintreeAuthResponse::ClientTokenResponse(client_token_data) => Ok(Self {
                 status: enums::AttemptStatus::AuthenticationPending,
                 response: Ok(PaymentsResponseData::TransactionResponse {
@@ -527,6 +610,77 @@ impl<F>
                 }),
                 ..item.data
             }),
+
+            BraintreeAuthResponse::GooglePayResponse(gpay_response) => {
+                let txn = &gpay_response.data.charge_payment_method.transaction;
+                let status = enums::AttemptStatus::from(txn.status.clone());
+
+                let response = if utils::is_payment_failure(status) {
+                    Err(hyperswitch_domain_models::router_data::ErrorResponse {
+                        code: txn.status.to_string(),
+                        message: txn.status.to_string(),
+                        reason: Some(txn.status.to_string()),
+                        attempt_status: None,
+                        connector_transaction_id: Some(txn.id.clone()),
+                        status_code: item.http_code,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
+                    })
+                } else {
+                    Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(txn.id.clone()),
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
+                        charges: None,
+                    })
+                };
+
+                Ok(Self {
+                    status,
+                    response,
+                    ..item.data
+                })
+            }
+            BraintreeAuthResponse::PayPalResponse(paypal_response) => {
+                let txn = &paypal_response.data.charge_payment_method.transaction;
+                let status = enums::AttemptStatus::from(txn.status.clone());
+
+                let response = if utils::is_payment_failure(status) {
+                    Err(hyperswitch_domain_models::router_data::ErrorResponse {
+                        code: txn.status.to_string(),
+                        message: txn.status.to_string(),
+                        reason: Some(txn.status.to_string()),
+                        attempt_status: None,
+                        connector_transaction_id: Some(txn.id.clone()),
+                        status_code: item.http_code,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
+                    })
+                } else {
+                    Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(txn.id.clone()),
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
+                        charges: None,
+                    })
+                };
+
+                Ok(Self {
+                    status,
+                    response,
+                    ..item.data
+                })
+            }
         }
     }
 }
@@ -713,6 +867,82 @@ impl<F>
                 }),
                 ..item.data
             }),
+            BraintreePaymentsResponse::GooglePayResponse(google_pay_payments_response) => {
+                let txn = &google_pay_payments_response
+                    .data
+                    .charge_payment_method
+                    .transaction;
+                let status = enums::AttemptStatus::from(txn.status.clone());
+
+                let response = if utils::is_payment_failure(status) {
+                    Err(hyperswitch_domain_models::router_data::ErrorResponse {
+                        code: txn.status.to_string(),
+                        message: txn.status.to_string(),
+                        reason: Some(txn.status.to_string()),
+                        attempt_status: None,
+                        connector_transaction_id: Some(txn.id.clone()),
+                        status_code: item.http_code,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
+                    })
+                } else {
+                    Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(txn.id.clone()),
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
+                        charges: None,
+                    })
+                };
+
+                Ok(Self {
+                    status,
+                    response,
+                    ..item.data
+                })
+            }
+            BraintreePaymentsResponse::PayPalResponse(paypal_payments_response) => {
+                let txn = &paypal_payments_response
+                    .data
+                    .charge_payment_method
+                    .transaction;
+                let status = enums::AttemptStatus::from(txn.status.clone());
+
+                let response = if utils::is_payment_failure(status) {
+                    Err(hyperswitch_domain_models::router_data::ErrorResponse {
+                        code: txn.status.to_string(),
+                        message: txn.status.to_string(),
+                        reason: Some(txn.status.to_string()),
+                        attempt_status: None,
+                        connector_transaction_id: Some(txn.id.clone()),
+                        status_code: item.http_code,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
+                    })
+                } else {
+                    Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(txn.id.clone()),
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
+                        charges: None,
+                    })
+                };
+
+                Ok(Self {
+                    status,
+                    response,
+                    ..item.data
+                })
+            }
         }
     }
 }
@@ -736,6 +966,7 @@ impl<F>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
+        println!("$$$ here 2");
         match item.response {
             BraintreeCompleteChargeResponse::ErrorResponse(error_response) => Ok(Self {
                 response: build_error_response(&error_response.errors.clone(), item.http_code)
@@ -861,9 +1092,73 @@ pub struct PaymentsResponse {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct GooglePayPaymentsResponse {
+    pub data: GooglePayDataResponse,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GooglePayDataResponse {
+    pub charge_payment_method: GooglePayTransactionWrapper,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct GooglePayTransactionWrapper {
+    pub transaction: GooglePayTransaction,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GooglePayTransaction {
+    pub id: String,
+    pub status: BraintreePaymentStatus,
+    pub amount: GooglePayAmount,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PayPalTransaction {
+    pub id: String,
+    pub status: BraintreePaymentStatus,
+    pub amount: PayPalAmount,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PayPalAmount {
+    pub value: String,
+    pub currency_code: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GooglePayAmount {
+    pub value: String,
+    pub currency_code: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct PayPalPaymentsResponse {
+    pub data: PayPalDataResponse,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PayPalDataResponse {
+    pub charge_payment_method: PayPalTransactionWrapper,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct PayPalTransactionWrapper {
+    pub transaction: PayPalTransaction,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum BraintreePaymentsResponse {
     PaymentsResponse(Box<PaymentsResponse>),
+    GooglePayResponse(Box<GooglePayPaymentsResponse>),
+    PayPalResponse(Box<PayPalPaymentsResponse>),
     ClientTokenResponse(Box<ClientTokenResponse>),
     ErrorResponse(Box<ErrorResponse>),
 }
@@ -976,7 +1271,6 @@ pub struct BraintreeRefundTransactionBody {
     pub id: String,
     pub status: BraintreeRefundStatus,
 }
-
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct BraintreeRefundTransaction {
     pub refund: BraintreeRefundTransactionBody,
