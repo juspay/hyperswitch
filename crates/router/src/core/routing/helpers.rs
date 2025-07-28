@@ -8,7 +8,6 @@ use std::str::FromStr;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use std::sync::Arc;
 
-#[allow(clippy::too_many_arguments)]
 #[cfg(feature = "v1")]
 use api_models::open_router;
 use api_models::routing as routing_types;
@@ -2019,6 +2018,7 @@ pub async fn enable_dynamic_routing_algorithm(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub async fn enable_specific_routing_algorithm<A>(
     state: &SessionState,
