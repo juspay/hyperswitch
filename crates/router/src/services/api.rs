@@ -350,6 +350,8 @@ where
                                             error_res
                                         }
                                         _ => {
+                                            // Dwolla creates a funding source ID using account details and if the same details are used again, it returns a 400 error with the funding source ID in the response.
+                                            // We handle this 400 as a success case and extract the funding source ID.
                                             if req.connector == "dwolla"
                                                 && body.status_code == 400
                                                 && std::any::type_name::<T>()
