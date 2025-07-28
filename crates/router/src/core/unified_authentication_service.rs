@@ -919,12 +919,23 @@ pub async fn authentication_eligibility_core(
         .await?;
 
     let notification_url = match authentication_connector {
-        common_enums::AuthenticationConnectors::Juspaythreedsserver => Some(format!(
-            "{base_url}/{authentication_id}/sync",
-            base_url = state.base_url,
-            authentication_id = authentication_id.get_string_repr()
-        )),
-        _ => authentication.return_url.clone(),
+        common_enums::AuthenticationConnectors::Juspaythreedsserver => {
+            Some(url::Url::parse(&format!(
+                "{base_url}/{authentication_id}/sync",
+                base_url = state.base_url,
+                authentication_id = authentication_id.get_string_repr()
+            )))
+            .transpose()
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse notification url")?
+        }
+        _ => authentication
+            .return_url
+            .as_ref()
+            .map(|url| url::Url::parse(url))
+            .transpose()
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse return url")?,
     };
 
     let authentication_connector_name = authentication_connector.to_string();

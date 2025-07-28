@@ -197,7 +197,7 @@ pub struct MerchantDetails {
     pub three_ds_requestor_id: Option<String>,
     pub three_ds_requestor_name: Option<String>,
     pub merchant_country_code: Option<MerchantCountryCode>,
-    pub notification_url: Option<String>,
+    pub notification_url: Option<url::Url>,
 }
 
 #[derive(Default, Clone, Debug, Serialize, PartialEq, Deserialize)]
