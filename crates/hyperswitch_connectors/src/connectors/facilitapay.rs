@@ -816,28 +816,11 @@ impl webhooks::IncomingWebhook for Facilitapay {
                 .clone(),
         };
 
-        // Check if this is a refund event
-        let is_refund = matches!(
-            (
-                &webhook_body.notification.data,
-                &webhook_body.notification.event_type
-            ),
-            (
-                responses::FacilitapayWebhookData::Transaction { .. }
-                    | responses::FacilitapayWebhookData::CardPayment { .. },
-                FacilitapayWebhookEventType::PaymentRefunded
-            )
-        );
-
-        Ok(if is_refund {
-            api_models::webhooks::ObjectReferenceId::RefundId(
-                api_models::webhooks::RefundIdType::ConnectorRefundId(transaction_id),
-            )
-        } else {
-            api_models::webhooks::ObjectReferenceId::PaymentId(
-                api_models::payments::PaymentIdType::ConnectorTransactionId(transaction_id),
-            )
-        })
+        // For refund webhooks, Facilitapay sends the original payment transaction ID
+        // not the refund transaction ID
+        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+            api_models::payments::PaymentIdType::ConnectorTransactionId(transaction_id),
+        ))
     }
 
     fn get_webhook_event_type(
@@ -920,7 +903,6 @@ lazy_static! {
     };
     static ref FACILITAPAY_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = vec![
         enums::EventClass::Payments,
-        enums::EventClass::Refunds,
     ];
 }
 
