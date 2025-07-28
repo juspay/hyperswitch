@@ -159,6 +159,32 @@ crates/router/tests/connectors/
 
 As you build your connector, you'll encounter several types of payment flows. While not an exhaustive list, the following are some of the most common patterns you'll come across. Please review the [Connector Payment Flow](#) documentation for more details.
 
+### Payment Flow Types Summary
+Below is a description of the flow types and where you can review the implementation details:
+
+| Flow Name         | Description                                      | Implementation in Hyperswitch                                                                                     |
+|-------------------|--------------------------------------------------|-------------------------------------------------------------------------------------------------------------------|
+| Access Token      | Obtain OAuth access token                        | `crates/router/src/types.rs:34` — `AccessTokenAuth` flow type for connector authentication                         |
+| Tokenization      | Exchange credentials for a payment token         | `crates/hyperswitch_interfaces/src/types.rs:14` — `PaymentMethodToken` flow for secure token creation              |
+| Customer Creation | Create or update customer records                | `crates/router/src/types.rs:40` — `CreateConnectorCustomer` flow for PSP customer management                       |
+| Pre-Processing    | Any validation or enrichment before auth         | `crates/router/src/types.rs:41` — `PreProcessing` flow for 3DS enrollment, validation, etc.                       |
+| Authorization     | Authorize and immediately capture payment        | `crates/router/src/types.rs:39` — `Authorize` flow with automatic capture                                         |
+| Authorization-Only| Authorize payment for later capture              | `crates/router/src/types.rs:39` — `Authorize` flow with manual capture method                                     |
+| Capture           | Capture a previously authorized payment          | `crates/router/src/types.rs:39` — `Capture` flow for settling authorized payments                                 |
+| Refund            | Issue a refund                                   | `crates/router/src/types.rs:44` — Execute and RSync refund flows                                                  |
+| Webhook Handling  | Process asynchronous events from PSP             | `crates/router/src/types.rs:45` — `VerifyWebhookSource` for processing PSP notifications                         |
+
+### Flow Type Definitions
+
+Each flow type corresponds to specific request/response data structures and connector integration patterns. All flows follow a standardized pattern with associated:
+
+- **Request data types** (e.g., `PaymentsAuthorizeData`)
+- **Response data types** (e.g., `PaymentsResponseData`)
+- **Router data wrappers** for connector communication
+
+> 💡 Note: Billwerk uses a tokenization-first pattern, but most PSPs support direct authorization flows. Hyperswitch accommodates both through its modular flow architecture.
+
+
 ## Integrate a New Connector
 
 Integrating a connector is mainly an API integration task. You'll define request and response types and implement required traits.
@@ -170,6 +196,7 @@ This section covers card payments via Billwerk. Review the API reference and tes
 1. **To generate Rust types from your connector’s OpenAPI or JSON schema, you’ll need to install the [OpenAPI Generator](https://openapi-generator.tech/).**
 
 **Example (macOS using Homebrew)**:
+
 ```bash
 brew install openapi-generator
 ```
@@ -337,9 +364,20 @@ The enum uses `#[serde(rename_all = "lowercase")]` to automatically handle JSON 
 
 **Implement Status Conversion**
 
-Implement From<ConnectorStatus> for Hyperswitch’s `AttemptStatus` enum:
+Implement From<ConnectorStatus> for Hyperswitch’s `AttemptStatus` enum. Below is an example implementation:
 
 ```rs
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum BillwerkPaymentState {
+    Created,
+    Authorized,
+    Pending,
+    Settled,
+    Failed,
+    Cancelled,
+}
+
 impl From<BillwerkPaymentState> for enums::AttemptStatus {
     fn from(item: BillwerkPaymentState) -> Self {
         match item {
@@ -353,6 +391,7 @@ impl From<BillwerkPaymentState> for enums::AttemptStatus {
 }
 
 ```
+
 | Connector Status       | Hyperswitch Status            | Description                          |
 |------------------------|-------------------------------|--------------------------------------|
 | `Created`, `Pending`   | `AttemptStatus::Pending`      | Payment is being processed           |
@@ -362,6 +401,180 @@ impl From<BillwerkPaymentState> for enums::AttemptStatus {
 | `Cancelled`            | `AttemptStatus::Voided`       | Payment was cancelled/voided         |
 
 > **Note:** Default status should be `Pending`. Only explicit success or failure from the connector should mark the payment as `Charged` or `Failure`.
+
+3. **Mapping Billwerk API Responses (or any PSPs) to Hyperswitch Internal Specification**
+
+Billwerk, like most payment service providers (PSPs), has its own proprietary API response format with custom fields, naming conventions, and nested structures. However, Hyperswitch is designed to be connector-agnostic: it expects all connectors to normalize external data into a consistent internal format, so it can process payments uniformly across all supported PSPs.
+
+The response struct acts as the translator between these two systems. This process ensures that regardless of which connector you're using, Hyperswitch can process payment responses consistently.
+
+```rs
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct BillwerkPaymentsResponse {
+    state: BillwerkPaymentState,
+    handle: String,
+    error: Option<String>,
+    error_state: Option<String>,
+}
+```
+**Key Fields Explained**:
+
+- **state**: Payment status using the enum we defined earlier
+- **handle**: Billwerk's unique transaction identifier
+- **error & error_state**: Optional error information for failure scenarios
+
+
+The `try_from` function converts connector-specific, like Billwerk, response data into Hyperswitch's standardized format: 
+
+```rs
+impl<F, T> TryFrom<ResponseRouterData<F, BillwerkPaymentsResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, BillwerkPaymentsResponse, T, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let error_response = if item.response.error.is_some() || item.response.error_state.is_some()
+        {
+            Some(ErrorResponse {
+                code: item
+                    .response
+                    .error_state
+                    .clone()
+                    .unwrap_or(NO_ERROR_CODE.to_string()),
+                message: item
+                    .response
+                    .error_state
+                    .unwrap_or(NO_ERROR_MESSAGE.to_string()),
+                reason: item.response.error,
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: Some(item.response.handle.clone()),
+            })
+        } else {
+            None
+        };
+        let payments_response = PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::ConnectorTransactionId(item.response.handle.clone()),
+            redirection_data: Box::new(None),
+            mandate_reference: Box::new(None),
+            connector_metadata: None,
+            network_txn_id: None,
+            connector_response_reference_id: Some(item.response.handle),
+            incremental_authorization_allowed: None,
+            charges: None,
+        };
+        Ok(Self {
+            status: enums::AttemptStatus::from(item.response.state),
+            response: error_response.map_or_else(|| Ok(payments_response), Err),
+            ..item.data
+        })
+    }
+}
+```
+**Transformation Logic**:
+
+- **Error Handling**: Checks for error conditions first and creates appropriate error responses
+- **Status Mapping**: Converts BillwerkPaymentState to standardized AttemptStatus using our enum mapping
+- **Data Extraction**: Maps PSP-specific fields to Hyperswitch's PaymentsResponseData structure
+- **Metadata Preservation**: Ensures important transaction details are retained
+
+**Critical Response Fields**
+
+The transformation populates these essential Hyperswitch fields:
+
+- **resource_id**: Maps to connector transaction ID for future operations
+- **connector_response_reference_id**: Preserves PSP's reference for dashboard linking
+- **status**: Standardized payment status for consistent processing
+- **redirection_data**: Handles 3DS or other redirect flows
+- **network_txn_id**: Captures network-level transaction identifiers
+
+
+**Field Mapping Patterns**:
+
+Each critical response field requires specific implementation patterns to ensure consistent behavior across all Hyperswitch connectors. 
+
+- **connector_request_reference_id**: This field carries the merchant’s reference ID and is populated during request construction. It is sent to the PSP to support end-to-end transaction traceability.
+
+```rs
+reference: item.router_data.connector_request_reference_id.clone(),
+```
+
+- **connector_response_reference_id**: Stores the payment processor’s transaction reference and is used for downstream reconciliation and dashboard visibility. Prefer the PSP's designated reference field if available; otherwise, fall back to the transaction ID. This ensures accurate linkage across merchant dashboards, support tools, and internal systems.
+
+
+```rs
+connector_response_reference_id: item.response.reference.or(Some(item.response.id)),
+```
+
+- **resource_id**: Defines the primary resource identifier used for subsequent operations such as captures, refunds, and syncs. Typically sourced from the connector’s transaction ID. If the transaction ID is unavailable, use ResponseId::NoResponseId as a fallback to preserve type safety.
+
+```rs
+`resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
+```
+
+- **redirection_data**: Captures redirection details required for authentication flows such as 3DS. If the connector provides a redirect URL, populate this field accordingly. For advanced flows involving form submissions, construct a `RedirectForm::Form` using the target endpoint, HTTP method, and form fields.
+
+```rs
+let redirection_data = item.response.links.redirect.map(|href| {  
+    services::RedirectForm::from((href.redirection_url, services::Method::Get))  
+});
+```
+
+- **network_txn_id**: Stores the transaction identifier issued by the underlying payment network (e.g., Visa, Mastercard). This field is optional but highly useful for advanced reconciliation, chargeback handling, and network-level dispute resolution—especially when the network ID differs from the PSP’s transaction ID.
+
+```rs
+network_txn_id: item.response.network_transaction_id.clone(),
+```
+
+4. **Error Handling in Hyperswitch Connectors**
+
+Hyperswitch connectors implement a structured error-handling mechanism that categorizes HTTP error responses by type. By distinguishing between client-side errors (4xx) and server-side errors (5xx), the system enables more precise handling strategies tailored to the source of the failure.
+
+**Error Response Structure**
+
+Billwerk defines its error response format to capture failure information from API calls. You can find this in the `transformer.rs` file:
+
+```rs
+#[derive(Debug, Serialize, Deserialize)]
+pub struct BillwerkErrorResponse {
+    pub code: Option<i32>,
+    pub error: String,
+    pub message: Option<String>,
+}
+```
+
+- **code**: Optional integer error code from Billwerk
+- **error**: Required string describing the error
+- **message**: Optional additional error messagecode: Optional integer error code from Billwerk
+- **error**: Required string describing the error
+message: Optional additional error message
+
+**Error Handling Methods**
+
+Hyperswitch uses separate methods for different HTTP error types:
+
+- **4xx Client Errors**: `get_error_response` handles authentication failures, validation errors, and malformed requests. You can see the details here: `crates/hyperswitch_connectors/src/connectors/billwerk.rs`
+
+- **5xx Server Errors**: `get_5xx_error_response` handles internal server errors with potential retry logic. You can see the details here: `crates/hyperswitch_connectors/src/connectors/billwerk.rs`
+
+Both methods delegate to `build_error_response` for consistent processing.
+
+**Error Processing Flow**
+
+The `build_error_response` method transforms PSP-specific errors into Hyperswitch's standardized format. You can find the details here: `crates/hyperswitch_connectors/src/connectors/billwerk.rs`. It does this:
+
+- **Parse**: Deserialize HTTP response into `BillwerkErrorResponse`
+- **Log**: Record response for debugging
+- **Transform**: Map to Hyperswitch's `ErrorResponse` with standardized fields
+- **Apply**: Use across all payment flows (authorize, capture, refund, etc.)
+Automatic Routing
+
+Hyperswitch's core API automatically routes errors based on HTTP status codes. You an find the details here: `crates/router/src/services/api.rs`.
+
+- 4xx → `get_error_response`
+- 5xx → `get_5xx_error_response`
+- 2xx → `handle_response` (success)
 
 
 
@@ -373,8 +586,6 @@ impl From<BillwerkPaymentState> for enums::AttemptStatus {
 
 
 --
-
-
 ## Test the Connector Integration
 After successfully creating your connector using the `add_connector.sh` script, you need to configure authentication credentials and test the integration. This section covers the complete testing setup process.
 
