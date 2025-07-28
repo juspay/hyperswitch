@@ -18,11 +18,11 @@ pub struct WorldpayPaymentsResponse {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum WorldpayPaymentResponseFields {
-    AuthorizedResponse(Box<AuthorizedResponse>),
-    DDCResponse(DDCResponse),
-    FraudHighRisk(FraudHighRiskResponse),
     RefusedResponse(RefusedResponse),
+    DDCResponse(DDCResponse),
     ThreeDsChallenged(ThreeDsChallengedResponse),
+    FraudHighRisk(FraudHighRiskResponse),
+    AuthorizedResponse(Box<AuthorizedResponse>),
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

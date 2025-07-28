@@ -74,9 +74,11 @@ pub enum RoutableConnectors {
     Bluesnap,
     Boku,
     Braintree,
+    Breadpay,
     Cashtocode,
     Celero,
     Chargebee,
+    Custombilling,
     // Checkbook,
     Checkout,
     Coinbase,
@@ -234,6 +236,7 @@ pub enum Connector {
     Bluesnap,
     Boku,
     Braintree,
+    Breadpay,
     Cashtocode,
     Celero,
     Chargebee,
@@ -241,6 +244,7 @@ pub enum Connector {
     Checkout,
     Coinbase,
     Coingate,
+    Custombilling,
     Cryptopay,
     CtpMastercard,
     CtpVisa,
@@ -421,6 +425,7 @@ impl Connector {
             | Self::Bluesnap
             | Self::Boku
             | Self::Braintree
+            | Self::Breadpay
             | Self::Cashtocode
             | Self::Celero
             | Self::Chargebee
@@ -428,6 +433,7 @@ impl Connector {
             | Self::Coinbase
             | Self::Coingate
             | Self::Cryptopay
+            | Self::Custombilling
             | Self::Deutschebank
             | Self::Digitalvirgo
             | Self::Dlocal
@@ -586,9 +592,11 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Bluesnap => Self::Bluesnap,
             RoutableConnectors::Boku => Self::Boku,
             RoutableConnectors::Braintree => Self::Braintree,
+            RoutableConnectors::Breadpay => Self::Breadpay,
             RoutableConnectors::Cashtocode => Self::Cashtocode,
             RoutableConnectors::Celero => Self::Celero,
             RoutableConnectors::Chargebee => Self::Chargebee,
+            RoutableConnectors::Custombilling => Self::Custombilling,
             // RoutableConnectors::Checkbook => Self::Checkbook,
             RoutableConnectors::Checkout => Self::Checkout,
             RoutableConnectors::Coinbase => Self::Coinbase,
@@ -709,6 +717,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Bluesnap => Ok(Self::Bluesnap),
             Connector::Boku => Ok(Self::Boku),
             Connector::Braintree => Ok(Self::Braintree),
+            Connector::Breadpay => Ok(Self::Breadpay),
             Connector::Cashtocode => Ok(Self::Cashtocode),
             Connector::Celero => Ok(Self::Celero),
             Connector::Chargebee => Ok(Self::Chargebee),
@@ -717,6 +726,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Coinbase => Ok(Self::Coinbase),
             Connector::Coingate => Ok(Self::Coingate),
             Connector::Cryptopay => Ok(Self::Cryptopay),
+            Connector::Custombilling => Ok(Self::Custombilling),
             Connector::Cybersource => Ok(Self::Cybersource),
             Connector::Datatrans => Ok(Self::Datatrans),
             Connector::Deutschebank => Ok(Self::Deutschebank),
