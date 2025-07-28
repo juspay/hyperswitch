@@ -31,8 +31,8 @@ use hyperswitch_domain_models::{
         SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
-        ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
-        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
+        ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
+        PaymentsCaptureRouterData, PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -50,7 +50,7 @@ use lazy_static::lazy_static;
 use masking::{ExposeInterface, Mask, PeekInterface};
 use requests::{
     FacilitapayAuthRequest, FacilitapayCustomerRequest, FacilitapayPaymentsRequest,
-    FacilitapayRefundRequest, FacilitapayRouterData,
+    FacilitapayRouterData,
 };
 use responses::{
     FacilitapayAuthResponse, FacilitapayCustomerResponse, FacilitapayPaymentsResponse,
@@ -59,6 +59,7 @@ use responses::{
 use transformers::parse_facilitapay_error_response;
 
 use crate::{
+    connectors::facilitapay::responses::FacilitapayVoidResponse,
     constants::headers,
     types::{RefreshTokenRouterData, ResponseRouterData},
     utils::{self, RefundsRequestData},
@@ -582,12 +583,10 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     }
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Facilitapay {}
-
-impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Facilitapay {
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Facilitapay {
     fn get_headers(
         &self,
-        req: &RefundsRouterData<Execute>,
+        req: &PaymentsCancelRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
@@ -599,17 +598,60 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Facilit
 
     fn get_url(
         &self,
-        req: &RefundsRouterData<Execute>,
+        req: &PaymentsCancelRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}/transactions/{}/refund_received_transaction",
+            "{}/transactions/{}/refund",
             self.base_url(connectors),
             req.request.connector_transaction_id
         ))
     }
 
-    fn get_request_body(
+    fn build_request(
+        &self,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Get)
+            .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
+            .build();
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsCancelRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsCancelRouterData, errors::ConnectorError> {
+        let response: FacilitapayVoidResponse = res
+            .response
+            .parse_struct("FacilitapayCancelResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Facilitapay {
+    fn get_headers(
         &self,
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,

@@ -11,8 +11,11 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{BankTransferData, PaymentMethodData},
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
-    router_flow_types::refunds::{Execute, RSync},
-    router_request_types::ResponseId,
+    router_flow_types::{
+        payments::Void,
+        refunds::{Execute, RSync},
+    },
+    router_request_types::{PaymentsCancelData, ResponseId},
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types,
 };
@@ -32,7 +35,7 @@ use super::{
     },
     responses::{
         FacilitapayAuthResponse, FacilitapayCustomerResponse, FacilitapayPaymentStatus,
-        FacilitapayPaymentsResponse, FacilitapayRefundResponse,
+        FacilitapayPaymentsResponse, FacilitapayRefundResponse, FacilitapayVoidResponse,
     },
 };
 use crate::{
@@ -518,6 +521,49 @@ impl From<FacilitapayPaymentStatus> for enums::RefundStatus {
             FacilitapayPaymentStatus::Cancelled => Self::Failure,
             FacilitapayPaymentStatus::Pending => Self::Pending,
         }
+    }
+}
+
+// Void (cancel unprocessed payment) transformer
+impl TryFrom<ResponseRouterData<Void, FacilitapayVoidResponse, PaymentsCancelData, PaymentsResponseData>>
+    for RouterData<Void, PaymentsCancelData, PaymentsResponseData>
+{
+    type Error = Error;
+    fn try_from(
+        item: ResponseRouterData<Void, FacilitapayVoidResponse, PaymentsCancelData, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let status = common_enums::AttemptStatus::from(item.response.data.status.clone());
+
+        Ok(Self {
+            status,
+            response: if is_payment_failure(status) {
+                Err(ErrorResponse {
+                    code: item.response.data.status.clone().to_string(),
+                    message: item.response.data.status.clone().to_string(),
+                    reason: item.response.data.reason,
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: Some(item.response.data.void_id.clone()),
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                })
+            } else {
+                Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(
+                        item.response.data.void_id.clone(),
+                    ),
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: Some(item.response.data.void_id),
+                    incremental_authorization_allowed: None,
+                    charges: None,
+                })
+            },
+            ..item.data
+        })
     }
 }
 

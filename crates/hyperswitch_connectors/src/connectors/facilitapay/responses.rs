@@ -205,13 +205,53 @@ pub struct TransactionData {
     pub meta: Option<serde_json::Value>,
 }
 
+// Void response structures (for /refund endpoint)
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RefundData {
+pub struct VoidBankTransaction {
     #[serde(rename = "id")]
-    pub refund_id: String,
-    pub status: FacilitapayPaymentStatus,
+    pub transaction_id: String,
+    pub value: StringMajorUnit,
+    pub currency: api_models::enums::Currency,
+    pub iof_value: Option<StringMajorUnit>,
+    pub fx_value: Option<StringMajorUnit>,
+    pub exchange_rate: Option<StringMajorUnit>,
+    pub exchange_currency: api_models::enums::Currency,
+    pub exchanged_value: StringMajorUnit,
+    pub exchange_approved: bool,
+    pub wire_id: Option<String>,
+    pub exchange_id: Option<String>,
+    pub movement_date: String,
+    pub source_name: Secret<String>,
+    pub source_document_number: Secret<String>,
+    pub source_document_type: String,
+    pub source_id: String,
+    pub source_type: String,
+    pub source_description: String,
+    pub source_bank: Option<String>,
+    pub source_branch: Option<String>,
+    pub source_account: Option<String>,
+    pub source_bank_ispb: Option<String>,
+    pub company_id: String,
+    pub company_name: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VoidData {
+    #[serde(rename = "id")]
+    pub void_id: String,
+    pub reason: Option<String>,
+    pub inserted_at: String,
+    pub status: FacilitapayPaymentStatus,
+    pub transaction_kind: String,
+    pub bank_transaction: VoidBankTransaction,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FacilitapayVoidResponse {
+    pub data: VoidData,
+}
+
+// Refund response uses the same TransactionData structure as payments
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FacilitapayRefundResponse {
     pub data: TransactionData,
