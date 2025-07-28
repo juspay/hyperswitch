@@ -3525,7 +3525,7 @@ dependencies = [
 [[package]]
 name = "grpc-api-types"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=a9f7cd96693fa034ea69d8e21125ea0f76182fae#a9f7cd96693fa034ea69d8e21125ea0f76182fae"
+source = "git+https://github.com/juspay/connector-service?branch=ai-cryptopay#9ccfae8101a4969bbf780a1ed6f3df507fc445cd"
 dependencies = [
  "axum 0.8.4",
  "error-stack 0.5.0",
@@ -6899,7 +6899,7 @@ dependencies = [
 [[package]]
 name = "rust-grpc-client"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=a9f7cd96693fa034ea69d8e21125ea0f76182fae#a9f7cd96693fa034ea69d8e21125ea0f76182fae"
+source = "git+https://github.com/juspay/connector-service?branch=ai-cryptopay#9ccfae8101a4969bbf780a1ed6f3df507fc445cd"
 dependencies = [
  "grpc-api-types",
 ]
