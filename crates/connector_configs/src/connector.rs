@@ -282,6 +282,7 @@ pub struct ConnectorConfig {
     pub dummy_connector: Option<ConnectorTomlConfig>,
     pub stripe_test: Option<ConnectorTomlConfig>,
     pub paypal_test: Option<ConnectorTomlConfig>,
+    pub peachpayments: Option<ConnectorTomlConfig>,
     pub zen: Option<ConnectorTomlConfig>,
     pub zsl: Option<ConnectorTomlConfig>,
     pub taxjar: Option<ConnectorTomlConfig>,
@@ -478,6 +479,7 @@ impl ConnectorConfig {
             Connector::Netcetera => Ok(connector_data.netcetera),
             Connector::CtpMastercard => Ok(connector_data.ctp_mastercard),
             Connector::Xendit => Ok(connector_data.xendit),
+            Connector::Peachpayments => Ok(connector_data.peachpayments),
         }
     }
 }
