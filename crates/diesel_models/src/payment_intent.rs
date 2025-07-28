@@ -11,10 +11,9 @@ use crate::schema::payment_intent;
 use crate::schema_v2::payment_intent;
 #[cfg(feature = "v2")]
 use crate::types::{FeatureMetadata, OrderDetailsWithAmount};
-use crate::{
-    business_profile::PaymentLinkBackgroundImageConfig, enums as storage_enums,
-    RequiredFromNullable,
-};
+#[cfg(feature = "v2")]
+use crate::RequiredFromNullable;
+use crate::{business_profile::PaymentLinkBackgroundImageConfig, enums as storage_enums};
 crate::impl_from_required_from_nullable!(
     storage_enums::Currency,
     common_utils::id_type::ProfileId,

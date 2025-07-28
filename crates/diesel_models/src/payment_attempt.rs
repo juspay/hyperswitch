@@ -39,6 +39,7 @@ impl ConnectorMandateReferenceId {
     }
 }
 
+#[cfg(feature = "v2")]
 use crate::RequiredFromNullable;
 
 #[cfg(feature = "v2")]
