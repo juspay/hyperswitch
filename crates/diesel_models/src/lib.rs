@@ -159,6 +159,29 @@ pub(crate) mod diesel_impl {
             }
         }
     }
+
+    pub struct RequiredFromNullableWithDefault<T>(T);
+
+    impl<T, ST, DB> Queryable<Nullable<ST>, DB> for RequiredFromNullableWithDefault<T>
+    where
+        DB: diesel::backend::Backend,
+        T: Queryable<ST, DB>,
+        T: Default,
+        Option<T::Row>: FromSql<Nullable<ST>, DB>,
+        ST: diesel::sql_types::SingleValue,
+    {
+        type Row = Option<T::Row>;
+
+        fn build(row: Self::Row) -> diesel::deserialize::Result<Self> {
+            match row {
+                Some(inner_row) => {
+                    let value = T::build(inner_row)?;
+                    Ok(RequiredFromNullableWithDefault(value))
+                }
+                None => Ok(RequiredFromNullableWithDefault(T::default())),
+            }
+        }
+    }
 }
 
 pub(crate) mod metrics {
