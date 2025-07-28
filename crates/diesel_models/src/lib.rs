@@ -154,7 +154,7 @@ pub(crate) mod diesel_impl {
             match row {
                 Some(inner_row) => {
                     let value = T::build(inner_row)?;
-                    Ok(RequiredFromNullable(value))
+                    Ok(Self(value))
                 }
                 None => Err("Cannot deserialize NULL value for required field. Check if the database column that should not be NULL contains a NULL value.".into()),
             }
@@ -184,9 +184,9 @@ pub(crate) mod diesel_impl {
             match row {
                 Some(inner_row) => {
                     let value = T::build(inner_row)?;
-                    Ok(RequiredFromNullableWithDefault(value))
+                    Ok(Self(value))
                 }
-                None => Ok(RequiredFromNullableWithDefault(T::default())),
+                None => Ok(Self(T::default())),
             }
         }
     }

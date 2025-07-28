@@ -66,12 +66,6 @@ impl MerchantConnectorAccount {
 
 #[cfg(feature = "v2")]
 use crate::RequiredFromNullable;
-#[cfg(feature = "v2")]
-impl From<RequiredFromNullable<id_type::ProfileId>> for id_type::ProfileId {
-    fn from(wrapper: RequiredFromNullable<id_type::ProfileId>) -> Self {
-        wrapper.into_inner()
-    }
-}
 
 #[cfg(feature = "v2")]
 #[derive(
