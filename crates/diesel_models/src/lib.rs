@@ -155,7 +155,7 @@ pub(crate) mod diesel_impl {
                     let value = T::build(inner_row)?;
                     Ok(RequiredFromNullable(value))
                 }
-                None => Err("Cannot deserialize NULL value for required field".into()),
+                None => Err("Cannot deserialize NULL value for required field. Check if the database column that should not be NULL contains a NULL value.".into()),
             }
         }
     }
