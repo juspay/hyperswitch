@@ -16,7 +16,11 @@ use crate::enums as storage_enums;
 use crate::schema::payment_attempt;
 #[cfg(feature = "v2")]
 use crate::schema_v2::payment_attempt;
-
+crate::impl_from_required_from_nullable!(
+    storage_enums::AuthenticationType,
+    MinorUnit,
+    storage_enums::PaymentMethod
+);
 common_utils::impl_to_sql_from_sql_json!(ConnectorMandateReferenceId);
 #[derive(
     Clone, Debug, serde::Deserialize, serde::Serialize, Eq, PartialEq, diesel::AsExpression,
@@ -35,6 +39,8 @@ impl ConnectorMandateReferenceId {
     }
 }
 
+use crate::RequiredFromNullable;
+
 #[cfg(feature = "v2")]
 #[derive(
     Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize, Selectable,
@@ -48,6 +54,7 @@ pub struct PaymentAttempt {
     pub error_message: Option<String>,
     pub surcharge_amount: Option<MinorUnit>,
     pub payment_method_id: Option<id_type::GlobalPaymentMethodId>,
+    #[diesel(deserialize_as = RequiredFromNullable<storage_enums::AuthenticationType>)]
     pub authentication_type: storage_enums::AuthenticationType,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
@@ -73,6 +80,7 @@ pub struct PaymentAttempt {
     pub encoded_data: Option<masking::Secret<String>>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
+    #[diesel(deserialize_as = RequiredFromNullable<MinorUnit>)]
     pub net_amount: MinorUnit,
     pub external_three_ds_authentication_attempted: Option<bool>,
     pub authentication_connector: Option<String>,
@@ -94,6 +102,7 @@ pub struct PaymentAttempt {
     pub processor_merchant_id: Option<id_type::MerchantId>,
     pub created_by: Option<String>,
     pub connector_request_reference_id: Option<String>,
+    #[diesel(deserialize_as = RequiredFromNullable<storage_enums::PaymentMethod>)]
     pub payment_method_type_v2: storage_enums::PaymentMethod,
     pub connector_payment_id: Option<ConnectorTransactionId>,
     pub payment_method_subtype: storage_enums::PaymentMethodType,

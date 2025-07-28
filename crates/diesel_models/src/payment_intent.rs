@@ -11,8 +11,11 @@ use crate::schema::payment_intent;
 use crate::schema_v2::payment_intent;
 #[cfg(feature = "v2")]
 use crate::types::{FeatureMetadata, OrderDetailsWithAmount};
-use crate::{business_profile::PaymentLinkBackgroundImageConfig, enums as storage_enums};
-
+use crate::{
+    business_profile::PaymentLinkBackgroundImageConfig, enums as storage_enums,
+    RequiredFromNullable,
+};
+crate::impl_from_required_from_nullable!(storage_enums::Currency, PrimitiveDateTime);
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, PartialEq, Identifiable, Queryable, Serialize, Deserialize, Selectable)]
 #[diesel(table_name = payment_intent, primary_key(id), check_for_backend(diesel::pg::Pg))]
@@ -20,6 +23,7 @@ pub struct PaymentIntent {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub status: storage_enums::IntentStatus,
     pub amount: MinorUnit,
+    #[diesel(deserialize_as = RequiredFromNullable<storage_enums::Currency>)]
     pub currency: storage_enums::Currency,
     pub amount_captured: Option<MinorUnit>,
     pub customer_id: Option<common_utils::id_type::GlobalCustomerId>,
@@ -40,12 +44,14 @@ pub struct PaymentIntent {
     pub connector_metadata: Option<pii::SecretSerdeValue>,
     pub feature_metadata: Option<FeatureMetadata>,
     pub attempt_count: i16,
+    #[diesel(deserialize_as = RequiredFromNullable<common_utils::id_type::ProfileId>)]
     pub profile_id: common_utils::id_type::ProfileId,
     pub payment_link_id: Option<String>,
     pub updated_by: String,
     pub surcharge_applicable: Option<bool>,
     pub request_incremental_authorization: Option<RequestIncrementalAuthorization>,
     pub authorization_count: Option<i32>,
+    #[diesel(deserialize_as = RequiredFromNullable<PrimitiveDateTime>)]
     pub session_expiry: PrimitiveDateTime,
     pub request_external_three_ds_authentication: Option<bool>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,

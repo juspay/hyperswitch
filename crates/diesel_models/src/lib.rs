@@ -60,7 +60,8 @@ pub mod user_authentication_method;
 pub mod user_key_store;
 pub mod user_role;
 
-use diesel_impl::{DieselArray, OptionalDieselArray, RequiredFromNullable};
+use diesel_impl::{DieselArray, OptionalDieselArray};
+pub use diesel_impl::{RequiredFromNullable, RequiredFromNullableWithDefault};
 
 pub type StorageResult<T> = error_stack::Result<T, errors::DatabaseError>;
 pub type PgPooledConn = async_bb8_diesel::Connection<diesel::PgConnection>;
@@ -162,6 +163,13 @@ pub(crate) mod diesel_impl {
 
     pub struct RequiredFromNullableWithDefault<T>(T);
 
+    impl<T> RequiredFromNullableWithDefault<T> {
+        /// Extracts the inner value from the wrapper
+        pub fn into_inner(self) -> T {
+            self.0
+        }
+    }
+
     impl<T, ST, DB> Queryable<Nullable<ST>, DB> for RequiredFromNullableWithDefault<T>
     where
         DB: diesel::backend::Backend,
@@ -182,6 +190,34 @@ pub(crate) mod diesel_impl {
             }
         }
     }
+}
+
+/// Macro to implement From trait for types wrapped in RequiredFromNullable
+#[macro_export]
+macro_rules! impl_from_required_from_nullable {
+    ($($type:ty),* $(,)?) => {
+        $(
+            impl From<$crate::RequiredFromNullable<$type>> for $type {
+                fn from(wrapper: $crate::RequiredFromNullable<$type>) -> Self {
+                    wrapper.into_inner()
+                }
+            }
+        )*
+    };
+}
+
+/// Macro to implement From trait for types wrapped in RequiredFromNullableWithDefault
+#[macro_export]
+macro_rules! impl_from_required_from_nullable_with_default {
+    ($($type:ty),* $(,)?) => {
+        $(
+            impl From<$crate::RequiredFromNullableWithDefault<$type>> for $type {
+                fn from(wrapper: $crate::RequiredFromNullableWithDefault<$type>) -> Self {
+                    wrapper.into_inner()
+                }
+            }
+        )*
+    };
 }
 
 pub(crate) mod metrics {

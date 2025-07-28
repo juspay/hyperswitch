@@ -14,11 +14,7 @@ use crate::schema_v2::refund;
 #[cfg(feature = "v2")]
 use crate::RequiredFromNullable;
 #[cfg(feature = "v2")]
-impl From<RequiredFromNullable<id_type::RefundReferenceId>> for id_type::RefundReferenceId {
-    fn from(wrapper: RequiredFromNullable<id_type::RefundReferenceId>) -> Self {
-        wrapper.into_inner()
-    }
-}
+crate::impl_from_required_from_nullable!(id_type::RefundReferenceId);
 #[cfg(feature = "v1")]
 #[derive(
     Clone,
