@@ -6832,28 +6832,12 @@ type="Text"
   payment_method_type = "Visa"
 [[peachpayments.credit]]
   payment_method_type = "AmericanExpress"
-[[peachpayments.credit]]
-  payment_method_type = "JCB"
-[[peachpayments.credit]]
-  payment_method_type = "DinersClub"
-[[peachpayments.credit]]
-  payment_method_type = "Discover"
-[[peachpayments.credit]]
-  payment_method_type = "UnionPay"
 [[peachpayments.debit]]
   payment_method_type = "Mastercard"
 [[peachpayments.debit]]
   payment_method_type = "Visa"
 [[peachpayments.debit]]
   payment_method_type = "AmericanExpress"
-[[peachpayments.debit]]
-  payment_method_type = "JCB"
-[[peachpayments.debit]]
-  payment_method_type = "DinersClub"
-[[peachpayments.debit]]
-  payment_method_type = "Discover"
-[[peachpayments.debit]]
-  payment_method_type = "UnionPay"
 [peachpayments.connector_auth.BodyKey]
 api_key="API Key"
 key1="Tenant ID"
@@ -6926,9 +6910,10 @@ type="Text"
 [peachpayments.metadata.merchant_type]
 name="merchant_type"
 label="Merchant Type"
-placeholder="Enter merchant type (e.g., iso)"
+placeholder="Select merchant type"
 required=true
-type="Text"
+type="Select"
+options=["iso", "sub"]
 
 [peachpayments.metadata.merchant_website]
 name="merchant_website"
@@ -6954,6 +6939,14 @@ type="Text"
 [peachpayments.metadata.routing_route]
 name="routing_route"
 label="Routing Route"
-placeholder="Enter routing route (e.g., exipay_emulator)"
+placeholder="Select routing route"
 required=true
+type="Select"
+options=["exipay_emulator", "absa_base24", "nedbank_postbridge"]
+
+[peachpayments.metadata.amex_id]
+name="amex_id"
+label="AmEx ID"
+placeholder="Enter AmEx ID for routing"
+required=false
 type="Text"

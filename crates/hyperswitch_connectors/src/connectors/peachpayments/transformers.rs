@@ -58,19 +58,26 @@ pub struct EcommerceCardPaymentOnlyTransactionData {
 pub struct MerchantInformation {
     #[serde(rename = "clientMerchantReferenceId")]
     pub client_merchant_reference_id: String,
-    pub name: String,
-    pub mcc: String,
-    pub phone: String,
-    pub email: String,
-    pub mobile: String,
-    pub address: String,
-    pub city: String,
-    #[serde(rename = "postalCode")]
-    pub postal_code: String,
-    #[serde(rename = "regionCode")]
-    pub region_code: String,
-    #[serde(rename = "merchantType")]
-    pub merchant_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mcc: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub phone: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mobile: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub address: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub city: Option<String>,
+    #[serde(rename = "postalCode", skip_serializing_if = "Option::is_none")]
+    pub postal_code: Option<String>,
+    #[serde(rename = "regionCode", skip_serializing_if = "Option::is_none")]
+    pub region_code: Option<String>,
+    #[serde(rename = "merchantType", skip_serializing_if = "Option::is_none")]
+    pub merchant_type: Option<String>,
     #[serde(rename = "websiteUrl", skip_serializing_if = "Option::is_none")]
     pub website_url: Option<String>,
 }
@@ -86,18 +93,21 @@ pub struct Routing {
     pub master_card_payment_facilitator_id: Option<String>,
     #[serde(rename = "subMid", skip_serializing_if = "Option::is_none")]
     pub sub_mid: Option<String>,
+    #[serde(rename = "amexId", skip_serializing_if = "Option::is_none")]
+    pub amex_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
 pub struct CardDetails {
     pub pan: Secret<String>,
-    #[serde(rename = "cardholderName")]
-    pub cardholder_name: Secret<String>,
+    #[serde(rename = "cardholderName", skip_serializing_if = "Option::is_none")]
+    pub cardholder_name: Option<Secret<String>>,
     #[serde(rename = "expiryYear")]
     pub expiry_year: Secret<String>,
     #[serde(rename = "expiryMonth")]
     pub expiry_month: Secret<String>,
-    pub cvv: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cvv: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -187,44 +197,34 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
                     client_merchant_reference_id: item.router_data.connector_request_reference_id.clone(),
                     name: metadata_obj.get("merchant_name")
                         .and_then(|v| v.as_str())
-                        .unwrap_or("Default Merchant")
-                        .to_string(),
+                        .map(|s| s.to_string()),
                     mcc: metadata_obj.get("mcc")
                         .and_then(|v| v.as_str())
-                        .unwrap_or("5411")
-                        .to_string(),
+                        .map(|s| s.to_string()),
                     phone: metadata_obj.get("merchant_phone")
                         .and_then(|v| v.as_str())
-                        .unwrap_or("1234567890")
-                        .to_string(),
+                        .map(|s| s.to_string()),
                     email: metadata_obj.get("merchant_email")
                         .and_then(|v| v.as_str())
-                        .unwrap_or("merchant@example.com")
-                        .to_string(),
+                        .map(|s| s.to_string()),
                     mobile: metadata_obj.get("merchant_mobile")
                         .and_then(|v| v.as_str())
-                        .unwrap_or("1234567890")
-                        .to_string(),
+                        .map(|s| s.to_string()),
                     address: metadata_obj.get("merchant_address")
                         .and_then(|v| v.as_str())
-                        .unwrap_or("123 Main Street")
-                        .to_string(),
+                        .map(|s| s.to_string()),
                     city: metadata_obj.get("merchant_city")
                         .and_then(|v| v.as_str())
-                        .unwrap_or("Default City")
-                        .to_string(),
+                        .map(|s| s.to_string()),
                     postal_code: metadata_obj.get("merchant_postal_code")
                         .and_then(|v| v.as_str())
-                        .unwrap_or("12345")
-                        .to_string(),
+                        .map(|s| s.to_string()),
                     region_code: metadata_obj.get("merchant_region_code")
                         .and_then(|v| v.as_str())
-                        .unwrap_or("WC")
-                        .to_string(),
+                        .map(|s| s.to_string()),
                     merchant_type: metadata_obj.get("merchant_type")
                         .and_then(|v| v.as_str())
-                        .unwrap_or("iso")
-                        .to_string(),
+                        .map(|s| s.to_string()),
                     website_url: metadata_obj.get("merchant_website")
                         .and_then(|v| v.as_str())
                         .map(|s| s.to_string()),
@@ -234,7 +234,9 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
                 let routing = Routing {
                     route: metadata_obj.get("routing_route")
                         .and_then(|v| v.as_str())
-                        .unwrap_or("exipay_emulator")
+                        .ok_or(errors::ConnectorError::InvalidConnectorConfig { 
+                            config: "routing_route is required in connector metadata"
+                        })?
                         .to_string(),
                     mid: metadata_obj.get("routing_mid")
                         .and_then(|v| v.as_str())
@@ -257,11 +259,14 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
                     sub_mid: metadata_obj.get("sub_mid")
                         .and_then(|v| v.as_str())
                         .map(|s| s.to_string()),
+                    amex_id: metadata_obj.get("amex_id")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
                 };
 
                 let card = CardDetails {
                     pan: Secret::new(req_card.card_number.to_string()),
-                    cardholder_name: req_card.card_holder_name.unwrap_or_default(),
+                    cardholder_name: req_card.card_holder_name.map(|name| name),
                     expiry_year: {
                         // Convert 4-digit year to 2-digit year (e.g., "2025" -> "25")
                         let year_str = req_card.card_exp_year.clone().expose();
@@ -272,7 +277,7 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
                         }
                     },
                     expiry_month: req_card.card_exp_month.clone(),
-                    cvv: req_card.card_cvc.clone(),
+                    cvv: Some(req_card.card_cvc.clone()),
                 };
 
                 let amount = AmountDetails {
@@ -510,44 +515,34 @@ impl<F> TryFrom<&PeachpaymentsRouterData<&RefundsRouterData<F>>> for Peachpaymen
             client_merchant_reference_id: item.router_data.request.refund_id.clone(),
             name: metadata_obj.get("merchant_name")
                 .and_then(|v| v.as_str())
-                .unwrap_or("Default Merchant")
-                .to_string(),
+                .map(|s| s.to_string()),
             mcc: metadata_obj.get("mcc")
                 .and_then(|v| v.as_str())
-                .unwrap_or("5411")
-                .to_string(),
+                .map(|s| s.to_string()),
             phone: metadata_obj.get("merchant_phone")
                 .and_then(|v| v.as_str())
-                .unwrap_or("1234567890")
-                .to_string(),
+                .map(|s| s.to_string()),
             email: metadata_obj.get("merchant_email")
                 .and_then(|v| v.as_str())
-                .unwrap_or("merchant@example.com")
-                .to_string(),
+                .map(|s| s.to_string()),
             mobile: metadata_obj.get("merchant_mobile")
                 .and_then(|v| v.as_str())
-                .unwrap_or("1234567890")
-                .to_string(),
+                .map(|s| s.to_string()),
             address: metadata_obj.get("merchant_address")
                 .and_then(|v| v.as_str())
-                .unwrap_or("123 Main Street")
-                .to_string(),
+                .map(|s| s.to_string()),
             city: metadata_obj.get("merchant_city")
                 .and_then(|v| v.as_str())
-                .unwrap_or("Default City")
-                .to_string(),
+                .map(|s| s.to_string()),
             postal_code: metadata_obj.get("merchant_postal_code")
                 .and_then(|v| v.as_str())
-                .unwrap_or("12345")
-                .to_string(),
+                .map(|s| s.to_string()),
             region_code: metadata_obj.get("merchant_region_code")
                 .and_then(|v| v.as_str())
-                .unwrap_or("WC")
-                .to_string(),
+                .map(|s| s.to_string()),
             merchant_type: metadata_obj.get("merchant_type")
                 .and_then(|v| v.as_str())
-                .unwrap_or("iso")
-                .to_string(),
+                .map(|s| s.to_string()),
             website_url: metadata_obj.get("merchant_website")
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string()),
@@ -557,7 +552,9 @@ impl<F> TryFrom<&PeachpaymentsRouterData<&RefundsRouterData<F>>> for Peachpaymen
         let routing = Routing {
             route: metadata_obj.get("routing_route")
                 .and_then(|v| v.as_str())
-                .unwrap_or("exipay_emulator")
+                .ok_or(errors::ConnectorError::InvalidConnectorConfig { 
+                    config: "routing_route is required in connector metadata"
+                })?
                 .to_string(),
             mid: metadata_obj.get("routing_mid")
                 .and_then(|v| v.as_str())
@@ -580,6 +577,9 @@ impl<F> TryFrom<&PeachpaymentsRouterData<&RefundsRouterData<F>>> for Peachpaymen
             sub_mid: metadata_obj.get("sub_mid")
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string()),
+            amex_id: metadata_obj.get("amex_id")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
         };
 
         // Extract card details from refund_connector_metadata
@@ -599,12 +599,9 @@ impl<F> TryFrom<&PeachpaymentsRouterData<&RefundsRouterData<F>>> for Peachpaymen
                         })?
                         .to_string()
                 ),
-                cardholder_name: Secret::new(
-                    card_data.get("card_holder_name")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("Card Holder")
-                        .to_string()
-                ),
+                cardholder_name: card_data.get("card_holder_name")
+                    .and_then(|v| v.as_str())
+                    .map(|name| Secret::new(name.to_string())),
                 expiry_year: {
                     let year_str = card_data.get("card_exp_year")
                         .and_then(|v| v.as_str())
@@ -626,12 +623,9 @@ impl<F> TryFrom<&PeachpaymentsRouterData<&RefundsRouterData<F>>> for Peachpaymen
                         })?
                         .to_string()
                 ),
-                cvv: Secret::new(
-                    card_data.get("card_cvc")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("999")  // CVV might not be stored for security reasons
-                        .to_string()
-                ),
+                cvv: card_data.get("card_cvc")
+                    .and_then(|v| v.as_str())
+                    .map(|cvc| Secret::new(cvc.to_string())),
             }
         } else {
             return Err(errors::ConnectorError::InvalidConnectorConfig { 
