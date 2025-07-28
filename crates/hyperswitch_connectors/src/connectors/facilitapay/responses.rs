@@ -215,3 +215,73 @@ pub struct RefundData {
 pub struct FacilitapayRefundResponse {
     pub data: RefundData,
 }
+
+// Webhook structures
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FacilitapayWebhookNotification {
+    pub notification: FacilitapayWebhookBody,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct FacilitapayWebhookBody {
+    #[serde(rename = "type")]
+    pub event_type: FacilitapayWebhookEventType,
+    pub secret: Secret<String>,
+    #[serde(flatten)]
+    pub data: FacilitapayWebhookData,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum FacilitapayWebhookEventType {
+    ExchangeCreated,
+    Identified,
+    PaymentApproved,
+    PaymentExpired,
+    PaymentFailed,
+    PaymentRefunded,
+    WireCreated,
+    WireWaitingCorrection,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum FacilitapayWebhookErrorCode {
+    /// Creditor account number invalid or missing (branch_number or account_number incorrect)
+    Ac03,
+    /// Creditor account type missing or invalid (account_type incorrect)
+    Ac14,
+    /// Value in Creditor Identifier is incorrect (owner_document_number incorrect)
+    Ch11,
+    /// Transaction type not supported/authorized on this account (account rejected the payment)
+    Ag03,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum FacilitapayWebhookData {
+    CardPayment {
+        transaction_id: String,
+        checkout_id: Option<String>,
+    },
+    Exchange {
+        exchange_id: String,
+        transaction_ids: Vec<String>,
+    },
+    Transaction {
+        transaction_id: String,
+    },
+    Wire {
+        wire_id: String,
+        transaction_ids: Vec<String>,
+    },
+    WireError {
+        error_code: FacilitapayWebhookErrorCode,
+        error_description: String,
+        bank_account_owner_id: String,
+        bank_account_id: String,
+        transaction_ids: Vec<String>,
+        wire_id: String,
+    },
+}
