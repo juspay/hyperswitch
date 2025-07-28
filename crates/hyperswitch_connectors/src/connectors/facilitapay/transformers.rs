@@ -27,8 +27,8 @@ use url::Url;
 use super::{
     requests::{
         DocumentType, FacilitapayAuthRequest, FacilitapayCredentials, FacilitapayCustomerRequest,
-        FacilitapayPaymentsRequest, FacilitapayPerson, FacilitapayRefundRequest,
-        FacilitapayRouterData, FacilitapayTransactionRequest, PixTransactionRequest,
+        FacilitapayPaymentsRequest, FacilitapayPerson, FacilitapayRouterData,
+        FacilitapayTransactionRequest, PixTransactionRequest,
     },
     responses::{
         FacilitapayAuthResponse, FacilitapayCustomerResponse, FacilitapayPaymentStatus,
@@ -509,17 +509,6 @@ fn get_qr_code_data(
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
 }
 
-impl<F> TryFrom<&FacilitapayRouterData<&types::RefundsRouterData<F>>> for FacilitapayRefundRequest {
-    type Error = Error;
-    fn try_from(
-        item: &FacilitapayRouterData<&types::RefundsRouterData<F>>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            amount: item.amount.clone(),
-        })
-    }
-}
-
 impl From<FacilitapayPaymentStatus> for enums::RefundStatus {
     fn from(item: FacilitapayPaymentStatus) -> Self {
         match item {
@@ -541,7 +530,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, FacilitapayRefundResponse>>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.data.refund_id.to_string(),
+                connector_refund_id: item.response.data.transaction_id.clone(),
                 refund_status: enums::RefundStatus::from(item.response.data.status),
             }),
             ..item.data
@@ -558,7 +547,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, FacilitapayRefundResponse>>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.data.refund_id.to_string(),
+                connector_refund_id: item.response.data.transaction_id.clone(),
                 refund_status: enums::RefundStatus::from(item.response.data.status),
             }),
             ..item.data

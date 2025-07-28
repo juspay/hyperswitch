@@ -136,6 +136,7 @@ pub struct BankAccountDetail {
     pub routing_number: Option<Secret<String>>,
     pub pix_info: Option<PixInfo>,
     pub owner_name: Option<Secret<String>>,
+    pub owner_document_type: Option<String>,
     pub owner_document_number: Option<Secret<String>>,
     pub owner_company: Option<OwnerCompany>,
     pub internal: Option<bool>,
@@ -176,7 +177,7 @@ pub struct TransactionData {
     pub subject_is_receiver: Option<bool>,
 
     // Source identification (potentially redundant with subject or card/bank info)
-    pub source_name: Secret<String>,
+    pub source_name: Option<Secret<String>>,
     pub source_document_type: DocumentType,
     pub source_document_number: Secret<String>,
 
@@ -213,7 +214,7 @@ pub struct RefundData {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FacilitapayRefundResponse {
-    pub data: RefundData,
+    pub data: TransactionData,
 }
 
 // Webhook structures

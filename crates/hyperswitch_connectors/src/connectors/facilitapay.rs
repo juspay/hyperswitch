@@ -612,17 +612,25 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Facilit
     fn get_request_body(
         &self,
         req: &RefundsRouterData<Execute>,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let refund_amount = utils::convert_amount(
-            self.amount_converter,
-            req.request.minor_refund_amount,
-            req.request.currency,
-        )?;
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
 
-        let connector_router_data = FacilitapayRouterData::from((refund_amount, req));
-        let connector_req = FacilitapayRefundRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &RefundsRouterData<Execute>,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}/transactions/{}/refund_received_transaction",
+            self.base_url(connectors),
+            req.request.connector_transaction_id
+        ))
     }
 
     fn build_request(
@@ -630,14 +638,20 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Facilit
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        // Validate that this is a full refund
+        if req.request.payment_amount != req.request.refund_amount {
+            return Err(errors::ConnectorError::NotSupported {
+                message: "Partial refund not supported by Facilitapay".to_string(),
+                connector: "Facilitapay",
+            }
+            .into());
+        }
+
         let request = RequestBuilder::new()
-            .method(Method::Post)
+            .method(Method::Get)
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
             .attach_default_headers()
             .headers(types::RefundExecuteType::get_headers(
-                self, req, connectors,
-            )?)
-            .set_body(types::RefundExecuteType::get_request_body(
                 self, req, connectors,
             )?)
             .build();
