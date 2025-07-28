@@ -7,6 +7,7 @@ use std::fmt::Debug;
 use std::str::FromStr;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use std::sync::Arc;
+
 #[allow(clippy::too_many_arguments)]
 #[cfg(feature = "v1")]
 use api_models::open_router;

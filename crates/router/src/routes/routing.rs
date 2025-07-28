@@ -1255,7 +1255,8 @@ pub async fn create_success_based_routing(
         feature_to_enable: query.into_inner().enable,
         profile_id: path.into_inner().profile_id,
         // payload
-        payload: json_payload.map(|p| api_models::routing::DynamicRoutingPayload::SuccessBased(p.into_inner())),
+        payload: json_payload
+            .map(|p| api_models::routing::DynamicRoutingPayload::SuccessBased(p.into_inner())),
     };
     Box::pin(oss_api::server_wrap(
         flow,
@@ -1548,7 +1549,8 @@ pub async fn create_elimination_routing(
     let wrapper = routing_types::CreateDynamicRoutingWrapper {
         feature_to_enable: query.into_inner().enable,
         profile_id: path.into_inner().profile_id,
-        payload: json_payload.map(|p| api_models::routing::DynamicRoutingPayload::Elimination(p.into_inner())),
+        payload: json_payload
+            .map(|p| api_models::routing::DynamicRoutingPayload::Elimination(p.into_inner())),
     };
     Box::pin(oss_api::server_wrap(
         flow,
