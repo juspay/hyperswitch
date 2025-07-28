@@ -18,16 +18,16 @@ use hyperswitch_domain_models::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
-        Fetch, Dsync, Defend, Accept,
+        Fetch, Dsync, Evidence, Accept, Upload, 
     },
     router_request_types::{
         AccessTokenRequestData, AcceptDisputeRequestData, FetchDisputesRequestData, DisputeSyncData, PaymentMethodTokenizationData,
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
-        PaymentsSyncData, RefundsData, SetupMandateRequestData, DefendDisputeRequestData,
+        PaymentsSyncData, RefundsData, SetupMandateRequestData, SubmitEvidenceRequestData, UploadFileRequestData,
     },
     router_response_types::{
         AcceptDisputeResponse, ConnectorInfo, FetchDisputesResponse, DisputeSyncResponse, PaymentMethodDetails, PaymentsResponseData,
-        RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt, DefendDisputeResponse,
+        RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt, SubmitEvidenceResponse, UploadFileResponse,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
@@ -37,7 +37,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{
     api::{
         self, disputes::{FetchDisputes, DisputeSync, DefendDispute, AcceptDispute}, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration,
-        ConnectorSpecifications, ConnectorValidation,
+        ConnectorSpecifications, ConnectorValidation, files::{FilePurpose, FileUpload, RetrieveFile, UploadFile},
     },
     configs::Connectors,
     consts::NO_ERROR_CODE,
@@ -51,7 +51,7 @@ use transformers as worldpayvantiv;
 
 use crate::{
     constants::headers,
-    types::{FetchDisputeRouterData, DisputeSyncRouterData, DefendDisputeRouterData, AcceptDisputeRouterData, ResponseRouterData},
+    types::{FetchDisputeRouterData, UploadFileRouterData, DisputeSyncRouterData, SubmitEvidenceRouterData, AcceptDisputeRouterData, ResponseRouterData},
     utils as connector_utils,
 };
 
@@ -642,9 +642,79 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Worldpa
     }
 }
 
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Worldpayvantiv {
+    fn get_headers(
+        &self,
+        req: &RefundSyncRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.get_auth_header(&req.connector_auth_type)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        "application/json"
+    }
+
+    fn get_url(
+        &self,
+        req: &RefundSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}/reports/dtrPaymentStatus/{}",
+            connectors.worldpayvantiv.secondary_base_url.to_owned(),
+            req.request.connector_transaction_id
+        ))
+    }
+
+    fn build_request(
+        &self,
+        req: &RefundSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Get)
+                .url(&types::RefundSyncType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &RefundSyncRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
+        let response: worldpayvantiv::VantivSyncResponse = res
+            .response
+            .parse_struct("VantivSyncResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        handle_vantiv_json_error_response(res, event_builder)
+    }
+}
+
+
 impl FetchDisputes for Worldpayvantiv {}
 impl DisputeSync for Worldpayvantiv {}
-impl DefendDispute for Worldpayvantiv {}
+impl SubmitEvidence for Worldpayvantiv {}
 impl AcceptDispute for Worldpayvantiv{}
 
 
@@ -790,10 +860,11 @@ impl ConnectorIntegration<Dsync, DisputeSyncData, DisputeSyncResponse>
     }
 }
 
-impl ConnectorIntegration<Defend, DefendDisputeRequestData, DefendDisputeResponse> for Worldpayvantiv {
+impl ConnectorIntegration<Evidence, SubmitEvidenceRequestData, SubmitEvidenceResponse>
+ for Worldpayvantiv {
     fn get_headers(
         &self,
-        req: &DefendDisputeRouterData,
+        req: &SubmitEvidenceRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.get_auth_header(&req.connector_auth_type)
@@ -801,7 +872,7 @@ impl ConnectorIntegration<Defend, DefendDisputeRequestData, DefendDisputeRespons
 
     fn get_url(
         &self,
-        req: &DefendDisputeRouterData,
+        req: &SubmitEvidenceRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
@@ -813,7 +884,7 @@ impl ConnectorIntegration<Defend, DefendDisputeRequestData, DefendDisputeRespons
 
     fn get_request_body(
         &self,
-        req: &DefendDisputeRouterData,
+        req: &SubmitEvidenceRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req_object =
@@ -833,16 +904,16 @@ impl ConnectorIntegration<Defend, DefendDisputeRequestData, DefendDisputeRespons
 
     fn build_request(
         &self,
-        req: &DefendDisputeRouterData,
+        req: &SubmitEvidenceRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Put)
-                .url(&types::DefendDisputeType::get_url(self, req, connectors)?)
+                .url(&types::SubmitEvidenceType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::DefendDisputeType::get_headers(self, req, connectors)?)
-                .set_body(types::DefendDisputeType::get_request_body(
+                .headers(types::SubmitEvidenceType::get_headers(self, req, connectors)?)
+                .set_body(types::SubmitEvidenceType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -851,7 +922,7 @@ impl ConnectorIntegration<Defend, DefendDisputeRequestData, DefendDisputeRespons
 
     fn handle_response(
         &self,
-        data: &DefendDisputeRouterData,
+        data: &SubmitEvidenceRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<DefendDisputeRouterData, errors::ConnectorError> {
@@ -859,13 +930,13 @@ impl ConnectorIntegration<Defend, DefendDisputeRequestData, DefendDisputeRespons
         connector_utils::deserialize_xml_to_struct(&res.response)?;
     event_builder.map(|i| i.set_response_body(&response));
     router_env::logger::info!(connector_response=?response);
-        Ok(DefendDisputeRouterData {
-            response: Ok(DefendDisputeResponse {
-                dispute_status: common_enums::DisputeStatus::DisputeChallenged,
-                connector_status: None,
-            }),
-            ..data.clone()
-        })
+    Ok(SubmitEvidenceRouterData {
+        response: Ok(SubmitEvidenceResponse {
+            dispute_status: common_enums::DisputeStatus::DisputeChallenged,
+            connector_status: None,
+        }),
+        ..data.clone()
+    })
     }
 
     fn get_error_response(
@@ -964,74 +1035,87 @@ impl ConnectorIntegration<Accept, AcceptDisputeRequestData, AcceptDisputeRespons
     }
 }
 
-impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Worldpayvantiv {
-    fn get_headers(
-        &self,
-        req: &RefundSyncRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.get_auth_header(&req.connector_auth_type)
-    }
+impl UploadFile for Worldpayvantiv {}
 
-    fn get_content_type(&self) -> &'static str {
-        "application/json"
-    }
+// impl ConnectorIntegration<Upload, UploadFileRequestData, UploadFileResponse> for Worldpayvantiv {
+//     fn get_headers(
+//         &self,
+//         req: &RouterData<Upload, UploadFileRequestData, UploadFileResponse>,
+//         _connectors: &Connectors,
+//     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+//         self.get_auth_header(&req.connector_auth_type)
+//     }
 
-    fn get_url(
-        &self,
-        req: &RefundSyncRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}/reports/dtrPaymentStatus/{}",
-            connectors.worldpayvantiv.secondary_base_url.to_owned(),
-            req.request.connector_transaction_id
-        ))
-    }
+//     fn get_url(
+//         &self,
+//         req: &UploadFileRouterData,
+//         connectors: &Connectors,
+//     ) -> CustomResult<String, errors::ConnectorError> {
+//         Ok(format!(
+//             "{}/services/chargebacks/upload/{}/{}",
+//             connectors.worldpayvantiv.third_base_url.to_owned(),
+//             req.request.connector_dispute_id,
+//             req.request.
+//         ))
+//     }
 
-    fn build_request(
-        &self,
-        req: &RefundSyncRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Ok(Some(
-            RequestBuilder::new()
-                .method(Method::Get)
-                .url(&types::RefundSyncType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .build(),
-        ))
-    }
+//     fn get_request_body(
+//         &self,
+//         req: &UploadFileRouterData,
+//         _connectors: &Connectors,
+//     ) -> CustomResult<RequestContent, errors::ConnectorError> {
+//         let connector_req = transformers::construct_file_upload_request(req.clone())?;
+//         Ok(RequestContent::FormData(connector_req))
+//     }
 
-    fn handle_response(
-        &self,
-        data: &RefundSyncRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: worldpayvantiv::VantivSyncResponse = res
-            .response
-            .parse_struct("VantivSyncResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+//     fn build_request(
+//         &self,
+//         req: &UploadFileRouterData,
+//         connectors: &Connectors,
+//     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+//         Ok(Some(
+//             RequestBuilder::new()
+//                 .method(Method::Post)
+//                 .url(&UploadFileType::get_url(self, req, connectors)?)
+//                 .attach_default_headers()
+//                 .headers(UploadFileType::get_headers(self, req, connectors)?)
+//                 .set_body(UploadFileType::get_request_body(self, req, connectors)?)
+//                 .build(),
+//         ))
+//     }
 
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
+//     fn handle_response(
+//         &self,
+//         data: &UploadFileRouterData,
+//         event_builder: Option<&mut ConnectorEvent>,
+//         res: Response,
+//     ) -> CustomResult<
+//         RouterData<Upload, UploadFileRequestData, UploadFileResponse>,
+//         errors::ConnectorError,
+//     > {
+//         let response: checkout::FileUploadResponse = res
+//             .response
+//             .parse_struct("Checkout FileUploadResponse")
+//             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+//         event_builder.map(|i| i.set_response_body(&response));
+//         router_env::logger::info!(connector_response=?response);
+//         Ok(UploadFileRouterData {
+//             response: Ok(UploadFileResponse {
+//                 provider_file_id: response.file_id,
+//             }),
+//             ..data.clone()
+//         })
+//     }
 
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        handle_vantiv_json_error_response(res, event_builder)
-    }
-}
+//     fn get_error_response(
+//         &self,
+//         res: Response,
+//         event_builder: Option<&mut ConnectorEvent>,
+//     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+//         self.build_error_response(res, event_builder)
+//     }
+// }
+
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Worldpayvantiv {
@@ -1054,87 +1138,6 @@ impl webhooks::IncomingWebhook for Worldpayvantiv {
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
-    }
-}
-
-static WORLDPAYVANTIV_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
-    LazyLock::new(|| {
-        let supported_capture_methods = vec![
-            common_enums::CaptureMethod::Automatic,
-            common_enums::CaptureMethod::Manual,
-            common_enums::CaptureMethod::SequentialAutomatic,
-        ];
-
-        let supported_card_network = vec![
-            common_enums::CardNetwork::AmericanExpress,
-            common_enums::CardNetwork::DinersClub,
-            common_enums::CardNetwork::JCB,
-            common_enums::CardNetwork::Mastercard,
-            common_enums::CardNetwork::Visa,
-            common_enums::CardNetwork::Discover,
-        ];
-
-        let mut worldpayvantiv_supported_payment_methods = SupportedPaymentMethods::new();
-
-        worldpayvantiv_supported_payment_methods.add(
-            common_enums::PaymentMethod::Card,
-            common_enums::PaymentMethodType::Credit,
-            PaymentMethodDetails {
-                mandates: common_enums::FeatureStatus::Supported,
-                refunds: common_enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
-                specific_features: Some(
-                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
-                        api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::NotSupported,
-                            no_three_ds: common_enums::FeatureStatus::Supported,
-                            supported_card_networks: supported_card_network.clone(),
-                        }
-                    }),
-                ),
-            },
-        );
-
-        worldpayvantiv_supported_payment_methods.add(
-            common_enums::PaymentMethod::Card,
-            common_enums::PaymentMethodType::Debit,
-            PaymentMethodDetails {
-                mandates: common_enums::FeatureStatus::Supported,
-                refunds: common_enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
-                specific_features: Some(
-                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
-                        api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::NotSupported,
-                            no_three_ds: common_enums::FeatureStatus::Supported,
-                            supported_card_networks: supported_card_network.clone(),
-                        }
-                    }),
-                ),
-            },
-        );
-        worldpayvantiv_supported_payment_methods
-    });
-
-static WORLDPAYVANTIV_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-    display_name: "Worldpay Vantiv",
-    description: "Worldpay Vantiv, also known as the Worldpay CNP API, is a robust XML-based interface used to process online (card-not-present) transactions such as e-commerce purchases, subscription billing, and digital payments",
-    connector_type: common_enums::PaymentConnectorCategory::PaymentGateway,
-};
-
-static WORLDPAYVANTIV_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 0] = [];
-
-impl ConnectorSpecifications for Worldpayvantiv {
-    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&WORLDPAYVANTIV_CONNECTOR_INFO)
-    }
-
-    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
-        Some(&*WORLDPAYVANTIV_SUPPORTED_PAYMENT_METHODS)
-    }
-
-    fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::EventClass]> {
-        Some(&WORLDPAYVANTIV_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
 
@@ -1216,4 +1219,119 @@ fn handle_vantiv_dispute_error_response(
     }
 }
 
+#[async_trait::async_trait]
+impl FileUpload for Worldpayvantiv {
+    fn validate_file_upload(
+        &self,
+        purpose: FilePurpose,
+        file_size: i32,
+        file_type: mime::Mime,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        match purpose {
+            FilePurpose::DisputeEvidence => {
+                let supported_file_types = [
+                    "image/gif",
+                    "image/jpeg",
+                    "image/jpg",
+                    "application/pdf",
+                    "image/png",
+                    "image/tiff",
+                ];               
+                if file_size > worldpayvantiv::worldpayvantiv_constants::MAX_FILE_SIZE {
+                    Err(ConnectorError::FileValidationFailed {
+                        reason: "file_size exceeded the max file size of 2MB".to_owned(),
+                    })?
+                }
+                if !supported_file_types.contains(&file_type.to_string().as_str()) {
+                    Err(ConnectorError::FileValidationFailed {
+                        reason: "file_type does not match JPEG, JPG, PNG, or PDF format".to_owned(),
+                    })?
+                }
+            }
+        }
+        Ok(())
+    }
+}
 
+
+
+static WORLDPAYVANTIV_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
+        let supported_capture_methods = vec![
+            common_enums::CaptureMethod::Automatic,
+            common_enums::CaptureMethod::Manual,
+            common_enums::CaptureMethod::SequentialAutomatic,
+        ];
+
+        let supported_card_network = vec![
+            common_enums::CardNetwork::AmericanExpress,
+            common_enums::CardNetwork::DinersClub,
+            common_enums::CardNetwork::JCB,
+            common_enums::CardNetwork::Mastercard,
+            common_enums::CardNetwork::Visa,
+            common_enums::CardNetwork::Discover,
+        ];
+
+        let mut worldpayvantiv_supported_payment_methods = SupportedPaymentMethods::new();
+
+        worldpayvantiv_supported_payment_methods.add(
+            common_enums::PaymentMethod::Card,
+            common_enums::PaymentMethodType::Credit,
+            PaymentMethodDetails {
+                mandates: common_enums::FeatureStatus::Supported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::NotSupported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
+            },
+        );
+
+        worldpayvantiv_supported_payment_methods.add(
+            common_enums::PaymentMethod::Card,
+            common_enums::PaymentMethodType::Debit,
+            PaymentMethodDetails {
+                mandates: common_enums::FeatureStatus::Supported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::NotSupported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
+            },
+        );
+        worldpayvantiv_supported_payment_methods
+    });
+
+static WORLDPAYVANTIV_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Worldpay Vantiv",
+    description: "Worldpay Vantiv, also known as the Worldpay CNP API, is a robust XML-based interface used to process online (card-not-present) transactions such as e-commerce purchases, subscription billing, and digital payments",
+    connector_type: common_enums::PaymentConnectorCategory::PaymentGateway,
+};
+
+static WORLDPAYVANTIV_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 0] = [];
+
+impl ConnectorSpecifications for Worldpayvantiv {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&WORLDPAYVANTIV_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*WORLDPAYVANTIV_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::EventClass]> {
+        Some(&WORLDPAYVANTIV_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}

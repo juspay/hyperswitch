@@ -24,7 +24,7 @@ use hyperswitch_interfaces::{consts, errors};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use crate::{
-    types::{AcceptDisputeRouterData, RefundsResponseRouterData, ResponseRouterData, FetchDisputeRouterData, DisputeSyncRouterData, DefendDisputeRouterData},
+    types::{AcceptDisputeRouterData, RefundsResponseRouterData, ResponseRouterData, FetchDisputeRouterData, DisputeSyncRouterData, SubmitEvidenceRouterData},
     utils::{self as connector_utils, CardData, PaymentsAuthorizeRequestData, RouterData as _},
 };
 
@@ -34,6 +34,7 @@ pub mod worldpayvantiv_constants {
     pub const XML_ENCODING: &str = "UTF-8";
     pub const XMLNS: &str = "http://www.vantivcnp.com/schema";
     pub const MAX_ID_LENGTH: usize = 26;
+    pub const MAX_FILE_SIZE: usize = 2000000; 
 }
 
 pub struct WorldpayvantivRouterData<T> {
@@ -3169,9 +3170,9 @@ pub struct ChargebackUpdateResponse {
 }
 
 
-impl From<&DefendDisputeRouterData> for ChargebackUpdateRequest {
+impl From<&SubmitEvidenceRouterData> for ChargebackUpdateRequest {
     fn from(
-        item: &DefendDisputeRouterData,
+        item: &SubmitEvidenceRouterData,
     ) -> Self {
         Self {
             activity_type: ActivityType::MerchantRepresent 
