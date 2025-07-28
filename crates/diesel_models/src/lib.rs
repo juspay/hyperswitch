@@ -60,7 +60,7 @@ pub mod user_authentication_method;
 pub mod user_key_store;
 pub mod user_role;
 
-use diesel_impl::{DieselArray, OptionalDieselArray};
+use diesel_impl::{DieselArray, OptionalDieselArray, RequiredFromNullable};
 
 pub type StorageResult<T> = error_stack::Result<T, errors::DatabaseError>;
 pub type PgPooledConn = async_bb8_diesel::Connection<diesel::PgConnection>;
@@ -128,6 +128,35 @@ pub(crate) mod diesel_impl {
 
         fn build(row: Self::Row) -> diesel::deserialize::Result<Self> {
             Ok(Self(row))
+        }
+    }
+
+    pub struct RequiredFromNullable<T>(T);
+
+    impl<T> RequiredFromNullable<T> {
+        /// Extracts the inner value from the wrapper
+        pub fn into_inner(self) -> T {
+            self.0
+        }
+    }
+
+    impl<T, ST, DB> Queryable<Nullable<ST>, DB> for RequiredFromNullable<T>
+    where
+        DB: diesel::backend::Backend,
+        T: Queryable<ST, DB>,
+        Option<T::Row>: FromSql<Nullable<ST>, DB>,
+        ST: diesel::sql_types::SingleValue,
+    {
+        type Row = Option<T::Row>;
+
+        fn build(row: Self::Row) -> diesel::deserialize::Result<Self> {
+            match row {
+                Some(inner_row) => {
+                    let value = T::build(inner_row)?;
+                    Ok(RequiredFromNullable(value))
+                }
+                None => Err("Cannot deserialize NULL value for required field".into()),
+            }
         }
     }
 }
