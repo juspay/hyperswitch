@@ -27,8 +27,8 @@ WHERE
     mca.merchant_connector_id = updated.merchant_connector_id
     AND mca.connector_type = 'payout_processor';
 
--- Migration to update sepa to sepa_bank_transfer in business_profile for payout routing algorithm
-UPDATE routing_algorithm ra
+-- Migration to update sepa to sepa_bank_transfer in routing_algorithm for payout algorithms
+UPDATE routing_algorithm
 SET
     algorithm_data = replace(
         algorithm_data::text,
@@ -36,12 +36,5 @@ SET
         '"sepa_bank_transfer"'
     )::jsonb
 WHERE
-    algorithm_id IN (
-        SELECT DISTINCT
-            payout_routing_algorithm ->> 'algorithm_id'
-        FROM business_profile
-        WHERE
-            payout_routing_algorithm IS NOT NULL
-            AND payout_routing_algorithm ->> 'algorithm_id' IS NOT NULL
-    )
+    algorithm_for = 'payout'
     AND algorithm_data::text LIKE '%"sepa"%';
