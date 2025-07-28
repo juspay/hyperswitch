@@ -1648,7 +1648,7 @@ impl behaviour::Conversion for PaymentIntent {
             merchant_id,
             status,
             amount: amount_details.order_amount,
-            currency: Some(amount_details.currency),
+            currency: amount_details.currency,
             amount_captured,
             customer_id,
             description,
@@ -1679,14 +1679,14 @@ impl behaviour::Conversion for PaymentIntent {
             connector_metadata,
             feature_metadata,
             attempt_count,
-            profile_id: Some(profile_id),
+            profile_id,
             frm_merchant_decision,
             payment_link_id,
             updated_by,
 
             request_incremental_authorization: Some(request_incremental_authorization),
             authorization_count,
-            session_expiry: Some(session_expiry),
+            session_expiry,
             request_external_three_ds_authentication: Some(
                 request_external_three_ds_authentication.as_bool(),
             ),
@@ -1738,9 +1738,7 @@ impl behaviour::Conversion for PaymentIntent {
     where
         Self: Sized,
     {
-        use common_utils::ext_traits::OptionExt;
-
-        let data = async {
+        async {
             let decrypted_data = crypto_operation(
                 state,
                 type_name!(Self::DstType),
@@ -1757,129 +1755,125 @@ impl behaviour::Conversion for PaymentIntent {
             .await
             .and_then(|val| val.try_into_batchoperation())?;
 
-            super::EncryptedPaymentIntent::from_encryptable(decrypted_data)
+            let data = super::EncryptedPaymentIntent::from_encryptable(decrypted_data)
                 .change_context(common_utils::errors::CryptoError::DecodingFailed)
-                .attach_printable("Invalid batch operation data")
+                .attach_printable("Invalid batch operation data")?;
+
+            let amount_details = super::AmountDetails {
+                order_amount: storage_model.amount,
+                currency: storage_model.currency,
+                surcharge_amount: storage_model.surcharge_amount,
+                tax_on_surcharge: storage_model.tax_on_surcharge,
+                shipping_cost: storage_model.shipping_cost,
+                tax_details: storage_model.tax_details,
+                skip_external_tax_calculation: common_enums::TaxCalculationOverride::from(
+                    storage_model.skip_external_tax_calculation,
+                ),
+                skip_surcharge_calculation: common_enums::SurchargeCalculationOverride::from(
+                    storage_model.surcharge_applicable,
+                ),
+                amount_captured: storage_model.amount_captured,
+            };
+
+            let billing_address = data
+                .billing_address
+                .map(|billing| {
+                    billing.deserialize_inner_value(|value| value.parse_value("Address"))
+                })
+                .transpose()
+                .change_context(common_utils::errors::CryptoError::DecodingFailed)
+                .attach_printable("Error while deserializing Address")?;
+
+            let shipping_address = data
+                .shipping_address
+                .map(|shipping| {
+                    shipping.deserialize_inner_value(|value| value.parse_value("Address"))
+                })
+                .transpose()
+                .change_context(common_utils::errors::CryptoError::DecodingFailed)
+                .attach_printable("Error while deserializing Address")?;
+            let allowed_payment_method_types = storage_model
+                .allowed_payment_method_types
+                .map(|allowed_payment_method_types| {
+                    allowed_payment_method_types.parse_value("Vec<PaymentMethodType>")
+                })
+                .transpose()
+                .change_context(common_utils::errors::CryptoError::DecodingFailed)?;
+            Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
+                merchant_id: storage_model.merchant_id.clone(),
+                status: storage_model.status,
+                amount_details,
+                amount_captured: storage_model.amount_captured,
+                customer_id: storage_model.customer_id,
+                description: storage_model.description,
+                return_url: storage_model.return_url,
+                metadata: storage_model.metadata,
+                statement_descriptor: storage_model.statement_descriptor,
+                created_at: storage_model.created_at,
+                modified_at: storage_model.modified_at,
+                last_synced: storage_model.last_synced,
+                setup_future_usage: storage_model.setup_future_usage.unwrap_or_default(),
+                active_attempt_id: storage_model.active_attempt_id,
+                order_details: storage_model.order_details.map(|order_details| {
+                    order_details
+                        .into_iter()
+                        .map(|order_detail| Secret::new(order_detail.expose()))
+                        .collect::<Vec<_>>()
+                }),
+                allowed_payment_method_types,
+                connector_metadata: storage_model.connector_metadata,
+                feature_metadata: storage_model.feature_metadata,
+                attempt_count: storage_model.attempt_count,
+                profile_id: storage_model.profile_id,
+                frm_merchant_decision: storage_model.frm_merchant_decision,
+                payment_link_id: storage_model.payment_link_id,
+                updated_by: storage_model.updated_by,
+                request_incremental_authorization: storage_model
+                    .request_incremental_authorization
+                    .unwrap_or_default(),
+                authorization_count: storage_model.authorization_count,
+                session_expiry: storage_model.session_expiry,
+                request_external_three_ds_authentication: storage_model
+                    .request_external_three_ds_authentication
+                    .into(),
+                frm_metadata: storage_model.frm_metadata,
+                customer_details: data.customer_details,
+                billing_address,
+                shipping_address,
+                capture_method: storage_model.capture_method.unwrap_or_default(),
+                id: storage_model.id,
+                merchant_reference_id: storage_model.merchant_reference_id,
+                organization_id: storage_model.organization_id,
+                authentication_type: storage_model.authentication_type,
+                prerouting_algorithm: storage_model
+                    .prerouting_algorithm
+                    .map(|prerouting_algorithm_value| {
+                        prerouting_algorithm_value
+                            .parse_value("PaymentRoutingInfo")
+                            .change_context(common_utils::errors::CryptoError::DecodingFailed)
+                    })
+                    .transpose()?,
+                enable_payment_link: storage_model.enable_payment_link.into(),
+                apply_mit_exemption: storage_model.apply_mit_exemption.into(),
+                customer_present: storage_model.customer_present.into(),
+                payment_link_config: storage_model.payment_link_config,
+                routing_algorithm_id: storage_model.routing_algorithm_id,
+                split_payments: storage_model.split_payments,
+                force_3ds_challenge: storage_model.force_3ds_challenge,
+                force_3ds_challenge_trigger: storage_model.force_3ds_challenge_trigger,
+                processor_merchant_id: storage_model
+                    .processor_merchant_id
+                    .unwrap_or(storage_model.merchant_id),
+                created_by: storage_model
+                    .created_by
+                    .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
+                is_iframe_redirection_enabled: storage_model.is_iframe_redirection_enabled,
+                is_payment_id_from_merchant: storage_model.is_payment_id_from_merchant,
+            })
         }
         .await
         .change_context(ValidationError::InvalidValue {
             message: "Failed while decrypting payment intent".to_string(),
-        })?;
-        let amount_details = super::AmountDetails {
-            order_amount: storage_model.amount,
-            currency: storage_model.currency.get_required_value("currency")?,
-            surcharge_amount: storage_model.surcharge_amount,
-            tax_on_surcharge: storage_model.tax_on_surcharge,
-            shipping_cost: storage_model.shipping_cost,
-            tax_details: storage_model.tax_details,
-            skip_external_tax_calculation: common_enums::TaxCalculationOverride::from(
-                storage_model.skip_external_tax_calculation,
-            ),
-            skip_surcharge_calculation: common_enums::SurchargeCalculationOverride::from(
-                storage_model.surcharge_applicable,
-            ),
-            amount_captured: storage_model.amount_captured,
-        };
-
-        let billing_address = data
-            .billing_address
-            .map(|billing| billing.deserialize_inner_value(|value| value.parse_value("Address")))
-            .transpose()
-            .change_context(ValidationError::InvalidValue {
-                message: "Failed while deserializing billing_address".to_string(),
-            })
-            .attach_printable("Error while deserializing shipping_address")?;
-
-        let shipping_address = data
-            .shipping_address
-            .map(|shipping| shipping.deserialize_inner_value(|value| value.parse_value("Address")))
-            .transpose()
-            .change_context(ValidationError::InvalidValue {
-                message: "Failed while deserializing shipping_address".to_string(),
-            })
-            .attach_printable("Error while deserializing shipping_address")?;
-        let allowed_payment_method_types = storage_model
-            .allowed_payment_method_types
-            .map(|allowed_payment_method_types| {
-                allowed_payment_method_types.parse_value("Vec<PaymentMethodType>")
-            })
-            .transpose()
-            .change_context(ValidationError::InvalidValue {
-                message: "Failed while deserializing allowed_payment_method_types".to_string(),
-            })
-            .attach_printable("Error while deserializing allowed_payment_method_types")?;
-        Ok(Self {
-            merchant_id: storage_model.merchant_id.clone(),
-            status: storage_model.status,
-            amount_details,
-            amount_captured: storage_model.amount_captured,
-            customer_id: storage_model.customer_id,
-            description: storage_model.description,
-            return_url: storage_model.return_url,
-            metadata: storage_model.metadata,
-            statement_descriptor: storage_model.statement_descriptor,
-            created_at: storage_model.created_at,
-            modified_at: storage_model.modified_at,
-            last_synced: storage_model.last_synced,
-            setup_future_usage: storage_model.setup_future_usage.unwrap_or_default(),
-            active_attempt_id: storage_model.active_attempt_id,
-            order_details: storage_model.order_details.map(|order_details| {
-                order_details
-                    .into_iter()
-                    .map(|order_detail| Secret::new(order_detail.expose()))
-                    .collect::<Vec<_>>()
-            }),
-            allowed_payment_method_types,
-            connector_metadata: storage_model.connector_metadata,
-            feature_metadata: storage_model.feature_metadata,
-            attempt_count: storage_model.attempt_count,
-            profile_id: storage_model.profile_id.get_required_value("profile_id")?,
-            frm_merchant_decision: storage_model.frm_merchant_decision,
-            payment_link_id: storage_model.payment_link_id,
-            updated_by: storage_model.updated_by,
-            request_incremental_authorization: storage_model
-                .request_incremental_authorization
-                .unwrap_or_default(),
-            authorization_count: storage_model.authorization_count,
-            session_expiry: storage_model.session_expiry.get_required_value("session_expiry")?,
-            request_external_three_ds_authentication: storage_model
-                .request_external_three_ds_authentication
-                .into(),
-            frm_metadata: storage_model.frm_metadata,
-            customer_details: data.customer_details,
-            billing_address,
-            shipping_address,
-            capture_method: storage_model.capture_method.unwrap_or_default(),
-            id: storage_model.id,
-            merchant_reference_id: storage_model.merchant_reference_id,
-            organization_id: storage_model.organization_id,
-            authentication_type: storage_model.authentication_type,
-            prerouting_algorithm: storage_model
-                .prerouting_algorithm
-                .map(|prerouting_algorithm_value| {
-                    prerouting_algorithm_value
-                        .parse_value("PaymentRoutingInfo")
-                        .change_context(ValidationError::InvalidValue {
-                            message: "Failed while deserializing prerouting_algorithm".to_string(),
-                        })
-                })
-                .transpose()?,
-            enable_payment_link: storage_model.enable_payment_link.into(),
-            apply_mit_exemption: storage_model.apply_mit_exemption.into(),
-            customer_present: storage_model.customer_present.into(),
-            payment_link_config: storage_model.payment_link_config,
-            routing_algorithm_id: storage_model.routing_algorithm_id,
-            split_payments: storage_model.split_payments,
-            force_3ds_challenge: storage_model.force_3ds_challenge,
-            force_3ds_challenge_trigger: storage_model.force_3ds_challenge_trigger,
-            processor_merchant_id: storage_model
-                .processor_merchant_id
-                .unwrap_or(storage_model.merchant_id),
-            created_by: storage_model
-                .created_by
-                .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
-            is_iframe_redirection_enabled: storage_model.is_iframe_redirection_enabled,
-            is_payment_id_from_merchant: storage_model.is_payment_id_from_merchant,
         })
     }
 
