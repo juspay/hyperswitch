@@ -382,7 +382,7 @@ pub struct AuthenticationAuthenticateResponse {
     /// The error code for this authentication.
     #[schema(value_type = String)]
     pub error_code: Option<String>,
-    /// The authentication value for this authentication.
+    /// The authentication value for this authentication, only available in case of server to server request. Unavailable in case of client request due to security concern.
     #[schema(value_type = String)]
     pub authentication_value: Option<masking::Secret<String>>,
 
@@ -534,9 +534,6 @@ pub struct AuthenticationSyncResponse {
     /// Unique identifier assigned by the ACS.
     pub acs_trans_id: Option<String>,
 
-    /// Unique identifier assigned by the 3DS Server.
-    pub three_dsserver_trans_id: Option<String>,
-
     /// JWS object created by the ACS for the ARes message.
     pub acs_signed_content: Option<String>,
 
@@ -549,6 +546,9 @@ pub struct AuthenticationSyncResponse {
     /// The authentication value.
     #[schema(value_type = Option<String>)]
     pub authentication_value: Option<masking::Secret<String>>,
+
+    /// ECI value for this authentication.
+    pub eci: Option<String>,
 
     // Common Error Fields (present in multiple responses)
     /// Error message if any.
@@ -583,6 +583,21 @@ pub struct AuthenticationSyncRequest {
 }
 
 impl ApiEventMetric for AuthenticationSyncRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Authentication {
+            authentication_id: self.authentication_id.clone(),
+        })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct AuthenticationSyncPostUpdateRequest {
+    /// Authentication ID for the authentication
+    #[serde(skip_deserializing)]
+    pub authentication_id: id_type::AuthenticationId,
+}
+
+impl ApiEventMetric for AuthenticationSyncPostUpdateRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Authentication {
             authentication_id: self.authentication_id.clone(),

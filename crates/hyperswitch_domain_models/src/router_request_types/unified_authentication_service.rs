@@ -29,6 +29,7 @@ pub struct MerchantDetails {
     pub three_ds_requestor_url: Option<String>,
     pub three_ds_requestor_id: Option<String>,
     pub three_ds_requestor_name: Option<String>,
+    pub notification_url: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]

@@ -606,6 +606,8 @@ pub enum Flow {
     AuthenticationEligibility,
     /// Authentication Sync flow
     AuthenticationSync,
+    /// Authentication Sync Post Update flow
+    AuthenticationSyncPostUpdate,
     /// Authentication Authenticate flow
     AuthenticationAuthenticate,
     ///Proxy Flow

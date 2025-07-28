@@ -197,6 +197,7 @@ pub struct MerchantDetails {
     pub three_ds_requestor_id: Option<String>,
     pub three_ds_requestor_name: Option<String>,
     pub merchant_country_code: Option<MerchantCountryCode>,
+    pub notification_url: Option<String>,
 }
 
 #[derive(Default, Clone, Debug, Serialize, PartialEq, Deserialize)]
@@ -358,14 +359,14 @@ impl<F, T>
             .as_ref()
             .map(|acs_protocol_version| acs_protocol_version.version.clone());
         let three_ds_method_data =
-        three_ds_eligibility_response
-            .as_ref()
-            .and_then(|three_ds_eligibility_response| {
-                three_ds_eligibility_response
-                    .three_ds_method_data_form
-                    .as_ref()
-                    .and_then(|form| form.three_ds_method_data.clone())
-            });
+            three_ds_eligibility_response
+                .as_ref()
+                .and_then(|three_ds_eligibility_response| {
+                    three_ds_eligibility_response
+                        .three_ds_method_data_form
+                        .as_ref()
+                        .and_then(|form| form.three_ds_method_data.clone())
+                });
         let three_ds_method_url = max_acs_protocol_version
             .and_then(|acs_protocol_version| acs_protocol_version.three_ds_method_url);
         Ok(Self {
@@ -406,8 +407,9 @@ pub struct UnifiedAuthenticationServicePostAuthenticateResponse {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AuthenticationDetails {
     pub eci: Option<String>,
-    pub token_details: UasTokenDetails,
+    pub token_details: Option<UasTokenDetails>,
     pub dynamic_data_details: Option<UasDynamicData>,
+    pub trans_status: Option<common_enums::TransactionStatus>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -465,28 +467,14 @@ impl<F, T>
             response: Ok(UasAuthenticationResponseData::PostAuthentication {
                 authentication_details: PostAuthenticationDetails {
                     eci: item.response.authentication_details.eci,
-                    token_details: Some(TokenDetails {
-                        payment_token: item
-                            .response
-                            .authentication_details
-                            .token_details
-                            .payment_token,
-                        payment_account_reference: item
-                            .response
-                            .authentication_details
-                            .token_details
-                            .payment_account_reference,
-                        token_expiration_month: item
-                            .response
-                            .authentication_details
-                            .token_details
-                            .token_expiration_month,
-                        token_expiration_year: item
-                            .response
-                            .authentication_details
-                            .token_details
-                            .token_expiration_year,
-                    }),
+                    token_details: item.response.authentication_details.token_details.map(
+                        |token_details| TokenDetails {
+                            payment_token: token_details.payment_token,
+                            payment_account_reference: token_details.payment_account_reference,
+                            token_expiration_month: token_details.token_expiration_month,
+                            token_expiration_year: token_details.token_expiration_year,
+                        },
+                    ),
                     dynamic_data_details: item
                         .response
                         .authentication_details
@@ -496,7 +484,7 @@ impl<F, T>
                             dynamic_data_type: dynamic_data.dynamic_data_type,
                             ds_trans_id: dynamic_data.ds_trans_id,
                         }),
-                    trans_status: None,
+                    trans_status: item.response.authentication_details.trans_status,
                 },
             }),
             ..item.data
@@ -579,6 +567,7 @@ impl TryFrom<&UasPreAuthenticationRouterData>
             three_ds_requestor_id: merchant_data.three_ds_requestor_id,
             three_ds_requestor_name: merchant_data.three_ds_requestor_name,
             configuration_id: None,
+            notification_url: merchant_data.notification_url,
         };
 
         let acquirer = Acquirer {
