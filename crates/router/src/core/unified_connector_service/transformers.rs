@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 
+use api_models::payments::QrCodeInformation;
 use common_enums::{AttemptStatus, AuthenticationType};
-use common_utils::request::Method;
+use common_utils::{ext_traits::Encode, request::Method};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceError;
+use hyperswitch_connectors::utils::QrImage;
 use hyperswitch_domain_models::{
     router_data::{ErrorResponse, RouterData},
     router_flow_types::payments::{Authorize, PSync, SetupMandate},
@@ -16,6 +18,7 @@ use hyperswitch_domain_models::{
 use masking::{ExposeInterface, PeekInterface};
 use router_env::tracing;
 use unified_connector_service_client::payments::{self as payments_grpc, Identifier};
+use url::Url;
 
 use crate::{
     core::unified_connector_service::build_unified_connector_service_payment_method,

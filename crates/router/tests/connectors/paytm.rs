@@ -10,7 +10,7 @@ struct PaytmTest;
 impl ConnectorActions for PaytmTest {}
 impl utils::Connector for PaytmTest {
     fn get_data(&self) -> api::ConnectorData {
-        use router::connector::Paytm;
+        use hyperswitch_connectors::connectors::Paytm;
         utils::construct_connector_data_old(
             Box::new(Paytm::new()),
             types::Connector::Plaid,

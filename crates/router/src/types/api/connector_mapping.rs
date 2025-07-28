@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use error_stack::{report, ResultExt};
+use hyperswitch_connectors::connectors::{Paytm, Phonepe};
 
 use crate::{
     configs::settings::Connectors,
@@ -437,10 +438,10 @@ impl ConnectorData {
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                 }
                 enums::Connector::Phonepe => {
-                    Ok(ConnectorEnum::Old(Box::new(connector::Phonepe::new())))
+                    Ok(ConnectorEnum::Old(Box::new(Phonepe::new())))
                 }
                 enums::Connector::Paytm => {
-                    Ok(ConnectorEnum::Old(Box::new(connector::Paytm::new())))
+                    Ok(ConnectorEnum::Old(Box::new(Paytm::new())))
                 }
             },
             Err(_) => Err(report!(errors::ConnectorError::InvalidConnectorName)

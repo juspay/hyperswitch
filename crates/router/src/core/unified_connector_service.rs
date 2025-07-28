@@ -1,14 +1,13 @@
-use api_models::payments::QrCodeInformation;
 use common_enums::{AttemptStatus, PaymentMethodType};
 use common_utils::{
     errors::CustomResult,
-    ext_traits::{Encode, ValueExt},
+    ext_traits::ValueExt,
 };
 use error_stack::ResultExt;
 use external_services::grpc_client::unified_connector_service::{
     ConnectorAuthMetadata, UnifiedConnectorServiceError,
 };
-use hyperswitch_connectors::utils::{CardData, QrImage};
+use hyperswitch_connectors::utils::CardData;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails;
 use hyperswitch_domain_models::{
@@ -21,7 +20,6 @@ use unified_connector_service_client::payments::{
     self as payments_grpc, payment_method::PaymentMethod, CardDetails, CardPaymentMethodType,
     PaymentServiceAuthorizeResponse,
 };
-use url::Url;
 
 use crate::{
     consts,

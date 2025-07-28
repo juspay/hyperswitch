@@ -10,7 +10,7 @@ struct MpgsTest;
 impl ConnectorActions for MpgsTest {}
 impl utils::Connector for MpgsTest {
     fn get_data(&self) -> api::ConnectorData {
-        use router::connector::Mpgs;
+        use hyperswitch_connectors::connectors::Mpgs;
         utils::construct_connector_data_old(
             Box::new(Mpgs::new()),
             types::Connector::Plaid,
