@@ -147,6 +147,12 @@
                     ]
                   },
                   {
+                    "group": "Platform Account",
+                    "pages": [
+                      "v1/platform/platform--create"
+                    ]
+                  },
+                  {
                     "group": "API Key",
                     "pages": [
                       "v1/api-key/api-key--create",
