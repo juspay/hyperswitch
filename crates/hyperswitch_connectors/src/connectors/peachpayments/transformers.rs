@@ -369,10 +369,10 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
                             } else { 
                                 Some(auth_data.cavv.clone()) 
                             },
-                            tavv: None, // Not available in Hyperswitch AuthenticationData yet
+                            tavv: None, // Network token field - not available in Hyperswitch AuthenticationData
                             eci: eci.clone(),
                             ds_trans_id,
-                            xid: None, // Not available in Hyperswitch AuthenticationData yet  
+                            xid: None, // Legacy 3DS 1.x/network token field - not available in Hyperswitch AuthenticationData  
                             authentication_status,
                             three_ds_version,
                         })
