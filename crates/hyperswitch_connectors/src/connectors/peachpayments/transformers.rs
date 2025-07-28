@@ -119,14 +119,19 @@ pub struct AmountDetails {
 
 #[derive(Debug, Serialize, PartialEq)]
 pub struct ThreeDSData {
-    pub cavv: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cavv: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tavv: Option<Secret<String>>,
     pub eci: String,
     #[serde(rename = "dsTransId")]
     pub ds_trans_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub xid: Option<String>,
     #[serde(rename = "authenticationStatus")]
     pub authentication_status: String,
     #[serde(rename = "threeDSVersion")]
-    pub     three_ds_version: String,
+    pub three_ds_version: String,
 }
 
 // Confirm Transaction Request (for capture)
@@ -331,19 +336,45 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
 
                 // Extract 3DS data if available
                 let three_ds_data = item.router_data.request.authentication_data.as_ref().and_then(|auth_data| {
-                    // Only include 3DS data if we have the essential fields
-                    if auth_data.eci.is_some() || auth_data.ds_trans_id.is_some() {
+                    // Only include 3DS data if we have essential fields (ECI is most critical)
+                    if let Some(eci) = &auth_data.eci {
+                        let ds_trans_id = auth_data.ds_trans_id.clone()
+                            .or_else(|| auth_data.threeds_server_transaction_id.clone())
+                            .unwrap_or_else(|| "".to_string());
+                        
+                        // Determine authentication status based on ECI value
+                        let authentication_status = match eci.as_str() {
+                            "05" | "06" => "Y".to_string(),  // Fully authenticated
+                            "07" => "A".to_string(),         // Attempted authentication / liability shift 
+                            _ => "N".to_string(),            // Not authenticated / failed
+                        };
+                        
+                        // Convert message version to string, handling None case
+                        let three_ds_version = auth_data.message_version
+                            .as_ref()
+                            .map(|v| {
+                                let version_str = v.to_string();
+                                // Truncate version to match API spec (e.g., "2.2.0" -> "2.2")
+                                if version_str.len() > 3 && version_str.chars().nth(3) == Some('.') {
+                                    version_str[..3].to_string()
+                                } else {
+                                    version_str
+                                }
+                            })
+                            .unwrap_or_else(|| "2.2".to_string()); // Default to current 3DS version
+                        
                         Some(ThreeDSData {
-                            cavv: auth_data.cavv.clone(),
-                            eci: auth_data.eci.clone().unwrap_or_else(|| "07".to_string()), // Default ECI for 3DS authenticated
-                            ds_trans_id: auth_data.ds_trans_id.clone()
-                                .or_else(|| auth_data.threeds_server_transaction_id.clone())
-                                .unwrap_or_default(),
-                            authentication_status: if auth_data.eci.is_some() { "Y".to_string() } else { "A".to_string() },
-                            three_ds_version: auth_data.message_version
-                                .as_ref()
-                                .map(|v| v.to_string())
-                                .unwrap_or_else(|| "2.0".to_string()),
+                            cavv: if auth_data.cavv.clone().expose().is_empty() { 
+                                None 
+                            } else { 
+                                Some(auth_data.cavv.clone()) 
+                            },
+                            tavv: None, // Not available in Hyperswitch AuthenticationData yet
+                            eci: eci.clone(),
+                            ds_trans_id,
+                            xid: None, // Not available in Hyperswitch AuthenticationData yet  
+                            authentication_status,
+                            three_ds_version,
                         })
                     } else {
                         None
