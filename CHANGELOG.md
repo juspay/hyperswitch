@@ -4,6 +4,48 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.07.28.1
+
+### Features
+
+- **core:** Hyperswitch <|> UCS Mandate flow integration ([#8738](https://github.com/juspay/hyperswitch/pull/8738)) ([`f94f39e`](https://github.com/juspay/hyperswitch/commit/f94f39ef0cae800a8ecde21e8d4a95b14c074f88))
+- **themes:** Create user APIs for managing themes ([#8387](https://github.com/juspay/hyperswitch/pull/8387)) ([`20049d5`](https://github.com/juspay/hyperswitch/commit/20049d52fa3d3123c9942109c3ee3acc011d5978))
+
+### Refactors
+
+- Add routing_approach other variant to handle unknown data ([#8754](https://github.com/juspay/hyperswitch/pull/8754)) ([`7682cd4`](https://github.com/juspay/hyperswitch/commit/7682cd445eccdc8c213e0013a1fd025b21a4414d))
+
+### Miscellaneous Tasks
+
+- Update devDependencies for cypress ([#8735](https://github.com/juspay/hyperswitch/pull/8735)) ([`b30a7b8`](https://github.com/juspay/hyperswitch/commit/b30a7b809382a0119788e6807bd2eb8918d6edac))
+
+**Full Changelog:** [`2025.07.28.0...2025.07.28.1`](https://github.com/juspay/hyperswitch/compare/2025.07.28.0...2025.07.28.1)
+
+- - -
+
+## 2025.07.28.0
+
+### Features
+
+- **authentication:** Add authentication api for modular authentication ([#8459](https://github.com/juspay/hyperswitch/pull/8459)) ([`dbdf757`](https://github.com/juspay/hyperswitch/commit/dbdf7579d278bff37ffbbe9e10028dca7cc61369))
+- **connector:**
+  - [Flexiti]template code for flexiti connector ([#8714](https://github.com/juspay/hyperswitch/pull/8714)) ([`0f66692`](https://github.com/juspay/hyperswitch/commit/0f66692edeb26fb7092024410370d066e88ff74f))
+  - [MPGS] template code ([#8544](https://github.com/juspay/hyperswitch/pull/8544)) ([`98d924b`](https://github.com/juspay/hyperswitch/commit/98d924bf870b1ffdd24181deb2cea2e2778b7708))
+- **recovery-events:** Add revenue recovery topic and vector config to push these events to s3 ([#8285](https://github.com/juspay/hyperswitch/pull/8285)) ([`17d34a2`](https://github.com/juspay/hyperswitch/commit/17d34a29e4a286ca1acc0169f00322c2eab217d1))
+
+### Bug Fixes
+
+- **chat:** Append request id to headers for chat request ([#8680](https://github.com/juspay/hyperswitch/pull/8680)) ([`3113d2b`](https://github.com/juspay/hyperswitch/commit/3113d2b5dc3ab78a17ffc047337170b6806779c2))
+
+### Refactors
+
+- **connector:** [facilitapay] move destination bank account number to connector metadata ([#8704](https://github.com/juspay/hyperswitch/pull/8704)) ([`38c19f3`](https://github.com/juspay/hyperswitch/commit/38c19f30fce7515869d800bd5cabf3a7dd804e55))
+- **schema:** Add a new column for storing large customer user agents in mandate table ([#8616](https://github.com/juspay/hyperswitch/pull/8616)) ([`b74c1e9`](https://github.com/juspay/hyperswitch/commit/b74c1e918833d938c1d3ecdbad895c3fb84ac2d1))
+
+**Full Changelog:** [`2025.07.25.0...2025.07.28.0`](https://github.com/juspay/hyperswitch/compare/2025.07.25.0...2025.07.28.0)
+
+- - -
+
 ## 2025.07.25.0
 
 ### Features
