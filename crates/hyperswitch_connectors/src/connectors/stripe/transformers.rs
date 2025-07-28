@@ -793,6 +793,8 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             enums::PaymentMethodType::Ideal => Ok(Self::Ideal),
             enums::PaymentMethodType::Sofort => Ok(Self::Sofort),
             enums::PaymentMethodType::AmazonPay => Ok(Self::AmazonPay),
+            
+
             enums::PaymentMethodType::ApplePay => Ok(Self::Card),
             enums::PaymentMethodType::Ach => Ok(Self::Ach),
             enums::PaymentMethodType::Sepa => Ok(Self::Sepa),
@@ -819,6 +821,8 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::UpiCollect
             | enums::PaymentMethodType::UpiIntent
             | enums::PaymentMethodType::Cashapp
+            | enums::PaymentMethodType::Paysera
+            | enums::PaymentMethodType::Skrill
             | enums::PaymentMethodType::Bluecode
             | enums::PaymentMethodType::Oxxo => Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
