@@ -1,4 +1,10 @@
-use api_models::webhooks::IncomingWebhookEvent;
+use api_models::{
+    payments::{
+        BraintreeSessionTokenResponse, PaymentsSessionResponse, SessionToken,
+        ApplePaySessionResponse, NoThirdPartySdkSessionResponse,
+    },
+    webhooks::IncomingWebhookEvent,
+};
 use common_enums::enums;
 use common_utils::{
     pii,
@@ -27,11 +33,14 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{
-    types::{PaymentsCaptureResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
+    types::{
+        PaymentsCaptureResponseRouterData, PaymentsSessionResponseRouterData,
+        RefundsResponseRouterData, ResponseRouterData,
+    },
     unimplemented_payment_method,
     utils::{
         self, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
-        RefundsRequestData, RouterData as _,
+        RefundsRequestData, RouterData as _, ForeignTryFrom
     },
 };
 pub const CHANNEL_CODE: &str = "HyperSwitchBT_Ecom";
@@ -225,6 +234,7 @@ pub enum BraintreePaymentsRequest {
     Mandate(MandatePaymentRequest),
     GooglePay(BraintreeGooglePayRequest),
     PayPal(BraintreePayPalRequest),
+    Session(BraintreeClientTokenRequest),
 }
 
 #[derive(Debug, Deserialize)]
@@ -1548,8 +1558,15 @@ pub struct ClientTokenData {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClientTokenExtensions {
+    request_id: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ClientTokenResponse {
     data: ClientTokenData,
+    extensions: ClientTokenExtensions
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -1566,6 +1583,13 @@ pub struct ErrorResponse {
 #[serde(untagged)]
 pub enum BraintreeTokenResponse {
     TokenResponse(Box<TokenResponse>),
+    ErrorResponse(Box<ErrorResponse>),
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum BraintreeSessionResponse {
+    SessionTokenResponse(Box<ClientTokenResponse>),
     ErrorResponse(Box<ErrorResponse>),
 }
 
@@ -1597,6 +1621,49 @@ impl<F, T> TryFrom<ResponseRouterData<F, BraintreeTokenResponse, T, PaymentsResp
             },
             ..item.data
         })
+    }
+}
+
+impl
+    ForeignTryFrom<(
+        PaymentsSessionResponseRouterData<BraintreeSessionResponse>,
+        types::PaymentsSessionRouterData,
+    )> for types::PaymentsSessionRouterData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(
+        (item, data): (
+            PaymentsSessionResponseRouterData<BraintreeSessionResponse>,
+            types::PaymentsSessionRouterData,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let response = &item.response;
+        match response {
+            BraintreeSessionResponse::SessionTokenResponse(res) => {
+                let braintree_session_token_response = BraintreeSessionTokenResponse {
+                    client_token: res.data.create_client_token.client_token.clone().expose(),
+                    client_token_id: res.extensions.request_id.clone(),
+                    connector: "braintree".to_string(),
+                };
+
+                Ok(Self {
+                    response: Ok(PaymentsResponseData::SessionResponse {
+                        session_token: SessionToken::Braintree(Box::new(
+                            braintree_session_token_response,
+                        )),
+                    }),
+                    ..data
+                })
+            }
+            BraintreeSessionResponse::ErrorResponse(error_response) => {
+                let err = build_error_response(error_response.errors.as_ref(), item.http_code)
+                    .map_err(|err| *err);
+                Ok(Self {
+                    response: err,
+                    ..data
+                })
+            }
+        }
     }
 }
 
@@ -1917,6 +1984,27 @@ impl TryFrom<&types::PaymentsSyncRouterData> for BraintreePSyncRequest {
                 },
             },
         })
+    }
+}
+
+impl TryFrom<&types::PaymentsSessionRouterData> for BraintreePaymentsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsSessionRouterData) -> Result<Self, Self::Error> {
+        let metadata: BraintreeMeta =
+            utils::to_connector_meta_from_secret(item.connector_meta_data.clone())
+                .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                    config: "metadata",
+                })?;
+        Ok(Self::Session(BraintreeClientTokenRequest {
+            query: CLIENT_TOKEN_MUTATION.to_owned(),
+            variables: VariableClientTokenInput {
+                input: InputClientTokenData {
+                    client_token: ClientTokenInput {
+                        merchant_account_id: metadata.merchant_account_id,
+                    },
+                },
+            },
+        }))
     }
 }
 

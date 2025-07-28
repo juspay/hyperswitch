@@ -171,180 +171,182 @@ impl ConnectorValidation for Adyen {
         match pmt {
             Some(payment_method_type) => match payment_method_type {
                 #[cfg(feature = "v1")]
-                PaymentMethodType::Affirm
-                | PaymentMethodType::AfterpayClearpay
-                | PaymentMethodType::ApplePay
-                | PaymentMethodType::Credit
-                | PaymentMethodType::Debit
-                | PaymentMethodType::GooglePay
-                | PaymentMethodType::MobilePay
-                | PaymentMethodType::PayBright
-                | PaymentMethodType::Sepa
-                | PaymentMethodType::Vipps
-                | PaymentMethodType::Venmo
-                | PaymentMethodType::Paypal => match capture_method {
-                    enums::CaptureMethod::Automatic
-                    | enums::CaptureMethod::SequentialAutomatic
-                    | enums::CaptureMethod::Manual
-                    | enums::CaptureMethod::ManualMultiple => Ok(()),
-                    enums::CaptureMethod::Scheduled => {
-                        capture_method_not_supported!(
-                            connector,
-                            capture_method,
-                            payment_method_type
-                        )
-                    }
-                },
+                            PaymentMethodType::Affirm
+                            | PaymentMethodType::AfterpayClearpay
+                            | PaymentMethodType::ApplePay
+                            | PaymentMethodType::Credit
+                            | PaymentMethodType::Debit
+                            | PaymentMethodType::GooglePay
+                            | PaymentMethodType::MobilePay
+                            | PaymentMethodType::PayBright
+                            | PaymentMethodType::Sepa
+                            | PaymentMethodType::Vipps
+                            | PaymentMethodType::Venmo
+                            | PaymentMethodType::Paypal => match capture_method {
+                                enums::CaptureMethod::Automatic
+                                | enums::CaptureMethod::SequentialAutomatic
+                                | enums::CaptureMethod::Manual
+                                | enums::CaptureMethod::ManualMultiple => Ok(()),
+                                enums::CaptureMethod::Scheduled => {
+                                    capture_method_not_supported!(
+                                        connector,
+                                        capture_method,
+                                        payment_method_type
+                                    )
+                                }
+                            },
                 #[cfg(feature = "v2")]
-                PaymentMethodType::Affirm
-                | PaymentMethodType::AfterpayClearpay
-                | PaymentMethodType::ApplePay
-                | PaymentMethodType::Credit
-                | PaymentMethodType::Debit
-                | PaymentMethodType::Card
-                | PaymentMethodType::GooglePay
-                | PaymentMethodType::MobilePay
-                | PaymentMethodType::PayBright
-                | PaymentMethodType::Sepa
-                | PaymentMethodType::Vipps
-                | PaymentMethodType::Venmo
-                | PaymentMethodType::Skrill
+                            PaymentMethodType::Affirm
+                            | PaymentMethodType::AfterpayClearpay
+                            | PaymentMethodType::ApplePay
+                            | PaymentMethodType::Credit
+                            | PaymentMethodType::Debit
+                            | PaymentMethodType::Card
+                            | PaymentMethodType::GooglePay
+                            | PaymentMethodType::MobilePay
+                            | PaymentMethodType::PayBright
+                            | PaymentMethodType::Sepa
+                            | PaymentMethodType::Vipps
+                            | PaymentMethodType::Venmo
+                            | PaymentMethodType::Skrill
                 | PaymentMethodType::Paypal => match capture_method {
-                    enums::CaptureMethod::Automatic
-                    | enums::CaptureMethod::SequentialAutomatic
-                    | enums::CaptureMethod::Manual
-                    | enums::CaptureMethod::ManualMultiple => Ok(()),
-                    enums::CaptureMethod::Scheduled => {
-                        capture_method_not_supported!(
-                            connector,
-                            capture_method,
-                            payment_method_type
-                        )
-                    }
-                },
+                                enums::CaptureMethod::Automatic
+                                | enums::CaptureMethod::SequentialAutomatic
+                                | enums::CaptureMethod::Manual
+                                | enums::CaptureMethod::ManualMultiple => Ok(()),
+                                enums::CaptureMethod::Scheduled => {
+                                    capture_method_not_supported!(
+                                        connector,
+                                        capture_method,
+                                        payment_method_type
+                                    )
+                                }
+                            },
                 PaymentMethodType::Ach
-                | PaymentMethodType::SamsungPay
-                | PaymentMethodType::Paze
-                | PaymentMethodType::Alma
-                | PaymentMethodType::Bacs
-                | PaymentMethodType::Givex
-                | PaymentMethodType::Klarna
-                | PaymentMethodType::Twint
-                | PaymentMethodType::Walley => match capture_method {
-                    enums::CaptureMethod::Automatic
-                    | enums::CaptureMethod::Manual
-                    | enums::CaptureMethod::SequentialAutomatic => Ok(()),
-                    enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => {
-                        capture_method_not_supported!(
-                            connector,
-                            capture_method,
-                            payment_method_type
-                        )
-                    }
-                },
-
+                            | PaymentMethodType::SamsungPay
+                            | PaymentMethodType::Paze
+                            | PaymentMethodType::Alma
+                            | PaymentMethodType::Bacs
+                            | PaymentMethodType::Givex
+                            | PaymentMethodType::Klarna
+                            | PaymentMethodType::Twint
+                            | PaymentMethodType::Walley => match capture_method {
+                                enums::CaptureMethod::Automatic
+                                | enums::CaptureMethod::Manual
+                                | enums::CaptureMethod::SequentialAutomatic => Ok(()),
+                                enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => {
+                                    capture_method_not_supported!(
+                                        connector,
+                                        capture_method,
+                                        payment_method_type
+                                    )
+                                }
+                            },
                 PaymentMethodType::AliPay
-                | PaymentMethodType::AliPayHk
-                | PaymentMethodType::Atome
-                | PaymentMethodType::BancontactCard
-                | PaymentMethodType::Benefit
-                | PaymentMethodType::Bizum
-                | PaymentMethodType::Blik
-                | PaymentMethodType::Boleto
-                | PaymentMethodType::Dana
-                | PaymentMethodType::Eps
-                | PaymentMethodType::OnlineBankingFpx
-                | PaymentMethodType::Gcash
-                | PaymentMethodType::GoPay
-                | PaymentMethodType::Ideal
-                | PaymentMethodType::KakaoPay
-                | PaymentMethodType::Knet
-                | PaymentMethodType::MbWay
-                | PaymentMethodType::Momo
-                | PaymentMethodType::MomoAtm
-                | PaymentMethodType::OnlineBankingFinland
-                | PaymentMethodType::OnlineBankingPoland
-                | PaymentMethodType::OnlineBankingSlovakia
-                | PaymentMethodType::OnlineBankingThailand
-                | PaymentMethodType::Oxxo
-                | PaymentMethodType::PaySafeCard
-                | PaymentMethodType::Pix
-                | PaymentMethodType::Swish
-                | PaymentMethodType::TouchNGo
-                | PaymentMethodType::Trustly
-                | PaymentMethodType::WeChatPay
-                | PaymentMethodType::DanamonVa
-                | PaymentMethodType::BcaBankTransfer
-                | PaymentMethodType::BriVa
-                | PaymentMethodType::BniVa
-                | PaymentMethodType::CimbVa
-                | PaymentMethodType::MandiriVa
-                | PaymentMethodType::Alfamart
-                | PaymentMethodType::Indomaret
-                | PaymentMethodType::FamilyMart
-                | PaymentMethodType::Seicomart
-                | PaymentMethodType::PayEasy
-                | PaymentMethodType::MiniStop
-                | PaymentMethodType::Lawson
-                | PaymentMethodType::SevenEleven
-                | PaymentMethodType::OpenBankingUk
-                | PaymentMethodType::OnlineBankingCzechRepublic
-                | PaymentMethodType::PermataBankTransfer => match capture_method {
-                    enums::CaptureMethod::Automatic | enums::CaptureMethod::SequentialAutomatic => {
-                        Ok(())
-                    }
-                    enums::CaptureMethod::Manual
-                    | enums::CaptureMethod::ManualMultiple
-                    | enums::CaptureMethod::Scheduled => {
-                        capture_method_not_supported!(
-                            connector,
-                            capture_method,
-                            payment_method_type
-                        )
-                    }
-                },
+                            | PaymentMethodType::AliPayHk
+                            | PaymentMethodType::Atome
+                            | PaymentMethodType::BancontactCard
+                            | PaymentMethodType::Benefit
+                            | PaymentMethodType::Bizum
+                            | PaymentMethodType::Blik
+                            | PaymentMethodType::Boleto
+                            | PaymentMethodType::Dana
+                            | PaymentMethodType::Eps
+                            | PaymentMethodType::OnlineBankingFpx
+                            | PaymentMethodType::Gcash
+                            | PaymentMethodType::GoPay
+                            | PaymentMethodType::Ideal
+                            | PaymentMethodType::KakaoPay
+                            | PaymentMethodType::Knet
+                            | PaymentMethodType::MbWay
+                            | PaymentMethodType::Momo
+                            | PaymentMethodType::MomoAtm
+                            | PaymentMethodType::OnlineBankingFinland
+                            | PaymentMethodType::OnlineBankingPoland
+                            | PaymentMethodType::OnlineBankingSlovakia
+                            | PaymentMethodType::OnlineBankingThailand
+                            | PaymentMethodType::Oxxo
+                            | PaymentMethodType::PaySafeCard
+                            | PaymentMethodType::Pix
+                            | PaymentMethodType::Swish
+                            | PaymentMethodType::TouchNGo
+                            | PaymentMethodType::Trustly
+                            | PaymentMethodType::WeChatPay
+                            | PaymentMethodType::DanamonVa
+                            | PaymentMethodType::BcaBankTransfer
+                            | PaymentMethodType::BriVa
+                            | PaymentMethodType::BniVa
+                            | PaymentMethodType::CimbVa
+                            | PaymentMethodType::MandiriVa
+                            | PaymentMethodType::Alfamart
+                            | PaymentMethodType::Indomaret
+                            | PaymentMethodType::FamilyMart
+                            | PaymentMethodType::Seicomart
+                            | PaymentMethodType::PayEasy
+                            | PaymentMethodType::MiniStop
+                            | PaymentMethodType::Lawson
+                            | PaymentMethodType::SevenEleven
+                            | PaymentMethodType::OpenBankingUk
+                            | PaymentMethodType::OnlineBankingCzechRepublic
+                            | PaymentMethodType::PermataBankTransfer => match capture_method {
+                                enums::CaptureMethod::Automatic | enums::CaptureMethod::SequentialAutomatic => {
+                                    Ok(())
+                                }
+                                enums::CaptureMethod::Manual
+                                | enums::CaptureMethod::ManualMultiple
+                                | enums::CaptureMethod::Scheduled => {
+                                    capture_method_not_supported!(
+                                        connector,
+                                        capture_method,
+                                        payment_method_type
+                                    )
+                                }
+                            },
                 PaymentMethodType::AmazonPay
-                | PaymentMethodType::Breadpay
+                            | PaymentMethodType::Breadpay
                 | PaymentMethodType::Paysera
                 | PaymentMethodType::Skrill
                 | PaymentMethodType::CardRedirect
-                | PaymentMethodType::DirectCarrierBilling
-                | PaymentMethodType::Fps
-                | PaymentMethodType::DuitNow
-                | PaymentMethodType::Interac
-                | PaymentMethodType::Multibanco
-                | PaymentMethodType::Przelewy24
-                | PaymentMethodType::Becs
-                | PaymentMethodType::Eft
-                | PaymentMethodType::ClassicReward
-                | PaymentMethodType::Pse
-                | PaymentMethodType::LocalBankTransfer
-                | PaymentMethodType::Efecty
-                | PaymentMethodType::Giropay
-                | PaymentMethodType::PagoEfectivo
-                | PaymentMethodType::PromptPay
-                | PaymentMethodType::RedCompra
-                | PaymentMethodType::RedPagos
-                | PaymentMethodType::Sofort
-                | PaymentMethodType::CryptoCurrency
-                | PaymentMethodType::Evoucher
-                | PaymentMethodType::Cashapp
-                | PaymentMethodType::UpiCollect
-                | PaymentMethodType::UpiIntent
-                | PaymentMethodType::VietQr
-                | PaymentMethodType::Mifinity
-                | PaymentMethodType::LocalBankRedirect
-                | PaymentMethodType::OpenBankingPIS
-                | PaymentMethodType::InstantBankTransfer
-                | PaymentMethodType::InstantBankTransferFinland
-                | PaymentMethodType::InstantBankTransferPoland
-                | PaymentMethodType::IndonesianBankTransfer
+                            | PaymentMethodType::DirectCarrierBilling
+                            | PaymentMethodType::Fps
+                            | PaymentMethodType::DuitNow
+                            | PaymentMethodType::Interac
+                            | PaymentMethodType::Multibanco
+                            | PaymentMethodType::Przelewy24
+                            | PaymentMethodType::Becs
+                            | PaymentMethodType::Eft
+                            | PaymentMethodType::ClassicReward
+                            | PaymentMethodType::Pse
+                            | PaymentMethodType::LocalBankTransfer
+                            | PaymentMethodType::Efecty
+                            | PaymentMethodType::Giropay
+                            | PaymentMethodType::PagoEfectivo
+                            | PaymentMethodType::PromptPay
+                            | PaymentMethodType::RedCompra
+                            | PaymentMethodType::RedPagos
+                            | PaymentMethodType::Sofort
+                            | PaymentMethodType::CryptoCurrency
+                            | PaymentMethodType::Evoucher
+                            | PaymentMethodType::Cashapp
+                            | PaymentMethodType::UpiCollect
+                            | PaymentMethodType::UpiIntent
+                            | PaymentMethodType::VietQr
+                            | PaymentMethodType::Mifinity
+                            | PaymentMethodType::LocalBankRedirect
+                            | PaymentMethodType::OpenBankingPIS
+                            | PaymentMethodType::InstantBankTransfer
+                            | PaymentMethodType::InstantBankTransferFinland
+                            | PaymentMethodType::InstantBankTransferPoland
+                            | PaymentMethodType::IndonesianBankTransfer
                 | PaymentMethodType::SepaBankTransfer
-                | PaymentMethodType::Flexiti
+                            | PaymentMethodType::Skrill
+                            | PaymentMethodType::Paysera
+                            | PaymentMethodType::Flexiti
                 | PaymentMethodType::RevolutPay
                 | PaymentMethodType::Bluecode => {
-                    capture_method_not_supported!(connector, capture_method, payment_method_type)
-                }
+                                capture_method_not_supported!(connector, capture_method, payment_method_type)
+                            }
+
             },
             None => match capture_method {
                 enums::CaptureMethod::Automatic

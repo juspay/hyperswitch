@@ -7233,6 +7233,8 @@ pub enum SessionToken {
     Paze(Box<PazeSessionTokenResponse>),
     /// The sessions response structure for ClickToPay
     ClickToPay(Box<ClickToPaySessionResponse>),
+    /// The sessions response structure for Braintree
+    Braintree(Box<BraintreeSessionTokenResponse>),
     /// Whenever there is no session token response or an error in session response
     NoSessionTokenReceived,
 }
@@ -7414,6 +7416,17 @@ pub struct KlarnaSessionTokenResponse {
     pub session_token: String,
     /// The identifier for the session
     pub session_id: String,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub struct BraintreeSessionTokenResponse {
+    /// The client token for Braintree
+    pub client_token: String,
+    /// The identifier for the client_token
+    pub client_token_id: String,
+    /// The name of the connector
+    pub connector: String,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
