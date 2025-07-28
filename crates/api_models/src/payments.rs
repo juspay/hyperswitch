@@ -1186,6 +1186,10 @@ pub struct PaymentsRequest {
     #[serde(skip_deserializing)]
     #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
     pub is_payment_id_from_merchant: bool,
+
+    /// Indicates how the payment was initiated (e.g., ecommerce, mail, or telephone).
+    pub payment_channel: Option<common_types::payments::PaymentChannel>,
+
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
