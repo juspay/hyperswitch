@@ -256,6 +256,7 @@ pub struct NuveiPaymentsRequest {
     pub transaction_type: TransactionType,
     pub is_rebilling: Option<String>,
     pub payment_option: PaymentOption,
+    pub is_moto: Option<bool>,
     pub device_details: DeviceDetails,
     pub checksum: Secret<String>,
     pub billing_address: Option<BillingAddress>,
