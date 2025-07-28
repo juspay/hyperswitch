@@ -405,15 +405,3 @@ pub struct XenditMultipleSplitResponse {
     pub routes: Vec<XenditSplitRoute>,
 }
 impl_to_sql_from_sql_json!(XenditMultipleSplitResponse);
-
-#[derive(
-    Default, Debug, serde::Deserialize, serde::Serialize, PartialEq, Eq, Clone, Copy, ToSchema,
-)]
-#[serde(rename_all = "lowercase")]
-/// Describes the channel through which the payment was initiated.
-pub enum PaymentChannel {
-    #[default]
-    Ecommerce,
-    MailOrder,
-    TelephoneOrder,
-}

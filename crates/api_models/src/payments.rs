@@ -1188,7 +1188,7 @@ pub struct PaymentsRequest {
     pub is_payment_id_from_merchant: bool,
 
     /// Indicates how the payment was initiated (e.g., ecommerce, mail, or telephone).
-    pub payment_channel: Option<common_types::payments::PaymentChannel>,
+    pub payment_channel: Option<common_enums::PaymentChannel>,
 
 }
 

@@ -2032,6 +2032,7 @@ impl behaviour::Conversion for PaymentIntent {
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
             extended_return_url: self.return_url,
             is_payment_id_from_merchant: self.is_payment_id_from_merchant,
+            payment_channel: self.payment_channel,
         })
     }
 
@@ -2133,6 +2134,7 @@ impl behaviour::Conversion for PaymentIntent {
                 force_3ds_challenge_trigger: storage_model.force_3ds_challenge_trigger,
                 is_iframe_redirection_enabled: storage_model.is_iframe_redirection_enabled,
                 is_payment_id_from_merchant: storage_model.is_payment_id_from_merchant,
+                payment_channel: storage_model.payment_channel,
             })
         }
         .await

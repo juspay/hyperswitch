@@ -157,7 +157,7 @@ pub struct Capture {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct BillToAddressData {
+pub struct VantivAddressData {
     pub name: Option<Secret<String>>,
     pub address_line1: Option<Secret<String>>,
     pub address_line2: Option<Secret<String>>,
@@ -190,7 +190,9 @@ pub struct Authorization {
     pub amount: MinorUnit,
     pub order_source: OrderSource,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub bill_to_address: Option<BillToAddressData>,
+    pub bill_to_address: Option<VantivAddressData>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ship_to_address: Option<VantivAddressData>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub card: Option<WorldpayvantivCardData>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -214,7 +216,9 @@ pub struct Sale {
     pub amount: MinorUnit,
     pub order_source: OrderSource,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub bill_to_address: Option<BillToAddressData>,
+    pub bill_to_address: Option<VantivAddressData>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ship_to_address: Option<VantivAddressData>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub card: Option<WorldpayvantivCardData>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -242,6 +246,8 @@ pub struct RefundRequest {
 #[serde(rename_all = "lowercase")]
 pub enum OrderSource {
     Ecommerce,
+    MailOrder,
+    Telephone,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -422,13 +428,13 @@ impl<F> TryFrom<ResponseRouterData<F, VantivSyncResponse, PaymentsSyncData, Paym
     }
 }
 
-fn get_bill_to_address(item: &PaymentsAuthorizeRouterData) -> Option<BillToAddressData> {
+fn get_bill_to_address(item: &PaymentsAuthorizeRouterData) -> Option<VantivAddressData> {
     let billing_address = item.get_optional_billing();
     billing_address.and_then(|billing_address| {
         billing_address
             .address
             .clone()
-            .map(|address| BillToAddressData {
+            .map(|address| VantivAddressData {
                 name: address.get_optional_full_name(),
                 address_line1: item.get_optional_billing_line1(),
                 address_line2: item.get_optional_billing_line2(),
@@ -439,6 +445,27 @@ fn get_bill_to_address(item: &PaymentsAuthorizeRouterData) -> Option<BillToAddre
                 email: item.get_optional_billing_email(),
                 country: item.get_optional_billing_country(),
                 phone: item.get_optional_billing_phone_number(),
+            })
+    })
+}
+
+fn get_ship_to_address(item: &PaymentsAuthorizeRouterData) -> Option<VantivAddressData> {
+    let shipping_address = item.get_optional_shipping();
+    shipping_address.and_then(|shipping_address| {
+        shipping_address
+            .address
+            .clone()
+            .map(|address| VantivAddressData {
+                name: address.get_optional_full_name(),
+                address_line1: item.get_optional_shipping_line1(),
+                address_line2: item.get_optional_shipping_line2(),
+                address_line3: item.get_optional_shipping_line3(),
+                city: item.get_optional_shipping_city(),
+                state: item.get_optional_shipping_state(),
+                zip: item.get_optional_shipping_zip(),
+                email: item.get_optional_shipping_email(),
+                country: item.get_optional_shipping_country(),
+                phone: item.get_optional_shipping_phone_number(),
             })
     })
 }
@@ -456,7 +483,6 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
         };
         let worldpayvantiv_metadata =
             WorldpayvantivMetadataObject::try_from(&item.router_data.connector_meta_data)?;
-
         if worldpayvantiv_metadata.merchant_config_currency != item.router_data.request.currency {
             Err(errors::ConnectorError::CurrencyNotSupported {
                 message: item.router_data.request.currency.to_string(),
@@ -465,7 +491,6 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
         };
 
         let card = get_vantiv_card_data(&item.router_data.request.payment_method_data.clone())?;
-
         let report_group = item
             .router_data
             .request
@@ -479,22 +504,21 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
             .transpose()?
             .and_then(|worldpayvantiv_metadata| worldpayvantiv_metadata.report_group)
             .unwrap_or(worldpayvantiv_metadata.report_group);
-
         let worldpayvantiv_auth_type =
             WorldpayvantivAuthType::try_from(&item.router_data.connector_auth_type)?;
         let authentication = Authentication {
             user: worldpayvantiv_auth_type.user,
             password: worldpayvantiv_auth_type.password,
         };
-
         let customer_id = item
             .router_data
             .customer_id
             .clone()
             .map(|customer_id| customer_id.get_string_repr().to_string());
         let bill_to_address = get_bill_to_address(item.router_data);
+        let ship_to_address = get_ship_to_address(item.router_data);
         let processing_info = get_processing_info(&item.router_data.request)?;
-
+        let order_source = OrderSource::from(&item.router_data.request.payment_channel);
         let (authorization, sale) = if item.router_data.request.is_auto_capture()? {
             (
                 None,
@@ -508,8 +532,9 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
                     customer_id,
                     order_id: item.router_data.connector_request_reference_id.clone(),
                     amount: item.amount,
-                    order_source: OrderSource::Ecommerce,
+                    order_source,
                     bill_to_address,
+                    ship_to_address,
                     card: card.clone(),
                     token: processing_info.token,
                     processing_type: processing_info.processing_type,
@@ -528,8 +553,9 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
                     customer_id,
                     order_id: item.router_data.connector_request_reference_id.clone(),
                     amount: item.amount,
-                    order_source: OrderSource::Ecommerce,
+                    order_source,
                     bill_to_address,
+                    ship_to_address,
                     card: card.clone(),
                     token: processing_info.token,
                     processing_type: processing_info.processing_type,
@@ -550,6 +576,21 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
             auth_reversal: None,
             credit: None,
         })
+    }
+}
+
+
+
+impl From<&Option<common_enums::PaymentChannel>> for OrderSource {
+    fn from(
+        payment_channel: &Option<common_enums::PaymentChannel>
+    ) -> Self {
+        match payment_channel {
+            Some(common_enums::PaymentChannel::Ecommerce)
+            | None => OrderSource::Ecommerce,
+            Some(common_enums::PaymentChannel::MailOrder) => OrderSource::MailOrder,
+            Some(common_enums::PaymentChannel::TelephoneOrder) => OrderSource::MailOrder,
+        }
     }
 }
 

@@ -3819,6 +3819,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             merchant_config_currency,
             connector_testing_data,
             order_id: None,
+            payment_channel: payment_data.payment_intent.payment_channel,
         })
     }
 }
