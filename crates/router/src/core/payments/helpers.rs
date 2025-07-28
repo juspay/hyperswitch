@@ -2037,6 +2037,24 @@ pub fn decide_payment_method_retrieval_action(
     }
 }
 
+pub async fn is_ucs_enabled(state: &SessionState, config_key: &str) -> bool {
+    let db = state.store.as_ref();
+    db.find_config_by_key_unwrap_or(config_key, Some("false".to_string()))
+        .await
+        .map_err(|error| {
+            logger::error!(
+                ?error,
+                "Failed to fetch `{config_key}` UCS enabled config from DB"
+            );
+        })
+        .and_then(|config| {
+            config.config.parse::<bool>().map_err(|error| {
+                logger::error!(?error, "Failed to parse `{config_key}` UCS enabled config");
+            })
+        })
+        .unwrap_or(false)
+}
+
 pub async fn should_execute_based_on_rollout(
     state: &SessionState,
     config_key: &str,
@@ -3421,7 +3439,7 @@ pub fn generate_mandate(
                         .get_ip_address()
                         .map(masking::Secret::new),
                 )
-                .set_customer_user_agent(customer_acceptance.get_user_agent())
+                .set_customer_user_agent_extended(customer_acceptance.get_user_agent())
                 .set_customer_accepted_at(Some(customer_acceptance.get_accepted_at()))
                 .set_metadata(payment_method_data_option.map(|payment_method_data| {
                     pii::SecretSerdeValue::new(

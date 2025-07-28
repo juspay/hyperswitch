@@ -270,6 +270,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         .browser_info
         .clone()
         .map(types::BrowserInformation::from);
+
     // TODO: few fields are repeated in both routerdata and request
     let request = types::PaymentsAuthorizeData {
         payment_method_data: payment_data
@@ -325,6 +326,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         merchant_config_currency: None,
         connector_testing_data: None,
         order_id: None,
+        locale: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -1989,6 +1991,7 @@ where
             is_iframe_redirection_enabled: None,
             merchant_reference_id: payment_intent.merchant_reference_id.clone(),
             raw_connector_response,
+            feature_metadata: None,
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
@@ -2089,6 +2092,7 @@ where
             is_iframe_redirection_enabled: payment_intent.is_iframe_redirection_enabled,
             merchant_reference_id: payment_intent.merchant_reference_id.clone(),
             raw_connector_response,
+            feature_metadata: None,
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
@@ -3586,6 +3590,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             merchant_config_currency: None,
             connector_testing_data: None,
             order_id: None,
+            locale: None,
         })
     }
 }
@@ -3817,6 +3822,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             merchant_config_currency,
             connector_testing_data,
             order_id: None,
+            locale: Some(additional_data.state.locale.clone()),
         })
     }
 }
@@ -5045,6 +5051,12 @@ impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::PaymentA
     fn foreign_from(
         attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> Self {
+        let payment_method_data: Option<
+            api_models::payments::PaymentMethodDataResponseWithBilling,
+        > = attempt
+            .payment_method_data
+            .clone()
+            .and_then(|data| serde_json::from_value(data.expose().clone()).ok());
         Self {
             id: attempt.get_id().to_owned(),
             status: attempt.status,
@@ -5076,6 +5088,7 @@ impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::PaymentA
                 .feature_metadata
                 .as_ref()
                 .map(api_models::payments::PaymentAttemptFeatureMetadata::foreign_from),
+            payment_method_data,
         }
     }
 }
@@ -5215,7 +5228,7 @@ impl ForeignFrom<&diesel_models::types::FeatureMetadata> for api_models::payment
             .clone()
             .map(api_models::payments::RedirectResponse::foreign_from);
         Self {
-            payment_revenue_recovery_metadata: revenue_recovery,
+            revenue_recovery,
             apple_pay_recurring_details: apple_pay_details,
             redirect_response: redirect_res,
             search_tags: feature_metadata.search_tags.clone(),

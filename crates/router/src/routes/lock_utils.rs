@@ -35,6 +35,7 @@ pub enum ApiIdentifier {
     UserRole,
     ConnectorOnboarding,
     Recon,
+    AiWorkflow,
     Poll,
     ApplePayCertificatesMigration,
     Relay,
@@ -80,8 +81,11 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ToggleDynamicRouting
             | Flow::UpdateDynamicRoutingConfigs
             | Flow::DecisionManagerUpsertConfig
+            | Flow::RoutingEvaluateRule
             | Flow::DecisionEngineRuleMigration
-            | Flow::VolumeSplitOnRoutingType => Self::Routing,
+            | Flow::VolumeSplitOnRoutingType
+            | Flow::DecisionEngineDecideGatewayCall
+            | Flow::DecisionEngineGatewayFeedbackCall => Self::Routing,
 
             Flow::RetrieveForexFlow => Self::Forex,
 
@@ -300,6 +304,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::DeleteTheme
             | Flow::CloneConnector => Self::User,
 
+            Flow::GetDataFromHyperswitchAiFlow => Self::AiWorkflow,
+
             Flow::ListRolesV2
             | Flow::ListInvitableRolesAtEntityLevel
             | Flow::ListUpdatableRolesAtEntityLevel
@@ -349,7 +355,9 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::RevenueRecoveryRetrieve => Self::ProcessTracker,
 
-            Flow::AuthenticationCreate => Self::Authentication,
+            Flow::AuthenticationCreate
+            | Flow::AuthenticationEligibility
+            | Flow::AuthenticationAuthenticate => Self::Authentication,
             Flow::Proxy => Self::Proxy,
 
             Flow::ProfileAcquirerCreate | Flow::ProfileAcquirerUpdate => Self::ProfileAcquirer,
