@@ -103,6 +103,8 @@ pub enum WalletType {
     Mifinity,
     Paze,
     RevolutPay,
+    Skrill,
+    Paysera,
 }
 
 #[derive(

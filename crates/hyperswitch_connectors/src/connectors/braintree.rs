@@ -43,6 +43,8 @@ use hyperswitch_domain_models::{
         PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData, TokenizationRouterData,
     },
 };
+use hyperswitch_domain_models::types::PaymentsSessionRouterData;
+use hyperswitch_interfaces::types::PaymentsSessionType;
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse,
