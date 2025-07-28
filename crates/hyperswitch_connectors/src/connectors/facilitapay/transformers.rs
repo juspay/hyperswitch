@@ -525,12 +525,19 @@ impl From<FacilitapayPaymentStatus> for enums::RefundStatus {
 }
 
 // Void (cancel unprocessed payment) transformer
-impl TryFrom<ResponseRouterData<Void, FacilitapayVoidResponse, PaymentsCancelData, PaymentsResponseData>>
-    for RouterData<Void, PaymentsCancelData, PaymentsResponseData>
+impl
+    TryFrom<
+        ResponseRouterData<Void, FacilitapayVoidResponse, PaymentsCancelData, PaymentsResponseData>,
+    > for RouterData<Void, PaymentsCancelData, PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(
-        item: ResponseRouterData<Void, FacilitapayVoidResponse, PaymentsCancelData, PaymentsResponseData>,
+        item: ResponseRouterData<
+            Void,
+            FacilitapayVoidResponse,
+            PaymentsCancelData,
+            PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         let status = common_enums::AttemptStatus::from(item.response.data.status.clone());
 
