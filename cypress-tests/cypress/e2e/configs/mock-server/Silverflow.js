@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
-const express = require("express");
-const cors = require("cors");
+import express from "express";
+import cors from "cors";
 
 const app = express();
 const PORT = process.env.PORT || 3010;
@@ -23,6 +23,7 @@ const mockData = {
 const validCredentials = {
   "apk-1wtRxni5IsPsSpBLWpwr": "FWtnOOHAjbD6rNxWWEeVOCj7JXSEPGJQ",
   "apk-testkey123": "testsecret456",
+  "api-silverflow": "depends_on_mockserver",
 };
 
 // Helper functions
@@ -169,6 +170,7 @@ app.post("/charges", authenticateBasic, (req, res) => {
       },
       created: now,
       version: 1,
+      actions: [],
     };
 
     mockData.charges[chargeKey] = charge;
@@ -679,12 +681,16 @@ app.listen(PORT, () => {
   console.log("  POST /processorTokens - Create processor tokens");
   console.log("  POST /eventSubscriptions - Create webhook subscriptions");
   console.log("  GET  /eventSubscriptions - List event subscriptions");
-  console.log("\n🔐 Authentication:");
-  console.log("  API Key: apk-1wtRxni5IsPsSpBLWpwr");
-  console.log("  Secret: FWtnOOHAjbD6rNxWWEeVOCj7JXSEPGJQ");
-  console.log("  Alternative - API Key: apk-testkey123, Secret: testsecret456");
-  console.log("\n📖 Use Basic Auth with base64 encoded key:secret");
-  console.log("  Example: Authorization: Basic <base64(apikey:secret)>");
+  console.log("\n🔐 Authentication (SignatureKey format):");
+  console.log("  auth_type: SignatureKey");
+  console.log("  api_key: apk-testkey123");
+  console.log("  key1: testsecret456 (merchant_acceptor_key)");
+  console.log("  api_secret: testsecret456");
+  console.log("\n📖 Use Basic Auth with base64 encoded api_key:api_secret");
+  console.log(
+    "  Example: Authorization: Basic <base64(apk-testkey123:testsecret456)>"
+  );
+  console.log("\n💡 Note: Silverflow depends on mockserver");
 });
 
-module.exports = app;
+export default app;
