@@ -538,6 +538,7 @@ pub enum CallConnectorAction {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::EnumString,
     strum::EnumIter,
@@ -545,6 +546,7 @@ pub enum CallConnectorAction {
     ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
+#[smithy(namespace = "com.hyperswitch.payment.models")]
 pub enum Currency {
     AED,
     AFN,

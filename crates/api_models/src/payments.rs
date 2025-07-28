@@ -874,6 +874,7 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<u64>, example = 6540)]
     #[serde(default, deserialize_with = "amount::deserialize_option")]
     #[mandatory_in(PaymentsCreateRequest = u64)]
+    #[smithy(value_type = "u64")]
     // Makes the field mandatory in PaymentsCreateRequest
     pub amount: Option<Amount>,
 

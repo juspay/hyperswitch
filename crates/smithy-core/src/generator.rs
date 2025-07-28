@@ -85,7 +85,121 @@ impl SmithyGenerator {
                 def.push_str("}");
                 def
             }
-            _ => format!("// Unsupported shape type for {}", name),
+            crate::types::SmithyShape::Union {
+                members,
+                documentation,
+                traits,
+            } => {
+                let mut def = String::new();
+
+                if let Some(doc) = documentation {
+                    def.push_str(&format!("/// {}\n", doc));
+                }
+
+                for smithy_trait in traits {
+                    def.push_str(&format!("@{}\n", self.trait_to_string(smithy_trait)));
+                }
+
+                def.push_str(&format!("union {} {{\n", name));
+
+                for (member_name, member) in members {
+                    if let Some(doc) = &member.documentation {
+                        def.push_str(&format!("    /// {}\n", doc));
+                    }
+
+                    for smithy_trait in &member.traits {
+                        def.push_str(&format!("    @{}\n", self.trait_to_string(smithy_trait)));
+                    }
+
+                    def.push_str(&format!("    {}: {}\n", member_name, member.target));
+                }
+
+                def.push_str("}");
+                def
+            }
+            crate::types::SmithyShape::StringEnum {
+                values,
+                documentation,
+                traits,
+            } => {
+                let mut def = String::new();
+
+                if let Some(doc) = documentation {
+                    def.push_str(&format!("/// {}\n", doc));
+                }
+
+                for smithy_trait in traits {
+                    def.push_str(&format!("@{}\n", self.trait_to_string(smithy_trait)));
+                }
+
+                def.push_str(&format!("@enum([\n"));
+
+                for (value_name, enum_value) in values {
+                    def.push_str("    {\n");
+                    def.push_str(&format!("        name: \"{}\"\n", value_name));
+                    def.push_str(&format!("        value: \"{}\"\n", enum_value.name));
+                    if let Some(doc) = &enum_value.documentation {
+                        def.push_str(&format!("        documentation: \"{}\"\n", doc));
+                    }
+                    def.push_str("    }\n");
+                }
+
+                def.push_str("])\n");
+                def.push_str(&format!("string {}", name));
+                def
+            }
+            crate::types::SmithyShape::String { traits } => {
+                let mut def = String::new();
+
+                for smithy_trait in traits {
+                    def.push_str(&format!("@{}\n", self.trait_to_string(smithy_trait)));
+                }
+
+                def.push_str(&format!("string {}", name));
+                def
+            }
+            crate::types::SmithyShape::Integer { traits } => {
+                let mut def = String::new();
+
+                for smithy_trait in traits {
+                    def.push_str(&format!("@{}\n", self.trait_to_string(smithy_trait)));
+                }
+
+                def.push_str(&format!("integer {}", name));
+                def
+            }
+            crate::types::SmithyShape::Long { traits } => {
+                let mut def = String::new();
+
+                for smithy_trait in traits {
+                    def.push_str(&format!("@{}\n", self.trait_to_string(smithy_trait)));
+                }
+
+                def.push_str(&format!("long {}", name));
+                def
+            }
+            crate::types::SmithyShape::Boolean { traits } => {
+                let mut def = String::new();
+
+                for smithy_trait in traits {
+                    def.push_str(&format!("@{}\n", self.trait_to_string(smithy_trait)));
+                }
+
+                def.push_str(&format!("boolean {}", name));
+                def
+            }
+            crate::types::SmithyShape::List { member, traits } => {
+                let mut def = String::new();
+
+                for smithy_trait in traits {
+                    def.push_str(&format!("@{}\n", self.trait_to_string(smithy_trait)));
+                }
+
+                def.push_str(&format!("list {} {{\n", name));
+                def.push_str(&format!("    member: {}\n", member.target));
+                def.push_str("}");
+                def
+            }
         }
     }
 

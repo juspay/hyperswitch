@@ -47,6 +47,22 @@ pub enum SmithyShape {
         #[serde(skip_serializing_if = "Vec::is_empty")]
         traits: Vec<SmithyTrait>,
     },
+    #[serde(rename = "union")]
+    Union {
+        members: HashMap<String, SmithyMember>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        documentation: Option<String>,
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        traits: Vec<SmithyTrait>,
+    },
+    #[serde(rename = "enum")]
+    StringEnum {
+        values: HashMap<String, SmithyEnumValue>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        documentation: Option<String>,
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        traits: Vec<SmithyTrait>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -56,6 +72,13 @@ pub struct SmithyMember {
     pub documentation: Option<String>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub traits: Vec<SmithyTrait>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SmithyEnumValue {
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub documentation: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -80,6 +103,14 @@ pub struct SmithyField {
     pub constraints: Vec<SmithyConstraint>,
     pub documentation: Option<String>,
     pub optional: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct SmithyEnumVariant {
+    pub name: String,
+    pub fields: Vec<SmithyField>,
+    pub constraints: Vec<SmithyConstraint>,
+    pub documentation: Option<String>,
 }
 
 #[derive(Debug, Clone)]
