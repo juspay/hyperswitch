@@ -14,7 +14,10 @@ use hyperswitch_domain_models::{
         self, ApplePayWalletData, BankRedirectData, GooglePayWalletData, PayLaterData,
         PaymentMethodData, WalletData,
     },
-    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
+    router_data::{
+        AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
+        ErrorResponse, RouterData,
+    },
     router_flow_types::{
         refunds::{Execute, RSync},
         Authorize, Capture, CompleteAuthorize, PSync, Void,
@@ -75,6 +78,9 @@ trait NuveiAuthorizePreprocessingCommon {
     fn get_payment_method_data_required(
         &self,
     ) -> Result<PaymentMethodData, error_stack::Report<errors::ConnectorError>>;
+    fn get_order_tax_amount(
+        &self,
+    ) -> Result<Option<i64>, error_stack::Report<errors::ConnectorError>>;
 }
 
 impl NuveiAuthorizePreprocessingCommon for PaymentsAuthorizeData {
@@ -125,6 +131,11 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsAuthorizeData {
         &self,
     ) -> Result<PaymentMethodData, error_stack::Report<errors::ConnectorError>> {
         Ok(self.payment_method_data.clone())
+    }
+    fn get_order_tax_amount(
+        &self,
+    ) -> Result<Option<i64>, error_stack::Report<errors::ConnectorError>> {
+        Ok(self.order_tax_amount.map(|tax| tax.get_amount_as_i64()))
     }
 }
 
@@ -182,6 +193,11 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsPreProcessingData {
             .into(),
         )
     }
+    fn get_order_tax_amount(
+        &self,
+    ) -> Result<Option<i64>, error_stack::Report<errors::ConnectorError>> {
+        Ok(None)
+    }
 }
 
 #[derive(Debug, Serialize, Default, Deserialize)]
@@ -218,6 +234,11 @@ pub struct NuveiSessionResponse {
     pub client_request_id: String,
 }
 
+#[derive(Debug, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct NuvieAmountDetails {
+    total_tax: Option<String>,
+}
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -235,11 +256,12 @@ pub struct NuveiPaymentsRequest {
     pub transaction_type: TransactionType,
     pub is_rebilling: Option<String>,
     pub payment_option: PaymentOption,
-    pub device_details: Option<DeviceDetails>,
+    pub device_details: DeviceDetails,
     pub checksum: Secret<String>,
     pub billing_address: Option<BillingAddress>,
     pub related_transaction_id: Option<String>,
     pub url_details: Option<UrlDetails>,
+    pub amount_details: Option<NuvieAmountDetails>,
 }
 
 #[derive(Debug, Serialize, Default)]
@@ -1047,6 +1069,12 @@ where
             ..Default::default()
         })?;
         let return_url = item.request.get_return_url_required()?;
+        let amount_details = match item.request.get_order_tax_amount()? {
+            Some(tax) => Some(NuvieAmountDetails {
+                total_tax: Some(utils::to_currency_base_unit(tax, currency)?),
+            }),
+            None => None,
+        };
         Ok(Self {
             is_rebilling: request_data.is_rebilling,
             user_token_id: request_data.user_token_id,
@@ -1059,6 +1087,7 @@ where
                 failure_url: return_url.clone(),
                 pending_url: return_url,
             }),
+            amount_details,
             ..request
         })
     }
@@ -1170,9 +1199,7 @@ where
         related_transaction_id,
         is_rebilling,
         user_token_id,
-        device_details: Option::<DeviceDetails>::foreign_try_from(
-            &item.request.get_browser_info().clone(),
-        )?,
+        device_details: DeviceDetails::foreign_try_from(&item.request.get_browser_info().clone())?,
         payment_option: PaymentOption::from(NuveiCardDetails {
             card: card_details.clone(),
             three_d,
@@ -1612,6 +1639,14 @@ where
         };
 
         let response = item.response;
+        let connector_response_data = response
+            .payment_option
+            .as_ref()
+            .and_then(|payment_response| payment_response.card.as_ref())
+            .and_then(|card| {
+                convert_to_additional_payment_method_connector_response(card)
+                    .map(ConnectorResponseData::with_additional_payment_method_data)
+            });
         Ok(Self {
             status: get_payment_status(&response),
             response: if let Some(err) = build_error_response(&response, item.http_code) {
@@ -1652,6 +1687,7 @@ where
                     charges: None,
                 })
             },
+            connector_response: connector_response_data,
             ..item.data
         })
     }
@@ -1754,7 +1790,7 @@ where
             };
             Ok(Self {
                 related_transaction_id,
-                device_details: Option::<DeviceDetails>::foreign_try_from(
+                device_details: DeviceDetails::foreign_try_from(
                     &item.request.get_browser_info().clone(),
                 )?,
                 is_rebilling: Some("1".to_string()), // In case of second installment, rebilling should be 1
@@ -1769,16 +1805,15 @@ where
     }
 }
 
-impl ForeignTryFrom<&Option<BrowserInformation>> for Option<DeviceDetails> {
+impl ForeignTryFrom<&Option<BrowserInformation>> for DeviceDetails {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn foreign_try_from(browser_info: &Option<BrowserInformation>) -> Result<Self, Self::Error> {
-        let device_details = match browser_info {
-            Some(browser_info) => Some(DeviceDetails {
-                ip_address: browser_info.get_ip_address()?,
-            }),
-            None => None,
-        };
-        Ok(device_details)
+        let browser_info = browser_info
+            .as_ref()
+            .ok_or_else(utils::missing_field_err("browser_info"))?;
+        Ok(Self {
+            ip_address: browser_info.get_ip_address()?,
+        })
     }
 }
 
@@ -1900,4 +1935,59 @@ impl From<NuveiWebhookDetails> for NuveiPaymentsResponse {
             ..Default::default()
         }
     }
+}
+
+fn get_cvv2_response_description(code: &str) -> Option<&'static str> {
+    match code {
+        "M" => Some("CVV2 Match"),
+        "N" => Some("CVV2 No Match"),
+        "P" => Some("Not Processed. For EU card-on-file (COF) and ecommerce (ECOM) network token transactions, Visa removes any CVV and sends P. If you have fraud or security concerns, Visa recommends using 3DS."),
+        "U" => Some("Issuer is not certified and/or has not provided Visa the encryption keys"),
+        "S" => Some("CVV2 processor is unavailable."),
+        _ => None,
+    }
+}
+
+fn get_avs_response_description(code: &str) -> Option<&'static str> {
+    match code {
+        "A" => Some("The street address matches, the ZIP code does not."),
+        "W" => Some("Postal code matches, the street address does not."),
+        "Y" => Some("Postal code and the street address match."),
+        "X" => Some("An exact match of both the 9-digit ZIP code and the street address."),
+        "Z" => Some("Postal code matches, the street code does not."),
+        "U" => Some("Issuer is unavailable."),
+        "S" => Some("AVS not supported by issuer."),
+        "R" => Some("Retry."),
+        "B" => Some("Not authorized (declined)."),
+        "N" => Some("Both the street address and postal code do not match."),
+        _ => None,
+    }
+}
+
+fn convert_to_additional_payment_method_connector_response(
+    transaction_response: &Card,
+) -> Option<AdditionalPaymentMethodConnectorResponse> {
+    let avs_code = transaction_response.avs_code.as_ref();
+    let cvv2_code = transaction_response.cvv2_reply.as_ref();
+
+    if avs_code.is_none() && cvv2_code.is_none() {
+        return None;
+    }
+
+    let avs_description = avs_code.and_then(|code| get_avs_response_description(code));
+    let cvv_description = cvv2_code.and_then(|code| get_cvv2_response_description(code));
+
+    let payment_checks = serde_json::json!({
+        "avs_result_code": avs_code,
+        "avs_description": avs_description,
+        "cvv_2_reply_code": cvv2_code,
+        "cvv_2_description": cvv_description,
+    });
+
+    Some(AdditionalPaymentMethodConnectorResponse::Card {
+        authentication_data: None,
+        payment_checks: Some(payment_checks),
+        card_network: None,
+        domestic_network: None,
+    })
 }
