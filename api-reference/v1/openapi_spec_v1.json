@@ -9374,6 +9374,27 @@
                 "type": "object"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "indonesian_bank_transfer"
+            ],
+            "properties": {
+              "indonesian_bank_transfer": {
+                "type": "object",
+                "properties": {
+                  "bank_name": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankNames"
+                      }
+                    ],
+                    "nullable": true
+                  }
+                }
+              }
+            }
           }
         ]
       },
@@ -9646,13 +9667,14 @@
                   "source_bank_account_id": {
                     "type": "string",
                     "description": "Source bank account number",
-                    "example": "8b2812f0-d6c8-4073-97bb-9fa964d08bc5",
+                    "example": "8b******-****-****-****-*******08bc5",
                     "nullable": true
                   },
                   "destination_bank_account_id": {
                     "type": "string",
-                    "description": "Destination bank account number",
-                    "example": "9b95f84e-de61-460b-a14b-f23b4e71c97b",
+                    "description": "Partially masked destination bank account number _Deprecated: Will be removed in next stable release._",
+                    "deprecated": true,
+                    "example": "********-****-460b-****-f23b4e71c97b",
                     "nullable": true
                   },
                   "expiry_date": {
@@ -9723,6 +9745,27 @@
             "properties": {
               "instant_bank_transfer_poland": {
                 "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "indonesian_bank_transfer"
+            ],
+            "properties": {
+              "indonesian_bank_transfer": {
+                "type": "object",
+                "properties": {
+                  "bank_name": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankNames"
+                      }
+                    ],
+                    "nullable": true
+                  }
+                }
               }
             }
           }
@@ -11181,6 +11224,7 @@
           "bluesnap",
           "boku",
           "braintree",
+          "breadpay",
           "cashtocode",
           "celero",
           "chargebee",
@@ -19140,6 +19184,17 @@
                 "type": "object"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "breadpay_redirect"
+            ],
+            "properties": {
+              "breadpay_redirect": {
+                "type": "object"
+              }
+            }
           }
         ]
       },
@@ -20911,7 +20966,6 @@
           "ali_pay_hk",
           "alma",
           "amazon_pay",
-          "skrill",
           "paysera",
           "apple_pay",
           "atome",
@@ -20924,6 +20978,7 @@
           "boleto",
           "bca_bank_transfer",
           "bni_va",
+          "breadpay",
           "bri_va",
           "card_redirect",
           "cimb_va",
@@ -20981,6 +21036,7 @@
           "samsung_pay",
           "sepa",
           "sepa_bank_transfer",
+          "skrill",
           "sofort",
           "swish",
           "touch_n_go",
@@ -21006,7 +21062,8 @@
           "instant_bank_transfer",
           "instant_bank_transfer_finland",
           "instant_bank_transfer_poland",
-          "revolut_pay"
+          "revolut_pay",
+          "indonesian_bank_transfer"
         ]
       },
       "PaymentMethodUpdate": {
@@ -26296,7 +26353,8 @@
           },
           "destination_bank_account_id": {
             "type": "string",
-            "description": "Partially masked destination bank account number",
+            "description": "Partially masked destination bank account number _Deprecated: Will be removed in next stable release._",
+            "deprecated": true,
             "example": "********-****-460b-****-f23b4e71c97b",
             "nullable": true
           },
@@ -28309,6 +28367,7 @@
           "bluesnap",
           "boku",
           "braintree",
+          "breadpay",
           "cashtocode",
           "celero",
           "chargebee",
@@ -29958,7 +30017,7 @@
       "ThreeDsData": {
         "type": "object",
         "required": [
-          "threeds_server_transaction_id",
+          "three_ds_server_transaction_id",
           "maximum_supported_3ds_version",
           "connector_authentication_id",
           "three_ds_method_data",
@@ -29967,7 +30026,7 @@
           "directory_server_id"
         ],
         "properties": {
-          "threeds_server_transaction_id": {
+          "three_ds_server_transaction_id": {
             "type": "string",
             "description": "The unique identifier for this authentication from the 3DS server."
           },

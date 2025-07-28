@@ -265,6 +265,46 @@ function bankRedirectRedirection(
     });
 
     verifyUrl = true;
+  } else if (connectorId === "airwallex" && paymentMethodType === "ideal") {
+    const airwallexIdealOrigin1 = "https://ext.pay.ideal.nl";
+    const airwallexIdealOrigin2 = "https://handler.ext.idealtesttool.nl";
+
+    cy.origin(
+      airwallexIdealOrigin1,
+      { args: { constants: CONSTANTS } },
+      ({ constants }) => {
+        cy.log("Executing on Airwallex iDEAL Origin 1");
+        cy.wait(constants.TIMEOUT / 10); // 2 seconds
+        cy.get("button[data-testid=payment-action-button]").click();
+        cy.wait(constants.TIMEOUT / 10); // 2 seconds
+        cy.get("button[id=bank-item-TESTNL2A]").click();
+      }
+    );
+
+    cy.log(`Waiting for redirection to ${airwallexIdealOrigin2}`);
+    cy.location("origin", { timeout: CONSTANTS.TIMEOUT }).should(
+      "eq",
+      airwallexIdealOrigin2
+    );
+
+    cy.origin(
+      airwallexIdealOrigin2,
+      { args: { constants: CONSTANTS } },
+      ({ constants }) => {
+        cy.log("Executing on Airwallex iDEAL Origin 2");
+
+        cy.get(".btn.btn-primary.btn-lg")
+          .contains("Success")
+          .should("be.visible")
+          .click();
+
+        cy.url({ timeout: constants.WAIT_TIME }).should(
+          "include",
+          "/loading/SUCCESS"
+        );
+      }
+    );
+    verifyUrl = false;
   } else {
     handleFlow(
       redirectionUrl,
