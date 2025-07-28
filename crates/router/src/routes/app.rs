@@ -2663,9 +2663,10 @@ impl User {
                     .route(web::delete().to(user::delete_sample_data)),
             )
         }
-
+        // Admin Theme
+        // TODO: To be deprecated
         route = route.service(
-            web::scope("/theme")
+            web::scope("/admin/theme")
                 .service(
                     web::resource("")
                         .route(web::get().to(user::theme::get_theme_using_lineage))
@@ -2679,7 +2680,26 @@ impl User {
                         .route(web::delete().to(user::theme::delete_theme)),
                 ),
         );
-
+        // User Theme
+        route = route.service(
+            web::scope("/theme")
+                .service(
+                    web::resource("")
+                        .route(web::post().to(user::theme::create_user_theme))
+                        .route(web::get().to(user::theme::get_user_theme_using_lineage)),
+                )
+                .service(
+                    web::resource("/list")
+                        .route(web::get().to(user::theme::list_all_themes_in_lineage)),
+                )
+                .service(
+                    web::resource("/{theme_id}")
+                        .route(web::get().to(user::theme::get_user_theme_using_theme_id))
+                        .route(web::put().to(user::theme::update_user_theme))
+                        .route(web::post().to(user::theme::upload_file_to_user_theme_storage))
+                        .route(web::delete().to(user::theme::delete_user_theme)),
+                ),
+        );
         route
     }
 }
