@@ -8535,7 +8535,6 @@ pub enum TokenDataType {
 
 #[derive(
     Clone,
-    Copy,
     Debug,
     Default,
     Eq,
@@ -8562,6 +8561,9 @@ pub enum RoutingApproach {
     StraightThroughRouting,
     #[default]
     DefaultFallback,
+    #[serde(untagged)]
+    #[strum(default)]
+    Other(String),
 }
 
 impl RoutingApproach {
@@ -8570,6 +8572,7 @@ impl RoutingApproach {
             "SR_SELECTION_V3_ROUTING" => Self::SuccessRateExploitation,
             "SR_V3_HEDGING" => Self::SuccessRateExploration,
             "NTW_BASED_ROUTING" => Self::DebitRouting,
+            "DEFAULT" => Self::StraightThroughRouting,
             _ => Self::DefaultFallback,
         }
     }
