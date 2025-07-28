@@ -132,6 +132,10 @@ pub(crate) mod diesel_impl {
         }
     }
 
+    /// If the DB value is null, this wrapper will return an error when deserializing.
+    ///
+    /// This is useful when you want to ensure that a field is always present, even if the database
+    /// value is NULL. If the database column contains a NULL value, an error will be returned.
     pub struct RequiredFromNullable<T>(T);
 
     impl<T> RequiredFromNullable<T> {
@@ -161,6 +165,10 @@ pub(crate) mod diesel_impl {
         }
     }
 
+    /// If the DB value is null, this wrapper will provide a default value for the type `T`.
+    ///
+    /// This is useful when you want to ensure that a field is always present, even if the database
+    /// value is NULL. The default value is provided by the `Default` trait implementation of `T`.
     pub struct RequiredFromNullableWithDefault<T>(T);
 
     impl<T> RequiredFromNullableWithDefault<T> {
