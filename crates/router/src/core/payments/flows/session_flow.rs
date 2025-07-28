@@ -1432,6 +1432,7 @@ impl RouterDataSession for types::PaymentsSessionRouterData {
                 create_paypal_sdk_session_token(state, self, connector, business_profile)
             }
             api::GetToken::PazeMetadata => create_paze_session_token(self, header_payload),
+            
             api::GetToken::Connector => {
                 let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
                     api::Session,

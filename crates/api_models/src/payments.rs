@@ -7948,6 +7948,17 @@ pub struct KlarnaSessionTokenResponse {
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
 #[serde(rename_all = "lowercase")]
+pub struct BraintreeSessionTokenResponse {
+    /// The client token for Braintree
+    pub client_token: String,
+    /// The identifier for the client_token
+    pub client_token_id: String,
+    /// The name of the connector
+    pub connector: String,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
 pub struct PaypalSessionTokenResponse {
     /// Name of the connector
     pub connector: String,

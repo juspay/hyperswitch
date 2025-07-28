@@ -68,6 +68,8 @@ impl From<enums::WalletType> for global_enums::PaymentMethodType {
             enums::WalletType::Mifinity => Self::Mifinity,
             enums::WalletType::Paze => Self::Paze,
             enums::WalletType::RevolutPay => Self::RevolutPay,
+            enums::WalletType::Skrill => Self::Skrill,
+            enums::WalletType::Paysera => Self::Paysera,
         }
     }
 }
