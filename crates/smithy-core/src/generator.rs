@@ -22,11 +22,20 @@ impl SmithyGenerator {
         fs::create_dir_all(output_dir)?;
 
         let mut namespace_models: HashMap<String, Vec<&SmithyModel>> = HashMap::new();
+        let mut shape_to_namespace: HashMap<String, String> = HashMap::new();
 
+        // First, build a map of all shape names to their namespaces
+        for model in &self.models {
+            for shape_name in model.shapes.keys() {
+                shape_to_namespace.insert(shape_name.clone(), model.namespace.clone());
+            }
+        }
+
+        // Group models by namespace for file generation
         for model in &self.models {
             namespace_models
                 .entry(model.namespace.clone())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(model);
         }
 
@@ -38,11 +47,23 @@ impl SmithyGenerator {
             content.push_str("$version: \"2\"\n\n");
             content.push_str(&format!("namespace {}\n\n", namespace));
 
+            // Collect all unique shape definitions for the current namespace
+            let mut shapes_in_namespace = HashMap::new();
             for model in models {
                 for (shape_name, shape) in &model.shapes {
-                    content.push_str(&self.generate_shape_definition(shape_name, shape));
-                    content.push_str("\n\n");
+                    shapes_in_namespace.insert(shape_name.clone(), shape.clone());
                 }
+            }
+
+            // Generate definitions for each shape in the namespace
+            for (shape_name, shape) in &shapes_in_namespace {
+                content.push_str(&self.generate_shape_definition(
+                    shape_name,
+                    shape,
+                    &namespace,
+                    &shape_to_namespace,
+                ));
+                content.push_str("\n\n");
             }
 
             fs::write(filepath, content)?;
@@ -51,7 +72,17 @@ impl SmithyGenerator {
         Ok(())
     }
 
-    fn generate_shape_definition(&self, name: &str, shape: &crate::types::SmithyShape) -> String {
+    fn generate_shape_definition(
+        &self,
+        name: &str,
+        shape: &crate::types::SmithyShape,
+        current_namespace: &str,
+        shape_to_namespace: &HashMap<String, String>,
+    ) -> String {
+        let resolve_target = |target: &str| {
+            self.resolve_type(target, current_namespace, shape_to_namespace)
+        };
+
         match shape {
             crate::types::SmithyShape::Structure {
                 members,
@@ -79,7 +110,8 @@ impl SmithyGenerator {
                         def.push_str(&format!("    @{}\n", self.trait_to_string(smithy_trait)));
                     }
 
-                    def.push_str(&format!("    {}: {}\n", member_name, member.target));
+                    let resolved_target = resolve_target(&member.target);
+                    def.push_str(&format!("    {}: {}\n", member_name, resolved_target));
                 }
 
                 def.push_str("}");
@@ -111,7 +143,8 @@ impl SmithyGenerator {
                         def.push_str(&format!("    @{}\n", self.trait_to_string(smithy_trait)));
                     }
 
-                    def.push_str(&format!("    {}: {}\n", member_name, member.target));
+                    let resolved_target = resolve_target(&member.target);
+                    def.push_str(&format!("    {}: {}\n", member_name, resolved_target));
                 }
 
                 def.push_str("}");
@@ -196,10 +229,38 @@ impl SmithyGenerator {
                 }
 
                 def.push_str(&format!("list {} {{\n", name));
-                def.push_str(&format!("    member: {}\n", member.target));
+                let resolved_target = resolve_target(&member.target);
+                def.push_str(&format!("    member: {}\n", resolved_target));
                 def.push_str("}");
                 def
             }
+        }
+    }
+
+    fn resolve_type(
+        &self,
+        target: &str,
+        current_namespace: &str,
+        shape_to_namespace: &HashMap<String, String>,
+    ) -> String {
+        // If the target is a primitive or a fully qualified Smithy type, return it as is
+        if target.starts_with("smithy.api#") {
+            return target.to_string();
+        }
+
+        // If the target is a custom type, resolve its namespace
+        if let Some(target_namespace) = shape_to_namespace.get(target) {
+            if target_namespace == current_namespace {
+                // The type is in the same namespace, so no qualification is needed
+                target.to_string()
+            } else {
+                // The type is in a different namespace, so it needs to be fully qualified
+                format!("{}#{}", target_namespace, target)
+            }
+        } else {
+            // If the type is not found in the shape map, it might be a primitive
+            // or an unresolved type. For now, return it as is.
+            target.to_string()
         }
     }
 

@@ -74,13 +74,15 @@ fn scan_directory(dir: &Path, crate_name: &str, module_path: &str, models: &mut 
 fn scan_rust_file(file_path: &Path, crate_name: &str, module_path: &str, models: &mut Vec<SmithyModelInfo>) {
     if let Ok(content) = fs::read_to_string(file_path) {
         // This regex finds a derive attribute, captures its content,
-        // skips over anything until the next struct, and captures the struct name.
+        // skips over anything until the next struct or enum, and captures its name.
         // The `(?s)` flag allows `.` to match newlines.
-        let re = Regex::new(r"(?s)#\[derive\((.*?)\)\].*?(?:pub\s+)?struct\s+(\w+)").unwrap();
+        // The `[^\{]*?` is a non-greedy match for any character except `{`, which prevents
+        // the regex from jumping over struct/enum definitions.
+        let re = Regex::new(r"(?s)#\[derive\((.*?)\)\][^\{]*?(?:pub\s+)?(?:struct|enum)\s+(\w+)").unwrap();
 
         for captures in re.captures_iter(&content) {
             let derive_content = &captures[1];
-            let struct_name = &captures[2];
+            let item_name = &captures[2];
 
             // Check if "SmithyModel" is present in the derive macro's content.
             if derive_content.contains("SmithyModel") {
@@ -88,7 +90,7 @@ fn scan_rust_file(file_path: &Path, crate_name: &str, module_path: &str, models:
 
                 models.push(SmithyModelInfo {
                     crate_name: crate_name.to_string(),
-                    struct_name: struct_name.to_string(),
+                    struct_name: item_name.to_string(),
                     module_path: full_module_path,
                 });
             }

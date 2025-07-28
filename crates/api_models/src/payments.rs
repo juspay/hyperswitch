@@ -874,12 +874,13 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<u64>, example = 6540)]
     #[serde(default, deserialize_with = "amount::deserialize_option")]
     #[mandatory_in(PaymentsCreateRequest = u64)]
-    #[smithy(value_type = "u64")]
+    #[smithy(value_type = "Option<u64>")]
     // Makes the field mandatory in PaymentsCreateRequest
     pub amount: Option<Amount>,
 
     /// Total tax amount applicable to the order, in the lowest denomination of the currency.
     #[schema(value_type = Option<i64>, example = 6540)]
+    #[smithy(value_type = "Option<i64>")]
     pub order_tax_amount: Option<MinorUnit>,
 
     /// The three-letter ISO 4217 currency code (e.g., "USD", "EUR") for the payment amount. This field is mandatory for creating a payment.
@@ -889,6 +890,7 @@ pub struct PaymentsRequest {
 
     /// The amount to be captured from the user's payment method, in the lowest denomination. If not provided, and `capture_method` is `automatic`, the full payment `amount` will be captured. If `capture_method` is `manual`, this can be specified in the `/capture` call. Must be less than or equal to the authorized amount.
     #[schema(value_type = Option<i64>, example = 6540)]
+    #[smithy(value_type = "Option<i64>")]
     pub amount_to_capture: Option<MinorUnit>,
 
     /// The shipping cost for the payment. This is required for tax calculation in some regions.
@@ -903,12 +905,14 @@ pub struct PaymentsRequest {
         example = "pay_mbabizu24mvu3mela5njyhpit4"
     )]
     #[serde(default, deserialize_with = "payment_id_type::deserialize_option")]
+    #[smithy(value_type = "Option<String>")]
     pub payment_id: Option<PaymentIdType>,
 
     /// This is an identifier for the merchant account. This is inferred from the API key
     /// provided during the request
     #[schema(max_length = 255, example = "merchant_1668273825", value_type = Option<String>)]
     #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
+    #[smithy(value_type = "Option<String>")]
     pub merchant_id: Option<id_type::MerchantId>,
 
     /// Details of the routing configuration for that payment
@@ -916,6 +920,7 @@ pub struct PaymentsRequest {
         "type": "single",
         "data": {"connector": "stripe", "merchant_connector_id": "mca_123"}
     }))]
+    #[smithy(value_type = "Option<StraightThroughAlgorithm>")]
     pub routing: Option<serde_json::Value>,
 
     /// This allows to manually select a connector with which the payment can go through.
@@ -929,6 +934,7 @@ pub struct PaymentsRequest {
     pub authentication_type: Option<api_enums::AuthenticationType>,
 
     /// The billing details of the payment. This address will be used for invoicing.
+    #[smithy(value_type = "Option<Address>")]
     pub billing: Option<Address>,
 
     /// A timestamp (ISO 8601 code) that determines when the payment should be captured.
@@ -953,36 +959,43 @@ pub struct PaymentsRequest {
     /// This field will be deprecated soon, use the customer object instead
     #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com", deprecated)]
     #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
+    #[smithy(value_type = "Option<String>")]
     pub email: Option<Email>,
 
     /// The customer's name.
     /// This field will be deprecated soon, use the customer object instead.
     #[schema(value_type = Option<String>, max_length = 255, example = "John Test", deprecated)]
     #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
+    #[smithy(value_type = "Option<String>")]
     pub name: Option<Secret<String>>,
 
     /// The customer's phone number
     /// This field will be deprecated soon, use the customer object instead
     #[schema(value_type = Option<String>, max_length = 255, example = "9123456789", deprecated)]
     #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
+    #[smithy(value_type = "Option<String>")]
     pub phone: Option<Secret<String>>,
 
     /// The country code for the customer phone number
     /// This field will be deprecated soon, use the customer object instead
     #[schema(max_length = 255, example = "+1", deprecated)]
     #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
+    #[smithy(value_type = "Option<String>")]
     pub phone_country_code: Option<String>,
 
     /// Set to true to indicate that the customer is not in your checkout flow during this payment, and therefore is unable to authenticate. This parameter is intended for scenarios where you collect card details and charge them later. When making a recurring payment by passing a mandate_id, this parameter is mandatory
     #[schema(example = true)]
+    #[smithy(value_type = "Option<bool>")]
     pub off_session: Option<bool>,
 
     /// An arbitrary string attached to the payment. Often useful for displaying to users or for your own internal record-keeping.
     #[schema(example = "It's my first payment request")]
+    #[smithy(value_type = "Option<String>")]
     pub description: Option<String>,
 
     /// The URL to redirect the customer to after they complete the payment process or authentication. This is crucial for flows that involve off-site redirection (e.g., 3DS, some bank redirects, wallet payments).
     #[schema(value_type = Option<String>, example = "https://hyperswitch.io", max_length = 2048)]
+    #[smithy(value_type = "Option<String>")]
     pub return_url: Option<Url>,
 
     #[schema(value_type = Option<FutureUsage>, example = "off_session")]
@@ -997,11 +1010,13 @@ pub struct PaymentsRequest {
 
     /// As Hyperswitch tokenises the sensitive details about the payments method, it provides the payment_token as a reference to a stored payment method, ensuring that the sensitive details are not exposed in any manner.
     #[schema(example = "187282ab-40ef-47a9-9206-5099ba31e432")]
+    #[smithy(value_type = "Option<String>")]
     pub payment_token: Option<String>,
 
     /// This is used along with the payment_token field while collecting during saved card payments. This field will be deprecated soon, use the payment_method_data.card_token object instead
     #[schema(value_type = Option<String>, deprecated)]
     #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
+    #[smithy(value_type = "Option<String>")]
     pub card_cvc: Option<Secret<String>>,
 
     /// The shipping address for the payment
@@ -1009,10 +1024,12 @@ pub struct PaymentsRequest {
 
     /// For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.
     #[schema(max_length = 255, example = "Hyperswitch Router")]
+    #[smithy(value_type = "Option<String>")]
     pub statement_descriptor_name: Option<String>,
 
     /// Provides information about a card payment that customers see on their statements. Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor. Maximum 22 characters for the concatenated descriptor.
     #[schema(max_length = 255, example = "Payment for shoes purchase")]
+    #[smithy(value_type = "Option<String>")]
     pub statement_descriptor_suffix: Option<String>,
 
     /// Use this object to capture the details about the different products for which the payment is being made. The sum of amount across different products here should be equal to the overall payment amount
@@ -1027,6 +1044,7 @@ pub struct PaymentsRequest {
     /// It's a token used for client side verification.
     #[schema(example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
     #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest)]
+    #[smithy(value_type = "Option<String>")]
     pub client_secret: Option<String>,
 
     /// Passing this object during payments creates a mandate. The mandate_type sub object is passed by the server.
@@ -1039,6 +1057,7 @@ pub struct PaymentsRequest {
     /// A unique identifier to link the payment to a mandate. To do Recurring payments after a mandate has been created, pass the mandate_id instead of payment_method_data
     #[schema(max_length = 64, example = "mandate_iwer89rnjef349dni3")]
     #[remove_in(PaymentsUpdateRequest)]
+    #[smithy(value_type = "Option<String>")]
     pub mandate_id: Option<String>,
 
     /// Additional details required by 3DS 2.0
@@ -1073,6 +1092,7 @@ pub struct PaymentsRequest {
     /// To be deprecated soon. Pass the profile_id instead
     #[schema(example = "food")]
     #[remove_in(PaymentsUpdateRequest, PaymentsConfirmRequest)]
+    #[smithy(value_type = "Option<String>")]
     pub business_label: Option<String>,
 
     #[schema(value_type = Option<MerchantConnectorDetailsWrap>)]
@@ -1084,6 +1104,7 @@ pub struct PaymentsRequest {
 
     /// Business sub label for the payment
     #[remove_in(PaymentsUpdateRequest, PaymentsConfirmRequest, PaymentsCreateRequest)]
+    #[smithy(value_type = "Option<String>")]
     pub business_sub_label: Option<String>,
 
     /// Denotes the retry action
@@ -1104,17 +1125,20 @@ pub struct PaymentsRequest {
 
     /// Whether to generate the payment link for this payment or not (if applicable)
     #[schema(default = false, example = true)]
+    #[smithy(value_type = "Option<bool>")]
     pub payment_link: Option<bool>,
 
     #[schema(value_type = Option<PaymentCreatePaymentLinkConfig>)]
     pub payment_link_config: Option<PaymentCreatePaymentLinkConfig>,
 
     /// Custom payment link config id set at business profile, send only if business_specific_configs is configured
+    #[smithy(value_type = "Option<String>")]
     pub payment_link_config_id: Option<String>,
 
     /// The business profile to be used for this payment, if not passed the default business profile associated with the merchant account will be used. It is mandatory in case multiple business profiles have been set up.
     #[remove_in(PaymentsUpdateRequest, PaymentsConfirmRequest)]
     #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
     pub profile_id: Option<id_type::ProfileId>,
 
     #[remove_in(PaymentsConfirmRequest)]
@@ -4306,15 +4330,19 @@ impl Default for PaymentIdType {
     }
 }
 
-#[derive(Default, Clone, Debug, Eq, PartialEq, ToSchema, serde::Deserialize, serde::Serialize)]
+#[derive(Default, Clone, Debug, Eq, PartialEq, ToSchema, serde::Deserialize, serde::Serialize, SmithyModel)]
 #[serde(deny_unknown_fields)]
+#[smithy(namespace = "com.hyperswitch.payment.models")]
 pub struct Address {
     /// Provide the address details
+    #[smithy(value_type = "Option<AddressDetails>")]
     pub address: Option<AddressDetails>,
 
+    #[smithy(value_type = "Option<PhoneDetails>")]
     pub phone: Option<PhoneDetails>,
 
     #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
     pub email: Option<Email>,
 }
 
@@ -4337,43 +4365,53 @@ impl Address {
 
 // used by customers also, could be moved outside
 /// Address details
-#[derive(Clone, Default, Debug, Eq, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+#[derive(Clone, Default, Debug, Eq, serde::Deserialize, serde::Serialize, PartialEq, ToSchema, SmithyModel)]
 #[serde(deny_unknown_fields)]
+#[smithy(namespace = "com.hyperswitch.payment.models")]
 pub struct AddressDetails {
     /// The city, district, suburb, town, or village of the address.
     #[schema(max_length = 50, example = "New York")]
+    #[smithy(value_type = "Option<String>")]
     pub city: Option<String>,
 
     /// The two-letter ISO 3166-1 alpha-2 country code (e.g., US, GB).
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    #[smithy(value_type = "Option<CountryAlpha2>")]
     pub country: Option<api_enums::CountryAlpha2>,
 
     /// The first line of the street address or P.O. Box.
     #[schema(value_type = Option<String>, max_length = 200, example = "123, King Street")]
+    #[smithy(value_type = "Option<String>")]
     pub line1: Option<Secret<String>>,
 
     /// The second line of the street address or P.O. Box (e.g., apartment, suite, unit, or building).
     #[schema(value_type = Option<String>, max_length = 50, example = "Powelson Avenue")]
+    #[smithy(value_type = "Option<String>")]
     pub line2: Option<Secret<String>>,
 
     /// The third line of the street address, if applicable.
     #[schema(value_type = Option<String>, max_length = 50, example = "Bridgewater")]
+    #[smithy(value_type = "Option<String>")]
     pub line3: Option<Secret<String>>,
 
     /// The zip/postal code for the address
     #[schema(value_type = Option<String>, max_length = 50, example = "08807")]
+    #[smithy(value_type = "Option<String>")]
     pub zip: Option<Secret<String>>,
 
     /// The address state
     #[schema(value_type = Option<String>, example = "New York")]
+    #[smithy(value_type = "Option<String>")]
     pub state: Option<Secret<String>>,
 
     /// The first name for the address
     #[schema(value_type = Option<String>, max_length = 255, example = "John")]
+    #[smithy(value_type = "Option<String>")]
     pub first_name: Option<Secret<String>>,
 
     /// The last name for the address
     #[schema(value_type = Option<String>, max_length = 255, example = "Doe")]
+    #[smithy(value_type = "Option<String>")]
     pub last_name: Option<Secret<String>>,
 }
 
@@ -4437,13 +4475,16 @@ pub struct EncryptableAddressDetails {
     pub email: crypto::OptionalEncryptableEmail,
 }
 
-#[derive(Debug, Clone, Default, Eq, PartialEq, ToSchema, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, Default, Eq, PartialEq, ToSchema, serde::Deserialize, serde::Serialize, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.payment.models")]
 pub struct PhoneDetails {
     /// The contact number
     #[schema(value_type = Option<String>, example = "9123456789")]
+    #[smithy(value_type = "Option<String>")]
     pub number: Option<Secret<String>>,
     /// The country code attached to the number
     #[schema(example = "+1")]
+    #[smithy(value_type = "Option<String>")]
     pub country_code: Option<String>,
 }
 

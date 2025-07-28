@@ -5,7 +5,7 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use smithy_core::{SmithyConstraint, SmithyField, SmithyEnumVariant};
 use syn::{
-    parse_macro_input, Attribute, DeriveInput, Fields, Lit, Meta, Type, Variant,
+    parse_macro_input, Attribute, DeriveInput, Fields, Lit, Meta, Variant,
 };
 
 /// Derive macro for generating Smithy models from Rust structs and enums
@@ -311,7 +311,7 @@ fn extract_fields(fields: &Fields) -> syn::Result<Vec<SmithyField>> {
                 if let Some(value_type) = field_attrs.value_type {
                     let smithy_type = convert_value_type_to_smithy_type(&value_type)?;
                     let documentation = extract_documentation(&field.attrs);
-                    let optional = is_optional_type(&field.ty);
+                    let optional = value_type.trim().starts_with("Option<");
 
                     smithy_fields.push(SmithyField {
                         name: field_name,
@@ -356,7 +356,7 @@ fn extract_enum_variants(
                     if let Some(value_type) = field_attrs.value_type {
                         let smithy_type = convert_value_type_to_smithy_type(&value_type)?;
                         let field_documentation = extract_documentation(&field.attrs);
-                        let optional = is_optional_type(&field.ty);
+                        let optional = value_type.trim().starts_with("Option<");
 
                         variant_fields.push(SmithyField {
                             name: field_name,
@@ -378,7 +378,7 @@ fn extract_enum_variants(
                     if let Some(value_type) = field_attrs.value_type {
                         let smithy_type = convert_value_type_to_smithy_type(&value_type)?;
                         let field_documentation = extract_documentation(&field.attrs);
-                        let optional = is_optional_type(&field.ty);
+                        let optional = value_type.trim().starts_with("Option<");
 
                         variant_fields.push(SmithyField {
                             name: field_name,
@@ -568,10 +568,10 @@ fn convert_value_type_to_smithy_type_recursive(value_type: &str) -> syn::Result<
             if value_type.contains("::") {
                 // For qualified paths, use the full path but replace :: with .
                 let smithy_path = value_type.replace("::", ".");
-                Ok(format!("com.hyperswitch.types#{}", smithy_path))
+                Ok(smithy_path)
             } else {
                 // For simple custom types (e.g., "CaptureMethod", "Currency")
-                Ok(format!("com.hyperswitch.types#{}", value_type))
+                Ok(value_type.to_string())
             }
         }
     }
@@ -654,15 +654,6 @@ fn extract_documentation(attrs: &[Attribute]) -> Option<String> {
     } else {
         Some(docs.join(" "))
     }
-}
-
-fn is_optional_type(ty: &Type) -> bool {
-    if let Type::Path(type_path) = ty {
-        if let Some(last_segment) = type_path.path.segments.last() {
-            return last_segment.ident == "Option";
-        }
-    }
-    false
 }
 
 fn parse_range(range_str: &str) -> Result<(Option<i64>, Option<i64>), String> {
