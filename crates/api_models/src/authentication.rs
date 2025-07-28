@@ -509,7 +509,6 @@ pub struct AuthenticationSyncResponse {
     pub shipping: Option<Encryptable<masking::Secret<serde_json::Value>>>,
 
     /// Browser information.
-    #[cfg(feature = "v1")]
     #[schema(value_type = Option<BrowserInformation>)]
     pub browser_information: Option<BrowserInformation>,
 
