@@ -80,6 +80,7 @@ pub struct PaymentsAuthorizeData {
     pub merchant_config_currency: Option<storage_enums::Currency>,
     pub connector_testing_data: Option<pii::SecretSerdeValue>,
     pub order_id: Option<String>,
+    pub locale: Option<String>,
 }
 #[derive(Debug, Clone)]
 pub struct PaymentsPostSessionTokensData {

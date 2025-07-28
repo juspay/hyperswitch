@@ -3363,7 +3363,7 @@ dependencies = [
 [[package]]
 name = "g2h"
 version = "0.4.0"
-source = "git+https://github.com/NishantJoshi00/g2h?branch=fixing-response-serializing#8daded69e8c5660ab50b1b61f400fe3c7063ed8f"
+source = "git+https://github.com/NishantJoshi00/g2h?branch=fixing-response-serializing#fd2c856b2c6c88a85d6fe51d95b4d3342b788d31"
 dependencies = [
  "cargo_metadata 0.19.2",
  "heck 0.5.0",

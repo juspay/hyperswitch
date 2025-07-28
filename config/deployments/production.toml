@@ -70,6 +70,7 @@ facilitapay.base_url = "https://api.facilitapay.com/api/v1"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
 fiservemea.base_url = "https://prod.emea.api.fiservapps.com"
 fiuu.base_url = "https://pay.merchant.razer.com/"
+flexiti.base_url = "https://onlineapi.flexiti.fi/flexiti/online-api/"
 fiuu.secondary_base_url="https://api.merchant.razer.com/"
 fiuu.third_base_url="https://api.merchant.razer.com/"
 forte.base_url = "https://api.forte.net/v3"
@@ -93,6 +94,7 @@ mifinity.base_url = "https://secure.mifinity.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
 mollie.secondary_base_url = "https://api.cc.mollie.com/v1/"
 moneris.base_url = "https://api.moneris.io"
+mpgs.base_url = "https://ap-gateway.mastercard.com"
 multisafepay.base_url = "https://api.multisafepay.com/"
 nexinets.base_url = "https://api.payengine.de/v1"
 nexixpay.base_url = "https://xpay.nexigroup.com/api/phoenix-0.0/psp/api/v1"
@@ -139,6 +141,7 @@ taxjar.base_url = "https://api.taxjar.com/v2/"
 thunes.base_url = "https://api.limonetik.com/"
 tokenio.base_url = "https://api.token.io"
 trustpay.base_url = "https://tpgw.trustpay.eu/"
+trustpayments.base_url = "https://webservices.securetrading.net/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 tsys.base_url = "https://gateway.transit-pass.com/"
 vgs.base_url = "https://sandbox.vault-api.verygoodvault.com"
@@ -355,6 +358,9 @@ klarna = { currency = "EUR, DKK, NOK, PLN, SEK, CHF, GBP, USD, CZK" }
 trustly = {currency="DKK, EUR, GBP, NOK, PLN, SEK" }
 blik = { country="PL" , currency = "PLN" }
 atome = { country = "SG, MY" , currency = "SGD, MYR" }
+ideal = { country="NL" , currency = "EUR" }
+skrill = { country="AL, DZ, AD, AR, AM, AW, AU, AT, AZ, BS, BD, BE, BJ, BO, BA, BW, BR, BN, BG, KH, CM, CA, CL, CN, CX, CO, CR , HR, CW, CY, CZ, DK, DM, DO, EC, EG, EE , FK, FI, GE, DE, GH, GI, GR, GP, GU, GT, GG, HK, HU, IS, IN, ID , IQ, IE, IM, IL, IT, JE , KZ, KE , KR, KW, KG, LV , LS, LI, LT, LU , MK, MG, MY, MV, MT, MU, YT, MX, MD, MC, MN, ME, MA, NA, NP, NZ, NI, NE, NO, PK , PA, PY, PE, PH, PL, PT, PR, QA, RO , SM , SA, SN , SG, SX, SK, SI, ZA, SS, ES, LK, SE, CH, TW, TZ, TH, TN, AE, GB, UM, UY, VN, VG, VI, US" , currency = "EUR, GBP, USD" }
+indonesian_bank_transfer = { country="ID" , currency = "IDR" }
 
 [pm_filters.checkout]
 debit = { country = "AT,BE,BG,HR,CY,CZ,DK,EE,FI,FR,DE,GR,HU,IS,IE,IT,LV,LI,LT,LU,MT,NL,NO,PL,PT,RO,SK,SI,ES,SE,CH,GB,US,AU,HK,SG,SA,AE,BH,MX,AR,CL,CO,PE", currency = "AED,AFN,ALL,AMD,ANG,AOA,AUD,AWG,AZN,BAM,BBD,BDT,BGN,BHD,BIF,BMD,BND,BOB,BRL,BSD,BTN,BWP,BYN,BZD,CAD,CDF,CHF,CLP,CNY,COP,CRC,CUP,CVE,CZK,DJF,DKK,DOP,DZD,EGP,ERN,ETB,EUR,FJD,FKP,GBP,GEL,GHS,GIP,GMD,GNF,GTQ,GYD,HKD,HNL,HRK,HTG,HUF,IDR,ILS,INR,IQD,IRR,ISK,JMD,JOD,JPY,KES,KGS,KHR,KMF,KRW,KWD,KYD,KZT,LAK,LBP,LKR,LRD,LSL,LYD,MAD,MDL,MGA,MKD,MMK,MNT,MOP,MRU,MUR,MVR,MWK,MXN,MYR,MZN,NAD,NGN,NIO,NOK,NPR,NZD,OMR,PAB,PEN,PGK,PHP,PKR,PLN,PYG,QAR,RON,RSD,RUB,RWF,SAR,SBD,SCR,SDG,SEK,SGD,SHP,SLE,SLL,SOS,SRD,SSP,STN,SYP,SZL,THB,TJS,TMT,TND,TOP,TRY,TTD,TWD,TZS,UAH,UGX,USD,UYU,UZS,VES,VND,VUV,WST,XAF,XCD,XOF,XPF,YER,ZAR,ZMW,ZWL" }
