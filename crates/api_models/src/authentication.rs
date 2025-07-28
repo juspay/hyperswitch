@@ -474,7 +474,7 @@ pub struct AuthenticationSyncResponse {
 
     /// The maximum supported 3DS version.
     #[schema(value_type = Option<String>)]
-    pub maximum_supported_3ds_version: Option<String>,
+    pub maximum_supported_3ds_version: Option<common_utils::types::SemanticVersion>,
 
     /// The unique identifier from the connector.
     #[schema(value_type = Option<String>)]
