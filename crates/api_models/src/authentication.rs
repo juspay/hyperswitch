@@ -473,8 +473,8 @@ pub struct AuthenticationSyncResponse {
     pub threeds_server_transaction_id: Option<String>,
 
     /// The maximum supported 3DS version.
-    #[schema(value_type = Option<SemanticVersion>)]
-    pub maximum_supported_3ds_version: Option<common_utils::types::SemanticVersion>,
+    #[schema(value_type = Option<String>)]
+    pub maximum_supported_3ds_version: Option<String>,
 
     /// The unique identifier from the connector.
     #[schema(value_type = Option<String>)]
@@ -489,7 +489,7 @@ pub struct AuthenticationSyncResponse {
     pub three_ds_method_url: Option<String>,
 
     /// The version of the message.
-    #[schema(value_type = Option<SemanticVersion>)]
+    #[schema(value_type = Option<String>)]
     pub message_version: Option<common_utils::types::SemanticVersion>,
 
     /// The metadata for this authentication.
@@ -514,7 +514,7 @@ pub struct AuthenticationSyncResponse {
     pub browser_information: Option<BrowserInformation>,
 
     /// Email.
-    #[schema(value_type = Option<pii::Email>)]
+    #[schema(value_type = Option<String>)]
     pub email: common_utils::crypto::OptionalEncryptableEmail,
 
     /// Indicates the transaction status.
@@ -543,7 +543,7 @@ pub struct AuthenticationSyncResponse {
     /// Merchant app URL for OOB authentication.
     pub three_ds_requestor_app_url: Option<String>,
 
-    /// The authentication value.
+    /// The authentication value for this authentication, only available in case of server to server request. Unavailable in case of client request due to security concern.
     #[schema(value_type = Option<String>)]
     pub authentication_value: Option<masking::Secret<String>>,
 

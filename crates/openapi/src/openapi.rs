@@ -806,6 +806,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::authentication::ThreeDsData,
         api_models::authentication::AuthenticationEligibilityRequest,
         api_models::authentication::AuthenticationEligibilityResponse,
+        api_models::authentication::AuthenticationSyncRequest,
+        api_models::authentication::AuthenticationSyncResponse,
     )),
     modifiers(&SecurityAddon)
 )]
