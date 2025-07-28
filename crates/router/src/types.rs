@@ -1091,6 +1091,7 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             merchant_config_currency: None,
             connector_testing_data: data.request.connector_testing_data.clone(),
             order_id: None,
+            locale: None,
         }
     }
 }

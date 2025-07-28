@@ -233,6 +233,7 @@ pub async fn validate_create_request(
                 payment_method,
                 None,
                 false,
+                true,
                 merchant_context,
             )
             .await?
@@ -243,7 +244,7 @@ pub async fn validate_create_request(
                             card_number: card.card_number.get_required_value("card_number")?,
                             card_holder_name: card.card_holder_name,
                             expiry_month: card.expiry_month.get_required_value("expiry_month")?,
-                            expiry_year: card.expiry_year.get_required_value("expiry_month")?,
+                            expiry_year: card.expiry_year.get_required_value("expiry_year")?,
                         },
                     ))),
                     (_, Some(bank)) => Ok(Some(payouts::PayoutMethodData::Bank(bank))),

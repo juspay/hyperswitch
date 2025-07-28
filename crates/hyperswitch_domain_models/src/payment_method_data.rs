@@ -96,6 +96,14 @@ impl PaymentMethodData {
         }
     }
 
+    pub fn get_card_data(&self) -> Option<&Card> {
+        if let Self::Card(card) = self {
+            Some(card)
+        } else {
+            None
+        }
+    }
+
     pub fn extract_debit_routing_saving_percentage(
         &self,
         network: &common_enums::CardNetwork,
@@ -234,6 +242,7 @@ pub enum PayLaterData {
     WalleyRedirect {},
     AlmaRedirect {},
     AtomeRedirect {},
+    BreadpayRedirect {},
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -720,6 +729,9 @@ pub enum BankTransferData {
     InstantBankTransfer {},
     InstantBankTransferFinland {},
     InstantBankTransferPoland {},
+    IndonesianBankTransfer {
+        bank_name: Option<common_enums::BankNames>,
+    },
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -1185,6 +1197,7 @@ impl From<api_models::payments::PayLaterData> for PayLaterData {
             api_models::payments::PayLaterData::WalleyRedirect {} => Self::WalleyRedirect {},
             api_models::payments::PayLaterData::AlmaRedirect {} => Self::AlmaRedirect {},
             api_models::payments::PayLaterData::AtomeRedirect {} => Self::AtomeRedirect {},
+            api_models::payments::PayLaterData::BreadpayRedirect {} => Self::BreadpayRedirect {},
         }
     }
 }
@@ -1642,6 +1655,9 @@ impl From<api_models::payments::BankTransferData> for BankTransferData {
             api_models::payments::BankTransferData::InstantBankTransferPoland {} => {
                 Self::InstantBankTransferPoland {}
             }
+            api_models::payments::BankTransferData::IndonesianBankTransfer { bank_name } => {
+                Self::IndonesianBankTransfer { bank_name }
+            }
         }
     }
 }
@@ -1686,6 +1702,9 @@ impl From<BankTransferData> for api_models::payments::additional_info::BankTrans
             BankTransferData::InstantBankTransfer {} => Self::InstantBankTransfer {},
             BankTransferData::InstantBankTransferFinland {} => Self::InstantBankTransferFinland {},
             BankTransferData::InstantBankTransferPoland {} => Self::InstantBankTransferPoland {},
+            BankTransferData::IndonesianBankTransfer { bank_name } => {
+                Self::IndonesianBankTransfer { bank_name }
+            }
         }
     }
 }
@@ -1875,6 +1894,7 @@ impl GetPaymentMethodType for PayLaterData {
             Self::WalleyRedirect {} => api_enums::PaymentMethodType::Walley,
             Self::AlmaRedirect {} => api_enums::PaymentMethodType::Alma,
             Self::AtomeRedirect {} => api_enums::PaymentMethodType::Atome,
+            Self::BreadpayRedirect {} => api_enums::PaymentMethodType::Breadpay,
         }
     }
 }
@@ -1945,6 +1965,9 @@ impl GetPaymentMethodType for BankTransferData {
             }
             Self::InstantBankTransferPoland {} => {
                 api_enums::PaymentMethodType::InstantBankTransferPoland
+            }
+            Self::IndonesianBankTransfer { .. } => {
+                api_enums::PaymentMethodType::IndonesianBankTransfer
             }
         }
     }
