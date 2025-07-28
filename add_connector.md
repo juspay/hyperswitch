@@ -533,15 +533,16 @@ Hyperswitch connectors implement a structured error-handling mechanism that cate
 
 **Error Response Structure**
 
-Billwerk defines its error response format to capture failure information from API calls. You can find this in the `transformer.rs` file:
+Billwerk defines its error response format to capture failure information from API calls. You can find this in the `transformer.rs file`:
 
 ```rs
-#[derive(Debug, Serialize, Deserialize)]
-pub struct BillwerkErrorResponse {
-    pub code: Option<i32>,
-    pub error: String,
-    pub message: Option<String>,
+#[derive(Debug, Serialize, Deserialize)]  
+pub struct BillwerkErrorResponse {  
+    pub code: Option<i32>,  
+    pub error: String,  
+    pub message: Option<String>,  
 }
+
 ```
 
 - **code**: Optional integer error code from Billwerk
@@ -558,11 +559,42 @@ Hyperswitch uses separate methods for different HTTP error types:
 
 - **5xx Server Errors**: `get_5xx_error_response` handles internal server errors with potential retry logic. You can see the details here: `crates/hyperswitch_connectors/src/connectors/billwerk.rs`
 
-Both methods delegate to `build_error_response` for consistent processing.
+Both methods delegate to `build_error_response` for consistent processing. This is found `crates/hyperswitch_connectors/src/connectors/billwerk.rs`.
 
 **Error Processing Flow**
 
-The `build_error_response` method transforms PSP-specific errors into Hyperswitch's standardized format. You can find the details here: `crates/hyperswitch_connectors/src/connectors/billwerk.rs`. It does this:
+The `build_error_response` method transforms PSP-specific errors into Hyperswitch's standardized format by taking the `BillwerkErrorResponse` struct as input. You can find details about the `build_error_response` here: `crates/hyperswitch_connectors/src/connectors/billwerk.rs:136-162`.
+
+```rs
+fn build_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let response: BillwerkErrorResponse = res
+            .response
+            .parse_struct("BillwerkErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: response
+                .code
+                .map_or(NO_ERROR_CODE.to_string(), |code| code.to_string()),
+            message: response.message.unwrap_or(NO_ERROR_MESSAGE.to_string()),
+            reason: Some(response.error),
+            attempt_status: None,
+            connector_transaction_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
+        })
+    }
+}
+```
 
 - **Parse**: Deserialize HTTP response into `BillwerkErrorResponse`
 - **Log**: Record response for debugging
@@ -570,14 +602,20 @@ The `build_error_response` method transforms PSP-specific errors into Hyperswitc
 - **Apply**: Use across all payment flows (authorize, capture, refund, etc.)
 Automatic Routing
 
-Hyperswitch's core API automatically routes errors based on HTTP status codes. You an find the details here: `crates/router/src/services/api.rs`.
+The `BillwerkErrorResponse` struct serves as the intermediate data structure that bridges Billwerk's API error format and Hyperswitch's internal error representation. The method essentially consumes the struct and produces Hyperswitch's standardized error format.
+
+**Automatic Error Routing**
+
+Hyperswitch's core API automatically routes errors based on HTTP status codes. You can find the details here: `crates/router/src/services/api.rs`.
 
 - 4xx → `get_error_response`
 - 5xx → `get_5xx_error_response`
 - 2xx → `handle_response` (success)
 
 
+**Integration Pattern**
 
+The `BillwerkErrorResponse` struct serves as the intermediate data structure that bridges Billwerk's API error format and Hyperswitch's internal error representation. The method essentially consumes the struct and produces Hyperswitch's standardized error format. All connectors implement a similar pattern to ensure uniform error handling. 
 
 
 
