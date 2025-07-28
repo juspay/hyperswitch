@@ -314,6 +314,15 @@ export const connectorDetails = {
           amount_received: 6000,
         },
       },
+      ResponseCustom: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount: 8000,
+          amount_capturable: 0,
+          amount_received: 8000,
+        },
+      },
     },
     PartialCapture: {
       Request: {
@@ -387,6 +396,27 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+        },
+      },
+    },
+    IncrementalAuth: {
+      Request: {
+        amount: 8000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+          amount: 8000,
+          amount_capturable: 8000,
+          amount_received: null,
+          incremental_authorizations: [
+            {
+              amount: 8000,
+              previously_authorized_amount: 6000,
+              status: "requires_capture",
+            },
+          ],
         },
       },
     },

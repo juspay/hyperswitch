@@ -393,6 +393,7 @@ export const CONNECTOR_LISTS = {
     INCREMENTAL_AUTH: [
       // "cybersource"    // issues with MULTIPLE_CONNECTORS handling
       "paypal",
+      "stripe"
     ],
     // Add more inclusion lists
   },
