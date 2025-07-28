@@ -5536,100 +5536,86 @@ label="Merchant Name"
 placeholder="Enter Merchant Name"
 required=true
 type="Text"
-
 [peachpayments.metadata.mcc]
 name="mcc"
 label="Merchant Category Code"
 placeholder="Enter MCC (e.g., 5411)"
 required=true
 type="Text"
-
 [peachpayments.metadata.merchant_phone]
 name="merchant_phone"
 label="Merchant Phone"
 placeholder="Enter merchant phone (e.g., +27123456789)"
 required=true
 type="Text"
-
 [peachpayments.metadata.merchant_email]
 name="merchant_email"
 label="Merchant Email"
 placeholder="Enter merchant email"
 required=true
 type="Text"
-
 [peachpayments.metadata.merchant_mobile]
 name="merchant_mobile"
 label="Merchant Mobile"
 placeholder="Enter merchant mobile (e.g., +27123456789)"
 required=true
 type="Text"
-
 [peachpayments.metadata.merchant_address]
 name="merchant_address"
 label="Merchant Address"
 placeholder="Enter merchant address"
 required=true
 type="Text"
-
 [peachpayments.metadata.merchant_city]
 name="merchant_city"
 label="Merchant City"
 placeholder="Enter merchant city"
 required=true
 type="Text"
-
 [peachpayments.metadata.merchant_postal_code]
 name="merchant_postal_code"
 label="Merchant Postal Code"
 placeholder="Enter postal code"
 required=true
 type="Text"
-
 [peachpayments.metadata.merchant_region_code]
 name="merchant_region_code"
 label="Merchant Region Code"
 placeholder="Enter region code (e.g., WC)"
 required=true
 type="Text"
-
 [peachpayments.metadata.merchant_type]
 name="merchant_type"
 label="Merchant Type"
 placeholder="Select merchant type"
 required=true
 type="Select"
-options=["iso", "sub"]
-
+options=["direct", "sub"]
 [peachpayments.metadata.merchant_website]
 name="merchant_website"
 label="Merchant Website"
 placeholder="Enter merchant website URL"
 required=true
 type="Text"
-
 [peachpayments.metadata.routing_mid]
 name="routing_mid"
 label="Routing MID"
 placeholder="Enter routing MID"
 required=true
 type="Text"
-
 [peachpayments.metadata.routing_tid]
 name="routing_tid"
 label="Routing TID"
 placeholder="Enter routing TID"
 required=true
 type="Text"
-
 [peachpayments.metadata.routing_route]
 name="routing_route"
 label="Routing Route"
 placeholder="Select routing route"
 required=true
 type="Select"
-options=["exipay_emulator", "absa_base24", "nedbank_postbridge"]
-
+options=["cardgateway_emulator", "exipay_emulator", "absa_base24", "nedbank_postbridge"]
 [peachpayments.metadata.amex_id]
 name="amex_id"
 label="AmEx ID"

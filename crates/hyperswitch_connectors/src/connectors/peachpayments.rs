@@ -7,6 +7,7 @@ use common_utils::{
     types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
+use common_enums;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
@@ -152,7 +153,57 @@ impl ConnectorCommon for Peachpayments {
 }
 
 impl ConnectorValidation for Peachpayments {
-    //TODO: implement functions when support enabled
+    fn validate_connector_against_payment_request(
+        &self,
+        capture_method: Option<common_enums::CaptureMethod>,
+        payment_method: common_enums::PaymentMethod,
+        pmt: Option<common_enums::PaymentMethodType>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        
+        // PeachPayments supports both manual and automatic capture
+        match capture_method {
+            common_enums::CaptureMethod::Manual 
+            | common_enums::CaptureMethod::Automatic 
+            | common_enums::CaptureMethod::SequentialAutomatic => {},
+            _ => {
+                return Err(errors::ConnectorError::NotSupported {
+                    message: format!("Capture method {:?} is not supported", capture_method),
+                    connector: "Peachpayments",
+                }
+                .into());
+            }
+        }
+
+        // PeachPayments only supports card payments for now
+        match payment_method {
+            common_enums::PaymentMethod::Card => {},
+            _ => {
+                return Err(errors::ConnectorError::NotSupported {
+                    message: format!("Payment method {:?} is not supported", payment_method),
+                    connector: "Peachpayments",
+                }
+                .into());
+            }
+        }
+
+        // Validate payment method types for cards
+        if let Some(payment_method_type) = pmt {
+            match payment_method_type {
+                common_enums::PaymentMethodType::Credit 
+                | common_enums::PaymentMethodType::Debit => {},
+                _ => {
+                    return Err(errors::ConnectorError::NotSupported {
+                        message: format!("Payment method type {:?} is not supported", payment_method_type),
+                        connector: "Peachpayments",
+                    }
+                    .into());
+                }
+            }
+        }
+
+        Ok(())
+    }
 }
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Peachpayments {
@@ -387,7 +438,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: peachpayments::PeachpaymentsPaymentsResponse = res
+        let response: peachpayments::PeachpaymentsConfirmResponse = res
             .response
             .parse_struct("Peachpayments PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
