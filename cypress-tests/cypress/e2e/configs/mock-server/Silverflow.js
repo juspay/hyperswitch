@@ -184,7 +184,7 @@ app.post("/charges", authenticateBasic, (req, res) => {
   }
 });
 
-// 2. POST /charges/{chargeKey}/clear - Manually clear charge
+// 2. POST /charges/:chargeKey/clear - Manually clear charge
 app.post("/charges/:chargeKey/clear", authenticateBasic, (req, res) => {
   try {
     const { chargeKey } = req.params;
@@ -275,7 +275,7 @@ app.post("/charges/:chargeKey/clear", authenticateBasic, (req, res) => {
   }
 });
 
-// 3. POST /charges/{chargeKey}/refund - Process refunds
+// 3. POST /charges/:chargeKey/refund - Process refunds
 app.post("/charges/:chargeKey/refund", authenticateBasic, (req, res) => {
   try {
     const { chargeKey } = req.params;
@@ -361,7 +361,7 @@ app.post("/charges/:chargeKey/refund", authenticateBasic, (req, res) => {
   }
 });
 
-// 4. POST /charges/{chargeKey}/reverse - Reverse charge (void)
+// 4. POST /charges/:chargeKey/reverse - Reverse charge (void)
 app.post("/charges/:chargeKey/reverse", authenticateBasic, (req, res) => {
   try {
     const { chargeKey } = req.params;
@@ -450,7 +450,7 @@ app.post("/charges/:chargeKey/reverse", authenticateBasic, (req, res) => {
   }
 });
 
-// 5. GET /charges/{chargeKey} - Get charge status (sync)
+// 5. GET /charges/:chargeKey - Get charge status (sync)
 app.get("/charges/:chargeKey", authenticateBasic, (req, res) => {
   try {
     const { chargeKey } = req.params;
@@ -472,7 +472,7 @@ app.get("/charges/:chargeKey", authenticateBasic, (req, res) => {
   }
 });
 
-// 6. GET /disputes/{disputeKey} - Get dispute information
+// 6. GET /disputes/:disputeKey - Get dispute information
 app.get("/disputes/:disputeKey", authenticateBasic, (req, res) => {
   try {
     const { disputeKey } = req.params;
@@ -509,7 +509,7 @@ app.get("/disputes/:disputeKey", authenticateBasic, (req, res) => {
   }
 });
 
-// 7. POST /disputes/{disputeKey}/defend - Defend disputes
+// 7. POST /disputes/:disputeKey/defend - Defend disputes
 app.post("/disputes/:disputeKey/defend", authenticateBasic, (req, res) => {
   try {
     const { disputeKey } = req.params;
