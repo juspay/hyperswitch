@@ -6481,6 +6481,53 @@
           }
         ]
       }
+    },
+    "/create_platform": {
+      "post": {
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Platform - Create",
+        "description": "Create a new platform account",
+        "operationId": "Create a Platform Account",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformAccountCreateRequest"
+              },
+              "examples": {
+                "Create a platform account with organization_name": {
+                  "value": {
+                    "organization_name": "organization_abc"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Platform Account Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformAccountCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "jwt_key": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -26586,6 +26633,51 @@
             "description": "The expiration date and time for the Pix QR code in ISO 8601 format",
             "example": "2025-09-10T10:11:12Z",
             "nullable": true
+          }
+        }
+      },
+      "PlatformAccountCreateRequest": {
+        "type": "object",
+        "required": [
+          "organization_name"
+        ],
+        "properties": {
+          "organization_name": {
+            "type": "string",
+            "example": "organization_abc",
+            "maxLength": 64
+          }
+        }
+      },
+      "PlatformAccountCreateResponse": {
+        "type": "object",
+        "required": [
+          "org_id",
+          "org_type",
+          "merchant_id",
+          "merchant_account_type"
+        ],
+        "properties": {
+          "org_id": {
+            "type": "string",
+            "example": "org_abc",
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "org_name": {
+            "type": "string",
+            "example": "organization_abc",
+            "nullable": true
+          },
+          "org_type": {
+            "$ref": "#/components/schemas/OrganizationType"
+          },
+          "merchant_id": {
+            "type": "string",
+            "example": "merchant_abc"
+          },
+          "merchant_account_type": {
+            "$ref": "#/components/schemas/MerchantAccountType"
           }
         }
       },

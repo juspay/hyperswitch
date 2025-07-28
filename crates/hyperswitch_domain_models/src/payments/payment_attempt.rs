@@ -1463,7 +1463,14 @@ impl PaymentAttemptUpdate {
                 tax_amount,
                 updated_by,
                 merchant_connector_id,
-                routing_approach,
+                routing_approach: routing_approach.map(|approach| match approach {
+                    storage_enums::RoutingApproach::Other(_) => {
+                        // we need to make sure Other variant is not stored in DB, in the rare case
+                        // where we attempt to store an unknown value, we default to the default value
+                        storage_enums::RoutingApproach::default()
+                    }
+                    _ => approach,
+                }),
             },
             Self::AuthenticationTypeUpdate {
                 authentication_type,
@@ -1565,7 +1572,14 @@ impl PaymentAttemptUpdate {
                 order_tax_amount: net_amount.get_order_tax_amount(),
                 connector_mandate_detail,
                 card_discovery,
-                routing_approach,
+                routing_approach: routing_approach.map(|approach| match approach {
+                    // we need to make sure Other variant is not stored in DB, in the rare case
+                    // where we attempt to store an unknown value, we default to the default value
+                    storage_enums::RoutingApproach::Other(_) => {
+                        storage_enums::RoutingApproach::default()
+                    }
+                    _ => approach,
+                }),
                 connector_request_reference_id,
             },
             Self::VoidUpdate {
