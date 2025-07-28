@@ -12,6 +12,7 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RedirectForm},
 };
 use masking::{ExposeInterface, PeekInterface};
+use router_env::tracing;
 use unified_connector_service_client::payments::{self as payments_grpc, Identifier};
 
 use crate::{
@@ -468,6 +469,7 @@ impl ForeignTryFrom<payments_grpc::HttpMethod> for Method {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(value: payments_grpc::HttpMethod) -> Result<Self, Self::Error> {
+        tracing::debug!("Converting gRPC HttpMethod: {:?}", value);
         match value {
             payments_grpc::HttpMethod::Get => Ok(Self::Get),
             payments_grpc::HttpMethod::Post => Ok(Self::Post),
