@@ -4847,7 +4847,8 @@
           "payment_method_awaited",
           "confirmation_awaited",
           "device_data_collection_pending",
-          "integrity_failure"
+          "integrity_failure",
+          "expired"
         ]
       },
       "AuthenticationConnectorDetails": {
@@ -10682,6 +10683,7 @@
           "payment_cancelled",
           "payment_authorized",
           "payment_captured",
+          "payment_expired",
           "action_required",
           "refund_succeeded",
           "refund_failed",
@@ -12580,7 +12582,8 @@
           "requires_capture",
           "partially_captured",
           "partially_captured_and_capturable",
-          "conflicted"
+          "conflicted",
+          "expired"
         ]
       },
       "JCSVoucherData": {
