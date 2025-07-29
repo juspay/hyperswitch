@@ -6481,6 +6481,53 @@
           }
         ]
       }
+    },
+    "/create_platform": {
+      "post": {
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Platform - Create",
+        "description": "Create a new platform account",
+        "operationId": "Create a Platform Account",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformAccountCreateRequest"
+              },
+              "examples": {
+                "Create a platform account with organization_name": {
+                  "value": {
+                    "organization_name": "organization_abc"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Platform Account Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformAccountCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "jwt_key": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -9666,13 +9713,14 @@
                   "source_bank_account_id": {
                     "type": "string",
                     "description": "Source bank account number",
-                    "example": "8b2812f0-d6c8-4073-97bb-9fa964d08bc5",
+                    "example": "8b******-****-****-****-*******08bc5",
                     "nullable": true
                   },
                   "destination_bank_account_id": {
                     "type": "string",
-                    "description": "Destination bank account number",
-                    "example": "9b95f84e-de61-460b-a14b-f23b4e71c97b",
+                    "description": "Partially masked destination bank account number _Deprecated: Will be removed in next stable release._",
+                    "deprecated": true,
+                    "example": "********-****-460b-****-f23b4e71c97b",
                     "nullable": true
                   },
                   "expiry_date": {
@@ -26349,7 +26397,8 @@
           },
           "destination_bank_account_id": {
             "type": "string",
-            "description": "Partially masked destination bank account number",
+            "description": "Partially masked destination bank account number _Deprecated: Will be removed in next stable release._",
+            "deprecated": true,
             "example": "********-****-460b-****-f23b4e71c97b",
             "nullable": true
           },
@@ -26358,6 +26407,51 @@
             "description": "The expiration date and time for the Pix QR code in ISO 8601 format",
             "example": "2025-09-10T10:11:12Z",
             "nullable": true
+          }
+        }
+      },
+      "PlatformAccountCreateRequest": {
+        "type": "object",
+        "required": [
+          "organization_name"
+        ],
+        "properties": {
+          "organization_name": {
+            "type": "string",
+            "example": "organization_abc",
+            "maxLength": 64
+          }
+        }
+      },
+      "PlatformAccountCreateResponse": {
+        "type": "object",
+        "required": [
+          "org_id",
+          "org_type",
+          "merchant_id",
+          "merchant_account_type"
+        ],
+        "properties": {
+          "org_id": {
+            "type": "string",
+            "example": "org_abc",
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "org_name": {
+            "type": "string",
+            "example": "organization_abc",
+            "nullable": true
+          },
+          "org_type": {
+            "$ref": "#/components/schemas/OrganizationType"
+          },
+          "merchant_id": {
+            "type": "string",
+            "example": "merchant_abc"
+          },
+          "merchant_account_type": {
+            "$ref": "#/components/schemas/MerchantAccountType"
           }
         }
       },
@@ -30012,7 +30106,7 @@
       "ThreeDsData": {
         "type": "object",
         "required": [
-          "threeds_server_transaction_id",
+          "three_ds_server_transaction_id",
           "maximum_supported_3ds_version",
           "connector_authentication_id",
           "three_ds_method_data",
@@ -30021,7 +30115,7 @@
           "directory_server_id"
         ],
         "properties": {
-          "threeds_server_transaction_id": {
+          "three_ds_server_transaction_id": {
             "type": "string",
             "description": "The unique identifier for this authentication from the 3DS server."
           },

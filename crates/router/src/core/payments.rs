@@ -8020,6 +8020,10 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed execution of straight through routing")?;
 
+        payment_data.set_routing_approach_in_attempt(Some(
+            common_enums::RoutingApproach::StraightThroughRouting,
+        ));
+
         if check_eligibility {
             let transaction_data = core_routing::PaymentsDslInput::new(
                 payment_data.get_setup_mandate(),
@@ -9201,15 +9205,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             <ExternalAuthentication as UnifiedAuthenticationService>::authentication(
                 &state,
                 &business_profile,
-                payment_method_details.1,
-                payment_method_details.0,
-                billing_address
-                    .as_ref()
-                    .map(|address| address.into())
-                    .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "billing_address",
-                    })?,
-                shipping_address.as_ref().map(|address| address.into()),
+                &payment_method_details.1,
                 browser_info,
                 Some(amount),
                 Some(currency),
@@ -9221,7 +9217,6 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 req.threeds_method_comp_ind,
                 optional_customer.and_then(|customer| customer.email.map(pii::Email::from)),
                 webhook_url,
-                authentication_details.three_ds_requestor_url.clone(),
                 &merchant_connector_account,
                 &authentication_connector,
                 Some(payment_intent.payment_id),
