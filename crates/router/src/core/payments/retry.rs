@@ -808,7 +808,8 @@ impl<F: Send + Clone + Sync, FData: Send + Sync>
                 | storage_enums::AttemptStatus::ConfirmationAwaited
                 | storage_enums::AttemptStatus::Unresolved
                 | storage_enums::AttemptStatus::DeviceDataCollectionPending
-                | storage_enums::AttemptStatus::IntegrityFailure => false,
+                | storage_enums::AttemptStatus::IntegrityFailure
+                | storage_enums::AttemptStatus::Expired => false,
 
                 storage_enums::AttemptStatus::AuthenticationFailed
                 | storage_enums::AttemptStatus::AuthorizationFailed
