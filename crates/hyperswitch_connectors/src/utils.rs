@@ -425,7 +425,8 @@ pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
         | AttemptStatus::AuthorizationFailed
         | AttemptStatus::CaptureFailed
         | AttemptStatus::VoidFailed
-        | AttemptStatus::Failure => true,
+        | AttemptStatus::Failure
+        | AttemptStatus::Expired => true,
         AttemptStatus::Started
         | AttemptStatus::RouterDeclined
         | AttemptStatus::AuthenticationPending
@@ -2190,6 +2191,7 @@ impl PaymentsSetupMandateRequestData for SetupMandateRequestData {
 
 pub trait PaymentMethodTokenizationRequestData {
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+    fn is_mandate_payment(&self) -> bool;
 }
 
 impl PaymentMethodTokenizationRequestData for PaymentMethodTokenizationData {
@@ -2197,6 +2199,15 @@ impl PaymentMethodTokenizationRequestData for PaymentMethodTokenizationData {
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
+    }
+    fn is_mandate_payment(&self) -> bool {
+        ((self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
+            && (self.setup_future_usage == Some(FutureUsage::OffSession)))
+            || self
+                .mandate_id
+                .as_ref()
+                .and_then(|mandate_ids| mandate_ids.mandate_reference_id.as_ref())
+                .is_some()
     }
 }
 
@@ -6295,7 +6306,8 @@ impl FrmTransactionRouterDataRequest for FrmTransactionRouterData {
             | AttemptStatus::Voided
             | AttemptStatus::CaptureFailed
             | AttemptStatus::Failure
-            | AttemptStatus::AutoRefunded => Some(false),
+            | AttemptStatus::AutoRefunded
+            | AttemptStatus::Expired => Some(false),
 
             AttemptStatus::AuthenticationSuccessful
             | AttemptStatus::PartialChargedAndChargeable
