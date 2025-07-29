@@ -13,7 +13,7 @@ use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
 #[cfg(feature = "v1")]
-use crate::payments::{Address, BrowserInformation, PaymentMethodData};
+use crate::payments::{Address,PaymentMethodData, BrowserInformation};
 use crate::payments::{CustomerDetails, DeviceChannel, SdkInformation, ThreeDsCompletionIndicator};
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -415,6 +415,7 @@ impl ApiEventMetric for AuthenticationAuthenticateResponse {
     }
 }
 
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct AuthenticationSyncResponse {
     // Core Authentication Fields (from AuthenticationResponse)
@@ -563,6 +564,7 @@ pub struct AuthenticationSyncResponse {
     pub profile_acquirer_id: id_type::ProfileAcquirerId,
 }
 
+#[cfg(feature = "v1")]
 impl ApiEventMetric for AuthenticationSyncResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Authentication {
