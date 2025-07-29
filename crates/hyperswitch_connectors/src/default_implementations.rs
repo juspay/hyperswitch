@@ -4747,7 +4747,6 @@ macro_rules! default_imp_for_uas_pre_authentication {
 }
 
 default_imp_for_uas_pre_authentication!(
-    connectors::Katapult,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -4806,6 +4805,7 @@ default_imp_for_uas_pre_authentication!(
     connectors::Inespay,
     connectors::Itaubank,
     connectors::Jpmorgan,
+    connectors::Katapult,
     connectors::Klarna,
     connectors::Netcetera,
     connectors::Nmi,
@@ -4883,7 +4883,6 @@ macro_rules! default_imp_for_uas_post_authentication {
 }
 
 default_imp_for_uas_post_authentication!(
-    connectors::Katapult,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -4942,6 +4941,7 @@ default_imp_for_uas_post_authentication!(
     connectors::Inespay,
     connectors::Itaubank,
     connectors::Jpmorgan,
+    connectors::Katapult,
     connectors::Klarna,
     connectors::Netcetera,
     connectors::Nmi,
@@ -5020,7 +5020,6 @@ macro_rules! default_imp_for_uas_authentication_confirmation {
 }
 
 default_imp_for_uas_authentication_confirmation!(
-    connectors::Katapult,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -5079,6 +5078,7 @@ default_imp_for_uas_authentication_confirmation!(
     connectors::Inespay,
     connectors::Itaubank,
     connectors::Jpmorgan,
+    connectors::Katapult,
     connectors::Klarna,
     connectors::Netcetera,
     connectors::Nmi,
@@ -5575,7 +5575,6 @@ macro_rules! default_imp_for_uas_authentication {
     };
 }
 default_imp_for_uas_authentication!(
-    connectors::Katapult,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -5634,6 +5633,7 @@ default_imp_for_uas_authentication!(
     connectors::Inespay,
     connectors::Itaubank,
     connectors::Jpmorgan,
+    connectors::Katapult,
     connectors::Klarna,
     connectors::Netcetera,
     connectors::Nmi,
