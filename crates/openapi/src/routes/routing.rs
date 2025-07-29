@@ -26,7 +26,7 @@ pub async fn routing_create_config() {}
 /// Create a routing algorithm
 #[utoipa::path(
     post,
-    path = "/v2/routing-algorithm",
+    path = "/v2/routing-algorithms",
     request_body = RoutingConfigRequest,
     responses(
         (status = 200, description = "Routing Algorithm created", body = RoutingDictionaryRecord),
@@ -92,7 +92,7 @@ pub async fn routing_retrieve_config() {}
 /// Retrieve a routing algorithm with its algorithm id
 #[utoipa::path(
     get,
-    path = "/v2/routing-algorithm/{id}",
+    path = "/v2/routing-algorithms/{id}",
     params(
         ("id" = String, Path, description = "The unique identifier for a routing algorithm"),
     ),
