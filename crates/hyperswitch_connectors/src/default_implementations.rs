@@ -112,9 +112,9 @@ use hyperswitch_interfaces::{
         payments::{
             ConnectorCustomer, PaymentApprove, PaymentAuthorizeSessionToken,
             PaymentIncrementalAuthorization, PaymentPostSessionTokens, PaymentReject,
-            PaymentSessionUpdate, PaymentUpdateMetadata, PaymentsCompleteAuthorize,
-            PaymentsCreateOrder, PaymentsPostProcessing, PaymentsPreAuthenticate,
-            PaymentsPreProcessing, TaxCalculation,
+            PaymentSessionUpdate, PaymentUpdateMetadata, PaymentsAuthenticate,
+            PaymentsCompleteAuthorize, PaymentsCreateOrder, PaymentsPostProcessing,
+            PaymentsPreAuthenticate, PaymentsPreProcessing, TaxCalculation,
         },
         revenue_recovery::RevenueRecovery,
         vault::{
@@ -1412,6 +1412,138 @@ macro_rules! default_imp_for_pre_authenticate_steps{
 }
 
 default_imp_for_pre_authenticate_steps!(
+    connectors::Silverflow,
+    connectors::Vgs,
+    connectors::Aci,
+    connectors::Adyenplatform,
+    connectors::Affirm,
+    connectors::Amazonpay,
+    connectors::Archipel,
+    connectors::Authipay,
+    connectors::Authorizedotnet,
+    connectors::Bambora,
+    connectors::Bamboraapac,
+    connectors::Bankofamerica,
+    connectors::Barclaycard,
+    connectors::Billwerk,
+    connectors::Bitpay,
+    connectors::Blackhawknetwork,
+    connectors::Bluesnap,
+    connectors::Braintree,
+    connectors::Boku,
+    connectors::Cashtocode,
+    connectors::Celero,
+    connectors::Chargebee,
+    connectors::Checkbook,
+    connectors::Checkout,
+    connectors::Coinbase,
+    connectors::Coingate,
+    connectors::Cryptopay,
+    connectors::Custombilling,
+    connectors::Datatrans,
+    connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
+    connectors::Dwolla,
+    connectors::Ebanx,
+    connectors::Elavon,
+    connectors::Facilitapay,
+    connectors::Fiserv,
+    connectors::Fiservemea,
+    connectors::Fiuu,
+    connectors::Forte,
+    connectors::Getnet,
+    connectors::Globalpay,
+    connectors::Globepay,
+    connectors::Gpayments,
+    connectors::Hipay,
+    connectors::Helcim,
+    connectors::HyperswitchVault,
+    connectors::Iatapay,
+    connectors::Inespay,
+    connectors::Itaubank,
+    connectors::Jpmorgan,
+    connectors::Juspaythreedsserver,
+    connectors::Klarna,
+    connectors::Netcetera,
+    connectors::Nomupay,
+    connectors::Noon,
+    connectors::Nordea,
+    connectors::Novalnet,
+    connectors::Nexinets,
+    connectors::Opayo,
+    connectors::Opennode,
+    connectors::Paybox,
+    connectors::Payeezy,
+    connectors::Payload,
+    connectors::Paystack,
+    connectors::Payone,
+    connectors::Payu,
+    connectors::Placetopay,
+    connectors::Plaid,
+    connectors::Powertranz,
+    connectors::Prophetpay,
+    connectors::Mifinity,
+    connectors::Mollie,
+    connectors::Moneris,
+    connectors::Multisafepay,
+    connectors::Rapyd,
+    connectors::Razorpay,
+    connectors::Recurly,
+    connectors::Riskified,
+    connectors::Santander,
+    connectors::Signifyd,
+    connectors::Stax,
+    connectors::Square,
+    connectors::Stripe,
+    connectors::Stripebilling,
+    connectors::Taxjar,
+    connectors::Threedsecureio,
+    connectors::Thunes,
+    connectors::Tokenio,
+    connectors::Tsys,
+    connectors::UnifiedAuthenticationService,
+    connectors::Wise,
+    connectors::Worldline,
+    connectors::Worldpay,
+    connectors::Worldpayvantiv,
+    connectors::Worldpayxml,
+    connectors::Wellsfargo,
+    connectors::Wellsfargopayout,
+    connectors::Volt,
+    connectors::Zen,
+    connectors::Zsl,
+    connectors::CtpMastercard,
+    connectors::Adyen,
+    connectors::Airwallex,
+    connectors::Gocardless,
+    connectors::Nexixpay,
+    connectors::Nmi,
+    connectors::Nuvei,
+    connectors::Payme,
+    connectors::Paypal,
+    connectors::Redsys,
+    connectors::Shift4,
+    connectors::Trustpay,
+    connectors::Xendit
+);
+
+macro_rules! default_imp_for_authenticate_steps{
+    ($($path:ident::$connector:ident),*)=> {
+        $(
+            impl PaymentsAuthenticate for $path::$connector {}
+            impl
+            ConnectorIntegration<
+            Authenticate,
+            PaymentsPreProcessingData,
+            PaymentsResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+default_imp_for_authenticate_steps!(
     connectors::Silverflow,
     connectors::Vgs,
     connectors::Aci,
@@ -6863,6 +6995,15 @@ impl<const T: u8>
 impl<const T: u8> PaymentsPreAuthenticate for connectors::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> ConnectorIntegration<PreAuthenticate, PaymentsAuthorizeData, PaymentsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PaymentsAuthenticate for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<Authenticate, PaymentsPreProcessingData, PaymentsResponseData>
     for connectors::DummyConnector<T>
 {
 }

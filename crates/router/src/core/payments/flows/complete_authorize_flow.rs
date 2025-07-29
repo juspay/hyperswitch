@@ -1,5 +1,6 @@
 use async_trait::async_trait;
-use masking::ExposeInterface;
+use hyperswitch_domain_models::router_flow_types::Authenticate;
+use masking::{ExposeInterface, PeekInterface as _};
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -205,6 +206,28 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
     ) -> RouterResult<Self> {
         complete_authorize_preprocessing_steps(state, &self, true, connector).await
     }
+
+    async fn authenticate_steps<'a>(
+        self,
+        state: &SessionState,
+        connector: &api::ConnectorData,
+    ) -> RouterResult<Self> {
+        complete_authorize_authenticate_steps(state, &self, true, connector).await
+    }
+
+    fn has_redirect_response_params<'a>(&self) -> bool {
+        // let redirect_response = self.request.redirect_response.clone().ok_or(
+        //     hyperswitch_interfaces::errors::ConnectorError::MissingRequiredField {
+        //         field_name: "redirect_response",
+        //     },
+        // )?;
+        let redirect_response = self.request.redirect_response.clone().unwrap();
+        match redirect_response.params {
+            Some(param) if !param.clone().peek().is_empty() => true,
+
+            Some(_) | None => false,
+        }
+    }
 }
 
 pub async fn complete_authorize_preprocessing_steps<F: Clone>(
@@ -228,6 +251,72 @@ pub async fn complete_authorize_preprocessing_steps<F: Clone>(
 
         let preprocessing_router_data =
             helpers::router_data_type_conversion::<_, api::PreProcessing, _, _, _, _>(
+                router_data.clone(),
+                preprocessing_request_data,
+                preprocessing_response_data,
+            );
+
+        let resp = services::execute_connector_processing_step(
+            state,
+            connector_integration,
+            &preprocessing_router_data,
+            payments::CallConnectorAction::Trigger,
+            None,
+            None,
+        )
+        .await
+        .to_payment_failed_response()?;
+
+        metrics::PREPROCESSING_STEPS_COUNT.add(
+            1,
+            router_env::metric_attributes!(
+                ("connector", connector.connector_name.to_string()),
+                ("payment_method", router_data.payment_method.to_string()),
+            ),
+        );
+
+        let mut router_data_request = router_data.request.to_owned();
+
+        if let Ok(types::PaymentsResponseData::TransactionResponse {
+            connector_metadata, ..
+        }) = &resp.response
+        {
+            connector_metadata.clone_into(&mut router_data_request.connector_meta);
+        };
+
+        let authorize_router_data = helpers::router_data_type_conversion::<_, F, _, _, _, _>(
+            resp.clone(),
+            router_data_request,
+            resp.response,
+        );
+
+        Ok(authorize_router_data)
+    } else {
+        Ok(router_data.clone())
+    }
+}
+
+pub async fn complete_authorize_authenticate_steps<F: Clone>(
+    state: &SessionState,
+    router_data: &types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>,
+    confirm: bool,
+    connector: &api::ConnectorData,
+) -> RouterResult<types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>> {
+    if confirm {
+        let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
+            Authenticate,
+            types::PaymentsPreProcessingData,
+            types::PaymentsResponseData,
+        > = connector.connector.get_connector_integration();
+
+        let preprocessing_request_data =
+            types::PaymentsPreProcessingData::try_from(router_data.request.to_owned())?;
+
+        let preprocessing_response_data: Result<types::PaymentsResponseData, types::ErrorResponse> =
+            Err(types::ErrorResponse::default());
+
+        let preprocessing_router_data =
+            helpers::router_data_type_conversion::<_, Authenticate, _, _, _, _>(
                 router_data.clone(),
                 preprocessing_request_data,
                 preprocessing_response_data,

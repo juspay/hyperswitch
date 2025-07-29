@@ -157,6 +157,28 @@ pub trait Feature<F, T> {
         Ok(self)
     }
 
+    async fn authenticate_steps<'a>(
+        self,
+        _state: &SessionState,
+        _connector: &api::ConnectorData,
+    ) -> RouterResult<Self>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(self)
+    }
+
+    fn has_redirect_response_params<'a>(&self) -> bool
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        false
+    }
+
     async fn postprocessing_steps<'a>(
         self,
         _state: &SessionState,
