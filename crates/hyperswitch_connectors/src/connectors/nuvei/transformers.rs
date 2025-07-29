@@ -443,11 +443,24 @@ pub struct ThreeD {
     #[serde(rename = "merchantURL")]
     pub merchant_url: Option<String>,
     pub acs_url: Option<String>,
+    pub acs_challenge_mandate: Option<String>,
     pub c_req: Option<Secret<String>>,
+    pub three_d_flow: Option<String>,
+    pub external_transaction_id: Option<String>,
+    pub transaction_id: Option<String>,
+    pub three_d_reason_id: Option<String>,
+    pub three_d_reason: Option<String>,
+    pub challenge_preference_reason: Option<String>,
+    pub challenge_cancel_reason_id: Option<String>,
+    pub challenge_cancel_reason: Option<String>,
+    pub is_liability_on_issuer: Option<String>,
+    pub is_exemption_request_in_authentication: Option<String>,
+    pub flow: Option<String>,
+    pub acquirer_decision: Option<String>,
+    pub decision_reason: Option<String>,
     pub platform_type: Option<PlatformType>,
     pub v2supported: Option<String>,
     pub v2_additional_params: Option<V2AdditionalParams>,
-    pub is_liability_on_issuer: Option<LiabilityShift>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -1640,14 +1653,9 @@ where
         };
 
         let response = item.response;
-        let connector_response_data = response
-            .payment_option
-            .as_ref()
-            .and_then(|payment_response| payment_response.card.as_ref())
-            .and_then(|card| {
-                convert_to_additional_payment_method_connector_response(card)
-                    .map(ConnectorResponseData::with_additional_payment_method_data)
-            });
+        let connector_response_data =
+            convert_to_additional_payment_method_connector_response(&response)
+                .map(ConnectorResponseData::with_additional_payment_method_data);
         Ok(Self {
             status: get_payment_status(&response),
             response: if let Some(err) = build_error_response(&response, item.http_code) {
@@ -1966,10 +1974,15 @@ fn get_avs_response_description(code: &str) -> Option<&'static str> {
 }
 
 fn convert_to_additional_payment_method_connector_response(
-    transaction_response: &Card,
+    transaction_response: &NuveiPaymentsResponse,
 ) -> Option<AdditionalPaymentMethodConnectorResponse> {
-    let avs_code = transaction_response.avs_code.as_ref();
-    let cvv2_code = transaction_response.cvv2_reply.as_ref();
+    let card = transaction_response
+        .payment_option
+        .as_ref()?
+        .card
+        .as_ref()?;
+    let avs_code = card.avs_code.as_ref();
+    let cvv2_code = card.cvv2_reply.as_ref();
 
     if avs_code.is_none() && cvv2_code.is_none() {
         return None;
@@ -1985,10 +1998,24 @@ fn convert_to_additional_payment_method_connector_response(
         "cvv_2_description": cvv_description,
     });
 
-    Some(AdditionalPaymentMethodConnectorResponse::Card {
-        authentication_data: None,
-        payment_checks: Some(payment_checks),
-        card_network: None,
-        domestic_network: None,
-    })
+    let card_network = card.card_brand.clone();
+    let three_ds_data = card
+        .three_d
+        .clone()
+        .map(|three_d| {
+            serde_json::to_value(three_d)
+                .map_err(|_| errors::ConnectorError::ResponseHandlingFailed)
+                .attach_printable("threeDs encoding failed Nuvei")
+        })
+        .transpose();
+
+    match three_ds_data {
+        Ok(authentication_data) => Some(AdditionalPaymentMethodConnectorResponse::Card {
+            authentication_data,
+            payment_checks: Some(payment_checks),
+            card_network,
+            domestic_network: None,
+        }),
+        Err(_) => None,
+    }
 }
