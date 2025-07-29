@@ -220,7 +220,10 @@
                       "v1/routing/routing--retrieve-default-for-profile",
                       "v1/routing/routing--update-default-for-profile",
                       "v1/routing/routing--retrieve",
-                      "v1/routing/routing--activate-config"
+                      "v1/routing/routing--activate-config",
+                      "v1/routing/routing--evaluate",
+                      "v1/routing/routing--feedback",
+                      "v1/routing/routing--rule-evaluate"
                     ]
                   },
                   {
