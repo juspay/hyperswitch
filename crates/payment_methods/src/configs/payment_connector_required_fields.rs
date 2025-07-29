@@ -2735,35 +2735,31 @@ fn get_pay_later_required_fields() -> HashMap<enums::PaymentMethodType, Connecto
         ),
         (
             enums::PaymentMethodType::Klarna,
-            connectors(vec![
-                (
-                    Connector::Flexiti,
-                    RequiredFieldFinal {
-                        mandate: HashMap::new(),
-                        non_mandate: HashMap::from([
-                            RequiredField::BillingFirstName.to_tuple(),
-                            RequiredField::BillingLastName.to_tuple(),
-                            RequiredField::BillingAddressCity.to_tuple(),
-                            RequiredField::BillingAddressState.to_tuple(),
-                            RequiredField::BillingAddressZip.to_tuple(),
-                            RequiredField::BillingAddressLine1.to_tuple(),
-                            RequiredField::BillingAddressLine2.to_tuple(),
-                            RequiredField::BillingAddressState.to_tuple(),
-                            RequiredField::ShippingFirstName.to_tuple(),
-                            RequiredField::ShippingLastName.to_tuple(),
-                            RequiredField::ShippingAddressLine1.to_tuple(),
-                            RequiredField::ShippingAddressLine2.to_tuple(),
-                            RequiredField::ShippingAddressZip.to_tuple(),
-                            RequiredField::ShippingAddressCity.to_tuple(),
-                            RequiredField::ShippingAddressState.to_tuple(),
-                        ]),
-                        common: HashMap::new(),
-                    },
-                )
-            ]
-            )
-        )
-        (
+            connectors(vec![(
+                Connector::Flexiti,
+                RequiredFieldFinal {
+                    mandate: HashMap::new(),
+                    non_mandate: HashMap::from([
+                        RequiredField::BillingFirstName.to_tuple(),
+                        RequiredField::BillingLastName.to_tuple(),
+                        RequiredField::BillingAddressCity.to_tuple(),
+                        RequiredField::BillingAddressState.to_tuple(),
+                        RequiredField::BillingAddressZip.to_tuple(),
+                        RequiredField::BillingAddressLine1.to_tuple(),
+                        RequiredField::BillingAddressLine2.to_tuple(),
+                        RequiredField::BillingAddressState.to_tuple(),
+                        RequiredField::ShippingFirstName.to_tuple(),
+                        RequiredField::ShippingLastName.to_tuple(),
+                        RequiredField::ShippingAddressLine1.to_tuple(),
+                        RequiredField::ShippingAddressLine2.to_tuple(),
+                        RequiredField::ShippingAddressZip.to_tuple(),
+                        RequiredField::ShippingAddressCity.to_tuple(),
+                        RequiredField::ShippingAddressState.to_tuple(),
+                    ]),
+                    common: HashMap::new(),
+                },
+            )]),
+        )(
             enums::PaymentMethodType::Klarna,
             connectors(vec![
                 (
