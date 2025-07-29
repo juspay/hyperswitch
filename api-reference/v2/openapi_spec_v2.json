@@ -10566,6 +10566,12 @@
             "type": "string",
             "description": "A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.",
             "nullable": true
+          },
+          "status_code": {
+            "type": "integer",
+            "format": "int32",
+            "description": "HTTP status code returned by the connector",
+            "nullable": true
           }
         }
       },
