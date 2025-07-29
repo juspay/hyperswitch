@@ -2734,14 +2734,14 @@ fn get_pay_later_required_fields() -> HashMap<enums::PaymentMethodType, Connecto
             ]),
         ),
         (
-            enums::PaymentMethodType::Klarna,
+            enums::PaymentMethodType::Flexiti,
             connectors(vec![(
                 Connector::Flexiti,
                 RequiredFieldFinal {
                     mandate: HashMap::new(),
                     non_mandate: HashMap::from([
-                        RequiredField::BillingFirstName.to_tuple(),
-                        RequiredField::BillingLastName.to_tuple(),
+                        RequiredField::BillingUserFirstName.to_tuple(),
+                        RequiredField::BillingUserLastName.to_tuple(),
                         RequiredField::BillingAddressCity.to_tuple(),
                         RequiredField::BillingAddressState.to_tuple(),
                         RequiredField::BillingAddressZip.to_tuple(),
@@ -2759,7 +2759,8 @@ fn get_pay_later_required_fields() -> HashMap<enums::PaymentMethodType, Connecto
                     common: HashMap::new(),
                 },
             )]),
-        )(
+        ),
+        (
             enums::PaymentMethodType::Klarna,
             connectors(vec![
                 (
