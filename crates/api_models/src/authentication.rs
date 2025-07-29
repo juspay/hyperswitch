@@ -606,7 +606,6 @@ impl ApiEventMetric for AuthenticationSyncPostUpdateRequest {
     }
 }
 
-
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct PgRedirectResponseForAuthentication {
     pub authentication_id: id_type::AuthenticationId,

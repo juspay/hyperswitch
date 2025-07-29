@@ -3127,9 +3127,17 @@ pub fn get_handle_response_url_for_modular_authentication(
     amount: Option<MinorUnit>,
 ) -> RouterResult<api::RedirectionResponse> {
     let authentication_return_url = return_url;
-    let trans_status = response.transaction_status.clone().get_required_value("transaction_status")?;
+    let trans_status = response
+        .transaction_status
+        .clone()
+        .get_required_value("transaction_status")?;
 
-let redirection_response = make_pg_redirect_response_for_authentication(authentication_id, connector, amount, trans_status);
+    let redirection_response = make_pg_redirect_response_for_authentication(
+        authentication_id,
+        connector,
+        amount,
+        trans_status,
+    );
 
     let return_url = make_merchant_url_with_response_for_authentication(
         business_profile,
@@ -3162,7 +3170,10 @@ pub fn make_merchant_url_with_response_for_authentication(
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Expected client secret to be `Some`")?;
 
-    let authentication_id = redirection_response.authentication_id.get_string_repr().to_owned();
+    let authentication_id = redirection_response
+        .authentication_id
+        .get_string_repr()
+        .to_owned();
     let merchant_url_with_response = if business_profile.redirect_to_merchant_with_http_post {
         url::Url::parse_with_params(
             url,
@@ -3205,7 +3216,6 @@ pub fn make_merchant_url_with_response_for_authentication(
 
     Ok(merchant_url_with_response.to_string())
 }
-
 
 #[cfg(feature = "v1")]
 pub fn make_merchant_url_with_response(

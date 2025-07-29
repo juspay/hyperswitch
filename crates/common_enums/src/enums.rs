@@ -7497,7 +7497,10 @@ pub enum TransactionStatus {
 
 impl TransactionStatus {
     pub fn is_pending(self) -> bool {
-        matches!(self, Self::ChallengeRequired | Self::ChallengeRequiredDecoupledAuthentication)
+        matches!(
+            self,
+            Self::ChallengeRequired | Self::ChallengeRequiredDecoupledAuthentication
+        )
     }
 }
 

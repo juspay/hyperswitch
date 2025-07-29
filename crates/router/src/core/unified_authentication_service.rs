@@ -1442,7 +1442,7 @@ pub async fn authentication_sync_core(
                     Some(&authentication),
                 )
                 .await?;
-    
+
             utils::external_authentication_update_trackers(
                 &state,
                 post_auth_response,
@@ -1675,13 +1675,13 @@ pub async fn authentication_post_sync_core(
         &authentication_response,
         authentication_connector.to_string(),
         authentication.return_url,
-        authentication.authentication_client_secret.clone().map(masking::Secret::new).as_ref(),
+        authentication
+            .authentication_client_secret
+            .clone()
+            .map(masking::Secret::new)
+            .as_ref(),
         authentication.amount,
     )?;
-    
-    Ok(hyperswitch_domain_models::api::ApplicationResponse::JsonForRedirection(
-        redirect_response
-    ))
+
+    Ok(hyperswitch_domain_models::api::ApplicationResponse::JsonForRedirection(redirect_response))
 }
-
-
