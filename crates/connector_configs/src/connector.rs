@@ -173,6 +173,7 @@ pub struct ConnectorTomlConfig {
 pub struct ConnectorConfig {
     pub authipay: Option<ConnectorTomlConfig>,
     pub juspaythreedsserver: Option<ConnectorTomlConfig>,
+    pub katapult: Option<ConnectorTomlConfig>,
     pub aci: Option<ConnectorTomlConfig>,
     pub adyen: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
