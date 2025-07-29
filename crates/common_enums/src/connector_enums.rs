@@ -72,6 +72,7 @@ pub enum RoutableConnectors {
     Bambora,
     Bamboraapac,
     Bluesnap,
+    // Bluecode,
     Boku,
     Braintree,
     Breadpay,
@@ -236,6 +237,7 @@ pub enum Connector {
     Billwerk,
     Bitpay,
     Bluesnap,
+    // Bluecode,
     Boku,
     Braintree,
     Breadpay,
@@ -427,6 +429,7 @@ impl Connector {
             | Self::Billwerk
             | Self::Bitpay
             | Self::Bluesnap
+            // | Self::Bluecode
             | Self::Boku
             | Self::Braintree
             | Self::Breadpay
@@ -596,6 +599,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Bambora => Self::Bambora,
             RoutableConnectors::Bamboraapac => Self::Bamboraapac,
             RoutableConnectors::Bluesnap => Self::Bluesnap,
+            // RoutableConnectors::Bluecode => Self::Bluecode,
             RoutableConnectors::Boku => Self::Boku,
             RoutableConnectors::Braintree => Self::Braintree,
             RoutableConnectors::Breadpay => Self::Breadpay,
@@ -723,6 +727,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Bambora => Ok(Self::Bambora),
             Connector::Bamboraapac => Ok(Self::Bamboraapac),
             Connector::Bluesnap => Ok(Self::Bluesnap),
+            // Connector::Bluecode => Ok(Self::Bluecode),
             Connector::Boku => Ok(Self::Boku),
             Connector::Braintree => Ok(Self::Braintree),
             Connector::Breadpay => Ok(Self::Breadpay),
