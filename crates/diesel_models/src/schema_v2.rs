@@ -935,7 +935,6 @@ diesel::table! {
         network_error_message -> Nullable<Text>,
         #[max_length = 255]
         connector_request_reference_id -> Nullable<Varchar>,
-        status_code -> Nullable<Int4>,
     }
 }
 

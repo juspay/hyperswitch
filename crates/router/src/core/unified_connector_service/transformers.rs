@@ -364,11 +364,7 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse>
             })
         });
 
-        let status_code = u16::try_from(response.status_code.unwrap_or(500)).map_err(|_| {
-            UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                "Failed to convert status code to u16".to_string(),
-            )
-        })?;
+        let status_code = u16::foreign_try_from(response.status_code)?;
 
         let response = if response.error_code.is_some() {
             Err(ErrorResponse {
@@ -432,11 +428,7 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceGetResponse>
                     })
             });
 
-        let status_code = u16::try_from(response.status_code.unwrap_or(500)).map_err(|_| {
-            UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                "Failed to convert status code to u16".to_string(),
-            )
-        })?;
+        let status_code = u16::foreign_try_from(response.status_code)?;
 
         let response = if response.error_code.is_some() {
             Err(ErrorResponse {
@@ -497,11 +489,7 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceRegisterResponse>
                     })
             });
 
-        let status_code = u16::try_from(response.status_code.unwrap_or(500)).map_err(|_| {
-            UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                "Failed to convert status code to u16".to_string(),
-            )
-        })?;
+        let status_code = u16::foreign_try_from(response.status_code)?;
 
         let response = if response.error_code.is_some() {
             Err(ErrorResponse {
@@ -592,11 +580,7 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingResponse>
             })
         });
 
-        let status_code = u16::try_from(response.status_code.unwrap_or(500)).map_err(|_| {
-            UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                "Failed to convert status code to u16".to_string(),
-            )
-        })?;
+        let status_code = u16::foreign_try_from(response.status_code)?;
 
         let response = if response.error_code.is_some() {
             Err(ErrorResponse {
@@ -985,6 +969,21 @@ impl ForeignTryFrom<common_types::payments::CustomerAcceptance>
                 .map(|dt| dt.assume_utc().unix_timestamp())
                 .unwrap_or_default(),
             online_mandate_details,
+        })
+    }
+}
+
+impl ForeignTryFrom<Option<u32>> for u16 {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(status_code: Option<u32>) -> Result<Self, Self::Error> {
+        let code = status_code.unwrap_or(500);
+
+        Self::try_from(code).map_err(|_| {
+            UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                "Failed to convert status code to u16".to_string(),
+            )
+            .into()
         })
     }
 }

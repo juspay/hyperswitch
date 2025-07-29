@@ -233,55 +233,79 @@ pub fn build_unified_connector_service_auth_metadata(
 pub fn handle_unified_connector_service_response_for_payment_authorize(
     response: PaymentServiceAuthorizeResponse,
 ) -> CustomResult<
-    (AttemptStatus, Result<PaymentsResponseData, ErrorResponse>),
+    (
+        AttemptStatus,
+        Result<PaymentsResponseData, ErrorResponse>,
+        u16,
+    ),
     UnifiedConnectorServiceError,
 > {
     let status = AttemptStatus::foreign_try_from(response.status())?;
 
     let router_data_response =
-        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
+        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response.clone())?;
 
-    Ok((status, router_data_response))
+    let status_code = u16::foreign_try_from(response.status_code)?;
+
+    Ok((status, router_data_response, status_code))
 }
 
 pub fn handle_unified_connector_service_response_for_payment_get(
     response: payments_grpc::PaymentServiceGetResponse,
 ) -> CustomResult<
-    (AttemptStatus, Result<PaymentsResponseData, ErrorResponse>),
+    (
+        AttemptStatus,
+        Result<PaymentsResponseData, ErrorResponse>,
+        u16,
+    ),
     UnifiedConnectorServiceError,
 > {
     let status = AttemptStatus::foreign_try_from(response.status())?;
 
     let router_data_response =
-        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
+        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response.clone())?;
 
-    Ok((status, router_data_response))
+    let status_code = u16::foreign_try_from(response.status_code)?;
+
+    Ok((status, router_data_response, status_code))
 }
 
 pub fn handle_unified_connector_service_response_for_payment_register(
     response: payments_grpc::PaymentServiceRegisterResponse,
 ) -> CustomResult<
-    (AttemptStatus, Result<PaymentsResponseData, ErrorResponse>),
+    (
+        AttemptStatus,
+        Result<PaymentsResponseData, ErrorResponse>,
+        u16,
+    ),
     UnifiedConnectorServiceError,
 > {
     let status = AttemptStatus::foreign_try_from(response.status())?;
 
     let router_data_response =
-        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
+        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response.clone())?;
 
-    Ok((status, router_data_response))
+    let status_code = u16::foreign_try_from(response.status_code)?;
+
+    Ok((status, router_data_response, status_code))
 }
 
 pub fn handle_unified_connector_service_response_for_payment_repeat(
     response: payments_grpc::PaymentServiceRepeatEverythingResponse,
 ) -> CustomResult<
-    (AttemptStatus, Result<PaymentsResponseData, ErrorResponse>),
+    (
+        AttemptStatus,
+        Result<PaymentsResponseData, ErrorResponse>,
+        u16,
+    ),
     UnifiedConnectorServiceError,
 > {
     let status = AttemptStatus::foreign_try_from(response.status())?;
 
     let router_data_response =
-        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
+        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response.clone())?;
 
-    Ok((status, router_data_response))
+    let status_code = u16::foreign_try_from(response.status_code)?;
+
+    Ok((status, router_data_response, status_code))
 }

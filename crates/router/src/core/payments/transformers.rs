@@ -1585,9 +1585,17 @@ where
             status: payment_intent.status,
         };
 
+        let headers = connector_http_status_code
+            .map(|status_code| {
+                vec![(
+                    "connector_http_status_code".to_string(),
+                    Maskable::new_normal(status_code.to_string()),
+                )]
+            })
+            .unwrap_or_default();
+
         Ok(services::ApplicationResponse::JsonWithHeaders((
-            response,
-            vec![],
+            response, headers,
         )))
     }
 }
@@ -1964,6 +1972,15 @@ where
             .clone()
             .or(profile.return_url.clone());
 
+        let headers = connector_http_status_code
+            .map(|status_code| {
+                vec![(
+                    "connector_http_status_code".to_string(),
+                    Maskable::new_normal(status_code.to_string()),
+                )]
+            })
+            .unwrap_or_default();
+
         let response = api_models::payments::PaymentsResponse {
             id: payment_intent.id.clone(),
             status: payment_intent.status,
@@ -1995,8 +2012,7 @@ where
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
-            response,
-            vec![],
+            response, headers,
         )))
     }
 }
@@ -2061,6 +2077,15 @@ where
 
         let return_url = payment_intent.return_url.or(profile.return_url.clone());
 
+        let headers = connector_http_status_code
+            .map(|status_code| {
+                vec![(
+                    "connector_http_status_code".to_string(),
+                    Maskable::new_normal(status_code.to_string()),
+                )]
+            })
+            .unwrap_or_default();
+
         let response = api_models::payments::PaymentsResponse {
             id: payment_intent.id.clone(),
             status: payment_intent.status,
@@ -2096,8 +2121,7 @@ where
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
-            response,
-            vec![],
+            response, headers,
         )))
     }
 }
@@ -5160,7 +5184,6 @@ impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::ErrorDet
             network_advice_code: error_details.network_advice_code.clone(),
             network_decline_code: error_details.network_decline_code.clone(),
             network_error_message: error_details.network_error_message.clone(),
-            status_code: error_details.status_code,
         }
     }
 }
