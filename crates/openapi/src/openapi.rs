@@ -213,6 +213,9 @@ Never share your secret api keys. Keep them guarded and secure.
 
         // Routes for authentication
         routes::authentication::authentication_create,
+
+        // Routes for platform account
+        routes::platform::create_platform_account,
     ),
     components(schemas(
         common_utils::types::MinorUnit,
@@ -362,8 +365,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::MerchantProductType,
         api_models::enums::CtpServiceProvider,
         api_models::enums::PaymentLinkSdkLabelType,
-        api_models::enums::PaymentLinkShowSdkTerms,
         api_models::enums::OrganizationType,
+        api_models::enums::PaymentLinkShowSdkTerms,
         api_models::admin::MerchantConnectorCreate,
         api_models::admin::AdditionalMerchantData,
         api_models::admin::ConnectorWalletDetails,
@@ -465,6 +468,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentsConfirmRequest,
         api_models::payments::PaymentsResponse,
         api_models::payments::PaymentsCreateResponseOpenApi,
+        api_models::errors::types::GenericErrorResponseOpenApi,
         api_models::payments::PaymentRetrieveBody,
         api_models::payments::PaymentsRetrieveRequest,
         api_models::payments::PaymentsCaptureRequest,
@@ -799,6 +803,14 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::authentication::AuthenticationCreateRequest,
         api_models::authentication::AuthenticationResponse,
         api_models::authentication::AcquirerDetails,
+        api_models::authentication::NextAction,
+        common_utils::request::Method,
+        api_models::authentication::EligibilityResponseParams,
+        api_models::authentication::ThreeDsData,
+        api_models::authentication::AuthenticationEligibilityRequest,
+        api_models::authentication::AuthenticationEligibilityResponse,
+        api_models::user::PlatformAccountCreateRequest,
+        api_models::user::PlatformAccountCreateResponse,
     )),
     modifiers(&SecurityAddon)
 )]

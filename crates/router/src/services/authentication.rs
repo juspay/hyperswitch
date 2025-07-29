@@ -4218,6 +4218,23 @@ impl ClientSecretFetch for api_models::payment_methods::PaymentMethodUpdate {
     }
 }
 
+#[cfg(feature = "v1")]
+impl ClientSecretFetch for api_models::authentication::AuthenticationEligibilityRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret
+            .as_ref()
+            .map(|client_secret| client_secret.peek())
+    }
+}
+
+impl ClientSecretFetch for api_models::authentication::AuthenticationAuthenticateRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret
+            .as_ref()
+            .map(|client_secret| client_secret.peek())
+    }
+}
+
 pub fn get_auth_type_and_flow<A: SessionStateInfo + Sync + Send>(
     headers: &HeaderMap,
     api_auth: ApiKeyAuth,

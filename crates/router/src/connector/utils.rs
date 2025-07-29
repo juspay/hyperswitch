@@ -2460,6 +2460,7 @@ pub enum PaymentMethodDataType {
     WalleyRedirect,
     AlmaRedirect,
     AtomeRedirect,
+    BreadpayRedirect,
     BancontactCard,
     Bizum,
     Blik,
@@ -2529,6 +2530,7 @@ pub enum PaymentMethodDataType {
     InstantBankTransferFinland,
     InstantBankTransferPoland,
     RevolutPay,
+    IndonesianBankTransfer,
 }
 
 impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
@@ -2594,6 +2596,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                 domain::payments::PayLaterData::WalleyRedirect {} => Self::WalleyRedirect,
                 domain::payments::PayLaterData::AlmaRedirect {} => Self::AlmaRedirect,
                 domain::payments::PayLaterData::AtomeRedirect {} => Self::AtomeRedirect,
+                domain::payments::PayLaterData::BreadpayRedirect {} => Self::BreadpayRedirect,
             },
             domain::payments::PaymentMethodData::BankRedirect(bank_redirect_data) => {
                 match bank_redirect_data {
@@ -2690,6 +2693,9 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                     }
                     domain::payments::BankTransferData::InstantBankTransferPoland {} => {
                         Self::InstantBankTransferPoland
+                    }
+                    domain::payments::BankTransferData::IndonesianBankTransfer { .. } => {
+                        Self::IndonesianBankTransfer
                     }
                 }
             }
