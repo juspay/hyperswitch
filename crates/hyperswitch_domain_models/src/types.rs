@@ -53,6 +53,8 @@ pub type PaymentsPreAuthenticateRouterData =
     RouterData<PreAuthenticate, PaymentsAuthorizeData, PaymentsResponseData>;
 pub type PaymentsAuthenticateRouterData =
     RouterData<Authenticate, PaymentsPreProcessingData, PaymentsResponseData>;
+pub type PaymentsPostAuthenticateRouterData =
+    RouterData<PostAuthenticate, PaymentsPreProcessingData, PaymentsResponseData>;
 pub type PaymentsSyncRouterData = RouterData<PSync, PaymentsSyncData, PaymentsResponseData>;
 pub type PaymentsCaptureRouterData = RouterData<Capture, PaymentsCaptureData, PaymentsResponseData>;
 pub type PaymentsCancelRouterData = RouterData<Void, PaymentsCancelData, PaymentsResponseData>;

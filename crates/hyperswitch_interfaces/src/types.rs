@@ -119,6 +119,10 @@ pub type PaymentsPreAuthenticateType =
 pub type PaymentsAuthenticateType =
     dyn ConnectorIntegration<Authenticate, PaymentsPreProcessingData, PaymentsResponseData>;
 
+/// Type alias for `ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>`
+pub type PaymentsPostAuthenticateType =
+    dyn ConnectorIntegration<PostAuthenticate, PaymentsPreProcessingData, PaymentsResponseData>;
+
 /// Type alias for `ConnectorIntegration<PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>`
 pub type PaymentsPostProcessingType =
     dyn ConnectorIntegration<PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>;

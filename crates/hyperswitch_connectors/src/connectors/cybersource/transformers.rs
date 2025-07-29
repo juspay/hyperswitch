@@ -43,8 +43,9 @@ use hyperswitch_domain_models::{
     types::{
         PaymentsAuthenticateRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
         PaymentsCaptureRouterData, PaymentsCompleteAuthorizeRouterData,
-        PaymentsIncrementalAuthorizationRouterData, PaymentsPreAuthenticateRouterData,
-        PaymentsPreProcessingRouterData, RefundsRouterData, SetupMandateRouterData,
+        PaymentsIncrementalAuthorizationRouterData, PaymentsPostAuthenticateRouterData,
+        PaymentsPreAuthenticateRouterData, PaymentsPreProcessingRouterData, RefundsRouterData,
+        SetupMandateRouterData,
     },
 };
 use hyperswitch_interfaces::{api, errors};
@@ -3353,6 +3354,147 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthenticateRouterData>>
                 )))
             }
         }
+    }
+}
+
+impl TryFrom<&CybersourceRouterData<&PaymentsPostAuthenticateRouterData>>
+    for CybersourcePreProcessingRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &CybersourceRouterData<&PaymentsPostAuthenticateRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let client_reference_information = ClientReferenceInformation {
+            code: Some(item.router_data.connector_request_reference_id.clone()),
+        };
+        let payment_method_data = item.router_data.request.payment_method_data.clone().ok_or(
+            errors::ConnectorError::MissingConnectorRedirectionPayload {
+                field_name: "payment_method_data",
+            },
+        )?;
+        let payment_information = match payment_method_data {
+            PaymentMethodData::Card(ccard) => {
+                let card_type = match ccard
+                    .card_network
+                    .clone()
+                    .and_then(get_cybersource_card_type)
+                {
+                    Some(card_network) => Some(card_network.to_string()),
+                    None => ccard.get_card_issuer().ok().map(String::from),
+                };
+
+                Ok(PaymentInformation::Cards(Box::new(
+                    CardPaymentInformation {
+                        card: Card {
+                            number: ccard.card_number,
+                            expiration_month: ccard.card_exp_month,
+                            expiration_year: ccard.card_exp_year,
+                            security_code: Some(ccard.card_cvc),
+                            card_type,
+                            type_selection_indicator: Some("1".to_owned()),
+                        },
+                    },
+                )))
+            }
+            PaymentMethodData::Wallet(_)
+            | PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Cybersource"),
+                ))
+            }
+        }?;
+
+        let redirect_response = item.router_data.request.redirect_response.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "redirect_response",
+            },
+        )?;
+
+        let amount_details = Amount {
+            total_amount: item.amount.clone(),
+            currency: item.router_data.request.currency.ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "currency",
+                },
+            )?,
+        };
+
+        // match redirect_response.params {
+        //     Some(param) if !param.clone().peek().is_empty() => {
+        //         let reference_id = param
+        //             .clone()
+        //             .peek()
+        //             .split('=')
+        //             .last()
+        //             .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
+        //                 field_name: "request.redirect_response.params.reference_id",
+        //             })?
+        //             .to_string();
+        //         let email = item
+        //             .router_data
+        //             .get_billing_email()
+        //             .or(item.router_data.request.get_email())?;
+        //         let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
+        //         let order_information = OrderInformationWithBill {
+        //             amount_details,
+        //             bill_to: Some(bill_to),
+        //         };
+        //         Ok(Self::AuthEnrollment(Box::new(
+        //             CybersourceAuthEnrollmentRequest {
+        //                 payment_information,
+        //                 client_reference_information,
+        //                 consumer_authentication_information:
+        //                     CybersourceConsumerAuthInformationRequest {
+        //                         return_url: item
+        //                             .router_data
+        //                             .request
+        //                             .get_complete_authorize_url()?,
+        //                         reference_id,
+        //                     },
+        //                 order_information,
+        //             },
+        //         )))
+        //     }
+        //     Some(_) | None => {
+        let redirect_payload: CybersourceRedirectionAuthResponse = redirect_response
+            .payload
+            .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
+                field_name: "request.redirect_response.payload",
+            })?
+            .peek()
+            .clone()
+            .parse_value("CybersourceRedirectionAuthResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let order_information = OrderInformation { amount_details };
+        Ok(Self::AuthValidate(Box::new(
+            CybersourceAuthValidateRequest {
+                payment_information,
+                client_reference_information,
+                consumer_authentication_information:
+                    CybersourceConsumerAuthInformationValidateRequest {
+                        authentication_transaction_id: redirect_payload.transaction_id,
+                    },
+                order_information,
+            },
+        )))
+        //     }
+        // }
     }
 }
 

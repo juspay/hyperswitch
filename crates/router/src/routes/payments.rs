@@ -3224,21 +3224,35 @@ pub async fn payments_finish_redirection(
 pub async fn payments_continue_redirection(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
-    payload: web::Query<api_models::payments::PaymentStartRedirectionParams>,
+    json_payload: Option<web::Form<serde_json::Value>>,
     path: web::Path<common_utils::id_type::GlobalPaymentId>,
 ) -> impl Responder {
+    use std::str::FromStr;
+
     let flow = Flow::PaymentsRedirect;
     let payment_id = path.into_inner();
     let param_string = req.query_string();
 
     tracing::Span::current().record("payment_id", payment_id.get_string_repr());
 
-    let publishable_key = &payload.publishable_key;
-    let profile_id = &payload.profile_id;
+    // Extract publishable_key and profile_id from query parameters
+    // let query_params = req.query_string();
+    let mut publishable_key = String::new();
+    let mut profile_id = String::new();
+
+    for param in param_string.split('&') {
+        if let Some((key, value)) = param.split_once('=') {
+            match key {
+                "publishable_key" => publishable_key = value.to_string(),
+                "profile_id" => profile_id = value.to_string(),
+                _ => {}
+            }
+        }
+    }
 
     let payload = payments::PaymentsRedirectResponseData {
         payment_id,
-        json_payload: None,
+        json_payload: json_payload.map(|s| s.0),
         query_params: param_string.to_string(),
     };
 
@@ -3264,7 +3278,7 @@ pub async fn payments_continue_redirection(
         },
         &auth::PublishableKeyAndProfileIdAuth {
             publishable_key: publishable_key.clone(),
-            profile_id: profile_id.clone(),
+            profile_id: common_utils::id_type::ProfileId::from_str(&profile_id).unwrap(),
         },
         locking_action,
     ))

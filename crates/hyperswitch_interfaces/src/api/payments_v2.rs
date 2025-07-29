@@ -9,7 +9,7 @@ use hyperswitch_domain_models::{
             PaymentMethodToken, PostProcessing, PostSessionTokens, PreProcessing, Reject,
             SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
         },
-        Authenticate, PreAuthenticate,
+        Authenticate, PostAuthenticate, PreAuthenticate,
     },
     router_request_types::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
@@ -213,6 +213,17 @@ pub trait PaymentsAuthenticateV2:
 {
 }
 
+/// trait PaymentsPreProcessingV2
+pub trait PaymentsPostAuthenticateV2:
+    ConnectorIntegrationV2<
+    PostAuthenticate,
+    PaymentFlowData,
+    PaymentsPreProcessingData,
+    PaymentsResponseData,
+>
+{
+}
+
 /// trait PaymentsPostProcessingV2
 pub trait PaymentsPostProcessingV2:
     ConnectorIntegrationV2<
@@ -243,6 +254,7 @@ pub trait PaymentV2:
     + PaymentsPreProcessingV2
     + PaymentsPreAuthenticateV2
     + PaymentsAuthenticateV2
+    + PaymentsPostAuthenticateV2
     + PaymentsPostProcessingV2
     + ConnectorCustomerV2
     + PaymentIncrementalAuthorizationV2
