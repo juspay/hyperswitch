@@ -200,6 +200,7 @@ billwerk.base_url = "https://api.reepay.com/"
 billwerk.secondary_base_url = "https://card.reepay.com/"
 bitpay.base_url = "https://test.bitpay.com"
 blackhawknetwork.base_url = "https://api-sandbox.blackhawknetwork.com/"
+bluecode.base_url = "https://dev.eorder.reloadhero.com/"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
 bluesnap.secondary_base_url = "https://sandpay.bluesnap.com/"
 boku.base_url = "https://$-api4-stage.boku.com"
@@ -470,6 +471,7 @@ square = { long_lived_token = false, payment_method = "card" }
 braintree = { long_lived_token = false, payment_method = "card" }
 gocardless = { long_lived_token = true, payment_method = "bank_debit" }
 billwerk = { long_lived_token = false, payment_method = "card" }
+globalpay = { long_lived_token = false, payment_method = "card", flow = "mandates" }
 
 [debit_routing_config]                                       # Debit Routing configs
 supported_currencies = "USD"                                 # Supported currencies for debit routing
@@ -998,6 +1000,7 @@ payout_analytics_topic = "topic"         # Kafka topic to be used for Payouts an
 consolidated_events_topic = "topic"      # Kafka topic to be used for Consolidated events
 authentication_analytics_topic = "topic" # Kafka topic to be used for Authentication events
 routing_logs_topic = "topic"             # Kafka topic to be used for Routing events
+revenue_recovery_topic = "topic"         # Kafka topic to be used for revenue recovery events
 
 # File storage configuration
 [file_storage]

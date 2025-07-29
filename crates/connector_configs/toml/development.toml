@@ -6155,7 +6155,12 @@ api_secret="Secret Key"
 [facilitapay.connector_auth.BodyKey]
   api_key="Password"
   key1="Username"
-
+[facilitapay.metadata.destination_account_number]
+  name="destination_account_number"
+  label="Destination Account Number"
+  placeholder="Enter Destination Account Number"
+  required=true
+  type="Text"
 
 [archipel]
 [archipel.connector_auth.HeaderKey]
@@ -6452,4 +6457,8 @@ api_key = "API Key"
 
 [mpgs]
 [mpgs.connector_auth.HeaderKey]
+api_key = "API Key"
+
+[bluecode]
+[bluecode.connector_auth.HeaderKey]
 api_key = "API Key"

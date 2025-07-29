@@ -179,7 +179,7 @@ pub struct CardData {
     security_code: Option<Secret<String>>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Default, Debug, Serialize)]
 pub struct Amount {
     total: FloatMajorUnit,
     currency: String,
@@ -325,7 +325,6 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
             total: item.amount,
             currency: item.router_data.request.currency.to_string(),
         };
-
         let metadata = item.router_data.get_connector_meta()?.clone();
         let session: FiservSessionObject = metadata
             .expose()

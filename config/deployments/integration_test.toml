@@ -39,6 +39,7 @@ billwerk.base_url = "https://api.reepay.com/"
 billwerk.secondary_base_url = "https://card.reepay.com/"
 bitpay.base_url = "https://test.bitpay.com"
 blackhawknetwork.base_url = "https://api-sandbox.blackhawknetwork.com/"
+bluecode.base_url = "https://dev.eorder.reloadhero.com/"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
 bluesnap.secondary_base_url = "https://sandpay.bluesnap.com/"
 boku.base_url = "https://$-api4-stage.boku.com"
@@ -756,6 +757,7 @@ square = { long_lived_token = false, payment_method = "card" }
 stax = { long_lived_token = true, payment_method = "card,bank_debit" }
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { list = "google_pay", type = "disable_only" } }
 billwerk = {long_lived_token = false, payment_method = "card"}
+globalpay = { long_lived_token = false, payment_method = "card", flow = "mandates" }
 
 [webhooks]
 outgoing_enabled = true

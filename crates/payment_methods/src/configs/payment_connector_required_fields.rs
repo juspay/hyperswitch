@@ -193,7 +193,6 @@ enum RequiredField {
     PixCnpj,
     PixCpf,
     PixSourceBankAccountId,
-    PixDestinationBankAccountId,
     GiftCardNumber,
     GiftCardCvc,
     DcbMsisdn,
@@ -805,17 +804,6 @@ impl RequiredField {
                         .to_string(),
                     display_name: "source_bank_account_id".to_string(),
                     field_type: FieldType::UserSourceBankAccountId,
-                    value: None,
-                },
-            ),
-            Self::PixDestinationBankAccountId => (
-                "payment_method_data.bank_transfer.pix.destination_bank_account_id".to_string(),
-                RequiredFieldInfo {
-                    required_field:
-                        "payment_method_data.bank_transfer.pix.destination_bank_account_id"
-                            .to_string(),
-                    display_name: "destination_bank_account_id".to_string(),
-                    field_type: FieldType::UserDestinationBankAccountId,
                     value: None,
                 },
             ),
@@ -3309,7 +3297,6 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
                         non_mandate: HashMap::new(),
                         common: HashMap::from([
                             RequiredField::PixSourceBankAccountId.to_tuple(),
-                            RequiredField::PixDestinationBankAccountId.to_tuple(),
                             RequiredField::BillingAddressCountries(vec!["BR"]).to_tuple(),
                             RequiredField::BillingUserFirstName.to_tuple(),
                             RequiredField::BillingUserLastName.to_tuple(),
