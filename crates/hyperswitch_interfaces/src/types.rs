@@ -110,6 +110,11 @@ pub type CreateOrderType =
 /// Type alias for `ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>`
 pub type PaymentsPreProcessingType =
     dyn ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>;
+
+/// Type alias for `ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>`
+pub type PaymentsPreAuthenticateType =
+    dyn ConnectorIntegration<PreAuthenticate, PaymentsAuthorizeData, PaymentsResponseData>;
+
 /// Type alias for `ConnectorIntegration<PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>`
 pub type PaymentsPostProcessingType =
     dyn ConnectorIntegration<PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>;

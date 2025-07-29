@@ -2,11 +2,14 @@
 
 use hyperswitch_domain_models::{
     router_data_v2::PaymentFlowData,
-    router_flow_types::payments::{
-        Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
-        CreateConnectorCustomer, CreateOrder, IncrementalAuthorization, PSync, PaymentMethodToken,
-        PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
-        SetupMandate, UpdateMetadata, Void,
+    router_flow_types::{
+        payments::{
+            Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
+            CreateConnectorCustomer, CreateOrder, IncrementalAuthorization, PSync,
+            PaymentMethodToken, PostProcessing, PostSessionTokens, PreProcessing, Reject,
+            SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
+        },
+        PreAuthenticate,
     },
     router_request_types::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
@@ -188,6 +191,17 @@ pub trait PaymentsPreProcessingV2:
 {
 }
 
+/// trait PaymentsPreProcessingV2
+pub trait PaymentsPreAuthenticateV2:
+    ConnectorIntegrationV2<
+    PreAuthenticate,
+    PaymentFlowData,
+    PaymentsAuthorizeData,
+    PaymentsResponseData,
+>
+{
+}
+
 /// trait PaymentsPostProcessingV2
 pub trait PaymentsPostProcessingV2:
     ConnectorIntegrationV2<
@@ -216,6 +230,7 @@ pub trait PaymentV2:
     + PaymentSessionV2
     + PaymentTokenV2
     + PaymentsPreProcessingV2
+    + PaymentsPreAuthenticateV2
     + PaymentsPostProcessingV2
     + ConnectorCustomerV2
     + PaymentIncrementalAuthorizationV2

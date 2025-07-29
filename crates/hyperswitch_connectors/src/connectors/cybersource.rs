@@ -21,7 +21,7 @@ use hyperswitch_domain_models::{
             PaymentMethodToken, Session, SetupMandate, Void,
         },
         refunds::{Execute, RSync},
-        PreProcessing,
+        PreAuthenticate, PreProcessing,
     },
     router_request_types::{
         AccessTokenRequestData, CompleteAuthorizeData, MandateRevokeRequestData,
@@ -33,9 +33,9 @@ use hyperswitch_domain_models::{
     types::{
         MandateRevokeRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
         PaymentsCaptureRouterData, PaymentsCompleteAuthorizeRouterData,
-        PaymentsIncrementalAuthorizationRouterData, PaymentsPreProcessingRouterData,
-        PaymentsSyncRouterData, RefundExecuteRouterData, RefundSyncRouterData,
-        SetupMandateRouterData,
+        PaymentsIncrementalAuthorizationRouterData, PaymentsPreAuthenticateRouterData,
+        PaymentsPreProcessingRouterData, PaymentsSyncRouterData, RefundExecuteRouterData,
+        RefundSyncRouterData, SetupMandateRouterData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -59,9 +59,9 @@ use hyperswitch_interfaces::{
     events::connector_api_logs::ConnectorEvent,
     types::{
         IncrementalAuthorizationType, MandateRevokeType, PaymentsAuthorizeType,
-        PaymentsCaptureType, PaymentsCompleteAuthorizeType, PaymentsPreProcessingType,
-        PaymentsSyncType, PaymentsVoidType, RefundExecuteType, RefundSyncType, Response,
-        SetupMandateType,
+        PaymentsCaptureType, PaymentsCompleteAuthorizeType, PaymentsPreAuthenticateType,
+        PaymentsPreProcessingType, PaymentsSyncType, PaymentsVoidType, RefundExecuteType,
+        RefundSyncType, Response, SetupMandateType,
     },
     webhooks,
 };
@@ -399,6 +399,7 @@ impl api::MandateSetup for Cybersource {}
 impl api::ConnectorAccessToken for Cybersource {}
 impl api::PaymentToken for Cybersource {}
 impl api::PaymentsPreProcessing for Cybersource {}
+impl api::PaymentsPreAuthenticate for Cybersource {}
 impl api::PaymentsCompleteAuthorize for Cybersource {}
 impl api::ConnectorMandateRevoke for Cybersource {}
 
@@ -708,6 +709,92 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         let response: cybersource::CybersourcePreProcessingResponse = res
             .response
             .parse_struct("Cybersource AuthEnrollmentResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+impl ConnectorIntegration<PreAuthenticate, PaymentsAuthorizeData, PaymentsResponseData>
+    for Cybersource
+{
+    fn get_headers(
+        &self,
+        req: &PaymentsPreAuthenticateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+    fn get_url(
+        &self,
+        req: &PaymentsPreAuthenticateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}risk/v1/authentication-setups",
+            ConnectorCommon::base_url(self, connectors)
+        ))
+    }
+    fn get_request_body(
+        &self,
+        req: &PaymentsPreAuthenticateRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.currency,
+        )?;
+        let connector_router_data = cybersource::CybersourceRouterData::from((amount, req));
+        let connector_req =
+            cybersource::CybersourceAuthSetupRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+    fn build_request(
+        &self,
+        req: &PaymentsPreAuthenticateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(&PaymentsPreAuthenticateType::get_url(
+                self, req, connectors,
+            )?)
+            .attach_default_headers()
+            .headers(PaymentsPreAuthenticateType::get_headers(
+                self, req, connectors,
+            )?)
+            .set_body(self.get_request_body(req, connectors)?)
+            .build();
+
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsPreAuthenticateRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsPreAuthenticateRouterData, errors::ConnectorError> {
+        let response: cybersource::CybersourceAuthSetupResponse = res
+            .response
+            .parse_struct("Cybersource AuthSetupResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);

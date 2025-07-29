@@ -144,6 +144,19 @@ pub trait Feature<F, T> {
         Ok(self)
     }
 
+    async fn preauthenticate_steps<'a>(
+        self,
+        _state: &SessionState,
+        _connector: &api::ConnectorData,
+    ) -> RouterResult<Self>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(self)
+    }
+
     async fn postprocessing_steps<'a>(
         self,
         _state: &SessionState,

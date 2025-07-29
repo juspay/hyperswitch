@@ -4492,7 +4492,17 @@ where
     println!("mauj: continue before preprocessing steps");
     dbg!(&should_continue_further);
 
-    (router_data, should_continue_further) = complete_preprocessing_steps_if_required(
+    // (router_data, should_continue_further) = complete_preprocessing_steps_if_required(
+    //     state,
+    //     &connector,
+    //     payment_data,
+    //     router_data,
+    //     operation,
+    //     should_continue_further,
+    // )
+    // .await?;
+
+    (router_data, should_continue_further) = complete_preauth_steps_if_required(
         state,
         &connector,
         payment_data,
@@ -6396,6 +6406,50 @@ where
     Ok(router_data_and_should_continue_payment)
 }
 
+async fn complete_preauth_steps_if_required<F, Req, Q, D>(
+    state: &SessionState,
+    connector: &api::ConnectorData,
+    payment_data: &D,
+    mut router_data: RouterData<F, Req, router_types::PaymentsResponseData>,
+    operation: &BoxedOperation<'_, F, Q, D>,
+    should_continue_payment: bool,
+) -> RouterResult<(RouterData<F, Req, router_types::PaymentsResponseData>, bool)>
+where
+    F: Send + Clone + Sync,
+    D: OperationSessionGetters<F> + Send + Sync + Clone,
+    Req: Send + Sync,
+    RouterData<F, Req, router_types::PaymentsResponseData>: Feature<F, Req> + Send,
+    dyn api::Connector:
+        services::api::ConnectorIntegration<F, Req, router_types::PaymentsResponseData>,
+{
+    let router_data_and_should_continue_payment = match payment_data.get_payment_method_data() {
+        Some(domain::PaymentMethodData::Card(_)) => {
+            if connector.connector_name == router_types::Connector::Cybersource
+                && is_operation_confirmintent(&operation)
+                && router_data.auth_type == storage_enums::AuthenticationType::ThreeDs
+            {
+                router_data = router_data.preauthenticate_steps(state, connector).await?;
+
+                // Should continue the flow only if no redirection_data is returned else a response with redirection form shall be returned
+                let should_continue = matches!(
+                    router_data.response,
+                    Ok(router_types::PaymentsResponseData::TransactionResponse {
+                        ref redirection_data,
+                        ..
+                    }) if redirection_data.is_none()
+                ) && router_data.status
+                    != common_enums::AttemptStatus::AuthenticationFailed;
+                (router_data, should_continue)
+            } else {
+                (router_data, should_continue_payment)
+            }
+        }
+        _ => todo!(),
+    };
+
+    Ok(router_data_and_should_continue_payment)
+}
+
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 async fn complete_postprocessing_steps_if_required<F, Q, RouterDReq, D>(
@@ -7244,6 +7298,10 @@ pub fn is_operation_confirm<Op: Debug>(operation: &Op) -> bool {
 
 pub fn is_operation_complete_authorize<Op: Debug>(operation: &Op) -> bool {
     matches!(format!("{operation:?}").as_str(), "CompleteAuthorize")
+}
+
+pub fn is_operation_confirmintent<Op: Debug>(operation: &Op) -> bool {
+    matches!(format!("{operation:?}").as_str(), "PaymentIntentConfirm")
 }
 
 #[cfg(all(feature = "olap", feature = "v1"))]

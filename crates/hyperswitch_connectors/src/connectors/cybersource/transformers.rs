@@ -43,7 +43,8 @@ use hyperswitch_domain_models::{
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsCompleteAuthorizeRouterData, PaymentsIncrementalAuthorizationRouterData,
-        PaymentsPreProcessingRouterData, RefundsRouterData, SetupMandateRouterData,
+        PaymentsPreAuthenticateRouterData, PaymentsPreProcessingRouterData, RefundsRouterData,
+        SetupMandateRouterData,
     },
 };
 use hyperswitch_interfaces::{api, errors};
@@ -663,6 +664,16 @@ pub struct BillTo {
 
 impl From<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for ClientReferenceInformation {
     fn from(item: &CybersourceRouterData<&PaymentsAuthorizeRouterData>) -> Self {
+        Self {
+            code: Some(item.router_data.connector_request_reference_id.clone()),
+        }
+    }
+}
+
+impl From<&CybersourceRouterData<&PaymentsPreAuthenticateRouterData>>
+    for ClientReferenceInformation
+{
+    fn from(item: &CybersourceRouterData<&PaymentsPreAuthenticateRouterData>) -> Self {
         Self {
             code: Some(item.router_data.connector_request_reference_id.clone()),
         }
@@ -2324,6 +2335,68 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: &CybersourceRouterData<&PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        match item.router_data.request.payment_method_data.clone() {
+            PaymentMethodData::Card(ccard) => {
+                let card_type = match ccard
+                    .card_network
+                    .clone()
+                    .and_then(get_cybersource_card_type)
+                {
+                    Some(card_network) => Some(card_network.to_string()),
+                    None => ccard.get_card_issuer().ok().map(String::from),
+                };
+
+                let payment_information =
+                    PaymentInformation::Cards(Box::new(CardPaymentInformation {
+                        card: Card {
+                            number: ccard.card_number,
+                            expiration_month: ccard.card_exp_month,
+                            expiration_year: ccard.card_exp_year,
+                            security_code: Some(ccard.card_cvc),
+                            card_type,
+                            type_selection_indicator: Some("1".to_owned()),
+                        },
+                    }));
+                let client_reference_information = ClientReferenceInformation::from(item);
+                Ok(Self {
+                    payment_information,
+                    client_reference_information,
+                })
+            }
+            PaymentMethodData::Wallet(_)
+            | PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Cybersource"),
+                )
+                .into())
+            }
+        }
+    }
+}
+
+impl TryFrom<&CybersourceRouterData<&PaymentsPreAuthenticateRouterData>>
+    for CybersourceAuthSetupRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &CybersourceRouterData<&PaymentsPreAuthenticateRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(ccard) => {
