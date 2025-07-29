@@ -633,7 +633,7 @@ impl webhooks::IncomingWebhook for Juspaythreedsserver {
 
 static JUSPAYTHREEDSSERVER_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Juspay 3Ds Server",
-    description: "JusPay 3DS Server provider for comprehensive 3-Domain Secure authentication, cardholder verification, and fraud prevention across card networks",
+    description: "Juspay 3DS Server provider for comprehensive 3-Domain Secure authentication, cardholder verification, and fraud prevention across card networks",
     connector_type: common_enums::HyperswitchConnectorCategory::AuthenticationProvider,
     integration_status: common_enums::ConnectorIntegrationStatus::Alpha,
 };
