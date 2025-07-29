@@ -2373,9 +2373,7 @@ impl behaviour::Conversion for PaymentAttempt {
             processor_merchant_id: Some(processor_merchant_id),
             created_by: created_by.map(|cb| cb.to_string()),
             connector_request_reference_id,
-            status_code: error
-                .as_ref()
-                .and_then(|details| details.status_code),
+            status_code: error.as_ref().and_then(|details| details.status_code),
         })
     }
 
