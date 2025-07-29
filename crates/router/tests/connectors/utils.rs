@@ -1110,7 +1110,6 @@ impl Default for CustomerType {
             split_payments: None,
             customer_acceptance: None,
             setup_future_usage: None,
-            setup_mandate_details: None,
         };
         Self(data)
     }

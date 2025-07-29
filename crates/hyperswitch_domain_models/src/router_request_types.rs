@@ -184,7 +184,6 @@ pub struct ConnectorCustomerData {
     // Mandates
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
-    pub setup_mandate_details: Option<mandates::MandateData>,
 }
 
 impl TryFrom<SetupMandateRequestData> for ConnectorCustomerData {
@@ -200,7 +199,6 @@ impl TryFrom<SetupMandateRequestData> for ConnectorCustomerData {
             split_payments: None,
             setup_future_usage: data.setup_future_usage,
             customer_acceptance: data.customer_acceptance,
-            setup_mandate_details: data.setup_mandate_details,
         })
     }
 }
@@ -228,7 +226,6 @@ impl
             split_payments: data.request.split_payments.clone(),
             setup_future_usage: data.request.setup_future_usage,
             customer_acceptance: data.request.customer_acceptance.clone(),
-            setup_mandate_details: data.request.setup_mandate_details.clone(),
         })
     }
 }
@@ -255,7 +252,6 @@ impl TryFrom<&RouterData<flows::Session, PaymentsSessionData, response_types::Pa
             split_payments: None,
             setup_future_usage: None,
             customer_acceptance: None,
-            setup_mandate_details: None,
         })
     }
 }
