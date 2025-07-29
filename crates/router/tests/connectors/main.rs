@@ -22,6 +22,7 @@ mod barclaycard;
 mod billwerk;
 mod bitpay;
 mod blackhawknetwork;
+mod bluecode;
 mod bluesnap;
 mod boku;
 mod breadpay;
