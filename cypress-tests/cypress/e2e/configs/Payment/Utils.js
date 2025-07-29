@@ -380,6 +380,7 @@ export const CONNECTOR_LISTS = {
       "facilitapay",
       "fiserv",
       "fiuu",
+      "globalpay",
       "jpmorgan",
       "nexinets",
       "payload",
