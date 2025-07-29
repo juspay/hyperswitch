@@ -3117,7 +3117,7 @@ static STRIPE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Laz
 static STRIPE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Stripe",
     description: "Stripe is a payment processing platform that provides businesses with tools and APIs to accept payments online and manage their financial infrastructure",
-    connector_type: common_enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: common_enums::HyperswitchConnectorCategory::PaymentGateway,
     integration_status: common_enums::ConnectorIntegrationStatus::Live,
 };
 

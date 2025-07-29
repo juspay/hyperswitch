@@ -29,7 +29,7 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        AuthenticationResponseData, PaymentsResponseData, RefundsResponseData,
+        AuthenticationResponseData, PaymentsResponseData, RefundsResponseData, ConnectorInfo, SupportedPaymentMethods
     },
 };
 use hyperswitch_interfaces::{
@@ -449,4 +449,23 @@ impl
 {
 }
 
-impl ConnectorSpecifications for Netcetera {}
+static NETCETERA_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Netcetera",
+    description: "Netcetera authentication provider for comprehensive 3D Secure solutions including certified ACS, Directory Server, and multi-protocol EMV 3DS supports",
+    connector_type: common_enums::HyperswitchConnectorCategory::AuthenticationProvider,
+    integration_status: common_enums::ConnectorIntegrationStatus::Sandbox,
+};
+
+impl ConnectorSpecifications for Netcetera {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&NETCETERA_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        None
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::enums::EventClass]> {
+        None
+    }
+}

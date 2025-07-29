@@ -1053,7 +1053,7 @@ lazy_static! {
         display_name: "Shift4",
         description:
             "Shift4 Payments, Inc. is an American payment processing company based in Allentown, Pennsylvania. ",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
         integration_status: enums::ConnectorIntegrationStatus::Live,
     };
 

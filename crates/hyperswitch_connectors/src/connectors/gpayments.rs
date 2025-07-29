@@ -29,7 +29,7 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        AuthenticationResponseData, PaymentsResponseData, RefundsResponseData,
+        AuthenticationResponseData, PaymentsResponseData, RefundsResponseData, ConnectorInfo, SupportedPaymentMethods,
     },
 };
 use hyperswitch_interfaces::{
@@ -587,4 +587,27 @@ impl
     }
 }
 
-impl ConnectorSpecifications for Gpayments {}
+
+static GPAYMENTS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "GPayments",
+    description: "GPayments authentication connector for 3D Secure MPI/ACS services supporting Visa Secure, Mastercard SecureCode, and global card authentication standards",
+    connector_type: common_enums::HyperswitchConnectorCategory::AuthenticationProvider,
+    integration_status: common_enums::ConnectorIntegrationStatus::Alpha,
+};
+
+impl ConnectorSpecifications for Gpayments {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&GPAYMENTS_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        None
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::enums::EventClass]> {
+        None
+    }
+}
+
+
+

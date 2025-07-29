@@ -922,7 +922,7 @@ lazy_static! {
         display_name: "Square",
         description:
             "Square is the largest business technology platform serving all kinds of businesses.",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
         integration_status: enums::ConnectorIntegrationStatus::Alpha,
     };
     static ref SQUARE_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {

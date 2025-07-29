@@ -863,7 +863,7 @@ static NEXINETS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
 static NEXINETS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Nexinets",
         description: "Nexi and Nets join forces to create The European PayTech leader, a strategic combination to offer future-proof innovative payment solutions.",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
         integration_status: enums::ConnectorIntegrationStatus::Sandbox,
     };
 

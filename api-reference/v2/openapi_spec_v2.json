@@ -8391,7 +8391,7 @@
           "category": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentConnectorCategory"
+                "$ref": "#/components/schemas/HyperswitchConnectorCategory"
               }
             ],
             "nullable": true
@@ -12428,6 +12428,19 @@
           }
         }
       },
+      "HyperswitchConnectorCategory": {
+        "type": "string",
+        "description": "Connector Access Method",
+        "enum": [
+          "payment_gateway",
+          "alternative_payment_method",
+          "bank_acquirer",
+          "payout_processor",
+          "authentication_provider",
+          "fraud_and_risk_management_provider",
+          "tax_calculation_provider"
+        ]
+      },
       "HyperswitchVaultSessionDetails": {
         "type": "object",
         "required": [
@@ -15947,15 +15960,6 @@
               }
             }
           }
-        ]
-      },
-      "PaymentConnectorCategory": {
-        "type": "string",
-        "description": "Connector Access Method",
-        "enum": [
-          "payment_gateway",
-          "alternative_payment_method",
-          "bank_acquirer"
         ]
       },
       "PaymentConnectorTransmission": {

@@ -8299,10 +8299,14 @@ pub enum AuthenticationProduct {
 )]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
-pub enum PaymentConnectorCategory {
+pub enum HyperswitchConnectorCategory {
     PaymentGateway,
     AlternativePaymentMethod,
     BankAcquirer,
+    PayoutProcessor,
+    AuthenticationProvider,
+    FraudAndRiskManagementProvider,
+    TaxCalculationProvider,
 }
 
 /// Connector Integration Status

@@ -1151,7 +1151,7 @@ static GLOBALPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
 static GLOBALPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Globalpay",
         description: "Global Payments is an American multinational financial technology company that provides payment technology and services to merchants, issuers and consumers.",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
         integration_status: enums::ConnectorIntegrationStatus::Sandbox,
     };
 

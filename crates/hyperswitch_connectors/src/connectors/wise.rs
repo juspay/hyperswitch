@@ -18,7 +18,7 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{PaymentsResponseData, RefundsResponseData, ConnectorInfo, SupportedPaymentMethods},
 };
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::{
@@ -696,4 +696,26 @@ impl IncomingWebhook for Wise {
     }
 }
 
-impl ConnectorSpecifications for Wise {}
+
+static WISE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Wise",
+    description: "Wells Fargo Payouts streamlines secure domestic and international payments for businesses via online banking, supporting Bill Pay, Digital Wires, and Zelle",
+    connector_type: common_enums::HyperswitchConnectorCategory::PayoutProcessor,
+    integration_status: common_enums::ConnectorIntegrationStatus::Sandbox,
+};
+
+impl ConnectorSpecifications for Wise {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&WISE_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        None
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::enums::EventClass]> {
+        None
+    }
+}
+
+

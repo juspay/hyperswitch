@@ -614,7 +614,7 @@ static BLACKHAWKNETWORK_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMeth
 static BLACKHAWKNETWORK_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Blackhawknetwork",
     description: "Blackhawknetwork connector",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
     integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 

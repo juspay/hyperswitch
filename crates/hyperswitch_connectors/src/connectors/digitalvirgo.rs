@@ -555,7 +555,7 @@ static DIGITALVIRGO_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Digital Virgo",
         description:
             "Digital Virgo is an alternative payment provider specializing in carrier billing and mobile payments ",
-        connector_type: enums::PaymentConnectorCategory::AlternativePaymentMethod,
+        connector_type: enums::HyperswitchConnectorCategory::AlternativePaymentMethod,
         integration_status: enums::ConnectorIntegrationStatus::Alpha,
     };
 

@@ -1025,7 +1025,7 @@ static XENDIT_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Laz
 static XENDIT_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Xendit",
     description: "Xendit is a financial technology company that provides payment solutions and simplifies the payment process for businesses in Indonesia, the Philippines and Southeast Asia, from SMEs and e-commerce startups to large enterprises.",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
     integration_status: enums::ConnectorIntegrationStatus::Sandbox,
 };
 

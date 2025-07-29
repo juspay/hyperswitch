@@ -69,8 +69,8 @@ pub struct ConnectorFeatureMatrixResponse {
     /// The description of the connector
     pub description: Option<String>,
     /// The category of the connector
-    #[schema(value_type = Option<PaymentConnectorCategory>, example = "payment_gateway")]
-    pub category: Option<common_enums::PaymentConnectorCategory>,
+    #[schema(value_type = Option<HyperswitchConnectorCategory>, example = "payment_gateway")]
+    pub category: Option<common_enums::HyperswitchConnectorCategory>,
     /// The integration status of the connector
     #[schema(value_type = Option<ConnectorIntegrationStatus>, example = "live")]
     pub integration_status: Option<common_enums::ConnectorIntegrationStatus>,

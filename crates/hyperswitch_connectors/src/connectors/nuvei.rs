@@ -1100,7 +1100,7 @@ static NUVEI_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
 static NUVEI_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Nuvei",
         description: "Nuvei is the Canadian fintech company accelerating the business of clients around the world.",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
         integration_status: enums::ConnectorIntegrationStatus::Beta,
     };
 

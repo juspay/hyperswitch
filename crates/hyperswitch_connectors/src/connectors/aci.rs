@@ -1067,7 +1067,7 @@ static ACI_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "ACI",
     description:
         "ACI Payments delivers secure, real-time electronic payment solutions for businesses, banks, and governments, enabling seamless transactions across channels.",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
     integration_status: enums::ConnectorIntegrationStatus::Beta,
 };
 

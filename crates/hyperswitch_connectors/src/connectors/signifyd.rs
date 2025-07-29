@@ -36,7 +36,7 @@ use hyperswitch_domain_models::{
         FraudCheckCheckoutData, FraudCheckFulfillmentData, FraudCheckRecordReturnData,
         FraudCheckSaleData, FraudCheckTransactionData,
     },
-    router_response_types::fraud_check::FraudCheckResponseData,
+    router_response_types::{fraud_check::FraudCheckResponseData,  ConnectorInfo, SupportedPaymentMethods},
 };
 use hyperswitch_interfaces::{
     api::{
@@ -721,4 +721,23 @@ impl IncomingWebhook for Signifyd {
     }
 }
 
-impl ConnectorSpecifications for Signifyd {}
+static SYGNIFYD_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Signifyd",
+    description: "Signifyd fraud and risk management provider with AI-driven commerce protection platform for maximizing conversions and eliminating fraud risk with guaranteed fraud liability coverage",
+    connector_type: common_enums::HyperswitchConnectorCategory::FraudAndRiskManagementProvider,
+    integration_status: common_enums::ConnectorIntegrationStatus::Sandbox,
+};
+
+impl ConnectorSpecifications for Signifyd {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&SYGNIFYD_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        None
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::enums::EventClass]> {
+        None
+    }
+}
