@@ -868,7 +868,7 @@ impl AmountDetailsUpdate {
 )]
 #[generate_schemas(PaymentsCreateRequest, PaymentsUpdateRequest, PaymentsConfirmRequest)]
 #[serde(deny_unknown_fields)]
-#[smithy(namespace = "com.hyperswitch.payment.models")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PaymentsRequest {
     /// The primary amount for the payment, provided in the lowest denomination of the specified currency (e.g., 6540 for $65.40 USD). This field is mandatory for creating a payment.
     #[schema(value_type = Option<u64>, example = 6540)]
@@ -930,9 +930,11 @@ pub struct PaymentsRequest {
     pub connector: Option<Vec<api_enums::Connector>>,
 
     #[schema(value_type = Option<CaptureMethod>, example = "automatic")]
+    #[smithy(value_type = "Option<CaptureMethod>")]
     pub capture_method: Option<api_enums::CaptureMethod>,
 
     #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "three_ds")]
+    #[smithy(value_type = "Option<AuthenticationType>")]
     pub authentication_type: Option<api_enums::AuthenticationType>,
 
     /// The billing details of the payment. This address will be used for invoicing.
@@ -1003,6 +1005,7 @@ pub struct PaymentsRequest {
     pub return_url: Option<Url>,
 
     #[schema(value_type = Option<FutureUsage>, example = "off_session")]
+    #[smithy(value_type = "Option<FutureUsage>")]
     pub setup_future_usage: Option<api_enums::FutureUsage>,
 
     #[schema(example = "bank_transfer")]
@@ -4343,7 +4346,7 @@ impl Default for PaymentIdType {
 
 #[derive(Default, Clone, Debug, Eq, PartialEq, ToSchema, serde::Deserialize, serde::Serialize, SmithyModel)]
 #[serde(deny_unknown_fields)]
-#[smithy(namespace = "com.hyperswitch.payment.models")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct Address {
     /// Provide the address details
     #[smithy(value_type = "Option<AddressDetails>")]
@@ -4378,7 +4381,7 @@ impl Address {
 /// Address details
 #[derive(Clone, Default, Debug, Eq, serde::Deserialize, serde::Serialize, PartialEq, ToSchema, SmithyModel)]
 #[serde(deny_unknown_fields)]
-#[smithy(namespace = "com.hyperswitch.payment.models")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct AddressDetails {
     /// The city, district, suburb, town, or village of the address.
     #[schema(max_length = 50, example = "New York")]
@@ -4487,7 +4490,7 @@ pub struct EncryptableAddressDetails {
 }
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, ToSchema, serde::Deserialize, serde::Serialize, SmithyModel)]
-#[smithy(namespace = "com.hyperswitch.payment.models")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PhoneDetails {
     /// The contact number
     #[schema(value_type = Option<String>, example = "9123456789")]

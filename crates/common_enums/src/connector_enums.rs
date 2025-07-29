@@ -25,7 +25,7 @@ pub use crate::PaymentMethodType;
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-#[smithy(namespace = "com.hyperswitch.payment.models")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 /// RoutableConnectors are the subset of Connectors that are eligible for payments routing
 pub enum RoutableConnectors {
     Authipay,
@@ -188,7 +188,7 @@ pub enum RoutableConnectors {
 #[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-#[smithy(namespace = "com.hyperswitch.payment.models")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum Connector {
     Authipay,
     Adyenplatform,

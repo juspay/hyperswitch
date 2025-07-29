@@ -282,6 +282,7 @@ pub enum RevenueRecoveryAlgorithmType {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::VariantNames,
     strum::EnumIter,
@@ -291,6 +292,7 @@ pub enum RevenueRecoveryAlgorithmType {
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum AuthenticationType {
     /// If the card is enrolled for 3DS authentication, the 3DS based authentication will be activated. The liability of chargeback shift to the issuer
     ThreeDs,
@@ -438,6 +440,7 @@ pub enum BlocklistDataKind {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::VariantNames,
     strum::EnumIter,
@@ -447,6 +450,7 @@ pub enum BlocklistDataKind {
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum CaptureMethod {
     /// Post the payment authorization, the capture will be executed on the full amount immediately.
     #[default]
@@ -546,7 +550,7 @@ pub enum CallConnectorAction {
     ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
-#[smithy(namespace = "com.hyperswitch.payment.models")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum Currency {
     AED,
     AFN,
@@ -1691,6 +1695,7 @@ impl IntentStatus {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::VariantNames,
     strum::EnumIter,
@@ -1700,6 +1705,7 @@ impl IntentStatus {
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum FutureUsage {
     OffSession,
     #[default]
@@ -2675,7 +2681,7 @@ pub struct MerchantCategoryCodeWithName {
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[rustfmt::skip]
-#[smithy(namespace = "com.hyperswitch.payment.models")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum CountryAlpha2 {
     AF, AX, AL, DZ, AS, AD, AO, AI, AQ, AG, AR, AM, AW, AU, AT,
     AZ, BS, BH, BD, BB, BY, BE, BZ, BJ, BM, BT, BO, BQ, BA, BW,
