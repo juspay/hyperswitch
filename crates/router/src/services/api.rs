@@ -2087,11 +2087,13 @@ pub fn extract_mapped_fields(
 
     for (dot_path, output_key) in mapping {
         if let Some(extracted_value) = extract_field_by_dot_path(value, dot_path) {
-            enhancement[output_key] = extracted_value;
+            if let Some(obj) = enhancement.as_object_mut() {
+                obj.insert(output_key.clone(), extracted_value);
+            }
         }
     }
 
-    if enhancement.as_object().map_or(false, |obj| !obj.is_empty()) {
+    if enhancement.as_object().is_some_and(|obj| !obj.is_empty()) {
         Some(enhancement)
     } else {
         None
