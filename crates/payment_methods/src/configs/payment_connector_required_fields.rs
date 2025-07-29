@@ -1,14 +1,14 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::configs::settings::BankRedirectConfig;
 use api_models::{
     enums::{self, Connector, FieldType},
     payment_methods::RequiredFieldInfo,
 };
 
 use crate::configs::settings::{
-    ConnectorFields, Mandates, RequiredFieldFinal, SupportedConnectorsForMandate,
-    SupportedPaymentMethodTypesForMandate, SupportedPaymentMethodsForMandate, ZeroMandates,
+    BankRedirectConfig, ConnectorFields, Mandates, RequiredFieldFinal,
+    SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
+    SupportedPaymentMethodsForMandate, ZeroMandates,
 };
 #[cfg(feature = "v1")]
 use crate::configs::settings::{PaymentMethodType, RequiredFields};
