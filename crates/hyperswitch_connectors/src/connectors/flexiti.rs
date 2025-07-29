@@ -24,7 +24,8 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
@@ -47,7 +48,10 @@ use transformers as flexiti;
 use uuid::Uuid;
 
 use crate::{
-    capture_method_not_supported, constants::headers, types::{RefreshTokenRouterData, ResponseRouterData}, utils
+    capture_method_not_supported,
+    constants::headers,
+    types::{RefreshTokenRouterData, ResponseRouterData},
+    utils,
 };
 
 #[derive(Clone)]
@@ -191,7 +195,8 @@ impl ConnectorValidation for Flexiti {
             enums::CaptureMethod::Manual => Ok(()),
             enums::CaptureMethod::Automatic
             | enums::CaptureMethod::SequentialAutomatic
-            | enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => {
+            | enums::CaptureMethod::ManualMultiple
+            | enums::CaptureMethod::Scheduled => {
                 let connector = self.id();
                 match pmt {
                     Some(payment_method_type) => {
@@ -412,7 +417,11 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Fle
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let auth_details = flexiti::FlexitiAuthType::try_from(&req.connector_auth_type.to_owned())?;
-        let order_id = req.request.connector_transaction_id.get_connector_transaction_id().change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let order_id = req
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(format!(
             "{}online/client-id/{}/notifications/order-id/{}",
             self.base_url(connectors),
@@ -718,11 +727,8 @@ impl webhooks::IncomingWebhook for Flexiti {
     }
 }
 
-static FLEXITI_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
-    LazyLock::new(|| {
-        let supported_capture_methods = vec![
-        enums::CaptureMethod::Manual
-    ];
+static FLEXITI_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
+    let supported_capture_methods = vec![enums::CaptureMethod::Manual];
     let mut flexiti_supported_payment_methods = SupportedPaymentMethods::new();
 
     flexiti_supported_payment_methods.add(
@@ -737,7 +743,7 @@ static FLEXITI_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
     );
 
     flexiti_supported_payment_methods
-    });
+});
 
 static FLEXITI_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Flexiti",

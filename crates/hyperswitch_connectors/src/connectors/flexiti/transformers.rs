@@ -213,25 +213,24 @@ pub struct FlexitiPaymentsResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlexitiSyncResponse {
-    transaction_id : String,
-    purchase : FlexitiPurchase
+    transaction_id: String,
+    purchase: FlexitiPurchase,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlexitiPurchase {
-    status : FlexitiPurchaseStatus,
+    status: FlexitiPurchaseStatus,
 }
 
 // Since this is an alpha integration, we don't have access to all the status mapping. This needs to be updated.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum FlexitiPurchaseStatus
-{
+pub enum FlexitiPurchaseStatus {
     Success,
     Failed,
 }
 
 // Since this is an alpha integration, we don't have access to all the status mapping. This needs to be updated.
-impl From<FlexitiPurchaseStatus> for common_enums::AttemptStatus{
+impl From<FlexitiPurchaseStatus> for common_enums::AttemptStatus {
     fn from(item: FlexitiPurchaseStatus) -> Self {
         match item {
             FlexitiPurchaseStatus::Success => Self::Authorized,
