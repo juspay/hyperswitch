@@ -288,7 +288,7 @@ pub enum WorldpayvativCardType {
     Discover,
     #[serde(rename = "DC")]
     DinersClub,
-    #[serde(rename = "JCB")]
+    #[serde(rename = "JC")]
     JCB,
 }
 
