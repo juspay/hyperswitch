@@ -163,7 +163,7 @@ pub struct Settings<S: SecretState> {
     #[serde(default)]
     pub infra_values: Option<HashMap<String, String>>,
     #[serde(default)]
-    pub enhancement: Option<HashMap<String, String>>
+    pub enhancement: Option<HashMap<String, String>>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
