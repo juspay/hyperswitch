@@ -23,6 +23,7 @@
               {
                 "group": "Essentials",
                 "pages": [
+                  "essentials/authentication",
                   "essentials/error_codes",
                   "essentials/rate_limit",
                   "essentials/go-live"
@@ -144,6 +145,12 @@
                       "v1/business-profile/business-profile--retrieve",
                       "v1/business-profile/business-profile--delete",
                       "v1/business-profile/business-profile--list"
+                    ]
+                  },
+                  {
+                    "group": "Platform Account",
+                    "pages": [
+                      "v1/platform/platform--create"
                     ]
                   },
                   {

@@ -266,6 +266,7 @@ facilitapay.base_url = "https://sandbox-api.facilitapay.com/api/v1"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
 fiservemea.base_url = "https://prod.emea.api.fiservapps.com/sandbox"
 fiuu.base_url = "https://sandbox.merchant.razer.com/"
+flexiti.base_url = "https://onlineapi.flexiti.fi/flexiti/online-api/"
 fiuu.secondary_base_url = "https://sandbox.merchant.razer.com/"
 fiuu.third_base_url = "https://api.merchant.razer.com/"
 forte.base_url = "https://sandbox.forte.net/api/v3"
@@ -289,6 +290,7 @@ klarna.base_url = "https://api{{klarna_region}}.playground.klarna.com/"
 mifinity.base_url = "https://demo.mifinity.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
 moneris.base_url = "https://api.sb.moneris.io"
+mpgs.base_url = "https://test-gateway.mastercard.com"
 mollie.secondary_base_url = "https://api.cc.mollie.com/v1/"
 multisafepay.base_url = "https://testapi.multisafepay.com/"
 netcetera.base_url = "https://{{merchant_endpoint_prefix}}.3ds-server.prev.netcetera-cloud-payment.ch"
@@ -343,6 +345,7 @@ worldpayvantiv.secondary_base_url = "https://onlinessr.vantivprelive.com"
 worldpayxml.base_url = "https://secure-test.worldpay.com/jsp/merchant/xml/paymentService.jsp"
 xendit.base_url = "https://api.xendit.co"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
+trustpayments.base_url = "https://webservices.securetrading.net/"
 tsys.base_url = "https://stagegw.transnox.com/"
 unified_authentication_service.base_url = "http://localhost:8000/"
 vgs.base_url = "https://sandbox.vault-api.verygoodvault.com"
@@ -525,7 +528,10 @@ paypal = { currency = "AUD,BRL,CAD,CZK,DKK,EUR,HKD,HUF,JPY,MYR,MXN,NOK,NZD,PHP,P
 klarna = { currency = "EUR, DKK, NOK, PLN, SEK, CHF, GBP, USD, CZK" }
 trustly = {currency="DKK, EUR, GBP, NOK, PLN, SEK" }
 blik = { country="PL" , currency = "PLN" }
+ideal = { country="NL" , currency = "EUR" }
 atome = { country = "SG, MY" , currency = "SGD, MYR" }
+skrill = { country="AL, DZ, AD, AR, AM, AW, AU, AT, AZ, BS, BD, BE, BJ, BO, BA, BW, BR, BN, BG, KH, CM, CA, CL, CN, CX, CO, CR , HR, CW, CY, CZ, DK, DM, DO, EC, EG, EE , FK, FI, GE, DE, GH, GI, GR, GP, GU, GT, GG, HK, HU, IS, IN, ID , IQ, IE, IM, IL, IT, JE , KZ, KE , KR, KW, KG, LV , LS, LI, LT, LU , MK, MG, MY, MV, MT, MU, YT, MX, MD, MC, MN, ME, MA, NA, NP, NZ, NI, NE, NO, PK , PA, PY, PE, PH, PL, PT, PR, QA, RO , SM , SA, SN , SG, SX, SK, SI, ZA, SS, ES, LK, SE, CH, TW, TZ, TH, TN, AE, GB, UM, UY, VN, VG, VI, US" , currency = "EUR, GBP, USD" }
+indonesian_bank_transfer = { country="ID" , currency = "IDR" }
 
 [pm_filters.elavon]
 credit = { country = "US", currency = "AED,AFN,ALL,AMD,ANG,AOA,ARS,AUD,AWG,AZN,BAM,BBD,BDT,BGN,BHD,BIF,BMD,BND,BOB,BRL,BSD,BTN,BWP,BYN,BZD,CAD,CDF,CHF,CLP,CNY,COP,CRC,CUP,CVE,CZK,DJF,DKK,DOP,DZD,EGP,ERN,ETB,EUR,FJD,FKP,GBP,GEL,GHS,GIP,GMD,GNF,GTQ,GYD,HKD,HNL,HRK,HTG,HUF,IDR,ILS,INR,IQD,IRR,ISK,JMD,JOD,JPY,KES,KGS,KHR,KMF,KPW,KRW,KWD,KYD,KZT,LAK,LBP,LKR,LRD,LSL,LYD,MAD,MDL,MGA,MKD,MMK,MNT,MOP,MRU,MUR,MVR,MWK,MXN,MYR,MZN,NAD,NGN,NIO,NOK,NPR,NZD,OMR,PAB,PEN,PGK,PHP,PKR,PLN,PYG,QAR,RON,RSD,RUB,RWF,SAR,SBD,SCR,SDG,SEK,SGD,SHP,SLE,SLL,SOS,SRD,SSP,STN,SVC,SYP,SZL,THB,TJS,TMT,TND,TOP,TRY,TTD,TWD,TZS,UAH,UGX,USD,UYU,UZS,VES,VND,VUV,WST,XAF,XCD,XOF,XPF,YER,ZAR,ZMW,ZWL" }
@@ -1093,6 +1099,7 @@ payout_analytics_topic = "hyperswitch-payout-events"
 consolidated_events_topic = "hyperswitch-consolidated-events"
 authentication_analytics_topic = "hyperswitch-authentication-events"
 routing_logs_topic = "hyperswitch-routing-api-events"
+revenue_recovery_topic = "hyperswitch-revenue-recovery-events"
 
 [debit_routing_config]
 supported_currencies = "USD"
