@@ -58,7 +58,6 @@ use crate::{
     services::AuthFlow,
     types::{domain::types::AsyncLift, transformers::ForeignTryFrom},
 };
-
 #[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl UnifiedAuthenticationService for ClickToPay {
@@ -1419,6 +1418,46 @@ pub async fn authentication_sync_core(
         }
     };
 
+    let (authentication_connector, three_ds_connector_account) =
+        auth_utils::get_authentication_connector_data(
+            &state,
+            merchant_context.get_merchant_key_store(),
+            &business_profile,
+            authentication.authentication_connector.clone(),
+        )
+        .await?;
+
+    if let Some(trans_status) = authentication.trans_status.clone() {
+        if trans_status.is_pending() {
+            let post_auth_response =
+                <ExternalAuthentication as UnifiedAuthenticationService>::post_authentication(
+                    &state,
+                    &business_profile,
+                    None,
+                    &three_ds_connector_account,
+                    &authentication_connector.to_string(),
+                    &authentication_id,
+                    common_enums::PaymentMethod::Card,
+                    merchant_id,
+                    Some(&authentication),
+                )
+                .await?;
+    
+            utils::external_authentication_update_trackers(
+                &state,
+                post_auth_response,
+                authentication.clone(),
+                None,
+                merchant_context.get_merchant_key_store(),
+                None,
+                None,
+                None,
+                None,
+            )
+            .await?;
+        }
+    }
+
     let acquirer_details = Some(AcquirerDetails {
         bin: authentication.acquirer_bin.clone(),
         merchant_id: authentication.acquirer_merchant_id.clone(),
@@ -1617,5 +1656,32 @@ pub async fn authentication_post_sync_core(
     )
     .await?;
 
-    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(()))
+    let authentication_details = business_profile
+        .authentication_connector_details
+        .clone()
+        .ok_or(ApiErrorResponse::InternalServerError)
+        .attach_printable("authentication_connector_details not configured by the merchant")?;
+
+    let authentication_response = AuthenticationAuthenticateResponse::foreign_try_from((
+        &authentication,
+        None,
+        None,
+        authentication_details,
+    ))?;
+
+    let redirect_response = helpers::get_handle_response_url_for_modular_authentication(
+        authentication_id,
+        &business_profile,
+        &authentication_response,
+        authentication_connector.to_string(),
+        authentication.return_url,
+        authentication.authentication_client_secret.clone().map(masking::Secret::new).as_ref(),
+        authentication.amount,
+    )?;
+    
+    Ok(hyperswitch_domain_models::api::ApplicationResponse::JsonForRedirection(
+        redirect_response
+    ))
 }
+
+

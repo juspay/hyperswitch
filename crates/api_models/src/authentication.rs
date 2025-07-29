@@ -605,3 +605,13 @@ impl ApiEventMetric for AuthenticationSyncPostUpdateRequest {
         })
     }
 }
+
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct PgRedirectResponseForAuthentication {
+    pub authentication_id: id_type::AuthenticationId,
+    pub status: common_enums::TransactionStatus,
+    pub gateway_id: String,
+    pub customer_id: Option<id_type::CustomerId>,
+    pub amount: Option<common_utils::types::MinorUnit>,
+}

@@ -3117,6 +3117,97 @@ pub fn get_handle_response_url(
 }
 
 #[cfg(feature = "v1")]
+pub fn get_handle_response_url_for_modular_authentication(
+    authentication_id: id_type::AuthenticationId,
+    business_profile: &domain::Profile,
+    response: &api_models::authentication::AuthenticationAuthenticateResponse,
+    connector: String,
+    return_url: Option<String>,
+    client_secret: Option<&masking::Secret<String>>,
+    amount: Option<MinorUnit>,
+) -> RouterResult<api::RedirectionResponse> {
+    let authentication_return_url = return_url;
+    let trans_status = response.transaction_status.clone().get_required_value("transaction_status")?;
+
+let redirection_response = make_pg_redirect_response_for_authentication(authentication_id, connector, amount, trans_status);
+
+    let return_url = make_merchant_url_with_response_for_authentication(
+        business_profile,
+        redirection_response,
+        authentication_return_url.as_ref(),
+        client_secret,
+        None,
+    )
+    .attach_printable("Failed to make merchant url with response")?;
+
+    make_url_with_signature(&return_url, business_profile)
+}
+
+#[cfg(feature = "v1")]
+pub fn make_merchant_url_with_response_for_authentication(
+    business_profile: &domain::Profile,
+    redirection_response: api_models::authentication::PgRedirectResponseForAuthentication,
+    request_return_url: Option<&String>,
+    client_secret: Option<&masking::Secret<String>>,
+    manual_retry_allowed: Option<bool>,
+) -> RouterResult<String> {
+    // take return url if provided in the request else use merchant return url
+    let url = request_return_url
+        .or(business_profile.return_url.as_ref())
+        .get_required_value("return_url")?;
+
+    let status_check = redirection_response.status;
+
+    let authentication_client_secret = client_secret
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Expected client secret to be `Some`")?;
+
+    let authentication_id = redirection_response.authentication_id.get_string_repr().to_owned();
+    let merchant_url_with_response = if business_profile.redirect_to_merchant_with_http_post {
+        url::Url::parse_with_params(
+            url,
+            &[
+                ("status", status_check.to_string()),
+                ("authentication_id", authentication_id),
+                (
+                    "authentication_client_secret",
+                    authentication_client_secret.peek().to_string(),
+                ),
+                (
+                    "manual_retry_allowed",
+                    manual_retry_allowed.unwrap_or(false).to_string(),
+                ),
+            ],
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to parse the url with param")?
+    } else {
+        let amount = redirection_response.amount.get_required_value("amount")?;
+        url::Url::parse_with_params(
+            url,
+            &[
+                ("status", status_check.to_string()),
+                ("authentication_id", authentication_id),
+                (
+                    "authentication_client_secret",
+                    authentication_client_secret.peek().to_string(),
+                ),
+                ("amount", amount.to_string()),
+                (
+                    "manual_retry_allowed",
+                    manual_retry_allowed.unwrap_or(false).to_string(),
+                ),
+            ],
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to parse the url with param")?
+    };
+
+    Ok(merchant_url_with_response.to_string())
+}
+
+
+#[cfg(feature = "v1")]
 pub fn make_merchant_url_with_response(
     business_profile: &domain::Profile,
     redirection_response: api::PgRedirectResponse,
@@ -3321,6 +3412,22 @@ pub fn make_pg_redirect_response(
         gateway_id: connector,
         customer_id: response.customer_id.to_owned(),
         amount: Some(response.amount),
+    }
+}
+
+#[cfg(feature = "v1")]
+pub fn make_pg_redirect_response_for_authentication(
+    authentication_id: id_type::AuthenticationId,
+    connector: String,
+    amount: Option<MinorUnit>,
+    trans_status: common_enums::TransactionStatus,
+) -> api_models::authentication::PgRedirectResponseForAuthentication {
+    api_models::authentication::PgRedirectResponseForAuthentication {
+        authentication_id,
+        status: trans_status,
+        gateway_id: connector,
+        customer_id: None,
+        amount,
     }
 }
 
