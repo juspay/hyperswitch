@@ -1523,6 +1523,110 @@ export const connectorDetails = {
         },
       },
     },
+    DDCRaceConditionServerSide: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+      DDCConfig: {
+        completeUrlPath: "/redirect/complete/default",
+        collectionReferenceParam: "collectionReference",
+        firstSubmissionValue: "",
+        secondSubmissionValue: "race_condition_test_ddc_123",
+        expectedError: {
+          status: 400,
+          body: {
+            error: {
+              code: "IR_07",
+              type: "invalid_request",
+              message:
+                "Invalid value provided: collection_reference not allowed in AuthenticationPending state",
+            },
+          },
+        },
+      },
+    }),
+    DDCRaceConditionClientSide: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+      DDCConfig: {
+        redirectUrlPath: "/payments/redirect",
+        collectionReferenceParam: "collectionReference",
+        delayBeforeSubmission: 2000,
+        raceConditionScript: `
+          <script>
+            console.log("INJECTING_RACE_CONDITION_TEST");
+            
+            // Track submission attempts and ddcProcessed flag behavior
+            window.testResults = {
+              submissionAttempts: 0,
+              actualSubmissions: 0,
+              blockedSubmissions: 0
+            };
+            
+            // Override the submitCollectionReference function to test race conditions
+            var originalSubmit = window.submitCollectionReference;
+            
+            window.submitCollectionReference = function(collectionReference) {
+              window.testResults.submissionAttempts++;
+              console.log("SUBMISSION_ATTEMPT_" + window.testResults.submissionAttempts + ": " + collectionReference);
+              
+              // Check if ddcProcessed flag would block this
+              if (window.ddcProcessed) {
+                window.testResults.blockedSubmissions++;
+                console.log("SUBMISSION_BLOCKED_BY_DDC_PROCESSED_FLAG");
+                return;
+              }
+              
+              window.testResults.actualSubmissions++;
+              console.log("SUBMISSION_PROCEEDING: " + collectionReference);
+              
+              if (originalSubmit) {
+                return originalSubmit(collectionReference);
+              }
+            };
+            
+            // Submit first value at configured timing
+            setTimeout(function() {
+              console.log("FIRST_SUBMISSION_TRIGGERED_AT_100MS");
+              window.submitCollectionReference("");
+            }, 100);
+            
+            // Submit second value at configured timing (should be blocked)
+            setTimeout(function() {
+              console.log("SECOND_SUBMISSION_ATTEMPTED_AT_200MS");
+              window.submitCollectionReference("test_ddc_123");
+            }, 200);
+          </script>
+        `,
+      },
+    }),
   },
   upi_pm: {
     PaymentIntent: getCustomExchange({
