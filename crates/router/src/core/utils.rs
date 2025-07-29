@@ -1766,7 +1766,7 @@ pub fn get_external_authentication_request_poll_id(
 }
 
 pub fn get_modular_authentication_request_poll_id(
-    authentication_id: &common_utils::id_type::AuthenticationId
+    authentication_id: &common_utils::id_type::AuthenticationId,
 ) -> String {
     authentication_id.get_external_authentication_request_poll_id()
 }
