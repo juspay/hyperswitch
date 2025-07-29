@@ -26,7 +26,9 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData, ConnectorInfo, SupportedPaymentMethods},
+    router_response_types::{
+        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+    },
 };
 #[cfg(feature = "frm")]
 use hyperswitch_domain_models::{
@@ -36,9 +38,7 @@ use hyperswitch_domain_models::{
         FraudCheckCheckoutData, FraudCheckFulfillmentData, FraudCheckRecordReturnData,
         FraudCheckSaleData, FraudCheckTransactionData,
     },
-    router_response_types::{
-        fraud_check::FraudCheckResponseData,
-    },
+    router_response_types::fraud_check::FraudCheckResponseData,
 };
 use hyperswitch_interfaces::{
     api::{
