@@ -13,7 +13,7 @@ use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
 #[cfg(feature = "v1")]
-use crate::payments::{Address,PaymentMethodData, BrowserInformation};
+use crate::payments::{Address, BrowserInformation, PaymentMethodData};
 use crate::payments::{CustomerDetails, DeviceChannel, SdkInformation, ThreeDsCompletionIndicator};
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
