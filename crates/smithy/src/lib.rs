@@ -3,10 +3,8 @@
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use smithy_core::{SmithyConstraint, SmithyField, SmithyEnumVariant};
-use syn::{
-    parse_macro_input, Attribute, DeriveInput, Fields, Lit, Meta, Variant,
-};
+use smithy_core::{SmithyConstraint, SmithyEnumVariant, SmithyField, SmithyMember, SmithyShape};
+use syn::{parse_macro_input, Attribute, DeriveInput, Fields, Lit, Meta, Variant};
 
 /// Derive macro for generating Smithy models from Rust structs and enums
 #[proc_macro_derive(SmithyModel, attributes(smithy))]
@@ -53,71 +51,73 @@ fn generate_struct_impl(
         .map(|doc| quote! { Some(#doc.to_string()) })
         .unwrap_or(quote! { None });
 
-    let field_implementations = fields
-        .iter()
-        .map(|field| {
-            let field_name = &field.name;
-            let smithy_type = &field.smithy_type;
-            let field_doc = field
-                .documentation
-                .as_ref()
-                .map(|doc| quote! { Some(#doc.to_string()) })
-                .unwrap_or(quote! { None });
+    let field_implementations = fields.iter().map(|field| {
+        let field_name = &field.name;
+        let value_type = &field.value_type;
+        let documentation = &field.documentation;
+        let constraints = &field.constraints;
+        let optional = field.optional;
 
-            // Automatically add Required trait for non-optional fields
-            let mut all_constraints = field.constraints.clone();
-            if !field.optional && !all_constraints.iter().any(|c| matches!(c, SmithyConstraint::Required)) {
-                all_constraints.push(SmithyConstraint::Required);
-            }
+        let field_doc = documentation
+            .as_ref()
+            .map(|doc| quote! { Some(#doc.to_string()) })
+            .unwrap_or(quote! { None });
 
-            // Handle traits properly to avoid empty vector with trailing comma
-            let traits = if all_constraints.is_empty() {
-                quote! { vec![] }
-            } else {
-                let trait_tokens = all_constraints
-                    .iter()
-                    .map(|constraint| match constraint {
-                        SmithyConstraint::Pattern(pattern) => quote! {
-                            smithy_core::SmithyTrait::Pattern { pattern: #pattern.to_string() }
-                        },
-                        SmithyConstraint::Range(min, max) => {
-                            let min_expr = min.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
-                            let max_expr = max.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
-                            quote! {
-                                smithy_core::SmithyTrait::Range {
-                                    min: #min_expr,
-                                    max: #max_expr
-                                }
+        let mut all_constraints = constraints.clone();
+        if !optional && !all_constraints.iter().any(|c| matches!(c, SmithyConstraint::Required)) {
+            all_constraints.push(SmithyConstraint::Required);
+        }
+
+        let traits = if all_constraints.is_empty() {
+            quote! { vec![] }
+        } else {
+            let trait_tokens = all_constraints
+                .iter()
+                .map(|constraint| match constraint {
+                    SmithyConstraint::Pattern(pattern) => quote! {
+                        smithy_core::SmithyTrait::Pattern { pattern: #pattern.to_string() }
+                    },
+                    SmithyConstraint::Range(min, max) => {
+                        let min_expr = min.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
+                        let max_expr = max.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
+                        quote! {
+                            smithy_core::SmithyTrait::Range {
+                                min: #min_expr,
+                                max: #max_expr
                             }
-                        },
-                        SmithyConstraint::Length(min, max) => {
-                            let min_expr = min.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
-                            let max_expr = max.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
-                            quote! {
-                                smithy_core::SmithyTrait::Length { 
-                                    min: #min_expr, 
-                                    max: #max_expr 
-                                }
+                        }
+                    },
+                    SmithyConstraint::Length(min, max) => {
+                        let min_expr = min.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
+                        let max_expr = max.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
+                        quote! {
+                            smithy_core::SmithyTrait::Length {
+                                min: #min_expr,
+                                max: #max_expr
                             }
-                        },
-                        SmithyConstraint::Required => quote! {
-                            smithy_core::SmithyTrait::Required
-                        },
-                    })
-                    .collect::<Vec<_>>();
+                        }
+                    },
+                    SmithyConstraint::Required => quote! {
+                        smithy_core::SmithyTrait::Required
+                    },
+                })
+                .collect::<Vec<_>>();
 
-                quote! { vec![#(#trait_tokens),*] }
-            };
+            quote! { vec![#(#trait_tokens),*] }
+        };
 
-            quote! {
+        quote! {
+            {
+                let (target_type, new_shapes) = smithy_core::types::resolve_type_and_generate_shapes(#value_type, &mut shapes).unwrap();
+                shapes.extend(new_shapes);
                 members.insert(#field_name.to_string(), smithy_core::SmithyMember {
-                    target: #smithy_type.to_string(),
+                    target: target_type,
                     documentation: #field_doc,
-                    traits: #traits
+                    traits: #traits,
                 });
             }
-        })
-        .collect::<Vec<_>>();
+        }
+    });
 
     let expanded = quote! {
         impl smithy_core::SmithyModelGenerator for #name {
@@ -125,7 +125,7 @@ fn generate_struct_impl(
                 let mut shapes = std::collections::HashMap::new();
                 let mut members = std::collections::HashMap::new();
 
-                #(#field_implementations)*
+                #(#field_implementations;)*
 
                 let shape = smithy_core::SmithyShape::Structure {
                     members,
@@ -164,7 +164,7 @@ fn generate_enum_impl(
     let is_string_enum = variants.iter().all(|v| v.fields.is_empty());
 
     if is_string_enum {
-        // Generate as Smithy string enum
+        // Generate as Smithy enum
         let variant_implementations = variants
             .iter()
             .map(|variant| {
@@ -192,7 +192,7 @@ fn generate_enum_impl(
 
                     #(#variant_implementations)*
 
-                    let shape = smithy_core::SmithyShape::StringEnum {
+                    let shape = smithy_core::SmithyShape::Enum {
                         values: enum_values,
                         documentation: #enum_doc_expr,
                         traits: vec![]
@@ -221,24 +221,28 @@ fn generate_enum_impl(
                     .map(|doc| quote! { Some(#doc.to_string()) })
                     .unwrap_or(quote! { None });
 
-                // Determine the target type for this variant
-                let target_type = if variant.fields.is_empty() {
-                    // Unit variant - use a special unit type
+                let target_type_expr = if variant.fields.is_empty() {
                     quote! { "smithy.api#Unit".to_string() }
                 } else if variant.fields.len() == 1 {
-                    // Single field - use its type
                     let field = &variant.fields[0];
-                    let smithy_type = &field.smithy_type;
-                    quote! { #smithy_type.to_string() }
+                    let value_type = &field.value_type;
+                    quote! {
+                        {
+                            let (target, new_shapes) = smithy_core::types::resolve_type_and_generate_shapes(#value_type, &mut shapes).unwrap();
+                            shapes.extend(new_shapes);
+                            target
+                        }
+                    }
                 } else {
-                    // Multiple fields - create an inline structure
+                    // Multiple fields - create an inline structure.
                     let inline_struct_name = format!("{}{}Data", stringify!(#name), variant_name);
                     quote! { format!("com.hyperswitch.types#{}", #inline_struct_name) }
                 };
 
                 quote! {
+                    let target_type = #target_type_expr;
                     members.insert(#variant_name.to_string(), smithy_core::SmithyMember {
-                        target: #target_type,
+                        target: target_type,
                         documentation: #variant_doc,
                         traits: vec![]
                     });
@@ -252,7 +256,7 @@ fn generate_enum_impl(
                     let mut shapes = std::collections::HashMap::new();
                     let mut members = std::collections::HashMap::new();
 
-                    #(#variant_implementations)*
+                    #(#variant_implementations;)*
 
                     let shape = smithy_core::SmithyShape::Union {
                         members,
@@ -309,13 +313,12 @@ fn extract_fields(fields: &Fields) -> syn::Result<Vec<SmithyField>> {
                 let field_attrs = parse_smithy_field_attributes(&field.attrs)?;
 
                 if let Some(value_type) = field_attrs.value_type {
-                    let smithy_type = convert_value_type_to_smithy_type(&value_type)?;
                     let documentation = extract_documentation(&field.attrs);
                     let optional = value_type.trim().starts_with("Option<");
 
                     smithy_fields.push(SmithyField {
                         name: field_name,
-                        smithy_type,
+                        value_type,
                         constraints: field_attrs.constraints,
                         documentation,
                         optional,
@@ -354,13 +357,12 @@ fn extract_enum_variants(
                     let field_attrs = parse_smithy_field_attributes(&field.attrs)?;
 
                     if let Some(value_type) = field_attrs.value_type {
-                        let smithy_type = convert_value_type_to_smithy_type(&value_type)?;
                         let field_documentation = extract_documentation(&field.attrs);
                         let optional = value_type.trim().starts_with("Option<");
 
                         variant_fields.push(SmithyField {
                             name: field_name,
-                            smithy_type,
+                            value_type,
                             constraints: field_attrs.constraints,
                             documentation: field_documentation,
                             optional,
@@ -376,13 +378,12 @@ fn extract_enum_variants(
                     let field_attrs = parse_smithy_field_attributes(&field.attrs)?;
 
                     if let Some(value_type) = field_attrs.value_type {
-                        let smithy_type = convert_value_type_to_smithy_type(&value_type)?;
                         let field_documentation = extract_documentation(&field.attrs);
                         let optional = value_type.trim().starts_with("Option<");
 
                         variant_fields.push(SmithyField {
                             name: field_name,
-                            smithy_type,
+                            value_type,
                             constraints: field_attrs.constraints,
                             documentation: field_documentation,
                             optional,
@@ -486,150 +487,6 @@ fn parse_smithy_field_attributes(attrs: &[Attribute]) -> syn::Result<SmithyField
 
     Ok(field_attributes)
 }
-
-fn convert_value_type_to_smithy_type(value_type: &str) -> syn::Result<String> {
-    // Handle the value_type string and convert it to appropriate Smithy type
-    convert_value_type_to_smithy_type_recursive(value_type.trim())
-}
-
-fn convert_value_type_to_smithy_type_recursive(value_type: &str) -> syn::Result<String> {
-    let value_type_span = proc_macro2::Span::call_site();
-    match value_type {
-        // Basic primitive types
-        "String" | "str" => Ok("smithy.api#String".to_string()),
-        "i8" | "i16" | "i32" | "u8" | "u16" | "u32" => Ok("smithy.api#Integer".to_string()),
-        "i64" | "u64" | "isize" | "usize" => Ok("smithy.api#Long".to_string()),
-        "f32" => Ok("smithy.api#Float".to_string()),
-        "f64" => Ok("smithy.api#Double".to_string()),
-        "bool" => Ok("smithy.api#Boolean".to_string()),
-
-        // Special hyperswitch types
-        "Amount" | "MinorUnit" => Ok("smithy.api#Long".to_string()),
-
-        // Handle serde_json::Value
-        "serde_json::Value" | "Value" => Ok("smithy.api#Document".to_string()),
-
-        // Handle generic types with recursion
-        vt if vt.starts_with("Option<") && vt.ends_with('>') => {
-            let inner_type = extract_generic_inner_type(vt, "Option")
-                .map_err(|e| syn::Error::new(value_type_span, e))?;
-            convert_value_type_to_smithy_type_recursive(inner_type)
-        }
-
-        vt if vt.starts_with("Vec<") && vt.ends_with('>') => {
-            let inner_type = extract_generic_inner_type(vt, "Vec")
-                .map_err(|e| syn::Error::new(value_type_span, e))?;
-            let inner_smithy_type = convert_value_type_to_smithy_type_recursive(inner_type)?;
-            Ok(format!("smithy.api#List<{}>", inner_smithy_type))
-        }
-
-        vt if vt.starts_with("Box<") && vt.ends_with('>') => {
-            let inner_type = extract_generic_inner_type(vt, "Box")
-                .map_err(|e| syn::Error::new(value_type_span, e))?;
-            convert_value_type_to_smithy_type_recursive(inner_type)
-        }
-
-        vt if vt.starts_with("Secret<") && vt.ends_with('>') => {
-            let inner_type = extract_generic_inner_type(vt, "Secret")
-                .map_err(|e| syn::Error::new(value_type_span, e))?;
-            convert_value_type_to_smithy_type_recursive(inner_type)
-        }
-
-        // Handle HashMap and BTreeMap
-        vt if vt.starts_with("HashMap<") && vt.ends_with('>') => {
-            let inner_types = extract_generic_inner_type(vt, "HashMap")
-                .map_err(|e| syn::Error::new(value_type_span, e))?;
-            let (key_type, value_type) =
-                parse_map_types(inner_types).map_err(|e| syn::Error::new(value_type_span, e))?;
-            let key_smithy_type = convert_value_type_to_smithy_type_recursive(key_type)?;
-            let value_smithy_type = convert_value_type_to_smithy_type_recursive(value_type)?;
-            Ok(format!(
-                "smithy.api#Map<{}, {}>",
-                key_smithy_type, value_smithy_type
-            ))
-        }
-
-        vt if vt.starts_with("BTreeMap<") && vt.ends_with('>') => {
-            let inner_types = extract_generic_inner_type(vt, "BTreeMap")
-                .map_err(|e| syn::Error::new(value_type_span, e))?;
-            let (key_type, value_type) =
-                parse_map_types(inner_types).map_err(|e| syn::Error::new(value_type_span, e))?;
-            let key_smithy_type = convert_value_type_to_smithy_type_recursive(key_type)?;
-            let value_smithy_type = convert_value_type_to_smithy_type_recursive(value_type)?;
-            Ok(format!(
-                "smithy.api#Map<{}, {}>",
-                key_smithy_type, value_smithy_type
-            ))
-        }
-
-        // Custom types - check if it contains module path separators
-        _ => {
-            // Handle fully qualified paths (e.g., "api_enums::Currency", "payments::CaptureMethod")
-            if value_type.contains("::") {
-                // For qualified paths, use the full path but replace :: with .
-                let smithy_path = value_type.replace("::", ".");
-                Ok(smithy_path)
-            } else {
-                // For simple custom types (e.g., "CaptureMethod", "Currency")
-                Ok(value_type.to_string())
-            }
-        }
-    }
-}
-
-/// Extract the inner type from a generic type like Option<T>, Vec<T>, etc.
-fn extract_generic_inner_type<'a>(full_type: &'a str, wrapper: &str) -> Result<&'a str, String> {
-    let expected_start = format!("{}<", wrapper);
-
-    if !full_type.starts_with(&expected_start) || !full_type.ends_with('>') {
-        return Err(format!("Invalid {} type format: {}", wrapper, full_type));
-    }
-
-    let start_idx = expected_start.len();
-    let end_idx = full_type.len() - 1;
-
-    if start_idx >= end_idx {
-        return Err(format!("Empty {} type: {}", wrapper, full_type));
-    }
-
-    Ok(full_type[start_idx..end_idx].trim())
-}
-
-/// Parse map types like "String, i32" into ("String", "i32")
-fn parse_map_types(inner_types: &str) -> Result<(&str, &str), String> {
-    // Handle nested generics by counting angle brackets
-    let mut bracket_count = 0;
-    let mut comma_pos = None;
-
-    for (i, ch) in inner_types.char_indices() {
-        match ch {
-            '<' => bracket_count += 1,
-            '>' => bracket_count -= 1,
-            ',' if bracket_count == 0 => {
-                comma_pos = Some(i);
-                break;
-            }
-            _ => {}
-        }
-    }
-
-    if let Some(pos) = comma_pos {
-        let key_type = inner_types[..pos].trim();
-        let value_type = inner_types[pos + 1..].trim();
-
-        if key_type.is_empty() || value_type.is_empty() {
-            return Err(format!("Invalid map type format: {}", inner_types));
-        }
-
-        Ok((key_type, value_type))
-    } else {
-        Err(format!(
-            "Invalid map type format, missing comma: {}",
-            inner_types
-        ))
-    }
-}
-
 
 fn extract_documentation(attrs: &[Attribute]) -> Option<String> {
     let mut docs = Vec::new();

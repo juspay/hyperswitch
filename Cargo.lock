@@ -7832,8 +7832,10 @@ dependencies = [
 name = "smithy-core"
 version = "0.1.0"
 dependencies = [
+ "proc-macro2",
  "serde",
  "serde_json",
+ "syn 2.0.101",
 ]
 
 [[package]]
@@ -7841,6 +7843,7 @@ name = "smithy-generator"
 version = "0.1.0"
 dependencies = [
  "api_models",
+ "common_enums",
  "regex",
  "smithy-core",
 ]

@@ -56,7 +56,7 @@ pub enum SmithyShape {
         traits: Vec<SmithyTrait>,
     },
     #[serde(rename = "enum")]
-    StringEnum {
+    Enum {
         values: HashMap<String, SmithyEnumValue>,
         #[serde(skip_serializing_if = "Option::is_none")]
         documentation: Option<String>,
@@ -99,7 +99,7 @@ pub enum SmithyTrait {
 #[derive(Debug, Clone)]
 pub struct SmithyField {
     pub name: String,
-    pub smithy_type: String,
+    pub value_type: String,
     pub constraints: Vec<SmithyConstraint>,
     pub documentation: Option<String>,
     pub optional: bool,
@@ -123,4 +123,156 @@ pub enum SmithyConstraint {
 
 pub trait SmithyModelGenerator {
     fn generate_smithy_model() -> SmithyModel;
+}
+
+// Helper functions moved from the proc-macro crate to be accessible by it.
+
+pub fn resolve_type_and_generate_shapes(
+    value_type: &str,
+    shapes: &mut HashMap<String, SmithyShape>,
+) -> Result<(String, HashMap<String, SmithyShape>), syn::Error> {
+    let value_type = value_type.trim();
+    let value_type_span = proc_macro2::Span::call_site();
+    let mut generated_shapes = HashMap::new();
+
+    let target_type = match value_type {
+        "String" | "str" => "smithy.api#String".to_string(),
+        "i8" | "i16" | "i32" | "u8" | "u16" | "u32" => "smithy.api#Integer".to_string(),
+        "i64" | "u64" | "isize" | "usize" => "smithy.api#Long".to_string(),
+        "f32" => "smithy.api#Float".to_string(),
+        "f64" => "smithy.api#Double".to_string(),
+        "bool" => "smithy.api#Boolean".to_string(),
+        "Amount" | "MinorUnit" => "smithy.api#Long".to_string(),
+        "serde_json::Value" | "Value" => "smithy.api#Document".to_string(),
+
+        vt if vt.starts_with("Option<") && vt.ends_with('>') => {
+            let inner_type = extract_generic_inner_type(vt, "Option")
+                .map_err(|e| syn::Error::new(value_type_span, e))?;
+            let (resolved_type, new_shapes) = resolve_type_and_generate_shapes(inner_type, shapes)?;
+            generated_shapes.extend(new_shapes);
+            resolved_type
+        }
+
+        vt if vt.starts_with("Vec<") && vt.ends_with('>') => {
+            let inner_type = extract_generic_inner_type(vt, "Vec")
+                .map_err(|e| syn::Error::new(value_type_span, e))?;
+            let (inner_smithy_type, new_shapes) = resolve_type_and_generate_shapes(inner_type, shapes)?;
+            generated_shapes.extend(new_shapes);
+
+            let list_shape_name = format!("{}List", inner_smithy_type.split("::").last().unwrap_or(&inner_smithy_type).split('#').last().unwrap_or(&inner_smithy_type));
+            if !shapes.contains_key(&list_shape_name) && !generated_shapes.contains_key(&list_shape_name) {
+                let list_shape = SmithyShape::List {
+                    member: Box::new(SmithyMember {
+                        target: inner_smithy_type,
+                        documentation: None,
+                        traits: vec![],
+                    }),
+                    traits: vec![],
+                };
+                generated_shapes.insert(list_shape_name.clone(), list_shape);
+            }
+            list_shape_name
+        }
+
+        vt if vt.starts_with("Box<") && vt.ends_with('>') => {
+            let inner_type = extract_generic_inner_type(vt, "Box")
+                .map_err(|e| syn::Error::new(value_type_span, e))?;
+            let (resolved_type, new_shapes) = resolve_type_and_generate_shapes(inner_type, shapes)?;
+            generated_shapes.extend(new_shapes);
+            resolved_type
+        }
+
+        vt if vt.starts_with("Secret<") && vt.ends_with('>') => {
+            let inner_type = extract_generic_inner_type(vt, "Secret")
+                .map_err(|e| syn::Error::new(value_type_span, e))?;
+            let (resolved_type, new_shapes) = resolve_type_and_generate_shapes(inner_type, shapes)?;
+            generated_shapes.extend(new_shapes);
+            resolved_type
+        }
+
+        vt if vt.starts_with("HashMap<") && vt.ends_with('>') => {
+            let inner_types = extract_generic_inner_type(vt, "HashMap")
+                .map_err(|e| syn::Error::new(value_type_span, e))?;
+            let (key_type, value_type) =
+                parse_map_types(inner_types).map_err(|e| syn::Error::new(value_type_span, e))?;
+            let (key_smithy_type, key_shapes) = resolve_type_and_generate_shapes(key_type, shapes)?;
+            generated_shapes.extend(key_shapes);
+            let (value_smithy_type, value_shapes) = resolve_type_and_generate_shapes(value_type, shapes)?;
+            generated_shapes.extend(value_shapes);
+            format!("smithy.api#Map<key: {}, value: {}>", key_smithy_type, value_smithy_type)
+        }
+
+        vt if vt.starts_with("BTreeMap<") && vt.ends_with('>') => {
+            let inner_types = extract_generic_inner_type(vt, "BTreeMap")
+                .map_err(|e| syn::Error::new(value_type_span, e))?;
+            let (key_type, value_type) =
+                parse_map_types(inner_types).map_err(|e| syn::Error::new(value_type_span, e))?;
+            let (key_smithy_type, key_shapes) = resolve_type_and_generate_shapes(key_type, shapes)?;
+            generated_shapes.extend(key_shapes);
+            let (value_smithy_type, value_shapes) = resolve_type_and_generate_shapes(value_type, shapes)?;
+            generated_shapes.extend(value_shapes);
+            format!("smithy.api#Map<key: {}, value: {}>", key_smithy_type, value_smithy_type)
+        }
+
+        _ => {
+            if value_type.contains("::") {
+                value_type.replace("::", ".")
+            } else {
+                value_type.to_string()
+            }
+        }
+    };
+
+    Ok((target_type, generated_shapes))
+}
+
+fn extract_generic_inner_type<'a>(full_type: &'a str, wrapper: &str) -> Result<&'a str, String> {
+    let expected_start = format!("{}<", wrapper);
+
+    if !full_type.starts_with(&expected_start) || !full_type.ends_with('>') {
+        return Err(format!("Invalid {} type format: {}", wrapper, full_type));
+    }
+
+    let start_idx = expected_start.len();
+    let end_idx = full_type.len() - 1;
+
+    if start_idx >= end_idx {
+        return Err(format!("Empty {} type: {}", wrapper, full_type));
+    }
+
+    Ok(full_type[start_idx..end_idx].trim())
+}
+
+fn parse_map_types(inner_types: &str) -> Result<(&str, &str), String> {
+    // Handle nested generics by counting angle brackets
+    let mut bracket_count = 0;
+    let mut comma_pos = None;
+
+    for (i, ch) in inner_types.char_indices() {
+        match ch {
+            '<' => bracket_count += 1,
+            '>' => bracket_count -= 1,
+            ',' if bracket_count == 0 => {
+                comma_pos = Some(i);
+                break;
+            }
+            _ => {}
+        }
+    }
+
+    if let Some(pos) = comma_pos {
+        let key_type = inner_types[..pos].trim();
+        let value_type = inner_types[pos + 1..].trim();
+
+        if key_type.is_empty() || value_type.is_empty() {
+            return Err(format!("Invalid map type format: {}", inner_types));
+        }
+
+        Ok((key_type, value_type))
+    } else {
+        Err(format!(
+            "Invalid map type format, missing comma: {}",
+            inner_types
+        ))
+    }
 }

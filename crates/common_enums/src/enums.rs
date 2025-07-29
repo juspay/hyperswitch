@@ -538,6 +538,7 @@ pub enum CallConnectorAction {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::EnumString,
     strum::EnumIter,
@@ -545,6 +546,7 @@ pub enum CallConnectorAction {
     ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
+#[smithy(namespace = "com.hyperswitch.payment.models")]
 pub enum Currency {
     AED,
     AFN,
@@ -2668,10 +2670,12 @@ pub struct MerchantCategoryCodeWithName {
     strum::EnumIter,
     strum::EnumString,
     utoipa::ToSchema,
-    Copy
+    Copy,
+    SmithyModel
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[rustfmt::skip]
+#[smithy(namespace = "com.hyperswitch.payment.models")]
 pub enum CountryAlpha2 {
     AF, AX, AL, DZ, AS, AD, AO, AI, AQ, AG, AR, AM, AW, AU, AT,
     AZ, BS, BH, BD, BB, BY, BE, BZ, BJ, BM, BT, BO, BQ, BA, BW,

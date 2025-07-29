@@ -150,7 +150,7 @@ impl SmithyGenerator {
                 def.push_str("}");
                 def
             }
-            crate::types::SmithyShape::StringEnum {
+            crate::types::SmithyShape::Enum {
                 values,
                 documentation,
                 traits,
@@ -165,20 +165,16 @@ impl SmithyGenerator {
                     def.push_str(&format!("@{}\n", self.trait_to_string(smithy_trait)));
                 }
 
-                def.push_str(&format!("@enum([\n"));
+                def.push_str(&format!("enum {} {{\n", name));
 
                 for (value_name, enum_value) in values {
-                    def.push_str("    {\n");
-                    def.push_str(&format!("        name: \"{}\"\n", value_name));
-                    def.push_str(&format!("        value: \"{}\"\n", enum_value.name));
                     if let Some(doc) = &enum_value.documentation {
-                        def.push_str(&format!("        documentation: \"{}\"\n", doc));
+                        def.push_str(&format!("    /// {}\n", doc));
                     }
-                    def.push_str("    }\n");
+                    def.push_str(&format!("    {}\n", value_name));
                 }
 
-                def.push_str("])\n");
-                def.push_str(&format!("string {}", name));
+                def.push_str("}");
                 def
             }
             crate::types::SmithyShape::String { traits } => {

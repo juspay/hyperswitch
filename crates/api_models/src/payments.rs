@@ -886,6 +886,7 @@ pub struct PaymentsRequest {
     /// The three-letter ISO 4217 currency code (e.g., "USD", "EUR") for the payment amount. This field is mandatory for creating a payment.
     #[schema(example = "USD", value_type = Option<Currency>)]
     #[mandatory_in(PaymentsCreateRequest = Currency)]
+    #[smithy(value_type = "Option<Currency>")]
     pub currency: Option<api_enums::Currency>,
 
     /// The amount to be captured from the user's payment method, in the lowest denomination. If not provided, and `capture_method` is `automatic`, the full payment `amount` will be captured. If `capture_method` is `manual`, this can be specified in the `/capture` call. Must be less than or equal to the authorized amount.
@@ -895,6 +896,7 @@ pub struct PaymentsRequest {
 
     /// The shipping cost for the payment. This is required for tax calculation in some regions.
     #[schema(value_type = Option<i64>, example = 6540)]
+    #[smithy(value_type = "Option<i64>")]
     pub shipping_cost: Option<MinorUnit>,
 
     /// Optional. A merchant-provided unique identifier for the payment, contains 30 characters long (e.g., "pay_mbabizu24mvu3mela5njyhpit4"). If provided, it ensures idempotency for the payment creation request. If omitted, Hyperswitch generates a unique ID for the payment.
@@ -920,11 +922,11 @@ pub struct PaymentsRequest {
         "type": "single",
         "data": {"connector": "stripe", "merchant_connector_id": "mca_123"}
     }))]
-    #[smithy(value_type = "Option<StraightThroughAlgorithm>")]
     pub routing: Option<serde_json::Value>,
 
     /// This allows to manually select a connector with which the payment can go through.
     #[schema(value_type = Option<Vec<Connector>>, max_length = 255, example = json!(["stripe", "adyen"]))]
+    #[smithy(value_type = "Option<Vec<Connector>>")]
     pub connector: Option<Vec<api_enums::Connector>>,
 
     #[schema(value_type = Option<CaptureMethod>, example = "automatic")]
@@ -946,6 +948,7 @@ pub struct PaymentsRequest {
 
     /// If set to `true`, Hyperswitch attempts to confirm and authorize the payment immediately after creation, provided sufficient payment method details are included. If `false` or omitted (default is `false`), the payment is created with a status such as `requires_payment_method` or `requires_confirmation`, and a separate `POST /payments/{payment_id}/confirm` call is necessary to proceed with authorization.
     #[schema(default = false, example = true)]
+    #[smithy(value_type = "Option<bool>")]
     pub confirm: Option<bool>,
 
     /// Passing this object creates a new customer or attaches an existing customer to the payment
@@ -953,6 +956,7 @@ pub struct PaymentsRequest {
 
     /// The identifier for the customer
     #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    #[smithy(value_type = "Option<String>")]
     pub customer_id: Option<id_type::CustomerId>,
 
     /// The customer's email address.
@@ -1150,11 +1154,13 @@ pub struct PaymentsRequest {
     pub payment_type: Option<api_enums::PaymentType>,
 
     ///Request an incremental authorization, i.e., increase the authorized amount on a confirmed payment before you capture it.
+    #[smithy(value_type = "Option<bool>")]
     pub request_incremental_authorization: Option<bool>,
 
     ///Will be used to expire client secret after certain amount of time to be supplied in seconds
     ///(900) for 15 mins
     #[schema(example = 900)]
+    #[smithy(value_type = "Option<u32>")]
     pub session_expiry: Option<u32>,
 
     /// Additional data related to some frm(Fraud Risk Management) connectors
@@ -1163,6 +1169,7 @@ pub struct PaymentsRequest {
 
     /// Whether to perform external authentication (if applicable)
     #[schema(example = true)]
+    #[smithy(value_type = "Option<bool>")]
     pub request_external_three_ds_authentication: Option<bool>,
 
     /// Details required for recurring payment
@@ -1184,9 +1191,11 @@ pub struct PaymentsRequest {
         max_length = 255,
         example = "Custom_Order_id_123"
     )]
+    #[smithy(value_type = "Option<String>")]
     pub merchant_order_reference_id: Option<String>,
 
     /// Whether to calculate tax for this payment intent
+    #[smithy(value_type = "Option<bool>")]
     pub skip_external_tax_calculation: Option<bool>,
 
     /// Choose what kind of sca exemption is required for this payment
@@ -1198,15 +1207,18 @@ pub struct PaymentsRequest {
     pub ctp_service_details: Option<CtpServiceDetails>,
 
     /// Indicates if 3ds challenge is forced
+    #[smithy(value_type = "Option<bool>")]
     pub force_3ds_challenge: Option<bool>,
 
     /// Indicates if 3DS method data was successfully completed or not
     pub threeds_method_comp_ind: Option<ThreeDsCompletionIndicator>,
 
     /// Indicates if the redirection has to open in the iframe
+    #[smithy(value_type = "Option<bool>")]
     pub is_iframe_redirection_enabled: Option<bool>,
 
     /// If enabled, provides whole connector response
+    #[smithy(value_type = "Option<bool>")]
     pub all_keys_required: Option<bool>,
 
     /// Indicates whether the `payment_id` was provided by the merchant
@@ -2153,9 +2165,8 @@ impl Card {
     }
 }
 
-#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, Default, SmithyModel)]
+#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, Default)]
 #[serde(rename_all = "snake_case")]
-#[smithy(namespace = "com.hyperswitch.payment.models")]
 pub struct CardToken {
     /// The card holder's name
     #[schema(value_type = String, example = "John Test")]
@@ -5929,9 +5940,8 @@ pub struct ExternalAuthenticationDetailsResponse {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize, SmithyModel)]
+#[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
 #[serde(deny_unknown_fields)]
-#[smithy(namespace = "com.hyperswitch.payment.models")]
 pub struct PaymentListConstraints {
     /// The identifier for customer
     #[schema(

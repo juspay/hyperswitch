@@ -9,6 +9,7 @@ build = "build.rs"
 [dependencies]
 smithy-core = { path = "../smithy-core" }
 api_models = { version = "0.1.0", path = "../api_models", features = ["v1"] }
+common_enums = { version = "0.1.0", path = "../common_enums" }
 
 [build-dependencies]
 regex = "1"

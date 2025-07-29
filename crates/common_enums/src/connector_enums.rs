@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use smithy::SmithyModel;
 use utoipa::ToSchema;
 
 pub use super::enums::{PaymentMethod, PayoutType};
@@ -14,6 +15,7 @@ pub use crate::PaymentMethodType;
     PartialEq,
     serde::Serialize,
     serde::Deserialize,
+    SmithyModel,
     strum::Display,
     strum::EnumString,
     strum::EnumIter,
@@ -23,6 +25,7 @@ pub use crate::PaymentMethodType;
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.payment.models")]
 /// RoutableConnectors are the subset of Connectors that are eligible for payments routing
 pub enum RoutableConnectors {
     Authipay,
@@ -180,10 +183,12 @@ pub enum RoutableConnectors {
     strum::Display,
     strum::EnumString,
     Hash,
+    SmithyModel,
 )]
 #[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.payment.models")]
 pub enum Connector {
     Authipay,
     Adyenplatform,
