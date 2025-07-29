@@ -1464,6 +1464,7 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
         (Connector::Rapyd, fields(vec![], card_with_name(), vec![])),
         (Connector::Redsys, fields(vec![], card_basic(), vec![])),
         (Connector::Shift4, fields(vec![], card_basic(), vec![])),
+        (Connector::Silverflow, fields(vec![], vec![], card_basic())),
         (Connector::Square, fields(vec![], vec![], card_basic())),
         (Connector::Stax, fields(vec![], card_with_name(), vec![])),
         (Connector::Stripe, fields(vec![], vec![], card_basic())),

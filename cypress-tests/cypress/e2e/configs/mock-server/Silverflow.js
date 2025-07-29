@@ -13,10 +13,7 @@ app.use(express.urlencoded({ extended: true }));
 // Mock data storage
 const mockData = {
   charges: {},
-  disputes: {},
   processorTokens: {},
-  eventSubscriptions: {},
-  idempotencyKeys: new Set(),
 };
 
 // Mock API credentials
@@ -45,8 +42,10 @@ function authenticateBasic(req, res, next) {
 
   if (!authHeader || !authHeader.startsWith("Basic ")) {
     return res.status(401).json({
-      error: "Authentication required",
-      message: "Missing or invalid Authorization header",
+      error: {
+        code: "AUTHENTICATION_REQUIRED",
+        message: "Missing or invalid Authorization header",
+      },
     });
   }
 
@@ -59,8 +58,10 @@ function authenticateBasic(req, res, next) {
 
     if (!validCredentials[apiKey] || validCredentials[apiKey] !== apiSecret) {
       return res.status(401).json({
-        error: "Invalid credentials",
-        message: "Invalid API key or secret",
+        error: {
+          code: "INVALID_CREDENTIALS",
+          message: "Invalid API key or secret",
+        },
       });
     }
 
@@ -68,8 +69,10 @@ function authenticateBasic(req, res, next) {
     next();
   } catch (error) {
     return res.status(401).json({
-      error: "Authentication error",
-      message: `Invalid authorization format: ${error}`,
+      error: {
+        code: "AUTHENTICATION_ERROR",
+        message: `Invalid authorization format: ${error}`,
+      },
     });
   }
 }
@@ -98,24 +101,78 @@ app.post("/charges", authenticateBasic, (req, res) => {
     // Basic validation
     if (!merchantAcceptorResolver || !card || !amount || !type) {
       return res.status(400).json({
-        error: "Bad Request",
-        message:
-          "Missing required fields: merchantAcceptorResolver, card, amount, type",
+        error: {
+          code: "BAD_REQUEST",
+          message:
+            "Missing required fields: merchantAcceptorResolver, card, amount, type",
+        },
       });
     }
 
-    // Check idempotency key
-    const idempotencyKey = req.headers["idempotency-key"];
-    if (idempotencyKey && mockData.idempotencyKeys.has(idempotencyKey)) {
-      return res.status(409).json({
-        error: "Conflict",
-        message: "Idempotency key already used",
-      });
+    // Check for fail card - reject payment if fail card is used
+    const failCard = "4000000000000002";
+    if (card.number === failCard) {
+      const chargeKey = generateId("chg");
+      const now = getCurrentTimestamp();
+
+      const failedCharge = {
+        key: chargeKey,
+        merchantAcceptorRef: {
+          key: generateId("mac"),
+          version: 1,
+        },
+        card: {
+          maskedNumber: `${card.number.substring(0, 6)}****${card.number.substring(card.number.length - 4)}`,
+        },
+        amount,
+        type,
+        clearingMode: clearingMode || "auto",
+        status: {
+          authentication: "none",
+          authorization: "declined",
+          clearing: "failed",
+        },
+        authentication: {
+          sca: {
+            compliance: "out-of-scope",
+            complianceReason: "moto",
+            method: "none",
+          },
+          cvc: "match",
+          avs: "none",
+        },
+        localTransactionDateTime: now,
+        fraudLiability: "acquirer",
+        authorizationIsoFields: {
+          responseCode: "05",
+          responseCodeDescription: "Do not honor",
+          authorizationCode: "",
+          networkCode: "0005",
+          systemTraceAuditNumber: Math.floor(
+            100000 + Math.random() * 900000
+          ).toString(),
+          retrievalReferenceNumber: Math.floor(
+            100000000000 + Math.random() * 900000000000
+          ).toString(),
+          eci: "01",
+          networkSpecificFields: {
+            transactionIdentifier: Math.floor(
+              100000000000000 + Math.random() * 900000000000000
+            ).toString(),
+            cvv2ResultCode: "M",
+          },
+        },
+        created: now,
+        version: 1,
+        actions: [],
+      };
+
+      mockData.charges[chargeKey] = failedCharge;
+
+      return res.status(201).json(failedCharge);
     }
 
-    if (idempotencyKey) {
-      mockData.idempotencyKeys.add(idempotencyKey);
-    }
+    // Idempotency key is accepted but not enforced in mock server
 
     const chargeKey = generateId("chg");
     const authCode = generateAuthCode();
@@ -136,7 +193,7 @@ app.post("/charges", authenticateBasic, (req, res) => {
       status: {
         authentication: "none",
         authorization: "approved",
-        clearing: "approved",
+        clearing: clearingMode === "manual" ? "pending" : "cleared",
       },
       authentication: {
         sca: {
@@ -178,8 +235,10 @@ app.post("/charges", authenticateBasic, (req, res) => {
     res.status(201).json(charge);
   } catch (error) {
     res.status(500).json({
-      error: "Internal Server Error",
-      message: error.message,
+      error: {
+        code: "INTERNAL_SERVER_ERROR",
+        message: error.message,
+      },
     });
   }
 });
@@ -193,8 +252,10 @@ app.post("/charges/:chargeKey/clear", authenticateBasic, (req, res) => {
     const charge = mockData.charges[chargeKey];
     if (!charge) {
       return res.status(404).json({
-        error: "Not Found",
-        message: "Charge not found",
+        error: {
+          code: "NOT_FOUND",
+          message: "Charge not found",
+        },
       });
     }
 
@@ -204,22 +265,11 @@ app.post("/charges/:chargeKey/clear", authenticateBasic, (req, res) => {
       (typeof amount !== "number" || amount < 1 || amount > 999999999999)
     ) {
       return res.status(400).json({
-        error: "Bad Request",
-        message: "Invalid amount: must be integer between 1 and 999999999999",
+        error: {
+          code: "BAD_REQUEST",
+          message: "Invalid amount: must be integer between 1 and 999999999999",
+        },
       });
-    }
-
-    // Check idempotency key
-    const idempotencyKey = req.headers["idempotency-key"];
-    if (idempotencyKey && mockData.idempotencyKeys.has(idempotencyKey)) {
-      return res.status(409).json({
-        error: "Conflict",
-        message: "Idempotency key already used",
-      });
-    }
-
-    if (idempotencyKey) {
-      mockData.idempotencyKeys.add(idempotencyKey);
     }
 
     // Determine clearing amount - if not provided, use full charge amount
@@ -232,9 +282,14 @@ app.post("/charges/:chargeKey/clear", authenticateBasic, (req, res) => {
 
     if (chargeDate < sixMonthsAgo) {
       return res.status(409).json({
-        error: "Conflict",
-        type: "/silverflow/problems/charge/too-old",
-        message: "Charge is too old to be manually cleared",
+        error: {
+          code: "CONFLICT",
+          message: "Charge is too old to be manually cleared",
+          details: {
+            field: "charge",
+            issue: "too-old",
+          },
+        },
       });
     }
 
@@ -243,7 +298,7 @@ app.post("/charges/:chargeKey/clear", authenticateBasic, (req, res) => {
       type: "clearing",
       key: actionKey,
       chargeKey,
-      status: "pending",
+      status: "completed",
       reference,
       amount: {
         value: clearingAmount,
@@ -269,8 +324,10 @@ app.post("/charges/:chargeKey/clear", authenticateBasic, (req, res) => {
     res.status(201).json(clearAction);
   } catch (error) {
     res.status(500).json({
-      error: "Internal Server Error",
-      message: error.message,
+      error: {
+        code: "INTERNAL_SERVER_ERROR",
+        message: error.message,
+      },
     });
   }
 });
@@ -284,8 +341,10 @@ app.post("/charges/:chargeKey/refund", authenticateBasic, (req, res) => {
     const charge = mockData.charges[chargeKey];
     if (!charge) {
       return res.status(404).json({
-        error: "Not Found",
-        message: "Charge not found",
+        error: {
+          code: "NOT_FOUND",
+          message: "Charge not found",
+        },
       });
     }
 
@@ -300,23 +359,12 @@ app.post("/charges/:chargeKey/refund", authenticateBasic, (req, res) => {
         refundAmount > 999999999999)
     ) {
       return res.status(400).json({
-        error: "Bad Request",
-        message:
-          "Invalid refundAmount: must be integer between 1 and 999999999999",
+        error: {
+          code: "BAD_REQUEST",
+          message:
+            "Invalid refundAmount: must be integer between 1 and 999999999999",
+        },
       });
-    }
-
-    // Check idempotency key
-    const idempotencyKey = req.headers["idempotency-key"];
-    if (idempotencyKey && mockData.idempotencyKeys.has(idempotencyKey)) {
-      return res.status(409).json({
-        error: "Conflict",
-        message: "Idempotency key already used",
-      });
-    }
-
-    if (idempotencyKey) {
-      mockData.idempotencyKeys.add(idempotencyKey);
     }
 
     const actionKey = generateId("act");
@@ -334,9 +382,7 @@ app.post("/charges/:chargeKey/refund", authenticateBasic, (req, res) => {
         value: refundAmountValue,
         currency: charge.amount.currency,
       },
-      status: {
-        authorization: "approved",
-      },
+      status: "success",
       clearAfter: clearAfter || null,
       authorizationResponse: {
         network,
@@ -355,8 +401,10 @@ app.post("/charges/:chargeKey/refund", authenticateBasic, (req, res) => {
     res.status(201).json(refundAction);
   } catch (error) {
     res.status(500).json({
-      error: "Internal Server Error",
-      message: error.message,
+      error: {
+        code: "INTERNAL_SERVER_ERROR",
+        message: error.message,
+      },
     });
   }
 });
@@ -370,8 +418,10 @@ app.post("/charges/:chargeKey/reverse", authenticateBasic, (req, res) => {
     const charge = mockData.charges[chargeKey];
     if (!charge) {
       return res.status(404).json({
-        error: "Not Found",
-        message: "Charge not found",
+        error: {
+          code: "NOT_FOUND",
+          message: "Charge not found",
+        },
       });
     }
 
@@ -383,23 +433,12 @@ app.post("/charges/:chargeKey/reverse", authenticateBasic, (req, res) => {
         replacementAmount > 999999999999)
     ) {
       return res.status(400).json({
-        error: "Bad Request",
-        message:
-          "Invalid replacementAmount: must be integer between 0 and 999999999999",
+        error: {
+          code: "BAD_REQUEST",
+          message:
+            "Invalid replacementAmount: must be integer between 0 and 999999999999",
+        },
       });
-    }
-
-    // Check idempotency key
-    const idempotencyKey = req.headers["idempotency-key"];
-    if (idempotencyKey && mockData.idempotencyKeys.has(idempotencyKey)) {
-      return res.status(409).json({
-        error: "Conflict",
-        message: "Idempotency key already used",
-      });
-    }
-
-    if (idempotencyKey) {
-      mockData.idempotencyKeys.add(idempotencyKey);
     }
 
     const actionKey = generateId("act");
@@ -444,8 +483,10 @@ app.post("/charges/:chargeKey/reverse", authenticateBasic, (req, res) => {
     res.status(201).json(reversalAction);
   } catch (error) {
     res.status(500).json({
-      error: "Internal Server Error",
-      message: error.message,
+      error: {
+        code: "INTERNAL_SERVER_ERROR",
+        message: error.message,
+      },
     });
   }
 });
@@ -458,113 +499,80 @@ app.get("/charges/:chargeKey", authenticateBasic, (req, res) => {
     const charge = mockData.charges[chargeKey];
     if (!charge) {
       return res.status(404).json({
-        error: "Not Found",
-        message: "Charge not found",
+        error: {
+          code: "NOT_FOUND",
+          message: "Charge not found",
+        },
       });
     }
 
     res.json(charge);
   } catch (error) {
     res.status(500).json({
-      error: "Internal Server Error",
-      message: error.message,
+      error: {
+        code: "INTERNAL_SERVER_ERROR",
+        message: error.message,
+      },
     });
   }
 });
 
-// 6. GET /disputes/:disputeKey - Get dispute information
-app.get("/disputes/:disputeKey", authenticateBasic, (req, res) => {
-  try {
-    const { disputeKey } = req.params;
+// 5a. GET /charges/:chargeKey/actions/:actionKey - Get action status (refund sync)
+app.get(
+  "/charges/:chargeKey/actions/:actionKey",
+  authenticateBasic,
+  (req, res) => {
+    try {
+      const { chargeKey, actionKey } = req.params;
 
-    let dispute = mockData.disputes[disputeKey];
-    if (!dispute) {
-      // Create a mock dispute if it doesn't exist
-      dispute = {
-        disputeKey,
-        disputeStage: "chargeback",
-        disputeStatus: "received",
-        chargeKey: generateId("chg"),
-        amount: {
-          value: 1000,
-          currency: "EUR",
+      const charge = mockData.charges[chargeKey];
+      if (!charge) {
+        return res.status(404).json({
+          error: {
+            code: "NOT_FOUND",
+            message: "Charge not found",
+          },
+        });
+      }
+
+      const action = charge.actions.find((a) => a.key === actionKey);
+      if (!action) {
+        return res.status(404).json({
+          error: {
+            code: "NOT_FOUND",
+            message: "Action not found",
+          },
+        });
+      }
+
+      res.json(action);
+    } catch (error) {
+      res.status(500).json({
+        error: {
+          code: "INTERNAL_SERVER_ERROR",
+          message: error.message,
         },
-        reason: {
-          code: "4855",
-          description: "Goods or Services Not Provided",
-          category: "consumer-dispute",
-        },
-        network: "mastercard",
-        created: getCurrentTimestamp(),
-      };
-      mockData.disputes[disputeKey] = dispute;
-    }
-
-    res.json(dispute);
-  } catch (error) {
-    res.status(500).json({
-      error: "Internal Server Error",
-      message: error.message,
-    });
-  }
-});
-
-// 7. POST /disputes/:disputeKey/defend - Defend disputes
-app.post("/disputes/:disputeKey/defend", authenticateBasic, (req, res) => {
-  try {
-    const { disputeKey } = req.params;
-    const { disputeResponseReasonId, disputeSubResponseReasonId } = req.body;
-
-    const dispute = mockData.disputes[disputeKey];
-    if (!dispute) {
-      return res.status(404).json({
-        error: "Not Found",
-        message: "Dispute not found",
       });
     }
-
-    if (!disputeResponseReasonId) {
-      return res.status(400).json({
-        error: "Bad Request",
-        message: "Missing disputeResponseReasonId",
-      });
-    }
-
-    dispute.disputeStatus = "defended";
-    dispute.defenseDetails = {
-      disputeResponseReasonId,
-      disputeSubResponseReasonId,
-      defendedAt: getCurrentTimestamp(),
-    };
-
-    res.json({
-      disputeKey,
-      status: "defense_submitted",
-      message: "Dispute defense submitted successfully",
-      defendedAt: getCurrentTimestamp(),
-    });
-  } catch (error) {
-    res.status(500).json({
-      error: "Internal Server Error",
-      message: error.message,
-    });
   }
-});
+);
 
-// 8. POST /processorTokens - Create processor tokens for vaulting
+// 6. POST /processorTokens - Create processor tokens for vaulting
 app.post("/processorTokens", authenticateBasic, (req, res) => {
   try {
     const { reference, cardData } = req.body;
 
-    if (!cardData || !cardData.cardNumber) {
+    if (!cardData || !cardData.number) {
       return res.status(400).json({
-        error: "Bad Request",
-        message: "Missing cardData or cardNumber",
+        error: {
+          code: "BAD_REQUEST",
+          message: "Missing cardData or number",
+        },
       });
     }
 
     const processorTokenKey = generateId("ptk");
-    const cardNumber = cardData.cardNumber.toString();
+    const cardNumber = cardData.number.toString();
 
     // Determine card network based on first digits
     let network = "unknown";
@@ -575,16 +583,20 @@ app.post("/processorTokens", authenticateBasic, (req, res) => {
     else if (cardNumber.startsWith("6")) network = "discover";
 
     const processorToken = {
-      processorTokenKey,
-      cardInfo: {
-        first6: cardNumber.substring(0, 6),
-        last4: cardNumber.substring(cardNumber.length - 4),
-        network,
-        type: "credit",
-      },
-      cvcPresent: !!cardData.cvc,
+      key: processorTokenKey,
+      agentKey: generateId("agt"),
+      last4: cardNumber.substring(cardNumber.length - 4),
+      status: "active",
       reference,
+      cardInfo: [
+        {
+          infoSource: "card",
+          network,
+          primaryNetwork: true,
+        },
+      ],
       created: getCurrentTimestamp(),
+      cvcPresent: !!cardData.cvc,
       version: 1,
     };
 
@@ -593,57 +605,10 @@ app.post("/processorTokens", authenticateBasic, (req, res) => {
     res.status(201).json(processorToken);
   } catch (error) {
     res.status(500).json({
-      error: "Internal Server Error",
-      message: error.message,
-    });
-  }
-});
-
-// 9. POST /eventSubscriptions - Create webhook subscriptions
-app.post("/eventSubscriptions", authenticateBasic, (req, res) => {
-  try {
-    const { eventSource, notificationUrl, status } = req.body;
-
-    if (!eventSource || !notificationUrl) {
-      return res.status(400).json({
-        error: "Bad Request",
-        message: "Missing eventSource or notificationUrl",
-      });
-    }
-
-    const subscriptionKey = generateId("sub");
-    const subscription = {
-      subscriptionKey,
-      eventSource,
-      notificationUrl,
-      status: status || "active",
-      created: getCurrentTimestamp(),
-      version: 1,
-    };
-
-    mockData.eventSubscriptions[subscriptionKey] = subscription;
-
-    res.status(201).json(subscription);
-  } catch (error) {
-    res.status(500).json({
-      error: "Internal Server Error",
-      message: error.message,
-    });
-  }
-});
-
-// 10. GET /eventSubscriptions - List event subscriptions
-app.get("/eventSubscriptions", authenticateBasic, (req, res) => {
-  try {
-    const subscriptions = Object.values(mockData.eventSubscriptions);
-    res.json({
-      subscriptions,
-      total: subscriptions.length,
-    });
-  } catch (error) {
-    res.status(500).json({
-      error: "Internal Server Error",
-      message: error.message,
+      error: {
+        code: "INTERNAL_SERVER_ERROR",
+        message: error.message,
+      },
     });
   }
 });
@@ -653,16 +618,20 @@ app.get("/eventSubscriptions", authenticateBasic, (req, res) => {
 app.use((err, req, res, next) => {
   console.error("Error:", err);
   res.status(500).json({
-    error: "Internal Server Error",
-    message: "An unexpected error occurred",
+    error: {
+      code: "INTERNAL_SERVER_ERROR",
+      message: "An unexpected error occurred",
+    },
   });
 });
 
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({
-    error: "Not Found",
-    message: `Endpoint ${req.method} ${req.originalUrl} not found`,
+    error: {
+      code: "NOT_FOUND",
+      message: `Endpoint ${req.method} ${req.originalUrl} not found`,
+    },
   });
 });
 
@@ -677,11 +646,10 @@ app.listen(PORT, () => {
   console.log("  POST /charges/{chargeKey}/refund - Process refunds");
   console.log("  POST /charges/{chargeKey}/reverse - Reverse charge (void)");
   console.log("  GET  /charges/{chargeKey} - Get charge status");
-  console.log("  GET  /disputes/{disputeKey} - Get dispute information");
-  console.log("  POST /disputes/{disputeKey}/defend - Defend disputes");
+  console.log(
+    "  GET  /charges/{chargeKey}/actions/{actionKey} - Get action status"
+  );
   console.log("  POST /processorTokens - Create processor tokens");
-  console.log("  POST /eventSubscriptions - Create webhook subscriptions");
-  console.log("  GET  /eventSubscriptions - List event subscriptions");
   console.log("\n🔐 Authentication (SignatureKey format):");
   console.log("  auth_type: SignatureKey");
   console.log("  api_key: apk-testkey123");
