@@ -53,11 +53,11 @@ impl HealthCheckClient {
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let dynamic_routing_config = &config.dynamic_routing_client;
         let connection = match dynamic_routing_config {
-            DynamicRoutingClientConfig::Enabled {
+            Some(DynamicRoutingClientConfig::Enabled {
                 host,
                 port,
                 service,
-            } => Some((host.clone(), *port, service.clone())),
+            }) => Some((host.clone(), *port, service.clone())),
             _ => None,
         };
 
@@ -81,11 +81,11 @@ impl HealthCheckClient {
     ) -> HealthCheckResult<HealthCheckMap> {
         let dynamic_routing_config = &config.dynamic_routing_client;
         let connection = match dynamic_routing_config {
-            DynamicRoutingClientConfig::Enabled {
+            Some(DynamicRoutingClientConfig::Enabled {
                 host,
                 port,
                 service,
-            } => Some((host.clone(), *port, service.clone())),
+            }) => Some((host.clone(), *port, service.clone())),
             _ => None,
         };
 

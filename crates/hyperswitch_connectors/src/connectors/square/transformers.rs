@@ -89,9 +89,12 @@ impl TryFrom<(&types::TokenizationRouterData, PayLaterData)> for SquareTokenRequ
             | PayLaterData::PayBrightRedirect { .. }
             | PayLaterData::WalleyRedirect { .. }
             | PayLaterData::AlmaRedirect { .. }
-            | PayLaterData::AtomeRedirect { .. } => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Square"),
-            ))?,
+            | PayLaterData::AtomeRedirect { .. }
+            | PayLaterData::BreadpayRedirect { .. } => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Square"),
+                ))?
+            }
         }
     }
 }
@@ -107,6 +110,8 @@ impl TryFrom<(&types::TokenizationRouterData, WalletData)> for SquareTokenReques
             | WalletData::AliPayRedirect(_)
             | WalletData::AliPayHkRedirect(_)
             | WalletData::AmazonPayRedirect(_)
+            | WalletData::Paysera(_)
+            | WalletData::Skrill(_)
             | WalletData::MomoRedirect(_)
             | WalletData::KakaoPayRedirect(_)
             | WalletData::GoPayRedirect(_)

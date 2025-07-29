@@ -887,7 +887,7 @@ impl ConnectorTransactionId for Nexinets {
     #[cfg(feature = "v1")]
     fn connector_transaction_id(
         &self,
-        payment_attempt: PaymentAttempt,
+        payment_attempt: &PaymentAttempt,
     ) -> Result<Option<String>, ApiErrorResponse> {
         let metadata =
             Self::connector_transaction_id(self, payment_attempt.connector_metadata.as_ref());
@@ -897,7 +897,7 @@ impl ConnectorTransactionId for Nexinets {
     #[cfg(feature = "v2")]
     fn connector_transaction_id(
         &self,
-        payment_attempt: PaymentAttempt,
+        payment_attempt: &PaymentAttempt,
     ) -> Result<Option<String>, ApiErrorResponse> {
         use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
 

@@ -213,6 +213,9 @@ Never share your secret api keys. Keep them guarded and secure.
 
         // Routes for authentication
         routes::authentication::authentication_create,
+
+        // Routes for platform account
+        routes::platform::create_platform_account,
     ),
     components(schemas(
         common_utils::types::MinorUnit,
@@ -250,6 +253,7 @@ Never share your secret api keys. Keep them guarded and secure.
         common_types::payments::StripeChargeResponseData,
         common_types::three_ds_decision_rule_engine::ThreeDSDecisionRule,
         common_types::three_ds_decision_rule_engine::ThreeDSDecision,
+        common_types::payments::MerchantCountryCode,
         api_models::three_ds_decision_rule::ThreeDsDecisionRuleExecuteRequest,
         api_models::three_ds_decision_rule::ThreeDsDecisionRuleExecuteResponse,
         api_models::three_ds_decision_rule::PaymentData,
@@ -362,6 +366,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::MerchantProductType,
         api_models::enums::CtpServiceProvider,
         api_models::enums::PaymentLinkSdkLabelType,
+        api_models::enums::OrganizationType,
         api_models::enums::PaymentLinkShowSdkTerms,
         api_models::admin::MerchantConnectorCreate,
         api_models::admin::AdditionalMerchantData,
@@ -464,6 +469,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentsConfirmRequest,
         api_models::payments::PaymentsResponse,
         api_models::payments::PaymentsCreateResponseOpenApi,
+        api_models::errors::types::GenericErrorResponseOpenApi,
         api_models::payments::PaymentRetrieveBody,
         api_models::payments::PaymentsRetrieveRequest,
         api_models::payments::PaymentsCaptureRequest,
@@ -538,6 +544,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::MultibancoTransferInstructions,
         api_models::payments::DokuBankTransferInstructions,
         api_models::payments::AmazonPayRedirectData,
+        api_models::payments::SkrillData,
+        api_models::payments::PayseraData,
         api_models::payments::ApplePayRedirectData,
         api_models::payments::ApplePayThirdPartySdkData,
         api_models::payments::GooglePayRedirectData,
@@ -796,6 +804,14 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::authentication::AuthenticationCreateRequest,
         api_models::authentication::AuthenticationResponse,
         api_models::authentication::AcquirerDetails,
+        api_models::authentication::NextAction,
+        common_utils::request::Method,
+        api_models::authentication::EligibilityResponseParams,
+        api_models::authentication::ThreeDsData,
+        api_models::authentication::AuthenticationEligibilityRequest,
+        api_models::authentication::AuthenticationEligibilityResponse,
+        api_models::user::PlatformAccountCreateRequest,
+        api_models::user::PlatformAccountCreateResponse,
     )),
     modifiers(&SecurityAddon)
 )]

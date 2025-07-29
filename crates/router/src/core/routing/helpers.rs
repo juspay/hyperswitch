@@ -845,14 +845,14 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
 ) -> RouterResult<()> {
     if let Some(success_based_algo_ref) = dynamic_routing_algo_ref.success_based_algorithm {
         if success_based_algo_ref.enabled_feature != routing_types::DynamicRoutingFeatures::None {
-            let client = state
+            let client = &state
                 .grpc_client
                 .dynamic_routing
-                .success_rate_client
                 .as_ref()
                 .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
-                    message: "success_rate gRPC client not found".to_string(),
-                })?;
+                    message: "dynamic routing gRPC client not found".to_string(),
+                })?
+                .success_rate_client;
 
             let payment_connector = &payment_attempt.connector.clone().ok_or(
                 errors::ApiErrorResponse::GenericNotFoundError {
@@ -1214,14 +1214,14 @@ pub async fn update_window_for_elimination_routing(
 ) -> RouterResult<()> {
     if let Some(elimination_algo_ref) = dynamic_algo_ref.elimination_routing_algorithm {
         if elimination_algo_ref.enabled_feature != routing_types::DynamicRoutingFeatures::None {
-            let client = state
+            let client = &state
                 .grpc_client
                 .dynamic_routing
-                .elimination_based_client
                 .as_ref()
                 .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
-                    message: "elimination_rate gRPC client not found".to_string(),
-                })?;
+                    message: "dynamic routing gRPC client not found".to_string(),
+                })?
+                .elimination_based_client;
 
             let elimination_routing_config = fetch_dynamic_routing_configs::<
                 routing_types::EliminationRoutingConfig,
@@ -1394,14 +1394,14 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
     if let Some(contract_routing_algo_ref) = dynamic_routing_algo_ref.contract_based_routing {
         if contract_routing_algo_ref.enabled_feature != routing_types::DynamicRoutingFeatures::None
         {
-            let client = state
+            let client = &state
                 .grpc_client
                 .dynamic_routing
-                .contract_based_client
-                .clone()
+                .as_ref()
                 .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
-                    message: "contract_routing gRPC client not found".to_string(),
-                })?;
+                    message: "dynamic routing gRPC client not found".to_string(),
+                })?
+                .contract_based_client;
 
             let payment_connector = &payment_attempt.connector.clone().ok_or(
                 errors::ApiErrorResponse::GenericNotFoundError {

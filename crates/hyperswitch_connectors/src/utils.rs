@@ -511,6 +511,7 @@ pub trait RouterData {
 
     fn get_optional_billing_full_name(&self) -> Option<Secret<String>>;
     fn get_optional_billing_line1(&self) -> Option<Secret<String>>;
+    fn get_optional_billing_line3(&self) -> Option<Secret<String>>;
     fn get_optional_billing_line2(&self) -> Option<Secret<String>>;
     fn get_optional_billing_city(&self) -> Option<String>;
     fn get_optional_billing_country(&self) -> Option<enums::CountryAlpha2>;
@@ -822,6 +823,17 @@ impl<Flow, Request, Response> RouterData
                     .clone()
                     .address
                     .and_then(|billing_details| billing_details.line2)
+            })
+    }
+
+    fn get_optional_billing_line3(&self) -> Option<Secret<String>> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_details| billing_details.line3)
             })
     }
 
@@ -5427,6 +5439,8 @@ pub enum PaymentMethodDataType {
     AliPayRedirect,
     AliPayHkRedirect,
     AmazonPayRedirect,
+    Skrill,
+    Paysera,
     MomoRedirect,
     KakaoPayRedirect,
     GoPayRedirect,
@@ -5460,6 +5474,7 @@ pub enum PaymentMethodDataType {
     WalleyRedirect,
     AlmaRedirect,
     AtomeRedirect,
+    Breadpay,
     BancontactCard,
     Bizum,
     Blik,
@@ -5530,6 +5545,7 @@ pub enum PaymentMethodDataType {
     InstantBankTransferFinland,
     InstantBankTransferPoland,
     RevolutPay,
+    IndonesianBankTransfer,
 }
 
 impl From<PaymentMethodData> for PaymentMethodDataType {
@@ -5551,6 +5567,8 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::WalletData::AliPayRedirect(_) => Self::AliPayRedirect,
                 payment_method_data::WalletData::AliPayHkRedirect(_) => Self::AliPayHkRedirect,
                 payment_method_data::WalletData::AmazonPayRedirect(_) => Self::AmazonPayRedirect,
+                payment_method_data::WalletData::Skrill(_) => Self::Skrill,
+                payment_method_data::WalletData::Paysera(_) => Self::Paysera,
                 payment_method_data::WalletData::MomoRedirect(_) => Self::MomoRedirect,
                 payment_method_data::WalletData::KakaoPayRedirect(_) => Self::KakaoPayRedirect,
                 payment_method_data::WalletData::GoPayRedirect(_) => Self::GoPayRedirect,
@@ -5593,6 +5611,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::PayLaterData::WalleyRedirect {} => Self::WalleyRedirect,
                 payment_method_data::PayLaterData::AlmaRedirect {} => Self::AlmaRedirect,
                 payment_method_data::PayLaterData::AtomeRedirect {} => Self::AtomeRedirect,
+                payment_method_data::PayLaterData::BreadpayRedirect {} => Self::Breadpay,
             },
             PaymentMethodData::BankRedirect(bank_redirect_data) => match bank_redirect_data {
                 payment_method_data::BankRedirectData::BancontactCard { .. } => {
@@ -5684,6 +5703,9 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 }
                 payment_method_data::BankTransferData::InstantBankTransferPoland {} => {
                     Self::InstantBankTransferPoland
+                }
+                payment_method_data::BankTransferData::IndonesianBankTransfer { .. } => {
+                    Self::IndonesianBankTransfer
                 }
             },
             PaymentMethodData::Crypto(_) => Self::Crypto,
@@ -6180,6 +6202,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         merchant_config_currency: None,
         connector_testing_data: data.request.connector_testing_data.clone(),
         order_id: None,
+        locale: None,
     }
 }
 

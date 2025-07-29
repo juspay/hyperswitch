@@ -80,6 +80,7 @@ pub struct PaymentsAuthorizeData {
     pub merchant_config_currency: Option<storage_enums::Currency>,
     pub connector_testing_data: Option<pii::SecretSerdeValue>,
     pub order_id: Option<String>,
+    pub locale: Option<String>,
 }
 #[derive(Debug, Clone)]
 pub struct PaymentsPostSessionTokensData {
@@ -155,6 +156,7 @@ pub struct PaymentsIncrementalAuthorizationData {
     pub currency: storage_enums::Currency,
     pub reason: Option<String>,
     pub connector_transaction_id: String,
+    pub connector_meta: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -680,6 +682,7 @@ pub struct AuthenticationData {
     pub threeds_server_transaction_id: Option<String>,
     pub message_version: Option<common_utils::types::SemanticVersion>,
     pub ds_trans_id: Option<String>,
+    pub created_at: time::PrimitiveDateTime,
 }
 
 #[derive(Debug, Clone)]
@@ -992,6 +995,7 @@ pub struct SetupMandateRequestData {
     pub minor_amount: Option<MinorUnit>,
     pub shipping_cost: Option<MinorUnit>,
     pub connector_testing_data: Option<pii::SecretSerdeValue>,
+    pub customer_id: Option<id_type::CustomerId>,
 }
 
 #[derive(Debug, Clone)]

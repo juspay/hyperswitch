@@ -144,9 +144,15 @@ impl ConnectorData {
                 enums::Connector::Bluesnap => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Bluesnap::new())))
                 }
+                // enums::Connector::Bluecode => {
+                //     Ok(ConnectorEnum::Old(Box::new(connector::Bluecode::new())))
+                // }
                 enums::Connector::Boku => Ok(ConnectorEnum::Old(Box::new(connector::Boku::new()))),
                 enums::Connector::Braintree => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Braintree::new())))
+                }
+                enums::Connector::Breadpay => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Breadpay::new())))
                 }
                 enums::Connector::Cashtocode => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Cashtocode::new())))
@@ -175,6 +181,9 @@ impl ConnectorData {
                 enums::Connector::CtpMastercard => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::CtpMastercard)))
                 }
+                enums::Connector::Custombilling => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Custombilling::new(),
+                ))),
                 enums::Connector::CtpVisa => Ok(ConnectorEnum::Old(Box::new(
                     connector::UnifiedAuthenticationService::new(),
                 ))),
