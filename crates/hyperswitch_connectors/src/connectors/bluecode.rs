@@ -606,6 +606,7 @@ static BLUECODE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Bluecode",
     description: "Bluecode connector",
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 
 static BLUECODE_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

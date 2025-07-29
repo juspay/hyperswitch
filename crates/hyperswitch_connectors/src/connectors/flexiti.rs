@@ -603,6 +603,7 @@ static FLEXITI_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Flexiti",
     description: "Flexiti connector",
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 
 static FLEXITI_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

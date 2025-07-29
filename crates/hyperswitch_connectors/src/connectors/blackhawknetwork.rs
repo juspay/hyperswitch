@@ -615,6 +615,7 @@ static BLACKHAWKNETWORK_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Blackhawknetwork",
     description: "Blackhawknetwork connector",
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 
 static BLACKHAWKNETWORK_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

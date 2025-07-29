@@ -603,6 +603,7 @@ static AFFIRM_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Affirm",
     description: "Affirm connector",
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 
 static AFFIRM_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

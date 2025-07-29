@@ -827,6 +827,7 @@ static BREADPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Breadpay",
     description: "Breadpay connector",
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 
 static BREADPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

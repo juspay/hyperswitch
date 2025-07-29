@@ -861,7 +861,7 @@ static PAYLOAD_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Payload",
     description: "Payload is an embedded finance solution for modern platforms and businesses, automating inbound and outbound payments with an industry-leading platform and driving innovation into the future.",
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-    integration_status: enums::IntegrationStatus::Sandbox,
+    integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 
 static PAYLOAD_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 3] = [
