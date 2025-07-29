@@ -6482,7 +6482,7 @@
         ]
       }
     },
-    "/create_platform": {
+    "/user/create_platform": {
       "post": {
         "tags": [
           "Platform"

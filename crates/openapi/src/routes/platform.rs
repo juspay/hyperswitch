@@ -4,7 +4,7 @@
 /// Create a new platform account
 #[utoipa::path(
     post,
-    path = "/create_platform",
+    path = "/user/create_platform",
     request_body(
         content = PlatformAccountCreateRequest,
         examples(
