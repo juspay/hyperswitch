@@ -6342,10 +6342,20 @@ merchant_secret="Source verification key"
 [affirm.connector_auth.HeaderKey]
 api_key = "API Key"
 
+
 [trustpayments]
+[[trustpayments.credit]]
+payment_method_type = "Mastercard"
+[[trustpayments.credit]]
+payment_method_type = "Visa"
+[[trustpayments.debit]]
+payment_method_type = "Mastercard"
+[[trustpayments.debit]]
+payment_method_type = "Visa"
 [trustpayments.connector_auth.HeaderKey]
 api_key = "API Key"
-
+[trustpayments.connector_webhook_details]
+merchant_secret = "Source verification key"
 [blackhawknetwork]
 [blackhawknetwork.connector_auth.HeaderKey]
 api_key = "API Key"
@@ -6353,4 +6363,3 @@ api_key = "API Key"
 [breadpay]
 [breadpay.connector_auth.HeaderKey]
 api_key = "API Key"
-

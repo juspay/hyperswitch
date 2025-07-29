@@ -490,6 +490,7 @@ impl Connector {
             | Self::Taxjar
             // | Self::Thunes
             | Self::Trustpay
+            | Self::Trustpayments
             // | Self::Tokenio
             | Self::Tsys
             // | Self::UnifiedAuthenticationService
@@ -517,7 +518,7 @@ impl Connector {
             | Self::Tokenio
             | Self::Stripe
             | Self::Datatrans => false,
-            Self::Archipel | Self::Checkout | Self::Cybersource | Self::Nmi | Self::Trustpayments => true,
+            Self::Archipel | Self::Checkout | Self::Cybersource | Self::Nmi => true,
         }
     }
 

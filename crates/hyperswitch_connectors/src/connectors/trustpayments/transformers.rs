@@ -1,3 +1,4 @@
+use cards;
 use common_enums::enums;
 use common_utils::types::StringMinorUnit;
 use error_stack::ResultExt;
@@ -211,9 +212,7 @@ impl TrustpaymentsErrorCode {
     ) -> common_enums::AttemptStatus {
         match self {
             Self::Success => match capture_method {
-                Some(common_enums::CaptureMethod::Manual)
-                | Some(common_enums::CaptureMethod::ManualMultiple)
-                | Some(common_enums::CaptureMethod::Scheduled) => {
+                Some(common_enums::CaptureMethod::Manual) => {
                     common_enums::AttemptStatus::Authorized
                 }
                 _ => common_enums::AttemptStatus::Charged,
@@ -223,7 +222,7 @@ impl TrustpaymentsErrorCode {
             | Self::InvalidSiteReference
             | Self::AccessDenied
             | Self::InvalidUsernameOrPassword
-            | Self::AccountSuspended => common_enums::AttemptStatus::AuthenticationFailed,
+            | Self::AccountSuspended => common_enums::AttemptStatus::Failure,
             Self::Processing => common_enums::AttemptStatus::Pending,
             _ => common_enums::AttemptStatus::Failure,
         }
@@ -309,7 +308,7 @@ pub struct TrustpaymentsPaymentRequestData {
     pub currencyiso3a: String,
     pub expirydate: Secret<String>,
     pub orderreference: String,
-    pub pan: Secret<String>,
+    pub pan: cards::CardNumber,
     pub requesttypedescriptions: Vec<String>,
     pub securitycode: Secret<String>,
     pub sitereference: String,
@@ -340,12 +339,17 @@ impl TryFrom<&TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>>
                 let card = req_card.clone();
 
                 let request_types = match item.router_data.request.capture_method {
-                    Some(common_enums::CaptureMethod::Automatic) => vec!["AUTH".to_string()],
-                    Some(common_enums::CaptureMethod::Manual)
-                    | Some(common_enums::CaptureMethod::ManualMultiple)
+                    Some(common_enums::CaptureMethod::Automatic) | None => vec!["AUTH".to_string()],
+                    Some(common_enums::CaptureMethod::Manual) => vec!["AUTH".to_string()],
+                    Some(common_enums::CaptureMethod::ManualMultiple)
                     | Some(common_enums::CaptureMethod::Scheduled)
-                    | Some(common_enums::CaptureMethod::SequentialAutomatic)
-                    | None => vec!["AUTH".to_string()],
+                    | Some(common_enums::CaptureMethod::SequentialAutomatic) => {
+                        return Err(errors::ConnectorError::NotSupported {
+                            message: "Capture method not supported by TrustPayments".to_string(),
+                            connector: "TrustPayments",
+                        }
+                        .into());
+                    }
                 };
 
                 Ok(Self {
@@ -369,7 +373,7 @@ impl TryFrom<&TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>>
                             card.card_exp_year.clone().expose()
                         )),
                         orderreference: item.router_data.connector_request_reference_id.clone(),
-                        pan: Secret::new(card.card_number.clone().get_card_no()),
+                        pan: card.card_number.clone(),
                         requesttypedescriptions: request_types,
                         securitycode: card.card_cvc.clone(),
                         sitereference: auth.site_reference.expose(),
@@ -419,16 +423,6 @@ impl TryFrom<&ConnectorAuthType> for TrustpaymentsAuthType {
                 password: key1.to_owned(),
                 site_reference: api_secret.to_owned(),
             }),
-            ConnectorAuthType::MultiAuthKey {
-                api_key,
-                key1,
-                key2,
-                ..
-            } => Ok(Self {
-                username: api_key.to_owned(),
-                password: key1.to_owned(),
-                site_reference: key2.to_owned(),
-            }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
     }
@@ -463,9 +457,7 @@ impl TrustpaymentsPaymentResponseData {
                     match &self.settlestatus {
                         Some(TrustpaymentsSettleStatus::PendingSettlement) => {
                             match capture_method {
-                                Some(common_enums::CaptureMethod::Manual)
-                                | Some(common_enums::CaptureMethod::ManualMultiple)
-                                | Some(common_enums::CaptureMethod::Scheduled) => {
+                                Some(common_enums::CaptureMethod::Manual) => {
                                     common_enums::AttemptStatus::Authorized
                                 }
                                 _ => common_enums::AttemptStatus::Charged,
@@ -480,14 +472,7 @@ impl TrustpaymentsPaymentResponseData {
                         Some(TrustpaymentsSettleStatus::Voided) => {
                             common_enums::AttemptStatus::Voided
                         }
-                        None => match capture_method {
-                            Some(common_enums::CaptureMethod::Manual)
-                            | Some(common_enums::CaptureMethod::ManualMultiple)
-                            | Some(common_enums::CaptureMethod::Scheduled) => {
-                                common_enums::AttemptStatus::Authorized
-                            }
-                            _ => common_enums::AttemptStatus::Charged,
-                        },
+                        None => common_enums::AttemptStatus::Authorized,
                     }
                 } else {
                     common_enums::AttemptStatus::Failure
@@ -1124,7 +1109,7 @@ pub struct TrustpaymentsTokenizationRequestData {
     pub accounttypedescription: String,
     pub requesttypedescriptions: Vec<String>,
     pub sitereference: String,
-    pub pan: Secret<String>,
+    pub pan: cards::CardNumber,
     pub expirydate: Secret<String>,
     pub securitycode: Secret<String>,
     pub credentialsonfile: String,
@@ -1157,7 +1142,7 @@ impl
                     accounttypedescription: "ECOM".to_string(),
                     requesttypedescriptions: vec!["ACCOUNTCHECK".to_string()],
                     sitereference: auth.site_reference.expose(),
-                    pan: Secret::new(card_data.card_number.clone().get_card_no()),
+                    pan: card_data.card_number.clone(),
                     expirydate: Secret::new(format!(
                         "{:02}/{:02}",
                         card_data.card_exp_month.clone().expose(),
