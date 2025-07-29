@@ -270,6 +270,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         .browser_info
         .clone()
         .map(types::BrowserInformation::from);
+
     // TODO: few fields are repeated in both routerdata and request
     let request = types::PaymentsAuthorizeData {
         payment_method_data: payment_data
@@ -325,6 +326,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         merchant_config_currency: None,
         connector_testing_data: None,
         order_id: None,
+        locale: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -2144,8 +2146,9 @@ where
         let payment_attempt = self.payment_attempt;
         let payment_intent = self.payment_intent;
         let response = api_models::payments::PaymentAttemptRecordResponse {
-            id: payment_attempt.get_id().to_owned(),
+            id: payment_attempt.id.clone(),
             status: payment_attempt.status,
+            amount: payment_attempt.amount_details.get_net_amount(),
             payment_intent_feature_metadata: payment_intent
                 .feature_metadata
                 .as_ref()
@@ -2154,6 +2157,10 @@ where
                 .feature_metadata
                 .as_ref()
                 .map(api_models::payments::PaymentAttemptFeatureMetadata::foreign_from),
+            error_details: payment_attempt
+                .error
+                .map(api_models::payments::RecordAttemptErrorDetails::from),
+            created_at: payment_attempt.created_at,
         };
         Ok(services::ApplicationResponse::JsonWithHeaders((
             response,
@@ -3588,6 +3595,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             merchant_config_currency: None,
             connector_testing_data: None,
             order_id: None,
+            locale: None,
         })
     }
 }
@@ -3819,6 +3827,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             merchant_config_currency,
             connector_testing_data,
             order_id: None,
+            locale: Some(additional_data.state.locale.clone()),
         })
     }
 }
@@ -5213,6 +5222,8 @@ impl ForeignFrom<&diesel_models::types::FeatureMetadata> for api_models::payment
                     first_payment_attempt_pg_error_code: payment_revenue_recovery_metadata
                         .first_payment_attempt_pg_error_code
                         .clone(),
+                    invoice_billing_started_at_time: payment_revenue_recovery_metadata
+                        .invoice_billing_started_at_time,
                 }
             });
         let apple_pay_details = feature_metadata

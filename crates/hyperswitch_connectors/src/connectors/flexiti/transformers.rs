@@ -119,6 +119,7 @@ impl TryFrom<&FlexitiRouterData<&PaymentsAuthorizeRouterData>> for FlexitiPaymen
                 hyperswitch_domain_models::payment_method_data::PayLaterData::KlarnaRedirect {  } |
                 hyperswitch_domain_models::payment_method_data::PayLaterData::KlarnaSdk { .. } |
                 hyperswitch_domain_models::payment_method_data::PayLaterData::AffirmRedirect {  }  |
+                hyperswitch_domain_models::payment_method_data::PayLaterData::BreadpayRedirect {  }  |
                 hyperswitch_domain_models::payment_method_data::PayLaterData::AfterpayClearpayRedirect {  }  |
                 hyperswitch_domain_models::payment_method_data::PayLaterData::PayBrightRedirect {  }  |
                 hyperswitch_domain_models::payment_method_data::PayLaterData::WalleyRedirect {  }  |

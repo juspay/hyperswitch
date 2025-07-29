@@ -57,6 +57,7 @@ pub enum PayLaterType {
     Walley,
     Flexiti,
     Atome,
+    Breadpay,
 }
 
 #[derive(
@@ -224,6 +225,7 @@ pub enum BankTransferType {
     InstantBankTransfer,
     InstantBankTransferFinland,
     InstantBankTransferPoland,
+    IndonesianBankTransfer,
 }
 
 #[derive(

@@ -1810,6 +1810,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::BcaBankTransfer => Self::BankTransfer,
             PaymentMethodType::Becs => Self::BankDebit,
             PaymentMethodType::BniVa => Self::BankTransfer,
+            PaymentMethodType::Breadpay => Self::PayLater,
             PaymentMethodType::BriVa => Self::BankTransfer,
             PaymentMethodType::Benefit => Self::CardRedirect,
             PaymentMethodType::Bizum => Self::BankRedirect,
@@ -1902,6 +1903,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::OpenBankingPIS => Self::OpenBanking,
             PaymentMethodType::DirectCarrierBilling => Self::MobilePayment,
             PaymentMethodType::RevolutPay => Self::Wallet,
+            PaymentMethodType::IndonesianBankTransfer => Self::BankTransfer,
         }
     }
 }

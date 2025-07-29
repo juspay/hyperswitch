@@ -633,7 +633,14 @@
             }
           },
           "400": {
-            "description": "Missing Mandatory fields"
+            "description": "Missing Mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -712,7 +719,14 @@
             }
           },
           "400": {
-            "description": "Missing mandatory fields"
+            "description": "Missing mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -873,7 +887,14 @@
             }
           },
           "400": {
-            "description": "Missing mandatory fields"
+            "description": "Missing mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -937,7 +958,14 @@
             }
           },
           "400": {
-            "description": "Missing mandatory fields"
+            "description": "Missing mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -977,7 +1005,14 @@
             }
           },
           "400": {
-            "description": "Missing mandatory fields"
+            "description": "Missing mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1031,7 +1066,14 @@
             "description": "Payment canceled"
           },
           "400": {
-            "description": "Missing mandatory fields"
+            "description": "Missing mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1213,7 +1255,14 @@
             }
           },
           "400": {
-            "description": "Missing mandatory fields"
+            "description": "Missing mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1318,7 +1367,14 @@
             }
           },
           "400": {
-            "description": "Missing mandatory fields"
+            "description": "Missing mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1368,7 +1424,14 @@
             }
           },
           "400": {
-            "description": "Missing mandatory fields"
+            "description": "Missing mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1418,7 +1481,14 @@
             }
           },
           "400": {
-            "description": "Missing mandatory fields"
+            "description": "Missing mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1468,7 +1538,14 @@
             }
           },
           "400": {
-            "description": "Missing mandatory fields"
+            "description": "Missing mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1659,7 +1736,14 @@
             }
           },
           "400": {
-            "description": "Missing Mandatory fields"
+            "description": "Missing Mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1756,7 +1840,14 @@
             }
           },
           "400": {
-            "description": "Missing Mandatory fields"
+            "description": "Missing Mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -6390,6 +6481,53 @@
           }
         ]
       }
+    },
+    "/create_platform": {
+      "post": {
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Platform - Create",
+        "description": "Create a new platform account",
+        "operationId": "Create a Platform Account",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformAccountCreateRequest"
+              },
+              "examples": {
+                "Create a platform account with organization_name": {
+                  "value": {
+                    "organization_name": "organization_abc"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Platform Account Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformAccountCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "jwt_key": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -9282,6 +9420,27 @@
                 "type": "object"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "indonesian_bank_transfer"
+            ],
+            "properties": {
+              "indonesian_bank_transfer": {
+                "type": "object",
+                "properties": {
+                  "bank_name": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankNames"
+                      }
+                    ],
+                    "nullable": true
+                  }
+                }
+              }
+            }
           }
         ]
       },
@@ -9554,13 +9713,20 @@
                   "source_bank_account_id": {
                     "type": "string",
                     "description": "Source bank account number",
-                    "example": "8b2812f0-d6c8-4073-97bb-9fa964d08bc5",
+                    "example": "8b******-****-****-****-*******08bc5",
                     "nullable": true
                   },
                   "destination_bank_account_id": {
                     "type": "string",
-                    "description": "Destination bank account number",
-                    "example": "9b95f84e-de61-460b-a14b-f23b4e71c97b",
+                    "description": "Partially masked destination bank account number _Deprecated: Will be removed in next stable release._",
+                    "deprecated": true,
+                    "example": "********-****-460b-****-f23b4e71c97b",
+                    "nullable": true
+                  },
+                  "expiry_date": {
+                    "type": "string",
+                    "description": "The expiration date and time for the Pix QR code in ISO 8601 format",
+                    "example": "2025-09-10T10:11:12Z",
                     "nullable": true
                   }
                 }
@@ -9625,6 +9791,27 @@
             "properties": {
               "instant_bank_transfer_poland": {
                 "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "indonesian_bank_transfer"
+            ],
+            "properties": {
+              "indonesian_bank_transfer": {
+                "type": "object",
+                "properties": {
+                  "bank_name": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankNames"
+                      }
+                    ],
+                    "nullable": true
+                  }
+                }
               }
             }
           }
@@ -11083,6 +11270,7 @@
           "bluesnap",
           "boku",
           "braintree",
+          "breadpay",
           "cashtocode",
           "celero",
           "chargebee",
@@ -14741,6 +14929,28 @@
       },
       "GcashRedirection": {
         "type": "object"
+      },
+      "GenericErrorResponseOpenApi": {
+        "type": "object",
+        "required": [
+          "error_type",
+          "message",
+          "code"
+        ],
+        "properties": {
+          "error_type": {
+            "type": "string",
+            "example": "invalid_request"
+          },
+          "message": {
+            "type": "string",
+            "example": "Missing required param: {param}"
+          },
+          "code": {
+            "type": "string",
+            "example": "IR_04"
+          }
+        }
       },
       "GenericLinkUiConfig": {
         "type": "object",
@@ -19018,6 +19228,17 @@
                 "type": "object"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "breadpay_redirect"
+            ],
+            "properties": {
+              "breadpay_redirect": {
+                "type": "object"
+              }
+            }
           }
         ]
       },
@@ -20789,7 +21010,6 @@
           "ali_pay_hk",
           "alma",
           "amazon_pay",
-          "skrill",
           "paysera",
           "apple_pay",
           "atome",
@@ -20802,6 +21022,7 @@
           "boleto",
           "bca_bank_transfer",
           "bni_va",
+          "breadpay",
           "bri_va",
           "card_redirect",
           "cimb_va",
@@ -20859,6 +21080,7 @@
           "samsung_pay",
           "sepa",
           "sepa_bank_transfer",
+          "skrill",
           "sofort",
           "swish",
           "touch_n_go",
@@ -20884,7 +21106,8 @@
           "instant_bank_transfer",
           "instant_bank_transfer_finland",
           "instant_bank_transfer_poland",
-          "revolut_pay"
+          "revolut_pay",
+          "indonesian_bank_transfer"
         ]
       },
       "PaymentMethodUpdate": {
@@ -26174,9 +26397,61 @@
           },
           "destination_bank_account_id": {
             "type": "string",
-            "description": "Partially masked destination bank account number",
+            "description": "Partially masked destination bank account number _Deprecated: Will be removed in next stable release._",
+            "deprecated": true,
             "example": "********-****-460b-****-f23b4e71c97b",
             "nullable": true
+          },
+          "expiry_date": {
+            "type": "string",
+            "description": "The expiration date and time for the Pix QR code in ISO 8601 format",
+            "example": "2025-09-10T10:11:12Z",
+            "nullable": true
+          }
+        }
+      },
+      "PlatformAccountCreateRequest": {
+        "type": "object",
+        "required": [
+          "organization_name"
+        ],
+        "properties": {
+          "organization_name": {
+            "type": "string",
+            "example": "organization_abc",
+            "maxLength": 64
+          }
+        }
+      },
+      "PlatformAccountCreateResponse": {
+        "type": "object",
+        "required": [
+          "org_id",
+          "org_type",
+          "merchant_id",
+          "merchant_account_type"
+        ],
+        "properties": {
+          "org_id": {
+            "type": "string",
+            "example": "org_abc",
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "org_name": {
+            "type": "string",
+            "example": "organization_abc",
+            "nullable": true
+          },
+          "org_type": {
+            "$ref": "#/components/schemas/OrganizationType"
+          },
+          "merchant_id": {
+            "type": "string",
+            "example": "merchant_abc"
+          },
+          "merchant_account_type": {
+            "$ref": "#/components/schemas/MerchantAccountType"
           }
         }
       },
@@ -28181,6 +28456,7 @@
           "bluesnap",
           "boku",
           "braintree",
+          "breadpay",
           "cashtocode",
           "celero",
           "chargebee",
@@ -29830,7 +30106,7 @@
       "ThreeDsData": {
         "type": "object",
         "required": [
-          "threeds_server_transaction_id",
+          "three_ds_server_transaction_id",
           "maximum_supported_3ds_version",
           "connector_authentication_id",
           "three_ds_method_data",
@@ -29839,7 +30115,7 @@
           "directory_server_id"
         ],
         "properties": {
-          "threeds_server_transaction_id": {
+          "three_ds_server_transaction_id": {
             "type": "string",
             "description": "The unique identifier for this authentication from the 3DS server."
           },
