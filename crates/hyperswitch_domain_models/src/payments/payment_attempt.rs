@@ -371,6 +371,8 @@ pub struct ErrorDetails {
     pub network_decline_code: Option<String>,
     /// A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.
     pub network_error_message: Option<String>,
+    /// HTTP status code returned by the connector
+    pub status_code: Option<i32>,
 }
 
 #[cfg(feature = "v2")]
@@ -2371,6 +2373,9 @@ impl behaviour::Conversion for PaymentAttempt {
             processor_merchant_id: Some(processor_merchant_id),
             created_by: created_by.map(|cb| cb.to_string()),
             connector_request_reference_id,
+            status_code: error
+                .as_ref()
+                .and_then(|details| details.status_code),
         })
     }
 
@@ -2438,6 +2443,7 @@ impl behaviour::Conversion for PaymentAttempt {
                     network_advice_code: storage_model.network_advice_code,
                     network_decline_code: storage_model.network_decline_code,
                     network_error_message: storage_model.network_error_message,
+                    status_code: storage_model.status_code,
                 });
 
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
@@ -2645,6 +2651,9 @@ impl behaviour::Conversion for PaymentAttempt {
             processor_merchant_id: Some(processor_merchant_id),
             created_by: created_by.map(|cb| cb.to_string()),
             connector_request_reference_id,
+            status_code: error_details
+                .as_ref()
+                .and_then(|details| details.status_code),
         })
     }
 }
@@ -2687,6 +2696,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 network_error_message: None,
                 connector_request_reference_id,
                 connector_response_reference_id,
+                status_code: None,
             },
             PaymentAttemptUpdate::ErrorUpdate {
                 status,
@@ -2720,6 +2730,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 network_error_message: error.network_error_message,
                 connector_request_reference_id: None,
                 connector_response_reference_id: None,
+                status_code: error.status_code,
             },
             PaymentAttemptUpdate::ConfirmIntentResponse(confirm_intent_response_update) => {
                 let ConfirmIntentResponseUpdate {
@@ -2759,6 +2770,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                     network_error_message: None,
                     connector_request_reference_id: None,
                     connector_response_reference_id,
+                    status_code: None,
                 }
             }
             PaymentAttemptUpdate::SyncUpdate {
@@ -2791,6 +2803,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 network_error_message: None,
                 connector_request_reference_id: None,
                 connector_response_reference_id: None,
+                status_code: None,
             },
             PaymentAttemptUpdate::CaptureUpdate {
                 status,
@@ -2822,6 +2835,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 network_error_message: None,
                 connector_request_reference_id: None,
                 connector_response_reference_id: None,
+                status_code: None,
             },
             PaymentAttemptUpdate::PreCaptureUpdate {
                 amount_to_capture,
@@ -2852,6 +2866,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 network_error_message: None,
                 connector_request_reference_id: None,
                 connector_response_reference_id: None,
+                status_code: None,
             },
             PaymentAttemptUpdate::ConfirmIntentTokenized {
                 status,
@@ -2886,6 +2901,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 network_error_message: None,
                 connector_request_reference_id: None,
                 connector_response_reference_id: None,
+                status_code: None,
             },
         }
     }

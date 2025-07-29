@@ -364,12 +364,18 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse>
             })
         });
 
+        let status_code = u16::try_from(response.status_code.unwrap_or(500)).map_err(|_| {
+            UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                "Failed to convert status code to u16".to_string(),
+            )
+        })?;
+
         let response = if response.error_code.is_some() {
             Err(ErrorResponse {
                 code: response.error_code().to_owned(),
                 message: response.error_message().to_owned(),
                 reason: Some(response.error_message().to_owned()),
-                status_code: 500, //TODO: To be handled once UCS sends proper status codes
+                status_code,
                 attempt_status: Some(status),
                 connector_transaction_id: connector_response_reference_id,
                 network_decline_code: None,
@@ -426,12 +432,18 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceGetResponse>
                     })
             });
 
+        let status_code = u16::try_from(response.status_code.unwrap_or(500)).map_err(|_| {
+            UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                "Failed to convert status code to u16".to_string(),
+            )
+        })?;
+
         let response = if response.error_code.is_some() {
             Err(ErrorResponse {
                 code: response.error_code().to_owned(),
                 message: response.error_message().to_owned(),
                 reason: Some(response.error_message().to_owned()),
-                status_code: 500, //TODO: To be handled once UCS sends proper status codes
+                status_code,
                 attempt_status: Some(status),
                 connector_transaction_id: connector_response_reference_id,
                 network_decline_code: None,
@@ -485,12 +497,18 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceRegisterResponse>
                     })
             });
 
+        let status_code = u16::try_from(response.status_code.unwrap_or(500)).map_err(|_| {
+            UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                "Failed to convert status code to u16".to_string(),
+            )
+        })?;
+
         let response = if response.error_code.is_some() {
             Err(ErrorResponse {
                 code: response.error_code().to_owned(),
                 message: response.error_message().to_owned(),
                 reason: Some(response.error_message().to_owned()),
-                status_code: 500, //TODO: To be handled once UCS sends proper status codes
+                status_code,
                 attempt_status: Some(status),
                 connector_transaction_id: connector_response_reference_id,
                 network_decline_code: None,
@@ -574,12 +592,18 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingResponse>
             })
         });
 
+        let status_code = u16::try_from(response.status_code.unwrap_or(500)).map_err(|_| {
+            UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                "Failed to convert status code to u16".to_string(),
+            )
+        })?;
+
         let response = if response.error_code.is_some() {
             Err(ErrorResponse {
                 code: response.error_code().to_owned(),
                 message: response.error_message().to_owned(),
                 reason: Some(response.error_message().to_owned()),
-                status_code: 500, //TODO: To be handled once UCS sends proper status codes
+                status_code,
                 attempt_status: Some(status),
                 connector_transaction_id: transaction_id,
                 network_decline_code: None,

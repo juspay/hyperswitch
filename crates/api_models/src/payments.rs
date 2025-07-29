@@ -5702,6 +5702,8 @@ pub struct ErrorDetails {
     pub network_decline_code: Option<String>,
     /// A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.
     pub network_error_message: Option<String>,
+    /// HTTP status code returned by the connector
+    pub status_code: Option<i32>,
 }
 
 /// Token information that can be used to initiate transactions by the merchant.

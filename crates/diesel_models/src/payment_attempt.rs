@@ -115,6 +115,7 @@ pub struct PaymentAttempt {
     /// A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.
     pub network_error_message: Option<String>,
     pub connector_request_reference_id: Option<String>,
+    pub status_code: Option<i32>,
 }
 
 #[cfg(feature = "v1")]
@@ -346,6 +347,7 @@ pub struct PaymentAttemptNew {
     pub processor_merchant_id: Option<id_type::MerchantId>,
     pub created_by: Option<String>,
     pub connector_request_reference_id: Option<String>,
+    pub status_code: Option<i32>,
 }
 
 #[cfg(feature = "v1")]
@@ -883,6 +885,7 @@ pub struct PaymentAttemptUpdateInternal {
     pub network_advice_code: Option<String>,
     pub network_error_message: Option<String>,
     pub connector_request_reference_id: Option<String>,
+    pub status_code: Option<i32>,
 }
 
 #[cfg(feature = "v2")]
@@ -914,6 +917,7 @@ impl PaymentAttemptUpdateInternal {
             payment_method_id,
             connector_request_reference_id,
             connector_response_reference_id,
+            status_code,
         } = self;
 
         PaymentAttempt {
@@ -990,6 +994,7 @@ impl PaymentAttemptUpdateInternal {
             network_error_message: network_error_message.or(source.network_error_message),
             connector_request_reference_id: connector_request_reference_id
                 .or(source.connector_request_reference_id),
+            status_code: status_code.or(source.status_code),
         }
     }
 }

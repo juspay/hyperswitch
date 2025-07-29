@@ -643,7 +643,7 @@ impl
                     code,
                     message,
                     reason,
-                    status_code: _,
+                    status_code,
                     attempt_status: _,
                     connector_transaction_id,
                     network_decline_code,
@@ -668,6 +668,7 @@ impl
                     network_advice_code,
                     network_decline_code,
                     network_error_message,
+                    status_code: Some(i32::from(status_code)),
                 };
 
                 PaymentAttemptUpdate::ErrorUpdate {
@@ -850,7 +851,7 @@ impl
                     code,
                     message,
                     reason,
-                    status_code: _,
+                    status_code,
                     attempt_status,
                     connector_transaction_id,
                     network_advice_code,
@@ -868,6 +869,7 @@ impl
                     network_advice_code,
                     network_decline_code,
                     network_error_message,
+                    status_code: Some(i32::from(status_code)),
                 };
 
                 PaymentAttemptUpdate::ErrorUpdate {
@@ -1075,7 +1077,7 @@ impl
                     code,
                     message,
                     reason,
-                    status_code: _,
+                    status_code,
                     attempt_status: _,
                     connector_transaction_id,
                     network_advice_code,
@@ -1101,6 +1103,7 @@ impl
                     network_advice_code,
                     network_decline_code,
                     network_error_message,
+                    status_code: Some(i32::from(status_code)),
                 };
 
                 PaymentAttemptUpdate::ErrorUpdate {
@@ -1330,7 +1333,7 @@ impl
                     code,
                     message,
                     reason,
-                    status_code: _,
+                    status_code,
                     attempt_status,
                     connector_transaction_id,
                     network_advice_code,
@@ -1348,6 +1351,7 @@ impl
                     network_advice_code,
                     network_decline_code,
                     network_error_message,
+                    status_code: Some(i32::from(status_code)),
                 };
 
                 PaymentAttemptUpdate::ErrorUpdate {

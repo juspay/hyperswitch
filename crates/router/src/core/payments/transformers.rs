@@ -5160,6 +5160,7 @@ impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::ErrorDet
             network_advice_code: error_details.network_advice_code.clone(),
             network_decline_code: error_details.network_decline_code.clone(),
             network_error_message: error_details.network_error_message.clone(),
+            status_code: error_details.status_code,
         }
     }
 }
