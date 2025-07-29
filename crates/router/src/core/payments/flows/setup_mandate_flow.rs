@@ -1,19 +1,25 @@
 use async_trait::async_trait;
 use common_types::payments as common_payments_types;
+use error_stack::ResultExt;
 use router_env::logger;
+use unified_connector_service_client::payments as payments_grpc;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
-        errors::{ConnectorErrorExt, RouterResult},
+        errors::{ApiErrorResponse, ConnectorErrorExt, RouterResult},
         mandate,
         payments::{
             self, access_token, customers, helpers, tokenization, transformers, PaymentData,
         },
+        unified_connector_service::{
+            build_unified_connector_service_auth_metadata,
+            handle_unified_connector_service_response_for_payment_register,
+        },
     },
     routes::SessionState,
     services,
-    types::{self, api, domain},
+    types::{self, api, domain, transformers::ForeignTryFrom},
 };
 
 #[cfg(feature = "v1")]
@@ -199,6 +205,62 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             }
             _ => Ok((None, true)),
         }
+    }
+
+    async fn call_unified_connector_service<'a>(
+        &mut self,
+        state: &SessionState,
+        #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
+        #[cfg(feature = "v2")]
+        merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
+        merchant_context: &domain::MerchantContext,
+    ) -> RouterResult<()> {
+        let client = state
+            .grpc_client
+            .unified_connector_service_client
+            .clone()
+            .ok_or(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to fetch Unified Connector Service client")?;
+
+        let payment_register_request =
+            payments_grpc::PaymentServiceRegisterRequest::foreign_try_from(self)
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to construct Payment Setup Mandate Request")?;
+
+        let connector_auth_metadata = build_unified_connector_service_auth_metadata(
+            merchant_connector_account,
+            merchant_context,
+        )
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to construct request metadata")?;
+
+        let response = client
+            .payment_setup_mandate(
+                payment_register_request,
+                connector_auth_metadata,
+                state.get_grpc_headers(),
+            )
+            .await
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to Setup Mandate payment")?;
+
+        let payment_register_response = response.into_inner();
+
+        let (status, router_data_response) =
+            handle_unified_connector_service_response_for_payment_register(
+                payment_register_response.clone(),
+            )
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to deserialize UCS response")?;
+
+        self.status = status;
+        self.response = router_data_response;
+        // UCS does not return raw connector response for setup mandate right now
+        // self.raw_connector_response = payment_register_response
+        //     .raw_connector_response
+        //     .map(Secret::new);
+
+        Ok(())
     }
 }
 

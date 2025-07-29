@@ -1562,11 +1562,14 @@ pub struct PaymentAttemptResponse {
     /// The global identifier for the payment attempt
     #[schema(value_type = String)]
     pub id: id_type::GlobalAttemptId,
+
     /// /// The status of the attempt
     #[schema(value_type = AttemptStatus, example = "charged")]
     pub status: enums::AttemptStatus,
+
     /// Amount related information for this payment and attempt
     pub amount: PaymentAttemptAmountDetails,
+
     /// Name of the connector that was used for the payment attempt.
     #[schema(example = "stripe")]
     pub connector: Option<String>,
@@ -1624,6 +1627,7 @@ pub struct PaymentAttemptResponse {
 
     /// Value passed in X-CLIENT-SOURCE header during payments confirm request by the client
     pub client_source: Option<String>,
+
     /// Value passed in X-CLIENT-VERSION header during payments confirm request by the client
     pub client_version: Option<String>,
 
@@ -1643,12 +1647,21 @@ pub struct PaymentAttemptRecordResponse {
     /// The status of the attempt
     #[schema(value_type = AttemptStatus, example = "charged")]
     pub status: enums::AttemptStatus,
+    /// The amount of the payment attempt
+    #[schema(value_type = i64, example = 6540)]
+    pub amount: MinorUnit,
+    /// Error details for the payment attempt, if any.
+    /// This includes fields like error code, network advice code, and network decline code.
+    pub error_details: Option<RecordAttemptErrorDetails>,
     /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
     #[schema(value_type = Option<FeatureMetadata>)]
     pub payment_intent_feature_metadata: Option<FeatureMetadata>,
     /// Additional data that might be required by hyperswitch, to enable some specific features.
     pub payment_attempt_feature_metadata: Option<PaymentAttemptFeatureMetadata>,
+    /// attempt created at timestamp
+    pub created_at: PrimitiveDateTime,
 }
+
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
 pub struct PaymentAttemptFeatureMetadata {
@@ -3440,15 +3453,12 @@ pub enum BankTransferData {
         /// CNPJ is a Brazilian company tax identification number
         #[schema(value_type = Option<String>, example = "74469027417312")]
         cnpj: Option<Secret<String>>,
-
         /// Source bank account number
-        #[schema(value_type = Option<String>, example = "8b2812f0-d6c8-4073-97bb-9fa964d08bc5")]
+        #[schema(value_type = Option<String>, example = "8b******-****-****-****-*******08bc5")]
         source_bank_account_id: Option<MaskedBankAccount>,
-
-        /// Destination bank account number
-        #[schema(value_type = Option<String>, example = "9b95f84e-de61-460b-a14b-f23b4e71c97b")]
+        /// Partially masked destination bank account number _Deprecated: Will be removed in next stable release._
+        #[schema(value_type = Option<String>, example = "********-****-460b-****-f23b4e71c97b", deprecated)]
         destination_bank_account_id: Option<MaskedBankAccount>,
-
         /// The expiration date and time for the Pix QR code in ISO 8601 format
         #[schema(value_type = Option<String>, example = "2025-09-10T10:11:12Z")]
         #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
@@ -8812,6 +8822,9 @@ pub struct PaymentRevenueRecoveryMetadata {
     /// Invoice Next billing time
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub invoice_next_billing_time: Option<PrimitiveDateTime>,
+    /// Invoice Next billing time
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub invoice_billing_started_at_time: Option<PrimitiveDateTime>,
     /// First Payment Attempt Payment Gateway Error Code
     #[schema(value_type = Option<String>, example = "card_declined")]
     pub first_payment_attempt_pg_error_code: Option<String>,
@@ -8839,6 +8852,15 @@ pub struct BillingConnectorAdditionalCardInfo {
     #[schema(value_type = Option<String>, example = "JP MORGAN CHASE")]
     /// Card Issuer
     pub card_issuer: Option<String>,
+}
+
+#[cfg(feature = "v2")]
+impl BillingConnectorPaymentMethodDetails {
+    pub fn get_billing_connector_card_info(&self) -> Option<&BillingConnectorAdditionalCardInfo> {
+        match self {
+            Self::Card(card_details) => Some(card_details),
+        }
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -8950,6 +8972,11 @@ pub struct PaymentsAttemptRecordRequest {
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub invoice_next_billing_time: Option<PrimitiveDateTime>,
+
+    /// Next Billing time of the Invoice
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub invoice_billing_started_at_time: Option<PrimitiveDateTime>,
 
     /// source where the payment was triggered by
     #[schema(value_type = TriggeredBy, example = "internal" )]
