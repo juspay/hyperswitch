@@ -26,7 +26,9 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData, ConnectorInfo, SupportedPaymentMethods},
+    router_response_types::{
+        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+    },
 };
 #[cfg(feature = "payouts")]
 use hyperswitch_interfaces::types::{PayoutCancelType, PayoutCreateType, PayoutFulfillType};
@@ -448,7 +450,6 @@ impl IncomingWebhook for Ebanx {
     }
 }
 
-
 static EBANX_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Ebanx",
     description: "EBANX payout connector for cross-border disbursements and local currency payouts across Latin America, Africa, and emerging markets",
@@ -469,5 +470,3 @@ impl ConnectorSpecifications for Ebanx {
         None
     }
 }
-
-

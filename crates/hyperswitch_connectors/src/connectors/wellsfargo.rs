@@ -1431,5 +1431,3 @@ impl ConnectorSpecifications for Wellsfargo {
         Some(&WELLSFARGO_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
-

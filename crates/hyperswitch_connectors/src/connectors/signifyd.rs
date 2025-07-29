@@ -36,7 +36,9 @@ use hyperswitch_domain_models::{
         FraudCheckCheckoutData, FraudCheckFulfillmentData, FraudCheckRecordReturnData,
         FraudCheckSaleData, FraudCheckTransactionData,
     },
-    router_response_types::{fraud_check::FraudCheckResponseData,  ConnectorInfo, SupportedPaymentMethods},
+    router_response_types::{
+        fraud_check::FraudCheckResponseData, ConnectorInfo, SupportedPaymentMethods,
+    },
 };
 use hyperswitch_interfaces::{
     api::{

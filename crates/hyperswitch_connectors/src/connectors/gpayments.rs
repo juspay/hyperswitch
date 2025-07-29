@@ -29,7 +29,8 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        AuthenticationResponseData, PaymentsResponseData, RefundsResponseData, ConnectorInfo, SupportedPaymentMethods,
+        AuthenticationResponseData, ConnectorInfo, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods,
     },
 };
 use hyperswitch_interfaces::{
@@ -587,7 +588,6 @@ impl
     }
 }
 
-
 static GPAYMENTS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "GPayments",
     description: "GPayments authentication connector for 3D Secure MPI/ACS services supporting Visa Secure, Mastercard SecureCode, and global card authentication standards",
@@ -608,6 +608,3 @@ impl ConnectorSpecifications for Gpayments {
         None
     }
 }
-
-
-

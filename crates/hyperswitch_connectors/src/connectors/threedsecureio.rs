@@ -28,7 +28,8 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        AuthenticationResponseData, PaymentsResponseData, RefundsResponseData, ConnectorInfo, SupportedPaymentMethods,
+        AuthenticationResponseData, ConnectorInfo, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods,
     },
 };
 use hyperswitch_interfaces::{
