@@ -210,6 +210,61 @@ pub struct FlexitiPaymentsResponse {
     online_order_id: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FlexitiSyncResponse {
+    transaction_id : String,
+    purchase : FlexitiPurchase
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FlexitiPurchase {
+    status : FlexitiPurchaseStatus,
+}
+
+// Since this is an alpha integration, we don't have access to all the status mapping. This needs to be updated.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum FlexitiPurchaseStatus
+{
+    Success,
+    Failed,
+}
+
+// Since this is an alpha integration, we don't have access to all the status mapping. This needs to be updated.
+impl From<FlexitiPurchaseStatus> for common_enums::AttemptStatus{
+    fn from(item: FlexitiPurchaseStatus) -> Self {
+        match item {
+            FlexitiPurchaseStatus::Success => Self::Authorized,
+            FlexitiPurchaseStatus::Failed => Self::Failure,
+        }
+    }
+}
+
+impl<F, T> TryFrom<ResponseRouterData<F, FlexitiSyncResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, FlexitiSyncResponse, T, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: common_enums::AttemptStatus::from(item.response.purchase.status),
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(
+                    item.response.transaction_id.to_owned(),
+                ),
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+                charges: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
 impl<F, T> TryFrom<ResponseRouterData<F, FlexitiPaymentsResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 {

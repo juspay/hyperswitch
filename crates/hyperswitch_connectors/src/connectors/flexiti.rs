@@ -24,7 +24,7 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
@@ -47,9 +47,7 @@ use transformers as flexiti;
 use uuid::Uuid;
 
 use crate::{
-    constants::headers,
-    types::{RefreshTokenRouterData, ResponseRouterData},
-    utils,
+    capture_method_not_supported, constants::headers, types::{RefreshTokenRouterData, ResponseRouterData}, utils
 };
 
 #[derive(Clone)]
@@ -178,6 +176,34 @@ impl ConnectorValidation for Flexiti {
             )
             .into()),
             _ => Ok(()),
+        }
+    }
+
+    fn validate_connector_against_payment_request(
+        &self,
+        capture_method: Option<common_enums::CaptureMethod>,
+        _payment_method: common_enums::PaymentMethod,
+        pmt: Option<common_enums::PaymentMethodType>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+
+        match capture_method {
+            enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::Automatic
+            | enums::CaptureMethod::SequentialAutomatic
+            | enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => {
+                let connector = self.id();
+                match pmt {
+                    Some(payment_method_type) => {
+                        capture_method_not_supported!(
+                            connector,
+                            capture_method,
+                            payment_method_type
+                        )
+                    }
+                    None => capture_method_not_supported!(connector, capture_method),
+                }
+            }
         }
     }
 
@@ -382,10 +408,17 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Fle
 
     fn get_url(
         &self,
-        _req: &PaymentsSyncRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let auth_details = flexiti::FlexitiAuthType::try_from(&req.connector_auth_type.to_owned())?;
+        let order_id = req.request.connector_transaction_id.get_connector_transaction_id().change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(format!(
+            "{}online/client-id/{}/notifications/order-id/{}",
+            self.base_url(connectors),
+            auth_details.client_id.peek(),
+            order_id
+        ))
     }
 
     fn build_request(
@@ -409,9 +442,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Fle
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: flexiti::FlexitiPaymentsResponse = res
+        let response: flexiti::FlexitiSyncResponse = res
             .response
-            .parse_struct("flexiti PaymentsSyncResponse")
+            .parse_struct("flexiti FlexitiSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -686,7 +719,25 @@ impl webhooks::IncomingWebhook for Flexiti {
 }
 
 static FLEXITI_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
-    LazyLock::new(SupportedPaymentMethods::new);
+    LazyLock::new(|| {
+        let supported_capture_methods = vec![
+        enums::CaptureMethod::Manual
+    ];
+    let mut flexiti_supported_payment_methods = SupportedPaymentMethods::new();
+
+    flexiti_supported_payment_methods.add(
+        enums::PaymentMethod::PayLater,
+        enums::PaymentMethodType::Klarna,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::NotSupported,
+            supported_capture_methods,
+            specific_features: None,
+        },
+    );
+
+    flexiti_supported_payment_methods
+    });
 
 static FLEXITI_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Flexiti",
