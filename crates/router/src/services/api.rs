@@ -701,7 +701,11 @@ where
         }
     };
 
-    let infra = state.infra_components.clone();
+    let infra = extract_mapped_fields(
+        &serialized_request,
+        state.enhancement.as_ref(),
+        state.infra_components.as_ref(),
+    );
 
     let api_event = ApiEvent::new(
         tenant_id,
@@ -2063,6 +2067,62 @@ pub fn get_payment_link_status(
             Err(errors::ApiErrorResponse::InternalServerError)?
         }
     }
+}
+
+pub fn extract_mapped_fields(
+    value: &serde_json::Value,
+    mapping: Option<&HashMap<String, String>>,
+    existing_enhancement: Option<&serde_json::Value>,
+) -> Option<serde_json::Value> {
+    let mapping = mapping?;
+
+    if mapping.is_empty() {
+        return existing_enhancement.cloned();
+    }
+
+    let mut enhancement = match existing_enhancement {
+        Some(existing) if existing.is_object() => existing.clone(),
+        _ => serde_json::json!({}),
+    };
+
+    for (dot_path, output_key) in mapping {
+        if let Some(extracted_value) = extract_field_by_dot_path(value, dot_path) {
+            enhancement[output_key] = extracted_value;
+        }
+    }
+
+    if enhancement.as_object().map_or(false, |obj| !obj.is_empty()) {
+        Some(enhancement)
+    } else {
+        None
+    }
+}
+
+pub fn extract_field_by_dot_path(
+    value: &serde_json::Value,
+    path: &str,
+) -> Option<serde_json::Value> {
+    let parts: Vec<&str> = path.split('.').collect();
+    let mut current = value;
+
+    for part in parts {
+        match current {
+            serde_json::Value::Object(obj) => {
+                current = obj.get(part)?;
+            }
+            serde_json::Value::Array(arr) => {
+                // Try to parse part as array index
+                if let Ok(index) = part.parse::<usize>() {
+                    current = arr.get(index)?;
+                } else {
+                    return None;
+                }
+            }
+            _ => return None,
+        }
+    }
+
+    Some(current.clone())
 }
 
 #[cfg(test)]
