@@ -40,9 +40,7 @@ pub struct FlexitiPaymentsRequest {
     lang: String,
     flow: FlexitiFlow,
     amount_requested: FloatMajorUnit,
-    // customer email
     email: Option<Email>,
-    // customer first name
     fname: Secret<String>,
     billing_information: BillingInformation,
     shipping_information: ShippingInformation,
