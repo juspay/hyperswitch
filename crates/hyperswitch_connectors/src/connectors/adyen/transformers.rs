@@ -428,6 +428,7 @@ impl ForeignTryFrom<(bool, AdyenWebhookStatus)> for storage_enums::AttemptStatus
             AdyenWebhookStatus::CancelFailed => Ok(Self::VoidFailed),
             AdyenWebhookStatus::Captured => Ok(Self::Charged),
             AdyenWebhookStatus::CaptureFailed => Ok(Self::CaptureFailed),
+            AdyenWebhookStatus::Expired => Ok(Self::Expired),
             //If Unexpected Event is received, need to understand how it reached this point
             //Webhooks with Payment Events only should try to conume this resource object.
             AdyenWebhookStatus::UnexpectedEvent | AdyenWebhookStatus::Reversed => {
@@ -513,6 +514,7 @@ pub enum AdyenWebhookStatus {
     CaptureFailed,
     Reversed,
     UnexpectedEvent,
+    Expired,
 }
 
 //Creating custom struct which can be consumed in Psync Handler triggered from Webhooks
@@ -2428,10 +2430,12 @@ impl
                 check_required_field(billing_address, "billing")?;
                 Ok(AdyenPaymentMethod::Atome)
             }
-            PayLaterData::KlarnaSdk { .. } => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Adyen"),
-            )
-            .into()),
+            PayLaterData::KlarnaSdk { .. } | PayLaterData::BreadpayRedirect {} => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Adyen"),
+                )
+                .into())
+            }
         }
     }
 }
@@ -2910,7 +2914,7 @@ impl
             telephone_number,
             shopper_name: None,
             shopper_email: None,
-            shopper_locale: None,
+            shopper_locale: item.router_data.request.locale.clone(),
             social_security_number: None,
             billing_address,
             delivery_address,
@@ -2994,7 +2998,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
             telephone_number,
             shopper_name,
             shopper_email,
-            shopper_locale: None,
+            shopper_locale: item.router_data.request.locale.clone(),
             social_security_number: None,
             billing_address,
             delivery_address,
@@ -3080,7 +3084,7 @@ impl
             additional_data,
             mpi_data: None,
             shopper_name: None,
-            shopper_locale: None,
+            shopper_locale: item.router_data.request.locale.clone(),
             shopper_email: item.router_data.get_optional_billing_email(),
             social_security_number: None,
             telephone_number,
@@ -3155,7 +3159,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &VoucherData)>
             recurring_processing_model,
             additional_data,
             shopper_name,
-            shopper_locale: None,
+            shopper_locale: item.router_data.request.locale.clone(),
             shopper_email: item.router_data.get_optional_billing_email(),
             social_security_number,
             mpi_data: None,
@@ -3274,7 +3278,7 @@ impl
             additional_data: None,
             mpi_data: None,
             shopper_name: None,
-            shopper_locale: None,
+            shopper_locale: item.router_data.request.locale.clone(),
             shopper_email: item.router_data.get_optional_billing_email(),
             social_security_number,
             telephone_number,
@@ -3351,7 +3355,7 @@ impl
             additional_data: None,
             mpi_data: None,
             shopper_name: None,
-            shopper_locale: None,
+            shopper_locale: item.router_data.request.locale.clone(),
             shopper_email: item.router_data.get_optional_billing_email(),
             telephone_number,
             billing_address,
@@ -3462,7 +3466,7 @@ fn get_redirect_extra_details(
             BankRedirectData::Trustly { .. } | BankRedirectData::OpenBankingUk { .. },
         ) => {
             let country = item.get_optional_billing_country();
-            Ok((None, country))
+            Ok((item.request.locale.clone(), country))
         }
         _ => Ok((None, None)),
     }
@@ -3565,7 +3569,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &WalletData)>
             telephone_number,
             shopper_name: None,
             shopper_email,
-            shopper_locale: None,
+            shopper_locale: item.router_data.request.locale.clone(),
             social_security_number: None,
             billing_address,
             delivery_address,
@@ -3655,7 +3659,7 @@ impl
             shopper_name,
             shopper_email,
             mpi_data: None,
-            shopper_locale: None,
+            shopper_locale: item.router_data.request.locale.clone(),
             social_security_number: None,
             billing_address,
             delivery_address,
@@ -3737,7 +3741,7 @@ impl
             telephone_number,
             shopper_name,
             shopper_email,
-            shopper_locale: None,
+            shopper_locale: item.router_data.request.locale.clone(),
             billing_address,
             delivery_address,
             country_code: None,
@@ -4796,6 +4800,7 @@ pub enum WebhookEventCode {
     SecondChargeback,
     PrearbitrationWon,
     PrearbitrationLost,
+    OfferClosed,
     #[cfg(feature = "payouts")]
     PayoutThirdparty,
     #[cfg(feature = "payouts")]
@@ -4809,7 +4814,10 @@ pub enum WebhookEventCode {
 }
 
 pub fn is_transaction_event(event_code: &WebhookEventCode) -> bool {
-    matches!(event_code, WebhookEventCode::Authorisation)
+    matches!(
+        event_code,
+        WebhookEventCode::Authorisation | WebhookEventCode::OfferClosed
+    )
 }
 
 pub fn is_capture_or_cancel_event(event_code: &WebhookEventCode) -> bool {
@@ -4926,6 +4934,9 @@ pub(crate) fn get_adyen_webhook_event(
         WebhookEventCode::CaptureFailed => {
             api_models::webhooks::IncomingWebhookEvent::PaymentIntentCaptureFailure
         }
+        WebhookEventCode::OfferClosed => {
+            api_models::webhooks::IncomingWebhookEvent::PaymentIntentExpired
+        }
         #[cfg(feature = "payouts")]
         WebhookEventCode::PayoutThirdparty => {
             api_models::webhooks::IncomingWebhookEvent::PayoutCreated
@@ -5013,6 +5024,7 @@ impl From<AdyenNotificationRequestItemWH> for AdyenWebhookResponse {
                         AdyenWebhookStatus::CancelFailed
                     }
                 }
+                WebhookEventCode::OfferClosed => AdyenWebhookStatus::Expired,
                 WebhookEventCode::Capture => {
                     if is_success_scenario(notif.success) {
                         AdyenWebhookStatus::Captured
@@ -5983,7 +5995,7 @@ impl
             telephone_number,
             shopper_name,
             shopper_email,
-            shopper_locale: None,
+            shopper_locale: item.router_data.request.locale.clone(),
             social_security_number: None,
             billing_address,
             delivery_address,
