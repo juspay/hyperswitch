@@ -85,6 +85,12 @@ impl TryFrom<&GlobalPayRouterData<&PaymentsAuthorizeRouterData>> for GlobalpayPa
     fn try_from(
         item: &GlobalPayRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
+        if item.router_data.is_three_ds() {
+            Err(errors::ConnectorError::NotSupported {
+                message: "Cards 3DS".to_string(),
+                connector: "Globalpay",
+            })?
+        }
         let metadata = GlobalPayMeta::try_from(&item.router_data.connector_meta_data)?;
         let account_name = metadata.account_name;
         let (initiator, stored_credential, brand_reference) =
