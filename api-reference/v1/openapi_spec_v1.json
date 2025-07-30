@@ -5174,6 +5174,162 @@
         ]
       }
     },
+    "/routing/evaluate": {
+      "post": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Evaluate",
+        "description": "Evaluate routing rules",
+        "operationId": "Evaluate routing rules",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenRouterDecideGatewayRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Routing rules evaluated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecideGatewayResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request body is malformed"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/routing/feedback": {
+      "post": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Feedback",
+        "description": "Update gateway scores for dynamic routing",
+        "operationId": "Update gateway scores",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateScorePayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Gateway score updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateScoreResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request body is malformed"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/routing/rule/evaluate": {
+      "post": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Rule Evaluate",
+        "description": "Evaluate routing rules",
+        "operationId": "Evaluate routing rules (alternative)",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoutingEvaluateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Routing rules evaluated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutingEvaluateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request body is malformed"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/blocklist": {
       "delete": {
         "tags": [
@@ -7670,7 +7826,8 @@
           "payment_method_awaited",
           "confirmation_awaited",
           "device_data_collection_pending",
-          "integrity_failure"
+          "integrity_failure",
+          "expired"
         ]
       },
       "AuthenticationConnectorDetails": {
@@ -13366,6 +13523,80 @@
           }
         }
       },
+      "DeRoutableConnectorChoice": {
+        "type": "object",
+        "description": "Routable Connector chosen for a payment",
+        "required": [
+          "gateway_name",
+          "gateway_id"
+        ],
+        "properties": {
+          "gateway_name": {
+            "$ref": "#/components/schemas/RoutableConnectors"
+          },
+          "gateway_id": {
+            "type": "string"
+          }
+        }
+      },
+      "DecideGatewayResponse": {
+        "type": "object",
+        "properties": {
+          "decided_gateway": {
+            "type": "string",
+            "nullable": true
+          },
+          "gateway_priority_map": {
+            "nullable": true
+          },
+          "filter_wise_gateways": {
+            "nullable": true
+          },
+          "priority_logic_tag": {
+            "type": "string",
+            "nullable": true
+          },
+          "routing_approach": {
+            "type": "string",
+            "nullable": true
+          },
+          "gateway_before_evaluation": {
+            "type": "string",
+            "nullable": true
+          },
+          "priority_logic_output": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PriorityLogicOutput"
+              }
+            ],
+            "nullable": true
+          },
+          "reset_approach": {
+            "type": "string",
+            "nullable": true
+          },
+          "routing_dimension": {
+            "type": "string",
+            "nullable": true
+          },
+          "routing_dimension_level": {
+            "type": "string",
+            "nullable": true
+          },
+          "is_scheduled_outage": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "is_dynamic_mga_enabled": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "gateway_mga_id_map": {
+            "nullable": true
+          }
+        }
+      },
       "DecisionEngineEliminationData": {
         "type": "object",
         "required": [
@@ -14155,6 +14386,7 @@
           "payment_cancelled",
           "payment_authorized",
           "payment_captured",
+          "payment_expired",
           "action_required",
           "refund_succeeded",
           "refund_failed",
@@ -15941,7 +16173,8 @@
           "requires_capture",
           "partially_captured",
           "partially_captured_and_capturable",
-          "conflicted"
+          "conflicted",
+          "expired"
         ]
       },
       "IssuerData": {
@@ -18682,6 +18915,40 @@
           }
         }
       },
+      "OpenRouterDecideGatewayRequest": {
+        "type": "object",
+        "required": [
+          "paymentInfo",
+          "merchantId"
+        ],
+        "properties": {
+          "paymentInfo": {
+            "$ref": "#/components/schemas/PaymentInfo"
+          },
+          "merchantId": {
+            "type": "string"
+          },
+          "eligibleGatewayList": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "rankingAlgorithm": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RankingAlgorithm"
+              }
+            ],
+            "nullable": true
+          },
+          "eliminationEnabled": {
+            "type": "boolean",
+            "nullable": true
+          }
+        }
+      },
       "OrderDetailsWithAmount": {
         "type": "object",
         "required": [
@@ -19521,6 +19788,49 @@
               "stripe",
               "adyen"
             ]
+          }
+        }
+      },
+      "PaymentId": {
+        "type": "string",
+        "description": "A type for payment_id that can be used for payment ids"
+      },
+      "PaymentInfo": {
+        "type": "object",
+        "required": [
+          "paymentId",
+          "amount",
+          "currency",
+          "paymentType",
+          "paymentMethodType",
+          "paymentMethod"
+        ],
+        "properties": {
+          "paymentId": {
+            "type": "string"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "paymentType": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "string",
+            "nullable": true
+          },
+          "paymentMethodType": {
+            "type": "string"
+          },
+          "paymentMethod": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "cardIsin": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -26541,6 +26851,66 @@
         },
         "additionalProperties": false
       },
+      "PriorityLogicData": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "failure_reason": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "PriorityLogicOutput": {
+        "type": "object",
+        "properties": {
+          "isEnforcement": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "gws": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "priorityLogicTag": {
+            "type": "string",
+            "nullable": true
+          },
+          "gatewayReferenceIds": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "primaryLogic": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PriorityLogicData"
+              }
+            ],
+            "nullable": true
+          },
+          "fallbackLogic": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PriorityLogicData"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "ProcessorPaymentToken": {
         "type": "object",
         "description": "Processor payment token for MIT payments where payment_method_data is not available",
@@ -26986,6 +27356,10 @@
           }
         }
       },
+      "ProfileId": {
+        "type": "string",
+        "description": "A type for profile_id that can be used for business profile ids"
+      },
       "ProfileResponse": {
         "type": "object",
         "required": [
@@ -27321,6 +27695,14 @@
             "additionalProperties": {}
           }
         }
+      },
+      "RankingAlgorithm": {
+        "type": "string",
+        "enum": [
+          "SR_BASED_ROUTING",
+          "PL_BASED_ROUTING",
+          "NTW_BASED_ROUTING"
+        ]
       },
       "RealTimePaymentData": {
         "oneOf": [
@@ -28660,6 +29042,56 @@
           "decision_engine_routing_id": {
             "type": "string",
             "nullable": true
+          }
+        }
+      },
+      "RoutingEvaluateRequest": {
+        "type": "object",
+        "required": [
+          "created_by",
+          "parameters",
+          "fallback_output"
+        ],
+        "properties": {
+          "created_by": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "description": "Parameters that can be used in the routing evaluate request.\neg: {\"parameters\": {\n\"payment_method\": {\"type\": \"enum_variant\", \"value\": \"card\"},\n\"payment_method_type\": {\"type\": \"enum_variant\", \"value\": \"credit\"},\n\"amount\": {\"type\": \"number\", \"value\": 10},\n\"currency\": {\"type\": \"str_value\", \"value\": \"INR\"},\n\"authentication_type\": {\"type\": \"enum_variant\", \"value\": \"three_ds\"},\n\"card_bin\": {\"type\": \"str_value\", \"value\": \"424242\"},\n\"capture_method\": {\"type\": \"enum_variant\", \"value\": \"scheduled\"},\n\"business_country\": {\"type\": \"str_value\", \"value\": \"IN\"},\n\"billing_country\": {\"type\": \"str_value\", \"value\": \"IN\"},\n\"business_label\": {\"type\": \"str_value\", \"value\": \"business_label\"},\n\"setup_future_usage\": {\"type\": \"enum_variant\", \"value\": \"off_session\"},\n\"card_network\": {\"type\": \"enum_variant\", \"value\": \"visa\"},\n\"payment_type\": {\"type\": \"enum_variant\", \"value\": \"recurring_mandate\"},\n\"mandate_type\": {\"type\": \"enum_variant\", \"value\": \"single_use\"},\n\"mandate_acceptance_type\": {\"type\": \"enum_variant\", \"value\": \"online\"},\n\"metadata\":{\"type\": \"metadata_variant\", \"value\": {\"key\": \"key1\", \"value\": \"value1\"}}\n}}"
+          },
+          "fallback_output": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeRoutableConnectorChoice"
+            }
+          }
+        }
+      },
+      "RoutingEvaluateResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "output",
+          "evaluated_output",
+          "eligible_connectors"
+        ],
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "output": {},
+          "evaluated_output": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoutableConnectorChoice"
+            }
+          },
+          "eligible_connectors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoutableConnectorChoice"
+            }
           }
         }
       },
@@ -30526,6 +30958,33 @@
           "external"
         ]
       },
+      "TxnStatus": {
+        "type": "string",
+        "enum": [
+          "STARTED",
+          "AUTHENTICATION_FAILED",
+          "JUSPAY_DECLINED",
+          "PENDING_VBV",
+          "V_B_V_SUCCESSFUL",
+          "AUTHORIZED",
+          "AUTHORIZATION_FAILED",
+          "CHARGED",
+          "AUTHORIZING",
+          "C_O_D_INITIATED",
+          "VOIDED",
+          "VOID_INITIATED",
+          "NOP",
+          "CAPTURE_INITIATED",
+          "CAPTURE_FAILED",
+          "VOID_FAILED",
+          "AUTO_REFUNDED",
+          "PARTIAL_CHARGED",
+          "TO_BE_CHARGED",
+          "PENDING",
+          "FAILURE",
+          "DECLINED"
+        ]
+      },
       "UIWidgetFormLayout": {
         "type": "string",
         "enum": [
@@ -30561,6 +31020,40 @@
           }
         },
         "additionalProperties": false
+      },
+      "UpdateScorePayload": {
+        "type": "object",
+        "required": [
+          "merchantId",
+          "gateway",
+          "status",
+          "paymentId"
+        ],
+        "properties": {
+          "merchantId": {
+            "type": "string"
+          },
+          "gateway": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TxnStatus"
+          },
+          "paymentId": {
+            "type": "string"
+          }
+        }
+      },
+      "UpdateScoreResponse": {
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        }
       },
       "UpiAdditionalData": {
         "oneOf": [
@@ -30669,7 +31162,10 @@
                 ]
               },
               "value": {
-                "$ref": "#/components/schemas/MinorUnit"
+                "type": "integer",
+                "format": "int64",
+                "description": "Represents a number literal",
+                "minimum": 0
               }
             }
           },
@@ -30739,13 +31235,34 @@
               "type": {
                 "type": "string",
                 "enum": [
+                  "global_ref"
+                ]
+              },
+              "value": {
+                "type": "string",
+                "description": "Represents a global reference, which is a reference to a global variable"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
                   "number_array"
                 ]
               },
               "value": {
                 "type": "array",
                 "items": {
-                  "$ref": "#/components/schemas/MinorUnit"
+                  "type": "integer",
+                  "format": "int64",
+                  "minimum": 0
                 },
                 "description": "Represents an array of numbers. This is basically used for\n\"one of the given numbers\" operations\neg: payment.method.amount = (1, 2, 3)"
               }
