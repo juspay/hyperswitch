@@ -883,7 +883,29 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for WorldpayCompleteAu
             .as_ref()
             .and_then(|redirect_response| redirect_response.params.as_ref())
             .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
-        serde_urlencoded::from_str::<Self>(params.peek())
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+
+        let parsed_request = serde_urlencoded::from_str::<Self>(params.peek())
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        match item.status {
+            enums::AttemptStatus::DeviceDataCollectionPending => Ok(parsed_request),
+            enums::AttemptStatus::AuthenticationPending => {
+                if parsed_request.collection_reference.is_some() {
+                    return Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name:
+                            "collection_reference not allowed in AuthenticationPending state",
+                    }
+                    .into());
+                }
+                Ok(parsed_request)
+            }
+            _ => Err(
+                errors::ConnectorError::RequestEncodingFailedWithReason(format!(
+                    "Invalid payment status for complete authorize: {:?}",
+                    item.status
+                ))
+                .into(),
+            ),
+        }
     }
 }
