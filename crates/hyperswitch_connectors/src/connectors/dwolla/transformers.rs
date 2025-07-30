@@ -280,7 +280,7 @@ impl<'a> TryFrom<&DwollaRouterData<'a, &PaymentsAuthorizeRouterData>> for Dwolla
                 .and_then(|v| v.as_str().map(|s| Secret::new(s.to_string()))),
             Ok(_) => None,
         };
-        
+
         let source_funding = item
             .router_data
             .get_payment_method_token()
@@ -293,7 +293,7 @@ impl<'a> TryFrom<&DwollaRouterData<'a, &PaymentsAuthorizeRouterData>> for Dwolla
             .ok_or(errors::ConnectorError::MissingRequiredField {
                 field_name: "payment_method_token",
             })?;
-        
+
         let metadata = utils::to_connector_meta_from_secret::<DwollaMetaData>(
             item.router_data.connector_meta_data.clone(),
         )

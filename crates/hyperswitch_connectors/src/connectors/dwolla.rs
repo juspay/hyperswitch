@@ -448,8 +448,7 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        if let Ok(body) = std::str::from_utf8(&res.response)
-        {
+        if let Ok(body) = std::str::from_utf8(&res.response) {
             if res.status_code == 400 && body.contains("Duplicate") {
                 let token = extract_token_from_body(&res.response);
                 let metadata = Some(serde_json::json!({ "payment_token": token? }));
@@ -581,12 +580,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             None => fallback_token.map(PMT::Token),
         };
 
-        let connector_metadata = payment_method_token
-            .as_ref()
-            .and_then(|token| match token {
-                PMT::Token(t) => Some(serde_json::json!({ "payment_token": t.clone().expose() })),
-                _ => None,
-            });
+        let connector_metadata = payment_method_token.as_ref().and_then(|token| match token {
+            PMT::Token(t) => Some(serde_json::json!({ "payment_token": t.clone().expose() })),
+            _ => None,
+        });
 
         Ok(RouterData {
             payment_method_token,
