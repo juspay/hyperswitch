@@ -8404,7 +8404,7 @@
           },
           "eci": {
             "type": "string",
-            "description": "ECI value for this authentication.",
+            "description": "ECI value for this authentication, only available in case of server to server request. Unavailable in case of client request due to security concern.",
             "nullable": true
           },
           "error_message": {

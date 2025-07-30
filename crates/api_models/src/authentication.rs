@@ -550,7 +550,7 @@ pub struct AuthenticationSyncResponse {
     #[schema(value_type = Option<String>)]
     pub authentication_value: Option<masking::Secret<String>>,
 
-    /// ECI value for this authentication.
+    /// ECI value for this authentication, only available in case of server to server request. Unavailable in case of client request due to security concern.
     pub eci: Option<String>,
 
     // Common Error Fields (present in multiple responses)
