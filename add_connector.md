@@ -919,10 +919,129 @@ let json_wallet_data: CheckoutGooglePayData = wallet_data.get_wallet_token_as_js
 ### Error Handling & Validation
 - `missing_field_err()` – Commonly used across connectors for standardized error reporting
 
+## Connector Configuration for Control Center Integration
+This guide helps developers integrate custom connectors with the Hyperswitch Control Center by configuring connector settings and building the required WebAssembly components.
 
+## Prerequisites
 
+Install the WebAssembly build tool:
 
+```bash
+cargo install wasm-pack
+```
+### Step 1: Configure Your Connector
+Add your connector configuration to the [development environment file](https://github.com/juspay/hyperswitch/blob/main/ccrates/connector_configs/toml/development.toml)
 
+The connector configuration system [supports multiple environments](https://github.com/juspay/hyperswitch/blob/main/crates/connector_configs/src/connector.rs#L305-L318). For development, add your connector configuration following this pattern.
+
+```rs
+# Example: Adding a new connector configuration
+[your_connector_name]
+[your_connector_name.connector_auth.HeaderKey]
+api_key = "Your_API_Key_Here"
+
+# Optional: Add additional connector-specific settings
+[your_connector_name.connector_webhook_details]
+merchant_secret = "webhook_secret"
+```
+### Step 2: Build WebAssembly Components
+The Control Center requires WebAssembly files for connector integration. Build them using:
+
+```bash
+wasm-pack build \
+  --target web \
+  --out-dir /path/to/hyperswitch-control-center/public/hyperswitch/wasm \
+  --out-name euclid \
+  /path/to/hyperswitch/crates/euclid_wasm \
+  -- --features dummy_connector
+```
+- Replace `/path/to/hyperswitch-control-center` with your Control Center installation directory
+
+- Replace `/path/to/hyperswitch` with your Hyperswitch repository root
+
+The build process uses the [`euclid_wasm` crate](https://github.com/juspay/hyperswitch/blob/main/crates/euclid_wasm/Cargo.toml#L1-L44), which provides WebAssembly bindings for connector configuration and routing logic.
+
+### Step 3: Verify Integration
+The WebAssembly build includes [connector configuration functions](https://github.com/juspay/hyperswitch/blob/main/crates/euclid_wasm/src/lib.rs#L376-L382) that the Control Center uses to retrieve connector settings dynamically.
+
+You can also use the Makefile target for convenience:
+
+```bash
+make euclid-wasm
+```
+
+This target is defined in the [Makefile:86-87](https://github.com/juspay/hyperswitch/blob/main/Makefile#L86-L87) and handles the build process with appropriate feature flags.
+
+### Configuration Features
+The connector configuration system supports:
+
+- **Environment-specific configs**: [Development, sandbox, and production configurations](https://github.com/juspay/hyperswitch/blob/main/crates/connector_configs/src/connector.rs#L306-L312)
+
+- **Authentication methods**: HeaderKey, BodyKey, SignatureKey, etc.
+
+- **Webhook configuration**: For handling asynchronous payment notifications
+
+- **Payment method support**: Defining which payment methods your connector supports
+
+### Troubleshooting
+If the build fails, ensure:
+
+- Your connector is properly registered in the connector enum
+- **The WebAssembly target is installed: `rustup target add wasm32-unknown-unknown`**
+- All required features are enabled in your connector's `Cargo.toml`
+- The configuration system automatically loads the appropriate environment settings based on compile-time features, ensuring your connector works correctly across different deployment environments.
+
+## Control Center Frontend Integration
+This section covers integrating your new connector with the Hyperswitch Control Center's frontend interface, enabling merchants to configure and manage your connector through the dashboard.
+
+### Update Frontend Connector Configuration
+1. Add Connector to Type Definitions
+
+Update the connector enum in the [Control Center's type definitions](https://github.com/juspay/hyperswitch/blob/main/src/screens/HyperSwitch/Connectors/ConnectorTypes.res)
+
+```rs
+type connectorName =  
+  | Stripe  
+  | DummyConnector  
+  | YourNewConnector  // Add your connector here
+```
+### Update Connector Utilities
+Modify the [connector utilities](src/screens/HyperSwitch/Connectors/ConnectorUtils.res) to include your new connector.
+
+```js
+// Add to connector list  
+let connectorList: array<connectorName> = [Stripe, YourNewConnector]  
+  
+// Add display name mapping  
+let getConnectorNameString = (connectorName: connectorName) =>  
+  switch connectorName {  
+  | Stripe => "Stripe"  
+  | YourNewConnector => "Your New Connector"  
+  }  
+  
+// Add connector description  
+let getConnectorInfo = (connectorName: connectorName) =>  
+  switch connectorName {  
+  | Stripe => "Stripe description."  
+  | YourNewConnector => "Your New Connector description."  
+  }
+```
+
+### Add Connector Icon
+1. Prepare Icon Asset
+- Create an SVG icon for your connector
+- Name it in uppercase format: YOURCONNECTOR.SVG
+- Ensure the icon follows the design guidelines (typically 24x24px or 32x32px)
+2. Add to Assets Directory
+Place your icon in the Control Center's gateway assets folder:
+
+```text
+public/  
+└── hyperswitch/  
+    └── Gateway/  
+        └── YOURCONNECTOR.SVG
+```
+The icon will be automatically loaded by the frontend based on the connector name mapping.
 
 ---
 ## Test the Connector Integration
