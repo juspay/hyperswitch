@@ -3302,7 +3302,7 @@ pub async fn list_payment_methods(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
     path: web::Path<common_utils::id_type::GlobalPaymentId>,
-    query_payload: web::Query<api_models::payments::PaymentMethodsListRequest>,
+    query_payload: web::Query<api_models::payments::ListMethodsForPaymentsRequest>,
 ) -> impl Responder {
     use crate::db::domain::merchant_context;
 

@@ -28,7 +28,7 @@ pub async fn list_payment_methods(
     merchant_context: domain::MerchantContext,
     profile: domain::Profile,
     payment_id: id_type::GlobalPaymentId,
-    req: api_models::payments::PaymentMethodsListRequest,
+    req: api_models::payments::ListMethodsForPaymentsRequest,
     header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
 ) -> errors::RouterResponse<api_models::payments::PaymentMethodListResponseForPayments> {
     let db = &*state.store;
@@ -450,7 +450,7 @@ impl FlattenedPaymentMethodsEnabled {
         state: &routes::SessionState,
         merchant_context: &domain::MerchantContext,
         profile_id: &id_type::ProfileId,
-        req: &api_models::payments::PaymentMethodsListRequest,
+        req: &api_models::payments::ListMethodsForPaymentsRequest,
         payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
     ) -> errors::RouterResult<FilteredPaymentMethodsEnabled> {
         let billing_address = payment_intent
@@ -476,12 +476,12 @@ impl FlattenedPaymentMethodsEnabled {
     }
 }
 
-// note: v2 type for PaymentMethodListRequest will not have the installment_payment_enabled field,
+// note: v2 type for ListMethodsForPaymentMethodsRequest will not have the installment_payment_enabled field,
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
 pub async fn filter_payment_methods(
     payment_method_type_details: hyperswitch_domain_models::merchant_connector_account::PaymentMethodsEnabledForConnector,
-    req: &api_models::payments::PaymentMethodsListRequest,
+    req: &api_models::payments::ListMethodsForPaymentsRequest,
     resp: &mut Vec<
         hyperswitch_domain_models::merchant_connector_account::PaymentMethodsEnabledForConnector,
     >,

@@ -7703,7 +7703,7 @@ pub enum SdkType {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
-pub struct PaymentMethodsListRequest {
+pub struct ListMethodsForPaymentsRequest {
     /// This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK
     #[schema(max_length = 30, min_length = 30, example = "secret_k2uj3he2893eiu2d")]
     pub client_secret: Option<String>,
