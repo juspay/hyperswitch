@@ -5075,3 +5075,7 @@ api_key = "API Key"
 [bluecode]
 [bluecode.connector_auth.HeaderKey]
 api_key = "API Key"
+
+[sift]
+[sift.connector_auth.HeaderKey]
+api_key = "API Key"
