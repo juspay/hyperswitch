@@ -67,13 +67,13 @@ pub struct AuthenticationCreateRequest {
 pub struct AcquirerDetails {
     /// The bin of the card.
     #[schema(value_type = Option<String>, example = "123456")]
-    pub bin: Option<String>,
+    pub acquirer_bin: Option<String>,
     /// The merchant id of the card.
     #[schema(value_type = Option<String>, example = "merchant_abc")]
-    pub merchant_id: Option<String>,
+    pub acquirer_merchant_id: Option<String>,
     /// The country code of the card.
     #[schema(value_type = Option<String>, example = "US/34456")]
-    pub country_code: Option<String>,
+    pub merchant_country_code: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]

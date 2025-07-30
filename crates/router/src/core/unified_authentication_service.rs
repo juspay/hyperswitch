@@ -669,9 +669,9 @@ pub async fn authentication_create_core(
         if let Some(acquirer_details) = &req.acquirer_details {
             // Priority 1: Use acquirer_details from request if present
             (
-                acquirer_details.bin.clone(),
-                acquirer_details.merchant_id.clone(),
-                acquirer_details.country_code.clone(),
+                acquirer_details.acquirer_bin.clone(),
+                acquirer_details.acquirer_merchant_id.clone(),
+                acquirer_details.merchant_country_code.clone(),
             )
         } else {
             // Priority 2: Fallback to profile_acquirer_id lookup
@@ -723,9 +723,9 @@ pub async fn authentication_create_core(
     .await?;
 
     let acquirer_details = Some(AcquirerDetails {
-        bin: new_authentication.acquirer_bin.clone(),
-        merchant_id: new_authentication.acquirer_merchant_id.clone(),
-        country_code: new_authentication.acquirer_country_code.clone(),
+        acquirer_bin: new_authentication.acquirer_bin.clone(),
+        acquirer_merchant_id: new_authentication.acquirer_merchant_id.clone(),
+        merchant_country_code: new_authentication.acquirer_country_code.clone(),
     });
 
     let amount = new_authentication
@@ -849,9 +849,9 @@ impl
             directory_server_id: authentication.directory_server_id,
         });
         let acquirer_details = AcquirerDetails {
-            bin: authentication.acquirer_bin,
-            merchant_id: authentication.acquirer_merchant_id,
-            country_code: authentication.acquirer_country_code,
+            acquirer_bin: authentication.acquirer_bin,
+            acquirer_merchant_id: authentication.acquirer_merchant_id,
+            merchant_country_code: authentication.acquirer_country_code,
         };
         Ok(Self {
             authentication_id: authentication.authentication_id,
@@ -935,8 +935,9 @@ pub async fn authentication_eligibility_core(
     let notification_url = match authentication_connector {
         common_enums::AuthenticationConnectors::Juspaythreedsserver => {
             Some(url::Url::parse(&format!(
-                "{base_url}/{authentication_id}/sync",
+                "{base_url}/{merchant_id}/{authentication_id}/sync",
                 base_url = state.base_url,
+                merchant_id = merchant_id.get_string_repr(),
                 authentication_id = authentication_id.get_string_repr()
             )))
             .transpose()
@@ -980,9 +981,7 @@ pub async fn authentication_eligibility_core(
         .transpose()
         .change_context(ApiErrorResponse::InternalServerError)?;
 
-    let merchant_country_code = business_profile.merchant_country_code.or(metadata
-        .clone()
-        .and_then(|metadata| metadata.merchant_country_code.clone()));
+    let merchant_country_code = authentication.acquirer_country_code.clone();
 
     let merchant_details = Some(hyperswitch_domain_models::router_request_types::unified_authentication_service::MerchantDetails {
         merchant_id: Some(authentication.merchant_id.get_string_repr().to_string()),
@@ -992,7 +991,7 @@ pub async fn authentication_eligibility_core(
         three_ds_requestor_url: business_profile.authentication_connector_details.map(|details| details.three_ds_requestor_url),
         three_ds_requestor_id: metadata.clone().and_then(|metadata| metadata.three_ds_requestor_id),
         three_ds_requestor_name: metadata.clone().and_then(|metadata| metadata.three_ds_requestor_name),
-        merchant_country_code,
+        merchant_country_code: merchant_country_code.map(common_types::payments::MerchantCountryCode::new),
         notification_url,
     });
 
@@ -1016,8 +1015,8 @@ pub async fn authentication_eligibility_core(
             None,
             merchant_details.as_ref(),
             domain_address.as_ref(),
-            acquirer_details.clone().map(|detail| detail.acquirer_bin),
-            acquirer_details.map(|detail| detail.acquirer_assigned_merchant_id),
+            authentication.acquirer_bin.clone(),
+            authentication.acquirer_merchant_id.clone(),
         )
         .await?;
 
@@ -1345,9 +1344,9 @@ impl
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to parse the url with param")?;
         let acquirer_details = AcquirerDetails {
-            bin: authentication.acquirer_bin.clone(),
-            merchant_id: authentication.acquirer_merchant_id.clone(),
-            country_code: authentication.acquirer_country_code.clone(),
+            acquirer_bin: authentication.acquirer_bin.clone(),
+            acquirer_merchant_id: authentication.acquirer_merchant_id.clone(),
+            merchant_country_code: authentication.acquirer_country_code.clone(),
         };
         Ok(Self {
             transaction_status: authentication.trans_status.clone(),
@@ -1477,9 +1476,9 @@ pub async fn authentication_sync_core(
     }
 
     let acquirer_details = Some(AcquirerDetails {
-        bin: authentication.acquirer_bin.clone(),
-        merchant_id: authentication.acquirer_merchant_id.clone(),
-        country_code: authentication.acquirer_country_code.clone(),
+        acquirer_bin: authentication.acquirer_bin.clone(),
+        acquirer_merchant_id: authentication.acquirer_merchant_id.clone(),
+        merchant_country_code: authentication.acquirer_country_code.clone(),
     });
 
     let encrypted_data = domain::types::crypto_operation(
