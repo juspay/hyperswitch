@@ -3159,7 +3159,7 @@ pub fn get_handle_response_url_for_modular_authentication(
 #[cfg(feature = "v1")]
 pub fn make_merchant_url_with_response_for_authentication(
     business_profile: &domain::Profile,
-    redirection_response: api_models::authentication::PgRedirectResponseForAuthentication,
+    redirection_response: hyperswitch_domain_models::authentication::PgRedirectResponseForAuthentication,
     request_return_url: Option<&String>,
     client_secret: Option<&masking::Secret<String>>,
     manual_retry_allowed: Option<bool>,
@@ -3436,8 +3436,8 @@ pub fn make_pg_redirect_response_for_authentication(
     connector: String,
     amount: Option<MinorUnit>,
     trans_status: common_enums::TransactionStatus,
-) -> api_models::authentication::PgRedirectResponseForAuthentication {
-    api_models::authentication::PgRedirectResponseForAuthentication {
+) -> hyperswitch_domain_models::authentication::PgRedirectResponseForAuthentication {
+    hyperswitch_domain_models::authentication::PgRedirectResponseForAuthentication {
         authentication_id,
         status: trans_status,
         gateway_id: connector,

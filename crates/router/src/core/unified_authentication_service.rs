@@ -1550,6 +1550,37 @@ pub async fn authentication_sync_core(
         .ok_or(ApiErrorResponse::InternalServerError)
         .attach_printable("currency failed to get currency from authentication table")?;
 
+    let authentication_connector = authentication
+        .authentication_connector
+        .map(|connector| common_enums::AuthenticationConnectors::from_str(&connector))
+        .transpose()
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Incorrect authentication connector stored in table")?;
+
+    let billing = encrypted_data
+        .billing_address
+        .map(|billing| {
+            billing
+                .into_inner()
+                .expose()
+                .parse_value::<payments::Address>("Address")
+        })
+        .transpose()
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to parse billing address")?;
+
+    let shipping = encrypted_data
+        .shipping_address
+        .map(|shipping| {
+            shipping
+                .into_inner()
+                .expose()
+                .parse_value::<payments::Address>("Address")
+        })
+        .transpose()
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to parse shipping address")?;
+
     let response = AuthenticationSyncResponse {
         authentication_id: authentication_id.clone(),
         merchant_id: merchant_id.clone(),
@@ -1559,7 +1590,7 @@ pub async fn authentication_sync_core(
             .map(masking::Secret::new),
         amount,
         currency,
-        authentication_connector: authentication.authentication_connector.clone(),
+        authentication_connector,
         force_3ds_challenge: authentication.force_3ds_challenge,
         return_url: authentication.return_url.clone(),
         created_at: authentication.created_at,
@@ -1577,8 +1608,8 @@ pub async fn authentication_sync_core(
         message_version: authentication.message_version.clone(),
         connector_metadata: authentication.connector_metadata.clone(),
         directory_server_id: authentication.directory_server_id.clone(),
-        billing: encrypted_data.billing_address,
-        shipping: encrypted_data.shipping_address,
+        billing,
+        shipping,
         browser_information: browser_info,
         email: email_decrypted,
         transaction_status: authentication.trans_status.clone(),

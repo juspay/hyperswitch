@@ -2,7 +2,6 @@ use common_enums::{enums, AuthenticationConnectors};
 #[cfg(feature = "v1")]
 use common_utils::errors::{self, CustomResult};
 use common_utils::{
-    crypto::Encryptable,
     events::{ApiEventMetric, ApiEventsType},
     id_type,
 };
@@ -448,8 +447,8 @@ pub struct AuthenticationSyncResponse {
     pub currency: enums::Currency,
 
     /// The connector used for authentication.
-    #[schema(value_type = Option<String>)]
-    pub authentication_connector: Option<String>,
+    #[schema(value_type = Option<AuthenticationConnectors>)]
+    pub authentication_connector: Option<AuthenticationConnectors>,
 
     /// Whether 3DS challenge was forced.
     pub force_3ds_challenge: Option<bool>,
@@ -507,11 +506,11 @@ pub struct AuthenticationSyncResponse {
 
     /// Billing address.
     #[schema(value_type = Option<Address>)]
-    pub billing: Option<Encryptable<masking::Secret<serde_json::Value>>>,
+    pub billing: Option<Address>,
 
     /// Shipping address.
     #[schema(value_type = Option<Address>)]
-    pub shipping: Option<Encryptable<masking::Secret<serde_json::Value>>>,
+    pub shipping: Option<Address>,
 
     /// Browser information.
     #[schema(value_type = Option<BrowserInformation>)]
@@ -608,13 +607,4 @@ impl ApiEventMetric for AuthenticationSyncPostUpdateRequest {
             authentication_id: self.authentication_id.clone(),
         })
     }
-}
-
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct PgRedirectResponseForAuthentication {
-    pub authentication_id: id_type::AuthenticationId,
-    pub status: common_enums::TransactionStatus,
-    pub gateway_id: String,
-    pub customer_id: Option<id_type::CustomerId>,
-    pub amount: Option<common_utils::types::MinorUnit>,
 }

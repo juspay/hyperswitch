@@ -8244,8 +8244,11 @@
             "$ref": "#/components/schemas/Currency"
           },
           "authentication_connector": {
-            "type": "string",
-            "description": "The connector used for authentication.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationConnectors"
+              }
+            ],
             "nullable": true
           },
           "force_3ds_challenge": {

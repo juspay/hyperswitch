@@ -62,3 +62,12 @@ pub struct Authentication {
     pub browser_info: Option<Value>,
     pub email: Option<Encryptable<Secret<String, pii::EmailStrategy>>>,
 }
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct PgRedirectResponseForAuthentication {
+    pub authentication_id: common_utils::id_type::AuthenticationId,
+    pub status: common_enums::TransactionStatus,
+    pub gateway_id: String,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
+    pub amount: Option<common_utils::types::MinorUnit>,
+}

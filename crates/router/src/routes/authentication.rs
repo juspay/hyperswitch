@@ -204,7 +204,7 @@ pub async fn authentication_sync_post_update(
                 req,
             )
         },
-        &crate::services::authentication::MerchantIdAuth(merchant_id),
+        &auth::MerchantIdAuth(merchant_id),
         api_locking::LockAction::NotApplicable,
     ))
     .await
