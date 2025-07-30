@@ -979,8 +979,10 @@ impl Settings<SecuredSecret> {
         let mut settings: Self = serde_path_to_error::deserialize(config)
             .attach_printable("Unable to deserialize application configuration")
             .change_context(ApplicationError::ConfigurationError)?;
-
-        settings.required_fields = RequiredFields::new(&settings.bank_config);
+        #[cfg(feature = "v1")]
+        {
+            settings.required_fields = RequiredFields::new(&settings.bank_config);
+        }
         Ok(settings)
     }
 

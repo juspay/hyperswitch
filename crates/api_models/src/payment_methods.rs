@@ -1442,6 +1442,7 @@ pub struct ResponsePaymentMethodTypes {
     /// The list of card networks enabled, if applicable for a payment method type
     pub card_networks: Option<Vec<CardNetworkTypes>>,
 
+    #[schema(deprecated)]
     /// The list of banks enabled, if applicable for a payment method type
     pub bank_names: Option<Vec<BankCodeResponse>>,
 
