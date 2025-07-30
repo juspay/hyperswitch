@@ -1,40 +1,35 @@
--- Migration to update sepa to sepa_bank_transfer in merchant_connector_account for payout processors
-UPDATE merchant_connector_account mca
-SET
-    payment_methods_enabled = updated.new_array
-FROM (
-        SELECT
-            merchant_connector_id, array_agg(
-                CASE
-                    WHEN elem IS NOT NULL
-                    AND elem::text LIKE '%"sepa"%' THEN replace(
-                        elem::text, '"sepa"', '"sepa_bank_transfer"'
-                    )::json
-                    ELSE elem
-                END
-            ) AS new_array
-        FROM
-            merchant_connector_account, unnest(payment_methods_enabled) AS elem
-        WHERE
-            payment_methods_enabled IS NOT NULL
-            AND connector_type = 'payout_processor'
-            AND elem IS NOT NULL
-            AND elem::text LIKE '%"sepa"%'
-        GROUP BY
-            merchant_connector_id
-    ) AS updated
-WHERE
-    mca.merchant_connector_id = updated.merchant_connector_id
-    AND mca.connector_type = 'payout_processor';
-
--- Migration to update sepa to sepa_bank_transfer in routing_algorithm for payout algorithms
-UPDATE routing_algorithm
-SET
-    algorithm_data = replace(
-        algorithm_data::text,
-        '"sepa"',
-        '"sepa_bank_transfer"'
-    )::jsonb
-WHERE
-    algorithm_for = 'payout'
-    AND algorithm_data::text LIKE '%"sepa"%';
+-- Update sepa to sepa_bank_transfer in payment methods and routing algorithms
+DO $$
+BEGIN
+    -- Update merchant connector accounts (only if payout_processor enum exists)
+    IF EXISTS (
+        SELECT 1 FROM pg_enum e
+        JOIN pg_type t ON e.enumtypid = t.oid
+        WHERE t.typname = 'ConnectorType' AND e.enumlabel = 'payout_processor'
+    ) THEN
+        UPDATE merchant_connector_account
+        SET payment_methods_enabled = sepa_updated.updated_methods
+        FROM (
+            SELECT
+                merchant_connector_id,
+                array_agg(
+                    CASE
+                        WHEN method::text LIKE '%"sepa"%' THEN 
+                            replace(method::text, '"sepa"', '"sepa_bank_transfer"')::json
+                        ELSE method
+                    END
+                ) AS updated_methods
+            FROM merchant_connector_account, unnest(payment_methods_enabled) AS method
+            WHERE payment_methods_enabled IS NOT NULL
+              AND connector_type::text = 'payout_processor'
+            GROUP BY merchant_connector_id
+        ) AS sepa_updated
+        WHERE merchant_connector_account.merchant_connector_id = sepa_updated.merchant_connector_id
+          AND connector_type::text = 'payout_processor';
+    END IF;
+    
+    -- Update routing algorithms
+    UPDATE routing_algorithm
+    SET algorithm_data = replace(algorithm_data::text, '"sepa"', '"sepa_bank_transfer"')::jsonb
+    WHERE algorithm_for = 'payout' AND algorithm_data::text LIKE '%"sepa"%';
+END $$;
