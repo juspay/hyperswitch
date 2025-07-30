@@ -6638,7 +6638,7 @@
         ]
       }
     },
-    "/create_platform": {
+    "/user/create_platform": {
       "post": {
         "tags": [
           "Platform"
@@ -6647,6 +6647,7 @@
         "description": "Create a new platform account",
         "operationId": "Create a Platform Account",
         "requestBody": {
+          "description": "Create a platform account with organization_name",
           "content": {
             "application/json": {
               "schema": {
@@ -6670,6 +6671,18 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PlatformAccountCreateResponse"
+                },
+                "examples": {
+                  "Successful Platform Account Creation": {
+                    "description": "Return values for a successfully created platform account",
+                    "value": {
+                      "merchant_account_type": "platform",
+                      "merchant_id": "merchant_abc",
+                      "org_id": "org_abc",
+                      "org_name": "organization_abc",
+                      "org_type": "platform"
+                    }
+                  }
                 }
               }
             }
