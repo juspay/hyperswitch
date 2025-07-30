@@ -659,7 +659,7 @@ impl<F, T>
                             .first()
                             .or(item.response.customer_payment_profile_id.as_ref())
                             .map(|payment_profile_id| {
-                                format!("{}-{}", connector_customer_id, payment_profile_id)
+                                format!("{connector_customer_id}-{payment_profile_id}")
                             }),
                         payment_method_id: None,
                         mandate_metadata: None,
