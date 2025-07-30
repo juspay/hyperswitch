@@ -83,7 +83,7 @@ impl Mandate {
     pub fn get_user_agent_extended(&self) -> Option<String> {
         self.customer_user_agent_extended
             .clone()
-            .or(self.customer_user_agent.clone())
+            .or_else(|| self.customer_user_agent.clone())
     }
 }
 
