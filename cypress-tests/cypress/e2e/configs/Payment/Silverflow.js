@@ -62,10 +62,10 @@ const billingAddress = {
 const payment_method_data_visa = {
   card: {
     last4: "1111",
-    card_type: null,
-    card_network: null,
-    card_issuer: null,
-    card_issuing_country: null,
+    card_type: "CREDIT",
+    card_network: "Visa",
+    card_issuer: "JP Morgan",
+    card_issuing_country: "INDIA",
     card_isin: "411111",
     card_extended_bin: null,
     card_exp_month: "12",
@@ -98,10 +98,10 @@ const payment_method_data_amex = {
 const payment_method_data_failed = {
   card: {
     last4: "0002",
-    card_type: null,
-    card_network: null,
-    card_issuer: null,
-    card_issuing_country: null,
+    card_type: "CREDIT",
+    card_network: "Visa",
+    card_issuer: "INTL HDQTRS-CENTER OWNED",
+    card_issuing_country: "UNITEDSTATES",
     card_isin: "400000",
     card_extended_bin: null,
     card_exp_month: "12",
