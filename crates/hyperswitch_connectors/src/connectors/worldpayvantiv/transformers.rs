@@ -519,7 +519,7 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
         let ship_to_address = get_ship_to_address(item.router_data);
         let processing_info = get_processing_info(&item.router_data.request)?;
         let order_source = OrderSource::from(&item.router_data.request.payment_channel);
-        let (authorization, sale) = if item.router_data.request.is_auto_capture()? {
+        let (authorization, sale) = if item.router_data.request.is_auto_capture()? && item.amount != MinorUnit::zero() {
             (
                 None,
                 Some(Sale {
@@ -827,6 +827,15 @@ pub struct CaptureResponse {
 pub struct FraudResult {
     pub avs_result: Option<String>,
     pub card_validation_result: Option<String>,
+    pub advanced_fraud_results: Option<AdvancedFraudResults>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct AdvancedFraudResults {
+    pub device_review_status: Option<String>,
+    pub device_reputation_score: Option<String>,
+    pub triggered_rules: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
