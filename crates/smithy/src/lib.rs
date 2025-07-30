@@ -3,7 +3,7 @@
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use smithy_core::{SmithyConstraint, SmithyEnumVariant, SmithyField, SmithyMember, SmithyShape};
+use smithy_core::{SmithyConstraint, SmithyEnumVariant, SmithyField};
 use syn::{parse_macro_input, Attribute, DeriveInput, Fields, Lit, Meta, Variant};
 
 /// Derive macro for generating Smithy models from Rust structs and enums
@@ -57,6 +57,27 @@ fn generate_struct_impl(
         let documentation = &field.documentation;
         let constraints = &field.constraints;
         let optional = field.optional;
+        let flatten = field.flatten;
+
+        if flatten {
+            let value_type_ident = syn::parse_str::<syn::Type>(value_type).unwrap();
+            return quote! {
+                {
+                    let flattened_model = <#value_type_ident as smithy_core::SmithyModelGenerator>::generate_smithy_model();
+                    let flattened_struct_name = stringify!(#value_type_ident).to_string();
+
+                    for (shape_name, shape) in flattened_model.shapes {
+                        if shape_name == flattened_struct_name {
+                            if let smithy_core::SmithyShape::Structure { members: flattened_members, .. } = shape {
+                                members.extend(flattened_members);
+                            }
+                        } else {
+                            shapes.insert(shape_name, shape);
+                        }
+                    }
+                }
+            };
+        }
 
         let field_doc = documentation
             .as_ref()
@@ -311,6 +332,7 @@ fn extract_fields(fields: &Fields) -> syn::Result<Vec<SmithyField>> {
             for field in &fields_named.named {
                 let field_name = field.ident.as_ref().unwrap().to_string();
                 let field_attrs = parse_smithy_field_attributes(&field.attrs)?;
+                let serde_attrs = parse_serde_attributes(&field.attrs)?;
 
                 if let Some(value_type) = field_attrs.value_type {
                     let documentation = extract_documentation(&field.attrs);
@@ -322,6 +344,7 @@ fn extract_fields(fields: &Fields) -> syn::Result<Vec<SmithyField>> {
                         constraints: field_attrs.constraints,
                         documentation,
                         optional,
+                        flatten: serde_attrs.flatten,
                     });
                 }
             }
@@ -366,6 +389,7 @@ fn extract_enum_variants(
                             constraints: field_attrs.constraints,
                             documentation: field_documentation,
                             optional,
+                            flatten: false,
                         });
                     }
                 }
@@ -387,6 +411,7 @@ fn extract_enum_variants(
                             constraints: field_attrs.constraints,
                             documentation: field_documentation,
                             optional,
+                            flatten: false,
                         });
                     }
                 }
@@ -409,6 +434,33 @@ fn extract_enum_variants(
 struct SmithyFieldAttributes {
     value_type: Option<String>,
     constraints: Vec<SmithyConstraint>,
+}
+
+#[derive(Default)]
+struct SerdeAttributes {
+    flatten: bool,
+}
+
+fn parse_serde_attributes(attrs: &[Attribute]) -> syn::Result<SerdeAttributes> {
+    let mut serde_attributes = SerdeAttributes::default();
+
+    for attr in attrs {
+        if attr.path().is_ident("serde") {
+            if let Ok(list) = attr.meta.require_list() {
+                if list.path.is_ident("serde") {
+                    for item in list.tokens.clone() {
+                        if let Some(ident) = item.to_string().split_whitespace().next() {
+                            if ident == "flatten" {
+                                serde_attributes.flatten = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(serde_attributes)
 }
 
 fn parse_smithy_field_attributes(attrs: &[Attribute]) -> syn::Result<SmithyFieldAttributes> {

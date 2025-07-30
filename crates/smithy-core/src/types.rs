@@ -103,6 +103,7 @@ pub struct SmithyField {
     pub constraints: Vec<SmithyConstraint>,
     pub documentation: Option<String>,
     pub optional: bool,
+    pub flatten: bool,
 }
 
 #[derive(Debug, Clone)]
