@@ -102,8 +102,7 @@ pub async fn update_gsm_rule(
             unified_message,
             error_category,
             clear_pan_possible,
-            feature_data: feature_data
-                .or(Some(inferred_feature_info.1)),
+            feature_data: feature_data.or(Some(inferred_feature_info.1)),
             feature: feature.or(Some(inferred_feature_info.0)),
         },
     )
