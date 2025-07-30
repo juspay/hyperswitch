@@ -1827,6 +1827,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::Dana => Self::Wallet,
             PaymentMethodType::DanamonVa => Self::BankTransfer,
             PaymentMethodType::Debit => Self::Card,
+            PaymentMethodType::Flexiti => Self::PayLater,
             PaymentMethodType::Fps => Self::RealTimePayment,
             PaymentMethodType::DuitNow => Self::RealTimePayment,
             PaymentMethodType::Eft => Self::BankRedirect,

@@ -55,6 +55,7 @@ pub enum PayLaterType {
     Klarna,
     PayBright,
     Walley,
+    Flexiti,
     Atome,
     Breadpay,
 }

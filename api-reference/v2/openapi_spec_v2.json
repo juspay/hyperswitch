@@ -8273,6 +8273,7 @@
           "fiserv",
           "fiservemea",
           "fiuu",
+          "flexiti",
           "forte",
           "getnet",
           "globalpay",
@@ -15486,6 +15487,18 @@
           {
             "type": "object",
             "required": [
+              "flexiti_redirect"
+            ],
+            "properties": {
+              "flexiti_redirect": {
+                "type": "object",
+                "description": "For Flexiti Redirect as PayLater long term finance Option"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "walley_redirect"
             ],
             "properties": {
@@ -17888,6 +17901,7 @@
           "efecty",
           "eft",
           "eps",
+          "flexiti",
           "fps",
           "evoucher",
           "giropay",
@@ -22987,6 +23001,7 @@
           "fiserv",
           "fiservemea",
           "fiuu",
+          "flexiti",
           "forte",
           "getnet",
           "globalpay",

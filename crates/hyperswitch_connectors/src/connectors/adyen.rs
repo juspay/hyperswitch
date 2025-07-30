@@ -340,6 +340,7 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::InstantBankTransferPoland
                 | PaymentMethodType::IndonesianBankTransfer
                 | PaymentMethodType::SepaBankTransfer
+                | PaymentMethodType::Flexiti
                 | PaymentMethodType::RevolutPay
                 | PaymentMethodType::Bluecode => {
                     capture_method_not_supported!(connector, capture_method, payment_method_type)

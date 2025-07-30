@@ -89,6 +89,7 @@ impl TryFrom<(&types::TokenizationRouterData, PayLaterData)> for SquareTokenRequ
             | PayLaterData::PayBrightRedirect { .. }
             | PayLaterData::WalleyRedirect { .. }
             | PayLaterData::AlmaRedirect { .. }
+            | PayLaterData::FlexitiRedirect { .. }
             | PayLaterData::AtomeRedirect { .. }
             | PayLaterData::BreadpayRedirect { .. } => {
                 Err(errors::ConnectorError::NotImplemented(

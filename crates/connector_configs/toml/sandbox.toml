@@ -6432,10 +6432,6 @@ api_key = "API Key"
 api_key = "API Key"
 key1 = "API Secret"
 
-[flexiti]
-[flexiti.connector_auth.HeaderKey]
-api_key = "API Key"
-
 [mpgs]
 [mpgs.connector_auth.HeaderKey]
 api_key = "API Key"
@@ -6445,3 +6441,12 @@ api_key = "API Key"
   payment_method_type = "bluecode"
 [bluecode.connector_auth.HeaderKey]
 api_key = "E-Order Token"
+
+[flexiti]
+[flexiti.connector_auth.bodykey]
+api_key = "Client id"
+key1 = "Client secret"
+[[flexiti.pay_later]]
+payment_method_type = "flexiti"
+payment_experience = "redirect_to_url"
+

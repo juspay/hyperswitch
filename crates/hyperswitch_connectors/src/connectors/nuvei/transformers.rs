@@ -1007,6 +1007,7 @@ where
                     get_pay_later_info(AlternativePaymentMethodType::AfterPay, item)
                 }
                 PayLaterData::KlarnaSdk { .. }
+                | PayLaterData::FlexitiRedirect {}
                 | PayLaterData::AffirmRedirect {}
                 | PayLaterData::PayBrightRedirect {}
                 | PayLaterData::WalleyRedirect {}

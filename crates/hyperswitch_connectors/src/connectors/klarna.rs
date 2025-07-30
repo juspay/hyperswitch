@@ -645,6 +645,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::DuitNow
                         | common_enums::PaymentMethodType::PromptPay
                         | common_enums::PaymentMethodType::VietQr
+                        | common_enums::PaymentMethodType::Flexiti
                         | common_enums::PaymentMethodType::OpenBankingPIS
                         | common_enums::PaymentMethodType::RevolutPay
                         | common_enums::PaymentMethodType::IndonesianBankTransfer
@@ -767,6 +768,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::DuitNow
                         | common_enums::PaymentMethodType::PromptPay
                         | common_enums::PaymentMethodType::VietQr
+                        | common_enums::PaymentMethodType::Flexiti
                         | common_enums::PaymentMethodType::OpenBankingPIS
                         | common_enums::PaymentMethodType::Skrill
                         | common_enums::PaymentMethodType::IndonesianBankTransfer
@@ -897,6 +899,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::DuitNow
                         | common_enums::PaymentMethodType::PromptPay
                         | common_enums::PaymentMethodType::VietQr
+                        | common_enums::PaymentMethodType::Flexiti
                         | common_enums::PaymentMethodType::OpenBankingPIS
                         | common_enums::PaymentMethodType::IndonesianBankTransfer
                         | common_enums::PaymentMethodType::RevolutPay
@@ -1019,6 +1022,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::DuitNow
                         | common_enums::PaymentMethodType::PromptPay
                         | common_enums::PaymentMethodType::VietQr
+                        | common_enums::PaymentMethodType::Flexiti
                         | common_enums::PaymentMethodType::OpenBankingPIS
                         | common_enums::PaymentMethodType::RevolutPay
                         | common_enums::PaymentMethodType::Breadpay
