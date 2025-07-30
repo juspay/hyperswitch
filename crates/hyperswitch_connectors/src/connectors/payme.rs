@@ -1323,7 +1323,8 @@ static PAYME_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
 static PAYME_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Payme",
     description: "Payme is a payment gateway enabling secure online transactions",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Live,
 };
 
 static PAYME_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 3] = [

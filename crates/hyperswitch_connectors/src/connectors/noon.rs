@@ -990,7 +990,8 @@ static NOON_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
 static NOON_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Noon",
     description: "Noon is a payment gateway and PSP enabling secure online transactions",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Live,
 };
 
 static NOON_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];
