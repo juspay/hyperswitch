@@ -706,7 +706,8 @@ impl
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Cancelled
-            | common_enums::IntentStatus::Conflicted => Some(MinorUnit::zero()),
+            | common_enums::IntentStatus::Conflicted
+            | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             // For these statuses, update the capturable amount when it reaches terminal / capturable state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
@@ -741,9 +742,9 @@ impl
                 Some(total_amount)
             }
             // No amount is captured
-            common_enums::IntentStatus::Cancelled | common_enums::IntentStatus::Failed => {
-                Some(MinorUnit::zero())
-            }
+            common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::Failed
+            | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             // For these statuses, update the amount captured when it reaches terminal state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
@@ -918,7 +919,8 @@ impl
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Cancelled
-            | common_enums::IntentStatus::Conflicted => Some(MinorUnit::zero()),
+            | common_enums::IntentStatus::Conflicted
+            | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             // For these statuses, update the capturable amount when it reaches terminal / capturable state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
@@ -956,9 +958,9 @@ impl
                 Some(amount_captured)
             }
             // No amount is captured
-            common_enums::IntentStatus::Cancelled | common_enums::IntentStatus::Failed => {
-                Some(MinorUnit::zero())
-            }
+            common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::Failed
+            | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             common_enums::IntentStatus::RequiresCapture => {
                 let total_amount = payment_data.payment_attempt.amount_details.get_net_amount();
                 Some(total_amount)
@@ -1155,7 +1157,8 @@ impl
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Cancelled
-            | common_enums::IntentStatus::Conflicted => Some(MinorUnit::zero()),
+            | common_enums::IntentStatus::Conflicted
+            | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             // For these statuses, update the capturable amount when it reaches terminal / capturable state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
@@ -1192,9 +1195,9 @@ impl
                 Some(amount_captured)
             }
             // No amount is captured
-            common_enums::IntentStatus::Cancelled | common_enums::IntentStatus::Failed => {
-                Some(MinorUnit::zero())
-            }
+            common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::Failed
+            | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             // For these statuses, update the amount captured when it reaches terminal state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
@@ -1389,7 +1392,8 @@ impl
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Cancelled
-            | common_enums::IntentStatus::Conflicted => Some(MinorUnit::zero()),
+            | common_enums::IntentStatus::Conflicted
+            | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             // For these statuses, update the capturable amount when it reaches terminal / capturable state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
@@ -1424,9 +1428,9 @@ impl
                 Some(total_amount)
             }
             // No amount is captured
-            common_enums::IntentStatus::Cancelled | common_enums::IntentStatus::Failed => {
-                Some(MinorUnit::zero())
-            }
+            common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::Failed
+            | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             // For these statuses, update the amount captured when it reaches terminal state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction

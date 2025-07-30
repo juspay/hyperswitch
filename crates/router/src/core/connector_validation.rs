@@ -129,6 +129,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 bluesnap::transformers::BluesnapAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            // api_enums::Connector::Bluecode => {
+            //     bluecode::transformers::BluecodeAuthType::try_from(self.auth_type)?;
+            //     Ok(())
+            // }
             api_enums::Connector::Braintree => {
                 braintree::transformers::BraintreeAuthType::try_from(self.auth_type)?;
                 braintree::transformers::BraintreeMeta::try_from(self.connector_meta_data)?;
@@ -230,6 +234,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Fiuu => {
                 fiuu::transformers::FiuuAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Flexiti => {
+                flexiti::transformers::FlexitiAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Forte => {

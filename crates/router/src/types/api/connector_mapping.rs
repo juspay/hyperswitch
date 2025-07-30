@@ -144,6 +144,9 @@ impl ConnectorData {
                 enums::Connector::Bluesnap => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Bluesnap::new())))
                 }
+                // enums::Connector::Bluecode => {
+                //     Ok(ConnectorEnum::Old(Box::new(connector::Bluecode::new())))
+                // }
                 enums::Connector::Boku => Ok(ConnectorEnum::Old(Box::new(connector::Boku::new()))),
                 enums::Connector::Braintree => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Braintree::new())))
@@ -248,6 +251,9 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Fiservemea::new())))
                 }
                 enums::Connector::Fiuu => Ok(ConnectorEnum::Old(Box::new(connector::Fiuu::new()))),
+                enums::Connector::Flexiti => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Flexiti::new())))
+                }
                 enums::Connector::Forte => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Forte::new())))
                 }
