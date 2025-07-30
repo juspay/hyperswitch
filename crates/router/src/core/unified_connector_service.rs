@@ -301,6 +301,7 @@ pub fn handle_unified_connector_service_response_for_payment_authorize(
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
         AttemptStatus::RouterDeclined |
                     AttemptStatus::CodInitiated |
@@ -381,6 +382,7 @@ pub fn handle_unified_connector_service_response_for_payment_get(
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            connector_metadata: None,
         }),
         AttemptStatus::RouterDeclined |
                     AttemptStatus::CodInitiated |

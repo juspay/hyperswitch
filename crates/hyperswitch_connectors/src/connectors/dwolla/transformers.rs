@@ -272,13 +272,28 @@ impl<'a> TryFrom<&DwollaRouterData<'a, &PaymentsAuthorizeRouterData>> for Dwolla
     fn try_from(
         item: &DwollaRouterData<'a, &PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        let source_funding = match item.router_data.get_payment_method_token()? {
-            PaymentMethodToken::Token(pm_token) => Ok(pm_token),
-            _ => Err(errors::ConnectorError::MissingRequiredField {
+        let fallback_token = match &item.router_data.response {
+            Err(err) => err
+                .connector_metadata
+                .as_ref()
+                .and_then(|meta| meta.get("payment_token"))
+                .and_then(|v| v.as_str().map(|s| Secret::new(s.to_string()))),
+            Ok(_) => None,
+        };
+        
+        let source_funding = item
+            .router_data
+            .get_payment_method_token()
+            .ok()
+            .and_then(|token| match token {
+                PaymentMethodToken::Token(pm_token) => Some(pm_token),
+                _ => None,
+            })
+            .or(fallback_token.clone())
+            .ok_or(errors::ConnectorError::MissingRequiredField {
                 field_name: "payment_method_token",
-            }),
-        }?;
-
+            })?;
+        
         let metadata = utils::to_connector_meta_from_secret::<DwollaMetaData>(
             item.router_data.connector_meta_data.clone(),
         )

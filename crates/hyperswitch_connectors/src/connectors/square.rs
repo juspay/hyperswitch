@@ -161,6 +161,7 @@ impl ConnectorCommon for Square {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }

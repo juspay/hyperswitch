@@ -164,6 +164,7 @@ impl ConnectorCommon for Dwolla {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -420,20 +421,12 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<TokenizationRouterData, errors::ConnectorError> {
-        let token = match res.headers.as_ref() {
-            Some(headers) => {
-                if let Ok(location) = get_http_header("Location", headers) {
-                    location
-                        .rsplit('/')
-                        .next()
-                        .ok_or_else(|| report!(errors::ConnectorError::ResponseHandlingFailed))?
-                        .to_string()
-                } else {
-                    extract_token_from_body(&res.response)?
-                }
-            }
-            None => extract_token_from_body(&res.response)?,
-        };
+        let token = res
+            .headers
+            .as_ref()
+            .and_then(|headers| get_http_header("Location", headers).ok())
+            .and_then(|location| location.rsplit('/').next().map(|s| s.to_string()))
+            .ok_or_else(|| report!(errors::ConnectorError::ResponseHandlingFailed))?;
 
         let response = serde_json::json!({ "payment_token": token });
 
@@ -455,6 +448,37 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        if let Ok(body) = std::str::from_utf8(&res.response)
+        {
+            if res.status_code == 400 && body.contains("Duplicate") {
+                let token = extract_token_from_body(&res.response);
+                let metadata = Some(serde_json::json!({ "payment_token": token? }));
+                let response: dwolla::DwollaErrorResponse = res
+                    .response
+                    .parse_struct("DwollaErrorResponse")
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+                event_builder.map(|i| i.set_response_body(&response));
+
+                return Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: response.code,
+                    message: response.message,
+                    reason: response
+                        ._embedded
+                        .as_ref()
+                        .and_then(|errors_vec| errors_vec.first())
+                        .and_then(|details| details.errors.first())
+                        .and_then(|err_detail| err_detail.message.clone()),
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: metadata,
+                });
+            }
+        }
         self.build_error_response(res, event_builder)
     }
 }
@@ -543,8 +567,21 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        let connector_metadata = data
-            .payment_method_token
+        let fallback_token = match &data.response {
+            Err(err) => err
+                .connector_metadata
+                .as_ref()
+                .and_then(|meta| meta.get("payment_token"))
+                .and_then(|v| v.as_str().map(|s| Secret::new(s.to_string()))),
+            Ok(_) => None,
+        };
+
+        let payment_method_token = match &data.payment_method_token {
+            Some(_) => data.payment_method_token.clone(),
+            None => fallback_token.map(PMT::Token),
+        };
+
+        let connector_metadata = payment_method_token
             .as_ref()
             .and_then(|token| match token {
                 PMT::Token(t) => Some(serde_json::json!({ "payment_token": t.clone().expose() })),
@@ -552,6 +589,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             });
 
         Ok(RouterData {
+            payment_method_token,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(payment_id.clone()),
                 redirection_data: Box::new(None),

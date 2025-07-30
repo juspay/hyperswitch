@@ -1346,8 +1346,8 @@ pub fn update_router_data_with_payment_method_token_result<F: Clone, T>(
                 true
             }
             Err(err) => {
+                router_data.response = Err(err.clone());
                 if is_retry_payment {
-                    router_data.response = Err(err);
                     false
                 } else {
                     logger::debug!(payment_method_tokenization_error=?err);

@@ -181,6 +181,7 @@ where
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 })
             } else {
                 None
@@ -350,32 +351,6 @@ where
                                             error_res
                                         }
                                         _ => {
-                                            // Dwolla creates a funding source ID using account details and if the same details are used again, it returns a 400 error with the funding source ID in the response.
-                                            // We handle this 400 as a success case and extract the funding source ID.
-                                            if req.connector == "dwolla"
-                                                && body.status_code == 400
-                                                && std::any::type_name::<T>()
-                                                    .contains("PaymentMethodToken")
-                                            {
-                                                if let Ok(response_body) =
-                                                    str::from_utf8(body.response.as_ref())
-                                                {
-                                                    if response_body.contains("Duplicate") {
-                                                        let response = types::Response {
-                                                            headers: body.headers,
-                                                            response: body.response,
-                                                            status_code: 200,
-                                                        };
-                                                        return connector_integration
-                                                            .handle_response(
-                                                                req,
-                                                                Some(&mut connector_event),
-                                                                response,
-                                                            );
-                                                    }
-                                                }
-                                            }
-
                                             let error_res = connector_integration
                                                 .get_error_response(
                                                     body,
@@ -410,6 +385,7 @@ where
                                     network_advice_code: None,
                                     network_decline_code: None,
                                     network_error_message: None,
+                                    connector_metadata: None,
                                 };
                                 router_data.response = Err(error_response);
                                 router_data.connector_http_status_code = Some(504);

@@ -323,6 +323,7 @@ fn get_payment_response(
                 .payment_method
                 .as_ref()
                 .and_then(|payment_method| payment_method.message.clone()),
+            connector_metadata: None,
         })),
         _ => Ok(PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(response.id.clone()),

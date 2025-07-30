@@ -158,6 +158,7 @@ impl ConnectorCommon for Iatapay {
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             }
         } else {
             let response: iatapay::IatapayErrorResponse = res
@@ -177,6 +178,7 @@ impl ConnectorCommon for Iatapay {
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             }
         };
         Ok(response_error_message)
@@ -297,6 +299,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }

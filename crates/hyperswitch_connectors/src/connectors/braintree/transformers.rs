@@ -482,6 +482,7 @@ impl<F>
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -575,6 +576,7 @@ fn get_error_response<T>(
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         },
     ))
 }
@@ -668,6 +670,7 @@ impl<F>
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -756,6 +759,7 @@ impl<F>
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -825,6 +829,7 @@ impl<F>
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -1019,6 +1024,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, BraintreeRefundResponse>>
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,
+                            connector_metadata: None,
                         })
                     } else {
                         Ok(RefundsResponseData {
@@ -1381,6 +1387,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<BraintreeCaptureResponse>>
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -1584,6 +1591,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BraintreeCancelResponse, T, PaymentsRes
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -1690,6 +1698,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BraintreePSyncResponse, T, PaymentsResp
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {

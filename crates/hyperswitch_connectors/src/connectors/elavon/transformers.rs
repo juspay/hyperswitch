@@ -285,6 +285,7 @@ impl<F>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             }),
             ElavonResult::Success(response) => {
                 if status == enums::AttemptStatus::Failure {
@@ -298,6 +299,7 @@ impl<F>
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -508,6 +510,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<ElavonPaymentsResponse>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             }),
             ElavonResult::Success(response) => {
                 if status == enums::AttemptStatus::Failure {
@@ -521,6 +524,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<ElavonPaymentsResponse>>
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -567,6 +571,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, ElavonPaymentsResponse>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             }),
             ElavonResult::Success(response) => {
                 if status == enums::RefundStatus::Failure {
@@ -580,6 +585,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, ElavonPaymentsResponse>>
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     })
                 } else {
                     Ok(RefundsResponseData {
