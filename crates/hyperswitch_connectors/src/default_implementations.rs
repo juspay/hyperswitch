@@ -1428,7 +1428,7 @@ default_imp_for_pre_authenticate_steps!(
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluesnap,
+    // connectors::Bluesnap,
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,

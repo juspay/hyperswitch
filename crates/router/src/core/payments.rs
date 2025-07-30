@@ -6460,6 +6460,15 @@ where
                 ) && router_data.status
                     != common_enums::AttemptStatus::AuthenticationFailed;
                 (router_data, should_continue)
+            } else if connector.connector_name == router_types::Connector::Bluesnap
+                && is_operation_confirmintent(&operation)
+                && router_data.auth_type == storage_enums::AuthenticationType::ThreeDs
+            {
+                router_data = router_data.preauthenticate_steps(state, connector).await?;
+
+                let should_continue = false; // TODO: This needs to be fixed
+
+                (router_data, should_continue)
             } else {
                 (router_data, should_continue_payment)
             }
