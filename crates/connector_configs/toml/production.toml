@@ -5072,6 +5072,9 @@ api_key = "API Key"
 [mpgs]
 [mpgs.connector_auth.HeaderKey]
 api_key = "API Key"
+
 [bluecode]
+[[bluecode.wallet]]
+  payment_method_type = "bluecode"
 [bluecode.connector_auth.HeaderKey]
 api_key = "E-Order Token"

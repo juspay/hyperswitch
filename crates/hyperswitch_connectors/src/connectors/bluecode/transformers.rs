@@ -75,7 +75,7 @@ impl TryFrom<&BluecodeRouterData<&PaymentsAuthorizeRouterData>> for BluecodePaym
         if item.router_data.request.capture_method != Some(enums::CaptureMethod::Automatic) {
             return Err(errors::ConnectorError::FlowNotSupported {
                 flow: format!("{:?}", item.router_data.request.capture_method),
-                connector: "Santander".to_string(),
+                connector: "Bluecode".to_string(),
             }
             .into());
         }
@@ -106,7 +106,7 @@ impl
         let item = value.0;
 
         let shop_name = match value.1 {
-            WalletData::Bluecode(b) => b.shop_name.clone(),
+            WalletData::Bluecode(shop_name) => shop_name.shop_name.clone(),
             _ => Err(errors::ConnectorError::MissingRequiredField {
                 field_name: "shop_name",
             })?,
@@ -156,6 +156,7 @@ impl From<BluecodePaymentStatus> for common_enums::AttemptStatus {
                 Self::AuthenticationPending
             }
             BluecodePaymentStatus::Failed => Self::Failure,
+            BluecodePaymentStatus::Completed => Self::Charged,
         }
     }
 }
@@ -199,7 +200,7 @@ pub struct BluecodeSyncResponse {
     pub charged_fx_amount_currency: Option<enums::Currency>,
     pub is_underpaid: bool,
     pub billing_amount: FloatMajorUnit,
-    pub billing_currency: enums::Currency,
+    pub billing_currency: String,
     pub language: String,
     pub ip_address: Option<Secret<String, IpAddress>>,
     pub first_name: Secret<String>,
@@ -229,6 +230,7 @@ pub enum BluecodePaymentStatus {
     PaymentInitiated,
     ManualProcessing,
     Failed,
+    Completed,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, BluecodePaymentsResponse, T, PaymentsResponseData>>
@@ -364,6 +366,9 @@ pub(crate) fn get_bluecode_webhook_event(
     status: BluecodePaymentStatus,
 ) -> api_models::webhooks::IncomingWebhookEvent {
     match status {
+        BluecodePaymentStatus::Completed => {
+            api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess
+        }
         BluecodePaymentStatus::PaymentInitiated
         | BluecodePaymentStatus::ManualProcessing
         | BluecodePaymentStatus::Pending => {

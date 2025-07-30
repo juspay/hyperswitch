@@ -145,8 +145,8 @@ impl ConnectorCommon for Bluecode {
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: consts::NO_ERROR_CODE.to_string(),
-            message: response.message,
-            reason: None,
+            message: response.message.clone(),
+            reason: Some(response.message),
             attempt_status: None,
             connector_transaction_id: None,
             network_advice_code: None,
@@ -646,7 +646,7 @@ impl webhooks::IncomingWebhook for Bluecode {
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
         Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            api_models::payments::PaymentIdType::PaymentAttemptId(webhook_body.order_id),
+            api_models::payments::PaymentIdType::ConnectorTransactionId(webhook_body.order_id),
         ))
     }
 

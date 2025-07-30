@@ -198,31 +198,11 @@ enum RequiredField {
     DcbMsisdn,
     DcbClientUid,
     OrderDetailsProductName,
-    BrowserInfoIpAddress,
-    ReturnUrl,
 }
 
 impl RequiredField {
     fn to_tuple(&self) -> (String, RequiredFieldInfo) {
         match self {
-            Self::BrowserInfoIpAddress => (
-                "browser_info.ip_address".to_string(),
-                RequiredFieldInfo {
-                    required_field: "browser_info.ip_address".to_string(),
-                    display_name: "ip_address".to_string(),
-                    field_type: FieldType::MerchantReturnUrl,
-                    value: None,
-                },
-            ),
-            Self::ReturnUrl => (
-                "return_url".to_string(),
-                RequiredFieldInfo {
-                    required_field: "return_url".to_string(),
-                    display_name: "return_url".to_string(),
-                    field_type: FieldType::UserIpAddress,
-                    value: None,
-                },
-            ),
             Self::CardNumber => (
                 "payment_method_data.card.card_number".to_string(),
                 RequiredFieldInfo {
@@ -3316,15 +3296,17 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
                         mandate: HashMap::new(),
                         non_mandate: HashMap::new(),
                         common: HashMap::from([
-                            RequiredField::BrowserInfoIpAddress.to_tuple(),
                             RequiredField::BillingUserFirstName.to_tuple(),
                             RequiredField::BillingUserLastName.to_tuple(),
-                            RequiredField::BillingCountries(vec!["", "", "", "", ""]).to_tuple(),
-                            // add supported countries once it is known
+                            RequiredField::BillingCountries(vec![
+                                "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE",
+                                "GR", "HU", "IE", "IT", "LV", "LT", "LU", "MT", "NL", "PL", "PT",
+                                "RO", "SK", "SI", "ES", "SE", "IS", "LI", "NO",
+                            ])
+                            .to_tuple(),
                             RequiredField::BillingAddressCity.to_tuple(),
                             RequiredField::BillingAddressLine1.to_tuple(),
                             RequiredField::BillingAddressZip.to_tuple(),
-                            RequiredField::ReturnUrl.to_tuple(),
                         ]),
                     },
                 ),
