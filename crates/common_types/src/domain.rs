@@ -114,8 +114,6 @@ pub struct ConnectorResponseData {
     pub raw_connector_response: Option<Secret<String>>,
 }
 
-
-
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, AsExpression, ToSchema)]
 #[diesel(sql_type = Jsonb)]
 #[serde(rename_all = "snake_case")]
