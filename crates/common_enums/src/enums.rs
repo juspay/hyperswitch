@@ -25,9 +25,9 @@ pub mod diesel_exports {
         DbDeleteStatus as DeleteStatus, DbDisputeStage as DisputeStage,
         DbDisputeStatus as DisputeStatus, DbFraudCheckStatus as FraudCheckStatus,
         DbFutureUsage as FutureUsage, DbIntentStatus as IntentStatus,
-        DbMandateStatus as MandateStatus, DbPaymentMethodIssuerCode as PaymentMethodIssuerCode,
-        DbPaymentType as PaymentType, DbProcessTrackerStatus as ProcessTrackerStatus,
-        DbRefundStatus as RefundStatus, DbPaymentChannel as PaymentChannel,
+        DbMandateStatus as MandateStatus, DbPaymentChannel as PaymentChannel,
+        DbPaymentMethodIssuerCode as PaymentMethodIssuerCode, DbPaymentType as PaymentType,
+        DbProcessTrackerStatus as ProcessTrackerStatus, DbRefundStatus as RefundStatus,
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
         DbRoutingApproach as RoutingApproach, DbScaExemptionType as ScaExemptionType,
         DbSuccessBasedRoutingConclusiveState as SuccessBasedRoutingConclusiveState,
@@ -2208,6 +2208,7 @@ pub enum ScaExemptionType {
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 /// Describes the channel through which the payment was initiated.
 pub enum PaymentChannel {
     #[default]

@@ -519,51 +519,52 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
         let ship_to_address = get_ship_to_address(item.router_data);
         let processing_info = get_processing_info(&item.router_data.request)?;
         let order_source = OrderSource::from(&item.router_data.request.payment_channel);
-        let (authorization, sale) = if item.router_data.request.is_auto_capture()? && item.amount != MinorUnit::zero() {
-            (
-                None,
-                Some(Sale {
-                    id: format!(
-                        "{}_{}",
-                        OperationId::Sale,
-                        item.router_data.connector_request_reference_id
-                    ),
-                    report_group: report_group.clone(),
-                    customer_id,
-                    order_id: item.router_data.connector_request_reference_id.clone(),
-                    amount: item.amount,
-                    order_source,
-                    bill_to_address,
-                    ship_to_address,
-                    card: card.clone(),
-                    token: processing_info.token,
-                    processing_type: processing_info.processing_type,
-                    original_network_transaction_id: processing_info.network_transaction_id,
-                }),
-            )
-        } else {
-            (
-                Some(Authorization {
-                    id: format!(
-                        "{}_{}",
-                        OperationId::Auth,
-                        item.router_data.connector_request_reference_id
-                    ),
-                    report_group: report_group.clone(),
-                    customer_id,
-                    order_id: item.router_data.connector_request_reference_id.clone(),
-                    amount: item.amount,
-                    order_source,
-                    bill_to_address,
-                    ship_to_address,
-                    card: card.clone(),
-                    token: processing_info.token,
-                    processing_type: processing_info.processing_type,
-                    original_network_transaction_id: processing_info.network_transaction_id,
-                }),
-                None,
-            )
-        };
+        let (authorization, sale) =
+            if item.router_data.request.is_auto_capture()? && item.amount != MinorUnit::zero() {
+                (
+                    None,
+                    Some(Sale {
+                        id: format!(
+                            "{}_{}",
+                            OperationId::Sale,
+                            item.router_data.connector_request_reference_id
+                        ),
+                        report_group: report_group.clone(),
+                        customer_id,
+                        order_id: item.router_data.connector_request_reference_id.clone(),
+                        amount: item.amount,
+                        order_source,
+                        bill_to_address,
+                        ship_to_address,
+                        card: card.clone(),
+                        token: processing_info.token,
+                        processing_type: processing_info.processing_type,
+                        original_network_transaction_id: processing_info.network_transaction_id,
+                    }),
+                )
+            } else {
+                (
+                    Some(Authorization {
+                        id: format!(
+                            "{}_{}",
+                            OperationId::Auth,
+                            item.router_data.connector_request_reference_id
+                        ),
+                        report_group: report_group.clone(),
+                        customer_id,
+                        order_id: item.router_data.connector_request_reference_id.clone(),
+                        amount: item.amount,
+                        order_source,
+                        bill_to_address,
+                        ship_to_address,
+                        card: card.clone(),
+                        token: processing_info.token,
+                        processing_type: processing_info.processing_type,
+                        original_network_transaction_id: processing_info.network_transaction_id,
+                    }),
+                    None,
+                )
+            };
 
         Ok(Self {
             version: worldpayvantiv_constants::WORLDPAYVANTIV_VERSION.to_string(),
@@ -579,15 +580,10 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
     }
 }
 
-
-
 impl From<&Option<common_enums::PaymentChannel>> for OrderSource {
-    fn from(
-        payment_channel: &Option<common_enums::PaymentChannel>
-    ) -> Self {
+    fn from(payment_channel: &Option<common_enums::PaymentChannel>) -> Self {
         match payment_channel {
-            Some(common_enums::PaymentChannel::Ecommerce)
-            | None => OrderSource::Ecommerce,
+            Some(common_enums::PaymentChannel::Ecommerce) | None => OrderSource::Ecommerce,
             Some(common_enums::PaymentChannel::MailOrder) => OrderSource::MailOrder,
             Some(common_enums::PaymentChannel::TelephoneOrder) => OrderSource::MailOrder,
         }

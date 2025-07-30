@@ -2966,6 +2966,7 @@ where
             issuer_error_message: payment_attempt.issuer_error_message,
             is_iframe_redirection_enabled: payment_intent.is_iframe_redirection_enabled,
             whole_connector_response: payment_data.get_whole_connector_response(),
+            payment_channel: payment_intent.payment_channel,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -3259,7 +3260,8 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             whole_connector_response: None,
             issuer_error_code: pa.issuer_error_code,
             issuer_error_message: pa.issuer_error_message,
-            is_iframe_redirection_enabled:pi.is_iframe_redirection_enabled
+            is_iframe_redirection_enabled:pi.is_iframe_redirection_enabled,
+            payment_channel: pi.payment_channel,
         }
     }
 }
