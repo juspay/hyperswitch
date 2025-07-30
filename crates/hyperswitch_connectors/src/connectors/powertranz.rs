@@ -668,7 +668,7 @@ static POWERTRANZ_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Powertranz",
     description: "Powertranz is a leading payment gateway serving the Caribbean and parts of Central America ",
     connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
-    integration_status: enums::ConnectorIntegrationStatus::Sandbox,
+    integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 
 static POWERTRANZ_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
