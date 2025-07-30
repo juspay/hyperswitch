@@ -1587,8 +1587,7 @@ impl ForeignFrom<gsm_api_types::GsmCreateRequest>
     for hyperswitch_domain_models::gsm::GatewayStatusMap
 {
     fn foreign_from(value: gsm_api_types::GsmCreateRequest) -> Self {
-        let inferred_feature_data =
-        common_types::domain::GsmFeatureData::foreign_from(&value);
+        let inferred_feature_data = common_types::domain::GsmFeatureData::foreign_from(&value);
         Self {
             connector: value.connector.to_string(),
             flow: value.flow,
@@ -1600,18 +1599,13 @@ impl ForeignFrom<gsm_api_types::GsmCreateRequest>
             unified_code: value.unified_code,
             unified_message: value.unified_message,
             error_category: value.error_category,
-            feature_data: value
-                .feature_data
-                .map(|data| data.into())
-                .unwrap_or(inferred_feature_data),
+            feature_data: value.feature_data.unwrap_or(inferred_feature_data),
             feature: value.feature.unwrap_or(api_enums::GsmFeature::Retry),
         }
     }
 }
 
-impl ForeignFrom<&gsm_api_types::GsmCreateRequest>
-    for common_types::domain::GsmFeatureData
-{
+impl ForeignFrom<&gsm_api_types::GsmCreateRequest> for common_types::domain::GsmFeatureData {
     fn foreign_from(value: &gsm_api_types::GsmCreateRequest) -> Self {
         // Defaulting alternate_network_possible to false as it is provided only in the Retry feature
         // If the retry feature is not used, we assume alternate network as false
@@ -1634,11 +1628,7 @@ impl
     ForeignFrom<(
         &gsm_api_types::GsmUpdateRequest,
         hyperswitch_domain_models::gsm::GatewayStatusMap,
-    )>
-    for (
-        api_enums::GsmFeature,
-        common_types::domain::GsmFeatureData,
-    )
+    )> for (api_enums::GsmFeature, common_types::domain::GsmFeatureData)
 {
     fn foreign_from(
         (gsm_update_request, gsm_db_record): (
@@ -1714,7 +1704,7 @@ impl ForeignFrom<hyperswitch_domain_models::gsm::GatewayStatusMap> for gsm_api_t
                 .get_retry_feature_data()
                 .map(|data| data.is_clear_pan_possible())
                 .unwrap_or(false),
-            feature_data: Some(value.feature_data.into()),
+            feature_data: Some(value.feature_data),
             feature: value.feature,
         }
     }

@@ -116,7 +116,7 @@ pub struct ConnectorResponseData {
 
 
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, AsExpression)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, AsExpression, ToSchema)]
 #[diesel(sql_type = Jsonb)]
 /// Contains the data relevant to the specified GSM feature, if applicable.
 /// For example, if the `feature` is `Retry`, this will include configuration
@@ -126,8 +126,8 @@ pub enum GsmFeatureData {
     Retry(RetryFeatureData),
 }
 
-/// Represents the data associated with a retry feature in GSM.s
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, AsExpression)]
+/// Represents the data associated with a retry feature in GSM.
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, AsExpression, ToSchema)]
 #[diesel(sql_type = Jsonb)]
 pub struct RetryFeatureData {
     /// indicates if step_up retry is possible
@@ -137,6 +137,7 @@ pub struct RetryFeatureData {
     /// indicates if retry with alternate network possible
     pub alternate_network_possible: bool,
     /// decision to be taken for auto retries flow
+    #[schema(value_type = GsmDecision)]
     pub decision: common_enums::GsmDecision,
 }
 

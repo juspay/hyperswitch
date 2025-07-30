@@ -103,7 +103,6 @@ pub async fn update_gsm_rule(
             error_category,
             clear_pan_possible,
             feature_data: feature_data
-                .map(|data| data.into())
                 .or(Some(inferred_feature_info.1)),
             feature: feature.or(Some(inferred_feature_info.0)),
         },
