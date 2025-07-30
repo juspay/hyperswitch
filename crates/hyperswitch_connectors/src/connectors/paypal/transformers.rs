@@ -1263,7 +1263,10 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::InstantBankTransferPoland
                     | enums::PaymentMethodType::Mifinity
                     | enums::PaymentMethodType::Paze
-                    | enums::PaymentMethodType::RevolutPay => {
+                    | enums::PaymentMethodType::IndonesianBankTransfer
+                    | enums::PaymentMethodType::Flexiti
+                    | enums::PaymentMethodType::RevolutPay
+                    | enums::PaymentMethodType::Breadpay => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message("paypal"),
                         ))
@@ -1319,8 +1322,10 @@ impl TryFrom<&PayLaterData> for PaypalPaymentsRequest {
             | PayLaterData::AfterpayClearpayRedirect { .. }
             | PayLaterData::PayBrightRedirect {}
             | PayLaterData::WalleyRedirect {}
+            | PayLaterData::FlexitiRedirect {}
             | PayLaterData::AlmaRedirect {}
-            | PayLaterData::AtomeRedirect {} => Err(errors::ConnectorError::NotImplemented(
+            | PayLaterData::AtomeRedirect {}
+            | PayLaterData::BreadpayRedirect {} => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Paypal"),
             )
             .into()),
@@ -1363,6 +1368,7 @@ impl TryFrom<&BankTransferData> for PaypalPaymentsRequest {
             | BankTransferData::InstantBankTransfer {}
             | BankTransferData::InstantBankTransferFinland {}
             | BankTransferData::InstantBankTransferPoland {}
+            | BankTransferData::IndonesianBankTransfer { .. }
             | BankTransferData::LocalBankTransfer { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),
@@ -2697,7 +2703,8 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaypalCaptureResponse>>
             | storage_enums::AttemptStatus::PaymentMethodAwaited
             | storage_enums::AttemptStatus::ConfirmationAwaited
             | storage_enums::AttemptStatus::DeviceDataCollectionPending
-            | storage_enums::AttemptStatus::Voided => 0,
+            | storage_enums::AttemptStatus::Voided
+            | storage_enums::AttemptStatus::Expired => 0,
             storage_enums::AttemptStatus::Charged
             | storage_enums::AttemptStatus::PartialCharged
             | storage_enums::AttemptStatus::PartialChargedAndChargeable

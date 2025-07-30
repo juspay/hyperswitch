@@ -106,7 +106,7 @@ use crate::core::routing::helpers as routing_helpers;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use crate::types::api::convert_connector_data_to_routable_connectors;
 use crate::{
-    configs::settings::{ApplePayPreDecryptFlow, PaymentMethodTypeTokenFilter},
+    configs::settings::{ApplePayPreDecryptFlow, PaymentFlow, PaymentMethodTypeTokenFilter},
     consts,
     core::{
         errors::{self, CustomResult, RouterResponse, RouterResult},
@@ -3143,7 +3143,8 @@ impl ValidateStatusForOperation for &PaymentRedirectSync {
             | common_enums::IntentStatus::RequiresCapture
             | common_enums::IntentStatus::PartiallyCaptured
             | common_enums::IntentStatus::RequiresConfirmation
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => {
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::Expired => {
                 Err(errors::ApiErrorResponse::PaymentUnexpectedState {
                     current_flow: format!("{self:?}"),
                     field_name: "status".to_string(),
@@ -3545,7 +3546,10 @@ where
     F: Send + Clone + Sync,
     D: OperationSessionGetters<F> + Send + Sync + Clone,
 {
-    if is_operation_confirm(operation) {
+    if is_operation_confirm(operation)
+        && payment_data.get_payment_attempt().payment_method
+            == Some(storage_enums::PaymentMethod::Wallet)
+    {
         let wallet_type = payment_data
             .get_payment_attempt()
             .payment_method_type
@@ -6153,6 +6157,7 @@ fn is_payment_method_tokenization_enabled_for_connector(
     payment_method: storage::enums::PaymentMethod,
     payment_method_type: Option<storage::enums::PaymentMethodType>,
     payment_method_token: Option<&PaymentMethodToken>,
+    mandate_flow_enabled: Option<storage_enums::FutureUsage>,
 ) -> RouterResult<bool> {
     let connector_tokenization_filter = state.conf.tokenization.0.get(connector_name);
 
@@ -6171,8 +6176,27 @@ fn is_payment_method_tokenization_enabled_for_connector(
                     payment_method_token,
                     connector_filter.apple_pay_pre_decrypt_flow.clone(),
                 )
+                && is_payment_flow_allowed_for_connector(
+                    mandate_flow_enabled,
+                    connector_filter.flow.clone(),
+                )
         })
         .unwrap_or(false))
+}
+
+fn is_payment_flow_allowed_for_connector(
+    mandate_flow_enabled: Option<storage_enums::FutureUsage>,
+    payment_flow: Option<PaymentFlow>,
+) -> bool {
+    if payment_flow.is_none() {
+        true
+    } else {
+        matches!(payment_flow, Some(PaymentFlow::Mandates))
+            && matches!(
+                mandate_flow_enabled,
+                Some(storage_enums::FutureUsage::OffSession)
+            )
+    }
 }
 
 fn is_apple_pay_pre_decrypt_type_connector_tokenization(
@@ -6500,6 +6524,10 @@ where
                 .get_required_value("payment_method")?;
             let payment_method_type = payment_data.get_payment_attempt().payment_method_type;
 
+            let mandate_flow_enabled = payment_data
+                .get_payment_attempt()
+                .setup_future_usage_applied;
+
             let is_connector_tokenization_enabled =
                 is_payment_method_tokenization_enabled_for_connector(
                     state,
@@ -6507,6 +6535,7 @@ where
                     payment_method,
                     payment_method_type,
                     payment_data.get_payment_method_token(),
+                    mandate_flow_enabled,
                 )?;
 
             let payment_method_action = decide_payment_method_tokenize_action(
@@ -8017,6 +8046,10 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed execution of straight through routing")?;
 
+        payment_data.set_routing_approach_in_attempt(Some(
+            common_enums::RoutingApproach::StraightThroughRouting,
+        ));
+
         if check_eligibility {
             let transaction_data = core_routing::PaymentsDslInput::new(
                 payment_data.get_setup_mandate(),
@@ -8341,7 +8374,7 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get the common mandate reference")?;
 
-    let connector_mandate_details = connector_common_mandate_details.payments;
+    let connector_mandate_details = connector_common_mandate_details.payments.clone();
 
     let mut connector_choice = None;
 
@@ -9198,15 +9231,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             <ExternalAuthentication as UnifiedAuthenticationService>::authentication(
                 &state,
                 &business_profile,
-                payment_method_details.1,
-                payment_method_details.0,
-                billing_address
-                    .as_ref()
-                    .map(|address| address.into())
-                    .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "billing_address",
-                    })?,
-                shipping_address.as_ref().map(|address| address.into()),
+                &payment_method_details.1,
                 browser_info,
                 Some(amount),
                 Some(currency),
@@ -9218,7 +9243,6 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 req.threeds_method_comp_ind,
                 optional_customer.and_then(|customer| customer.email.map(pii::Email::from)),
                 webhook_url,
-                authentication_details.three_ds_requestor_url.clone(),
                 &merchant_connector_account,
                 &authentication_connector,
                 Some(payment_intent.payment_id),

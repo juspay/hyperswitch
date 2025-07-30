@@ -98,6 +98,8 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::PayBright
                 | api_enums::PaymentMethodType::Atome
                 | api_enums::PaymentMethodType::Walley
+                | api_enums::PaymentMethodType::Breadpay
+                | api_enums::PaymentMethodType::Flexiti
         ),
         api_enums::PaymentMethod::Wallet => matches!(
             payment_method_type,
@@ -169,6 +171,7 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::InstantBankTransfer
                 | api_enums::PaymentMethodType::InstantBankTransferFinland
                 | api_enums::PaymentMethodType::InstantBankTransferPoland
+                | api_enums::PaymentMethodType::IndonesianBankTransfer
         ),
         api_enums::PaymentMethod::BankDebit => matches!(
             payment_method_type,

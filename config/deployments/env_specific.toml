@@ -94,6 +94,7 @@ consolidated_events_topic = "topic"      # Kafka topic to be used for Consolidat
 authentication_analytics_topic = "topic" # Kafka topic to be used for Authentication events
 fraud_check_analytics_topic = "topic"    # Kafka topic to be used for Fraud Check events
 routing_logs_topic = "topic"             # Kafka topic to be used for Routing events
+revenue_recovery_topic = "topic"         # Kafka topic to be used for Revenue Recovery Events 
 
 # File storage configuration
 [file_storage]

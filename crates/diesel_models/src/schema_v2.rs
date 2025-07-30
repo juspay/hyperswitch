@@ -736,6 +736,8 @@ diesel::table! {
         merchant_connector_id -> Nullable<Varchar>,
         #[max_length = 64]
         updated_by -> Nullable<Varchar>,
+        #[max_length = 2048]
+        customer_user_agent_extended -> Nullable<Varchar>,
     }
 }
 

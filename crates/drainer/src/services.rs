@@ -22,6 +22,7 @@ pub struct Store {
 pub struct StoreConfig {
     pub drainer_stream_name: String,
     pub drainer_num_partitions: u8,
+    pub use_legacy_version: bool,
 }
 
 impl Store {
@@ -45,9 +46,14 @@ impl Store {
             config: StoreConfig {
                 drainer_stream_name: config.drainer.stream_name.clone(),
                 drainer_num_partitions: config.drainer.num_partitions,
+                use_legacy_version: config.redis.use_legacy_version,
             },
             request_id: None,
         }
+    }
+
+    pub fn use_legacy_version(&self) -> bool {
+        self.config.use_legacy_version
     }
 }
 

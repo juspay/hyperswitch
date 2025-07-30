@@ -8,7 +8,7 @@ use common_utils::{
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data,
-    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
     router_flow_types::{Execute, RSync},
     router_request_types::ResponseId,
     router_response_types::{
@@ -17,6 +17,7 @@ use hyperswitch_domain_models::{
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsSyncRouterData, RefreshTokenRouterData, RefundExecuteRouterData, RefundsRouterData,
+        TokenizationRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -37,10 +38,14 @@ use super::{
     response::{GlobalpayPaymentStatus, GlobalpayPaymentsResponse, GlobalpayRefreshTokenResponse},
 };
 use crate::{
+    connectors::globalpay::{
+        requests::CommonPaymentMethodData, response::GlobalpayPaymentMethodsResponse,
+    },
     types::{PaymentsSyncResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
     utils::{
         self, construct_captures_response_hashmap, CardData, ForeignTryFrom,
-        MultipleCaptureSyncResponse, PaymentsAuthorizeRequestData, RouterData as _, WalletData,
+        MultipleCaptureSyncResponse, PaymentMethodTokenizationRequestData,
+        PaymentsAuthorizeRequestData, RouterData as _, WalletData,
     },
 };
 
@@ -82,65 +87,115 @@ impl TryFrom<&Option<pii::SecretSerdeValue>> for GlobalPayMeta {
 
 impl TryFrom<&GlobalPayRouterData<&PaymentsAuthorizeRouterData>> for GlobalpayPaymentsRequest {
     type Error = Error;
+
     fn try_from(
         item: &GlobalPayRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
+        if item.router_data.is_three_ds() {
+            return Err(errors::ConnectorError::NotSupported {
+                message: "3DS flow".to_string(),
+                connector: "Globalpay",
+            }
+            .into());
+        }
+
         let metadata = GlobalPayMeta::try_from(&item.router_data.connector_meta_data)?;
         let account_name = metadata.account_name;
-        let (initiator, stored_credential, brand_reference) =
-            get_mandate_details(item.router_data)?;
-        let payment_method_data = get_payment_method_data(item.router_data, brand_reference)?;
+
+        let (initiator, stored_credential, connector_mandate_id) =
+            if item.router_data.request.is_mandate_payment() {
+                let connector_mandate_id =
+                    item.router_data
+                        .request
+                        .mandate_id
+                        .as_ref()
+                        .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
+                            Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
+                                connector_mandate_ids,
+                            )) => connector_mandate_ids.get_connector_mandate_id(),
+                            _ => None,
+                        });
+
+                let initiator = Some(match item.router_data.request.off_session {
+                    Some(true) => Initiator::Merchant,
+                    _ => Initiator::Payer,
+                });
+
+                let stored_credential = Some(StoredCredential {
+                    model: Some(if connector_mandate_id.is_some() {
+                        requests::Model::Recurring
+                    } else {
+                        requests::Model::Unscheduled
+                    }),
+                    sequence: Some(if connector_mandate_id.is_some() {
+                        Sequence::Subsequent
+                    } else {
+                        Sequence::First
+                    }),
+                });
+
+                (initiator, stored_credential, connector_mandate_id)
+            } else {
+                (None, None, None)
+            };
+
+        let payment_method = match &item.router_data.request.payment_method_data {
+            payment_method_data::PaymentMethodData::Card(ccard) => {
+                requests::GlobalPayPaymentMethodData::Common(CommonPaymentMethodData {
+                    payment_method_data: PaymentMethodData::Card(requests::Card {
+                        number: ccard.card_number.clone(),
+                        expiry_month: ccard.card_exp_month.clone(),
+                        expiry_year: ccard.get_card_expiry_year_2_digit()?,
+                        cvv: ccard.card_cvc.clone(),
+                    }),
+                    entry_mode: Default::default(),
+                })
+            }
+
+            payment_method_data::PaymentMethodData::Wallet(wallet_data) => {
+                requests::GlobalPayPaymentMethodData::Common(CommonPaymentMethodData {
+                    payment_method_data: get_wallet_data(wallet_data)?,
+                    entry_mode: Default::default(),
+                })
+            }
+
+            payment_method_data::PaymentMethodData::BankRedirect(bank_redirect) => {
+                requests::GlobalPayPaymentMethodData::Common(CommonPaymentMethodData {
+                    payment_method_data: PaymentMethodData::try_from(bank_redirect)?,
+                    entry_mode: Default::default(),
+                })
+            }
+
+            payment_method_data::PaymentMethodData::MandatePayment => {
+                requests::GlobalPayPaymentMethodData::Mandate(requests::MandatePaymentMethodData {
+                    entry_mode: Default::default(),
+                    id: connector_mandate_id,
+                })
+            }
+
+            _ => Err(errors::ConnectorError::NotImplemented(
+                "Payment methods".to_string(),
+            ))?,
+        };
+
         Ok(Self {
             account_name,
             amount: Some(item.amount.to_owned()),
             currency: item.router_data.request.currency.to_string(),
-
             reference: item.router_data.connector_request_reference_id.to_string(),
             country: item.router_data.get_billing_country()?,
             capture_mode: Some(requests::CaptureMode::from(
                 item.router_data.request.capture_method,
             )),
-            payment_method: requests::PaymentMethod {
-                payment_method_data,
-                authentication: None,
-                encryption: None,
-                entry_mode: Default::default(),
-                fingerprint_mode: None,
-                first_name: None,
-                id: None,
-                last_name: None,
-                name: None,
-                narrative: None,
-                storage_mode: None,
-            },
+            payment_method,
             notifications: Some(requests::Notifications {
                 return_url: get_return_url(item.router_data),
-                challenge_return_url: None,
-                decoupled_challenge_return_url: None,
                 status_url: item.router_data.request.webhook_url.clone(),
-                three_ds_method_return_url: None,
                 cancel_url: get_return_url(item.router_data),
             }),
-            authorization_mode: None,
-            cashback_amount: None,
-            channel: Default::default(),
-            convenience_amount: None,
-            currency_conversion: None,
-            description: None,
-            device: None,
-            gratuity_amount: None,
-            initiator,
-            ip_address: None,
-            language: None,
-            lodging: None,
-            order: None,
-            payer_reference: None,
-            site_reference: None,
             stored_credential,
-            surcharge_amount: None,
-            total_capture_count: None,
-            globalpay_payments_request_type: None,
-            user_reference: None,
+            channel: Default::default(),
+            initiator,
         })
     }
 }
@@ -172,6 +227,32 @@ impl TryFrom<&GlobalPayRouterData<&PaymentsCaptureRouterData>>
                 .multiple_capture_data
                 .as_ref()
                 .map(|mcd| mcd.capture_reference.clone()),
+        })
+    }
+}
+
+impl TryFrom<&TokenizationRouterData> for requests::GlobalPayPaymentMethodsRequest {
+    type Error = Error;
+    fn try_from(item: &TokenizationRouterData) -> Result<Self, Self::Error> {
+        if !item.request.is_mandate_payment() {
+            return Err(errors::ConnectorError::FlowNotSupported {
+                flow: "Tokenization apart from Mandates".to_string(),
+                connector: "Globalpay".to_string(),
+            }
+            .into());
+        }
+        Ok(Self {
+            reference: item.connector_request_reference_id.clone(),
+            usage_mode: Some(requests::UsageMode::Multiple),
+            card: match &item.request.payment_method_data {
+                payment_method_data::PaymentMethodData::Card(card_data) => Some(requests::Card {
+                    number: card_data.card_number.clone(),
+                    expiry_month: card_data.card_exp_month.clone(),
+                    expiry_year: card_data.get_card_expiry_year_2_digit()?,
+                    cvv: card_data.card_cvc.clone(),
+                }),
+                _ => None,
+            },
         })
     }
 }
@@ -278,73 +359,18 @@ impl From<Option<common_enums::CaptureMethod>> for requests::CaptureMode {
     }
 }
 
-fn get_payment_response(
-    status: common_enums::AttemptStatus,
-    response: GlobalpayPaymentsResponse,
-    redirection_data: Option<RedirectForm>,
-    status_code: u16,
-) -> Result<PaymentsResponseData, Box<ErrorResponse>> {
-    let mandate_reference = response.payment_method.as_ref().and_then(|pm| {
-        pm.card
-            .as_ref()
-            .and_then(|card| card.brand_reference.to_owned())
-            .map(|id| MandateReference {
-                connector_mandate_id: Some(id.expose()),
-                payment_method_id: None,
-                mandate_metadata: None,
-                connector_mandate_request_reference_id: None,
-            })
-    });
-    match status {
-        common_enums::AttemptStatus::Failure => Err(Box::new(ErrorResponse {
-            message: response
-                .payment_method
-                .as_ref()
-                .and_then(|payment_method| payment_method.message.clone())
-                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
-            code: response
-                .payment_method
-                .as_ref()
-                .and_then(|payment_method| payment_method.result.clone())
-                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-            reason: response
-                .payment_method
-                .as_ref()
-                .and_then(|payment_method| payment_method.message.clone()),
-            status_code,
-            attempt_status: Some(status),
-            connector_transaction_id: Some(response.id),
-            network_decline_code: response
-                .payment_method
-                .as_ref()
-                .and_then(|payment_method| payment_method.result.clone()),
-            network_advice_code: None,
-            network_error_message: response
-                .payment_method
-                .as_ref()
-                .and_then(|payment_method| payment_method.message.clone()),
-        })),
-        _ => Ok(PaymentsResponseData::TransactionResponse {
-            resource_id: ResponseId::ConnectorTransactionId(response.id.clone()),
-            redirection_data: Box::new(redirection_data),
-            mandate_reference: Box::new(mandate_reference),
-            connector_metadata: None,
-            network_txn_id: None,
-            connector_response_reference_id: response.reference,
-            incremental_authorization_allowed: None,
-            charges: None,
-        }),
-    }
-}
+// }
 
 impl<F, T> TryFrom<ResponseRouterData<F, GlobalpayPaymentsResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 {
     type Error = Error;
+
     fn try_from(
         item: ResponseRouterData<F, GlobalpayPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let status = common_enums::AttemptStatus::from(item.response.status);
+
         let redirect_url = item
             .response
             .payment_method
@@ -360,12 +386,92 @@ impl<F, T> TryFrom<ResponseRouterData<F, GlobalpayPaymentsResponse, T, PaymentsR
                 Url::parse(url).change_context(errors::ConnectorError::FailedToObtainIntegrationUrl)
             })
             .transpose()?;
+
         let redirection_data = redirect_url.map(|url| RedirectForm::from((url, Method::Get)));
+        let payment_method_token = item.data.get_payment_method_token();
         let status_code = item.http_code;
+
+        let mandate_reference = payment_method_token.ok().and_then(|token| match token {
+            PaymentMethodToken::Token(token_string) => Some(MandateReference {
+                connector_mandate_id: Some(token_string.clone().expose()),
+                payment_method_id: None,
+                mandate_metadata: None,
+                connector_mandate_request_reference_id: None,
+            }),
+            _ => None,
+        });
+
+        let response = match status {
+            common_enums::AttemptStatus::Failure => Err(Box::new(ErrorResponse {
+                message: item
+                    .response
+                    .payment_method
+                    .as_ref()
+                    .and_then(|payment_method| payment_method.message.clone())
+                    .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                code: item
+                    .response
+                    .payment_method
+                    .as_ref()
+                    .and_then(|payment_method| payment_method.result.clone())
+                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                reason: item
+                    .response
+                    .payment_method
+                    .as_ref()
+                    .and_then(|payment_method| payment_method.message.clone()),
+                status_code,
+                attempt_status: Some(status),
+                connector_transaction_id: Some(item.response.id.clone()),
+                network_decline_code: item
+                    .response
+                    .payment_method
+                    .as_ref()
+                    .and_then(|payment_method| payment_method.result.clone()),
+                network_advice_code: None,
+                network_error_message: item
+                    .response
+                    .payment_method
+                    .as_ref()
+                    .and_then(|payment_method| payment_method.message.clone()),
+            })),
+            _ => Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
+                redirection_data: Box::new(redirection_data),
+                mandate_reference: Box::new(mandate_reference),
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: item.response.reference.clone(),
+                incremental_authorization_allowed: None,
+                charges: None,
+            }),
+        };
+
         Ok(Self {
             status,
-            response: get_payment_response(status, item.response, redirection_data, status_code)
-                .map_err(|err| *err),
+            response: response.map_err(|err| *err),
+            ..item.data
+        })
+    }
+}
+
+impl<F, T> TryFrom<ResponseRouterData<F, GlobalpayPaymentMethodsResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
+    type Error = Error;
+    fn try_from(
+        item: ResponseRouterData<F, GlobalpayPaymentMethodsResponse, T, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let token = item
+            .response
+            .payment_method_token_id
+            .clone()
+            .unwrap_or_default();
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::TokenizationResponse {
+                token: token.expose(),
+            }),
             ..item.data
         })
     }
@@ -467,39 +573,6 @@ pub struct GlobalpayErrorResponse {
     pub detailed_error_description: String,
 }
 
-fn get_payment_method_data(
-    item: &PaymentsAuthorizeRouterData,
-    brand_reference: Option<String>,
-) -> Result<PaymentMethodData, Error> {
-    match &item.request.payment_method_data {
-        payment_method_data::PaymentMethodData::Card(ccard) => {
-            Ok(PaymentMethodData::Card(requests::Card {
-                number: ccard.card_number.clone(),
-                expiry_month: ccard.card_exp_month.clone(),
-                expiry_year: ccard.get_card_expiry_year_2_digit()?,
-                cvv: ccard.card_cvc.clone(),
-                account_type: None,
-                authcode: None,
-                avs_address: None,
-                avs_postal_code: None,
-                brand_reference,
-                chip_condition: None,
-                funding: None,
-                pin_block: None,
-                tag: None,
-                track: None,
-            }))
-        }
-        payment_method_data::PaymentMethodData::Wallet(wallet_data) => get_wallet_data(wallet_data),
-        payment_method_data::PaymentMethodData::BankRedirect(bank_redirect) => {
-            PaymentMethodData::try_from(bank_redirect)
-        }
-        _ => Err(errors::ConnectorError::NotImplemented(
-            "Payment methods".to_string(),
-        ))?,
-    }
-}
-
 fn get_return_url(item: &PaymentsAuthorizeRouterData) -> Option<String> {
     match item.request.payment_method_data.clone() {
         payment_method_data::PaymentMethodData::Wallet(
@@ -514,36 +587,6 @@ fn get_return_url(item: &PaymentsAuthorizeRouterData) -> Option<String> {
         }
         _ => item.request.router_return_url.clone(),
     }
-}
-
-type MandateDetails = (Option<Initiator>, Option<StoredCredential>, Option<String>);
-fn get_mandate_details(item: &PaymentsAuthorizeRouterData) -> Result<MandateDetails, Error> {
-    Ok(if item.request.is_mandate_payment() {
-        let connector_mandate_id = item.request.mandate_id.as_ref().and_then(|mandate_ids| {
-            match mandate_ids.mandate_reference_id.clone() {
-                Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                    connector_mandate_ids,
-                )) => connector_mandate_ids.get_connector_mandate_id(),
-                _ => None,
-            }
-        });
-        (
-            Some(match item.request.off_session {
-                Some(true) => Initiator::Merchant,
-                _ => Initiator::Payer,
-            }),
-            Some(StoredCredential {
-                model: Some(requests::Model::Recurring),
-                sequence: Some(match connector_mandate_id.is_some() {
-                    true => Sequence::Subsequent,
-                    false => Sequence::First,
-                }),
-            }),
-            connector_mandate_id,
-        )
-    } else {
-        (None, None, None)
-    })
 }
 
 fn get_wallet_data(

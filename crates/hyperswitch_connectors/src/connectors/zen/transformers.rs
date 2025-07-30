@@ -349,6 +349,7 @@ impl
             | BankTransferData::InstantBankTransfer {}
             | BankTransferData::InstantBankTransferFinland { .. }
             | BankTransferData::InstantBankTransferPoland { .. }
+            | BankTransferData::IndonesianBankTransfer { .. }
             | BankTransferData::MandiriVaBankTransfer { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Zen"),
@@ -764,7 +765,9 @@ impl TryFrom<&PayLaterData> for ZenPaymentsRequest {
             | PayLaterData::PayBrightRedirect {}
             | PayLaterData::WalleyRedirect {}
             | PayLaterData::AlmaRedirect {}
-            | PayLaterData::AtomeRedirect {} => Err(errors::ConnectorError::NotImplemented(
+            | PayLaterData::FlexitiRedirect {}
+            | PayLaterData::AtomeRedirect {}
+            | PayLaterData::BreadpayRedirect {} => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Zen"),
             )
             .into()),
