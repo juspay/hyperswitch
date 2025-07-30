@@ -10,7 +10,7 @@ use hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAcco
 use hyperswitch_domain_models::{
     merchant_context::MerchantContext,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
-    router_response_types::{PaymentsResponseData, RedirectForm},
+    router_response_types::PaymentsResponseData,
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 use unified_connector_service_client::payments::{
@@ -22,7 +22,9 @@ use crate::{
     consts,
     core::{
         errors::RouterResult,
-        payments::helpers::{should_execute_based_on_rollout, MerchantConnectorAccountType},
+        payments::helpers::{
+            is_ucs_enabled, should_execute_based_on_rollout, MerchantConnectorAccountType,
+        },
         utils::get_flow_name,
     },
     routes::SessionState,
@@ -36,6 +38,16 @@ pub async fn should_call_unified_connector_service<F: Clone, T>(
     merchant_context: &MerchantContext,
     router_data: &RouterData<F, T, PaymentsResponseData>,
 ) -> RouterResult<bool> {
+    if state.grpc_client.unified_connector_service_client.is_none() {
+        return Ok(false);
+    }
+
+    let ucs_config_key = consts::UCS_ENABLED;
+
+    if !is_ucs_enabled(state, ucs_config_key).await {
+        return Ok(false);
+    }
+
     let merchant_id = merchant_context
         .get_merchant_account()
         .get_id()
@@ -55,7 +67,7 @@ pub async fn should_call_unified_connector_service<F: Clone, T>(
     );
 
     let should_execute = should_execute_based_on_rollout(state, &config_key).await?;
-    Ok(should_execute && state.grpc_client.unified_connector_service_client.is_some())
+    Ok(should_execute)
 }
 
 pub fn build_unified_connector_service_payment_method(
@@ -226,85 +238,8 @@ pub fn handle_unified_connector_service_response_for_payment_authorize(
 > {
     let status = AttemptStatus::foreign_try_from(response.status())?;
 
-    let connector_response_reference_id =
-        response.response_ref_id.as_ref().and_then(|identifier| {
-            identifier
-                .id_type
-                .clone()
-                .and_then(|id_type| match id_type {
-                    payments_grpc::identifier::IdType::Id(id) => Some(id),
-                    payments_grpc::identifier::IdType::EncodedData(encoded_data) => {
-                        Some(encoded_data)
-                    }
-                    payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
-                })
-        });
-
-    let transaction_id = response.transaction_id.as_ref().and_then(|id| {
-        id.id_type.clone().and_then(|id_type| match id_type {
-            payments_grpc::identifier::IdType::Id(id) => Some(id),
-            payments_grpc::identifier::IdType::EncodedData(encoded_data) => Some(encoded_data),
-            payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
-        })
-    });
-
-    let router_data_response = match status {
-        AttemptStatus::Charged |
-                AttemptStatus::Authorized |
-                AttemptStatus::AuthenticationPending |
-                AttemptStatus::DeviceDataCollectionPending |
-                AttemptStatus::Started |
-                AttemptStatus::AuthenticationSuccessful |
-                AttemptStatus::Authorizing |
-                AttemptStatus::ConfirmationAwaited |
-                AttemptStatus::Pending => Ok(PaymentsResponseData::TransactionResponse {
-                    resource_id: match transaction_id.as_ref() {
-                        Some(transaction_id) => hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(transaction_id.clone()),
-                        None => hyperswitch_domain_models::router_request_types::ResponseId::NoResponseId,
-                    },
-                    redirection_data: Box::new(
-                        response
-                            .redirection_data
-                            .clone()
-                            .map(RedirectForm::foreign_try_from)
-                            .transpose()?
-                    ),
-                    mandate_reference: Box::new(None),
-                    connector_metadata: None,
-                    network_txn_id: response.network_txn_id.clone(),
-                    connector_response_reference_id,
-                    incremental_authorization_allowed: response.incremental_authorization_allowed,
-                    charges: None,
-                }),
-        AttemptStatus::AuthenticationFailed
-                | AttemptStatus::AuthorizationFailed
-                | AttemptStatus::Unresolved
-                | AttemptStatus::Failure => Err(ErrorResponse {
-                    code: response.error_code().to_owned(),
-                    message: response.error_message().to_owned(),
-                    reason: Some(response.error_message().to_owned()),
-                    status_code: 500,
-                    attempt_status: Some(status),
-                    connector_transaction_id: connector_response_reference_id,
-                    network_decline_code: None,
-                    network_advice_code: None,
-                    network_error_message: None,
-                }),
-        AttemptStatus::RouterDeclined |
-                    AttemptStatus::CodInitiated |
-                    AttemptStatus::Voided |
-                    AttemptStatus::VoidInitiated |
-                    AttemptStatus::CaptureInitiated |
-                    AttemptStatus::VoidFailed |
-                    AttemptStatus::AutoRefunded |
-                    AttemptStatus::PartialCharged |
-                    AttemptStatus::PartialChargedAndChargeable |
-                    AttemptStatus::PaymentMethodAwaited |
-                    AttemptStatus::CaptureFailed |
-                    AttemptStatus::IntegrityFailure => return Err(UnifiedConnectorServiceError::NotImplemented(format!(
-                        "AttemptStatus {status:?} is not implemented for Unified Connector Service"
-                    )).into()),
-                };
+    let router_data_response =
+        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
 
     Ok((status, router_data_response))
 }
@@ -317,75 +252,36 @@ pub fn handle_unified_connector_service_response_for_payment_get(
 > {
     let status = AttemptStatus::foreign_try_from(response.status())?;
 
-    let connector_response_reference_id =
-        response.response_ref_id.as_ref().and_then(|identifier| {
-            identifier
-                .id_type
-                .clone()
-                .and_then(|id_type| match id_type {
-                    payments_grpc::identifier::IdType::Id(id) => Some(id),
-                    payments_grpc::identifier::IdType::EncodedData(encoded_data) => {
-                        Some(encoded_data)
-                    }
-                    payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
-                })
-        });
+    let router_data_response =
+        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
 
-    let router_data_response = match status {
-        AttemptStatus::Charged |
-                AttemptStatus::Authorized |
-                AttemptStatus::AuthenticationPending |
-                AttemptStatus::DeviceDataCollectionPending |
-                AttemptStatus::Started |
-                AttemptStatus::AuthenticationSuccessful |
-                AttemptStatus::Authorizing |
-                AttemptStatus::ConfirmationAwaited |
-                AttemptStatus::Pending => Ok(
-            PaymentsResponseData::TransactionResponse {
-                resource_id: match connector_response_reference_id.as_ref() {
-                Some(connector_response_reference_id) => hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(connector_response_reference_id.clone()),
-                None => hyperswitch_domain_models::router_request_types::ResponseId::NoResponseId,
-            },
-                redirection_data: Box::new(
-                    None
-                ),
-                mandate_reference: Box::new(None),
-                connector_metadata: None,
-                network_txn_id: response.network_txn_id.clone(),
-                connector_response_reference_id,
-                incremental_authorization_allowed: None,
-                charges: None,
-            }
-        ),
-        AttemptStatus::AuthenticationFailed
-                | AttemptStatus::AuthorizationFailed
-                | AttemptStatus::Failure => Err(ErrorResponse {
-            code: response.error_code().to_owned(),
-            message: response.error_message().to_owned(),
-            reason: Some(response.error_message().to_owned()),
-            status_code: 500,
-            attempt_status: Some(status),
-            connector_transaction_id: connector_response_reference_id,
-            network_decline_code: None,
-            network_advice_code: None,
-            network_error_message: None,
-        }),
-        AttemptStatus::RouterDeclined |
-                    AttemptStatus::CodInitiated |
-                    AttemptStatus::Voided |
-                    AttemptStatus::VoidInitiated |
-                    AttemptStatus::CaptureInitiated |
-                    AttemptStatus::VoidFailed |
-                    AttemptStatus::AutoRefunded |
-                    AttemptStatus::PartialCharged |
-                    AttemptStatus::PartialChargedAndChargeable |
-                    AttemptStatus::Unresolved |
-                    AttemptStatus::PaymentMethodAwaited |
-                    AttemptStatus::CaptureFailed |
-                    AttemptStatus::IntegrityFailure => return Err(UnifiedConnectorServiceError::NotImplemented(format!(
-                        "AttemptStatus {status:?} is not implemented for Unified Connector Service"
-                    )).into()),
-    };
+    Ok((status, router_data_response))
+}
+
+pub fn handle_unified_connector_service_response_for_payment_register(
+    response: payments_grpc::PaymentServiceRegisterResponse,
+) -> CustomResult<
+    (AttemptStatus, Result<PaymentsResponseData, ErrorResponse>),
+    UnifiedConnectorServiceError,
+> {
+    let status = AttemptStatus::foreign_try_from(response.status())?;
+
+    let router_data_response =
+        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
+
+    Ok((status, router_data_response))
+}
+
+pub fn handle_unified_connector_service_response_for_payment_repeat(
+    response: payments_grpc::PaymentServiceRepeatEverythingResponse,
+) -> CustomResult<
+    (AttemptStatus, Result<PaymentsResponseData, ErrorResponse>),
+    UnifiedConnectorServiceError,
+> {
+    let status = AttemptStatus::foreign_try_from(response.status())?;
+
+    let router_data_response =
+        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
 
     Ok((status, router_data_response))
 }

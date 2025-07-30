@@ -22,8 +22,10 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Billwerk => Self::Billwerk,
             api_enums::Connector::Bitpay => Self::Bitpay,
             api_enums::Connector::Bluesnap => Self::Bluesnap,
+            // api_enums::Connector::Bluecode => Self::Bluecode,
             api_enums::Connector::Boku => Self::Boku,
             api_enums::Connector::Braintree => Self::Braintree,
+            api_enums::Connector::Breadpay => Self::Breadpay,
             api_enums::Connector::Cashtocode => Self::Cashtocode,
             api_enums::Connector::Celero => Self::Celero,
             api_enums::Connector::Chargebee => Self::Chargebee,
@@ -32,6 +34,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Coinbase => Self::Coinbase,
             api_enums::Connector::Coingate => Self::Coingate,
             api_enums::Connector::Cryptopay => Self::Cryptopay,
+            api_enums::Connector::Custombilling => Self::Custombilling,
             api_enums::Connector::CtpVisa => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "ctp visa is not a routable connector".to_string(),
@@ -54,6 +57,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Fiserv => Self::Fiserv,
             api_enums::Connector::Fiservemea => Self::Fiservemea,
             api_enums::Connector::Fiuu => Self::Fiuu,
+            api_enums::Connector::Flexiti => Self::Flexiti,
             api_enums::Connector::Forte => Self::Forte,
             api_enums::Connector::Getnet => Self::Getnet,
             api_enums::Connector::Globalpay => Self::Globalpay,

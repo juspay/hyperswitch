@@ -425,7 +425,8 @@ pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
         | AttemptStatus::AuthorizationFailed
         | AttemptStatus::CaptureFailed
         | AttemptStatus::VoidFailed
-        | AttemptStatus::Failure => true,
+        | AttemptStatus::Failure
+        | AttemptStatus::Expired => true,
         AttemptStatus::Started
         | AttemptStatus::RouterDeclined
         | AttemptStatus::AuthenticationPending
@@ -2190,6 +2191,7 @@ impl PaymentsSetupMandateRequestData for SetupMandateRequestData {
 
 pub trait PaymentMethodTokenizationRequestData {
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+    fn is_mandate_payment(&self) -> bool;
 }
 
 impl PaymentMethodTokenizationRequestData for PaymentMethodTokenizationData {
@@ -2197,6 +2199,15 @@ impl PaymentMethodTokenizationRequestData for PaymentMethodTokenizationData {
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
+    }
+    fn is_mandate_payment(&self) -> bool {
+        ((self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
+            && (self.setup_future_usage == Some(FutureUsage::OffSession)))
+            || self
+                .mandate_id
+                .as_ref()
+                .and_then(|mandate_ids| mandate_ids.mandate_reference_id.as_ref())
+                .is_some()
     }
 }
 
@@ -5474,6 +5485,8 @@ pub enum PaymentMethodDataType {
     WalleyRedirect,
     AlmaRedirect,
     AtomeRedirect,
+    Breadpay,
+    FlexitiRedirect,
     BancontactCard,
     Bizum,
     Blik,
@@ -5544,6 +5557,7 @@ pub enum PaymentMethodDataType {
     InstantBankTransferFinland,
     InstantBankTransferPoland,
     RevolutPay,
+    IndonesianBankTransfer,
 }
 
 impl From<PaymentMethodData> for PaymentMethodDataType {
@@ -5605,10 +5619,12 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::PayLaterData::AfterpayClearpayRedirect { .. } => {
                     Self::AfterpayClearpayRedirect
                 }
+                payment_method_data::PayLaterData::FlexitiRedirect { .. } => Self::FlexitiRedirect,
                 payment_method_data::PayLaterData::PayBrightRedirect {} => Self::PayBrightRedirect,
                 payment_method_data::PayLaterData::WalleyRedirect {} => Self::WalleyRedirect,
                 payment_method_data::PayLaterData::AlmaRedirect {} => Self::AlmaRedirect,
                 payment_method_data::PayLaterData::AtomeRedirect {} => Self::AtomeRedirect,
+                payment_method_data::PayLaterData::BreadpayRedirect {} => Self::Breadpay,
             },
             PaymentMethodData::BankRedirect(bank_redirect_data) => match bank_redirect_data {
                 payment_method_data::BankRedirectData::BancontactCard { .. } => {
@@ -5700,6 +5716,9 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 }
                 payment_method_data::BankTransferData::InstantBankTransferPoland {} => {
                     Self::InstantBankTransferPoland
+                }
+                payment_method_data::BankTransferData::IndonesianBankTransfer { .. } => {
+                    Self::IndonesianBankTransfer
                 }
             },
             PaymentMethodData::Crypto(_) => Self::Crypto,
@@ -6196,6 +6215,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         merchant_config_currency: None,
         connector_testing_data: data.request.connector_testing_data.clone(),
         order_id: None,
+        locale: None,
     }
 }
 
@@ -6288,7 +6308,8 @@ impl FrmTransactionRouterDataRequest for FrmTransactionRouterData {
             | AttemptStatus::Voided
             | AttemptStatus::CaptureFailed
             | AttemptStatus::Failure
-            | AttemptStatus::AutoRefunded => Some(false),
+            | AttemptStatus::AutoRefunded
+            | AttemptStatus::Expired => Some(false),
 
             AttemptStatus::AuthenticationSuccessful
             | AttemptStatus::PartialChargedAndChargeable
