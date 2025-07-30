@@ -162,6 +162,7 @@ pub struct Settings<S: SecretState> {
     pub merchant_id_auth: MerchantIdAuthSettings,
     #[serde(default)]
     pub infra_values: Option<HashMap<String, String>>,
+    pub proxy_status_mapping: ProxyStatusMapping,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -833,6 +834,12 @@ pub struct DrainerSettings {
 #[serde(default)]
 pub struct MerchantIdAuthSettings {
     pub merchant_id_auth_enabled: bool,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct ProxyStatusMapping {
+    pub enable_proxy_connector_http_status_code: bool,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]

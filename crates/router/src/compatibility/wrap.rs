@@ -87,7 +87,7 @@ where
             let response = S::try_from(response);
             match response {
                 Ok(response) => match serde_json::to_string(&response) {
-                    Ok(res) => api::http_response_json_with_headers(res, headers, None),
+                    Ok(res) => api::http_response_json_with_headers(res, headers, None, None),
                     Err(_) => api::http_response_err(
                         r#"{
                                 "error": {

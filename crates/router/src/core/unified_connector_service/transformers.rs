@@ -979,10 +979,11 @@ impl ForeignTryFrom<Option<u32>> for u16 {
     fn foreign_try_from(status_code: Option<u32>) -> Result<Self, Self::Error> {
         let code = status_code.unwrap_or(500);
 
-        Self::try_from(code).map_err(|_| {
-            UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                "Failed to convert status code to u16".to_string(),
-            )
+        Self::try_from(code).map_err(|err| {
+            UnifiedConnectorServiceError::RequestEncodingFailedWithReason(format!(
+                "Failed to convert status code to u16: {}",
+                err
+            ))
             .into()
         })
     }

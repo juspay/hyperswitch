@@ -894,8 +894,25 @@ where
                     None
                 }
             });
+            let proxy_connector_http_status_code = if state
+                .conf
+                .proxy_status_mapping
+                .enable_proxy_connector_http_status_code
+            {
+                headers
+                    .iter()
+                    .find(|(key, _)| key == "connector_http_status_code")
+                    .and_then(|(_, value)| value.clone().into_inner().parse::<u16>().ok())
+            } else {
+                None
+            };
             match serde_json::to_string(&response) {
-                Ok(res) => http_response_json_with_headers(res, headers, request_elapsed_time),
+                Ok(res) => http_response_json_with_headers(
+                    res,
+                    headers,
+                    request_elapsed_time,
+                    proxy_connector_http_status_code,
+                ),
                 Err(_) => http_response_err(
                     r#"{
                         "error": {
@@ -987,8 +1004,13 @@ pub fn http_response_json_with_headers<T: body::MessageBody + 'static>(
     response: T,
     headers: Vec<(String, Maskable<String>)>,
     request_duration: Option<Duration>,
+    proxy_connector_http_status_code: Option<u16>,
 ) -> HttpResponse {
-    let mut response_builder = HttpResponse::Ok();
+    let mut response_builder = HttpResponse::build(
+        proxy_connector_http_status_code
+            .and_then(|status_code| http::StatusCode::from_u16(status_code).ok())
+            .unwrap_or(http::StatusCode::OK),
+    );
     for (header_name, header_value) in headers {
         let is_sensitive_header = header_value.is_masked();
         let mut header_value = header_value.into_inner();
