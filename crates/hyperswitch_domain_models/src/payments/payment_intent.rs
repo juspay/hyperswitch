@@ -1732,6 +1732,7 @@ impl behaviour::Conversion for PaymentIntent {
             created_by: created_by.map(|cb| cb.to_string()),
             is_iframe_redirection_enabled,
             is_payment_id_from_merchant,
+            payment_channel: None,
         })
     }
     async fn convert_back(
@@ -1962,6 +1963,7 @@ impl behaviour::Conversion for PaymentIntent {
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
             routing_algorithm_id: self.routing_algorithm_id,
             is_payment_id_from_merchant: self.is_payment_id_from_merchant,
+            payment_channel: None,
         })
     }
 }

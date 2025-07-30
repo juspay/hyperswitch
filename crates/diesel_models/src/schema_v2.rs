@@ -996,6 +996,7 @@ diesel::table! {
         created_by -> Nullable<Varchar>,
         is_iframe_redirection_enabled -> Nullable<Bool>,
         is_payment_id_from_merchant -> Nullable<Bool>,
+        payment_channel -> Nullable<PaymentChannel>,
         #[max_length = 64]
         merchant_reference_id -> Nullable<Varchar>,
         billing_address -> Nullable<Bytea>,

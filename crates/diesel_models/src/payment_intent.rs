@@ -64,6 +64,7 @@ pub struct PaymentIntent {
     pub created_by: Option<String>,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_payment_id_from_merchant: Option<bool>,
+    pub payment_channel: Option<common_enums::PaymentChannel>,
     pub merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
@@ -82,7 +83,6 @@ pub struct PaymentIntent {
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub payment_link_config: Option<PaymentLinkConfigRequestForPayments>,
     pub id: common_utils::id_type::GlobalPaymentId,
-    pub payment_channel: Option<common_enums::PaymentChannel>,
 }
 
 #[cfg(feature = "v1")]
@@ -357,6 +357,7 @@ pub struct PaymentIntentNew {
     pub created_by: Option<String>,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_payment_id_from_merchant: Option<bool>,
+    pub payment_channel: Option<common_enums::PaymentChannel>,
 }
 
 #[cfg(feature = "v1")]
@@ -559,6 +560,7 @@ pub struct PaymentIntentUpdateFields {
     pub is_payment_processor_token_flow: Option<bool>,
     pub force_3ds_challenge: Option<bool>,
     pub is_iframe_redirection_enabled: Option<bool>,
+    pub payment_channel: Option<Option<common_enums::PaymentChannel>>,
 }
 
 #[cfg(feature = "v1")]
@@ -729,7 +731,6 @@ impl PaymentIntentUpdateInternal {
             force_3ds_challenge: force_3ds_challenge.or(source.force_3ds_challenge),
             is_iframe_redirection_enabled: is_iframe_redirection_enabled
                 .or(source.is_iframe_redirection_enabled),
-
             // Fields from source
             merchant_id: source.merchant_id,
             customer_id: source.customer_id,
@@ -753,6 +754,7 @@ impl PaymentIntentUpdateInternal {
             enable_payment_link: source.enable_payment_link,
             id: source.id,
             is_payment_id_from_merchant: source.is_payment_id_from_merchant,
+            payment_channel: source.payment_channel,
         }
     }
 }

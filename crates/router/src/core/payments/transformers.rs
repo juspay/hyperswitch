@@ -325,6 +325,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         merchant_config_currency: None,
         connector_testing_data: None,
         order_id: None,
+        payment_channel: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -3590,6 +3591,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             merchant_config_currency: None,
             connector_testing_data: None,
             order_id: None,
+            payment_channel: None,
         })
     }
 }
