@@ -205,6 +205,7 @@ Never share your secret api keys. Keep them guarded and secure.
         common_types::payments::MerchantCountryCode,
         common_utils::request::Method,
         api_models::errors::types::GenericErrorResponseOpenApi,
+        api_models::enums::PaymentChannel,
         api_models::refunds::RefundsCreateRequest,
         api_models::refunds::RefundErrorDetails,
         api_models::refunds::RefundType,

@@ -290,6 +290,8 @@ pub enum WorldpayvativCardType {
     DinersClub,
     #[serde(rename = "JC")]
     JCB,
+    #[serde(rename = "")]
+    UnionPay,
 }
 
 impl TryFrom<common_enums::CardNetwork> for WorldpayvativCardType {
@@ -302,6 +304,7 @@ impl TryFrom<common_enums::CardNetwork> for WorldpayvativCardType {
             common_enums::CardNetwork::Discover => Ok(Self::Discover),
             common_enums::CardNetwork::DinersClub => Ok(Self::DinersClub),
             common_enums::CardNetwork::JCB => Ok(Self::JCB),
+            common_enums::CardNetwork::UnionPay => Ok(Self::UnionPay),
             _ => Err(errors::ConnectorError::NotSupported {
                 message: "Card network".to_string(),
                 connector: "worldpayvantiv",
@@ -583,9 +586,9 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
 impl From<&Option<common_enums::PaymentChannel>> for OrderSource {
     fn from(payment_channel: &Option<common_enums::PaymentChannel>) -> Self {
         match payment_channel {
-            Some(common_enums::PaymentChannel::Ecommerce) | None => OrderSource::Ecommerce,
-            Some(common_enums::PaymentChannel::MailOrder) => OrderSource::MailOrder,
-            Some(common_enums::PaymentChannel::TelephoneOrder) => OrderSource::MailOrder,
+            Some(common_enums::PaymentChannel::Ecommerce) | None => Self::Ecommerce,
+            Some(common_enums::PaymentChannel::MailOrder) => Self::MailOrder,
+            Some(common_enums::PaymentChannel::TelephoneOrder) => Self::Telephone,
         }
     }
 }
@@ -831,7 +834,7 @@ pub struct FraudResult {
 pub struct AdvancedFraudResults {
     pub device_review_status: Option<String>,
     pub device_reputation_score: Option<String>,
-    pub triggered_rules: Option<Vec<String>>,
+    pub triggered_rule: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

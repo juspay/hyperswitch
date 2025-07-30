@@ -1188,6 +1188,7 @@ pub struct PaymentsRequest {
     pub is_payment_id_from_merchant: bool,
 
     /// Indicates how the payment was initiated (e.g., ecommerce, mail, or telephone).
+    #[schema(value_type = Option<PaymentChannel>)]
     pub payment_channel: Option<common_enums::PaymentChannel>,
 }
 
@@ -5135,6 +5136,7 @@ pub struct PaymentsResponse {
     pub browser_info: Option<serde_json::Value>,
 
     /// Indicates how the payment was initiated (e.g., ecommerce, mail, or telephone).
+    #[schema(value_type = Option<PaymentChannel>)]
     pub payment_channel: Option<common_enums::PaymentChannel>,
 
     /// A unique identifier for the payment method used in this payment. If the payment method was saved or tokenized, this ID can be used to reference it for future transactions or recurring payments.
