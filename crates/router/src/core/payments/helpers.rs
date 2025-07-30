@@ -2037,6 +2037,29 @@ pub fn decide_payment_method_retrieval_action(
     }
 }
 
+pub async fn is_ucs_enabled(state: &SessionState, config_key: &str) -> bool {
+    let db = state.store.as_ref();
+    db.find_config_by_key_unwrap_or(config_key, Some("false".to_string()))
+        .await
+        .inspect_err(|error| {
+            logger::error!(
+                ?error,
+                "Failed to fetch `{config_key}` UCS enabled config from DB"
+            );
+        })
+        .ok()
+        .and_then(|config| {
+            config
+                .config
+                .parse::<bool>()
+                .inspect_err(|error| {
+                    logger::error!(?error, "Failed to parse `{config_key}` UCS enabled config");
+                })
+                .ok()
+        })
+        .unwrap_or(false)
+}
+
 pub async fn should_execute_based_on_rollout(
     state: &SessionState,
     config_key: &str,
@@ -3421,7 +3444,7 @@ pub fn generate_mandate(
                         .get_ip_address()
                         .map(masking::Secret::new),
                 )
-                .set_customer_user_agent(customer_acceptance.get_user_agent())
+                .set_customer_user_agent_extended(customer_acceptance.get_user_agent())
                 .set_customer_accepted_at(Some(customer_acceptance.get_accepted_at()))
                 .set_metadata(payment_method_data_option.map(|payment_method_data| {
                     pii::SecretSerdeValue::new(
@@ -4258,7 +4281,8 @@ pub fn get_attempt_type(
                     | enums::AttemptStatus::AutoRefunded
                     | enums::AttemptStatus::PaymentMethodAwaited
                     | enums::AttemptStatus::DeviceDataCollectionPending
-                    | enums::AttemptStatus::IntegrityFailure => {
+                    | enums::AttemptStatus::IntegrityFailure
+                    | enums::AttemptStatus::Expired => {
                         metrics::MANUAL_RETRY_VALIDATION_FAILED.add(
                             1,
                             router_env::metric_attributes!((
@@ -4314,7 +4338,8 @@ pub fn get_attempt_type(
         | enums::IntentStatus::PartiallyCapturedAndCapturable
         | enums::IntentStatus::Processing
         | enums::IntentStatus::Succeeded
-        | enums::IntentStatus::Conflicted => {
+        | enums::IntentStatus::Conflicted
+        | enums::IntentStatus::Expired => {
             Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                 message: format!(
                     "You cannot {action} this payment because it has status {}",
@@ -4561,18 +4586,19 @@ pub fn is_manual_retry_allowed(
             | enums::AttemptStatus::AutoRefunded
             | enums::AttemptStatus::PaymentMethodAwaited
             | enums::AttemptStatus::DeviceDataCollectionPending
-            | storage_enums::AttemptStatus::IntegrityFailure => {
+            | enums::AttemptStatus::IntegrityFailure
+            | enums::AttemptStatus::Expired => {
                 logger::error!("Payment Attempt should not be in this state because Attempt to Intent status mapping doesn't allow it");
                 None
             }
 
-            storage_enums::AttemptStatus::VoidFailed
-            | storage_enums::AttemptStatus::RouterDeclined
-            | storage_enums::AttemptStatus::CaptureFailed => Some(false),
+            enums::AttemptStatus::VoidFailed
+            | enums::AttemptStatus::RouterDeclined
+            | enums::AttemptStatus::CaptureFailed => Some(false),
 
-            storage_enums::AttemptStatus::AuthenticationFailed
-            | storage_enums::AttemptStatus::AuthorizationFailed
-            | storage_enums::AttemptStatus::Failure => Some(true),
+            enums::AttemptStatus::AuthenticationFailed
+            | enums::AttemptStatus::AuthorizationFailed
+            | enums::AttemptStatus::Failure => Some(true),
         },
         enums::IntentStatus::Cancelled
         | enums::IntentStatus::RequiresCapture
@@ -4580,7 +4606,8 @@ pub fn is_manual_retry_allowed(
         | enums::IntentStatus::PartiallyCapturedAndCapturable
         | enums::IntentStatus::Processing
         | enums::IntentStatus::Succeeded
-        | enums::IntentStatus::Conflicted => Some(false),
+        | enums::IntentStatus::Conflicted
+        | enums::IntentStatus::Expired => Some(false),
 
         enums::IntentStatus::RequiresCustomerAction
         | enums::IntentStatus::RequiresMerchantAction

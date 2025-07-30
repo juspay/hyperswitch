@@ -7,6 +7,7 @@ import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
 import { connectorDetails as airwallexConnectorDetails } from "./Airwallex.js";
 import { connectorDetails as archipelConnectorDetails } from "./Archipel.js";
 import { connectorDetails as authipayConnectorDetails } from "./Authipay.js";
+import { connectorDetails as authorizedotnetConnectorDetails } from "./Authorizedotnet.js";
 import { connectorDetails as bamboraConnectorDetails } from "./Bambora.js";
 import { connectorDetails as bamboraapacConnectorDetails } from "./Bamboraapac.js";
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
@@ -17,8 +18,8 @@ import { connectorDetails as checkoutConnectorDetails } from "./Checkout.js";
 import { connectorDetails as commonConnectorDetails } from "./Commons.js";
 import { connectorDetails as cybersourceConnectorDetails } from "./Cybersource.js";
 import { connectorDetails as datatransConnectorDetails } from "./Datatrans.js";
-import { connectorDetails as dlocalConnectorDetails } from "./Dlocal.js";
 import { connectorDetails as deutschebankConnectorDetails } from "./Deutschebank.js";
+import { connectorDetails as dlocalConnectorDetails } from "./Dlocal.js";
 import { connectorDetails as elavonConnectorDetails } from "./Elavon.js";
 import { connectorDetails as facilitapayConnectorDetails } from "./Facilitapay.js";
 import { connectorDetails as fiservConnectorDetails } from "./Fiserv.js";
@@ -63,6 +64,7 @@ const connectorDetails = {
   airwallex: airwallexConnectorDetails,
   archipel: archipelConnectorDetails,
   authipay: authipayConnectorDetails,
+  authorizedotnet: authorizedotnetConnectorDetails,
   bambora: bamboraConnectorDetails,
   bamboraapac: bamboraapacConnectorDetails,
   bankofamerica: bankOfAmericaConnectorDetails,
@@ -378,6 +380,7 @@ export const CONNECTOR_LISTS = {
       "facilitapay",
       "fiserv",
       "fiuu",
+      "globalpay",
       "jpmorgan",
       "nexinets",
       "payload",
@@ -393,9 +396,11 @@ export const CONNECTOR_LISTS = {
   INCLUDE: {
     MANDATES_USING_NTID_PROXY: ["cybersource"],
     INCREMENTAL_AUTH: [
-      // "cybersource"    // issues with MULTIPLE_CONNECTORS handling
+      "archipel",
+      // "cybersource",    // issues with MULTIPLE_CONNECTORS handling
       "paypal",
     ],
+    DDC_RACE_CONDITION: ["worldpay"],
     // Add more inclusion lists
   },
 };

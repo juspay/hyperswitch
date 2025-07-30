@@ -156,6 +156,7 @@ pub enum AttemptStatus {
     ConfirmationAwaited,
     DeviceDataCollectionPending,
     IntegrityFailure,
+    Expired,
 }
 
 impl AttemptStatus {
@@ -168,7 +169,8 @@ impl AttemptStatus {
             | Self::VoidFailed
             | Self::CaptureFailed
             | Self::Failure
-            | Self::PartialCharged => true,
+            | Self::PartialCharged
+            | Self::Expired => true,
             Self::Started
             | Self::AuthenticationFailed
             | Self::AuthenticationPending
@@ -188,6 +190,30 @@ impl AttemptStatus {
             | Self::IntegrityFailure => false,
         }
     }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Hash,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    strum::EnumIter,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ApplePayPaymentMethodType {
+    Debit,
+    Credit,
+    Prepaid,
+    Store,
 }
 
 /// Indicates the method by which a card is discovered during a payment
@@ -1437,6 +1463,7 @@ impl EventClass {
                 EventType::PaymentCancelled,
                 EventType::PaymentAuthorized,
                 EventType::PaymentCaptured,
+                EventType::PaymentExpired,
                 EventType::ActionRequired,
             ]),
             Self::Refunds => HashSet::from([EventType::RefundSucceeded, EventType::RefundFailed]),
@@ -1490,6 +1517,7 @@ pub enum EventType {
     PaymentCancelled,
     PaymentAuthorized,
     PaymentCaptured,
+    PaymentExpired,
     ActionRequired,
     RefundSucceeded,
     RefundFailed,
@@ -1611,13 +1639,19 @@ pub enum IntentStatus {
     PartiallyCapturedAndCapturable,
     /// There has been a discrepancy between the amount/currency sent in the request and the amount/currency received by the processor
     Conflicted,
+    /// The payment expired before it could be captured.
+    Expired,
 }
 
 impl IntentStatus {
     /// Indicates whether the payment intent is in terminal state or not
     pub fn is_in_terminal_state(self) -> bool {
         match self {
-            Self::Succeeded | Self::Failed | Self::Cancelled | Self::PartiallyCaptured => true,
+            Self::Succeeded
+            | Self::Failed
+            | Self::Cancelled
+            | Self::PartiallyCaptured
+            | Self::Expired => true,
             Self::Processing
             | Self::RequiresCustomerAction
             | Self::RequiresMerchantAction
@@ -1640,7 +1674,7 @@ impl IntentStatus {
             | Self::Failed
             | Self::Cancelled
             |  Self::PartiallyCaptured
-            |  Self::RequiresCapture | Self::Conflicted => false,
+            |  Self::RequiresCapture | Self::Conflicted | Self::Expired=> false,
             Self::Processing
             | Self::RequiresCustomerAction
             | Self::RequiresMerchantAction
@@ -1772,7 +1806,8 @@ impl From<AttemptStatus> for PaymentMethodStatus {
             | AttemptStatus::PartialChargedAndChargeable
             | AttemptStatus::ConfirmationAwaited
             | AttemptStatus::DeviceDataCollectionPending
-            | AttemptStatus::IntegrityFailure => Self::Inactive,
+            | AttemptStatus::IntegrityFailure
+            | AttemptStatus::Expired => Self::Inactive,
             AttemptStatus::Charged | AttemptStatus::Authorized => Self::Active,
         }
     }
@@ -1856,7 +1891,6 @@ pub enum PaymentMethodType {
     AliPayHk,
     Alma,
     AmazonPay,
-    Skrill,
     Paysera,
     ApplePay,
     Atome,
@@ -1869,6 +1903,7 @@ pub enum PaymentMethodType {
     Boleto,
     BcaBankTransfer,
     BniVa,
+    Breadpay,
     BriVa,
     #[cfg(feature = "v2")]
     Card,
@@ -1929,6 +1964,7 @@ pub enum PaymentMethodType {
     SamsungPay,
     Sepa,
     SepaBankTransfer,
+    Skrill,
     Sofort,
     Swish,
     TouchNGo,
@@ -1956,6 +1992,7 @@ pub enum PaymentMethodType {
     InstantBankTransferFinland,
     InstantBankTransferPoland,
     RevolutPay,
+    IndonesianBankTransfer,
 }
 
 impl PaymentMethodType {
@@ -1976,7 +2013,6 @@ impl PaymentMethodType {
             Self::AliPayHk => "AlipayHK",
             Self::Alma => "Alma",
             Self::AmazonPay => "Amazon Pay",
-            Self::Skrill => "Skrill",
             Self::Paysera => "Paysera",
             Self::ApplePay => "Apple Pay",
             Self::Atome => "Atome",
@@ -1988,6 +2024,7 @@ impl PaymentMethodType {
             Self::Boleto => "Boleto Bancário",
             Self::BcaBankTransfer => "BCA Bank Transfer",
             Self::BniVa => "BNI Virtual Account",
+            Self::Breadpay => "Breadpay",
             Self::BriVa => "BRI Virtual Account",
             Self::CardRedirect => "Card Redirect",
             Self::CimbVa => "CIMB Virtual Account",
@@ -2051,6 +2088,7 @@ impl PaymentMethodType {
             Self::Sepa => "SEPA Direct Debit",
             Self::SepaBankTransfer => "SEPA Bank Transfer",
             Self::Sofort => "Sofort",
+            Self::Skrill => "Skrill",
             Self::Swish => "Swish",
             Self::TouchNGo => "Touch 'n Go",
             Self::Trustly => "Trustly",
@@ -2073,6 +2111,7 @@ impl PaymentMethodType {
             Self::OpenBankingPIS => "Open Banking PIS",
             Self::DirectCarrierBilling => "Direct Carrier Billing",
             Self::RevolutPay => "RevolutPay",
+            Self::IndonesianBankTransfer => "Indonesian Bank Transfer",
         };
         display_name.to_string()
     }
@@ -7506,6 +7545,8 @@ pub enum PermissionGroup {
     ReconOpsView,
     ReconOpsManage,
     InternalManage,
+    ThemeView,
+    ThemeManage,
 }
 
 #[derive(Clone, Debug, serde::Serialize, PartialEq, Eq, Hash, strum::EnumIter)]
@@ -7519,6 +7560,7 @@ pub enum ParentGroup {
     ReconReports,
     Account,
     Internal,
+    Theme,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, serde::Serialize)]
@@ -7549,6 +7591,7 @@ pub enum Resource {
     ReconConfig,
     RevenueRecovery,
     InternalConnector,
+    Theme,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, serde::Serialize, Hash)]
@@ -8507,7 +8550,6 @@ pub enum TokenDataType {
 
 #[derive(
     Clone,
-    Copy,
     Debug,
     Default,
     Eq,
@@ -8534,6 +8576,9 @@ pub enum RoutingApproach {
     StraightThroughRouting,
     #[default]
     DefaultFallback,
+    #[serde(untagged)]
+    #[strum(default)]
+    Other(String),
 }
 
 impl RoutingApproach {

@@ -13,9 +13,12 @@ pub mod bankofamerica;
 pub mod barclaycard;
 pub mod billwerk;
 pub mod bitpay;
+pub mod blackhawknetwork;
+pub mod bluecode;
 pub mod bluesnap;
 pub mod boku;
 pub mod braintree;
+pub mod breadpay;
 pub mod cashtocode;
 pub mod celero;
 pub mod chargebee;
@@ -25,6 +28,7 @@ pub mod coinbase;
 pub mod coingate;
 pub mod cryptopay;
 pub mod ctp_mastercard;
+pub mod custombilling;
 pub mod cybersource;
 pub mod datatrans;
 pub mod deutschebank;
@@ -39,6 +43,7 @@ pub mod facilitapay;
 pub mod fiserv;
 pub mod fiservemea;
 pub mod fiuu;
+pub mod flexiti;
 pub mod forte;
 pub mod getnet;
 pub mod globalpay;
@@ -57,6 +62,7 @@ pub mod klarna;
 pub mod mifinity;
 pub mod mollie;
 pub mod moneris;
+pub mod mpgs;
 pub mod multisafepay;
 pub mod netcetera;
 pub mod nexinets;
@@ -99,6 +105,7 @@ pub mod threedsecureio;
 pub mod thunes;
 pub mod tokenio;
 pub mod trustpay;
+pub mod trustpayments;
 pub mod tsys;
 pub mod unified_authentication_service;
 pub mod vgs;
@@ -119,17 +126,19 @@ pub use self::{
     aci::Aci, adyen::Adyen, adyenplatform::Adyenplatform, affirm::Affirm, airwallex::Airwallex,
     amazonpay::Amazonpay, archipel::Archipel, authipay::Authipay, authorizedotnet::Authorizedotnet,
     bambora::Bambora, bamboraapac::Bamboraapac, bankofamerica::Bankofamerica,
-    barclaycard::Barclaycard, billwerk::Billwerk, bitpay::Bitpay, bluesnap::Bluesnap, boku::Boku,
-    braintree::Braintree, cashtocode::Cashtocode, celero::Celero, chargebee::Chargebee,
-    checkbook::Checkbook, checkout::Checkout, coinbase::Coinbase, coingate::Coingate,
-    cryptopay::Cryptopay, ctp_mastercard::CtpMastercard, cybersource::Cybersource,
-    datatrans::Datatrans, deutschebank::Deutschebank, digitalvirgo::Digitalvirgo, dlocal::Dlocal,
-    dwolla::Dwolla, ebanx::Ebanx, elavon::Elavon, facilitapay::Facilitapay, fiserv::Fiserv,
-    fiservemea::Fiservemea, fiuu::Fiuu, forte::Forte, getnet::Getnet, globalpay::Globalpay,
+    barclaycard::Barclaycard, billwerk::Billwerk, bitpay::Bitpay,
+    blackhawknetwork::Blackhawknetwork, bluecode::Bluecode, bluesnap::Bluesnap, boku::Boku,
+    braintree::Braintree, breadpay::Breadpay, cashtocode::Cashtocode, celero::Celero,
+    chargebee::Chargebee, checkbook::Checkbook, checkout::Checkout, coinbase::Coinbase,
+    coingate::Coingate, cryptopay::Cryptopay, ctp_mastercard::CtpMastercard,
+    custombilling::Custombilling, cybersource::Cybersource, datatrans::Datatrans,
+    deutschebank::Deutschebank, digitalvirgo::Digitalvirgo, dlocal::Dlocal, dwolla::Dwolla,
+    ebanx::Ebanx, elavon::Elavon, facilitapay::Facilitapay, fiserv::Fiserv, fiservemea::Fiservemea,
+    fiuu::Fiuu, flexiti::Flexiti, forte::Forte, getnet::Getnet, globalpay::Globalpay,
     globepay::Globepay, gocardless::Gocardless, gpayments::Gpayments, helcim::Helcim, hipay::Hipay,
     hyperswitch_vault::HyperswitchVault, iatapay::Iatapay, inespay::Inespay, itaubank::Itaubank,
     jpmorgan::Jpmorgan, juspaythreedsserver::Juspaythreedsserver, klarna::Klarna,
-    mifinity::Mifinity, mollie::Mollie, moneris::Moneris, multisafepay::Multisafepay,
+    mifinity::Mifinity, mollie::Mollie, moneris::Moneris, mpgs::Mpgs, multisafepay::Multisafepay,
     netcetera::Netcetera, nexinets::Nexinets, nexixpay::Nexixpay, nmi::Nmi, nomupay::Nomupay,
     noon::Noon, nordea::Nordea, novalnet::Novalnet, nuvei::Nuvei, opayo::Opayo, opennode::Opennode,
     paybox::Paybox, payeezy::Payeezy, payload::Payload, payme::Payme, payone::Payone,
@@ -138,7 +147,7 @@ pub use self::{
     recurly::Recurly, redsys::Redsys, riskified::Riskified, santander::Santander, shift4::Shift4,
     signifyd::Signifyd, silverflow::Silverflow, square::Square, stax::Stax, stripe::Stripe,
     stripebilling::Stripebilling, taxjar::Taxjar, threedsecureio::Threedsecureio, thunes::Thunes,
-    tokenio::Tokenio, trustpay::Trustpay, tsys::Tsys,
+    tokenio::Tokenio, trustpay::Trustpay, trustpayments::Trustpayments, tsys::Tsys,
     unified_authentication_service::UnifiedAuthenticationService, vgs::Vgs, volt::Volt,
     wellsfargo::Wellsfargo, wellsfargopayout::Wellsfargopayout, wise::Wise, worldline::Worldline,
     worldpay::Worldpay, worldpayvantiv::Worldpayvantiv, worldpayxml::Worldpayxml, xendit::Xendit,
