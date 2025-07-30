@@ -7871,8 +7871,7 @@
         "type": "object",
         "required": [
           "amount",
-          "currency",
-          "profile_acquirer_id"
+          "currency"
         ],
         "properties": {
           "authentication_id": {
@@ -7929,7 +7928,16 @@
           },
           "profile_acquirer_id": {
             "type": "string",
-            "description": "Profile Acquirer ID get from profile acquirer configuration"
+            "description": "Profile Acquirer ID get from profile acquirer configuration",
+            "nullable": true
+          },
+          "acquirer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AcquirerDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -8087,8 +8095,7 @@
           "merchant_id",
           "status",
           "amount",
-          "currency",
-          "profile_acquirer_id"
+          "currency"
         ],
         "properties": {
           "authentication_id": {
@@ -8174,7 +8181,8 @@
           },
           "profile_acquirer_id": {
             "type": "string",
-            "description": "Profile Acquirer ID get from profile acquirer configuration"
+            "description": "Profile Acquirer ID get from profile acquirer configuration",
+            "nullable": true
           }
         }
       },
@@ -8208,8 +8216,7 @@
           "amount",
           "currency",
           "created_at",
-          "profile_id",
-          "profile_acquirer_id"
+          "profile_id"
         ],
         "properties": {
           "authentication_id": {
@@ -8409,7 +8416,8 @@
           },
           "profile_acquirer_id": {
             "type": "string",
-            "description": "Profile Acquirer ID"
+            "description": "Profile Acquirer ID",
+            "nullable": true
           }
         }
       },

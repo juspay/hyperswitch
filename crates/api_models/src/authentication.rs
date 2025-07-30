@@ -55,8 +55,12 @@ pub struct AuthenticationCreateRequest {
     pub psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
 
     /// Profile Acquirer ID get from profile acquirer configuration
-    #[schema(value_type = String)]
-    pub profile_acquirer_id: id_type::ProfileAcquirerId,
+    #[schema(value_type = Option<String>)]
+    pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
+
+    /// Acquirer details information
+    #[schema(value_type = Option<AcquirerDetails>)]
+    pub acquirer_details: Option<AcquirerDetails>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -133,8 +137,8 @@ pub struct AuthenticationResponse {
     pub acquirer_details: Option<AcquirerDetails>,
 
     /// Profile Acquirer ID get from profile acquirer configuration
-    #[schema(value_type = String)]
-    pub profile_acquirer_id: id_type::ProfileAcquirerId,
+    #[schema(value_type = Option<String>)]
+    pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
 }
 
 impl ApiEventMetric for AuthenticationCreateRequest {
@@ -560,8 +564,8 @@ pub struct AuthenticationSyncResponse {
     pub error_code: Option<String>,
 
     /// Profile Acquirer ID
-    #[schema(value_type = String)]
-    pub profile_acquirer_id: id_type::ProfileAcquirerId,
+    #[schema(value_type = Option<String>)]
+    pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
 }
 
 #[cfg(feature = "v1")]

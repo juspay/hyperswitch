@@ -664,11 +664,38 @@ pub async fn authentication_create_core(
             .unwrap_or(business_profile.force_3ds_challenge),
     );
 
-    let acquirer_details = business_profile
-        .acquirer_config_map
-        .and_then(|acquirer_config_map| {
-            acquirer_config_map.0.get(&req.profile_acquirer_id).cloned()
-        });
+    // Priority logic: First check req.acquirer_details, then fallback to profile_acquirer_id lookup
+    let (acquirer_bin, acquirer_merchant_id, acquirer_country_code) =
+        if let Some(acquirer_details) = &req.acquirer_details {
+            // Priority 1: Use acquirer_details from request if present
+            (
+                acquirer_details.bin.clone(),
+                acquirer_details.merchant_id.clone(),
+                acquirer_details.country_code.clone(),
+            )
+        } else {
+            // Priority 2: Fallback to profile_acquirer_id lookup
+            let acquirer_details = req.profile_acquirer_id.clone().and_then(|acquirer_id| {
+                business_profile
+                    .acquirer_config_map
+                    .and_then(|acquirer_config_map| {
+                        acquirer_config_map.0.get(&acquirer_id).cloned()
+                    })
+            });
+
+            acquirer_details
+                .as_ref()
+                .map(|details| {
+                    (
+                        Some(details.acquirer_bin.clone()),
+                        Some(details.acquirer_assigned_merchant_id.clone()),
+                        business_profile
+                            .merchant_country_code
+                            .map(|code| code.get_country_code().to_owned()),
+                    )
+                })
+                .unwrap_or((None, None, None))
+        };
 
     let new_authentication = create_new_authentication(
         &state,
@@ -685,19 +712,13 @@ pub async fn authentication_create_core(
         organization_id,
         force_3ds_challenge,
         req.psd2_sca_exemption_type,
-        acquirer_details
-            .as_ref()
-            .map(|acquirer_details| acquirer_details.acquirer_bin.clone()),
-        acquirer_details
-            .as_ref()
-            .map(|acquirer_details| acquirer_details.acquirer_assigned_merchant_id.clone()),
-        business_profile
-            .merchant_country_code
-            .map(|merchant_country_code| merchant_country_code.get_country_code().to_owned()),
+        acquirer_bin,
+        acquirer_merchant_id,
+        acquirer_country_code,
         Some(req.amount),
         Some(req.currency),
         req.return_url,
-        Some(req.profile_acquirer_id),
+        req.profile_acquirer_id.clone(),
     )
     .await?;
 
@@ -716,19 +737,13 @@ pub async fn authentication_create_core(
         .ok_or(ApiErrorResponse::InternalServerError)
         .attach_printable("currency failed to get currency from authentication table")?;
 
-    let profile_acquirer_id = new_authentication
-        .profile_acquirer_id
-        .clone()
-        .ok_or(ApiErrorResponse::InternalServerError)
-        .attach_printable("failed to get profile_acquirer_id from authentication table")?;
-
     let response = AuthenticationResponse::foreign_try_from((
-        new_authentication,
+        new_authentication.clone(),
         amount,
         currency,
         profile_id,
         acquirer_details,
-        profile_acquirer_id,
+        new_authentication.profile_acquirer_id,
     ))?;
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
@@ -743,7 +758,7 @@ impl
         common_enums::Currency,
         common_utils::id_type::ProfileId,
         Option<AcquirerDetails>,
-        common_utils::id_type::ProfileAcquirerId,
+        Option<common_utils::id_type::ProfileAcquirerId>,
     )> for AuthenticationResponse
 {
     type Error = error_stack::Report<ApiErrorResponse>;
@@ -754,7 +769,7 @@ impl
             common_enums::Currency,
             common_utils::id_type::ProfileId,
             Option<AcquirerDetails>,
-            common_utils::id_type::ProfileAcquirerId,
+            Option<common_utils::id_type::ProfileAcquirerId>,
         ),
     ) -> Result<Self, Self::Error> {
         let authentication_connector = authentication
@@ -1398,8 +1413,8 @@ pub async fn authentication_sync_core(
             id: profile_id.get_string_repr().to_owned(),
         })?;
 
-    let authentication_value = match auth_flow {
-        AuthFlow::Client => None,
+    let (authentication_value, eci) = match auth_flow {
+        AuthFlow::Client => (None, None),
         AuthFlow::Merchant => {
             if let Some(common_enums::TransactionStatus::Success) = authentication.trans_status {
                 let tokenised_data = crate::core::payment_methods::vault::get_tokenized_data(
@@ -1411,9 +1426,12 @@ pub async fn authentication_sync_core(
                 .await
                 .inspect_err(|err| router_env::logger::error!(tokenized_data_result=?err))
                 .attach_printable("cavv not present after authentication status is success")?;
-                Some(masking::Secret::new(tokenised_data.value1))
+                (
+                    Some(masking::Secret::new(tokenised_data.value1)),
+                    authentication.eci.clone(),
+                )
             } else {
-                None
+                (None, None)
             }
         }
     };
@@ -1533,12 +1551,6 @@ pub async fn authentication_sync_core(
         .ok_or(ApiErrorResponse::InternalServerError)
         .attach_printable("currency failed to get currency from authentication table")?;
 
-    let profile_acquirer_id = authentication
-        .profile_acquirer_id
-        .clone()
-        .ok_or(ApiErrorResponse::InternalServerError)
-        .attach_printable("failed to get profile_acquirer_id from authentication table")?;
-
     let response = AuthenticationSyncResponse {
         authentication_id: authentication_id.clone(),
         merchant_id: merchant_id.clone(),
@@ -1583,8 +1595,8 @@ pub async fn authentication_sync_core(
         three_ds_requestor_app_url: business_profile
             .authentication_connector_details
             .and_then(|details| details.three_ds_requestor_app_url),
-        profile_acquirer_id,
-        eci: authentication.eci.clone(),
+        profile_acquirer_id: authentication.profile_acquirer_id.clone(),
+        eci,
     };
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
