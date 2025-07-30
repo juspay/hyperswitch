@@ -118,6 +118,7 @@ pub struct ConnectorResponseData {
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, AsExpression, ToSchema)]
 #[diesel(sql_type = Jsonb)]
+#[serde(rename_all = "snake_case")]
 /// Contains the data relevant to the specified GSM feature, if applicable.
 /// For example, if the `feature` is `Retry`, this will include configuration
 /// details specific to the retry behavior.

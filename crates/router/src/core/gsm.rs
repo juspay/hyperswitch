@@ -97,13 +97,20 @@ pub async fn update_gsm_rule(
             decision,
             status,
             router_error: Some(router_error),
-            step_up_possible,
+            step_up_possible: feature_data
+                .as_ref()
+                .and_then(|feature_data| feature_data.get_retry_feature_data())
+                .map(|retry_feature_data| retry_feature_data.is_step_up_possible())
+                .or(step_up_possible),
             unified_code,
             unified_message,
             error_category,
-            clear_pan_possible,
-            feature_data: feature_data
-                .or(Some(inferred_feature_info.1)),
+            clear_pan_possible: feature_data
+                .as_ref()
+                .and_then(|feature_data| feature_data.get_retry_feature_data())
+                .map(|retry_feature_data| retry_feature_data.is_clear_pan_possible())
+                .or(clear_pan_possible),
+            feature_data: feature_data.or(Some(inferred_feature_info.1)),
             feature: feature.or(Some(inferred_feature_info.0)),
         },
     )
