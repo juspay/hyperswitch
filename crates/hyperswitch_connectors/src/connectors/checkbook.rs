@@ -414,7 +414,11 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Checkbo
         _req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotSupported("Refunds are not supported".to_string()).into())
+        Err(errors::ConnectorError::NotSupported {
+            message: "Refunds are not supported".to_string(),
+            connector: "checkbook",
+        }
+        .into())
     }
 
     fn get_request_body(
@@ -422,7 +426,11 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Checkbo
         _req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotSupported("Refunds are not supported".to_string()).into())
+        Err(errors::ConnectorError::NotSupported {
+            message: "Refunds are not supported".to_string(),
+            connector: "checkbook",
+        }
+        .into())
     }
 
     fn build_request(
