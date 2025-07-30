@@ -119,6 +119,29 @@ pub async fn create_api_key(
 
     let merchant_id = key_store.merchant_id.clone();
 
+    // SECURITY CHECK: Prevent API key creation for soft-deleted merchants
+    let key_manager_state = &(&state).into();
+    let merchant_account = store
+        .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
+        .await
+        .change_context(errors::ApiErrorResponse::MerchantAccountNotFound)
+        .attach_printable("Merchant account not found for API key creation")?;
+
+    // Check if merchant is soft-deleted by examining metadata
+    if let Some(metadata) = &merchant_account.metadata {
+        let metadata_value = metadata.peek();
+        if metadata_value
+            .get("deleted")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
+        {
+            return Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Cannot create API keys for deleted merchant accounts".to_string(),
+            }
+            .into());
+        }
+    }
+
     let hash_key = api_key_config.get_hash_key()?;
     let plaintext_api_key = PlaintextApiKey::new(consts::API_KEY_LENGTH);
     let api_key = storage::ApiKeyNew {

@@ -628,6 +628,51 @@
             "admin_api_key": []
           }
         ]
+      },
+      "delete": {
+        "tags": [
+          "Merchant Account"
+        ],
+        "summary": "Merchant Account - Delete (Soft Delete)",
+        "description": "Soft delete a *merchant* account by marking it as deleted in metadata while preserving data for audit trails. This operation revokes API keys for security while maintaining data integrity. The merchant account will be marked as deleted but not physically removed from the database.",
+        "operationId": "Delete a Merchant Account",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the merchant account",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Merchant Account Soft Deleted (marked as deleted, API keys revoked)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantAccountDeleteResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request data"
+          },
+          "401": {
+            "description": "Unauthorized request"
+          },
+          "404": {
+            "description": "Merchant account not found"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
       }
     },
     "/v2/merchant-accounts/{id}/profiles": {
