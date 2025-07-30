@@ -91,9 +91,7 @@ impl From<CheckbookPaymentStatus> for common_enums::AttemptStatus {
             | CheckbookPaymentStatus::Printed => Self::Charged,
             CheckbookPaymentStatus::Failed | CheckbookPaymentStatus::Expired => Self::Failure,
             CheckbookPaymentStatus::Unpaid => Self::AuthenticationPending,
-            CheckbookPaymentStatus::InProcess | CheckbookPaymentStatus::Processing => {
-                Self::Authorizing
-            }
+            CheckbookPaymentStatus::InProcess | CheckbookPaymentStatus::Processing => Self::Pending,
             CheckbookPaymentStatus::Void => Self::Voided,
         }
     }
