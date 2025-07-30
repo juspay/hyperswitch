@@ -5486,6 +5486,7 @@ pub enum PaymentMethodDataType {
     AlmaRedirect,
     AtomeRedirect,
     Breadpay,
+    FlexitiRedirect,
     BancontactCard,
     Bizum,
     Blik,
@@ -5618,6 +5619,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::PayLaterData::AfterpayClearpayRedirect { .. } => {
                     Self::AfterpayClearpayRedirect
                 }
+                payment_method_data::PayLaterData::FlexitiRedirect { .. } => Self::FlexitiRedirect,
                 payment_method_data::PayLaterData::PayBrightRedirect {} => Self::PayBrightRedirect,
                 payment_method_data::PayLaterData::WalleyRedirect {} => Self::WalleyRedirect,
                 payment_method_data::PayLaterData::AlmaRedirect {} => Self::AlmaRedirect,
