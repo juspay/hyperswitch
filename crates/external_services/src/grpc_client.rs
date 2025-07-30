@@ -59,6 +59,7 @@ pub struct GrpcClients {
     pub recovery_decider_client: Box<dyn RecoveryDeciderClientInterface>,
     /// Unified Connector Service client
     pub unified_connector_service_client: Option<UnifiedConnectorServiceClient>,
+    pub recovery_decider_client: Option<Box<dyn RecoveryDeciderClientInterface>>,
 }
 
 /// Type that contains the configs required to construct a  gRPC client with its respective services.
@@ -105,6 +106,13 @@ impl GrpcClientSettings {
         let health_client = HealthCheckClient::build_connections(self, client.clone())
             .await
             .expect("Failed to build gRPC connections");
+
+        #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+        let recovery_decider_client = self
+            .recovery_decider_client
+            .get_recovery_decider_connection(client.clone())
+            .map(|client| -> Box<dyn RecoveryDeciderClientInterface> { Box::new(client) })
+            .ok();
 
         Arc::new(GrpcClients {
             #[cfg(feature = "dynamic_routing")]
@@ -171,7 +179,7 @@ pub(crate) fn create_grpc_request<T: Debug>(message: T, headers: GrpcHeaders) ->
     let mut request = tonic::Request::new(message);
     request.add_headers_to_grpc_request(headers);
 
-    logger::info!(request=?request);
+    logger::info!(?request);
 
     request
 }

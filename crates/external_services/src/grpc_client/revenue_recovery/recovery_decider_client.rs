@@ -1,11 +1,10 @@
-#![cfg(all(feature = "revenue_recovery", feature = "v2"))]
+// #![cfg(all(feature = "revenue_recovery", feature = "v2"))]
 
 use std::fmt::Debug;
 
 use common_utils::errors::CustomResult;
 use error_stack::{Report, ResultExt};
 use router_env::logger;
-use serde;
 
 use crate::grpc_client::Client;
 
@@ -26,7 +25,7 @@ pub use decider::{DeciderRequest, DeciderResponse};
 /// Recovery Decider result
 pub type RecoveryDeciderResult<T> = CustomResult<T, RecoveryDeciderError>;
 
-#[allow(missing_docs)]
+/// Recovery Decider Error
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum RecoveryDeciderError {
     /// Error establishing gRPC connection
@@ -56,10 +55,8 @@ dyn_clone::clone_trait_object!(RecoveryDeciderClientInterface);
 /// Configuration for the Recovery Decider gRPC client.
 #[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize)]
 pub struct RecoveryDeciderClientConfig {
-    /// Host
-    pub host: String,
-    /// port number
-    pub port: u16,
+    /// Base URL of the Recovery Decider service
+    pub base_url: String,
 }
 
 impl RecoveryDeciderClientConfig {
@@ -68,22 +65,19 @@ impl RecoveryDeciderClientConfig {
         &self,
         hyper_client: Client,
     ) -> Result<DeciderClient<Client>, Report<RecoveryDeciderError>> {
-        let host = &self.host;
-        let port = self.port;
-
-        if host.is_empty() {
+        if self.base_url.is_empty() {
             return Err(Report::new(RecoveryDeciderError::ConfigError(
-                "Host is not configured for Recovery Decider client".to_string(),
+                "Base URL is not configured for Recovery Decider client".to_string(),
             )));
         }
 
-        let uri_string = format!("http://{}:{}", host, port);
-        let uri = uri_string
+        let uri = self
+            .base_url
             .parse::<tonic::transport::Uri>()
             .map_err(Report::from)
             .change_context(RecoveryDeciderError::ConfigError(format!(
                 "Invalid URI: {}",
-                uri_string
+                self.base_url
             )))?;
 
         let service_client = DeciderClient::with_origin(hyper_client, uri);

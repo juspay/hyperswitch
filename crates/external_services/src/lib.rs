@@ -28,11 +28,10 @@ pub mod managers;
 /// crm module
 pub mod crm;
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 /// date_time module
 pub mod date_time {
     use prost_types::Timestamp;
-    // use masking::{Deserialize, Serialize};
     use time::{OffsetDateTime, PrimitiveDateTime};
 
     use super::grpc_client::revenue_recovery::common;
@@ -51,17 +50,16 @@ pub mod date_time {
     /// Converts a `prost_types::Timestamp` to an `time::PrimitiveDateTime`.
     pub fn convert_from_prost_timestamp(
         ts: &Timestamp,
-    ) -> Result<PrimitiveDateTime, common::DateTimeConversionError> {
+    ) -> error_stack::Result<PrimitiveDateTime, common::DateTimeConversionError> {
         let timestamp_nanos = i128::from(ts.seconds) * 1_000_000_000 + i128::from(ts.nanos);
 
         OffsetDateTime::from_unix_timestamp_nanos(timestamp_nanos)
             .map(|offset_dt| PrimitiveDateTime::new(offset_dt.date(), offset_dt.time()))
             .map_err(|original_error| {
-                router_env::logger::debug!(
-                    "Prost timestamp conversion failed: {:?}",
-                    original_error
+                router_env::logger::error!(
+                    "Prost timestamp conversion failed: {original_error:?}"
                 );
-                common::DateTimeConversionError::TimestampOutOfRange
+                error_stack::report!(common::DateTimeConversionError::TimestampOutOfRange)
             })
     }
 }

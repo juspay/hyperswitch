@@ -6,7 +6,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let proto_base_path = router_env::workspace_path().join("proto");
         let out_dir = std::path::PathBuf::from(std::env::var("OUT_DIR")?);
         let v2_proto_files = [proto_base_path.join("recovery_decider.proto")];
-        println!("Compiling v2 proto files: {:?}", v2_proto_files);
         tonic_build::configure()
             .out_dir(&out_dir)
             .compile_well_known_types(true)

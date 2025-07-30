@@ -1895,7 +1895,6 @@ dependencies = [
  "openssl",
  "phonenumber",
  "proptest",
- "prost-types",
  "quick-xml",
  "rand 0.8.5",
  "regex",

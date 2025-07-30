@@ -35,7 +35,6 @@ impl RevenueRecoveryPaymentData {
     pub async fn get_schedule_time_based_on_retry_type(
         &self,
         state: &SessionState,
-        db: &dyn StorageInterface,
         merchant_id: &id_type::MerchantId,
         retry_count: i32,
         payment_attempt: &PaymentAttempt,
@@ -48,7 +47,7 @@ impl RevenueRecoveryPaymentData {
             }
             enums::RevenueRecoveryAlgorithmType::Cascading => {
                 revenue_recovery::get_schedule_time_to_retry_mit_payments(
-                    db,
+                    state.store.as_ref(),
                     merchant_id,
                     retry_count,
                 )
@@ -71,4 +70,11 @@ impl RevenueRecoveryPaymentData {
 pub struct RevenueRecoverySettings {
     pub monitoring_threshold_in_seconds: i64,
     pub retry_algorithm_type: enums::RevenueRecoveryAlgorithmType,
+    pub recovery_timestamp: RecoveryTimestamp,
+}
+
+#[derive(Debug, serde::Deserialize, Clone, Default)]
+pub struct RecoveryTimestamp {
+    pub initial_timestamp_in_hours: i64,
+    pub final_timestamp_in_days: i64,
 }

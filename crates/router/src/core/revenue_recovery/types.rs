@@ -327,7 +327,6 @@ impl Action {
         revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
         revenue_recovery_metadata: &PaymentRevenueRecoveryMetadata,
     ) -> RecoveryResult<Self> {
-        let db = &*state.store;
         let response = revenue_recovery_core::api::call_proxy_api(
             state,
             payment_intent,
@@ -397,7 +396,6 @@ impl Action {
 
                     Self::decide_retry_failure_action(
                         state,
-                        db,
                         merchant_id,
                         process.clone(),
                         revenue_recovery_payment_data,
@@ -591,7 +589,6 @@ impl Action {
                 RevenueRecoveryPaymentsAttemptStatus::Failed => {
                     Self::decide_retry_failure_action(
                         state,
-                        db,
                         revenue_recovery_payment_data.merchant_account.get_id(),
                         process.clone(),
                         revenue_recovery_payment_data,
@@ -786,7 +783,6 @@ impl Action {
 
     pub(crate) async fn decide_retry_failure_action(
         state: &SessionState,
-        db: &dyn StorageInterface,
         merchant_id: &id_type::MerchantId,
         pt: storage::ProcessTracker,
         revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
@@ -797,7 +793,6 @@ impl Action {
         let schedule_time = revenue_recovery_payment_data
             .get_schedule_time_based_on_retry_type(
                 state,
-                db,
                 merchant_id,
                 next_retry_count,
                 payment_attempt,

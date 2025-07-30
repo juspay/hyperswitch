@@ -13,7 +13,8 @@ email = ["dep:aws-config"]
 aws_s3 = ["dep:aws-config", "dep:aws-sdk-s3"]
 hashicorp-vault = ["dep:vaultrs"]
 v1 = ["hyperswitch_interfaces/v1", "common_utils/v1"]
-v2 = [
+v2 = ["hyperswitch_interfaces/v2", "common_utils/v2"]
+revenue_recovery = [
     "dep:prost",
     "dep:tonic",
     "dep:tonic-build",
@@ -21,8 +22,9 @@ v2 = [
     "tokio/macros",
     "tokio/rt-multi-thread",
     "dep:hyper-util",
-    "dep:http-body-util"
-    ]
+    "dep:http-body-util",
+    "prost-types",
+]
 dynamic_routing = [
     "dep:prost",
     "dep:api_models",
@@ -32,7 +34,6 @@ dynamic_routing = [
     "dep:hyper-util",
     "dep:http-body-util",
 ]
-revenue_recovery = []
 
 [dependencies]
 async-trait = "0.1.88"
@@ -54,7 +55,7 @@ serde = { version = "1.0.219", features = ["derive"] }
 thiserror = "1.0.69"
 vaultrs = { version = "0.7.4", optional = true }
 prost = { version = "0.13", optional = true }
-prost-types = "0.13"
+prost-types = { version = "0.13", optional = true }
 time = { version = "0.3.41", features = ["serde", "serde-well-known", "std"] }
 tokio = "1.45.1"
 tonic = "0.13.1"

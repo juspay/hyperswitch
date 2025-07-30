@@ -1,5 +1,3 @@
-#![cfg(all(feature = "revenue_recovery", feature = "v2"))]
-
 use std::fmt::Debug;
 
 use common_utils::consts;
@@ -32,7 +30,7 @@ impl<T> AddRecoveryHeaders for tonic::Request<T> {
         headers.request_id.map(|request_id| {
             request_id
                 .parse()
-                .map(|request_id_val| { // Renamed to avoid conflict with outer scope
+                .map(|request_id_val| {
                     self
                         .metadata_mut()
                         .append(consts::X_REQUEST_ID, request_id_val)
