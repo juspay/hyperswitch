@@ -12587,6 +12587,78 @@
           }
         }
       },
+      "ListMethodsForPaymentMethodsRequest": {
+        "type": "object",
+        "properties": {
+          "client_secret": {
+            "type": "string",
+            "description": "This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK",
+            "example": "secret_k2uj3he2893eiu2d",
+            "nullable": true,
+            "maxLength": 30,
+            "minLength": 30
+          },
+          "accepted_countries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CountryAlpha2"
+            },
+            "description": "The two-letter ISO currency code",
+            "example": [
+              "US",
+              "UK",
+              "IN"
+            ],
+            "nullable": true
+          },
+          "amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "accepted_currencies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Currency"
+            },
+            "description": "The three-letter ISO currency code",
+            "example": [
+              "USD",
+              "EUR"
+            ],
+            "nullable": true
+          },
+          "recurring_enabled": {
+            "type": "boolean",
+            "description": "Indicates whether the payment method supports recurring payments. Optional.",
+            "example": true,
+            "nullable": true
+          },
+          "card_networks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CardNetwork"
+            },
+            "description": "Indicates whether the payment method is eligible for card netwotks",
+            "example": [
+              "visa",
+              "mastercard"
+            ],
+            "nullable": true
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Indicates the limit of last used payment methods",
+            "example": 1,
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "LocalBankTransferAdditionalData": {
         "type": "object",
         "properties": {
@@ -17084,78 +17156,6 @@
             }
           }
         ]
-      },
-      "PaymentMethodListRequest": {
-        "type": "object",
-        "properties": {
-          "client_secret": {
-            "type": "string",
-            "description": "This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK",
-            "example": "secret_k2uj3he2893eiu2d",
-            "nullable": true,
-            "maxLength": 30,
-            "minLength": 30
-          },
-          "accepted_countries": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/CountryAlpha2"
-            },
-            "description": "The two-letter ISO currency code",
-            "example": [
-              "US",
-              "UK",
-              "IN"
-            ],
-            "nullable": true
-          },
-          "amount": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MinorUnit"
-              }
-            ],
-            "nullable": true
-          },
-          "accepted_currencies": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Currency"
-            },
-            "description": "The three-letter ISO currency code",
-            "example": [
-              "USD",
-              "EUR"
-            ],
-            "nullable": true
-          },
-          "recurring_enabled": {
-            "type": "boolean",
-            "description": "Indicates whether the payment method supports recurring payments. Optional.",
-            "example": true,
-            "nullable": true
-          },
-          "card_networks": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/CardNetwork"
-            },
-            "description": "Indicates whether the payment method is eligible for card netwotks",
-            "example": [
-              "visa",
-              "mastercard"
-            ],
-            "nullable": true
-          },
-          "limit": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Indicates the limit of last used payment methods",
-            "example": 1,
-            "nullable": true
-          }
-        },
-        "additionalProperties": false
       },
       "PaymentMethodListResponseForPayments": {
         "type": "object",
