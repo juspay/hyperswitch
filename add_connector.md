@@ -557,7 +557,8 @@ Hyperswitch uses separate methods for different HTTP error types:
 
 - **4xx Client Errors**: `get_error_response` handles authentication failures, validation errors, and malformed requests. You can see the details here: `crates/hyperswitch_connectors/src/connectors/billwerk.rs`
 
-- **5xx Server Errors**: `get_5xx_error_response` handles internal server errors with potential retry logic. You can see the details here: `crates/hyperswitch_connectors/src/connectors/billwerk.rs`
+- **5xx Server Errors**: 
+`get_5xx_error_response` handles internal server errors with potential retry logic. You can see the details here: `crates/hyperswitch_connectors/src/connectors/billwerk.rs`
 
 Both methods delegate to `build_error_response` for consistent processing. This is found `crates/hyperswitch_connectors/src/connectors/billwerk.rs`.
 
@@ -617,13 +618,313 @@ Hyperswitch's core API automatically routes errors based on HTTP status codes. Y
 
 The `BillwerkErrorResponse` struct serves as the intermediate data structure that bridges Billwerk's API error format and Hyperswitch's internal error representation. The method essentially consumes the struct and produces Hyperswitch's standardized error format. All connectors implement a similar pattern to ensure uniform error handling. 
 
+## Implementing the Connector Interface
+The connector interface implementation follows an architectural pattern that separates concerns between data transformation and interface compliance.
+
+
+- `transformers.rs` - This file is generated from `add_connector.sh` and defines the data structures and conversion logic for PSP-specific formats. This is where most of your custom connector implementation work happens.
+
+- `mod.rs` - This file implements the standardized Hyperswitch connector interface using the transformers.
+
+### The `mod.rs` Implementation Pattern
+The file creates the bridge between the data transformation logic (defined in `transformers.rs`) and the connector interface requirements. It serves as the main connector implementation file that brings together all the components defined in the transformers module and implements all the required traits for payment processing. Looking at the connector template structure `connector-template/mod.rs:54-6`7, you can see how it:
+
+- **Imports the transformers module** - Brings in your PSP-specific types and conversion logic
+```rs
+use transformers as {{project-name | downcase}};
+```
+
+- **Creates the main connector struct** - A struct named after your connector that holds the implementation
+```rs
+#[derive(Clone)]
+pub struct {{project-name | downcase | pascal_case}} {
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync)
+}
+
+impl {{project-name | downcase | pascal_case}} {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &StringMinorUnitForConnector
+        }
+    }
+}
+```
+
+- **Implements required traits** - Provides the standardized methods Hyperswitch expects
+```rs
+impl ConnectorCommon for {{project-name | downcase | pascal_case}} {
+    fn id(&self) -> &'static str {
+        "{{project-name | downcase}}"
+    }
+
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        todo!()
+    //    TODO! Check connector documentation, on which unit they are processing the currency.
+    //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
+    //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
+    }
+
+    fn common_get_content_type(&self) -> &'static str {
+        "application/json"
+    }
+
+    fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
+        connectors.{{project-name}}.base_url.as_ref()
+    }
+
+    fn get_auth_header(&self, auth_type:&ConnectorAuthType)-> CustomResult<Vec<(String,masking::Maskable<String>)>,errors::ConnectorError> {
+        let auth =  {{project-name | downcase}}::{{project-name | downcase | pascal_case}}AuthType::try_from(auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key.expose().into_masked())])
+    }
+
+    fn build_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let response: {{project-name | downcase}}::{{project-name | downcase | pascal_case}}ErrorResponse = res
+            .response
+            .parse_struct("{{project-name | downcase | pascal_case}}ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: response.code,
+            message: response.message,
+            reason: response.reason,
+            attempt_status: None,
+            connector_transaction_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
+        })
+    }
+}
+```
+
+## ConnectorCommon: The Foundation Trait
+The `ConnectorCommon` trait defines the standardized interface required by Hyperswitch (as outlined in `crates/hyperswitch_interfaces/src/api.rs`) and acts as the bridge to your PSP-specific logic in `transformers.rs`. The `connector-template/mod.rs` file implements this trait using the data types and transformation functions from `transformers.rs`. This allows Hyperswitch to interact with your connector in a consistent, processor-agnostic manner. Every connector must implement the `ConnectorCommon` trait `crates/hyperswitch_interfaces/src/api.rs:319-367`, which provides essential connector properties:
+
+**Core Methods You'll Implement**:
+
+- `id()` - Your connector's unique identifier
+```rs 
+fn id(&self) -> &'static str {
+      "Billwerk"
+  }
+```
+
+- `get_currency_unit()` - Whether you handle amounts in base units (dollars) or minor units (cents). See [appendix]()) for more details. 
+```rs
+  fn get_currency_unit(&self) -> api::CurrencyUnit {
+      api::CurrencyUnit::Minor
+  }
+  ```
+
+- `base_url()` - This fetches your PSP's API endpoint
+```rs
+   fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
+        connectors.billwerk.base_url.as_ref()
+    }
+```
+
+- `get_auth_header()` - How to authenticate with your PSP
+```rs
+   fn get_auth_header(
+        &self,
+        auth_type: &ConnectorAuthType,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        let auth = BillwerkAuthType::try_from(auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let encoded_api_key = BASE64_ENGINE.encode(format!("{}:", auth.api_key.peek()));
+        Ok(vec![(
+            headers::AUTHORIZATION.to_string(),
+            format!("Basic {encoded_api_key}").into_masked(),
+        )])
+    }
+```
+
+- `build_error_response()` - How to transform your PSP's errors into Hyperswitch's format
+```rs
+fn build_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let response: BillwerkErrorResponse = res
+            .response
+            .parse_struct("BillwerkErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: response
+                .code
+                .map_or(NO_ERROR_CODE.to_string(), |code| code.to_string()),
+            message: response.message.unwrap_or(NO_ERROR_MESSAGE.to_string()),
+            reason: Some(response.error),
+            attempt_status: None,
+            connector_transaction_id: None,
+        })
+    }
+```
+
+## `ConnectorIntegration` - The Payment Flow Orchestrator
+The `ConnectorIntegration` trait serves as the central coordinator that bridges three key files in Hyperswitch's connector architecture:
+
+- **Defined in `api.rs`**  
+  [`crates/hyperswitch_interfaces/src/api.rs:150–153`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_interfaces/src/api.rs#L150)  
+  Provides the standardized interface contracts for connector integration.
+
+- **Implemented in `mod.rs`**  
+  Each connector’s main file (`mod.rs`) implements the trait methods for specific payment flows like authorize, capture, refund, etc. You can see how the Tsys connector implements [ConnectorIntegration](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/tsys.rs#L219)
+
+- **Uses types from `transformers.rs`**  
+  Contains PSP-specific request/response structs and `TryFrom` implementations that convert between Hyperswitch's internal `RouterData` format and the PSP's API format. This is where most connector-specific logic lives.
+
+This orchestration enables seamless translation between Hyperswitch’s internal data structures and each payment service provider’s unique API requirements.
+
+## Method-by-Method Breakdown
+
+### Request/Response Flow  
+These methods work together in sequence:  
+1. `get_url()` and `get_headers()` prepare the endpoint and authentication  
+2. `get_request_body()` transforms Hyperswitch data using transformers.rs  
+3. `build_request()` assembles the complete HTTP request  
+4. `handle_response()` processes the PSP response back to Hyperswitch format  
+5. `get_error_response()` handles any error conditions
+
+Here are more details around the methods:
+- **`get_url()`**  
+  Constructs API endpoints by combining base URLs (from `ConnectorCommon`) with specific paths. In the Billwerk connector, it reads the connector’s base URL from config and appends the tokenization path. You can find this implementation [here](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L193-L204)
+
+- **`get_headers()`**  
+  Delegates to [`build_headers()`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_interfaces/src/api.rs#L417-L429) in the `ConnectorCommonExt` trait, ensuring consistent header handling (auth, content-type, etc.) across all flows.  
+
+- **`get_request_body()`**  
+  Uses the `TryFrom` implementations in [transformers.rs](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/billwerk/transformers.rs#L88-L131) to convert Hyperswitch’s internal data structures into PSP-specific request formats (e.g. `BillwerkTokenRequest::try_from(req)?`).  
+
+- **`build_request()`**  
+  Orchestrates `get_url()`, `get_headers()`, and `get_request_body()` to assemble the complete HTTP request via [`common_utils::request::RequestBuilder`](https://github.com/juspay/hyperswitch/blob/main/crates/common_utils/src/request.rs). For example, you can review the Billwerk connector's [`build_request()`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L215-L231) implementation. 
+
+- **`handle_response()`**  
+  Parses the PSP’s raw response (e.g. into `BillwerkTokenResponse`), then applies the reverse `TryFrom` logic in [transformers.rs](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/billwerk/transformers.rs) to normalize it back into Hyperswitch’s `RouterData<…>` format.  
+
+- **`get_error_response()`**
+  Delegates to [`build_error_response()`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L136-L162) from the `ConnectorCommon` trait, providing uniform handling for all connector 4xx errors.  
+
+
+### `ConnectorCommonExt` - Generic Helper Methods
+The [`ConnectorCommonExt`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_interfaces/src/api.rs#L417-L429) trait serves as an extension layer for the core `ConnectorCommon` trait, providing generic methods that work across different payment flows. It'requires both ConnectorCommon and ConnectorIntegration to be implemented.
+
+## Connector Traits Overview
+
+### `Payment`  
+Includes several sub-traits and represents general payment functionality.  
+- **Defined in:** [`crates/hyperswitch_interfaces/src/types.rs:11-16`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_interfaces/src/types.rs#L11-L16)  
+- **Example implementation:** [`crates/hyperswitch_connectors/src/connectors/novalnet.rs:70`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/novalnet.rs#L70)  
+
+### `PaymentAuthorize`  
+Extends the `api::ConnectorIntegration` trait with types for payment authorization.  
+- **Flow type defined in:** [`crates/router/src/types.rs:39`](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L39)  
+- **Example implementation:** [`crates/hyperswitch_connectors/src/connectors/novalnet.rs:74`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/novalnet.rs#L74)  
+
+### `PaymentCapture`  
+Extends the `api::ConnectorIntegration` trait with types for manual capture of a previously authorized payment.  
+- **Flow type defined in:** [`crates/router/src/types.rs:39`](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L39)  
+- **Example implementation:** [`crates/hyperswitch_connectors/src/connectors/novalnet.rs:76`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/novalnet.rs#L76)  
+
+### `PaymentSync`  
+Extends the `api::ConnectorIntegration` trait with types for retrieving or synchronizing payment status.  
+- **Flow type defined in:** [`crates/router/src/types.rs:41`](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L41)  
+- **Example implementation:** [`crates/hyperswitch_connectors/src/connectors/novalnet.rs:75`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/novalnet.rs#L75)  
+
+### `Refund`  
+Includes several sub-traits and represents general refund functionality.  
+- **Defined in:** [`crates/hyperswitch_interfaces/src/types.rs:17`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_interfaces/src/types.rs#L17)  
+- **Example implementation:** [`crates/hyperswitch_connectors/src/connectors/novalnet.rs:78`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/novalnet.rs#L78)  
+
+### `RefundExecute`  
+Extends the `api::ConnectorIntegration` trait with types for creating a refund.  
+- **Flow type defined in:** [`crates/router/src/types.rs:44`](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L44)  
+- **Example implementation:** [`crates/hyperswitch_connectors/src/connectors/novalnet.rs:79`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/novalnet.rs#L79)  
+
+### `RefundSync`  
+Extends the `api::ConnectorIntegration` trait with types for retrieving or synchronizing a refund.  
+- **Flow type defined in:** [`crates/router/src/types.rs:44`](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L44)  
+- **Example implementation:** [`crates/hyperswitch_connectors/src/connectors/novalnet.rs:80`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/novalnet.rs#L80)  
+
+## Derive Traits
+
+The derive traits are standard Rust traits that are automatically implemented:
+
+- **Debug**: Standard Rust trait for debug formatting. It's automatically derived on connector structs like [`crates/hyperswitch_connectors/src/connectors/coinbase.rs:52`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/coinbase.rs#L52)
+- **Clone**: Standard Rust trait for cloning. It's implemented on connector structs like [`crates/hyperswitch_connectors/src/connectors/novalnet.rs:57`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/novalnet.rs#L57)
+- **Copy**: Standard Rust trait for copy semantics. It's used where applicable for simple data structures
+
+These traits work together to provide a complete payment processing interface, with each trait extending `ConnectorIntegration` with specific type parameters for different operations.
+
+## Connector utility functions
+Hyperswitch provides a set of standardized utility functions to streamline data extraction, validation, and formatting across all payment connectors. These are primarily defined in:
+
+- `crates/hyperswitch_connectors/src/utils.rs`
+- `crates/router/src/connector/utils.rs`
+
+###  Key Utilities and Traits
+
+#### `RouterData` Trait  
+Provides helper methods to extract billing and browser data:
+
+- `get_billing_country()` – Retrieves the billing country  
+- `get_billing_email()` – Gets the customer email from billing data  
+- `get_billing_full_name()` – Extracts full name  
+- `get_browser_info()` – Parses browser details for 3DS  
+- `is_three_ds()` – Checks if 3DS is required  
+- `is_auto_capture()` – Determines if auto-capture is enabled  
+
+---
+
+#### `CardData` Trait  
+Handles card-specific formatting and parsing:
+
+- `get_expiry_date_as_yyyymm()` – Formats expiry as YYYYMM  
+- `get_expiry_date_as_mmyyyy()` – Formats expiry as MMYYYY  
+- `get_card_expiry_year_2_digit()` – Gets 2-digit expiry year  
+- `get_card_issuer()` – Returns card brand (Visa, Mastercard, etc.)  
+- `get_cardholder_name()` – Extracts name on card  
+
+---
+
+#### Wallet Data
+Utility for processing digital wallet tokens:
+
+```rs
+let json_wallet_data: CheckoutGooglePayData = wallet_data.get_wallet_token_as_json()?; 
+```
+### Real-World Usage Examples
+- PayPal Connector: `get_expiry_date_as_yyyymm()` is used for tokenization and authorization
+
+- Bambora Connector: `get_browser_info()` is used to enables 3DS and `is_auto_capture()` is used to check capture behavior
+
+- Trustpay Connector: Uses extensive browser info usage for 3DS validation flows
+
+
+### Error Handling & Validation
+- `missing_field_err()` – Commonly used across connectors for standardized error reporting
 
 
 
 
 
 
---
+---
 ## Test the Connector Integration
 After successfully creating your connector using the `add_connector.sh` script, you need to configure authentication credentials and test the integration. This section covers the complete testing setup process.
 
