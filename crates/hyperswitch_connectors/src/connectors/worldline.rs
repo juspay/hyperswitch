@@ -1,6 +1,6 @@
 pub mod transformers;
 
-use std::fmt::Debug;
+use std::{fmt::Debug, sync::LazyLock};
 
 use base64::Engine;
 use common_enums::enums;
@@ -46,7 +46,6 @@ use hyperswitch_interfaces::{
     },
     webhooks::{self, IncomingWebhookFlowError},
 };
-use lazy_static::lazy_static;
 use masking::{ExposeInterface, Mask, PeekInterface};
 use ring::hmac;
 use router_env::logger;
@@ -826,8 +825,8 @@ impl webhooks::IncomingWebhook for Worldline {
     }
 }
 
-lazy_static! {
-    static ref WORLDLINE_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+static WORLDLINE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
         let supported_capture_methods = vec![
             enums::CaptureMethod::Automatic,
             enums::CaptureMethod::Manual,
@@ -890,7 +889,7 @@ lazy_static! {
             PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
+                supported_capture_methods,
                 specific_features: Some(
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
@@ -904,20 +903,20 @@ lazy_static! {
         );
 
         worldline_supported_payment_methods
-    };
-    static ref WORLDLINE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        display_name: "Worldline",
-        description: "Worldline, Europe's leading payment service provider",
-        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
-        integration_status: enums::ConnectorIntegrationStatus::Sandbox,
-    };
-    static ref WORLDLINE_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> =
-        vec![enums::EventClass::Payments];
-}
+    });
+
+static WORLDLINE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Worldline",
+    description: "Worldpay is an industry leading payments technology and solutions company with unique capabilities to power omni-commerce across the globe.r",
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Sandbox,
+};
+
+static WORLDLINE_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];
 
 impl ConnectorSpecifications for Worldline {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&*WORLDLINE_CONNECTOR_INFO)
+        Some(&WORLDLINE_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
@@ -925,6 +924,6 @@ impl ConnectorSpecifications for Worldline {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&*WORLDLINE_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&WORLDLINE_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
