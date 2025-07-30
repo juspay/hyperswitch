@@ -307,3 +307,18 @@ pub const PSD2_COUNTRIES: [Country; 27] = [
     Country::Spain,
     Country::Sweden,
 ];
+
+// Rollout percentage config prefix
+pub const UCS_ROLLOUT_PERCENT_CONFIG_PREFIX: &str = "ucs_rollout_config";
+
+// UCS feature enabled config
+pub const UCS_ENABLED: &str = "ucs_enabled";
+
+/// Header value indicating that signature-key-based authentication is used.
+pub const UCS_AUTH_SIGNATURE_KEY: &str = "signature-key";
+
+/// Header value indicating that body-key-based authentication is used.
+pub const UCS_AUTH_BODY_KEY: &str = "body-key";
+
+/// Header value indicating that header-key-based authentication is used.
+pub const UCS_AUTH_HEADER_KEY: &str = "header-key";

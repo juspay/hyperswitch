@@ -44,8 +44,6 @@ export const connectorDetails = {
               // since we pass the same cpf number, the connector customer id will be updated instead of new ones being created
               cpf: "86665623580",
               source_bank_account_id: "739d6b0a-e92a-40fd-9f58-6d4cdeb699bb",
-              destination_bank_account_id:
-                "91f5cac1-9058-44b7-80e1-80c6f4a6f0bc",
               pix_qr_expiry: isoTimeTomorrow(), // 1 day expiration
             },
           },

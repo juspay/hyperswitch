@@ -341,6 +341,26 @@ api_key = "MyApiKey"
 key1 = "Merchant id"
 api_secret = "Secret key"
 
+
+[authipay]
+api_key = "MyApiKey"
+api_secret = "MySecretKey"
+
+[checkbook]
+api_key="Client ID"
+key1 ="Client Secret"
+
+
 [santander]
 api_key="Client ID"
 key1 ="Client Secret"
+
+[dwolla]
+api_key="Client ID"
+key1="Client Secret"
+
+[payload]
+api_key="API Key"
+
+[bluecode]
+api_key="EOrder Token"

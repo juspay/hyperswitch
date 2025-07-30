@@ -79,8 +79,10 @@ pub enum ApiErrorResponse {
     DuplicatePayment {
         payment_id: common_utils::id_type::PaymentId,
     },
-    #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The payout with the specified payout_id '{payout_id}' already exists in our records")]
-    DuplicatePayout { payout_id: String },
+    #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The payout with the specified payout_id '{payout_id:?}' already exists in our records")]
+    DuplicatePayout {
+        payout_id: common_utils::id_type::PayoutId,
+    },
     #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The config with the specified key already exists in our records")]
     DuplicateConfig,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Refund does not exist in our records")]
@@ -390,7 +392,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 AER::InternalServerError(ApiError::new("HE", 0, "Something went wrong", None))
             },
             Self::HealthCheckError { message,component } => {
-                AER::InternalServerError(ApiError::new("HE",0,format!("{} health check failed with error: {}",component,message),None))
+                AER::InternalServerError(ApiError::new("HE",0,format!("{component} health check failed with error: {message}"),None))
             },
             Self::DuplicateRefundRequest => AER::BadRequest(ApiError::new("HE", 1, "Duplicate refund request. Refund already attempted with the refund ID", None)),
             Self::DuplicateMandate => AER::BadRequest(ApiError::new("HE", 1, "Duplicate mandate request. Mandate already attempted with the Mandate ID", None)),
@@ -403,7 +405,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 AER::BadRequest(ApiError::new("HE", 1, "The payment with the specified payment_id already exists in our records", Some(Extra {reason: Some(format!("{payment_id:?} already exists")), ..Default::default()})))
             }
             Self::DuplicatePayout { payout_id } => {
-                AER::BadRequest(ApiError::new("HE", 1, format!("The payout with the specified payout_id '{payout_id}' already exists in our records"), None))
+                AER::BadRequest(ApiError::new("HE", 1, format!("The payout with the specified payout_id '{payout_id:?}' already exists in our records"), None))
             }
             Self::DuplicateConfig => {
                 AER::BadRequest(ApiError::new("HE", 1, "The config with the specified key already exists in our records", None))
@@ -691,7 +693,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             } => AER::InternalServerError(ApiError::new(
                 "IE",
                 0,
-                format!("{} as data mismatched for {}", reason, field_names),
+                format!("{reason} as data mismatched for {field_names}"),
                 Some(Extra {
                     connector_transaction_id: connector_transaction_id.to_owned(),
                     ..Default::default()

@@ -80,6 +80,7 @@ pub struct PaymentsAuthorizeData {
     pub merchant_config_currency: Option<storage_enums::Currency>,
     pub connector_testing_data: Option<pii::SecretSerdeValue>,
     pub order_id: Option<String>,
+    pub locale: Option<String>,
 }
 #[derive(Debug, Clone)]
 pub struct PaymentsPostSessionTokensData {
@@ -155,6 +156,7 @@ pub struct PaymentsIncrementalAuthorizationData {
     pub currency: storage_enums::Currency,
     pub reason: Option<String>,
     pub connector_transaction_id: String,
+    pub connector_meta: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -253,6 +255,10 @@ pub struct PaymentMethodTokenizationData {
     pub currency: storage_enums::Currency,
     pub amount: Option<i64>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
+    pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
+    pub setup_future_usage: Option<storage_enums::FutureUsage>,
+    pub setup_mandate_details: Option<mandates::MandateData>,
+    pub mandate_id: Option<api_models::payments::MandateIds>,
 }
 
 impl TryFrom<SetupMandateRequestData> for PaymentMethodTokenizationData {
@@ -265,6 +271,10 @@ impl TryFrom<SetupMandateRequestData> for PaymentMethodTokenizationData {
             currency: data.currency,
             amount: data.amount,
             split_payments: None,
+            customer_acceptance: data.customer_acceptance,
+            setup_future_usage: data.setup_future_usage,
+            setup_mandate_details: data.setup_mandate_details,
+            mandate_id: data.mandate_id,
         })
     }
 }
@@ -280,6 +290,10 @@ impl<F> From<&RouterData<F, PaymentsAuthorizeData, response_types::PaymentsRespo
             currency: data.request.currency,
             amount: Some(data.request.amount),
             split_payments: data.request.split_payments.clone(),
+            customer_acceptance: data.request.customer_acceptance.clone(),
+            setup_future_usage: data.request.setup_future_usage,
+            setup_mandate_details: data.request.setup_mandate_details.clone(),
+            mandate_id: data.request.mandate_id.clone(),
         }
     }
 }
@@ -294,6 +308,10 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentMethodTokenizationData {
             currency: data.currency,
             amount: Some(data.amount),
             split_payments: data.split_payments.clone(),
+            customer_acceptance: data.customer_acceptance,
+            setup_future_usage: data.setup_future_usage,
+            setup_mandate_details: data.setup_mandate_details,
+            mandate_id: data.mandate_id,
         })
     }
 }
@@ -313,6 +331,10 @@ impl TryFrom<CompleteAuthorizeData> for PaymentMethodTokenizationData {
             currency: data.currency,
             amount: Some(data.amount),
             split_payments: None,
+            customer_acceptance: data.customer_acceptance,
+            setup_future_usage: data.setup_future_usage,
+            setup_mandate_details: data.setup_mandate_details,
+            mandate_id: data.mandate_id,
         })
     }
 }
@@ -508,6 +530,7 @@ pub struct PaymentsSyncData {
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
     pub amount: MinorUnit,
     pub integrity_object: Option<SyncIntegrityObject>,
+    pub connector_reference_id: Option<String>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -679,6 +702,7 @@ pub struct AuthenticationData {
     pub threeds_server_transaction_id: Option<String>,
     pub message_version: Option<common_utils::types::SemanticVersion>,
     pub ds_trans_id: Option<String>,
+    pub created_at: time::PrimitiveDateTime,
 }
 
 #[derive(Debug, Clone)]
@@ -890,7 +914,7 @@ pub struct UploadFileRequestData {
 #[cfg(feature = "payouts")]
 #[derive(Debug, Clone)]
 pub struct PayoutsData {
-    pub payout_id: String,
+    pub payout_id: id_type::PayoutId,
     pub amount: i64,
     pub connector_payout_id: Option<String>,
     pub destination_currency: storage_enums::Currency,
@@ -991,6 +1015,7 @@ pub struct SetupMandateRequestData {
     pub minor_amount: Option<MinorUnit>,
     pub shipping_cost: Option<MinorUnit>,
     pub connector_testing_data: Option<pii::SecretSerdeValue>,
+    pub customer_id: Option<id_type::CustomerId>,
 }
 
 #[derive(Debug, Clone)]

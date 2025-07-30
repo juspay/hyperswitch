@@ -261,6 +261,12 @@ where
                     )),
                     (
                         _,
+                        domain::PaymentMethodData::Wallet(domain::WalletData::ApplePay(applepay)),
+                    ) => Some(PaymentMethodsData::WalletDetails(
+                        PaymentMethodDataWalletInfo::from(applepay),
+                    )),
+                    (
+                        _,
                         domain::PaymentMethodData::Wallet(domain::WalletData::GooglePay(googlepay)),
                     ) => Some(PaymentMethodsData::WalletDetails(
                         PaymentMethodDataWalletInfo::from(googlepay),
@@ -776,7 +782,7 @@ where
                                         };
                                     let callback_mapper = CallbackMapper::new(
                                         network_token_requestor_ref_id,
-                                        common_enums::CallbackMapperIdType::NetworkTokenRequestorRefernceID,
+                                        common_enums::CallbackMapperIdType::NetworkTokenRequestorReferenceID,
                                         callback_mapper_data,
                                         common_utils::date_time::now(),
                                         common_utils::date_time::now(),
@@ -1247,8 +1253,7 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
 ) -> RouterResult<types::PaymentMethodTokenResult> {
     if should_continue_payment {
         match tokenization_action {
-            payments::TokenizationAction::TokenizeInConnector
-            | payments::TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt(_) => {
+            payments::TokenizationAction::TokenizeInConnector => {
                 let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
                     api::PaymentMethodToken,
                     types::PaymentMethodTokenizationData,

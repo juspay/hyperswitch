@@ -48,7 +48,7 @@ pub async fn do_gsm_actions<F, ApiRequest, FData, D>(
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     F: Clone + Send + Sync,
-    FData: Send + Sync,
+    FData: Send + Sync + types::Capturable,
     payments::PaymentResponse: operations::Operation<F, FData>,
     D: payments::OperationSessionGetters<F>
         + payments::OperationSessionSetters<F>
@@ -345,7 +345,7 @@ pub async fn do_retry<F, ApiRequest, FData, D>(
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     F: Clone + Send + Sync,
-    FData: Send + Sync,
+    FData: Send + Sync + types::Capturable,
     payments::PaymentResponse: operations::Operation<F, FData>,
     D: payments::OperationSessionGetters<F>
         + payments::OperationSessionSetters<F>
@@ -369,7 +369,22 @@ where
     )
     .await?;
 
-    let (router_data, _mca) = payments::call_connector_service(
+    let (merchant_connector_account, router_data, tokenization_action) =
+        payments::call_connector_service_prerequisites(
+            state,
+            merchant_context,
+            connector.clone(),
+            operation,
+            payment_data,
+            customer,
+            validate_result,
+            business_profile,
+            should_retry_with_pan,
+            routing_decision,
+        )
+        .await?;
+
+    let (router_data, _mca) = payments::decide_unified_connector_service_call(
         state,
         req_state,
         merchant_context,
@@ -384,9 +399,10 @@ where
         frm_suggestion,
         business_profile,
         true,
-        should_retry_with_pan,
-        routing_decision,
         None,
+        merchant_connector_account,
+        router_data,
+        tokenization_action,
     )
     .await?;
 
@@ -425,7 +441,7 @@ pub async fn modify_trackers<F, FData, D>(
 ) -> RouterResult<()>
 where
     F: Clone + Send,
-    FData: Send,
+    FData: Send + types::Capturable,
     D: payments::OperationSessionGetters<F> + payments::OperationSessionSetters<F> + Send + Sync,
 {
     let new_attempt_count = payment_data.get_payment_intent().attempt_count + 1;
@@ -450,6 +466,13 @@ where
                 .clone()
                 .and_then(|connector_response| connector_response.additional_payment_method_data),
         )?;
+
+    let debit_routing_savings = payment_data.get_payment_method_data().and_then(|data| {
+        payments::helpers::get_debit_routing_savings_amount(
+            data,
+            payment_data.get_payment_attempt(),
+        )
+    });
 
     match router_data.response {
         Ok(types::PaymentsResponseData::TransactionResponse {
@@ -506,6 +529,7 @@ where
                 connector_mandate_detail: None,
                 charges,
                 setup_future_usage_applied: None,
+                debit_routing_savings,
             };
 
             #[cfg(feature = "v1")]
@@ -703,6 +727,7 @@ pub fn make_new_payment_attempt(
         created_by: old_payment_attempt.created_by,
         setup_future_usage_applied: setup_future_usage_intent, // setup future usage is picked from intent for new payment attempt
         routing_approach: old_payment_attempt.routing_approach,
+        connector_request_reference_id: Default::default(),
     }
 }
 
@@ -783,7 +808,8 @@ impl<F: Send + Clone + Sync, FData: Send + Sync>
                 | storage_enums::AttemptStatus::ConfirmationAwaited
                 | storage_enums::AttemptStatus::Unresolved
                 | storage_enums::AttemptStatus::DeviceDataCollectionPending
-                | storage_enums::AttemptStatus::IntegrityFailure => false,
+                | storage_enums::AttemptStatus::IntegrityFailure
+                | storage_enums::AttemptStatus::Expired => false,
 
                 storage_enums::AttemptStatus::AuthenticationFailed
                 | storage_enums::AttemptStatus::AuthorizationFailed

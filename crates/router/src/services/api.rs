@@ -45,7 +45,7 @@ pub use hyperswitch_interfaces::{
         BoxedConnectorIntegrationV2, ConnectorIntegrationAnyV2, ConnectorIntegrationV2,
     },
 };
-use masking::{Maskable, PeekInterface};
+use masking::{Maskable, PeekInterface, Secret};
 use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
 use serde::Serialize;
 use serde_json::json;
@@ -142,7 +142,7 @@ pub async fn execute_connector_processing_step<
     req: &'b types::RouterData<T, Req, Resp>,
     call_connector_action: payments::CallConnectorAction,
     connector_request: Option<Request>,
-    all_keys_required: Option<bool>,
+    return_raw_connector_response: Option<bool>,
 ) -> CustomResult<types::RouterData<T, Req, Resp>, errors::ConnectorError>
 where
     T: Clone + Debug + 'static,
@@ -302,7 +302,7 @@ where
                                                         val + external_latency
                                                     }),
                                             );
-                                            if all_keys_required == Some(true) {
+                                            if return_raw_connector_response == Some(true) {
                                                 let mut decoded = String::from_utf8(body.response.as_ref().to_vec())
                                                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
                                                 if decoded.starts_with('\u{feff}') {
@@ -310,7 +310,8 @@ where
                                                         .trim_start_matches('\u{feff}')
                                                         .to_string();
                                                 }
-                                                data.whole_connector_response = Some(decoded);
+                                                data.raw_connector_response =
+                                                    Some(Secret::new(decoded));
                                             }
                                             Ok(data)
                                         }
@@ -700,7 +701,11 @@ where
         }
     };
 
-    let infra = state.infra_components.clone();
+    let infra = extract_mapped_fields(
+        &serialized_request,
+        state.enhancement.as_ref(),
+        state.infra_components.as_ref(),
+    );
 
     let api_event = ApiEvent::new(
         tenant_id,
@@ -845,16 +850,14 @@ where
                             .into_iter()
                             .collect::<Vec<String>>()
                             .join(" ");
-                        let csp_header = format!("frame-ancestors 'self' {};", domains_str);
+                        let csp_header = format!("frame-ancestors 'self' {domains_str};");
                         Some(HashSet::from([("content-security-policy", csp_header)]))
                     } else {
                         None
                     };
                     http_response_html_data(rendered_html, headers)
                 }
-                Err(_) => {
-                    http_response_err(format!("Error while rendering {} HTML page", link_type))
-                }
+                Err(_) => http_response_err(format!("Error while rendering {link_type} HTML page")),
             }
         }
 
@@ -1078,13 +1081,17 @@ pub trait Authenticate {
         None
     }
 
-    fn get_all_keys_required(&self) -> Option<bool> {
+    fn should_return_raw_response(&self) -> Option<bool> {
         None
     }
 }
 
 #[cfg(feature = "v2")]
-impl Authenticate for api_models::payments::PaymentsConfirmIntentRequest {}
+impl Authenticate for api_models::payments::PaymentsConfirmIntentRequest {
+    fn should_return_raw_response(&self) -> Option<bool> {
+        self.return_raw_connector_response
+    }
+}
 #[cfg(feature = "v2")]
 impl Authenticate for api_models::payments::ProxyPaymentsRequest {}
 
@@ -1094,7 +1101,9 @@ impl Authenticate for api_models::payments::PaymentsRequest {
         self.client_secret.as_ref()
     }
 
-    fn get_all_keys_required(&self) -> Option<bool> {
+    fn should_return_raw_response(&self) -> Option<bool> {
+        // In v1, this maps to `all_keys_required` to retain backward compatibility.
+        // The equivalent field in v2 is `return_raw_connector_response`.
         self.all_keys_required
     }
 }
@@ -1125,7 +1134,15 @@ impl Authenticate for api_models::payments::PaymentsPostSessionTokensRequest {
 
 impl Authenticate for api_models::payments::PaymentsUpdateMetadataRequest {}
 impl Authenticate for api_models::payments::PaymentsRetrieveRequest {
-    fn get_all_keys_required(&self) -> Option<bool> {
+    #[cfg(feature = "v2")]
+    fn should_return_raw_response(&self) -> Option<bool> {
+        self.return_raw_connector_response
+    }
+
+    #[cfg(feature = "v1")]
+    fn should_return_raw_response(&self) -> Option<bool> {
+        // In v1, this maps to `all_keys_required` to retain backward compatibility.
+        // The equivalent field in v2 is `return_raw_connector_response`.
         self.all_keys_required
     }
 }
@@ -1168,7 +1185,7 @@ pub fn build_redirection_form(
                     #loader1 {
                         width: 500px,
                     }
-                    @media max-width: 600px {
+                    @media (max-width: 600px) {
                         #loader1 {
                             width: 200px
                         }
@@ -1222,10 +1239,9 @@ pub fn build_redirection_form(
             }
         }
         },
-        RedirectForm::Html { html_data } => PreEscaped(format!(
-            "{} <script>{}</script>",
-            html_data, logging_template
-        )),
+        RedirectForm::Html { html_data } => {
+            PreEscaped(format!("{html_data} <script>{logging_template}</script>"))
+        }
         RedirectForm::BlueSnap {
             payment_fields_token,
         } => {
@@ -1736,7 +1752,7 @@ pub fn build_redirection_form(
                                 #loader1 {
                                     width: 500px;
                                 }
-                                @media max-width: 600px {
+                                @media (max-width: 600px) {
                                     #loader1 {
                                         width: 200px;
                                     }
@@ -1765,7 +1781,21 @@ pub fn build_redirection_form(
                     script {
                         (PreEscaped(format!(
                             r#"
+                                var ddcProcessed = false;
+                                var timeoutHandle = null;
+                                
                                 function submitCollectionReference(collectionReference) {{
+                                    if (ddcProcessed) {{
+                                        console.log("DDC already processed, ignoring duplicate submission");
+                                        return;
+                                    }}
+                                    ddcProcessed = true;
+                                    
+                                    if (timeoutHandle) {{
+                                        clearTimeout(timeoutHandle);
+                                        timeoutHandle = null;
+                                    }}
+                                    
                                     var redirectPathname = window.location.pathname.replace(/payments\/redirect\/([^\/]+)\/([^\/]+)\/[^\/]+/, "payments/$1/$2/redirect/complete/worldpay");
                                     var redirectUrl = window.location.origin + redirectPathname;
                                     try {{
@@ -1784,12 +1814,17 @@ pub fn build_redirection_form(
                                             window.location.replace(redirectUrl);
                                         }}
                                     }} catch (error) {{
+                                        console.error("Error submitting DDC:", error);
                                         window.location.replace(redirectUrl);
                                     }}
                                 }}
                                 var allowedHost = "{}";
                                 var collectionField = "{}";
                                 window.addEventListener("message", function(event) {{
+                                    if (ddcProcessed) {{
+                                        console.log("DDC already processed, ignoring message event");
+                                        return;
+                                    }}
                                     if (event.origin === allowedHost) {{
                                         try {{
                                             var data = JSON.parse(event.data);
@@ -1809,8 +1844,13 @@ pub fn build_redirection_form(
                                     submitCollectionReference("");
                                 }});
 
-                                // Redirect within 8 seconds if no collection reference is received
-                                window.setTimeout(submitCollectionReference, 8000);
+                                // Timeout after 10 seconds and will submit empty collection reference
+                                timeoutHandle = window.setTimeout(function() {{
+                                    if (!ddcProcessed) {{
+                                        console.log("DDC timeout reached, submitting empty collection reference");
+                                        submitCollectionReference("");
+                                    }}
+                                }}, 10000);
                             "#,
                             endpoint.host_str().map_or(endpoint.as_ref().split('/').take(3).collect::<Vec<&str>>().join("/"), |host| format!("{}://{}", endpoint.scheme(), host)),
                             collection_id.clone().unwrap_or("".to_string())))
@@ -1989,7 +2029,6 @@ fn get_preload_link_html_template(sdk_url: &url::Url) -> String {
     format!(
         r#"<link rel="preload" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800" as="style">
             <link rel="preload" href="{sdk_url}" as="script">"#,
-        sdk_url = sdk_url
     )
 }
 
@@ -2052,6 +2091,64 @@ pub fn get_payment_link_status(
             Err(errors::ApiErrorResponse::InternalServerError)?
         }
     }
+}
+
+pub fn extract_mapped_fields(
+    value: &serde_json::Value,
+    mapping: Option<&HashMap<String, String>>,
+    existing_enhancement: Option<&serde_json::Value>,
+) -> Option<serde_json::Value> {
+    let mapping = mapping?;
+
+    if mapping.is_empty() {
+        return existing_enhancement.cloned();
+    }
+
+    let mut enhancement = match existing_enhancement {
+        Some(existing) if existing.is_object() => existing.clone(),
+        _ => serde_json::json!({}),
+    };
+
+    for (dot_path, output_key) in mapping {
+        if let Some(extracted_value) = extract_field_by_dot_path(value, dot_path) {
+            if let Some(obj) = enhancement.as_object_mut() {
+                obj.insert(output_key.clone(), extracted_value);
+            }
+        }
+    }
+
+    if enhancement.as_object().is_some_and(|obj| !obj.is_empty()) {
+        Some(enhancement)
+    } else {
+        None
+    }
+}
+
+pub fn extract_field_by_dot_path(
+    value: &serde_json::Value,
+    path: &str,
+) -> Option<serde_json::Value> {
+    let parts: Vec<&str> = path.split('.').collect();
+    let mut current = value;
+
+    for part in parts {
+        match current {
+            serde_json::Value::Object(obj) => {
+                current = obj.get(part)?;
+            }
+            serde_json::Value::Array(arr) => {
+                // Try to parse part as array index
+                if let Ok(index) = part.parse::<usize>() {
+                    current = arr.get(index)?;
+                } else {
+                    return None;
+                }
+            }
+            _ => return None,
+        }
+    }
+
+    Some(current.clone())
 }
 
 #[cfg(test)]

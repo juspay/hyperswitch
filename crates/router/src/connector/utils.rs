@@ -186,7 +186,7 @@ where
 pub const SELECTED_PAYMENT_METHOD: &str = "Selected payment method";
 
 pub fn get_unimplemented_payment_method_error_message(connector: &str) -> String {
-    format!("{} through {}", SELECTED_PAYMENT_METHOD, connector)
+    format!("{SELECTED_PAYMENT_METHOD} through {connector}")
 }
 
 impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Response> {
@@ -1446,7 +1446,7 @@ impl CardData for payouts::CardPayout {
     fn get_expiry_year_4_digit(&self) -> Secret<String> {
         let mut year = self.expiry_year.peek().clone();
         if year.len() == 2 {
-            year = format!("20{}", year);
+            year = format!("20{year}");
         }
         Secret::new(year)
     }
@@ -1521,7 +1521,7 @@ impl CardData
     fn get_expiry_year_4_digit(&self) -> Secret<String> {
         let mut year = self.card_exp_year.peek().clone();
         if year.len() == 2 {
-            year = format!("20{}", year);
+            year = format!("20{year}");
         }
         Secret::new(year)
     }
@@ -1594,7 +1594,7 @@ impl CardData for domain::Card {
     fn get_expiry_year_4_digit(&self) -> Secret<String> {
         let mut year = self.card_exp_year.peek().clone();
         if year.len() == 2 {
-            year = format!("20{}", year);
+            year = format!("20{year}");
         }
         Secret::new(year)
     }
@@ -1815,7 +1815,7 @@ impl AddressDetailsData for hyperswitch_domain_models::address::AddressDetails {
             .cloned()
             .unwrap_or(Secret::new("".to_string()));
         let last_name = last_name.peek();
-        let full_name = format!("{} {}", first_name, last_name).trim().to_string();
+        let full_name = format!("{first_name} {last_name}").trim().to_string();
         Ok(Secret::new(full_name))
     }
 
@@ -2195,7 +2195,8 @@ impl FrmTransactionRouterDataRequest for fraud_check::FrmTransactionRouterData {
             | storage_enums::AttemptStatus::Voided
             | storage_enums::AttemptStatus::CaptureFailed
             | storage_enums::AttemptStatus::Failure
-            | storage_enums::AttemptStatus::AutoRefunded => Some(false),
+            | storage_enums::AttemptStatus::AutoRefunded
+            | storage_enums::AttemptStatus::Expired => Some(false),
 
             storage_enums::AttemptStatus::AuthenticationSuccessful
             | storage_enums::AttemptStatus::PartialChargedAndChargeable
@@ -2226,7 +2227,8 @@ pub fn is_payment_failure(status: enums::AttemptStatus) -> bool {
         | common_enums::AttemptStatus::AuthorizationFailed
         | common_enums::AttemptStatus::CaptureFailed
         | common_enums::AttemptStatus::VoidFailed
-        | common_enums::AttemptStatus::Failure => true,
+        | common_enums::AttemptStatus::Failure
+        | common_enums::AttemptStatus::Expired => true,
         common_enums::AttemptStatus::Started
         | common_enums::AttemptStatus::RouterDeclined
         | common_enums::AttemptStatus::AuthenticationPending
@@ -2401,7 +2403,7 @@ pub fn is_mandate_supported(
     } else {
         match payment_method_type {
             Some(pm_type) => Err(errors::ConnectorError::NotSupported {
-                message: format!("{} mandate payment", pm_type),
+                message: format!("{pm_type} mandate payment"),
                 connector,
             }
             .into()),
@@ -2425,6 +2427,8 @@ pub enum PaymentMethodDataType {
     AliPayRedirect,
     AliPayHkRedirect,
     AmazonPayRedirect,
+    Paysera,
+    Skrill,
     MomoRedirect,
     KakaoPayRedirect,
     GoPayRedirect,
@@ -2458,6 +2462,8 @@ pub enum PaymentMethodDataType {
     WalleyRedirect,
     AlmaRedirect,
     AtomeRedirect,
+    BreadpayRedirect,
+    FlexitiRedirect,
     BancontactCard,
     Bizum,
     Blik,
@@ -2527,6 +2533,7 @@ pub enum PaymentMethodDataType {
     InstantBankTransferFinland,
     InstantBankTransferPoland,
     RevolutPay,
+    IndonesianBankTransfer,
 }
 
 impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
@@ -2548,6 +2555,8 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                 domain::payments::WalletData::AliPayRedirect(_) => Self::AliPayRedirect,
                 domain::payments::WalletData::AliPayHkRedirect(_) => Self::AliPayHkRedirect,
                 domain::payments::WalletData::AmazonPayRedirect(_) => Self::AmazonPayRedirect,
+                domain::payments::WalletData::Paysera(_) => Self::Paysera,
+                domain::payments::WalletData::Skrill(_) => Self::Skrill,
                 domain::payments::WalletData::MomoRedirect(_) => Self::MomoRedirect,
                 domain::payments::WalletData::KakaoPayRedirect(_) => Self::KakaoPayRedirect,
                 domain::payments::WalletData::GoPayRedirect(_) => Self::GoPayRedirect,
@@ -2589,7 +2598,9 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                 domain::payments::PayLaterData::PayBrightRedirect {} => Self::PayBrightRedirect,
                 domain::payments::PayLaterData::WalleyRedirect {} => Self::WalleyRedirect,
                 domain::payments::PayLaterData::AlmaRedirect {} => Self::AlmaRedirect,
+                domain::payments::PayLaterData::FlexitiRedirect {} => Self::FlexitiRedirect,
                 domain::payments::PayLaterData::AtomeRedirect {} => Self::AtomeRedirect,
+                domain::payments::PayLaterData::BreadpayRedirect {} => Self::BreadpayRedirect,
             },
             domain::payments::PaymentMethodData::BankRedirect(bank_redirect_data) => {
                 match bank_redirect_data {
@@ -2687,6 +2698,9 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                     domain::payments::BankTransferData::InstantBankTransferPoland {} => {
                         Self::InstantBankTransferPoland
                     }
+                    domain::payments::BankTransferData::IndonesianBankTransfer { .. } => {
+                        Self::IndonesianBankTransfer
+                    }
                 }
             }
             domain::payments::PaymentMethodData::Crypto(_) => Self::Crypto,
@@ -2775,7 +2789,7 @@ impl NetworkTokenData for domain::NetworkTokenData {
     fn get_expiry_year_4_digit(&self) -> Secret<String> {
         let mut year = self.token_exp_year.peek().clone();
         if year.len() == 2 {
-            year = format!("20{}", year);
+            year = format!("20{year}");
         }
         Secret::new(year)
     }
@@ -2784,7 +2798,7 @@ impl NetworkTokenData for domain::NetworkTokenData {
     fn get_expiry_year_4_digit(&self) -> Secret<String> {
         let mut year = self.network_token_exp_year.peek().clone();
         if year.len() == 2 {
-            year = format!("20{}", year);
+            year = format!("20{year}");
         }
         Secret::new(year)
     }

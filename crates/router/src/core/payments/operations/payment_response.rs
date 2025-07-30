@@ -1412,7 +1412,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             .as_mut()
             .map(|info| info.status = status)
     });
-    payment_data.whole_connector_response = router_data.whole_connector_response.clone();
+    payment_data.whole_connector_response = router_data.raw_connector_response.clone();
 
     // TODO: refactor of gsm_error_category with respective feature flag
     #[allow(unused_variables)]
@@ -1767,6 +1767,14 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             let payment_method_id =
                                 payment_data.payment_attempt.payment_method_id.clone();
 
+                            let debit_routing_savings =
+                                payment_data.payment_method_data.as_ref().and_then(|data| {
+                                    payments_helpers::get_debit_routing_savings_amount(
+                                        data,
+                                        &payment_data.payment_attempt,
+                                    )
+                                });
+
                             utils::add_apple_pay_payment_status_metrics(
                                 router_data.status,
                                 router_data.apple_pay_flow.clone(),
@@ -1857,6 +1865,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         setup_future_usage_applied: payment_data
                                             .payment_attempt
                                             .setup_future_usage_applied,
+                                        debit_routing_savings,
                                     }),
                                 ),
                             };
@@ -2158,7 +2167,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 );
             tokio::spawn(
                 async move {
-                    let should_route_to_open_router = state.conf.open_router.enabled;
+                    let should_route_to_open_router =
+                        state.conf.open_router.dynamic_routing_enabled;
 
                     if should_route_to_open_router {
                         routing_helpers::update_gateway_score_helper_with_open_router(
@@ -2555,7 +2565,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
                 | common_enums::AttemptStatus::AutoRefunded
                 | common_enums::AttemptStatus::Unresolved
                 | common_enums::AttemptStatus::Pending
-                | common_enums::AttemptStatus::Failure => (),
+                | common_enums::AttemptStatus::Failure
+                | common_enums::AttemptStatus::Expired => (),
 
                 common_enums::AttemptStatus::Started
                 | common_enums::AttemptStatus::AuthenticationPending

@@ -269,7 +269,7 @@ impl SurchargeMetadata {
         self.surcharge_results.get(&surcharge_key)
     }
     pub fn get_surcharge_metadata_redis_key(payment_attempt_id: &str) -> String {
-        format!("surcharge_metadata_{}", payment_attempt_id)
+        format!("surcharge_metadata_{payment_attempt_id}")
     }
     pub fn get_individual_surcharge_key_value_pairs(&self) -> Vec<(String, SurchargeDetails)> {
         self.surcharge_results
@@ -283,16 +283,13 @@ impl SurchargeMetadata {
     pub fn get_surcharge_details_redis_hashset_key(surcharge_key: &SurchargeKey) -> String {
         match surcharge_key {
             SurchargeKey::Token(token) => {
-                format!("token_{}", token)
+                format!("token_{token}")
             }
             SurchargeKey::PaymentMethodData(payment_method, payment_method_type, card_network) => {
                 if let Some(card_network) = card_network {
-                    format!(
-                        "{}_{}_{}",
-                        payment_method, payment_method_type, card_network
-                    )
+                    format!("{payment_method}_{payment_method_type}_{card_network}")
                 } else {
-                    format!("{}_{}", payment_method, payment_method_type)
+                    format!("{payment_method}_{payment_method_type}")
                 }
             }
         }
@@ -388,6 +385,7 @@ impl
                 .attach_printable("cavv must not be null when authentication_status is success")?;
             Ok(Self {
                 eci: authentication.eci.clone(),
+                created_at: authentication.created_at,
                 cavv,
                 threeds_server_transaction_id,
                 message_version,

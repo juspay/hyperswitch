@@ -192,7 +192,7 @@ impl TryFrom<BankNames> for BankCode {
             BankNames::UobBank => Ok(Self::UOVBMYKL),
             BankNames::OcbcBank => Ok(Self::OCBCMYKL),
             bank => Err(errors::ConnectorError::NotSupported {
-                message: format!("Invalid BankName for FPX Refund: {:?}", bank),
+                message: format!("Invalid BankName for FPX Refund: {bank:?}"),
                 connector: "Fiuu",
             })?,
         }
@@ -565,6 +565,8 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
                     | WalletData::AliPayRedirect(_)
                     | WalletData::AliPayHkRedirect(_)
                     | WalletData::AmazonPayRedirect(_)
+                    | WalletData::Paysera(_)
+                    | WalletData::Skrill(_)
                     | WalletData::MomoRedirect(_)
                     | WalletData::KakaoPayRedirect(_)
                     | WalletData::GoPayRedirect(_)

@@ -71,6 +71,7 @@ pub struct KafkaPaymentAttemptEvent<'a> {
     pub card_network: Option<String>,
     pub card_discovery: Option<String>,
     pub routing_approach: Option<storage_enums::RoutingApproach>,
+    pub debit_routing_savings: Option<MinorUnit>,
 }
 
 #[cfg(feature = "v1")]
@@ -132,7 +133,8 @@ impl<'a> KafkaPaymentAttemptEvent<'a> {
             card_discovery: attempt
                 .card_discovery
                 .map(|discovery| discovery.to_string()),
-            routing_approach: attempt.routing_approach,
+            routing_approach: attempt.routing_approach.clone(),
+            debit_routing_savings: attempt.debit_routing_savings,
         }
     }
 }

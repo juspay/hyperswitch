@@ -9,7 +9,10 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, BytesExt, ValueExt},
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
+    types::{
+        AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector, StringMinorUnit,
+        StringMinorUnitForConnector,
+    },
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -52,20 +55,24 @@ use router_env::logger;
 use transformers as airwallex;
 
 use crate::{
+    connectors::airwallex::transformers::AirwallexAuthorizeResponse,
     constants::headers,
     types::{RefreshTokenRouterData, ResponseRouterData},
-    utils::{convert_amount, AccessTokenRequestInfo, RefundsRequestData},
+    utils::{convert_amount, AccessTokenRequestInfo, ForeignTryFrom, RefundsRequestData},
 };
 
 #[derive(Clone)]
 pub struct Airwallex {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+    amount_converter_to_string_minor:
+        &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }
 
 impl Airwallex {
     pub const fn new() -> &'static Self {
         &Self {
-            amount_converter: &StringMinorUnitForConnector,
+            amount_converter: &StringMajorUnitForConnector,
+            amount_converter_to_string_minor: &StringMinorUnitForConnector,
         }
     }
 }
@@ -286,8 +293,23 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         req: &PaymentsPreProcessingRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let req_obj = airwallex::AirwallexIntentRequest::try_from(req)?;
-        Ok(RequestContent::Json(Box::new(req_obj)))
+        let amount_in_minor_unit = MinorUnit::new(req.request.amount.ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "amount",
+            },
+        )?);
+        let amount = convert_amount(
+            self.amount_converter,
+            amount_in_minor_unit,
+            req.request
+                .currency
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "currency",
+                })?,
+        )?;
+        let connector_router_data = airwallex::AirwallexRouterData::try_from((amount, req))?;
+        let connector_req = airwallex::AirwallexIntentRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -380,12 +402,13 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = airwallex::AirwallexRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount_in_minor_unit = MinorUnit::new(req.request.amount);
+        let amount = convert_amount(
+            self.amount_converter,
+            amount_in_minor_unit,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = airwallex::AirwallexRouterData::try_from((amount, req))?;
         let connector_req = airwallex::AirwallexPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -418,13 +441,13 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: airwallex::AirwallexPaymentsResponse = res
+        let response: AirwallexAuthorizeResponse = res
             .response
-            .parse_struct("AirwallexPaymentsResponse")
+            .parse_struct("AirwallexAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
         event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+        RouterData::foreign_try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -818,12 +841,13 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Airwall
         req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = airwallex::AirwallexRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount_in_minor_unit = MinorUnit::new(req.request.refund_amount);
+        let amount = convert_amount(
+            self.amount_converter,
+            amount_in_minor_unit,
             req.request.currency,
-            req.request.refund_amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = airwallex::AirwallexRouterData::try_from((amount, req))?;
         let connector_req = airwallex::AirwallexRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -1076,7 +1100,7 @@ impl IncomingWebhook for Airwallex {
             .parse_value("AirwallexDisputeObject")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let amount = convert_amount(
-            self.amount_converter,
+            self.amount_converter_to_string_minor,
             dispute_details.dispute_amount,
             dispute_details.dispute_currency,
         )?;
@@ -1117,6 +1141,11 @@ static AIRWALLEX_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
         let supported_capture_methods = vec![
             enums::CaptureMethod::Automatic,
             enums::CaptureMethod::Manual,
+            enums::CaptureMethod::SequentialAutomatic,
+        ];
+
+        let supported_capture_methods_redirect = vec![
+            enums::CaptureMethod::Automatic,
             enums::CaptureMethod::SequentialAutomatic,
         ];
 
@@ -1177,6 +1206,94 @@ static AIRWALLEX_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        airwallex_supported_payment_methods.add(
+            enums::PaymentMethod::Wallet,
+            enums::PaymentMethodType::Paypal,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods_redirect.clone(),
+                specific_features: None,
+            },
+        );
+
+        airwallex_supported_payment_methods.add(
+            enums::PaymentMethod::Wallet,
+            enums::PaymentMethodType::Skrill,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods_redirect.clone(),
+                specific_features: None,
+            },
+        );
+
+        airwallex_supported_payment_methods.add(
+            enums::PaymentMethod::PayLater,
+            enums::PaymentMethodType::Klarna,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        airwallex_supported_payment_methods.add(
+            enums::PaymentMethod::PayLater,
+            enums::PaymentMethodType::Atome,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods_redirect.clone(),
+                specific_features: None,
+            },
+        );
+
+        airwallex_supported_payment_methods.add(
+            enums::PaymentMethod::BankRedirect,
+            enums::PaymentMethodType::Trustly,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods_redirect.clone(),
+                specific_features: None,
+            },
+        );
+
+        airwallex_supported_payment_methods.add(
+            enums::PaymentMethod::BankRedirect,
+            enums::PaymentMethodType::Blik,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods_redirect.clone(),
+                specific_features: None,
+            },
+        );
+
+        airwallex_supported_payment_methods.add(
+            enums::PaymentMethod::BankRedirect,
+            enums::PaymentMethodType::Ideal,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods_redirect.clone(),
+                specific_features: None,
+            },
+        );
+
+        airwallex_supported_payment_methods.add(
+            enums::PaymentMethod::BankTransfer,
+            enums::PaymentMethodType::IndonesianBankTransfer,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::NotSupported,
+                supported_capture_methods: supported_capture_methods_redirect.clone(),
                 specific_features: None,
             },
         );

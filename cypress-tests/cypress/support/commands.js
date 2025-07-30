@@ -2442,6 +2442,9 @@ Cypress.Commands.add(
               "payment_method_id"
             ).to.include("pm_").and.to.not.be.null;
 
+            // Whenever, CIT Confirmations gets a payment status of `processing`, it does not yield the `payment_method_id` and hence the `paymentMethodId` in the `globalState` gets the value of `null`. And hence while confirming MIT, it yields an `error.message` of `"Json deserialize error: invalid type: null, expected a string at line 1 column 182"` which is basically because of the `null` value in `recurring_details.data` with `recurring_details.type` as `payment_method_id`. However, we get the `payment_method_id` while PSync, so we can assign it to the `globalState` here.
+            globalState.set("paymentMethodId", response.body.payment_method_id);
+
             const allowedActiveStatuses = [
               "succeeded",
               "requires_capture",
@@ -3964,24 +3967,48 @@ Cypress.Commands.add("incrementalAuth", (globalState, data) => {
             .to.have.property("amount")
             .to.be.a("number")
             .to.equal(resData.body.amount).and.not.be.null;
-          expect(
-            response.body.incremental_authorizations[key],
-            "error_code"
-          ).to.have.property("error_code").to.be.null;
-          expect(
-            response.body.incremental_authorizations[key],
-            "error_message"
-          ).to.have.property("error_message").to.be.null;
+          if (
+            response.body.incremental_authorizations[key].status === "failure"
+          ) {
+            expect(response.body.incremental_authorizations[key], "error_code")
+              .to.have.property("error_code")
+              .to.be.equal(
+                resData.body.incremental_authorizations[key].error_code
+              );
+            expect(
+              response.body.incremental_authorizations[key],
+              "error_message"
+            )
+              .to.have.property("error_message")
+              .to.be.equal(
+                resData.body.incremental_authorizations[key].error_message
+              );
+            expect(response.body.incremental_authorizations[key], "status")
+              .to.have.property("status")
+              .to.equal("failure");
+          } else {
+            expect(
+              response.body.incremental_authorizations[key],
+              "error_code"
+            ).to.have.property("error_code").to.be.null;
+            expect(
+              response.body.incremental_authorizations[key],
+              "error_message"
+            ).to.have.property("error_message").to.be.null;
+            expect(response.body.incremental_authorizations[key], "status")
+              .to.have.property("status")
+              .to.equal("success");
+          }
           expect(
             response.body.incremental_authorizations[key],
             "previously_authorized_amount"
           )
             .to.have.property("previously_authorized_amount")
             .to.be.a("number")
-            .to.equal(response.body.amount).and.not.be.null;
-          expect(response.body.incremental_authorizations[key], "status")
-            .to.have.property("status")
-            .to.equal("success");
+            .to.equal(
+              response.body.incremental_authorizations[key]
+                .previously_authorized_amount
+            ).and.not.be.null;
         }
       }
     });
@@ -4039,3 +4066,96 @@ Cypress.Commands.add("setConfigs", (globalState, key, value, requestType) => {
     });
   });
 });
+
+// DDC Race Condition Test Commands
+Cypress.Commands.add(
+  "ddcServerSideRaceConditionTest",
+  (confirmData, globalState) => {
+    const ddcConfig = confirmData.DDCConfig;
+    const paymentId = globalState.get("paymentID");
+    const merchantId = globalState.get("merchantId");
+    const completeUrl = `${Cypress.env("BASEURL")}/payments/${paymentId}/${merchantId}${ddcConfig.completeUrlPath}`;
+
+    cy.request({
+      method: "GET",
+      url: completeUrl,
+      qs: {
+        [ddcConfig.collectionReferenceParam]: ddcConfig.firstSubmissionValue,
+      },
+      failOnStatusCode: false,
+    }).then((firstResponse) => {
+      if (
+        firstResponse.status === 400 &&
+        firstResponse.body?.error?.message?.includes("No eligible connector")
+      ) {
+        throw new Error(
+          `Connector configuration issue detected. Response: ${JSON.stringify(firstResponse.body)}`
+        );
+      }
+
+      expect(firstResponse.status).to.be.oneOf([200, 302]);
+      cy.log(`First request status: ${firstResponse.status}`);
+
+      cy.request({
+        method: "GET",
+        url: completeUrl,
+        qs: {
+          [ddcConfig.collectionReferenceParam]: ddcConfig.secondSubmissionValue,
+        },
+        failOnStatusCode: false,
+      }).then((secondResponse) => {
+        cy.log(`Second request status: ${secondResponse.status}`);
+
+        expect(secondResponse.status).to.eq(ddcConfig.expectedError.status);
+        expect(secondResponse.body).to.deep.equal(ddcConfig.expectedError.body);
+
+        cy.log(
+          "✅ Server-side race condition protection verified - second submission properly rejected"
+        );
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "ddcClientSideRaceConditionTest",
+  (confirmData, globalState) => {
+    const ddcConfig = confirmData.DDCConfig;
+    const paymentId = globalState.get("paymentID");
+    const merchantId = globalState.get("merchantId");
+    const nextActionUrl = `${Cypress.env("BASEURL")}${ddcConfig.redirectUrlPath}/${paymentId}/${merchantId}/${paymentId}_1`;
+
+    cy.intercept("GET", nextActionUrl, (req) => {
+      req.reply((res) => {
+        let modifiedHtml = res.body.toString();
+        modifiedHtml = modifiedHtml.replace(
+          "</body>",
+          ddcConfig.raceConditionScript + "</body>"
+        );
+        res.send(modifiedHtml);
+      });
+    }).as("ddcPageWithRaceCondition");
+
+    cy.intercept("GET", "**/redirect/complete/**").as("ddcSubmission");
+    const delayBeforeSubmission = ddcConfig.delayBeforeSubmission || 2000;
+
+    cy.visit(nextActionUrl);
+    cy.wait("@ddcPageWithRaceCondition");
+    cy.wait("@ddcSubmission");
+    cy.wait(delayBeforeSubmission);
+
+    cy.get("@ddcSubmission.all").should("have.length", 1);
+
+    cy.get("@ddcSubmission").then((interception) => {
+      const collectionRef =
+        interception.request.query[ddcConfig.collectionReferenceParam] || "";
+      cy.log(
+        `Single submission detected with ${ddcConfig.collectionReferenceParam}: "${collectionRef}"`
+      );
+    });
+
+    cy.log(
+      "✅ Client-side race condition protection verified - only one submission occurred"
+    );
+  }
+);

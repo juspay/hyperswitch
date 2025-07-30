@@ -70,6 +70,7 @@ pub struct Settings<S: SecretState> {
     pub server: Server,
     pub proxy: Proxy,
     pub env: Env,
+    pub chat: ChatSettings,
     pub master_database: SecretStateContainer<Database, S>,
     #[cfg(feature = "olap")]
     pub replica_database: SecretStateContainer<Database, S>,
@@ -161,6 +162,8 @@ pub struct Settings<S: SecretState> {
     pub merchant_id_auth: MerchantIdAuthSettings,
     #[serde(default)]
     pub infra_values: Option<HashMap<String, String>>,
+    #[serde(default)]
+    pub enhancement: Option<HashMap<String, String>>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -175,7 +178,8 @@ pub struct DebitRoutingConfig {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct OpenRouter {
-    pub enabled: bool,
+    pub dynamic_routing_enabled: bool,
+    pub static_routing_enabled: bool,
     pub url: String,
 }
 
@@ -192,6 +196,13 @@ pub struct CloneConnectorAllowlistConfig {
 pub struct Platform {
     pub enabled: bool,
     pub allow_connected_merchants: bool,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct ChatSettings {
+    pub enabled: bool,
+    pub hyperswitch_ai_host: String,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -611,6 +622,13 @@ pub struct PaymentMethodTokenFilter {
     pub payment_method_type: Option<PaymentMethodTypeTokenFilter>,
     pub long_lived_token: bool,
     pub apple_pay_pre_decrypt_flow: Option<ApplePayPreDecryptFlow>,
+    pub flow: Option<PaymentFlow>,
+}
+
+#[derive(Debug, Deserialize, Clone, PartialEq)]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
+pub enum PaymentFlow {
+    Mandates,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -1015,6 +1033,7 @@ impl Settings<SecuredSecret> {
         self.secrets.get_inner().validate()?;
         self.locker.validate()?;
         self.connectors.validate("connectors")?;
+        self.chat.validate()?;
 
         self.cors.validate()?;
 
@@ -1079,6 +1098,8 @@ impl Settings<SecuredSecret> {
             .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
 
         self.platform.validate()?;
+
+        self.open_router.validate()?;
 
         Ok(())
     }
@@ -1320,10 +1341,7 @@ fn deserialize_merchant_ids_inner(
         .map(|s| {
             let trimmed = s.trim();
             id_type::MerchantId::wrap(trimmed.to_owned()).map_err(|error| {
-                format!(
-                    "Unable to deserialize `{}` as `MerchantId`: {error}",
-                    trimmed
-                )
+                format!("Unable to deserialize `{trimmed}` as `MerchantId`: {error}")
             })
         })
         .fold(

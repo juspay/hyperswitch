@@ -111,6 +111,7 @@ pub enum PaymentMetrics {
     AvgTicketSize,
     RetriesCount,
     ConnectorSuccessRate,
+    DebitRouting,
     SessionizedPaymentSuccessRate,
     SessionizedPaymentCount,
     SessionizedPaymentSuccessCount,
@@ -118,6 +119,7 @@ pub enum PaymentMetrics {
     SessionizedAvgTicketSize,
     SessionizedRetriesCount,
     SessionizedConnectorSuccessRate,
+    SessionizedDebitRouting,
     PaymentsDistribution,
     FailureReasons,
 }
@@ -128,8 +130,10 @@ impl ForexMetric for PaymentMetrics {
             self,
             Self::PaymentProcessedAmount
                 | Self::AvgTicketSize
+                | Self::DebitRouting
                 | Self::SessionizedPaymentProcessedAmount
                 | Self::SessionizedAvgTicketSize
+                | Self::SessionizedDebitRouting,
         )
     }
 }
@@ -270,7 +274,10 @@ impl Hash for PaymentMetricsBucketIdentifier {
         self.card_last_4.hash(state);
         self.card_issuer.hash(state);
         self.error_reason.hash(state);
-        self.routing_approach.map(|i| i.to_string()).hash(state);
+        self.routing_approach
+            .clone()
+            .map(|i| i.to_string())
+            .hash(state);
         self.time_bucket.hash(state);
     }
 }
@@ -309,6 +316,9 @@ pub struct PaymentMetricsBucketValue {
     pub payments_failure_rate_distribution_with_only_retries: Option<f64>,
     pub failure_reason_count: Option<u64>,
     pub failure_reason_count_without_smart_retries: Option<u64>,
+    pub debit_routed_transaction_count: Option<u64>,
+    pub debit_routing_savings: Option<u64>,
+    pub debit_routing_savings_in_usd: Option<u64>,
 }
 
 #[derive(Debug, serde::Serialize)]

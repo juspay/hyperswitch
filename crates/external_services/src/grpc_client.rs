@@ -8,6 +8,8 @@ pub mod health_check_client;
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 pub mod revenue_recovery;
 
+/// gRPC based Unified Connector Service Client interface implementation
+pub mod unified_connector_service;
 use std::{fmt::Debug, sync::Arc};
 
 #[cfg(feature = "dynamic_routing")]
@@ -48,13 +50,15 @@ pub type Client = hyper_util::client::legacy::Client<HttpConnector, Body>;
 pub struct GrpcClients {
     /// The routing client
     #[cfg(feature = "dynamic_routing")]
-    pub dynamic_routing: RoutingStrategy,
+    pub dynamic_routing: Option<RoutingStrategy>,
     /// Health Check client for all gRPC services
     #[cfg(feature = "dynamic_routing")]
     pub health_client: HealthCheckClient,
     /// Recovery Decoder Client
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     pub recovery_decider_client: Box<dyn RecoveryDeciderClientInterface>,
+    /// Unified Connector Service client
+    pub unified_connector_service_client: Option<UnifiedConnectorServiceClient>,
 }
 
 /// Type that contains the configs required to construct a  gRPC client with its respective services.
@@ -66,6 +70,9 @@ pub struct GrpcClientSettings {
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     /// Configs for Recovery Decider Client
     pub recovery_decider_client: RecoveryDeciderClientConfig,
+    pub dynamic_routing_client: Option<DynamicRoutingClientConfig>,
+    /// Configs for Unified Connector Service client
+    pub unified_connector_service: Option<UnifiedConnectorServiceClientConfig>,
 }
 
 impl GrpcClientSettings {
@@ -89,21 +96,15 @@ impl GrpcClientSettings {
         let dynamic_routing_connection = self
             .dynamic_routing_client
             .clone()
-            .get_dynamic_routing_connection(client.clone())
-            .await
-            .expect("Failed to establish a connection with the Dynamic Routing Server");
+            .map(|config| config.get_dynamic_routing_connection(client.clone()))
+            .transpose()
+            .expect("Failed to establish a connection with the Dynamic Routing Server")
+            .flatten();
 
         #[cfg(feature = "dynamic_routing")]
         let health_client = HealthCheckClient::build_connections(self, client.clone())
             .await
             .expect("Failed to build gRPC connections");
-
-        #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
-        let recovery_decider_client = self
-            .recovery_decider_client
-            .get_recovery_decider_connection(client.clone())
-            .map(|client| -> Box<dyn RecoveryDeciderClientInterface> { Box::new(client) })
-            .expect("Failed to establish a connection with the Recovery Decider Server");
 
         Arc::new(GrpcClients {
             #[cfg(feature = "dynamic_routing")]
@@ -112,6 +113,7 @@ impl GrpcClientSettings {
             health_client,
             #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
             recovery_decider_client,
+            unified_connector_service_client,
         })
     }
 }

@@ -25,13 +25,9 @@ v2 = [
     ]
 dynamic_routing = [
     "dep:prost",
-    "dep:tonic",
-    "dep:tonic-reflection",
-    "dep:tonic-types",
     "dep:api_models",
     "tokio/macros",
     "tokio/rt-multi-thread",
-    "dep:tonic-build",
     "dep:router_env",
     "dep:hyper-util",
     "dep:http-body-util",
@@ -61,15 +57,16 @@ prost = { version = "0.13", optional = true }
 prost-types = "0.13"
 time = { version = "0.3.41", features = ["serde", "serde-well-known", "std"] }
 tokio = "1.45.1"
-tonic = { version = "0.13.1", optional = true }
-tonic-reflection = { version = "0.13.1", optional = true }
-tonic-types = { version = "0.13.1", optional = true }
+tonic = "0.13.1"
+tonic-reflection = "0.13.1"
+tonic-types = "0.13.1"
 hyper-util = { version = "0.1.12", optional = true }
 http-body-util = { version = "0.1.3", optional = true }
 reqwest = { version = "0.11.27", features = ["rustls-tls"] }
 http = "0.2.12"
 url = { version = "2.5.4", features = ["serde"] }
 quick-xml = { version = "0.31.0", features = ["serialize"] }
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "a9f7cd96693fa034ea69d8e21125ea0f76182fae", package = "rust-grpc-client" }
 
 
 # First party crates
@@ -84,7 +81,7 @@ api_models = { version = "0.1.0", path = "../api_models", optional = true }
 
 
 [build-dependencies]
-tonic-build = { version = "0.13.1", optional = true }
+tonic-build = "0.13.1"
 router_env = { version = "0.1.0", path = "../router_env", default-features = false, optional = true }
 
 [lints]
