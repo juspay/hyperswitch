@@ -380,6 +380,7 @@ export const CONNECTOR_LISTS = {
       "facilitapay",
       "fiserv",
       "fiuu",
+      "globalpay",
       "jpmorgan",
       "nexinets",
       "payload",
@@ -399,6 +400,7 @@ export const CONNECTOR_LISTS = {
       // "cybersource",    // issues with MULTIPLE_CONNECTORS handling
       "paypal",
     ],
+    DDC_RACE_CONDITION: ["worldpay"],
     // Add more inclusion lists
   },
 };
