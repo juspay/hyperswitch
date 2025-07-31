@@ -7006,17 +7006,6 @@
           }
         }
       },
-      "BluecodeQrRedirect": {
-        "type": "object",
-        "required": [
-          "shop_name"
-        ],
-        "properties": {
-          "shop_name": {
-            "type": "string"
-          }
-        }
-      },
       "BoletoVoucherData": {
         "type": "object",
         "properties": {
@@ -11364,18 +11353,6 @@
             "type": "string",
             "enum": [
               "order_details_product_name"
-            ]
-          },
-          {
-            "type": "string",
-            "enum": [
-              "user_ip_address"
-            ]
-          },
-          {
-            "type": "string",
-            "enum": [
-              "merchant_return_url"
             ]
           }
         ],
@@ -25628,11 +25605,12 @@
           {
             "type": "object",
             "required": [
-              "bluecode"
+              "bluecode_redirect"
             ],
             "properties": {
-              "bluecode": {
-                "$ref": "#/components/schemas/BluecodeQrRedirect"
+              "bluecode_redirect": {
+                "type": "object",
+                "description": "The wallet data for Bluecode QR Code Redirect"
               }
             }
           },
