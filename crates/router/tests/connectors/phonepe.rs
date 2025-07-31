@@ -10,7 +10,7 @@ struct PhonepeTest;
 impl ConnectorActions for PhonepeTest {}
 impl utils::Connector for PhonepeTest {
     fn get_data(&self) -> api::ConnectorData {
-        use router::connectors::Phonepe;
+        use router::connector::Phonepe;
         utils::construct_connector_data_old(
             Box::new(Phonepe::new()),
             types::Connector::Plaid,

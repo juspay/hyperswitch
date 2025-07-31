@@ -10,7 +10,7 @@ struct TrustpaymentsTest;
 impl ConnectorActions for TrustpaymentsTest {}
 impl utils::Connector for TrustpaymentsTest {
     fn get_data(&self) -> api::ConnectorData {
-        use router::connectors::Trustpayments;
+        use router::connector::Trustpayments;
         utils::construct_connector_data_old(
             Box::new(Trustpayments::new()),
             types::Connector::Plaid,
