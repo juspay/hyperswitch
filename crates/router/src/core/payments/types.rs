@@ -390,6 +390,7 @@ impl
                 threeds_server_transaction_id,
                 message_version,
                 ds_trans_id: authentication.ds_trans_id.clone(),
+                authentication_type: authentication.authentication_type,
             })
         } else {
             Err(errors::ApiErrorResponse::PaymentAuthenticationFailed { data: None }.into())
