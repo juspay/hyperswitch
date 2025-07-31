@@ -2212,7 +2212,6 @@ pub enum ScaExemptionType {
 
 #[derive(
     Clone,
-    Copy,
     Debug,
     Default,
     Eq,
