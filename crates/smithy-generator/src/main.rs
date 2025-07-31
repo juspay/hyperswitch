@@ -33,7 +33,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\nGenerating Smithy IDL files...");
 
     // Generate IDL files
-    let output_dir = Path::new("generated/smithy");
+    let output_dir = Path::new("models");
     let absolute_output_dir = std::env::current_dir()?.join(output_dir);
 
     println!("Output directory: {}", absolute_output_dir.display());
