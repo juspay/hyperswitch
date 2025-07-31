@@ -2237,6 +2237,9 @@ pub enum PaymentChannel {
     Ecommerce,
     MailOrder,
     TelephoneOrder,
+    #[serde(untagged)]
+    #[strum(default)]
+    Other(String),
 }
 
 #[derive(
