@@ -2,9 +2,27 @@
 
 ## Table of Contents
 
-1. [Introduction](#introduction)
-2. [Prerequisites](#prerequisites)
-3. [Development Environment Setup & Configuration](#development-environment-setup--configuration)
+1. [Introduction](#introduction)  
+2. [Prerequisites](#prerequisites)  
+3. [Development Environment Setup & Configuration](#development-environment-setup--configuration)  
+4. [Create a Connector](#create-a-connector)  
+5. [Test the Connection](#test-the-connection)  
+6. [Folder Structure After Running the Script](#folder-structure-after-running-the-script)  
+7. [Common Payment Flow Types](#common-payment-flow-types)  
+8. [Integrate a New Connector](#integrate-a-new-connector)  
+9. [Code Walkthrough](#code-walkthrough)  
+10. [Error Handling in Hyperswitch Connectors](#error-handling-in-hyperswitch-connectors)  
+11. [Implementing the Connector Interface](#implementing-the-connector-interface)  
+12. [ConnectorCommon: The Foundation Trait](#connectorcommon-the-foundation-trait)  
+13. [ConnectorIntegration – The Payment Flow Orchestrator](#connectorintegration--the-payment-flow-orchestrator)  
+14. [Method-by-Method Breakdown](#method-by-method-breakdown)  
+15. [Connector Traits Overview](#connector-traits-overview)  
+16. [Derive Traits](#derive-traits)  
+17. [Connector Utility Functions](#connector-utility-functions)  
+18. [Connector Configuration for Control Center Integration](#connector-configuration-for-control-center-integration)  
+19. [Control Center Frontend Integration](#control-center-frontend-integration)  
+20. [Test the Connector Integration](#test-the-connector-integration)  
+
 
 ## Introduction
 
