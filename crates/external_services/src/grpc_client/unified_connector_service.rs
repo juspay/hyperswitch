@@ -9,7 +9,8 @@ use tonic::{
 };
 use unified_connector_service_client::payments::{
     self as payments_grpc, payment_service_client::PaymentServiceClient,
-    PaymentServiceAuthorizeResponse,
+    PaymentServiceAuthorizeResponse, PaymentServiceTransformRequest,
+    PaymentServiceTransformResponse,
 };
 
 use crate::{
@@ -96,6 +97,10 @@ pub enum UnifiedConnectorServiceError {
     /// Failed to perform Payment Repeat Payment from gRPC Server
     #[error("Failed to perform Repeat Payment from gRPC Server")]
     PaymentRepeatEverythingFailure,
+
+    /// Failed to transform incoming webhook from gRPC Server
+    #[error("Failed to transform incoming webhook from gRPC Server")]
+    WebhookTransformFailure,
 }
 
 /// Result type for Dynamic Routing
@@ -271,6 +276,27 @@ impl UnifiedConnectorServiceClient {
             .repeat_everything(request)
             .await
             .change_context(UnifiedConnectorServiceError::PaymentRepeatEverythingFailure)
+            .inspect_err(|error| logger::error!(?error))
+    }
+
+    /// Transforms incoming webhook through UCS
+    pub async fn transform_incoming_webhook(
+        &self,
+        webhook_transform_request: PaymentServiceTransformRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeaders,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<PaymentServiceTransformResponse>> {
+        let mut request = tonic::Request::new(webhook_transform_request);
+
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+
+        self.client
+            .clone()
+            .transform(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::WebhookTransformFailure)
             .inspect_err(|error| logger::error!(?error))
     }
 }
