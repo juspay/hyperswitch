@@ -9,8 +9,8 @@ use crate::{
     connection,
     core::errors::{self, CustomResult},
     db::StorageInterface,
-    types::storage,
     routes::SessionState,
+    types::storage,
 };
 
 #[async_trait::async_trait]
@@ -138,9 +138,35 @@ impl ConfigInterface for Store {
         // If the config is not found it will be cached with the default value.
         default_config: Option<String>,
         superposition_context: Option<&EvaluationContext>,
-        flag_key: Option<&str>,
+        superposition_key: Option<&str>,
         state: Option<&SessionState>,
     ) -> CustomResult<storage::Config, errors::StorageError> {
+        if let (Some(context), Some(superposition_key), Some(state)) =
+            (superposition_context, superposition_key, state)
+        {
+            if let Some(client) = &state.superposition_client {
+                let kill_switch_context = EvaluationContext::default();
+                if client
+                    .get_bool_value(
+                        "use_superposition_for_configs",
+                        Some(&kill_switch_context),
+                        None,
+                    )
+                    .await
+                    .unwrap_or(false)
+                {
+                    if let Ok(value) = client
+                        .get_string_value(superposition_key, Some(context), None)
+                        .await
+                    {
+                        return Ok(storage::Config {
+                            key: key.to_string(),
+                            config: value,
+                        });
+                    }
+                }
+            }
+        }
 
         let find_else_unwrap_or = || async {
             let conn = connection::pg_connection_write(self).await?;
