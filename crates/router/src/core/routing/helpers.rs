@@ -2319,10 +2319,7 @@ pub async fn create_specific_dynamic_routing_setup(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to insert record in routing algorithm table")?;
 
-    dynamic_routing_algo_ref.update_feature(
-        feature_to_enable,
-        dynamic_routing_type,
-    );
+    dynamic_routing_algo_ref.update_feature(feature_to_enable, dynamic_routing_type);
     update_business_profile_active_dynamic_algorithm_ref(
         db,
         key_manager_state,
