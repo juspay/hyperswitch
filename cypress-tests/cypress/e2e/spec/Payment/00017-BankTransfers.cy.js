@@ -183,7 +183,7 @@ describe("Bank Transfers", () => {
     });
   });
 
-  context("Bank transfer - Ach forward flow", () => {
+  context("Bank transfer - Ach flow", () => {
     let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     beforeEach(function () {
@@ -195,11 +195,12 @@ describe("Bank Transfers", () => {
     it("create-payment-call-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
-      ]["Ach"];
-      cy.createConfirmPaymentTest(
-        {},
+      ]["PaymentIntent"]("Ach");
+
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
         data,
-        "no_three_ds",
+        "three_ds",
         "automatic",
         globalState
       );
@@ -209,6 +210,21 @@ describe("Bank Transfers", () => {
 
     it("payment_methods-call-test", () => {
       cy.paymentMethodsCallTest(globalState);
+    });
+
+    it("Confirm bank transfer", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "bank_transfer_pm"
+      ]["Ach"];
+
+      cy.confirmBankTransferCallTest(
+        fixtures.confirmBody,
+        data,
+        true,
+        globalState
+      );
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("Handle bank transfer redirection", () => {

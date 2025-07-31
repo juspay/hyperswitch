@@ -73,8 +73,10 @@ function bankTransferRedirection(
   nextActionType
 ) {
   let verifyUrl = true; // Default to true, can be set to false based on conditions
-
   switch (nextActionType) {
+    case "bank_transfer_steps_and_charges_details":
+      verifyUrl = false;
+      break;
     case "qr_code_url":
       cy.request(redirectionUrl.href).then((response) => {
         switch (connectorId) {
