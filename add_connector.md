@@ -12,12 +12,12 @@ This guide provides instructions on integrating a new connector with Router, fro
 
 * Scaffold a new connector template
 * Define Rust request/response types directly from your PSP’s JSON schema
-* Implement transformers and the ConnectorIntegration trait for both standard auth and tokenization-first flows
+* Implement transformers and the `ConnectorIntegration` trait for both standard auth and tokenization-first flows
 * Enforce PII best practices (Secret wrappers, common\_utils::pii types) and robust error-handling
 * Update the Control-Center (ConnectorTypes.res, ConnectorUtils.res, icons)
 * Validate your connector with end-to-end tests
 
-By the end, you’ll have a fully functional, production-ready connector—from blank slate to live in the Control-Center.
+By the end, you’ll learn how to create a fully functional, production-ready connector—from blank slate to live in the Control-Center.
 
 ## Prerequisites
 
@@ -26,17 +26,16 @@ By the end, you’ll have a fully functional, production-ready connector—from 
 * Familiarity with the Connector API you’re integrating
 * A locally set up and running Router repository
 * API credentials for testing (sign up for sandbox/UAT credentials on the connector’s website).
-* Need help? Join the [Hyperswitch Slack Channel](https://join.slack.com/t/hyperswitch-io/shared_invite/zt-39d4w0043-CgAyb75Kn0YldNyZpd8hWA). We also have weekly office hours every Thursday at 8:00 AM PT (11:00 AM ET, 4:00 PM BST, 5:00 PM CEST, and 8:30 PM IST). Link to office hours are shared in the #general channel.
+* Need help? Join the [Hyperswitch Slack Channel](https://join.slack.com/t/hyperswitch-io/shared_invite/zt-39d4w0043-CgAyb75Kn0YldNyZpd8hWA). We also have weekly office hours every Thursday at 8:00 AM PT (11:00 AM ET, 4:00 PM BST, 5:00 PM CEST, and 8:30 PM IST). Link to office hours are shared in the **#general channel**.
 
 ## Development Environment Setup & Configuration
 
 This guide will walk you through your environment setup and configuration.
 
-### Clone the Hyperswitch monorepo\*\*
+### Clone the Hyperswitch monorepo
 
 ```bash
 git clone git@github.com:juspay/hyperswitch.git
-
 cd hyperswitch
 ```
 
@@ -55,7 +54,7 @@ Before running Hyperswitch locally, make sure your Rust environment and system d
 * [macOS](https://github.com/juspay/hyperswitch/blob/main/docs/try_local_system.md#set-up-dependencies-on-macos)
 
 **All OS Systems**:
-* [Set up database](https://github.com/juspay/hyperswitch/blob/main/docs/try_local_system.md#set-up-the-database)
+* [Set up the database](https://github.com/juspay/hyperswitch/blob/main/docs/try_local_system.md#set-up-the-database)
 
 * Set up the Rust nightly toolchain installed for code formatting:
 
@@ -76,16 +75,17 @@ If you've completed the setup, you should now have:
 * ✅ Set up the Rust nightly toolchain
 * ✅ Installed Protobuf
 
-You're ready to run Hyperswitch:
+Compile and run the application using cargo:
 
 ```bash
 cargo run
 ```
+
 ## Create a Connector
-From the root of the project, generate a new connector by running the following command. Use a single-word name for your connector:
+From the root of the project, generate a new connector by running the following command. Use a single-word name for your `ConnectorName`:
 
 ```bash
-sh scripts/add_connector.sh <connector_name> <connector_base_url>
+sh scripts/add_connector.sh <ConnectorName> <ConnectorBaseUrl>
 ```
 
 When you run the script, you should see that some files were created
@@ -102,26 +102,27 @@ When you run the script, you should see that some files were created
 > ```bash
 > test result: FAILED. 0 passed; 20 failed; 0 ignored; 0 measured; 1759 filtered out; finished in 0.10s
 > ```
+> You can also ignore GRPC errors too.
 
 ## Test the connection 
-Once you've successfully created your connector using the `add_connector.sh` script, you can verify the integration by starting the Hyperswitch router service:
+Once you've successfully created your connector using the `add_connector.sh` script, you can verify the integration by starting the Hyperswitch Router Service:
 
 ```bash
 cargo r
 ```
 
-This launches the router application locally on port 8080, providing access to the complete Hyperswitch API. You can now test your connector implementation by making HTTP requests to the payment endpoints for operations like:
+This launches the router application locally on `port 8080`, providing access to the complete Hyperswitch API. You can now test your connector implementation by making HTTP requests to the payment endpoints for operations like:
 
 - Payment authorization and capture
 - Payment synchronization
 - Refund processing
 - Webhook handling
 
-Once your connector logic is implemented, this environment lets you ensure it behaves correctly within the Hyperswitch orchestration flow—before moving to staging or production. This provides comprehensive status information about all system components including database, Redis, and other services.
+Once your connector logic is implemented, this environment lets you ensure it behaves correctly within the Hyperswitch orchestration flow—before moving to staging or production.
 
-**Verify Server Health**
+### Verify Server Health
 
-Once the router service is running, `cargo r`, you can verify it's operational by checking the health endpoint in a separte terminal window:
+Once the Hyperswitch Router Service is running, you can verify it's operational by checking the health endpoint in a separte terminal window:
 
 ```bash
 curl --head --request GET 'http://localhost:8080/health'
@@ -139,10 +140,9 @@ The script creates the primary connector structure in the hyperswitch_connectors
 crates/hyperswitch_connectors/src/connectors/  
 ├── <connector_name>/  
 │   └── transformers.rs  
-└── <connector_name>.rs  
-add_connector.md:62-71
+└── <connector_name>.rs
 
-**Test Files**
+#### Test Files
 
 The script also generates test files in the router crate:
 
@@ -153,26 +153,28 @@ crates/router/tests/connectors/
 
 - `<connector_name>.rs`: The main connector implementation file where you implement the connector traits
 - `transformers.rs`: Contains data structures and conversion logic between Hyperswitch's internal format and your payment processor's API format
-- **Test file**: Contains boilerplate test cases for your connector connector-template/test.rs:1-36
+- **Test file**: [Contains boilerplate test cases for your connector](https://github.com/juspay/hyperswitch/blob/main/connector-template/test.rs#L1-L36).
 
 ## Common Payment Flow Types
 
-As you build your connector, you'll encounter several types of payment flows. While not an exhaustive list, the following are some of the most common patterns you'll come across. Please review the [Connector Payment Flow](#) documentation for more details.
+As you build your connector, you'll encounter several types of payment flows. While not an exhaustive list, the following are some of the most common patterns you'll come across. Please review the [Connector Payment Flow](#) documentation for more details. If you have any questions, please reach out to us on Slack. 
+
+> **What You’ll Find Here:**  
+> A quick summary of each flow, why it matters, and exactly where in the Hyperswitch codebase you can go to see its definitions and usage.
 
 ### Payment Flow Types Summary
-Below is a description of the flow types and where you can review the implementation details:
 
-| Flow Name         | Description                                      | Implementation in Hyperswitch                                                                                     |
-|-------------------|--------------------------------------------------|-------------------------------------------------------------------------------------------------------------------|
-| Access Token      | Obtain OAuth access token                        | `crates/router/src/types.rs:34` — `AccessTokenAuth` flow type for connector authentication                         |
-| Tokenization      | Exchange credentials for a payment token         | `crates/hyperswitch_interfaces/src/types.rs:14` — `PaymentMethodToken` flow for secure token creation              |
-| Customer Creation | Create or update customer records                | `crates/router/src/types.rs:40` — `CreateConnectorCustomer` flow for PSP customer management                       |
-| Pre-Processing    | Any validation or enrichment before auth         | `crates/router/src/types.rs:41` — `PreProcessing` flow for 3DS enrollment, validation, etc.                       |
-| Authorization     | Authorize and immediately capture payment        | `crates/router/src/types.rs:39` — `Authorize` flow with automatic capture                                         |
-| Authorization-Only| Authorize payment for later capture              | `crates/router/src/types.rs:39` — `Authorize` flow with manual capture method                                     |
-| Capture           | Capture a previously authorized payment          | `crates/router/src/types.rs:39` — `Capture` flow for settling authorized payments                                 |
-| Refund            | Issue a refund                                   | `crates/router/src/types.rs:44` — Execute and RSync refund flows                                                  |
-| Webhook Handling  | Process asynchronous events from PSP             | `crates/router/src/types.rs:45` — `VerifyWebhookSource` for processing PSP notifications                         |
+| Flow Name           | Description                                      | Implementation in Hyperswitch                                                                                     |
+|---------------------|--------------------------------------------------|-------------------------------------------------------------------------------------------------------------------|
+| **Access Token**      | Obtain OAuth access token                        | [`crates/router/src/types.rs#L34`](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L34)                         |
+| **Tokenization**      | Exchange credentials for a payment token         | [`crates/hyperswitch_interfaces/src/types.rs#L14`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_interfaces/src/types.rs#L14)              |
+| **Customer Creation** | Create or update customer records                | [`crates/router/src/types.rs#L40`](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L40)                       |
+| **Pre-Processing**    | Any validation or enrichment before auth         | [`crates/router/src/types.rs#L41`](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L41)                       |
+| **Authorization**     | Authorize and immediately capture payment        | [`crates/router/src/types.rs#L39`](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L39)                                         |
+| **Authorization-Only**| Authorize payment for later capture              | [`crates/router/src/types.rs#L39`](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L39)                                     |
+| **Capture**           | Capture a previously authorized payment          | [`crates/router/src/types.rs#L39`](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L39)                                 |
+| **Refund**            | Issue a refund                                   | [`crates/router/src/types.rs#L44`](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L44)                                                  |
+| **Webhook Handling**  | Process asynchronous events from PSP             | [`crates/router/src/types.rs#L45`](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L45)                         |
 
 ### Flow Type Definitions
 
@@ -182,20 +184,21 @@ Each flow type corresponds to specific request/response data structures and conn
 - **Response data types** (e.g., `PaymentsResponseData`)
 - **Router data wrappers** for connector communication
 
-> 💡 Note: Billwerk uses a tokenization-first pattern, but most PSPs support direct authorization flows. Hyperswitch accommodates both through its modular flow architecture.
+> 💡 Note: Billwerk uses a tokenization-first pattern, but most PSPs support direct authorization flows. Hyperswitch accommodates both through its modular architecture.
+
 
 
 ## Integrate a New Connector
 
 Integrating a connector is mainly an API integration task. You'll define request and response types and implement required traits.
 
-This section covers card payments via Billwerk. Review the API reference and test APIs before starting.
+This section covers card payments via Billwerk. Review the API reference and test APIs before starting. You can leverage these examples for your connector of choice. 
 
-### Build Payment Request and Response from JSON Schema
+### 1. Build Payment Request and Response from JSON Schema
 
-1. **To generate Rust types from your connector’s OpenAPI or JSON schema, you’ll need to install the [OpenAPI Generator](https://openapi-generator.tech/).**
+To generate Rust types from your connector’s OpenAPI or JSON schema, you’ll need to install the [OpenAPI Generator](https://openapi-generator.tech/).
 
-**Example (macOS using Homebrew)**:
+### Example (macOS using Homebrew):
 
 ```bash
 brew install openapi-generator
@@ -204,14 +207,12 @@ brew install openapi-generator
 > On **Linux**, you can install OpenAPI Generator using `apt`, `snap`, or by downloading the JAR from the [official site](https://openapi-generator.tech/docs/installation).  
 > On **Windows**, use [Scoop](https://scoop.sh/) or manually download the JAR file.
 
-2. **Download the OpenAPI Specification**
-
-**Download the Connector's OpenAPI Schema**
+### 2. **Download the OpenAPI Specification from your connector**
 
 First, obtain the OpenAPI specification from your payment processor's developer documentation. Most processors provide these specifications at standardized endpoints.
 
 ```bash
-curl -o <connector-name>-openapi.json <schema-url>
+curl -o <ConnectorName>-openapi.json <schema-url>
 ```
 **Specific Example**:
 
@@ -228,7 +229,7 @@ For other connectors, check their developer documentation for similar endpoints 
 
 After running the complete command, you'll have:
 
-`crates/hyperswitch_connectors/src/connectors/{CONNECTOR_NAME}/temp.rs `
+`crates/hyperswitch_connectors/src/connectors/{CONNECTORNAME}/temp.rs `
 
 This single file contains all the Rust structs and types generated from your payment processor's OpenAPI specification.
 
@@ -240,20 +241,20 @@ The generated `temp.rs` file typically contains:
 - **Nested objects**: Complex data structures used within requests/responses
 - **Serde annotations**: Serialization/deserialization attributes.
 
-Otherwise, you can manually define it and create the `crates/hyperswitch_connectors/src/connectors/{CONNECTOR_NAME}/temp.rs ` file. We highly recommend using the openapi-generator for ease. 
+Otherwise, you can manually define it and create the `crates/hyperswitch_connectors/src/connectors/{CONNECTOR_NAME}/temp.rs ` file. We highly recommend using the `openapi-generator` for ease. 
 
-**Usage in Connector Development**
+#### Usage in Connector Development
 
 You can then copy and adapt these generated structs into your connector's `transformers.rs` file, following the pattern shown in the connector integration documentation. The generated code serves as a starting point that you customize for your specific connector implementation needs.
 
-3. **Configure Required Environment Variables**
+### 3. **Configure Required Environment Variables**
 
 Set up the necessary environment variables for the OpenAPI generation process:
 
 #### Connector name (must match the name used in add_connector.sh script) 
 
 ```bash
-export CONNECTOR_NAME="your_connector_name"  
+export CONNECTOR_NAME="ConnectorName"  
 ``` 
 
 #### Path to the downloaded OpenAPI specification  
@@ -265,7 +266,7 @@ export SCHEMA_PATH="/absolute/path/to/your/connector-openapi.json"
 
 We'll walk through the `transformer.rs` file, and what needs to be implemented.
 
-1. **Converts Hyperswitch's internal payment data into your connector's API request format**
+### 1. **Converts Hyperswitch's internal payment data into your connector's API request format**
  This part of the code takes your internal representation of a payment request, pulls out the token, gathers all the customer and payment fields, and packages them into a clean, JSON-serializable struct ready to send to Billwerk. You'll have to implement the customer and payment fields, as necessary, but you can implement it below: 
 
 ```rust
