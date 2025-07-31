@@ -6460,6 +6460,12 @@ api_key = "API Key"
   payment_method_type = "bluecode"
 [bluecode.connector_auth.HeaderKey]
 api_key = "E-Order Token"
+[bluecode.metadata.shop_name]
+name="shop_name"
+label="Shop Name"
+placeholder="Enter your Shop Name"
+required=true
+type="Text"
 
 [flexiti]
 [flexiti.connector_auth.bodykey]
