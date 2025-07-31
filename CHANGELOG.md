@@ -4,6 +4,24 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.07.31.0
+
+### Features
+
+- **connector:** [Flexiti]Add support for flexiti connector ([#8743](https://github.com/juspay/hyperswitch/pull/8743)) ([`2bd8c9d`](https://github.com/juspay/hyperswitch/commit/2bd8c9d12d24039494ef76e04a7ce8f47ef2eba8))
+
+### Bug Fixes
+
+- **openapi:** Update create_platform endpoint in api-reference docs ([#8782](https://github.com/juspay/hyperswitch/pull/8782)) ([`8dc4061`](https://github.com/juspay/hyperswitch/commit/8dc4061f9edb1ac2527216b2279a765d0b797523))
+
+### Miscellaneous Tasks
+
+- **router:** Events enhancement for kafka ([#8780](https://github.com/juspay/hyperswitch/pull/8780)) ([`e48e55a`](https://github.com/juspay/hyperswitch/commit/e48e55a04821ab7648ad3434a8483c75e28ba070))
+
+**Full Changelog:** [`2025.07.30.0...2025.07.31.0`](https://github.com/juspay/hyperswitch/compare/2025.07.30.0...2025.07.31.0)
+
+- - -
+
 ## 2025.07.30.0
 
 ### Features
