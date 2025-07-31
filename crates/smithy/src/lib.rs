@@ -255,7 +255,7 @@ fn generate_enum_impl(
         // Generate as Smithy union
         let variant_implementations = variants
             .iter()
-            .map(|variant| {
+            .filter_map(|variant| {
                 let variant_name = &variant.name;
                 let variant_doc = variant
                     .documentation
@@ -264,7 +264,8 @@ fn generate_enum_impl(
                     .unwrap_or(quote! { None });
 
                 let target_type_expr = if variant.fields.is_empty() {
-                    quote! { "smithy.api#Unit".to_string() }
+                    // If there are no fields with `value_type`, this variant should be skipped.
+                    return None;
                 } else if variant.fields.len() == 1 {
                     let field = &variant.fields[0];
                     let value_type = &field.value_type;
@@ -279,7 +280,7 @@ fn generate_enum_impl(
                     } else {
                         // This case should ideally not be hit if all variants have attributes.
                         // We can default to Unit or error out.
-                        quote! { "smithy.api#Unit".to_string() }
+                        return None;
                     }
                 } else {
                     // Multiple fields - create an inline structure
@@ -287,14 +288,14 @@ fn generate_enum_impl(
                     quote! { format!("com.hyperswitch.types#{}", #inline_struct_name) }
                 };
 
-                quote! {
+                Some(quote! {
                     let target_type = #target_type_expr;
                     members.insert(#variant_name.to_string(), smithy_core::SmithyMember {
                         target: target_type,
                         documentation: #variant_doc,
                         traits: vec![]
                     });
-                }
+                })
             })
             .collect::<Vec<_>>();
 
