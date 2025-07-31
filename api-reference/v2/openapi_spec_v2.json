@@ -15932,15 +15932,6 @@
           }
         }
       },
-      "PaymentChannel": {
-        "type": "string",
-        "description": "Describes the channel through which the payment was initiated.",
-        "enum": [
-          "ecommerce",
-          "mail_order",
-          "telephone_order"
-        ]
-      },
       "PaymentChargeType": {
         "oneOf": [
           {

@@ -14,7 +14,7 @@ pub mod diesel_exports {
         DbIntentStatus as IntentStatus, DbMandateStatus as MandateStatus,
         DbMandateType as MandateType, DbMerchantStorageScheme as MerchantStorageScheme,
         DbOrderFulfillmentTimeOrigin as OrderFulfillmentTimeOrigin,
-        DbPaymentChannel as PaymentChannel, DbPaymentMethodIssuerCode as PaymentMethodIssuerCode,
+        DbPaymentMethodIssuerCode as PaymentMethodIssuerCode,
         DbPaymentSource as PaymentSource, DbPaymentType as PaymentType,
         DbPayoutStatus as PayoutStatus, DbPayoutType as PayoutType,
         DbProcessTrackerStatus as ProcessTrackerStatus, DbReconStatus as ReconStatus,
