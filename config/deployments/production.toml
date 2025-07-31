@@ -117,7 +117,9 @@ payme.base_url = "https://live.payme.io/"
 payone.base_url = "https://payment.payone.com/"
 paypal.base_url = "https://api-m.paypal.com/"
 paystack.base_url = "https://api.paystack.co"
+paytm.base_url = "https://securegw-stage.paytm.in/"
 payu.base_url = "https://secure.payu.com/api/"
+phonepe.base_url = "https://api.phonepe.com/apis/hermes/"
 placetopay.base_url = "https://checkout.placetopay.com/rest/gateway"
 plaid.base_url = "https://production.plaid.com"
 powertranz.base_url = "https://staging.ptranz.com/api/"
@@ -596,6 +598,14 @@ open_banking_uk = {country = "DE,GB,AT,BE,CY,EE,ES,FI,FR,GR,HR,IE,IT,LT,LU,LV,MT
 
 [pm_filters.razorpay]
 upi_collect = {country = "IN", currency = "INR"}
+
+[pm_filters.phonepe]
+upi_collect = { country = "IN", currency = "INR" }
+upi_intent = { country = "IN", currency = "INR" }
+
+[pm_filters.paytm]
+upi_collect = { country = "IN", currency = "INR" }
+upi_intent = { country = "IN", currency = "INR" }
 
 [pm_filters.redsys]
 credit = { currency = "AUD,BGN,CAD,CHF,COP,CZK,DKK,EUR,GBP,HRK,HUF,ILS,INR,JPY,MYR,NOK,NZD,PEN,PLN,RUB,SAR,SEK,SGD,THB,USD,ZAR", country="ES" }
