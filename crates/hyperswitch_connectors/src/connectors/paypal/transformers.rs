@@ -1081,7 +1081,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                 | WalletData::ApplePayThirdPartySdk(_)
                 | WalletData::DanaRedirect {}
                 | WalletData::GooglePay(_)
-                | WalletData::Bluecode(_)
+                | WalletData::BluecodeRedirect {}
                 | WalletData::GooglePayRedirect(_)
                 | WalletData::GooglePayThirdPartySdk(_)
                 | WalletData::MbWayRedirect(_)

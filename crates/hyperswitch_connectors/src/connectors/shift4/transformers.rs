@@ -392,7 +392,7 @@ impl TryFrom<&WalletData> for PaymentMethodType {
             | WalletData::GooglePayRedirect(_)
             | WalletData::GooglePayThirdPartySdk(_)
             | WalletData::GooglePay(_)
-            | WalletData::Bluecode(_)
+            | WalletData::BluecodeRedirect {}
             | WalletData::PaypalRedirect(_)
             | WalletData::MbWayRedirect(_)
             | WalletData::MobilePayRedirect(_)

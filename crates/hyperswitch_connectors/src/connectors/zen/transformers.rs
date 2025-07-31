@@ -488,7 +488,7 @@ impl
             | WalletData::PaypalRedirect(_)
             | WalletData::ApplePay(_)
             | WalletData::GooglePay(_)
-            | WalletData::Bluecode(_)
+            | WalletData::BluecodeRedirect {}
             | WalletData::AliPayQr(_)
             | WalletData::AliPayRedirect(_)
             | WalletData::AliPayHkRedirect(_)

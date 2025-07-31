@@ -153,7 +153,7 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for PaymentDetails {
             | WalletData::ApplePayThirdPartySdk(_)
             | WalletData::DanaRedirect { .. }
             | WalletData::GooglePay(_)
-            | WalletData::Bluecode(_)
+            | WalletData::BluecodeRedirect {}
             | WalletData::GooglePayThirdPartySdk(_)
             | WalletData::MobilePayRedirect(_)
             | WalletData::PaypalRedirect(_)

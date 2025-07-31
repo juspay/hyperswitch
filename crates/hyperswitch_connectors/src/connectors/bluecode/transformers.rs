@@ -8,6 +8,7 @@ use common_utils::{
     request::Method,
     types::FloatMajorUnit,
 };
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{PaymentMethodData, WalletData},
     router_data::{ConnectorAuthType, RouterData},
@@ -22,7 +23,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{PaymentsAuthorizeRequestData, RouterData as OtherRouterData},
+    utils::{self as connector_utils, PaymentsAuthorizeRequestData, RouterData as OtherRouterData},
 };
 
 pub struct BluecodeRouterData<T> {
@@ -36,6 +37,24 @@ impl<T> From<(FloatMajorUnit, T)> for BluecodeRouterData<T> {
             amount,
             router_data: item,
         }
+    }
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct BluecodeMetadataObject {
+    pub shop_name: String,
+}
+
+impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for BluecodeMetadataObject {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        meta_data: &Option<common_utils::pii::SecretSerdeValue>,
+    ) -> Result<Self, Self::Error> {
+        let metadata = connector_utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "metadata",
+            })?;
+        Ok(metadata)
     }
 }
 
@@ -80,9 +99,10 @@ impl TryFrom<&BluecodeRouterData<&PaymentsAuthorizeRouterData>> for BluecodePaym
             .into());
         }
         match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Wallet(WalletData::Bluecode(ref wallet_data)) => {
-                let wallet_data_ref = WalletData::Bluecode(wallet_data.clone());
-                Self::try_from((item, &wallet_data_ref))
+            PaymentMethodData::Wallet(WalletData::BluecodeRedirect {}) => {
+                let bluecode_mca_metadata =
+                    BluecodeMetadataObject::try_from(&item.router_data.connector_meta_data)?;
+                Self::try_from((item, &bluecode_mca_metadata))
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
@@ -92,7 +112,7 @@ impl TryFrom<&BluecodeRouterData<&PaymentsAuthorizeRouterData>> for BluecodePaym
 impl
     TryFrom<(
         &BluecodeRouterData<&PaymentsAuthorizeRouterData>,
-        &WalletData,
+        &BluecodeMetadataObject,
     )> for BluecodePaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -100,23 +120,22 @@ impl
     fn try_from(
         value: (
             &BluecodeRouterData<&PaymentsAuthorizeRouterData>,
-            &WalletData,
+            &BluecodeMetadataObject,
         ),
     ) -> Result<Self, Self::Error> {
         let item = value.0;
 
-        let shop_name = match value.1 {
-            WalletData::Bluecode(shop_name) => shop_name.shop_name.clone(),
-            _ => Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "shop_name",
-            })?,
-        };
+        let return_url = item.router_data.request.get_webhook_url().change_context(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "return_url",
+            },
+        )?;
 
         Ok(Self {
             amount: item.amount,
             currency: item.router_data.request.currency,
             payment_provider: "bluecode_payment".to_string(),
-            shop_name,
+            shop_name: value.1.shop_name.clone(),
             reference: item.router_data.payment_id.clone(),
             ip_address: item.router_data.request.get_ip_address_as_optional(),
             first_name: item.router_data.get_billing_first_name()?,
@@ -126,8 +145,8 @@ impl
             billing_address_line1: item.router_data.get_billing_line1()?,
             billing_address_postal_code: item.router_data.get_billing_zip()?,
             webhook_url: item.router_data.request.get_webhook_url()?,
-            success_url: item.router_data.request.get_router_return_url()?,
-            failure_url: item.router_data.request.get_router_return_url()?,
+            success_url: return_url.clone(),
+            failure_url: return_url,
         })
     }
 }
@@ -177,18 +196,18 @@ pub struct BluecodePaymentsResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct BluecodeSyncResponse {
-    pub id: i64,
+    pub id: Option<i64>,
     pub order_id: String,
-    pub user_id: i64,
+    pub user_id: Option<i64>,
     pub customer_id: Option<String>,
     pub customer_email: Option<Email>,
     pub customer_phone: Option<String>,
     pub status: BluecodePaymentStatus,
-    pub payment_provider: String,
+    pub payment_provider: Option<String>,
     pub payment_connector: Option<String>,
     pub payment_method: Option<String>,
     pub payment_method_type: Option<String>,
-    pub shop_name: String,
+    pub shop_name: Option<String>,
     pub sender_name: Option<String>,
     pub sender_email: Option<String>,
     pub description: Option<String>,
@@ -198,21 +217,21 @@ pub struct BluecodeSyncResponse {
     pub charged_amount_currency: Option<String>,
     pub charged_fx_amount: Option<FloatMajorUnit>,
     pub charged_fx_amount_currency: Option<enums::Currency>,
-    pub is_underpaid: bool,
-    pub billing_amount: FloatMajorUnit,
-    pub billing_currency: String,
-    pub language: String,
+    pub is_underpaid: Option<bool>,
+    pub billing_amount: Option<FloatMajorUnit>,
+    pub billing_currency: Option<String>,
+    pub language: Option<String>,
     pub ip_address: Option<Secret<String, IpAddress>>,
-    pub first_name: Secret<String>,
-    pub last_name: Secret<String>,
-    pub billing_address_line1: Secret<String>,
-    pub billing_address_city: Secret<String>,
-    pub billing_address_postal_code: Secret<String>,
+    pub first_name: Option<Secret<String>>,
+    pub last_name: Option<Secret<String>>,
+    pub billing_address_line1: Option<Secret<String>>,
+    pub billing_address_city: Option<Secret<String>>,
+    pub billing_address_postal_code: Option<Secret<String>>,
     pub billing_address_country: Option<String>,
-    pub billing_address_country_code_iso: enums::CountryAlpha2,
+    pub billing_address_country_code_iso: Option<enums::CountryAlpha2>,
     pub shipping_address_country_code_iso: Option<enums::CountryAlpha2>,
-    pub success_url: String,
-    pub failure_url: String,
+    pub success_url: Option<String>,
+    pub failure_url: Option<String>,
     pub source: Option<String>,
     pub bonus_code: Option<String>,
     pub dob: Option<String>,
@@ -268,16 +287,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BluecodeSyncResponse, T, PaymentsRespon
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: common_enums::AttemptStatus::from(item.response.status),
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.order_id), // mapping resource Id with order_id is correct or not
-                redirection_data: Box::new(None),
-                mandate_reference: Box::new(None),
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
-                charges: None,
-            }),
+            response: item.data.response,
             ..item.data
         })
     }

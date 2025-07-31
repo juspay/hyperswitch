@@ -493,7 +493,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Bluecod
         _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Capture".to_string(),
+            flow: "Refund".to_string(),
             connector: "Bluecode".to_string(),
         }
         .into())
@@ -505,7 +505,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Bluecod
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Capture".to_string(),
+            flow: "Refund".to_string(),
             connector: "Bluecode".to_string(),
         }
         .into())
@@ -577,7 +577,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Bluecode 
         _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Capture".to_string(),
+            flow: "RSync".to_string(),
             connector: "Bluecode".to_string(),
         }
         .into())
@@ -589,7 +589,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Bluecode 
         _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Capture".to_string(),
+            flow: "RSync".to_string(),
             connector: "Bluecode".to_string(),
         }
         .into())
@@ -635,7 +635,7 @@ impl webhooks::IncomingWebhook for Bluecode {
         >,
         _connector_name: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
-        Ok(true)
+        Ok(false)
     }
 
     fn get_webhook_object_reference_id(
