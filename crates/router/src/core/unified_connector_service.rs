@@ -15,7 +15,7 @@ use hyperswitch_domain_models::{
 use masking::{ExposeInterface, PeekInterface, Secret};
 use unified_connector_service_client::payments::{
     self as payments_grpc, payment_method::PaymentMethod, CardDetails, CardPaymentMethodType,
-    PaymentServiceAuthorizeResponse,
+    CryptoCurrency, CryptoCurrencyPaymentMethodType, PaymentServiceAuthorizeResponse,
 };
 
 use crate::{
@@ -145,6 +145,21 @@ pub fn build_unified_connector_service_payment_method(
 
             Ok(payments_grpc::PaymentMethod {
                 payment_method: Some(upi_type),
+            })
+        }
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::Crypto(crypto_data) => {
+            let grpc_crypto_type =
+                payments_grpc::crypto_currency_payment_method_type::CryptoType::CryptoCurrency(
+                    CryptoCurrency {
+                        pay_currency: crypto_data.pay_currency.clone(),
+                        network: crypto_data.network.clone(),
+                    },
+                );
+
+            Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::Crypto(CryptoCurrencyPaymentMethodType {
+                    crypto_type: Some(grpc_crypto_type),
+                })),
             })
         }
         _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
