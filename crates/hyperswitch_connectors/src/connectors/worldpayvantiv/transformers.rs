@@ -2,7 +2,10 @@ use common_utils::{ext_traits::Encode, types::MinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
-    router_data::{ConnectorAuthType, ErrorResponse, RouterData, AdditionalPaymentMethodConnectorResponse, ConnectorResponseData},
+    router_data::{
+        AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
+        ErrorResponse, RouterData,
+    },
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData,
@@ -546,7 +549,7 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
                     }),
                 )
             } else {
-                let operation_id = if item.router_data.request.is_auto_capture()?  {
+                let operation_id = if item.router_data.request.is_auto_capture()? {
                     OperationId::Sale
                 } else {
                     OperationId::Auth
@@ -555,8 +558,7 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
                     Some(Authorization {
                         id: format!(
                             "{}_{}",
-                            operation_id,
-                            item.router_data.connector_request_reference_id
+                            operation_id, item.router_data.connector_request_reference_id
                         ),
                         report_group: report_group.clone(),
                         customer_id,
@@ -3032,9 +3034,7 @@ fn get_vantiv_card_data(
     }
 }
 
-fn get_connector_response(
-    payment_response: &FraudResult,
-) -> ConnectorResponseData {
+fn get_connector_response(payment_response: &FraudResult) -> ConnectorResponseData {
     let payment_checks = Some(serde_json::json!({
         "avs_result": payment_response.avs_result,
         "card_validation_result": payment_response.card_validation_result,
@@ -3044,9 +3044,10 @@ fn get_connector_response(
 
     ConnectorResponseData::with_additional_payment_method_data(
         AdditionalPaymentMethodConnectorResponse::Card {
-        authentication_data: None,
-        payment_checks,
-        card_network: None,
-        domestic_network: None,
-    })
+            authentication_data: None,
+            payment_checks,
+            card_network: None,
+            domestic_network: None,
+        },
+    )
 }
