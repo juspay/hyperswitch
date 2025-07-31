@@ -174,60 +174,46 @@ pub struct Amount {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BillTo {
-    first_name: Option<Secret<String>>,
-    last_name: Option<Secret<String>>,
+    first_name: Secret<String>,
+    last_name: Secret<String>,
     address1: Secret<String>,
     locality: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    administrative_area: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    postal_code: Option<Secret<String>>,
+    administrative_area: Secret<String>,
+    postal_code: Secret<String>,
     country: enums::CountryAlpha2,
     email: pii::Email,
 }
 
+fn truncate_string(state: &Secret<String>, max_len: usize) -> Secret<String> {
+    let exposed = state.clone().expose();
+    let truncated = exposed.get(..max_len).unwrap_or(&exposed);
+    Secret::new(truncated.to_string())
+}
+
 fn build_bill_to(
-    address_details: Option<&hyperswitch_domain_models::address::Address>,
+    address_details: &hyperswitch_domain_models::address::AddressDetails,
     email: pii::Email,
 ) -> Result<BillTo, error_stack::Report<errors::ConnectorError>> {
-    let addr = address_details
-        .and_then(|addr| addr.address.as_ref())
+    let administrative_area = address_details
+        .to_state_code_as_optional()
+        .unwrap_or_else(|_| {
+            address_details
+                .get_state()
+                .ok()
+                .map(|state| truncate_string(state, 20))
+        })
         .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-            field_name: "billing_address_details",
-        })?;
-
-    let administrative_area = addr.to_state_code_as_optional().unwrap_or_else(|_| {
-        addr.state
-            .clone()
-            .map(|state| Secret::new(format!("{:.20}", state.expose())))
-    });
-
-    let address1 =
-        addr.line1
-            .clone()
-            .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-                field_name: "billing_address.line1",
-            })?;
-    let locality =
-        addr.city
-            .clone()
-            .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-                field_name: "billing_address.city",
-            })?;
-    let country = addr
-        .country
-        .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-            field_name: "billing_address.country",
+            field_name: "billing_address.state",
         })?;
 
     Ok(BillTo {
-        first_name: addr.first_name.clone(),
-        last_name: addr.last_name.clone(),
-        address1,
-        locality,
+        first_name: address_details.get_first_name()?.clone(),
+        last_name: address_details.get_last_name()?.clone(),
+        address1: address_details.get_line1()?.clone(),
+        locality: address_details.get_city()?.clone(),
         administrative_area,
-        postal_code: addr.zip.clone(),
-        country,
+        postal_code: address_details.get_zip()?.clone(),
+        country: address_details.get_country()?.clone(),
         email,
     })
 }
@@ -471,7 +457,7 @@ impl
         };
 
         let email = item.router_data.request.get_email()?;
-        let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
+        let bill_to = build_bill_to(item.router_data.get_billing_address()?, email)?;
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
         let payment_information = PaymentInformation::try_from(&ccard)?;
         let processing_information = ProcessingInformation::try_from((item, None, None))?;
@@ -508,7 +494,7 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let email = item.router_data.request.get_email()?;
-        let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
+        let bill_to = build_bill_to(item.router_data.get_billing_address()?, email)?;
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
         let payment_information = PaymentInformation::from(&google_pay_data);
         let processing_information =
