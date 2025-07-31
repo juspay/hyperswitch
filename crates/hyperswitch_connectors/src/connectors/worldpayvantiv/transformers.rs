@@ -1172,7 +1172,7 @@ impl<F>
                     let connector_metadata =   Some(report_group.encode_to_value()
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?);
                 let mandate_reference_data = sale_response.token_response.map(MandateReference::from);
-                let connector_response = sale_response.fraud_result.as_ref().map(|fraud_result| get_connector_response(fraud_result));
+                let connector_response = sale_response.fraud_result.as_ref().map(get_connector_response);
 
                     Ok(Self {
                         status,
@@ -1222,7 +1222,7 @@ impl<F>
                     let connector_metadata =   Some(report_group.encode_to_value()
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?);
                     let mandate_reference_data = auth_response.token_response.map(MandateReference::from);
-                    let connector_response = auth_response.fraud_result.as_ref().map(|fraud_result| get_connector_response(fraud_result));
+                    let connector_response = auth_response.fraud_result.as_ref().map(get_connector_response);
 
                     Ok(Self {
                         status,
