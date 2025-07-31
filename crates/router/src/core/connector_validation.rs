@@ -237,6 +237,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 fiuu::transformers::FiuuAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Flexiti => {
+                flexiti::transformers::FlexitiAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Forte => {
                 forte::transformers::ForteAuthType::try_from(self.auth_type)?;
                 Ok(())

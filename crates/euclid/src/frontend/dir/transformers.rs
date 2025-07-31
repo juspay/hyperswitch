@@ -102,6 +102,7 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
             global_enums::PaymentMethodType::Bizum => Ok(dirval!(BankRedirectType = Bizum)),
 
             global_enums::PaymentMethodType::PayBright => Ok(dirval!(PayLaterType = PayBright)),
+            global_enums::PaymentMethodType::Flexiti => Ok(dirval!(PayLaterType = Flexiti)),
             global_enums::PaymentMethodType::Walley => Ok(dirval!(PayLaterType = Walley)),
             global_enums::PaymentMethodType::Breadpay => Ok(dirval!(PayLaterType = Breadpay)),
             global_enums::PaymentMethodType::Przelewy24 => {
