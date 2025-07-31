@@ -4138,7 +4138,7 @@ pub async fn list_customer_payment_method(
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
-    let requires_cvv = get_requires_cvv_from_superposition_or_db(state, &merchant_context).await?;
+    let requires_cvv = get_requires_cvv_config(state, &merchant_context).await?;
 
     let resp = db
         .find_payment_method_by_customer_id_merchant_id_status(
@@ -5139,50 +5139,22 @@ pub async fn execute_payment_method_tokenization(
 }
 
 #[cfg(feature = "v1")]
-async fn get_requires_cvv_from_superposition_or_db(
+async fn get_requires_cvv_config(
     state: &routes::SessionState,
     merchant_context: &domain::MerchantContext,
 ) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
-    let merchant_id = merchant_context.get_merchant_account().get_id();
-    let key = merchant_id.get_requires_cvv_key();
-    let superposition_enabled =
-        std::env::var("SUPERPOSITION_ENABLED").unwrap_or_else(|_| "false".to_string()) == "true";
+    // Check if the Superposition client was initialized and is available
+    if let Some(client) = &state.superposition_client {
+        // 1. Build the context for this decision
 
-    if superposition_enabled {
-        use open_feature::OpenFeature;
-        use superposition_provider::{
-            PollingStrategy, RefreshStrategy, SuperpositionProvider, SuperpositionProviderOptions,
-        };
-
-        let endpoint = std::env::var("SUPERPOSITION_ENDPOINT")
-            .unwrap_or_else(|_| "http://localhost:8080".to_string());
-        let token = std::env::var("SUPERPOSITION_TOKEN").unwrap_or_else(|_| "".to_string());
-        let org_id =
-            std::env::var("SUPERPOSITION_ORG_ID").unwrap_or_else(|_| "localorg".to_string());
-        let workspace_id =
-            std::env::var("SUPERPOSITION_WORKSPACE_ID").unwrap_or_else(|_| "dev".to_string());
-
-        let mut api = OpenFeature::singleton_mut().await;
-        let options = SuperpositionProviderOptions {
-            endpoint,
-            token,
-            org_id,
-            workspace_id,
-            fallback_config: None,
-            evaluation_cache: None,
-            refresh_strategy: RefreshStrategy::Polling(PollingStrategy {
-                interval: 1,
-                timeout: None,
-            }),
-            experimentation_options: None,
-        };
-        api.set_provider(SuperpositionProvider::new(options)).await;
-        let client = api.create_client();
-
-        let context = open_feature::EvaluationContext {
+        use open_feature::EvaluationContext;
+        let merchant_id = merchant_context.get_merchant_account().get_id();
+        let context = EvaluationContext {
             custom_fields: HashMap::from([(
                 "merchant_id".to_string(),
-                open_feature::EvaluationContextFieldValue::String(merchant_id.get_string_repr().to_string()),
+                open_feature::EvaluationContextFieldValue::String(
+                    merchant_id.get_string_repr().to_string(),
+                ),
             )]),
             targeting_key: Some(merchant_id.get_string_repr().to_string()),
         };
@@ -5191,18 +5163,20 @@ async fn get_requires_cvv_from_superposition_or_db(
             .get_bool_value("requires_cvv", Some(&context), None)
             .await
         {
-            eprintln!("hello: {}", value);
             return Ok(value);
         }
     }
-    eprint!("Using database fallback");
-    // Fallback to database
+
+    eprintln!("Using database fallback");
+    let key = merchant_context
+        .get_merchant_account()
+        .get_id()
+        .get_requires_cvv_key();
     let is_requires_cvv = state
         .store
         .find_config_by_key_unwrap_or(&key, Some("true".to_string()))
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to fetch requires_cvv config")?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     Ok(is_requires_cvv.config != "false")
 }

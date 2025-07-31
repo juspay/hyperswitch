@@ -130,6 +130,7 @@ pub struct SessionState {
     pub locale: String,
     pub crm_client: Arc<dyn CrmInterface>,
     pub infra_components: Option<serde_json::Value>,
+    pub superposition_client: Option<Arc<open_feature::Client>>,
 }
 impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
@@ -243,6 +244,7 @@ pub struct AppState {
     pub theme_storage_client: Arc<dyn FileStorageInterface>,
     pub crm_client: Arc<dyn CrmInterface>,
     pub infra_components: Option<serde_json::Value>,
+    pub superposition_client: Option<Arc<open_feature::Client>>,
 }
 impl scheduler::SchedulerAppState for AppState {
     fn get_tenants(&self) -> Vec<id_type::TenantId> {
@@ -408,6 +410,35 @@ impl AppState {
 
             let grpc_client = conf.grpc_client.get_grpc_client_interface().await;
             let infra_component_values = Self::process_env_mappings(conf.infra_values.clone());
+
+            use masking::prelude::PeekInterface as _;
+            let superposition_client = if conf.superposition.get_inner().enabled {
+                let superposition_config = conf.superposition.get_inner();
+
+                let options = superposition_provider::SuperpositionProviderOptions {
+                    endpoint: superposition_config.endpoint.clone(),
+                    token: superposition_config.token.peek().clone(),
+                    org_id: superposition_config.org_id.clone(),
+                    workspace_id: superposition_config.workspace_id.clone(),
+                    fallback_config: None, // todo
+                    evaluation_cache: None,
+                    refresh_strategy: superposition_provider::RefreshStrategy::Polling(
+                        superposition_provider::PollingStrategy {
+                            interval: 15,
+                            timeout: None,
+                        },
+                    ),
+                    experimentation_options: None,
+                };
+
+                let mut api = open_feature::OpenFeature::singleton_mut().await;
+                api.set_provider(superposition_provider::SuperpositionProvider::new(options))
+                    .await;
+                Some(Arc::new(api.create_client()))
+            } else {
+                None
+            };
+
             Self {
                 flow_name: String::from("default"),
                 stores,
@@ -429,6 +460,7 @@ impl AppState {
                 theme_storage_client,
                 crm_client,
                 infra_components: infra_component_values,
+                superposition_client,
             }
         })
         .await
@@ -524,6 +556,7 @@ impl AppState {
             locale: locale.unwrap_or(common_utils::consts::DEFAULT_LOCALE.to_string()),
             crm_client: self.crm_client.clone(),
             infra_components: self.infra_components.clone(),
+            superposition_client: self.superposition_client.clone(),
         })
     }
 
