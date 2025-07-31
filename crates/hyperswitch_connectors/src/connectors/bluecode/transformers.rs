@@ -125,12 +125,6 @@ impl
     ) -> Result<Self, Self::Error> {
         let item = value.0;
 
-        let return_url = item.router_data.request.get_webhook_url().change_context(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "return_url",
-            },
-        )?;
-
         Ok(Self {
             amount: item.amount,
             currency: item.router_data.request.currency,
@@ -145,8 +139,8 @@ impl
             billing_address_line1: item.router_data.get_billing_line1()?,
             billing_address_postal_code: item.router_data.get_billing_zip()?,
             webhook_url: item.router_data.request.get_webhook_url()?,
-            success_url: return_url.clone(),
-            failure_url: return_url,
+            success_url: item.router_data.request.get_router_return_url()?,
+            failure_url: item.router_data.request.get_router_return_url()?,
         })
     }
 }
