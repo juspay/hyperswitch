@@ -213,7 +213,7 @@ fn build_bill_to(
         locality: address_details.get_city()?.clone(),
         administrative_area,
         postal_code: address_details.get_zip()?.clone(),
-        country: address_details.get_country()?.clone(),
+        country: address_details.get_country()?.to_owned(),
         email,
     })
 }
