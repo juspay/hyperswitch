@@ -4138,9 +4138,36 @@ pub async fn list_customer_payment_method(
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
-    let requires_cvv = get_requires_cvv_config(state, &merchant_context).await?;
+    use open_feature::EvaluationContext;
+    let merchant_id = merchant_context.get_merchant_account().get_id();
+    let context = EvaluationContext {
+        custom_fields: HashMap::from([(
+            "merchant_id".to_string(),
+            open_feature::EvaluationContextFieldValue::String(
+                merchant_id.get_string_repr().to_string(),
+            ),
+        )]),
+        targeting_key: Some(merchant_id.get_string_repr().to_string()),
+    };
 
-    let resp = db
+    let is_requires_cvv = db
+        .find_config_by_key_unwrap_or(
+            &merchant_context
+                .get_merchant_account()
+                .get_id()
+                .get_requires_cvv_key(),
+            Some("true".to_string()),
+            Some(&context),
+            Some("requires_cvv"),
+            Some(&state),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch requires_cvv config")?;
+
+    let requires_cvv = is_requires_cvv.config != "false";
+
+    let resp: Vec<hyperswitch_domain_models::payment_methods::PaymentMethod> = db
         .find_payment_method_by_customer_id_merchant_id_status(
             &(state.into()),
             merchant_context.get_merchant_key_store(),
@@ -5136,47 +5163,4 @@ pub async fn execute_payment_method_tokenization(
     let builder = builder.set_payment_method(&updated_payment_method);
 
     Ok(builder.build())
-}
-
-#[cfg(feature = "v1")]
-async fn get_requires_cvv_config(
-    state: &routes::SessionState,
-    merchant_context: &domain::MerchantContext,
-) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
-    // Check if the Superposition client was initialized and is available
-    if let Some(client) = &state.superposition_client {
-        // 1. Build the context for this decision
-
-        use open_feature::EvaluationContext;
-        let merchant_id = merchant_context.get_merchant_account().get_id();
-        let context = EvaluationContext {
-            custom_fields: HashMap::from([(
-                "merchant_id".to_string(),
-                open_feature::EvaluationContextFieldValue::String(
-                    merchant_id.get_string_repr().to_string(),
-                ),
-            )]),
-            targeting_key: Some(merchant_id.get_string_repr().to_string()),
-        };
-
-        if let Ok(value) = client
-            .get_bool_value("requires_cvv", Some(&context), None)
-            .await
-        {
-            return Ok(value);
-        }
-    }
-
-    eprintln!("Using database fallback");
-    let key = merchant_context
-        .get_merchant_account()
-        .get_id()
-        .get_requires_cvv_key();
-    let is_requires_cvv = state
-        .store
-        .find_config_by_key_unwrap_or(&key, Some("true".to_string()), None, None, None)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-    Ok(is_requires_cvv.config != "false")
 }

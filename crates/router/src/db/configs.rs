@@ -31,7 +31,7 @@ pub trait ConfigInterface {
         // If the config is not found it will be created with the default value.
         default_config: Option<String>,
         superposition_context: Option<&EvaluationContext>,
-        flag_key: Option<&str>,
+        superposition_key: Option<&str>,
         state: Option<&SessionState>,
     ) -> CustomResult<storage::Config, errors::StorageError>;
 
@@ -145,7 +145,7 @@ impl ConfigInterface for Store {
             (superposition_context, superposition_key, state)
         {
             if let Some(client) = &state.superposition_client {
-                let kill_switch_context = EvaluationContext::default();
+                let kill_switch_context: EvaluationContext = EvaluationContext::default();
                 if client
                     .get_bool_value(
                         "use_superposition_for_configs",
@@ -159,6 +159,7 @@ impl ConfigInterface for Store {
                         .get_string_value(superposition_key, Some(context), None)
                         .await
                     {
+                        eprint!("Using superposition for config: {}", key);
                         return Ok(storage::Config {
                             key: key.to_string(),
                             config: value,
@@ -168,6 +169,7 @@ impl ConfigInterface for Store {
             }
         }
 
+        eprint!("Using fallback database for config: {}", key);
         let find_else_unwrap_or = || async {
             let conn = connection::pg_connection_write(self).await?;
             match storage::Config::find_by_key(&conn, key)
@@ -300,7 +302,7 @@ impl ConfigInterface for MockDb {
         key: &str,
         _default_config: Option<String>,
         superposition_context: Option<&EvaluationContext>,
-        flag_key: Option<&str>,
+        superposition_key: Option<&str>,
         state: Option<&SessionState>,
     ) -> CustomResult<storage::Config, errors::StorageError> {
         self.find_config_by_key(key).await

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use diesel_models::{ConfigNew, ConfigUpdate};
 use error_stack::ResultExt;
 
@@ -130,14 +132,30 @@ pub async fn get_tracking_id_from_configs(
     connector_id: &common_utils::id_type::MerchantConnectorAccountId,
     connector: enums::Connector,
 ) -> RouterResult<String> {
+    use open_feature::EvaluationContext;
+    let context = EvaluationContext {
+        custom_fields: HashMap::from([
+            (
+                "connector".to_string(),
+                open_feature::EvaluationContextFieldValue::String(connector.to_string()),
+            ),
+            (
+                "connector_id".to_string(),
+                open_feature::EvaluationContextFieldValue::String(
+                    connector_id.get_string_repr().to_string(),
+                ),
+            ),
+        ]),
+        targeting_key: Some(connector_id.get_string_repr().to_string()), //todo
+    };
     let timestamp = state
         .store
         .find_config_by_key_unwrap_or(
             &build_key(connector_id, connector),
             Some(common_utils::date_time::now_unix_timestamp().to_string()),
-                None,
-                None,
-                None,
+            Some(&context),
+            Some("timestamp"),
+            Some(&state)
         )
         .await
         .change_context(ApiErrorResponse::InternalServerError)

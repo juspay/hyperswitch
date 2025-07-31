@@ -3286,14 +3286,26 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             .encode_to_string_of_json()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error while stringifying default poll config")?;
+
+        use open_feature::EvaluationContext;
+        let context = EvaluationContext {
+            custom_fields: HashMap::from([(
+                "connector".to_string(),
+                open_feature::EvaluationContextFieldValue::String(
+                    connector.clone()
+                        .to_string(),
+                ),
+            )]),
+            targeting_key: Some(connector.clone()),//todo
+        };
         let poll_config = state
             .store
             .find_config_by_key_unwrap_or(
                 &router_types::PollConfig::get_poll_config_key(connector),
                 Some(default_config_str),
-                None,
-                None,
-                None,
+                Some(&context),
+                Some("poll_config"),
+                Some(&state),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4461,14 +4473,25 @@ where
 {
     let merchant_id = merchant_context.get_merchant_account().get_id();
     let blocklist_enabled_key = merchant_id.get_blocklist_guard_key();
+    
+    use open_feature::EvaluationContext;
+    let context = EvaluationContext {
+        custom_fields: HashMap::from([(
+            "merchant_id".to_string(),
+            open_feature::EvaluationContextFieldValue::String(
+                merchant_id.get_string_repr().to_string(),
+            ),
+        )]),
+        targeting_key: Some(merchant_id.get_string_repr().to_string()),
+    };
     let blocklist_guard_enabled = state
         .store
         .find_config_by_key_unwrap_or(
             &blocklist_enabled_key,
             Some("false".to_string()),
-            None,
-            None,
-            None,
+            Some(&context),
+            Some("blocklist_guard_enabled"),
+            Some(&state)
         )
         .await;
 

@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{collections::HashMap, marker::PhantomData};
 
 #[cfg(feature = "v1")]
 use api_models::payment_methods::PaymentMethodsData;
@@ -1046,6 +1046,19 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .encode_to_string_of_json()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Error while stringifying default poll config")?;
+                    use open_feature::EvaluationContext;
+                    let context = EvaluationContext {
+                        custom_fields: HashMap::from([(
+                            "connector".to_string(),
+                            open_feature::EvaluationContextFieldValue::String(
+                                authentication_store
+                                    .authentication
+                                    .authentication_connector
+                                    .clone(),
+                            ),
+                        )]),
+                        targeting_key: Some("connector".to_string()), //todo
+                    };
                     let poll_config = state
                         .store
                         .find_config_by_key_unwrap_or(
@@ -1056,9 +1069,9 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                     .clone(),
                             ),
                             Some(default_config_str),
-                            None,
-                            None,
-                            None,
+                            Some(&context),
+                            Some("poll_config"),
+                            Some(&state),
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1345,6 +1358,17 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .encode_to_string_of_json()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Error while stringifying default poll config")?;
+
+                    use open_feature::EvaluationContext;
+                    let context = EvaluationContext {
+                        custom_fields: HashMap::from([(
+                            "connector".to_string(),
+                            open_feature::EvaluationContextFieldValue::String(
+                                updated_authentication.authentication_connector.clone(),
+                            ),
+                        )]),
+                        targeting_key: Some("connector".to_string()), //todo
+                    };
                     let poll_config = state
                         .store
                         .find_config_by_key_unwrap_or(
@@ -1352,9 +1376,9 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                 updated_authentication.authentication_connector.clone(),
                             ),
                             Some(default_config_str),
-                            None,
-                            None,
-                            None,
+                            Some(&context),
+                            Some("poll_config"),
+                            Some(&state),
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
