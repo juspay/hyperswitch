@@ -2,7 +2,7 @@ use common_utils::{ext_traits::Encode, types::MinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
-    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
+    router_data::{ConnectorAuthType, ErrorResponse, RouterData, AdditionalPaymentMethodConnectorResponse, ConnectorResponseData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData,
@@ -546,11 +546,16 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
                     }),
                 )
             } else {
+                let operation_id = if item.router_data.request.is_auto_capture()?  {
+                    OperationId::Sale
+                } else {
+                    OperationId::Auth
+                };
                 (
                     Some(Authorization {
                         id: format!(
                             "{}_{}",
-                            OperationId::Auth,
+                            operation_id,
                             item.router_data.connector_request_reference_id
                         ),
                         report_group: report_group.clone(),
@@ -826,6 +831,8 @@ pub struct CaptureResponse {
 pub struct FraudResult {
     pub avs_result: Option<String>,
     pub card_validation_result: Option<String>,
+    pub authentication_result: Option<String>,
+    pub advanced_a_v_s_result: Option<String>,
     pub advanced_fraud_results: Option<AdvancedFraudResults>,
 }
 
@@ -1162,8 +1169,8 @@ impl<F>
                     };
                     let connector_metadata =   Some(report_group.encode_to_value()
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?);
-
                 let mandate_reference_data = sale_response.token_response.map(MandateReference::from);
+                let connector_response = sale_response.fraud_result.as_ref().map(|fraud_result| get_connector_response(fraud_result));
 
                     Ok(Self {
                         status,
@@ -1177,12 +1184,19 @@ impl<F>
                             incremental_authorization_allowed: None,
                             charges: None,
                         }),
+                        connector_response,
                         ..item.data
                     })
                 }
             },
             (None, Some(auth_response)) => {
-                let status = get_attempt_status(WorldpayvantivPaymentFlow::Auth, auth_response.response)?;
+                let payment_flow_type = if item.data.request.is_auto_capture()? {
+                    WorldpayvantivPaymentFlow::Sale
+                } else {
+                    WorldpayvantivPaymentFlow::Auth
+                };
+
+                let status = get_attempt_status(payment_flow_type, auth_response.response)?;
                 if connector_utils::is_payment_failure(status) {
                     Ok(Self {
                         status,
@@ -1205,8 +1219,8 @@ impl<F>
                     };
                     let connector_metadata =   Some(report_group.encode_to_value()
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?);
-
                     let mandate_reference_data = auth_response.token_response.map(MandateReference::from);
+                    let connector_response = auth_response.fraud_result.as_ref().map(|fraud_result| get_connector_response(fraud_result));
 
                     Ok(Self {
                         status,
@@ -1220,6 +1234,7 @@ impl<F>
                             incremental_authorization_allowed: None,
                             charges: None,
                         }),
+                        connector_response,
                         ..item.data
                     })
                 }
@@ -3015,4 +3030,23 @@ fn get_vantiv_card_data(
         PaymentMethodData::MandatePayment => Ok(None),
         _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
     }
+}
+
+fn get_connector_response(
+    payment_response: &FraudResult,
+) -> ConnectorResponseData {
+    let payment_checks = Some(serde_json::json!({
+        "avs_result": payment_response.avs_result,
+        "card_validation_result": payment_response.card_validation_result,
+        "authentication_result": payment_response.authentication_result,
+        "advanced_a_v_s_result": payment_response.advanced_a_v_s_result,
+    }));
+
+    ConnectorResponseData::with_additional_payment_method_data(
+        AdditionalPaymentMethodConnectorResponse::Card {
+        authentication_data: None,
+        payment_checks,
+        card_network: None,
+        domestic_network: None,
+    })
 }
