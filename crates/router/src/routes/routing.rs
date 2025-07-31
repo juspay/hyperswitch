@@ -1247,14 +1247,12 @@ pub async fn create_success_based_routing(
     req: HttpRequest,
     query: web::Query<api_models::routing::CreateDynamicRoutingQuery>,
     path: web::Path<routing_types::ToggleDynamicRoutingPath>,
-    // We need optional pay load here
     json_payload: Option<web::Json<routing_types::SuccessBasedRoutingConfig>>,
 ) -> impl Responder {
     let flow = Flow::CreateDynamicRouting;
     let wrapper = routing_types::CreateDynamicRoutingWrapper {
         feature_to_enable: query.into_inner().enable,
         profile_id: path.into_inner().profile_id,
-        // payload
         payload: json_payload
             .map(|p| api_models::routing::DynamicRoutingPayload::SuccessBased(p.into_inner())),
     };
@@ -1276,7 +1274,6 @@ pub async fn create_success_based_routing(
                 wrapper.feature_to_enable,
                 wrapper.profile_id,
                 api_models::routing::DynamicRoutingType::SuccessRateBasedRouting,
-                //payload
                 wrapper.payload,
             )
         },

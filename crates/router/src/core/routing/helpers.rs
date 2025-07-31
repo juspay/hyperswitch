@@ -2043,7 +2043,9 @@ where
     if let Some(_payload_config) = &payload {
         return create_specific_dynamic_routing_setup(
             state,
+            key_store,
             business_profile,
+            feature_to_enable,
             dynamic_routing_algo_ref,
             dynamic_routing_type,
             payload,
@@ -2131,7 +2133,6 @@ pub async fn default_specific_dynamic_routing_setup(
     let merchant_id = business_profile.merchant_id.clone();
     let algorithm_id = common_utils::generate_routing_id_of_default_length();
     let timestamp = common_utils::date_time::now();
-    // Add this import at the top of the file, or before this function:
 
     let algo = match dynamic_routing_type {
         routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
@@ -2234,18 +2235,20 @@ pub async fn default_specific_dynamic_routing_setup(
 #[instrument(skip_all)]
 pub async fn create_specific_dynamic_routing_setup(
     state: &SessionState,
+    key_store: domain::MerchantKeyStore,
     business_profile: domain::Profile,
+    feature_to_enable: routing_types::DynamicRoutingFeatures,
     mut dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef,
     dynamic_routing_type: routing_types::DynamicRoutingType,
     //payload
     payload: Option<routing_types::DynamicRoutingPayload>,
 ) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>> {
     let db = state.store.as_ref();
+    let key_manager_state = &state.into();
     let profile_id = business_profile.get_id().clone();
     let merchant_id = business_profile.merchant_id.clone();
     let algorithm_id = common_utils::generate_routing_id_of_default_length();
     let timestamp = common_utils::date_time::now();
-    // Add this import at the top of the file, or before this function:
 
     logger::debug!(
         "default_specific_dynamic_routing_setup called with dynamic_routing_type: {:?}, payload: {:?}",
@@ -2315,6 +2318,19 @@ pub async fn create_specific_dynamic_routing_setup(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to insert record in routing algorithm table")?;
+
+    dynamic_routing_algo_ref.update_feature(
+        feature_to_enable,
+        dynamic_routing_type,
+    );
+    update_business_profile_active_dynamic_algorithm_ref(
+        db,
+        key_manager_state,
+        &key_store,
+        business_profile,
+        dynamic_routing_algo_ref,
+    )
+    .await?;
 
     let new_record = record.foreign_into();
 
