@@ -6157,8 +6157,8 @@ api_secret="Secret Key"
   key1="Username"
 [facilitapay.metadata.destination_account_number]
   name="destination_account_number"
-  label="Destination Account Number"
-  placeholder="Enter Destination Account Number"
+  label="Merchant Account Number"
+  placeholder="Enter Merchant's (to_bank_account_id) Account Number"
   required=true
   type="Text"
 
