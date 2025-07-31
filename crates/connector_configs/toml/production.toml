@@ -5097,11 +5097,6 @@ api_key="Signing key"
 api_secret="website name"
 key1="merchant_id"
 
-
-[flexiti]
-[flexiti.connector_auth.HeaderKey]
-api_key = "API Key"
-
 [mpgs]
 [mpgs.connector_auth.HeaderKey]
 api_key = "API Key"
