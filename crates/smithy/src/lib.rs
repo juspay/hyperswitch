@@ -80,8 +80,16 @@ fn generate_struct_impl(
 
                     for (shape_name, shape) in flattened_model.shapes {
                         if shape_name == flattened_struct_name {
-                            if let smithy_core::SmithyShape::Structure { members: flattened_members, .. } = shape {
-                                members.extend(flattened_members);
+                            match shape {
+                                smithy_core::SmithyShape::Structure { members: flattened_members, .. } => {
+                                    members.extend(flattened_members);
+                                }
+                                smithy_core::SmithyShape::Union { members: flattened_members, .. } => {
+                                    members.extend(flattened_members);
+                                }
+                                _ => {
+                                    // Potentially handle other shapes or log a warning
+                                }
                             }
                         } else {
                             shapes.insert(shape_name, shape);
@@ -244,21 +252,11 @@ fn generate_enum_impl(
 
         Ok(expanded)
     } else {
-        // Generate as Smithy union - but only include variants with smithy attributes
+        // Generate as Smithy union
         let variant_implementations = variants
             .iter()
-            .filter_map(|variant| {
+            .map(|variant| {
                 let variant_name = &variant.name;
-                
-                // Check if this variant has a smithy value_type attribute
-                let has_smithy_attr = variant.fields.iter().any(|field| !field.value_type.is_empty()) ||
-                    // For PaymentMethodData, only include Card variant
-                    (name.to_string() == "PaymentMethodData" && variant_name == "Card");
-                
-                if !has_smithy_attr && name.to_string() == "PaymentMethodData" && variant_name != "Card" {
-                    return None; // Skip non-Card variants for PaymentMethodData
-                }
-                
                 let variant_doc = variant
                     .documentation
                     .as_ref()
@@ -279,12 +277,9 @@ fn generate_enum_impl(
                             }
                         }
                     } else {
-                        // For PaymentMethodData Card variant, use the type name directly
-                        if name.to_string() == "PaymentMethodData" && variant_name == "Card" {
-                            quote! { "Card".to_string() }
-                        } else {
-                            quote! { "smithy.api#Unit".to_string() }
-                        }
+                        // This case should ideally not be hit if all variants have attributes.
+                        // We can default to Unit or error out.
+                        quote! { "smithy.api#Unit".to_string() }
                     }
                 } else {
                     // Multiple fields - create an inline structure
@@ -292,14 +287,14 @@ fn generate_enum_impl(
                     quote! { format!("com.hyperswitch.types#{}", #inline_struct_name) }
                 };
 
-                Some(quote! {
+                quote! {
                     let target_type = #target_type_expr;
                     members.insert(#variant_name.to_string(), smithy_core::SmithyMember {
                         target: target_type,
                         documentation: #variant_doc,
                         traits: vec![]
                     });
-                })
+                }
             })
             .collect::<Vec<_>>();
 
