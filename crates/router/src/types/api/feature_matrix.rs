@@ -169,6 +169,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Forte => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Forte::new())))
                 }
+                enums::Connector::Flexiti => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Flexiti::new())))
+                }
                 enums::Connector::Getnet => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Getnet::new())))
                 }
