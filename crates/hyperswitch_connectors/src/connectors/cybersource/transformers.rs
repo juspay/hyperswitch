@@ -377,7 +377,7 @@ pub struct CybersourceConsumerAuthInformation {
     ucaf_authentication_data: Option<Secret<String>>,
     xid: Option<String>,
     directory_server_transaction_id: Option<Secret<String>>,
-    specification_version: Option<String>,
+    specification_version: Option<SemanticVersion>,
     /// This field specifies the 3ds version
     pa_specification_version: Option<SemanticVersion>,
     /// Verification response enrollment status.
@@ -393,6 +393,15 @@ pub struct CybersourceConsumerAuthInformation {
     pares_status: Option<CybersourceParesStatus>,
     //This field is used to send the authentication date in yyyyMMDDHHMMSS format
     authentication_date: Option<String>,
+    /// This field indicates the 3D Secure transaction flow. It is only supported for secure transactions in France.
+    /// The possible values are - CH (Challenge), FD (Frictionless with delegation), FR (Frictionless)
+    effective_authentication_type: Option<EffectiveAuthenticationType>,
+}
+
+#[derive(Debug, Serialize)]
+pub enum EffectiveAuthenticationType {
+    CH,
+    FR,
 }
 
 #[derive(Debug, Serialize)]
@@ -1232,6 +1241,15 @@ fn convert_metadata_to_merchant_defined_info(metadata: Value) -> Vec<MerchantDef
     vector
 }
 
+impl From<common_enums::DecoupledAuthenticationType> for EffectiveAuthenticationType {
+    fn from(auth_type: common_enums::DecoupledAuthenticationType) -> Self {
+        match auth_type {
+            common_enums::DecoupledAuthenticationType::Challenge => Self::CH,
+            common_enums::DecoupledAuthenticationType::Frictionless => Self::FR,
+        }
+    }
+}
+
 impl
     TryFrom<(
         &CybersourceRouterData<&PaymentsAuthorizeRouterData>,
@@ -1330,6 +1348,8 @@ impl
                     date_time::DateFormat::YYYYMMDDHHmmss,
                 )
                 .ok();
+                let effective_authentication_type = authn_data.authentication_type.map(Into::into);
+
                 CybersourceConsumerAuthInformation {
                     pares_status,
                     ucaf_collection_indicator,
@@ -1340,11 +1360,12 @@ impl
                         .ds_trans_id
                         .clone()
                         .map(Secret::new),
-                    specification_version: None,
+                    specification_version: authn_data.message_version.clone(),
                     pa_specification_version: authn_data.message_version.clone(),
                     veres_enrolled: Some("Y".to_string()),
                     eci_raw: authn_data.eci.clone(),
                     authentication_date,
+                    effective_authentication_type,
                 }
             });
 
@@ -1418,6 +1439,7 @@ impl
             .authentication_data
             .as_ref()
             .map(|authn_data| {
+                let effective_authentication_type = authn_data.authentication_type.map(Into::into);
                 let (ucaf_authentication_data, cavv, ucaf_collection_indicator) =
                     if ccard.card_network == Some(common_enums::CardNetwork::Mastercard) {
                         (Some(authn_data.cavv.clone()), None, Some("2".to_string()))
@@ -1439,11 +1461,12 @@ impl
                         .ds_trans_id
                         .clone()
                         .map(Secret::new),
-                    specification_version: None,
+                    specification_version: authn_data.message_version.clone(),
                     pa_specification_version: authn_data.message_version.clone(),
                     veres_enrolled: Some("Y".to_string()),
                     eci_raw: authn_data.eci.clone(),
                     authentication_date,
+                    effective_authentication_type,
                 }
             });
 
@@ -1520,6 +1543,8 @@ impl
             .authentication_data
             .as_ref()
             .map(|authn_data| {
+                let effective_authentication_type = authn_data.authentication_type.map(Into::into);
+
                 let (ucaf_authentication_data, cavv, ucaf_collection_indicator) =
                     if token_data.card_network == Some(common_enums::CardNetwork::Mastercard) {
                         (Some(authn_data.cavv.clone()), None, Some("2".to_string()))
@@ -1541,11 +1566,12 @@ impl
                         .ds_trans_id
                         .clone()
                         .map(Secret::new),
-                    specification_version: None,
+                    specification_version: authn_data.message_version.clone(),
                     pa_specification_version: authn_data.message_version.clone(),
                     veres_enrolled: Some("Y".to_string()),
                     eci_raw: authn_data.eci.clone(),
                     authentication_date,
+                    effective_authentication_type,
                 }
             });
 
@@ -1725,11 +1751,12 @@ impl
             directory_server_transaction_id: three_ds_info
                 .three_ds_data
                 .directory_server_transaction_id,
-            specification_version: three_ds_info.three_ds_data.specification_version,
-            pa_specification_version: None,
+            specification_version: three_ds_info.three_ds_data.specification_version.clone(),
+            pa_specification_version: three_ds_info.three_ds_data.specification_version.clone(),
             veres_enrolled: None,
             eci_raw: None,
             authentication_date: None,
+            effective_authentication_type: None,
         });
 
         let merchant_defined_information = item
@@ -1827,6 +1854,7 @@ impl
                 veres_enrolled: None,
                 eci_raw: None,
                 authentication_date: None,
+                effective_authentication_type: None,
             }),
             merchant_defined_information,
         })
@@ -1971,6 +1999,7 @@ impl
                 veres_enrolled: None,
                 eci_raw: None,
                 authentication_date: None,
+                effective_authentication_type: None,
             }),
             merchant_defined_information,
         })
@@ -2172,6 +2201,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
                                                 veres_enrolled: None,
                                                 eci_raw: None,
                                                 authentication_date: None,
+                                                effective_authentication_type: None,
                                             },
                                         ),
                                     })
@@ -3221,7 +3251,7 @@ pub struct CybersourceConsumerAuthValidateResponse {
     cavv: Option<Secret<String>>,
     ucaf_authentication_data: Option<Secret<String>>,
     xid: Option<String>,
-    specification_version: Option<String>,
+    specification_version: Option<SemanticVersion>,
     directory_server_transaction_id: Option<Secret<String>>,
     indicator: Option<String>,
 }
