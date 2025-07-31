@@ -712,6 +712,7 @@ pub struct AuthenticationData {
     pub message_version: Option<common_utils::types::SemanticVersion>,
     pub ds_trans_id: Option<String>,
     pub created_at: time::PrimitiveDateTime,
+    pub authentication_type: Option<common_enums::DecoupledAuthenticationType>,
 }
 
 #[derive(Debug, Clone)]
