@@ -10,7 +10,7 @@ struct FlexitiTest;
 impl ConnectorActions for FlexitiTest {}
 impl utils::Connector for FlexitiTest {
     fn get_data(&self) -> api::ConnectorData {
-        use hyperswitch_connectors::connectors::Flexiti;
+        use router::connectors::Flexiti;
         utils::construct_connector_data_old(
             Box::new(Flexiti::new()),
             types::Connector::Plaid,

@@ -2,7 +2,6 @@ use api_models::enums as api_enums;
 use common_utils::pii;
 use error_stack::ResultExt;
 use external_services::http_client::client;
-use hyperswitch_connectors::connectors::{paytm, phonepe};
 use masking::PeekInterface;
 use pm_auth::connector::plaid::transformers::PlaidAuthType;
 
