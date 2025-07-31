@@ -9,7 +9,6 @@ use crate::{
     types::api::enums,
 };
 
-
 #[derive(Clone)]
 pub struct FeatureMatrixConnectorData {}
 
@@ -346,14 +345,21 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Plaid => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Plaid::new())))
                 }
-                enums::Connector::Signifyd => Ok(ConnectorEnum::Old(Box::new(&connector::Signifyd))),
-                enums::Connector::Riskified =>   Ok(ConnectorEnum::Old(Box::new(connector::Riskified::new()))),
-                enums::Connector::Gpayments => 
-                    Ok(ConnectorEnum::Old(Box::new(connector::Gpayments::new()))),
-                enums::Connector::Threedsecureio => 
-                Ok(ConnectorEnum::Old(Box::new(&connector::Threedsecureio))),
-                 enums::Connector::Taxjar => 
-                 Ok(ConnectorEnum::Old(Box::new(connector::Taxjar::new())))
+                enums::Connector::Signifyd => {
+                    Ok(ConnectorEnum::Old(Box::new(&connector::Signifyd)))
+                }
+                enums::Connector::Riskified => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Riskified::new())))
+                }
+                enums::Connector::Gpayments => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Gpayments::new())))
+                }
+                enums::Connector::Threedsecureio => {
+                    Ok(ConnectorEnum::Old(Box::new(&connector::Threedsecureio)))
+                }
+                enums::Connector::Taxjar => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Taxjar::new())))
+                }
             },
             Err(_) => Err(report!(errors::ConnectorError::InvalidConnectorName)
                 .attach_printable(format!("invalid connector name: {connector_name}")))

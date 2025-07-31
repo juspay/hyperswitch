@@ -51,18 +51,16 @@ pub async fn generate_feature_matrix(
         connector_list
             .into_iter()
             .filter_map(|connector_name| {
-                api_types::feature_matrix::FeatureMatrixConnectorData::convert_connector(&connector_name.to_string())
-                    .inspect_err(|_| {
-                        router_env::logger::warn!("Failed to fetch {:?} details", connector_name)
-                    })
-                    .ok()
-                    .and_then(|connector| {
-                        build_connector_feature_details(
-                            &state,
-                            connector,
-                            connector_name.to_string(),
-                        )
-                    })
+                api_types::feature_matrix::FeatureMatrixConnectorData::convert_connector(
+                    &connector_name.to_string(),
+                )
+                .inspect_err(|_| {
+                    router_env::logger::warn!("Failed to fetch {:?} details", connector_name)
+                })
+                .ok()
+                .and_then(|connector| {
+                    build_connector_feature_details(&state, connector, connector_name.to_string())
+                })
             })
             .collect();
 
