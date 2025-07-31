@@ -6431,6 +6431,9 @@ api_key = "API Key"
 [breadpay.connector_auth.BodyKey]
 api_key = "API Key"
 key1 = "API Secret"
+[[breadpay.pay_later]]
+payment_method_type = "breadpay"
+payment_experience = "redirect_to_url"
 
 [mpgs]
 [mpgs.connector_auth.HeaderKey]
