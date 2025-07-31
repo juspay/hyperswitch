@@ -1606,6 +1606,7 @@ pub enum MerchantStorageScheme {
     ToSchema,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::EnumIter,
     strum::EnumString,
@@ -1613,6 +1614,7 @@ pub enum MerchantStorageScheme {
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum IntentStatus {
     /// The payment has succeeded. Refunds and disputes can be initiated.
     /// Manual retries are not allowed to be performed.
@@ -2126,6 +2128,7 @@ impl masking::SerializableSecret for PaymentMethodType {}
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::VariantNames,
     strum::EnumIter,
@@ -2135,6 +2138,7 @@ impl masking::SerializableSecret for PaymentMethodType {}
 #[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum PaymentMethod {
     #[default]
     Card,

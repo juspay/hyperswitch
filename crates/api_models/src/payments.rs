@@ -1014,6 +1014,7 @@ pub struct PaymentsRequest {
     pub payment_method_data: Option<PaymentMethodDataRequest>,
 
     #[schema(value_type = Option<PaymentMethod>, example = "card")]
+    #[smithy(value_type = "Option<PaymentMethod>")]
     pub payment_method: Option<api_enums::PaymentMethod>,
 
     /// As Hyperswitch tokenises the sensitive details about the payments method, it provides the payment_token as a reference to a stored payment method, ensuring that the sensitive details are not exposed in any manner.
@@ -1028,6 +1029,7 @@ pub struct PaymentsRequest {
     pub card_cvc: Option<Secret<String>>,
 
     /// The shipping address for the payment
+    #[smithy(value_type = "Option<Address>")]
     pub shipping: Option<Address>,
 
     /// For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.
@@ -1047,6 +1049,7 @@ pub struct PaymentsRequest {
         "amount" : 69000
         "product_img_link" : "https://dummy-img-link.com"
     }]"#)]
+    #[smithy(value_type = "Option<OrderDetailsWithAmount>")]
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
 
     /// It's a token used for client side verification.
@@ -1094,6 +1097,7 @@ pub struct PaymentsRequest {
     /// To be deprecated soon. Pass the profile_id instead
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     #[remove_in(PaymentsUpdateRequest, PaymentsConfirmRequest)]
+    #[smithy(value_type = "Option<CountryAlpha2>")]
     pub business_country: Option<api_enums::CountryAlpha2>,
 
     /// Business label of the merchant for this payment.
@@ -4898,8 +4902,9 @@ pub struct ReceiverDetails {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema, router_derive::PolymorphicSchema)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema, router_derive::PolymorphicSchema, SmithyModel)]
 #[generate_schemas(PaymentsCreateResponseOpenApi)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PaymentsResponse {
     /// Unique identifier for the payment. This ensures idempotency for multiple payments
     /// that have been done by a single merchant.
@@ -4909,43 +4914,53 @@ pub struct PaymentsResponse {
         example = "pay_mbabizu24mvu3mela5njyhpit4",
         value_type = String,
     )]
+    #[smithy(value_type = "String")]
     pub payment_id: id_type::PaymentId,
 
     /// This is an identifier for the merchant account. This is inferred from the API key
     /// provided during the request
     #[schema(max_length = 255, example = "merchant_1668273825", value_type = String)]
+    #[smithy(value_type = "String")]
     pub merchant_id: id_type::MerchantId,
 
     #[schema(value_type = IntentStatus, example = "failed", default = "requires_confirmation")]
+    #[smithy(value_type = "IntentStatus")]
     pub status: api_enums::IntentStatus,
 
     /// The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
     #[schema(value_type = i64, example = 6540)]
+    #[smithy(value_type = "i64")]
     pub amount: MinorUnit,
 
     /// The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount + shipping_cost + order_tax_amount,
     /// If no surcharge_details, shipping_cost, order_tax_amount, net_amount = amount
     #[schema(value_type = i64, example = 6540)]
+    #[smithy(value_type = "i64")]
     pub net_amount: MinorUnit,
 
     /// The shipping cost for the payment.
     #[schema(value_type = Option<i64>, example = 6540)]
+    #[smithy(value_type = "Option<i64>")]
     pub shipping_cost: Option<MinorUnit>,
 
     /// The amount (in minor units) that can still be captured for this payment. This is relevant when `capture_method` is `manual`. Once fully captured, or if `capture_method` is `automatic` and payment succeeded, this will be 0.
     #[schema(value_type = i64, minimum = 100, example = 6540)]
+    #[smithy(value_type = "i64")]
     pub amount_capturable: MinorUnit,
 
     /// The total amount (in minor units) that has been captured for this payment. For `fauxpay` sandbox connector, this might reflect the authorized amount if `status` is `succeeded` even if `capture_method` was `manual`.
     #[schema(value_type = Option<i64>, example = 6540)]
+    #[smithy(value_type = "Option<i64>")]
     pub amount_received: Option<MinorUnit>,
 
     /// The name of the payment connector (e.g., 'stripe', 'adyen') that processed or is processing this payment.
     #[schema(example = "stripe")]
+    #[smithy(value_type = "Option<String>")]
     pub connector: Option<String>,
 
     /// A secret token unique to this payment intent. It is primarily used by client-side applications (e.g., Hyperswitch SDKs) to authenticate actions like confirming the payment or handling next actions. This secret should be handled carefully and not exposed publicly beyond its intended client-side use.
     #[schema(value_type = Option<String>, example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
+    #[smithy(value_type = "Option<String>")]
     pub client_secret: Option<Secret<String>>,
 
     /// Timestamp indicating when this payment intent was created, in ISO 8601 format.
@@ -6606,37 +6621,50 @@ pub struct PaymentsRetrieveRequest {
     pub all_keys_required: Option<bool>,
 }
 
-#[derive(Debug, Default, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[derive(Debug, Default, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct OrderDetailsWithAmount {
     /// Name of the product that is being purchased
     #[schema(max_length = 255, example = "shirt")]
+    #[smithy(value_type = "String")]
     pub product_name: String,
     /// The quantity of the product to be purchased
     #[schema(example = 1)]
+    #[smithy(value_type = "u16")]
     pub quantity: u16,
     /// the amount per quantity of product
     #[schema(value_type = i64)]
+    #[smithy(value_type = "i64")]
     pub amount: MinorUnit,
     /// tax rate applicable to the product
+    #[smithy(value_type = "Option<f64>")]
     pub tax_rate: Option<f64>,
     /// total tax amount applicable to the product
     #[schema(value_type = Option<i64>)]
+    #[smithy(value_type = "Option<i64>")]
     pub total_tax_amount: Option<MinorUnit>,
     // Does the order includes shipping
+    #[smithy(value_type = "Option<bool>")]
     pub requires_shipping: Option<bool>,
     /// The image URL of the product
+    #[smithy(value_type = "Option<String>")]
     pub product_img_link: Option<String>,
     /// ID of the product that is being purchased
+    #[smithy(value_type = "Option<String>")]
     pub product_id: Option<String>,
     /// Category of the product that is being purchased
+    #[smithy(value_type = "Option<String>")]
     pub category: Option<String>,
     /// Sub category of the product that is being purchased
+    #[smithy(value_type = "Option<String>")]
     pub sub_category: Option<String>,
     /// Brand of the product that is being purchased
+    #[smithy(value_type = "Option<String>")]
     pub brand: Option<String>,
     /// Type of the product that is being purchased
     pub product_type: Option<ProductType>,
     /// The tax code for the product
+    #[smithy(value_type = "Option<String>")]
     pub product_tax_code: Option<String>,
 }
 
