@@ -1248,4 +1248,4 @@ enabled = false
 hyperswitch_ai_host = "http://0.0.0.0:8000"
 
 [proxy_status_mapping]
-enable_proxy_connector_http_status_code = false    # If enabled, the http status code of the connector will be proxied in the response
+proxy_connector_http_status_code = false    # If enabled, the http status code of the connector will be proxied in the response

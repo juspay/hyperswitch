@@ -267,7 +267,6 @@ where
             let payments_response_operation = Box::new(PaymentResponse);
 
             connector_http_status_code = router_data.connector_http_status_code;
-            //add connector http status code metrics
             add_connector_http_status_code_metrics(connector_http_status_code);
 
             payments_response_operation
@@ -348,7 +347,6 @@ where
             let payments_response_operation = Box::new(PaymentResponse);
 
             connector_http_status_code = router_data.connector_http_status_code;
-            //add connector http status code metrics
             add_connector_http_status_code_metrics(connector_http_status_code);
 
             payments_response_operation
@@ -502,7 +500,6 @@ where
     let payments_response_operation = Box::new(PaymentResponse);
 
     let connector_http_status_code = router_data.connector_http_status_code;
-    //add connector http status code metrics
     add_connector_http_status_code_metrics(connector_http_status_code);
 
     let payment_data = payments_response_operation

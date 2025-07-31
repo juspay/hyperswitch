@@ -848,7 +848,7 @@ pub struct MerchantIdAuthSettings {
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
 pub struct ProxyStatusMapping {
-    pub enable_proxy_connector_http_status_code: bool,
+    pub proxy_connector_http_status_code: bool,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]

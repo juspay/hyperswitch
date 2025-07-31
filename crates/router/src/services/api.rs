@@ -901,12 +901,32 @@ where
             let proxy_connector_http_status_code = if state
                 .conf
                 .proxy_status_mapping
-                .enable_proxy_connector_http_status_code
+                .proxy_connector_http_status_code
             {
                 headers
                     .iter()
-                    .find(|(key, _)| key == "connector_http_status_code")
-                    .and_then(|(_, value)| value.clone().into_inner().parse::<u16>().ok())
+                    .find(|(key, _)| key == headers::X_CONNECTOR_HTTP_STATUS_CODE)
+                    .and_then(|(_, value)| {
+                        match value.clone().into_inner().parse::<u16>() {
+                            Ok(code) => match http::StatusCode::from_u16(code) {
+                                Ok(status_code) => Some(status_code),
+                                Err(err) => {
+                                    logger::error!(
+                                        "Invalid HTTP status code parsed from connector_http_status_code: {}",
+                                        err
+                                    );
+                                    None
+                                }
+                            },
+                            Err(err) => {
+                                logger::error!(
+                                    "Failed to parse connector_http_status_code from header: {}",
+                                    err
+                                );
+                                None
+                            }
+                        }
+                    })
             } else {
                 None
             };
@@ -1008,13 +1028,9 @@ pub fn http_response_json_with_headers<T: body::MessageBody + 'static>(
     response: T,
     headers: Vec<(String, Maskable<String>)>,
     request_duration: Option<Duration>,
-    proxy_connector_http_status_code: Option<u16>,
+    status_code: Option<http::StatusCode>,
 ) -> HttpResponse {
-    let mut response_builder = HttpResponse::build(
-        proxy_connector_http_status_code
-            .and_then(|status_code| http::StatusCode::from_u16(status_code).ok())
-            .unwrap_or(http::StatusCode::OK),
-    );
+    let mut response_builder = HttpResponse::build(status_code.unwrap_or(http::StatusCode::OK));
     for (header_name, header_value) in headers {
         let is_sensitive_header = header_value.is_masked();
         let mut header_value = header_value.into_inner();

@@ -364,7 +364,7 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse>
             })
         });
 
-        let status_code = u16::foreign_try_from(response.status_code)?;
+        let status_code = convert_connector_service_status_code(response.status_code)?;
 
         let response = if response.error_code.is_some() {
             Err(ErrorResponse {
@@ -428,7 +428,7 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceGetResponse>
                     })
             });
 
-        let status_code = u16::foreign_try_from(response.status_code)?;
+        let status_code = convert_connector_service_status_code(response.status_code)?;
 
         let response = if response.error_code.is_some() {
             Err(ErrorResponse {
@@ -489,7 +489,7 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceRegisterResponse>
                     })
             });
 
-        let status_code = u16::foreign_try_from(response.status_code)?;
+        let status_code = convert_connector_service_status_code(response.status_code)?;
 
         let response = if response.error_code.is_some() {
             Err(ErrorResponse {
@@ -580,7 +580,7 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingResponse>
             })
         });
 
-        let status_code = u16::foreign_try_from(response.status_code)?;
+        let status_code = convert_connector_service_status_code(response.status_code)?;
 
         let response = if response.error_code.is_some() {
             Err(ErrorResponse {
@@ -973,18 +973,15 @@ impl ForeignTryFrom<common_types::payments::CustomerAcceptance>
     }
 }
 
-impl ForeignTryFrom<Option<u32>> for u16 {
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+pub fn convert_connector_service_status_code(
+    status_code: Option<u32>,
+) -> Result<u16, error_stack::Report<UnifiedConnectorServiceError>> {
+    let code = status_code.unwrap_or(500);
 
-    fn foreign_try_from(status_code: Option<u32>) -> Result<Self, Self::Error> {
-        let code = status_code.unwrap_or(500);
-
-        Self::try_from(code).map_err(|err| {
-            UnifiedConnectorServiceError::RequestEncodingFailedWithReason(format!(
-                "Failed to convert status code to u16: {}",
-                err
-            ))
-            .into()
-        })
-    }
+    u16::try_from(code).map_err(|err| {
+        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(format!(
+            "Failed to convert connector service status code to u16: {err}"
+        ))
+        .into()
+    })
 }

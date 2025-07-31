@@ -36,7 +36,7 @@ use crate::{
         payments::{self, helpers},
         utils as core_utils,
     },
-    headers::X_PAYMENT_CONFIRM_SOURCE,
+    headers::{X_CONNECTOR_HTTP_STATUS_CODE, X_PAYMENT_CONFIRM_SOURCE},
     routes::{metrics, SessionState},
     services::{self, RedirectForm},
     types::{
@@ -1588,7 +1588,7 @@ where
         let headers = connector_http_status_code
             .map(|status_code| {
                 vec![(
-                    "connector_http_status_code".to_string(),
+                    X_CONNECTOR_HTTP_STATUS_CODE.to_string(),
                     Maskable::new_normal(status_code.to_string()),
                 )]
             })
@@ -1979,7 +1979,7 @@ where
         let headers = connector_http_status_code
             .map(|status_code| {
                 vec![(
-                    "connector_http_status_code".to_string(),
+                    X_CONNECTOR_HTTP_STATUS_CODE.to_string(),
                     Maskable::new_normal(status_code.to_string()),
                 )]
             })
@@ -2084,7 +2084,7 @@ where
         let headers = connector_http_status_code
             .map(|status_code| {
                 vec![(
-                    "connector_http_status_code".to_string(),
+                    X_CONNECTOR_HTTP_STATUS_CODE.to_string(),
                     Maskable::new_normal(status_code.to_string()),
                 )]
             })
@@ -2563,7 +2563,7 @@ where
     let mut headers = connector_http_status_code
         .map(|status_code| {
             vec![(
-                "connector_http_status_code".to_string(),
+                X_CONNECTOR_HTTP_STATUS_CODE.to_string(),
                 Maskable::new_normal(status_code.to_string()),
             )]
         })

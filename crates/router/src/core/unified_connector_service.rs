@@ -242,10 +242,10 @@ pub fn handle_unified_connector_service_response_for_payment_authorize(
 > {
     let status = AttemptStatus::foreign_try_from(response.status())?;
 
-    let router_data_response =
-        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response.clone())?;
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
-    let status_code = u16::foreign_try_from(response.status_code)?;
+    let router_data_response =
+        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
 
     Ok((status, router_data_response, status_code))
 }
@@ -262,10 +262,10 @@ pub fn handle_unified_connector_service_response_for_payment_get(
 > {
     let status = AttemptStatus::foreign_try_from(response.status())?;
 
-    let router_data_response =
-        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response.clone())?;
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
-    let status_code = u16::foreign_try_from(response.status_code)?;
+    let router_data_response =
+        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
 
     Ok((status, router_data_response, status_code))
 }
@@ -282,10 +282,10 @@ pub fn handle_unified_connector_service_response_for_payment_register(
 > {
     let status = AttemptStatus::foreign_try_from(response.status())?;
 
-    let router_data_response =
-        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response.clone())?;
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
-    let status_code = u16::foreign_try_from(response.status_code)?;
+    let router_data_response =
+        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
 
     Ok((status, router_data_response, status_code))
 }
@@ -302,10 +302,10 @@ pub fn handle_unified_connector_service_response_for_payment_repeat(
 > {
     let status = AttemptStatus::foreign_try_from(response.status())?;
 
-    let router_data_response =
-        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response.clone())?;
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
-    let status_code = u16::foreign_try_from(response.status_code)?;
+    let router_data_response =
+        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
 
     Ok((status, router_data_response, status_code))
 }
