@@ -593,7 +593,9 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
 impl From<&Option<common_enums::PaymentChannel>> for OrderSource {
     fn from(payment_channel: &Option<common_enums::PaymentChannel>) -> Self {
         match payment_channel {
-            Some(common_enums::PaymentChannel::Ecommerce) | Some(common_enums::PaymentChannel::Other(_)) | None => Self::Ecommerce,
+            Some(common_enums::PaymentChannel::Ecommerce)
+            | Some(common_enums::PaymentChannel::Other(_))
+            | None => Self::Ecommerce,
             Some(common_enums::PaymentChannel::MailOrder) => Self::MailOrder,
             Some(common_enums::PaymentChannel::TelephoneOrder) => Self::Telephone,
         }
