@@ -7,7 +7,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
+    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -24,8 +24,7 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
-        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
@@ -43,59 +42,44 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::PeekInterface;
-use transformers as flexiti;
-use uuid::Uuid;
+use masking::{ExposeInterface, Mask};
+use transformers as katapult;
 
-use crate::{
-    capture_method_not_supported,
-    constants::headers,
-    types::{RefreshTokenRouterData, ResponseRouterData},
-    utils,
-};
+use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
-pub struct Flexiti {
-    amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
+pub struct Katapult {
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }
 
-impl Flexiti {
+impl Katapult {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &FloatMajorUnitForConnector,
+            amount_converter: &StringMinorUnitForConnector,
         }
     }
 }
 
-impl api::Payment for Flexiti {}
-impl api::PaymentSession for Flexiti {}
-impl api::ConnectorAccessToken for Flexiti {}
-impl api::MandateSetup for Flexiti {}
-impl api::PaymentAuthorize for Flexiti {}
-impl api::PaymentSync for Flexiti {}
-impl api::PaymentCapture for Flexiti {}
-impl api::PaymentVoid for Flexiti {}
-impl api::Refund for Flexiti {}
-impl api::RefundExecute for Flexiti {}
-impl api::RefundSync for Flexiti {}
-impl api::PaymentToken for Flexiti {}
+impl api::Payment for Katapult {}
+impl api::PaymentSession for Katapult {}
+impl api::ConnectorAccessToken for Katapult {}
+impl api::MandateSetup for Katapult {}
+impl api::PaymentAuthorize for Katapult {}
+impl api::PaymentSync for Katapult {}
+impl api::PaymentCapture for Katapult {}
+impl api::PaymentVoid for Katapult {}
+impl api::Refund for Katapult {}
+impl api::RefundExecute for Katapult {}
+impl api::RefundSync for Katapult {}
+impl api::PaymentToken for Katapult {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
-    for Flexiti
+    for Katapult
 {
     // Not Implemented (R)
 }
 
-impl Flexiti {
-    fn get_default_header() -> (String, masking::Maskable<String>) {
-        (
-            "x-reference-id".to_string(),
-            Uuid::new_v4().to_string().into(),
-        )
-    }
-}
-
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Flexiti
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Katapult
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {
@@ -104,41 +88,46 @@ where
         req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let access_token = req
-            .access_token
-            .clone()
-            .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
         let mut header = vec![(
-            headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", access_token.token.peek()).into(),
+            headers::CONTENT_TYPE.to_string(),
+            self.get_content_type().to_string().into(),
         )];
-        header.push(Self::get_default_header());
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
         Ok(header)
     }
 }
 
-impl ConnectorCommon for Flexiti {
+impl ConnectorCommon for Katapult {
     fn id(&self) -> &'static str {
-        "flexiti"
+        "katapult"
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
         api::CurrencyUnit::Base
+        //    TODO! Check connector documentation, on which unit they are processing the currency.
+        //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
+        //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
     }
 
     fn common_get_content_type(&self) -> &'static str {
-        "application/x-www-form-urlencoded"
+        "application/json"
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
-        connectors.flexiti.base_url.as_ref()
+        connectors.katapult.base_url.as_ref()
     }
 
     fn get_auth_header(
         &self,
-        _auth_type: &ConnectorAuthType,
+        auth_type: &ConnectorAuthType,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        Ok(vec![])
+        let auth = katapult::KatapultAuthType::try_from(auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        Ok(vec![(
+            headers::AUTHORIZATION.to_string(),
+            auth.api_key.expose().into_masked(),
+        )])
     }
 
     fn build_error_response(
@@ -146,9 +135,9 @@ impl ConnectorCommon for Flexiti {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: flexiti::FlexitiErrorResponse = res
+        let response: katapult::KatapultErrorResponse = res
             .response
-            .parse_struct("FlexitiErrorResponse")
+            .parse_struct("KatapultErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -156,9 +145,9 @@ impl ConnectorCommon for Flexiti {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.error.to_owned(),
-            message: response.message.to_owned(),
-            reason: Some(response.message.to_owned()),
+            code: response.code,
+            message: response.message,
+            reason: response.reason,
             attempt_status: None,
             connector_transaction_id: None,
             network_advice_code: None,
@@ -168,7 +157,7 @@ impl ConnectorCommon for Flexiti {
     }
 }
 
-impl ConnectorValidation for Flexiti {
+impl ConnectorValidation for Katapult {
     fn validate_mandate_payment(
         &self,
         _pm_type: Option<enums::PaymentMethodType>,
@@ -183,35 +172,6 @@ impl ConnectorValidation for Flexiti {
         }
     }
 
-    fn validate_connector_against_payment_request(
-        &self,
-        capture_method: Option<common_enums::CaptureMethod>,
-        _payment_method: common_enums::PaymentMethod,
-        pmt: Option<common_enums::PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-
-        match capture_method {
-            enums::CaptureMethod::Manual => Ok(()),
-            enums::CaptureMethod::Automatic
-            | enums::CaptureMethod::SequentialAutomatic
-            | enums::CaptureMethod::ManualMultiple
-            | enums::CaptureMethod::Scheduled => {
-                let connector = self.id();
-                match pmt {
-                    Some(payment_method_type) => {
-                        capture_method_not_supported!(
-                            connector,
-                            capture_method,
-                            payment_method_type
-                        )
-                    }
-                    None => capture_method_not_supported!(connector, capture_method),
-                }
-            }
-        }
-    }
-
     fn validate_psync_reference_id(
         &self,
         _data: &PaymentsSyncData,
@@ -223,90 +183,18 @@ impl ConnectorValidation for Flexiti {
     }
 }
 
-impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Flexiti {
-    fn get_url(
-        &self,
-        _req: &RefreshTokenRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}oauth/token", self.base_url(connectors)))
-    }
-    fn get_content_type(&self) -> &'static str {
-        "application/x-www-form-urlencoded"
-    }
-    fn get_headers(
-        &self,
-        _req: &RefreshTokenRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        Ok(vec![(Self::get_default_header())])
-    }
-    fn get_request_body(
-        &self,
-        req: &RefreshTokenRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = flexiti::FlexitiAccessTokenRequest::try_from(req)?;
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
-    }
-
-    fn build_request(
-        &self,
-        req: &RefreshTokenRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        let req = Some(
-            RequestBuilder::new()
-                .method(Method::Post)
-                .attach_default_headers()
-                .headers(types::RefreshTokenType::get_headers(self, req, connectors)?)
-                .url(&types::RefreshTokenType::get_url(self, req, connectors)?)
-                .set_body(types::RefreshTokenType::get_request_body(
-                    self, req, connectors,
-                )?)
-                .build(),
-        );
-
-        Ok(req)
-    }
-
-    fn handle_response(
-        &self,
-        data: &RefreshTokenRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<RefreshTokenRouterData, errors::ConnectorError> {
-        let response: flexiti::FlexitiAccessTokenResponse = res
-            .response
-            .parse_struct("FlexitiAccessTokenResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
-}
-
-impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Flexiti {
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Katapult {
     //TODO: implement sessions flow
 }
 
-impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Flexiti {}
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Katapult {}
 
-impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Flexiti {
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
+    for Katapult
+{
+}
+
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Katapult {
     fn get_headers(
         &self,
         req: &PaymentsAuthorizeRouterData,
@@ -321,15 +209,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
     fn get_url(
         &self,
-        req: &PaymentsAuthorizeRouterData,
-        connectors: &Connectors,
+        _req: &PaymentsAuthorizeRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let auth_details = flexiti::FlexitiAuthType::try_from(&req.connector_auth_type)?;
-        Ok(format!(
-            "{}online/v2/client-id/{:?}/systems/init",
-            self.base_url(connectors),
-            auth_details.client_id.peek()
-        ))
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn get_request_body(
@@ -343,8 +226,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             req.request.currency,
         )?;
 
-        let connector_router_data = flexiti::FlexitiRouterData::from((amount, req));
-        let connector_req = flexiti::FlexitiPaymentsRequest::try_from(&connector_router_data)?;
+        let connector_router_data = katapult::KatapultRouterData::from((amount, req));
+        let connector_req = katapult::KatapultPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -376,9 +259,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: flexiti::FlexitiPaymentsResponse = res
+        let response: katapult::KatapultPaymentsResponse = res
             .response
-            .parse_struct("Flexiti PaymentsAuthorizeResponse")
+            .parse_struct("Katapult PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -398,7 +281,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     }
 }
 
-impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Flexiti {
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Katapult {
     fn get_headers(
         &self,
         req: &PaymentsSyncRouterData,
@@ -413,21 +296,10 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Fle
 
     fn get_url(
         &self,
-        req: &PaymentsSyncRouterData,
-        connectors: &Connectors,
+        _req: &PaymentsSyncRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let auth_details = flexiti::FlexitiAuthType::try_from(&req.connector_auth_type.to_owned())?;
-        let order_id = req
-            .request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(format!(
-            "{}online/client-id/{}/notifications/order-id/{}",
-            self.base_url(connectors),
-            auth_details.client_id.peek(),
-            order_id
-        ))
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn build_request(
@@ -451,9 +323,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Fle
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: flexiti::FlexitiSyncResponse = res
+        let response: katapult::KatapultPaymentsResponse = res
             .response
-            .parse_struct("flexiti FlexitiSyncResponse")
+            .parse_struct("katapult PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -473,7 +345,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Fle
     }
 }
 
-impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Flexiti {
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Katapult {
     fn get_headers(
         &self,
         req: &PaymentsCaptureRouterData,
@@ -528,9 +400,9 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: flexiti::FlexitiPaymentsResponse = res
+        let response: katapult::KatapultPaymentsResponse = res
             .response
-            .parse_struct("Flexiti PaymentsCaptureResponse")
+            .parse_struct("Katapult PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -550,9 +422,9 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     }
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Flexiti {}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Katapult {}
 
-impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Flexiti {
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Katapult {
     fn get_headers(
         &self,
         req: &RefundsRouterData<Execute>,
@@ -584,8 +456,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Flexiti
             req.request.currency,
         )?;
 
-        let connector_router_data = flexiti::FlexitiRouterData::from((refund_amount, req));
-        let connector_req = flexiti::FlexitiRefundRequest::try_from(&connector_router_data)?;
+        let connector_router_data = katapult::KatapultRouterData::from((refund_amount, req));
+        let connector_req = katapult::KatapultRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -614,9 +486,9 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Flexiti
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: flexiti::RefundResponse = res
+        let response: katapult::RefundResponse = res
             .response
-            .parse_struct("flexiti RefundResponse")
+            .parse_struct("katapult RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -636,7 +508,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Flexiti
     }
 }
 
-impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Flexiti {
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Katapult {
     fn get_headers(
         &self,
         req: &RefundSyncRouterData,
@@ -681,9 +553,9 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Flexiti {
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: flexiti::RefundResponse = res
+        let response: katapult::RefundResponse = res
             .response
-            .parse_struct("flexiti RefundSyncResponse")
+            .parse_struct("katapult RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -704,7 +576,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Flexiti {
 }
 
 #[async_trait::async_trait]
-impl webhooks::IncomingWebhook for Flexiti {
+impl webhooks::IncomingWebhook for Katapult {
     fn get_webhook_object_reference_id(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
@@ -727,43 +599,27 @@ impl webhooks::IncomingWebhook for Flexiti {
     }
 }
 
-static FLEXITI_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
-    let supported_capture_methods = vec![enums::CaptureMethod::Manual];
-    let mut flexiti_supported_payment_methods = SupportedPaymentMethods::new();
+static KATAPULT_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(SupportedPaymentMethods::new);
 
-    flexiti_supported_payment_methods.add(
-        enums::PaymentMethod::PayLater,
-        enums::PaymentMethodType::Klarna,
-        PaymentMethodDetails {
-            mandates: enums::FeatureStatus::NotSupported,
-            refunds: enums::FeatureStatus::NotSupported,
-            supported_capture_methods,
-            specific_features: None,
-        },
-    );
-
-    flexiti_supported_payment_methods
-});
-
-static FLEXITI_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-    display_name: "Flexiti",
-    description: "Flexiti connector",
-    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
-    integration_status: enums::ConnectorIntegrationStatus::Alpha,
+static KATAPULT_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Katapult",
+    description: "Katapult connector",
+    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
 };
 
-static FLEXITI_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+static KATAPULT_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
-impl ConnectorSpecifications for Flexiti {
+impl ConnectorSpecifications for Katapult {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&FLEXITI_CONNECTOR_INFO)
+        Some(&KATAPULT_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
-        Some(&*FLEXITI_SUPPORTED_PAYMENT_METHODS)
+        Some(&*KATAPULT_SUPPORTED_PAYMENT_METHODS)
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&FLEXITI_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&KATAPULT_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
