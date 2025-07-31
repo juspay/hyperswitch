@@ -4601,7 +4601,11 @@ pub async fn get_additional_payment_data(
             let enable_extended_bin =db
             .find_config_by_key_unwrap_or(
                 format!("{}_enable_extended_card_bin", profile_id.get_string_repr()).as_str(),
-             Some("false".to_string()))
+                Some("false".to_string()),
+                None,
+                None,
+                None,
+            )
             .await.map_err(|err| services::logger::error!(message="Failed to fetch the config", extended_card_bin_error=?err)).ok();
 
             let card_extended_bin = match enable_extended_bin {
@@ -4913,7 +4917,11 @@ pub async fn get_additional_payment_data(
             let enable_extended_bin =db
             .find_config_by_key_unwrap_or(
                 format!("{}_enable_extended_card_bin", profile_id.get_string_repr()).as_str(),
-             Some("false".to_string()))
+             Some("false".to_string()),
+                None,
+                None,
+                None,
+            )
             .await.map_err(|err| services::logger::error!(message="Failed to fetch the config", extended_card_bin_error=?err)).ok();
 
             let card_extended_bin = match enable_extended_bin {
@@ -6854,6 +6862,9 @@ pub async fn config_skip_saving_wallet_at_connector(
         .find_config_by_key_unwrap_or(
             &merchant_id.get_skip_saving_wallet_at_connector_key(),
             Some("[]".to_string()),
+            None,
+            None,
+            None,
         )
         .await;
     Ok(match config {
@@ -7202,6 +7213,9 @@ pub async fn is_merchant_eligible_authentication_service(
         .find_config_by_key_unwrap_or(
             consts::AUTHENTICATION_SERVICE_ELIGIBLE_CONFIG,
             Some("[]".to_string()),
+                None,
+                None,
+                None,
         )
         .await;
 

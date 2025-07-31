@@ -1056,6 +1056,9 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                     .clone(),
                             ),
                             Some(default_config_str),
+                            None,
+                            None,
+                            None,
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1349,6 +1352,9 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                 updated_authentication.authentication_connector.clone(),
                             ),
                             Some(default_config_str),
+                            None,
+                            None,
+                            None,
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)

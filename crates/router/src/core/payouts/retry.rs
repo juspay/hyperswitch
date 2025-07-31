@@ -321,7 +321,7 @@ pub async fn config_should_call_gsm_payout(
 ) -> bool {
     let key = merchant_id.get_should_call_gsm_payout_key(retry_type);
     let config = db
-        .find_config_by_key_unwrap_or(key.as_str(), Some("false".to_string()))
+        .find_config_by_key_unwrap_or(key.as_str(), Some("false".to_string()), None, None, None)
         .await;
     match config {
         Ok(conf) => conf.config == "true",

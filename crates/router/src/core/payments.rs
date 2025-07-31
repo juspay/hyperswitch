@@ -3291,6 +3291,9 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             .find_config_by_key_unwrap_or(
                 &router_types::PollConfig::get_poll_config_key(connector),
                 Some(default_config_str),
+                None,
+                None,
+                None,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4460,7 +4463,13 @@ where
     let blocklist_enabled_key = merchant_id.get_blocklist_guard_key();
     let blocklist_guard_enabled = state
         .store
-        .find_config_by_key_unwrap_or(&blocklist_enabled_key, Some("false".to_string()))
+        .find_config_by_key_unwrap_or(
+            &blocklist_enabled_key,
+            Some("false".to_string()),
+            None,
+            None,
+            None,
+        )
         .await;
 
     let blocklist_guard_enabled: bool = match blocklist_guard_enabled {

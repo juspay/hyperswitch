@@ -5174,7 +5174,7 @@ async fn get_requires_cvv_config(
         .get_requires_cvv_key();
     let is_requires_cvv = state
         .store
-        .find_config_by_key_unwrap_or(&key, Some("true".to_string()))
+        .find_config_by_key_unwrap_or(&key, Some("true".to_string()), None, None, None)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 

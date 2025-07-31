@@ -1,5 +1,6 @@
 use diesel_models::configs::ConfigUpdateInternal;
 use error_stack::report;
+use open_feature::EvaluationContext;
 use router_env::{instrument, tracing};
 use storage_impl::redis::cache::{self, CacheKind, CONFIG_CACHE};
 
@@ -9,6 +10,7 @@ use crate::{
     core::errors::{self, CustomResult},
     db::StorageInterface,
     types::storage,
+    routes::SessionState,
 };
 
 #[async_trait::async_trait]
@@ -28,6 +30,9 @@ pub trait ConfigInterface {
         key: &str,
         // If the config is not found it will be created with the default value.
         default_config: Option<String>,
+        superposition_context: Option<&EvaluationContext>,
+        flag_key: Option<&str>,
+        state: Option<&SessionState>,
     ) -> CustomResult<storage::Config, errors::StorageError>;
 
     async fn find_config_by_key_from_db(
@@ -132,7 +137,11 @@ impl ConfigInterface for Store {
         key: &str,
         // If the config is not found it will be cached with the default value.
         default_config: Option<String>,
+        superposition_context: Option<&EvaluationContext>,
+        flag_key: Option<&str>,
+        state: Option<&SessionState>,
     ) -> CustomResult<storage::Config, errors::StorageError> {
+
         let find_else_unwrap_or = || async {
             let conn = connection::pg_connection_write(self).await?;
             match storage::Config::find_by_key(&conn, key)
@@ -264,6 +273,9 @@ impl ConfigInterface for MockDb {
         &self,
         key: &str,
         _default_config: Option<String>,
+        superposition_context: Option<&EvaluationContext>,
+        flag_key: Option<&str>,
+        state: Option<&SessionState>,
     ) -> CustomResult<storage::Config, errors::StorageError> {
         self.find_config_by_key(key).await
     }
