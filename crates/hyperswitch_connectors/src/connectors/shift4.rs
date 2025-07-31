@@ -1003,6 +1003,28 @@ lazy_static! {
         );
 
         shift4_supported_payment_methods.add(
+            enums::PaymentMethod::Wallet,
+            enums::PaymentMethodType::Paysera,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods2.clone(),
+                specific_features: None,
+            },
+        );
+
+        shift4_supported_payment_methods.add(
+            enums::PaymentMethod::Wallet,
+            enums::PaymentMethodType::Skrill,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods2.clone(),
+                specific_features: None,
+            },
+        );
+
+        shift4_supported_payment_methods.add(
             enums::PaymentMethod::PayLater,
             enums::PaymentMethodType::Klarna,
             PaymentMethodDetails {

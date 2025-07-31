@@ -1060,7 +1060,7 @@ pub async fn get_gsm_record(
     error_message: Option<String>,
     connector_name: Option<String>,
     flow: &str,
-) -> Option<storage::gsm::GatewayStatusMap> {
+) -> Option<hyperswitch_domain_models::gsm::GatewayStatusMap> {
     let connector_name = connector_name.unwrap_or_default();
     let get_gsm = || async {
         state.store.find_gsm_rule(

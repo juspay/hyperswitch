@@ -55,7 +55,9 @@ pub enum PayLaterType {
     Klarna,
     PayBright,
     Walley,
+    Flexiti,
     Atome,
+    Breadpay,
 }
 
 #[derive(
@@ -76,6 +78,8 @@ pub enum PayLaterType {
 pub enum WalletType {
     GooglePay,
     AmazonPay,
+    Skrill,
+    Paysera,
     ApplePay,
     Paypal,
     AliPay,
@@ -221,6 +225,7 @@ pub enum BankTransferType {
     InstantBankTransfer,
     InstantBankTransferFinland,
     InstantBankTransferPoland,
+    IndonesianBankTransfer,
 }
 
 #[derive(
