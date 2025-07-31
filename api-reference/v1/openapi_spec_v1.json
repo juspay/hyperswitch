@@ -19719,13 +19719,38 @@
         }
       },
       "PaymentChannel": {
-        "type": "string",
-        "description": "Describes the channel through which the payment was initiated.",
-        "enum": [
-          "ecommerce",
-          "mail_order",
-          "telephone_order"
-        ]
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "ecommerce"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "mail_order"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "telephone_order"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "other"
+            ],
+            "properties": {
+              "other": {
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "description": "Describes the channel through which the payment was initiated."
       },
       "PaymentChargeType": {
         "oneOf": [
