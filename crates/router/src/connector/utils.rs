@@ -2195,7 +2195,8 @@ impl FrmTransactionRouterDataRequest for fraud_check::FrmTransactionRouterData {
             | storage_enums::AttemptStatus::Voided
             | storage_enums::AttemptStatus::CaptureFailed
             | storage_enums::AttemptStatus::Failure
-            | storage_enums::AttemptStatus::AutoRefunded => Some(false),
+            | storage_enums::AttemptStatus::AutoRefunded
+            | storage_enums::AttemptStatus::Expired => Some(false),
 
             storage_enums::AttemptStatus::AuthenticationSuccessful
             | storage_enums::AttemptStatus::PartialChargedAndChargeable
@@ -2226,7 +2227,8 @@ pub fn is_payment_failure(status: enums::AttemptStatus) -> bool {
         | common_enums::AttemptStatus::AuthorizationFailed
         | common_enums::AttemptStatus::CaptureFailed
         | common_enums::AttemptStatus::VoidFailed
-        | common_enums::AttemptStatus::Failure => true,
+        | common_enums::AttemptStatus::Failure
+        | common_enums::AttemptStatus::Expired => true,
         common_enums::AttemptStatus::Started
         | common_enums::AttemptStatus::RouterDeclined
         | common_enums::AttemptStatus::AuthenticationPending
@@ -2461,6 +2463,7 @@ pub enum PaymentMethodDataType {
     AlmaRedirect,
     AtomeRedirect,
     BreadpayRedirect,
+    FlexitiRedirect,
     BancontactCard,
     Bizum,
     Blik,
@@ -2595,6 +2598,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                 domain::payments::PayLaterData::PayBrightRedirect {} => Self::PayBrightRedirect,
                 domain::payments::PayLaterData::WalleyRedirect {} => Self::WalleyRedirect,
                 domain::payments::PayLaterData::AlmaRedirect {} => Self::AlmaRedirect,
+                domain::payments::PayLaterData::FlexitiRedirect {} => Self::FlexitiRedirect,
                 domain::payments::PayLaterData::AtomeRedirect {} => Self::AtomeRedirect,
                 domain::payments::PayLaterData::BreadpayRedirect {} => Self::BreadpayRedirect,
             },

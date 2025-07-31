@@ -150,6 +150,7 @@ impl RecoveryAction {
             | webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationFailure
             | webhooks::IncomingWebhookEvent::PaymentIntentCaptureSuccess
             | webhooks::IncomingWebhookEvent::PaymentIntentCaptureFailure
+            | webhooks::IncomingWebhookEvent::PaymentIntentExpired
             | webhooks::IncomingWebhookEvent::PaymentActionRequired
             | webhooks::IncomingWebhookEvent::EventNotSupported
             | webhooks::IncomingWebhookEvent::SourceChargeable

@@ -2000,6 +2000,76 @@ placeholder = "Enter Terminal ID"
 required = true
 type = "Text"
 
+[[fiserv.metadata.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[fiserv.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[fiserv.metadata.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
+[[fiserv.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+[[fiserv.connector_wallets_details.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[fiserv.connector_wallets_details.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[fiserv.connector_wallets_details.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
+[[fiserv.connector_wallets_details.google_pay]]
+name="public_key"
+label="Google Pay Public Key"
+placeholder="Enter Google Pay Public Key"
+required=true
+type="Text"
+[[fiserv.connector_wallets_details.google_pay]]
+name="private_key"
+label="Google Pay Private Key"
+placeholder="Enter Google Pay Private Key"
+required=true
+type="Text"
+[[fiserv.connector_wallets_details.google_pay]]
+name="recipient_id"
+label="Recipient Id"
+placeholder="Enter Recipient Id"
+required=true
+type="Text"
+[[fiserv.connector_wallets_details.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
 [fiservemea]
 [[fiservemea.credit]]
 payment_method_type = "Mastercard"
@@ -6069,8 +6139,8 @@ key1 = "Username"
 
 [facilitapay.metadata.destination_account_number]
 name="destination_account_number"
-label="Destination Account Number"
-placeholder="Enter Destination Account Number"
+label="Merchant Account Number"
+placeholder="Enter Merchant's (to_bank_account_id) Account Number"
 required=true
 type="Text"
 
@@ -6326,7 +6396,12 @@ payment_method_type = "Discover"
 payment_method_type = "Mastercard"
 [[payload.debit]]
 payment_method_type = "Visa"
-[payload.connector_auth.HeaderKey]
+
+[payload.connector_auth.CurrencyAuthKey.auth_key_map.USD]
+processing_account_id = "processing_account_id"
+api_key = "API Key"
+[payload.connector_auth.CurrencyAuthKey.auth_key_map.CAD]
+processing_account_id = "processing_account_id"
 api_key = "API Key"
 
 [silverflow]
@@ -6361,11 +6436,26 @@ api_key = "API Key"
 [breadpay.connector_auth.BodyKey]
 api_key = "API Key"
 key1 = "API Secret"
-
-[flexiti]
-[flexiti.connector_auth.HeaderKey]
-api_key = "API Key"
+[[breadpay.pay_later]]
+payment_method_type = "breadpay"
+payment_experience = "redirect_to_url"
 
 [mpgs]
 [mpgs.connector_auth.HeaderKey]
 api_key = "API Key"
+
+[bluecode]
+[bluecode.connector_auth.HeaderKey]
+api_key = "API Key"
+
+[katapult]
+[katapult.connector_auth.HeaderKey]
+api_key = "API Key"
+
+[flexiti]
+[flexiti.connector_auth.BodyKey]
+api_key = "Client id"
+key1 = "Client secret"
+[[flexiti.pay_later]]
+payment_method_type = "flexiti"
+payment_experience = "redirect_to_url"
