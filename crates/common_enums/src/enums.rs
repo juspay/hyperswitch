@@ -1921,6 +1921,7 @@ pub enum PaymentMethodType {
     Efecty,
     Eft,
     Eps,
+    Flexiti,
     Fps,
     Evoucher,
     Giropay,
@@ -2041,6 +2042,7 @@ impl PaymentMethodType {
             Self::Efecty => "Efecty",
             Self::Eft => "EFT",
             Self::Eps => "EPS",
+            Self::Flexiti => "Flexiti",
             Self::Fps => "FPS",
             Self::Evoucher => "Evoucher",
             Self::Giropay => "Giropay",
@@ -7504,6 +7506,15 @@ pub enum TransactionStatus {
     /// Informational Only; 3DS Requestor challenge preference acknowledged.
     #[serde(rename = "I")]
     InformationOnly,
+}
+
+impl TransactionStatus {
+    pub fn is_pending(self) -> bool {
+        matches!(
+            self,
+            Self::ChallengeRequired | Self::ChallengeRequiredDecoupledAuthentication
+        )
+    }
 }
 
 #[derive(
