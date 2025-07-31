@@ -5083,6 +5083,7 @@ payment_experience = "redirect_to_url"
 [mpgs]
 [mpgs.connector_auth.HeaderKey]
 api_key = "API Key"
+
 [bluecode]
 [bluecode.connector_auth.HeaderKey]
 api_key = "API Key"
