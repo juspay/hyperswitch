@@ -5065,7 +5065,7 @@ api_key = "API Key"
 api_key = "API Key"
 
 [flexiti]
-[flexiti.connector_auth.bodykey]
+[flexiti.connector_auth.BodyKey]
 api_key = "Client id"
 key1 = "Client secret"
 [[flexiti.pay_later]]
@@ -5076,6 +5076,9 @@ payment_experience = "redirect_to_url"
 [breadpay.connector_auth.BodyKey]
 api_key = "API Key"
 key1 = "API Secret"
+[[breadpay.pay_later]]
+payment_method_type = "breadpay"
+payment_experience = "redirect_to_url"
 
 [phonepe]
 [[phonepe.upi]]
@@ -5102,4 +5105,8 @@ key1="merchant_id"
 api_key = "API Key"
 [bluecode]
 [bluecode.connector_auth.HeaderKey]
+api_key = "API Key"
+
+[katapult]
+[katapult.connector_auth.HeaderKey]
 api_key = "API Key"

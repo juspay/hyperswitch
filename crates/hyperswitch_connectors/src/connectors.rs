@@ -58,6 +58,7 @@ pub mod inespay;
 pub mod itaubank;
 pub mod jpmorgan;
 pub mod juspaythreedsserver;
+pub mod katapult;
 pub mod klarna;
 pub mod mifinity;
 pub mod mollie;
@@ -139,12 +140,13 @@ pub use self::{
     fiuu::Fiuu, flexiti::Flexiti, forte::Forte, getnet::Getnet, globalpay::Globalpay,
     globepay::Globepay, gocardless::Gocardless, gpayments::Gpayments, helcim::Helcim, hipay::Hipay,
     hyperswitch_vault::HyperswitchVault, iatapay::Iatapay, inespay::Inespay, itaubank::Itaubank,
-    jpmorgan::Jpmorgan, juspaythreedsserver::Juspaythreedsserver, klarna::Klarna,
-    mifinity::Mifinity, mollie::Mollie, moneris::Moneris, mpgs::Mpgs, multisafepay::Multisafepay,
-    netcetera::Netcetera, nexinets::Nexinets, nexixpay::Nexixpay, nmi::Nmi, nomupay::Nomupay,
-    noon::Noon, nordea::Nordea, novalnet::Novalnet, nuvei::Nuvei, opayo::Opayo, opennode::Opennode,
-    paybox::Paybox, payeezy::Payeezy, payload::Payload, payme::Payme, payone::Payone,
-    paypal::Paypal, paystack::Paystack, paytm::Paytm, payu::Payu, phonepe::Phonepe,
+    jpmorgan::Jpmorgan, juspaythreedsserver::Juspaythreedsserver, katapult::Katapult,
+    klarna::Klarna, mifinity::Mifinity, mollie::Mollie, moneris::Moneris, mpgs::Mpgs,
+    multisafepay::Multisafepay, netcetera::Netcetera, nexinets::Nexinets, nexixpay::Nexixpay,
+    nmi::Nmi, nomupay::Nomupay, noon::Noon, nordea::Nordea, novalnet::Novalnet, nuvei::Nuvei,
+    opayo::Opayo, opennode::Opennode, paybox::Paybox, payeezy::Payeezy, payload::Payload,
+    payme::Payme, payone::Payone, paypal::Paypal, paystack::Paystack, paytm::Paytm, payu::Payu,
+    phonepe::Phonepe,
     placetopay::Placetopay, plaid::Plaid, powertranz::Powertranz, prophetpay::Prophetpay,
     rapyd::Rapyd, razorpay::Razorpay, recurly::Recurly, redsys::Redsys, riskified::Riskified,
     santander::Santander, shift4::Shift4, signifyd::Signifyd, silverflow::Silverflow,
