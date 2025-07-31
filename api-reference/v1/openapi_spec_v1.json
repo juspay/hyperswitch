@@ -7081,19 +7081,19 @@
       "AcquirerDetails": {
         "type": "object",
         "properties": {
-          "bin": {
+          "acquirer_bin": {
             "type": "string",
             "description": "The bin of the card.",
             "example": "123456",
             "nullable": true
           },
-          "merchant_id": {
+          "acquirer_merchant_id": {
             "type": "string",
             "description": "The merchant id of the card.",
             "example": "merchant_abc",
             "nullable": true
           },
-          "country_code": {
+          "merchant_country_code": {
             "type": "string",
             "description": "The country code of the card.",
             "example": "US/34456",
@@ -7884,8 +7884,7 @@
         "type": "object",
         "required": [
           "amount",
-          "currency",
-          "profile_acquirer_id"
+          "currency"
         ],
         "properties": {
           "authentication_id": {
@@ -7927,14 +7926,6 @@
             "example": "https://example.com/redirect",
             "nullable": true
           },
-          "acquirer_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/AcquirerDetails"
-              }
-            ],
-            "nullable": true
-          },
           "force_3ds_challenge": {
             "type": "boolean",
             "description": "Force 3DS challenge.",
@@ -7950,7 +7941,16 @@
           },
           "profile_acquirer_id": {
             "type": "string",
-            "description": "Profile Acquirer ID get from profile acquirer configuration"
+            "description": "Profile Acquirer ID get from profile acquirer configuration",
+            "nullable": true
+          },
+          "acquirer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AcquirerDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -8090,6 +8090,14 @@
             "type": "string",
             "description": "Email",
             "nullable": true
+          },
+          "acquirer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AcquirerDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -8100,8 +8108,7 @@
           "merchant_id",
           "status",
           "amount",
-          "currency",
-          "profile_acquirer_id"
+          "currency"
         ],
         "properties": {
           "authentication_id": {
@@ -8187,7 +8194,8 @@
           },
           "profile_acquirer_id": {
             "type": "string",
-            "description": "Profile Acquirer ID get from profile acquirer configuration"
+            "description": "Profile Acquirer ID get from profile acquirer configuration",
+            "nullable": true
           }
         }
       },
@@ -8199,6 +8207,235 @@
           "success",
           "failed"
         ]
+      },
+      "AuthenticationSyncRequest": {
+        "type": "object",
+        "required": [
+          "client_secret"
+        ],
+        "properties": {
+          "client_secret": {
+            "type": "string",
+            "description": "The client secret for this authentication."
+          }
+        }
+      },
+      "AuthenticationSyncResponse": {
+        "type": "object",
+        "required": [
+          "authentication_id",
+          "merchant_id",
+          "status",
+          "amount",
+          "currency",
+          "created_at",
+          "profile_id"
+        ],
+        "properties": {
+          "authentication_id": {
+            "type": "string",
+            "description": "The unique identifier for this authentication.",
+            "example": "auth_mbabizu24mvu3mela5njyhpit4"
+          },
+          "merchant_id": {
+            "type": "string",
+            "description": "This is an identifier for the merchant account.",
+            "example": "merchant_abc"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AuthenticationStatus"
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "The client secret for this authentication.",
+            "nullable": true
+          },
+          "amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "authentication_connector": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationConnectors"
+              }
+            ],
+            "nullable": true
+          },
+          "force_3ds_challenge": {
+            "type": "boolean",
+            "description": "Whether 3DS challenge was forced.",
+            "nullable": true
+          },
+          "return_url": {
+            "type": "string",
+            "description": "The URL to which the user should be redirected after authentication.",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2022-09-10T10:11:12Z"
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile that is associated with this authentication."
+          },
+          "psd2_sca_exemption_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ScaExemptionType"
+              }
+            ],
+            "nullable": true
+          },
+          "acquirer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AcquirerDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "threeds_server_transaction_id": {
+            "type": "string",
+            "description": "The unique identifier from the 3DS server.",
+            "nullable": true
+          },
+          "maximum_supported_3ds_version": {
+            "type": "string",
+            "description": "The maximum supported 3DS version.",
+            "nullable": true
+          },
+          "connector_authentication_id": {
+            "type": "string",
+            "description": "The unique identifier from the connector.",
+            "nullable": true
+          },
+          "three_ds_method_data": {
+            "type": "string",
+            "description": "The data required to perform the 3DS method.",
+            "nullable": true
+          },
+          "three_ds_method_url": {
+            "type": "string",
+            "description": "The URL for the 3DS method.",
+            "nullable": true
+          },
+          "message_version": {
+            "type": "string",
+            "description": "The version of the message.",
+            "nullable": true
+          },
+          "connector_metadata": {
+            "description": "The metadata for this authentication.",
+            "nullable": true
+          },
+          "directory_server_id": {
+            "type": "string",
+            "description": "The unique identifier for the directory server.",
+            "nullable": true
+          },
+          "billing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "shipping": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "browser_information": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "description": "Email.",
+            "nullable": true
+          },
+          "trans_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TransactionStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "acs_url": {
+            "type": "string",
+            "description": "Access Server URL for challenge submission.",
+            "nullable": true
+          },
+          "challenge_request": {
+            "type": "string",
+            "description": "Challenge request to be sent to acs_url.",
+            "nullable": true
+          },
+          "acs_reference_number": {
+            "type": "string",
+            "description": "Unique identifier assigned by EMVCo.",
+            "nullable": true
+          },
+          "acs_trans_id": {
+            "type": "string",
+            "description": "Unique identifier assigned by the ACS.",
+            "nullable": true
+          },
+          "acs_signed_content": {
+            "type": "string",
+            "description": "JWS object created by the ACS for the ARes message.",
+            "nullable": true
+          },
+          "three_ds_requestor_url": {
+            "type": "string",
+            "description": "Three DS Requestor URL.",
+            "nullable": true
+          },
+          "three_ds_requestor_app_url": {
+            "type": "string",
+            "description": "Merchant app URL for OOB authentication.",
+            "nullable": true
+          },
+          "authentication_value": {
+            "type": "string",
+            "description": "The authentication value for this authentication, only available in case of server to server request. Unavailable in case of client request due to security concern.",
+            "nullable": true
+          },
+          "eci": {
+            "type": "string",
+            "description": "ECI value for this authentication, only available in case of server to server request. Unavailable in case of client request due to security concern.",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "description": "Error message if any.",
+            "nullable": true
+          },
+          "error_code": {
+            "type": "string",
+            "description": "Error code if any.",
+            "nullable": true
+          },
+          "profile_acquirer_id": {
+            "type": "string",
+            "description": "Profile Acquirer ID",
+            "nullable": true
+          }
+        }
       },
       "AuthenticationType": {
         "type": "string",
@@ -15763,7 +16000,8 @@
           },
           "step_up_possible": {
             "type": "boolean",
-            "description": "indicates if step_up retry is possible"
+            "description": "indicates if step_up retry is possible\n**Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.",
+            "deprecated": true
           },
           "unified_code": {
             "type": "string",
@@ -15785,7 +16023,24 @@
           },
           "clear_pan_possible": {
             "type": "boolean",
-            "description": "indicates if retry with pan is possible"
+            "description": "indicates if retry with pan is possible\n**Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.",
+            "deprecated": true
+          },
+          "feature": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GsmFeature"
+              }
+            ],
+            "nullable": true
+          },
+          "feature_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GsmFeatureData"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -15793,7 +16048,6 @@
         "type": "string",
         "enum": [
           "retry",
-          "requeue",
           "do_default"
         ]
       },
@@ -15860,6 +16114,28 @@
           }
         }
       },
+      "GsmFeature": {
+        "type": "string",
+        "enum": [
+          "retry"
+        ]
+      },
+      "GsmFeatureData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "retry"
+            ],
+            "properties": {
+              "retry": {
+                "$ref": "#/components/schemas/RetryFeatureData"
+              }
+            }
+          }
+        ],
+        "description": "Contains the data relevant to the specified GSM feature, if applicable.\nFor example, if the `feature` is `Retry`, this will include configuration\ndetails specific to the retry behavior."
+      },
       "GsmResponse": {
         "type": "object",
         "required": [
@@ -15871,7 +16147,9 @@
           "status",
           "decision",
           "step_up_possible",
-          "clear_pan_possible"
+          "clear_pan_possible",
+          "feature",
+          "feature_data"
         ],
         "properties": {
           "connector": {
@@ -15904,12 +16182,12 @@
             "nullable": true
           },
           "decision": {
-            "type": "string",
-            "description": "decision to be taken for auto retries flow"
+            "$ref": "#/components/schemas/GsmDecision"
           },
           "step_up_possible": {
             "type": "boolean",
-            "description": "indicates if step_up retry is possible"
+            "description": "indicates if step_up retry is possible\n**Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.",
+            "deprecated": true
           },
           "unified_code": {
             "type": "string",
@@ -15931,7 +16209,14 @@
           },
           "clear_pan_possible": {
             "type": "boolean",
-            "description": "indicates if retry with pan is possible"
+            "description": "indicates if retry with pan is possible\n**Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.",
+            "deprecated": true
+          },
+          "feature": {
+            "$ref": "#/components/schemas/GsmFeature"
+          },
+          "feature_data": {
+            "$ref": "#/components/schemas/GsmFeatureData"
           }
         }
       },
@@ -16016,7 +16301,8 @@
           },
           "step_up_possible": {
             "type": "boolean",
-            "description": "indicates if step_up retry is possible",
+            "description": "indicates if step_up retry is possible\n**Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.",
+            "deprecated": true,
             "nullable": true
           },
           "unified_code": {
@@ -16039,7 +16325,24 @@
           },
           "clear_pan_possible": {
             "type": "boolean",
-            "description": "indicates if retry with pan is possible",
+            "description": "indicates if retry with pan is possible\n**Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.",
+            "deprecated": true,
+            "nullable": true
+          },
+          "feature": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GsmFeature"
+              }
+            ],
+            "nullable": true
+          },
+          "feature_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GsmFeatureData"
+              }
+            ],
             "nullable": true
           }
         }
@@ -28852,6 +29155,33 @@
           "manual_retry",
           "requeue"
         ]
+      },
+      "RetryFeatureData": {
+        "type": "object",
+        "description": "Represents the data associated with a retry feature in GSM.",
+        "required": [
+          "step_up_possible",
+          "clear_pan_possible",
+          "alternate_network_possible",
+          "decision"
+        ],
+        "properties": {
+          "step_up_possible": {
+            "type": "boolean",
+            "description": "indicates if step_up retry is possible"
+          },
+          "clear_pan_possible": {
+            "type": "boolean",
+            "description": "indicates if retry with pan is possible"
+          },
+          "alternate_network_possible": {
+            "type": "boolean",
+            "description": "indicates if retry with alternate network possible"
+          },
+          "decision": {
+            "$ref": "#/components/schemas/GsmDecision"
+          }
+        }
       },
       "RevokeApiKeyResponse": {
         "type": "object",

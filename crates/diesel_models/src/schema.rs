@@ -595,6 +595,9 @@ diesel::table! {
         #[max_length = 64]
         error_category -> Nullable<Varchar>,
         clear_pan_possible -> Bool,
+        feature_data -> Nullable<Jsonb>,
+        #[max_length = 64]
+        feature -> Nullable<Varchar>,
     }
 }
 
