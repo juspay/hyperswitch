@@ -4725,8 +4725,8 @@ key1 = "Username"
 
 [facilitapay.metadata.destination_account_number]
 name="destination_account_number"
-label="Destination Account Number"
-placeholder="Enter Destination Account Number"
+label="Merchant Account Number"
+placeholder="Enter Merchant's (to_bank_account_id) Account Number"
 required=true
 type="Text"
 
@@ -5028,7 +5028,12 @@ payment_method_type = "Discover"
 payment_method_type = "Mastercard"
 [[payload.debit]]
 payment_method_type = "Visa"
-[payload.connector_auth.HeaderKey]
+
+[payload.connector_auth.CurrencyAuthKey.auth_key_map.USD]
+processing_account_id = "processing_account_id"
+api_key = "API Key"
+[payload.connector_auth.CurrencyAuthKey.auth_key_map.CAD]
+processing_account_id = "processing_account_id"
 api_key = "API Key"
 
 [silverflow]

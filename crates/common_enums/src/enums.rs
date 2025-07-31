@@ -7508,6 +7508,15 @@ pub enum TransactionStatus {
     InformationOnly,
 }
 
+impl TransactionStatus {
+    pub fn is_pending(self) -> bool {
+        matches!(
+            self,
+            Self::ChallengeRequired | Self::ChallengeRequiredDecoupledAuthentication
+        )
+    }
+}
+
 #[derive(
     Clone,
     Copy,
