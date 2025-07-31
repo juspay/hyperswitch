@@ -2130,18 +2130,8 @@ impl Profile {
                 web::scope("/{profile_id}/dynamic_routing")
                     .service(
                         web::scope("/success_based")
-                            .service(web::resource("/toggle").route(web::post().to(
-                                |state, req, path, query| {
-                                    routing::toggle_success_based_routing(state, req, query, path)
-                                },
-                            )))
-                            .service(web::resource("/create").route(web::post().to(
-                                |state, req, path, payload, query| {
-                                    routing::create_success_based_routing(
-                                        state, req, query, path, payload,
-                                    )
-                                },
-                            )))
+                            .service(web::resource("/toggle").route(web::post().to(routing::toggle_success_based_routing),
+                            .service(web::resource("/create").route(web::post().to(routing:: create_success_based_routing)
                             .service(web::resource("/config/{algorithm_id}").route(
                                 web::patch().to(|state, req, path, payload| {
                                     routing::success_based_routing_update_configs(
