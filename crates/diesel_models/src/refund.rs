@@ -13,8 +13,7 @@ use crate::schema::refund;
 use crate::schema_v2::refund;
 #[cfg(feature = "v2")]
 use crate::RequiredFromNullable;
-#[cfg(feature = "v2")]
-crate::impl_from_required_from_nullable!(id_type::RefundReferenceId);
+
 #[cfg(feature = "v1")]
 #[derive(
     Clone,

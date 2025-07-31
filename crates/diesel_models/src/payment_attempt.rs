@@ -16,11 +16,7 @@ use crate::enums as storage_enums;
 use crate::schema::payment_attempt;
 #[cfg(feature = "v2")]
 use crate::schema_v2::payment_attempt;
-crate::impl_from_required_from_nullable!(
-    storage_enums::AuthenticationType,
-    MinorUnit,
-    storage_enums::PaymentMethod
-);
+
 common_utils::impl_to_sql_from_sql_json!(ConnectorMandateReferenceId);
 #[derive(
     Clone, Debug, serde::Deserialize, serde::Serialize, Eq, PartialEq, diesel::AsExpression,

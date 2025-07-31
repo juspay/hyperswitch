@@ -9,8 +9,7 @@ use crate::schema::customers;
 use crate::{
     diesel_impl::RequiredFromNullableWithDefault, enums::DeleteStatus, schema_v2::customers,
 };
-#[cfg(feature = "v2")]
-crate::impl_from_required_from_nullable_with_default!(DeleteStatus);
+
 #[cfg(feature = "v1")]
 #[derive(
     Clone, Debug, router_derive::DebugAsDisplay, serde::Deserialize, serde::Serialize, Insertable,

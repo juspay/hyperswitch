@@ -14,11 +14,7 @@ use crate::types::{FeatureMetadata, OrderDetailsWithAmount};
 #[cfg(feature = "v2")]
 use crate::RequiredFromNullable;
 use crate::{business_profile::PaymentLinkBackgroundImageConfig, enums as storage_enums};
-crate::impl_from_required_from_nullable!(
-    storage_enums::Currency,
-    common_utils::id_type::ProfileId,
-    PrimitiveDateTime
-);
+
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, PartialEq, Identifiable, Queryable, Serialize, Deserialize, Selectable)]
 #[diesel(table_name = payment_intent, primary_key(id), check_for_backend(diesel::pg::Pg))]
