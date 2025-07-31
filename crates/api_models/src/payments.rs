@@ -1010,6 +1010,7 @@ pub struct PaymentsRequest {
 
     #[schema(example = "bank_transfer")]
     #[serde(with = "payment_method_data_serde", default)]
+    #[smithy(value_type = "Option<PaymentMethodDataRequest>")]
     pub payment_method_data: Option<PaymentMethodDataRequest>,
 
     #[schema(value_type = Option<PaymentMethod>, example = "card")]
@@ -1960,46 +1961,58 @@ impl Default for MandateType {
     }
 }
 
-#[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct Card {
     /// The card number
     #[schema(value_type = String, example = "4242424242424242")]
+    #[smithy(value_type = "String")]
     pub card_number: CardNumber,
 
     /// The card's expiry month
     #[schema(value_type = String, example = "24")]
+    #[smithy(value_type = "String")]
     pub card_exp_month: Secret<String>,
 
     /// The card's expiry year
     #[schema(value_type = String, example = "24")]
+    #[smithy(value_type = "String")]
     pub card_exp_year: Secret<String>,
 
     /// The card holder's name
     #[schema(value_type = String, example = "John Test")]
+    #[smithy(value_type = "Option<String>")]
     pub card_holder_name: Option<Secret<String>>,
 
     /// The CVC number for the card
     #[schema(value_type = String, example = "242")]
+    #[smithy(value_type = "String")]
     pub card_cvc: Secret<String>,
 
     /// The name of the issuer of card
     #[schema(example = "chase")]
+    #[smithy(value_type = "Option<String>")]
     pub card_issuer: Option<String>,
 
     /// The card network for the card
     #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    #[smithy(value_type = "Option<CardNetwork>")]
     pub card_network: Option<api_enums::CardNetwork>,
 
     #[schema(example = "CREDIT")]
+    #[smithy(value_type = "Option<String>")]
     pub card_type: Option<String>,
 
     #[schema(example = "INDIA")]
+    #[smithy(value_type = "Option<String>")]
     pub card_issuing_country: Option<String>,
 
     #[schema(example = "JP_AMEX")]
+    #[smithy(value_type = "Option<String>")]
     pub bank_code: Option<String>,
     /// The card holder's nick name
     #[schema(value_type = Option<String>, example = "John Test")]
+    #[smithy(value_type = "Option<String>")]
     pub nick_name: Option<Secret<String>>,
 }
 
@@ -2543,12 +2556,14 @@ mod payment_method_data_serde {
 }
 
 /// The payment method information provided for making a payment
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PaymentMethodDataRequest {
     /// This field is optional because, in case of saved cards we pass the payment_token
     /// There might be cases where we don't need to pass the payment_method_data and pass only payment method billing details
     /// We have flattened it because to maintain backwards compatibility with the old API contract
     #[serde(flatten)]
+    #[smithy(value_type = "Option<PaymentMethodData>")]
     pub payment_method_data: Option<PaymentMethodData>,
     /// billing details for the payment method.
     /// This billing details will be passed to the processor as billing address.
@@ -2556,10 +2571,12 @@ pub struct PaymentMethodDataRequest {
     pub billing: Option<Address>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq, SmithyModel)]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum PaymentMethodData {
     #[schema(title = "Card")]
+    #[smithy(value_type = "Card")]
     Card(Card),
     #[schema(title = "CardRedirect")]
     CardRedirect(CardRedirectData),

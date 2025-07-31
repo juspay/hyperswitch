@@ -2357,6 +2357,7 @@ pub enum MandateStatus {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::VariantNames,
     strum::EnumIter,
@@ -2364,6 +2365,7 @@ pub enum MandateStatus {
     ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "text")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum CardNetwork {
     #[serde(alias = "VISA")]
     Visa,
