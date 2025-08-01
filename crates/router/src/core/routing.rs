@@ -1648,7 +1648,7 @@ pub async fn toggle_specific_dynamic_routing(
             // 1. If present with same feature then return response as already enabled
             // 2. Else update the feature and persist the same on db
             // 3. If not present in db then create a new default entry
-            helpers::enable_dynamic_routing_algorithm(
+            Box::pin(helpers::enable_dynamic_routing_algorithm(
                 &state,
                 merchant_context.get_merchant_key_store().clone(),
                 business_profile,
@@ -1656,7 +1656,7 @@ pub async fn toggle_specific_dynamic_routing(
                 dynamic_routing_algo_ref,
                 dynamic_routing_type,
                 None,
-            )
+            ))
             .await
         }
         routing::DynamicRoutingFeatures::None => {
@@ -1723,7 +1723,7 @@ pub async fn create_specific_dynamic_routing(
             // 1. If present with same feature then return response as already enabled
             // 2. Else update the feature and persist the same on db
             // 3. If not present in db then create a new default entry
-            helpers::enable_dynamic_routing_algorithm(
+            Box::pin(helpers::enable_dynamic_routing_algorithm(
                 &state,
                 merchant_context.get_merchant_key_store().clone(),
                 business_profile,
@@ -1731,7 +1731,7 @@ pub async fn create_specific_dynamic_routing(
                 dynamic_routing_algo_ref,
                 dynamic_routing_type,
                 payload,
-            )
+            ))
             .await
         }
         routing::DynamicRoutingFeatures::None => {
