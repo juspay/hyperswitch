@@ -233,12 +233,12 @@ pub trait PaymentAttemptInterface {
         &self,
         merchant_id: &id_type::MerchantId,
         active_attempt_ids: &[String],
-        connector: Option<api_models::enums::Connector>,
-        payment_method_type: Option<storage_enums::PaymentMethod>,
-        payment_method_subtype: Option<storage_enums::PaymentMethodType>,
-        authentication_type: Option<storage_enums::AuthenticationType>,
-        merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
-        card_network: Option<storage_enums::CardNetwork>,
+        connector: Option<Vec<api_models::enums::Connector>>,
+        payment_method_type: Option<Vec<storage_enums::PaymentMethod>>,
+        payment_method_subtype: Option<Vec<storage_enums::PaymentMethodType>>,
+        authentication_type: Option<Vec<storage_enums::AuthenticationType>>,
+        merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
+        card_network: Option<Vec<storage_enums::CardNetwork>>,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<i64, Self::Error>;
 }
