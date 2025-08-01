@@ -258,7 +258,7 @@ pub struct ApplePayPredecryptDataInternal {
     pub transaction_amount: i64,
     pub device_manufacturer_identifier: Secret<String>,
     pub payment_data_type: Secret<String>,
-    pub payment_data: ApplePayCryptogramData,
+    pub payment_data: ApplePayCryptogramDataInternal,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
