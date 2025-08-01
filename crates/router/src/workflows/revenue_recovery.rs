@@ -12,7 +12,7 @@ use error_stack::ResultExt;
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 use external_services::date_time;
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
-use external_services::grpc_client as external_grpc_client;
+use external_services::grpc_client::revenue_recovery::recovery_decider_client as external_grpc_client;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
@@ -232,8 +232,7 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
         .as_ref()
         .and_then(|addr_enc| addr_enc.get_inner().address.as_ref())
         .and_then(|details| details.state.as_ref())
-        .map(|state_from_address| state_from_address.clone())
-        .unwrap_or_default();
+        .cloned()?;
 
     // Check if payment_method_data itself is None
     if payment_attempt.payment_method_data.is_none() {

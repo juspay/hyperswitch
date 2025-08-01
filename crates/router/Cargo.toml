@@ -9,7 +9,7 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["common_default", "v2", "revenue_recovery"]
+default = ["common_default", "v1"]
 common_default = ["kv_store", "stripe", "oltp", "olap", "accounts_cache", "dummy_connector", "payouts", "payout_retry", "retry", "frm", "tls", "partial-auth", "km_forward_x_request_id"]
 olap = ["hyperswitch_domain_models/olap", "storage_impl/olap", "scheduler/olap", "api_models/olap", "dep:analytics"]
 tls = ["actix-web/rustls-0_22"]
@@ -126,7 +126,7 @@ currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store", "tokenization_v2"], default-features = false }
 euclid = { version = "0.1.0", path = "../euclid", features = ["valued_jit"] }
 events = { version = "0.1.0", path = "../events" }
-external_services = { version = "0.1.0", path = "../external_services" }
+external_services = { version = "0.1.0", path = "../external_services", features = ["revenue_recovery", "v2"] }
 hyperswitch_connectors = { version = "0.1.0", path = "../hyperswitch_connectors", default-features = false }
 hyperswitch_constraint_graph = { version = "0.1.0", path = "../hyperswitch_constraint_graph" }
 hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models", default-features = false }

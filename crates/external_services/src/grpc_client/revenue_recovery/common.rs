@@ -1,3 +1,5 @@
+#![cfg(all(feature = "revenue_recovery", feature = "v2"))]
+
 use std::fmt::Debug;
 
 use common_utils::consts;
