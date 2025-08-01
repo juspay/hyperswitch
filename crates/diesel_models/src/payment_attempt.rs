@@ -15,7 +15,7 @@ use crate::enums as storage_enums;
 #[cfg(feature = "v1")]
 use crate::schema::payment_attempt;
 #[cfg(feature = "v2")]
-use crate::schema_v2::payment_attempt;
+use crate::{schema_v2::payment_attempt, RequiredFromNullable};
 
 common_utils::impl_to_sql_from_sql_json!(ConnectorMandateReferenceId);
 #[derive(
@@ -34,9 +34,6 @@ impl ConnectorMandateReferenceId {
         self.connector_mandate_request_reference_id.clone()
     }
 }
-
-#[cfg(feature = "v2")]
-use crate::RequiredFromNullable;
 
 #[cfg(feature = "v2")]
 #[derive(

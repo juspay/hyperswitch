@@ -84,12 +84,17 @@ pub use self::{
 /// [diesel-2.0-array-nullability]: https://diesel.rs/guides/migration_guide.html#2-0-0-nullability-of-array-elements
 #[doc(hidden)]
 pub(crate) mod diesel_impl {
+    #[cfg(feature = "v2")]
+    use common_utils::{id_type, types};
     use diesel::{
         deserialize::FromSql,
         pg::Pg,
         sql_types::{Array, Nullable},
         Queryable,
     };
+
+    #[cfg(feature = "v2")]
+    use crate::enums;
 
     pub struct DieselArray<T>(Vec<Option<T>>);
 
@@ -231,11 +236,6 @@ pub(crate) mod diesel_impl {
             )*
         };
     }
-    #[cfg(feature = "v2")]
-    use common_utils::{id_type, types};
-
-    #[cfg(feature = "v2")]
-    use crate::enums;
     #[cfg(feature = "v2")]
     crate::impl_from_required_from_nullable_with_default!(enums::DeleteStatus);
 

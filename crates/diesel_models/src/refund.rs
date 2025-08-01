@@ -10,9 +10,7 @@ use crate::enums as storage_enums;
 #[cfg(feature = "v1")]
 use crate::schema::refund;
 #[cfg(feature = "v2")]
-use crate::schema_v2::refund;
-#[cfg(feature = "v2")]
-use crate::RequiredFromNullable;
+use crate::{schema_v2::refund, RequiredFromNullable};
 
 #[cfg(feature = "v1")]
 #[derive(
