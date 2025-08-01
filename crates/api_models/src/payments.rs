@@ -83,26 +83,32 @@ pub struct BankCodeResponse {
 }
 
 /// Passing this object creates a new customer or attaches an existing customer to the payment
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, PartialEq)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, PartialEq, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct CustomerDetails {
     /// The identifier for the customer.
     #[schema(value_type = String, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    #[smithy(value_type = "String")]
     pub id: id_type::CustomerId,
 
     /// The customer's name
     #[schema(max_length = 255, value_type = Option<String>, example = "John Doe")]
+    #[smithy(value_type = "Option<String>")]
     pub name: Option<Secret<String>>,
 
     /// The customer's email address
     #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
+    #[smithy(value_type = "Option<String>")]
     pub email: Option<Email>,
 
     /// The customer's phone number
     #[schema(value_type = Option<String>, max_length = 10, example = "9123456789")]
+    #[smithy(value_type = "Option<String>")]
     pub phone: Option<Secret<String>>,
 
     /// The country code for the customer's phone number
     #[schema(max_length = 2, example = "+1")]
+    #[smithy(value_type = "Option<String>")]
     pub phone_country_code: Option<String>,
 }
 
@@ -954,6 +960,7 @@ pub struct PaymentsRequest {
     pub confirm: Option<bool>,
 
     /// Passing this object creates a new customer or attaches an existing customer to the payment
+    #[smithy(value_type = "Option<CustomerDetails>")]
     pub customer: Option<CustomerDetails>,
 
     /// The identifier for the customer
@@ -1208,6 +1215,7 @@ pub struct PaymentsRequest {
 
     /// Choose what kind of sca exemption is required for this payment
     #[schema(value_type = Option<ScaExemptionType>)]
+    #[smithy(value_type = "Option<ScaExemptionType>")]
     pub psd2_sca_exemption_type: Option<api_enums::ScaExemptionType>,
 
     /// Service details for click to pay external authentication

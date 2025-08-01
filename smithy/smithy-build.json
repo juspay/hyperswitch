@@ -1,7 +1,7 @@
 {
     "version": "0.1",
     "sources": ["models/"],
-    "outputDirectory": "build",
+    "outputDirectory": "typescript-sdk",
     "maven": {
       "dependencies": [
         "software.amazon.smithy:smithy-model:1.55.0",
@@ -10,19 +10,23 @@
         "software.amazon.smithy:smithy-aws-traits:1.55.0",
         "software.amazon.smithy:smithy-validation-model:1.55.0",
         "software.amazon.smithy.typescript:smithy-aws-typescript-codegen:0.26.0",
-        "software.amazon.smithy:smithy-openapi:1.55.0",
-        "software.amazon.smithy.rust.codegen:codegen-client:0.1.0",
-        "software.amazon.smithy.python.codegen:core:0.0.1",
-        "software.amazon.smithy.java:client-core:0.0.1",
-        "software.amazon.smithy.java.codegen:plugins:0.0.1",
-        "io.superposition.smithy.haskell:client-codegen:0.0.1-rc1",
-        "software.amazon.smithy.java:aws-client-restjson:0.0.1"
+        "software.amazon.smithy:smithy-openapi:1.55.0"
       ]
     },
     "plugins": {
       "typescript-client-codegen": {
-        "package": "@juspay/superposition-sdk",
-        "packageVersion": "0.0.1"
+        "package": "@hyperswitch/sdk",
+        "packageVersion": "1.0.0",
+        "packageDescription": "TypeScript SDK for Hyperswitch API",
+        "packageJson": {
+          "homepage": "https://github.com/juspay/hyperswitch",
+          "license": "Apache-2.0"
+        },
+        "protocol": "aws.protocols#restJson1",
+        "service": "com.hyperswitch#Hyperswitch",
+        "packageManager": "npm",
+        "generateTypeDoc": true,
+        "createDefaultReadme": true
       }
     }
   }
