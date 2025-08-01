@@ -1,7 +1,5 @@
 pub mod transformers;
 
-use std::sync::LazyLock;
-
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
@@ -594,8 +592,8 @@ lazy_static! {
     static ref PHONEPE_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
         let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
 
-        let mut razorpay_supported_payment_methods = SupportedPaymentMethods::new();
-        razorpay_supported_payment_methods.add(
+        let mut phonepe_supported_payment_methods = SupportedPaymentMethods::new();
+        phonepe_supported_payment_methods.add(
             enums::PaymentMethod::Upi,
             enums::PaymentMethodType::UpiCollect,
             PaymentMethodDetails{
@@ -606,7 +604,7 @@ lazy_static! {
             },
         );
 
-        razorpay_supported_payment_methods.add(
+        phonepe_supported_payment_methods.add(
             enums::PaymentMethod::Upi,
             enums::PaymentMethodType::UpiIntent,
             PaymentMethodDetails{
@@ -617,7 +615,7 @@ lazy_static! {
             },
         );
 
-        razorpay_supported_payment_methods
+        phonepe_supported_payment_methods
     };
 
     static ref PHONEPE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
