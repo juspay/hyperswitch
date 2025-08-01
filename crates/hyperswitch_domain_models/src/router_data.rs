@@ -258,7 +258,14 @@ pub struct ApplePayPredecryptDataInternal {
     pub transaction_amount: i64,
     pub device_manufacturer_identifier: Secret<String>,
     pub payment_data_type: Secret<String>,
-    pub payment_data: common_types::payments::ApplePayCryptogramData,
+    pub payment_data: ApplePayCryptogramData,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplePayCryptogramDataInternal {
+    pub online_payment_cryptogram: Secret<String>,
+    pub eci_indicator: Option<String>,
 }
 
 impl TryFrom<ApplePayPredecryptDataInternal> for common_types::payments::ApplePayPredecryptData {
@@ -271,8 +278,17 @@ impl TryFrom<ApplePayPredecryptDataInternal> for common_types::payments::ApplePa
             application_primary_account_number: data.application_primary_account_number.clone(),
             application_expiration_month,
             application_expiration_year,
-            payment_data: data.payment_data,
+            payment_data: data.payment_data.into(),
         })
+    }
+}
+
+impl From<ApplePayCryptogramDataInternal> for common_types::payments::ApplePayCryptogramData {
+    fn from(payment_data: ApplePayCryptogramDataInternal) -> Self {
+        Self {
+            online_payment_cryptogram: payment_data.online_payment_cryptogram,
+            eci_indicator: payment_data.eci_indicator,
+        }
     }
 }
 
