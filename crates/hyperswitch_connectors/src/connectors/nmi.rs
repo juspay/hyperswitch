@@ -38,7 +38,7 @@ use hyperswitch_interfaces::{
     types::{
         PaymentsAuthorizeType, PaymentsCaptureType, PaymentsCompleteAuthorizeType,
         PaymentsPreProcessingType, PaymentsSyncType, PaymentsVoidType, RefundExecuteType,
-        RefundSyncType, Response,
+        RefundSyncType, Response, SetupMandateType,
     },
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
@@ -204,27 +204,23 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         req: &SetupMandateRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, ConnectorError> {
-        let connector_req = nmi::NmiPaymentsRequest::try_from(req)?;
+        let connector_req = nmi::NmiValidateRequest::try_from(req)?;
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
     fn build_request(
         &self,
-        _req: &SetupMandateRouterData,
-        _connectors: &Connectors,
+        req: &SetupMandateRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<Option<Request>, ConnectorError> {
-        Err(ConnectorError::NotImplemented("Setup Mandate flow for Nmi".to_string()).into())
-
-        // Ok(Some(
-        //     RequestBuilder::new()
-        //         .method(Method::Post)
-        //         .url(&SetupMandateType::get_url(self, req, connectors)?)
-        //         .headers(SetupMandateType::get_headers(self, req, connectors)?)
-        //         .set_body(SetupMandateType::get_request_body(
-        //             self, req, connectors,
-        //         )?)
-        //         .build(),
-        // ))
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&SetupMandateType::get_url(self, req, connectors)?)
+                .headers(SetupMandateType::get_headers(self, req, connectors)?)
+                .set_body(SetupMandateType::get_request_body(self, req, connectors)?)
+                .build(),
+        ))
     }
 
     fn handle_response(

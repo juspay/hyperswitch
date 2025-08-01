@@ -416,6 +416,18 @@ fn get_nmi_error_response(response: NmiCompleteResponse, http_code: u16) -> Erro
 }
 
 #[derive(Debug, Serialize)]
+pub struct NmiValidateRequest {
+    #[serde(rename = "type")]
+    transaction_type: TransactionType,
+    security_key: Secret<String>,
+    ccnumber: CardNumber,
+    ccexp: Secret<String>,
+    cvv: Secret<String>,
+    orderid: String,
+    customer_vault: CustomerAction,
+}
+
+#[derive(Debug, Serialize)]
 pub struct NmiPaymentsRequest {
     #[serde(rename = "type")]
     transaction_type: TransactionType,
@@ -569,7 +581,7 @@ impl TryFrom<&NmiRouterData<&PaymentsAuthorizeRouterData>> for NmiPaymentsReques
                         .router_data
                         .request
                         .is_mandate_payment()
-                        .then(|| CustomerAction::AddCustomer),
+                        .then_some(CustomerAction::AddCustomer),
                 })
             }
         }
@@ -712,21 +724,36 @@ impl From<&ApplePayWalletData> for PaymentMethod {
     }
 }
 
-impl TryFrom<&SetupMandateRouterData> for NmiPaymentsRequest {
+impl TryFrom<&SetupMandateRouterData> for NmiValidateRequest {
     type Error = Error;
     fn try_from(item: &SetupMandateRouterData) -> Result<Self, Self::Error> {
-        let auth_type: NmiAuthType = (&item.connector_auth_type).try_into()?;
-        let payment_method = PaymentMethod::try_from((&item.request.payment_method_data, None))?;
-        Ok(Self {
-            transaction_type: TransactionType::Validate,
-            security_key: auth_type.api_key,
-            amount: FloatMajorUnit::zero(),
-            currency: item.request.currency,
-            payment_method,
-            merchant_defined_field: None,
-            orderid: item.connector_request_reference_id.clone(),
-            customer_vault: Some(CustomerAction::AddCustomer),
-        })
+        match item.request.amount {
+            Some(amount) if amount > 0 => Err(ConnectorError::FlowNotSupported {
+                flow: "Setup Mandate with non zero amount".to_string(),
+                connector: "NMI".to_string(),
+            }
+            .into()),
+            _ => {
+                if let PaymentMethodData::Card(card_details) = &item.request.payment_method_data {
+                    let auth_type: NmiAuthType = (&item.connector_auth_type).try_into()?;
+                    Ok(Self {
+                        transaction_type: TransactionType::Validate,
+                        security_key: auth_type.api_key,
+                        ccnumber: card_details.card_number.clone(),
+                        ccexp: card_details
+                            .get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?,
+                        cvv: card_details.card_cvc.clone(),
+                        orderid: item.connector_request_reference_id.clone(),
+                        customer_vault: CustomerAction::AddCustomer,
+                    })
+                } else {
+                    Err(ConnectorError::NotImplemented(
+                        get_unimplemented_payment_method_error_message("Nmi"),
+                    )
+                    .into())
+                }
+            }
+        }
     }
 }
 
@@ -895,7 +922,17 @@ impl<T> TryFrom<ResponseRouterData<SetupMandate, StandardResponse, T, PaymentsRe
                         item.response.transactionid.clone(),
                     ),
                     redirection_data: Box::new(None),
-                    mandate_reference: Box::new(None),
+                    mandate_reference: match item.response.customer_vault_id {
+                        Some(vault_id) => Box::new(Some(
+                            hyperswitch_domain_models::router_response_types::MandateReference {
+                                connector_mandate_id: Some(vault_id.expose()),
+                                payment_method_id: None,
+                                mandate_metadata: None,
+                                connector_mandate_request_reference_id: None,
+                            },
+                        )),
+                        None => Box::new(None),
+                    },
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
