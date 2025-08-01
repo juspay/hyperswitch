@@ -714,17 +714,8 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             .create_or_validate(db)
             .await?;
 
-        let merchant_account_type = match organization.get_organization_type() {
-            OrganizationType::Standard => MerchantAccountType::Standard,
-            // Blocking v2 merchant account create for platform
-            OrganizationType::Platform => {
-                return Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "Merchant account creation is not allowed for a platform organization"
-                        .to_string(),
-                }
-                .into())
-            }
-        };
+        // V2 currently supports creation of Standard merchant accounts only, irrespective of organization type
+        let merchant_account_type = MerchantAccountType::Standard;
 
         let key = key_store.key.into_inner();
         let id = identifier.to_owned();
