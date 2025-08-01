@@ -6,7 +6,9 @@ use time::PrimitiveDateTime;
 #[cfg(feature = "v1")]
 use crate::schema::customers;
 #[cfg(feature = "v2")]
-use crate::{enums::DeleteStatus, schema_v2::customers};
+use crate::{
+    diesel_impl::RequiredFromNullableWithDefault, enums::DeleteStatus, schema_v2::customers,
+};
 
 #[cfg(feature = "v1")]
 #[derive(
@@ -164,6 +166,7 @@ pub struct Customer {
     pub merchant_reference_id: Option<common_utils::id_type::CustomerId>,
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
+    #[diesel(deserialize_as = RequiredFromNullableWithDefault<DeleteStatus>)]
     pub status: DeleteStatus,
     pub id: common_utils::id_type::GlobalCustomerId,
 }
