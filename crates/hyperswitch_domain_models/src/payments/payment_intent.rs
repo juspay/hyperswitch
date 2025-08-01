@@ -242,6 +242,7 @@ pub struct PaymentIntentUpdateFields {
     pub force_3ds_challenge: Option<bool>,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_confirm_operation: bool,
+    pub payment_channel: Option<common_enums::PaymentChannel>,
 }
 
 #[cfg(feature = "v1")]
@@ -428,6 +429,7 @@ pub struct PaymentIntentUpdateInternal {
     pub tax_details: Option<diesel_models::TaxDetails>,
     pub force_3ds_challenge: Option<bool>,
     pub is_iframe_redirection_enabled: Option<bool>,
+    pub payment_channel: Option<common_enums::PaymentChannel>,
 }
 
 // This conversion is used in the `update_payment_intent` function
@@ -1059,6 +1061,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                     tax_details: value.tax_details,
                     force_3ds_challenge: value.force_3ds_challenge,
                     is_iframe_redirection_enabled: value.is_iframe_redirection_enabled,
+                    payment_channel: value.payment_channel,
                 }))
             }
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -1217,6 +1220,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             tax_details,
             force_3ds_challenge,
             is_iframe_redirection_enabled,
+            payment_channel,
         } = value;
         Self {
             amount,
@@ -1258,6 +1262,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             force_3ds_challenge,
             is_iframe_redirection_enabled,
             extended_return_url: return_url,
+            payment_channel,
         }
     }
 }
@@ -1727,6 +1732,7 @@ impl behaviour::Conversion for PaymentIntent {
             created_by: created_by.map(|cb| cb.to_string()),
             is_iframe_redirection_enabled,
             is_payment_id_from_merchant,
+            payment_channel: None,
         })
     }
     async fn convert_back(
@@ -1957,6 +1963,7 @@ impl behaviour::Conversion for PaymentIntent {
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
             routing_algorithm_id: self.routing_algorithm_id,
             is_payment_id_from_merchant: self.is_payment_id_from_merchant,
+            payment_channel: None,
         })
     }
 }
@@ -2032,6 +2039,7 @@ impl behaviour::Conversion for PaymentIntent {
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
             extended_return_url: self.return_url,
             is_payment_id_from_merchant: self.is_payment_id_from_merchant,
+            payment_channel: self.payment_channel,
         })
     }
 
@@ -2133,6 +2141,7 @@ impl behaviour::Conversion for PaymentIntent {
                 force_3ds_challenge_trigger: storage_model.force_3ds_challenge_trigger,
                 is_iframe_redirection_enabled: storage_model.is_iframe_redirection_enabled,
                 is_payment_id_from_merchant: storage_model.is_payment_id_from_merchant,
+                payment_channel: storage_model.payment_channel,
             })
         }
         .await
@@ -2206,6 +2215,7 @@ impl behaviour::Conversion for PaymentIntent {
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
             extended_return_url: self.return_url,
             is_payment_id_from_merchant: self.is_payment_id_from_merchant,
+            payment_channel: self.payment_channel,
         })
     }
 }

@@ -1,0 +1,1 @@
+ALTER TABLE payment_intent ADD COLUMN IF NOT EXISTS payment_channel VARCHAR(64) DEFAULT NULL;

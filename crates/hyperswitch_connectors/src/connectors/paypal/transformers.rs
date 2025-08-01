@@ -1081,6 +1081,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                 | WalletData::ApplePayThirdPartySdk(_)
                 | WalletData::DanaRedirect {}
                 | WalletData::GooglePay(_)
+                | WalletData::BluecodeRedirect {}
                 | WalletData::GooglePayRedirect(_)
                 | WalletData::GooglePayThirdPartySdk(_)
                 | WalletData::MbWayRedirect(_)
@@ -1197,6 +1198,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::Efecty
                     | enums::PaymentMethodType::Eft
                     | enums::PaymentMethodType::Eps
+                    | enums::PaymentMethodType::Bluecode
                     | enums::PaymentMethodType::Fps
                     | enums::PaymentMethodType::Evoucher
                     | enums::PaymentMethodType::Giropay

@@ -1815,6 +1815,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::Benefit => Self::CardRedirect,
             PaymentMethodType::Bizum => Self::BankRedirect,
             PaymentMethodType::Blik => Self::BankRedirect,
+            PaymentMethodType::Bluecode => Self::Wallet,
             PaymentMethodType::Alfamart => Self::Voucher,
             PaymentMethodType::CardRedirect => Self::CardRedirect,
             PaymentMethodType::CimbVa => Self::BankTransfer,

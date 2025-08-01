@@ -1940,6 +1940,7 @@ pub enum PaymentMethodType {
     Benefit,
     Bizum,
     Blik,
+    Bluecode,
     Boleto,
     BcaBankTransfer,
     BniVa,
@@ -2062,6 +2063,7 @@ impl PaymentMethodType {
             Self::Benefit => "Benefit",
             Self::Bizum => "Bizum",
             Self::Blik => "BLIK",
+            Self::Bluecode => "Bluecode",
             Self::Boleto => "Boleto Bancário",
             Self::BcaBankTransfer => "BCA Bank Transfer",
             Self::BniVa => "BNI Virtual Account",
@@ -2248,6 +2250,37 @@ pub enum ScaExemptionType {
     #[default]
     LowValue,
     TransactionRiskAnalysis,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+/// Describes the channel through which the payment was initiated.
+pub enum PaymentChannel {
+    #[default]
+    Ecommerce,
+    MailOrder,
+    TelephoneOrder,
+    #[serde(untagged)]
+    #[strum(default)]
+    Other(String),
 }
 
 #[derive(
