@@ -192,6 +192,12 @@ export const payment_methods_enabled = [
         installment_payment_enabled: true,
       },
       {
+        payment_method_type: "ach",
+        minimum_amount: 0,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+      },
+      {
         payment_method_type: "instant_bank_transfer_finland",
         minimum_amount: 1,
         maximum_amount: 68607706,
@@ -351,6 +357,7 @@ export const connectorDetails = {
           },
         },
       }),
+
     Pix: getCustomExchange({
       Request: {
         payment_method: "bank_transfer",
@@ -358,6 +365,31 @@ export const connectorDetails = {
         payment_method_data: {
           bank_transfer: {
             pix: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "BR",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
+        currency: "BRL",
+      },
+    }),
+    Ach: getCustomExchange({
+      Request: {
+        payment_method: "bank_transfer",
+        payment_method_type: "ach",
+        payment_method_data: {
+          bank_transfer: {
+            ach_bank_transfer: {},
           },
         },
         billing: {
