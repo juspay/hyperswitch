@@ -4,6 +4,10 @@ pub mod dynamic_routing;
 /// gRPC based Heath Check Client interface implementation
 #[cfg(feature = "dynamic_routing")]
 pub mod health_check_client;
+/// gRPC based Recovery Trainer Client interface implementation
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+pub mod revenue_recovery;
+
 /// gRPC based Unified Connector Service Client interface implementation
 pub mod unified_connector_service;
 use std::{fmt::Debug, sync::Arc};
@@ -14,19 +18,35 @@ use common_utils::consts;
 use dynamic_routing::{DynamicRoutingClientConfig, RoutingStrategy};
 #[cfg(feature = "dynamic_routing")]
 use health_check_client::HealthCheckClient;
-#[cfg(feature = "dynamic_routing")]
+#[cfg(any(
+    feature = "dynamic_routing",
+    all(feature = "v2", feature = "revenue_recovery")
+))]
 use hyper_util::client::legacy::connect::HttpConnector;
 #[cfg(feature = "dynamic_routing")]
 use router_env::logger;
 use serde;
-#[cfg(feature = "dynamic_routing")]
+#[cfg(any(
+    feature = "dynamic_routing",
+    all(feature = "v2", feature = "revenue_recovery")
+))]
 use tonic::body::Body;
 
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+pub use self::revenue_recovery::common::GrpcRecoveryHeaders;
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+pub use self::revenue_recovery::recovery_decider_client::{
+    DeciderRequest, DeciderResponse, RecoveryDeciderClientConfig, RecoveryDeciderClientInterface,
+    RecoveryDeciderError, RecoveryDeciderResult,
+};
 use crate::grpc_client::unified_connector_service::{
     UnifiedConnectorServiceClient, UnifiedConnectorServiceClientConfig,
 };
 
-#[cfg(feature = "dynamic_routing")]
+#[cfg(any(
+    feature = "dynamic_routing",
+    all(feature = "v2", feature = "revenue_recovery")
+))]
 /// Hyper based Client type for maintaining connection pool for all gRPC services
 pub type Client = hyper_util::client::legacy::Client<HttpConnector, Body>;
 
@@ -39,15 +59,22 @@ pub struct GrpcClients {
     /// Health Check client for all gRPC services
     #[cfg(feature = "dynamic_routing")]
     pub health_client: HealthCheckClient,
+    /// Recovery Decoder Client
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+    pub recovery_decider_client: Option<Box<dyn RecoveryDeciderClientInterface>>,
     /// Unified Connector Service client
     pub unified_connector_service_client: Option<UnifiedConnectorServiceClient>,
 }
+
 /// Type that contains the configs required to construct a  gRPC client with its respective services.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, Default)]
 pub struct GrpcClientSettings {
     #[cfg(feature = "dynamic_routing")]
     /// Configs for Dynamic Routing Client
     pub dynamic_routing_client: Option<DynamicRoutingClientConfig>,
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+    /// Configs for Recovery Decider Client
+    pub recovery_decider_client: Option<RecoveryDeciderClientConfig>,
     /// Configs for Unified Connector Service client
     pub unified_connector_service: Option<UnifiedConnectorServiceClientConfig>,
 }
@@ -59,7 +86,11 @@ impl GrpcClientSettings {
     /// This function will be called at service startup.
     #[allow(clippy::expect_used)]
     pub async fn get_grpc_client_interface(&self) -> Arc<GrpcClients> {
-        #[cfg(feature = "dynamic_routing")]
+        // Define the hyper client if any gRPC feature is enabled
+        #[cfg(any(
+            feature = "dynamic_routing",
+            all(feature = "v2", feature = "revenue_recovery")
+        ))]
         let client =
             hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new())
                 .http2_only(true)
@@ -75,18 +106,29 @@ impl GrpcClientSettings {
             .flatten();
 
         #[cfg(feature = "dynamic_routing")]
-        let health_client = HealthCheckClient::build_connections(self, client)
+        let health_client = HealthCheckClient::build_connections(self, client.clone())
             .await
             .expect("Failed to build gRPC connections");
 
         let unified_connector_service_client =
             UnifiedConnectorServiceClient::build_connections(self).await;
 
+        #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+        let recovery_decider_client = self
+            .recovery_decider_client
+            .as_ref()
+            .map(|config| config.get_recovery_decider_connection(client.clone()))
+            .transpose()
+            .expect("Failed to establish a connection with the Recovery Decider Server")
+            .map(|client| -> Box<dyn RecoveryDeciderClientInterface> { Box::new(client) });
+
         Arc::new(GrpcClients {
             #[cfg(feature = "dynamic_routing")]
             dynamic_routing: dynamic_routing_connection,
             #[cfg(feature = "dynamic_routing")]
             health_client,
+            #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+            recovery_decider_client,
             unified_connector_service_client,
         })
     }
@@ -145,7 +187,7 @@ pub(crate) fn create_grpc_request<T: Debug>(message: T, headers: GrpcHeaders) ->
     let mut request = tonic::Request::new(message);
     request.add_headers_to_grpc_request(headers);
 
-    logger::info!(dynamic_routing_request=?request);
+    logger::info!(?request);
 
     request
 }
