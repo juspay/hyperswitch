@@ -173,6 +173,7 @@ pub struct ConnectorTomlConfig {
 pub struct ConnectorConfig {
     pub authipay: Option<ConnectorTomlConfig>,
     pub juspaythreedsserver: Option<ConnectorTomlConfig>,
+    pub katapult: Option<ConnectorTomlConfig>,
     pub aci: Option<ConnectorTomlConfig>,
     pub adyen: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
@@ -256,7 +257,9 @@ pub struct ConnectorConfig {
     #[cfg(feature = "payouts")]
     pub paypal_payout: Option<ConnectorTomlConfig>,
     pub paystack: Option<ConnectorTomlConfig>,
+    pub paytm: Option<ConnectorTomlConfig>,
     pub payu: Option<ConnectorTomlConfig>,
+    pub phonepe: Option<ConnectorTomlConfig>,
     pub placetopay: Option<ConnectorTomlConfig>,
     pub plaid: Option<ConnectorTomlConfig>,
     pub powertranz: Option<ConnectorTomlConfig>,
@@ -498,6 +501,8 @@ impl ConnectorConfig {
             Connector::Netcetera => Ok(connector_data.netcetera),
             Connector::CtpMastercard => Ok(connector_data.ctp_mastercard),
             Connector::Xendit => Ok(connector_data.xendit),
+            Connector::Paytm => Ok(connector_data.paytm),
+            Connector::Phonepe => Ok(connector_data.phonepe),
         }
     }
 }
