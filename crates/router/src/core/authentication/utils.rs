@@ -100,6 +100,10 @@ pub async fn update_trackers<F: Clone, Req>(
                 connector_metadata,
                 ds_trans_id,
                 eci,
+                challenge_code,
+                challenge_cancel,
+                challenge_code_reason,
+                message_extension,
             } => {
                 authentication_value
                     .async_map(|auth_val| {
@@ -132,12 +136,18 @@ pub async fn update_trackers<F: Clone, Req>(
                     connector_metadata,
                     ds_trans_id,
                     eci,
+                    challenge_code,
+                    challenge_cancel,
+                    challenge_code_reason,
+                    message_extension,
                 }
             }
             AuthenticationResponseData::PostAuthNResponse {
                 trans_status,
                 authentication_value,
                 eci,
+                challenge_cancel,
+                challenge_code_reason,
             } => {
                 authentication_value
                     .async_map(|auth_val| {
@@ -160,6 +170,8 @@ pub async fn update_trackers<F: Clone, Req>(
                     ),
                     trans_status,
                     eci,
+                    challenge_cancel,
+                    challenge_code_reason,
                 }
             }
             AuthenticationResponseData::PreAuthVersionCallResponse {
@@ -284,6 +296,10 @@ pub async fn create_new_authentication(
         browser_info: None,
         email: None,
         profile_acquirer_id: None,
+        challenge_code: None,
+        challenge_cancel: None,
+        challenge_code_reason: None,
+        message_extension: None,
     };
     state
         .store

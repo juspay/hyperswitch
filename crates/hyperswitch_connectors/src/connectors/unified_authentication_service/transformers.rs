@@ -485,6 +485,8 @@ impl<F, T>
                             ds_trans_id: dynamic_data.ds_trans_id,
                         }),
                     trans_status: item.response.authentication_details.trans_status,
+                    challenge_cancel: None,
+                    challenge_code_reason: None,
                 },
             }),
             ..item.data
@@ -822,6 +824,10 @@ pub struct ThreeDsAuthDetails {
     pub acs_signed_content: Option<String>,
     pub authentication_value: Option<Secret<String>>,
     pub eci: Option<String>,
+    pub challenge_code: Option<String>,
+    pub challenge_cancel: Option<String>,
+    pub challenge_code_reason: Option<String>,
+    pub message_extension: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Serialize, Clone, Copy, Deserialize)]
@@ -990,6 +996,10 @@ impl<F, T>
                         connector_metadata: None,
                         ds_trans_id: Some(auth_response.three_ds_auth_response.ds_trans_id),
                         eci: auth_response.three_ds_auth_response.eci,
+                        challenge_code: auth_response.three_ds_auth_response.challenge_code,
+                        challenge_cancel: auth_response.three_ds_auth_response.challenge_cancel,
+                        challenge_code_reason: auth_response.three_ds_auth_response.challenge_code_reason,
+                        message_extension:  auth_response.three_ds_auth_response.message_extension,
                     },
                 })
             }

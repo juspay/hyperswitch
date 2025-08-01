@@ -220,6 +220,8 @@ impl IncomingWebhook for Netcetera {
                 .unwrap_or(common_enums::TransactionStatus::InformationOnly),
             authentication_value: webhook_body.authentication_value,
             eci: webhook_body.eci,
+            challenge_cancel: webhook_body.challenge_cancel,
+            challenge_code_reason: webhook_body.trans_status_reason,
         })
     }
 }

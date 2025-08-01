@@ -61,6 +61,10 @@ pub struct Authentication {
     pub browser_info: Option<serde_json::Value>,
     pub email: Option<Encryption>,
     pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
+    pub challenge_code: Option<String>,
+    pub challenge_cancel: Option<String>,
+    pub challenge_code_reason: Option<String>,
+    pub message_extension: Option<serde_json::Value>,
 }
 
 impl Authentication {
@@ -121,6 +125,10 @@ pub struct AuthenticationNew {
     pub browser_info: Option<serde_json::Value>,
     pub email: Option<Encryption>,
     pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
+    pub challenge_code: Option<String>,
+    pub challenge_cancel: Option<String>,
+    pub challenge_code_reason: Option<String>,
+    pub message_extension: Option<serde_json::Value>,
 }
 
 #[derive(Debug)]
@@ -167,11 +175,17 @@ pub enum AuthenticationUpdate {
         authentication_status: common_enums::AuthenticationStatus,
         ds_trans_id: Option<String>,
         eci: Option<String>,
+        challenge_code: Option<String>,
+        challenge_cancel: Option<String>,
+        challenge_code_reason: Option<String>,
+        message_extension: Option<serde_json::Value>,
     },
     PostAuthenticationUpdate {
         trans_status: common_enums::TransactionStatus,
         eci: Option<String>,
         authentication_status: common_enums::AuthenticationStatus,
+        challenge_cancel: Option<String>,
+        challenge_code_reason: Option<String>,
     },
     ErrorUpdate {
         error_message: Option<String>,
@@ -227,6 +241,10 @@ pub struct AuthenticationUpdateInternal {
     pub browser_info: Option<serde_json::Value>,
     pub email: Option<Encryption>,
     pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
+    pub challenge_code: Option<String>,
+    pub challenge_cancel: Option<String>,
+    pub challenge_code_reason: Option<String>,
+    pub message_extension: Option<serde_json::Value>,
 }
 
 impl Default for AuthenticationUpdateInternal {
@@ -267,6 +285,10 @@ impl Default for AuthenticationUpdateInternal {
             browser_info: Default::default(),
             email: Default::default(),
             profile_acquirer_id: Default::default(),
+            challenge_code: Default::default(),
+            challenge_cancel: Default::default(),
+            challenge_code_reason: Default::default(),
+            message_extension: Default::default(),
         }
     }
 }
@@ -309,6 +331,10 @@ impl AuthenticationUpdateInternal {
             browser_info,
             email,
             profile_acquirer_id,
+            challenge_code,
+            challenge_cancel,
+            challenge_code_reason,
+            message_extension,
         } = self;
         Authentication {
             connector_authentication_id: connector_authentication_id
@@ -350,6 +376,10 @@ impl AuthenticationUpdateInternal {
             browser_info: browser_info.or(source.browser_info),
             email: email.or(source.email),
             profile_acquirer_id: profile_acquirer_id.or(source.profile_acquirer_id),
+            challenge_code: challenge_code.or(source.challenge_code),
+            challenge_cancel: challenge_cancel.or(source.challenge_cancel),
+            challenge_code_reason: challenge_code_reason.or(source.challenge_code_reason),
+            message_extension: message_extension.or(source.message_extension),
             ..source
         }
     }
@@ -438,6 +468,10 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 authentication_status,
                 ds_trans_id,
                 eci,
+                challenge_code,
+                challenge_cancel,
+                challenge_code_reason,
+                message_extension,
             } => Self {
                 trans_status: Some(trans_status),
                 authentication_type: Some(authentication_type),
@@ -450,16 +484,24 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 authentication_status: Some(authentication_status),
                 ds_trans_id,
                 eci,
+                challenge_code,
+                challenge_cancel,
+                challenge_code_reason,
+                message_extension,
                 ..Default::default()
             },
             AuthenticationUpdate::PostAuthenticationUpdate {
                 trans_status,
                 eci,
                 authentication_status,
+                challenge_cancel,
+                challenge_code_reason,
             } => Self {
                 trans_status: Some(trans_status),
                 eci,
                 authentication_status: Some(authentication_status),
+                challenge_cancel,
+                challenge_code_reason,
                 ..Default::default()
             },
             AuthenticationUpdate::PreAuthenticationVersionCallUpdate {

@@ -609,6 +609,10 @@ pub async fn create_new_authentication(
         browser_info: None,
         email: None,
         profile_acquirer_id,
+        challenge_code: None,
+        challenge_cancel: None,
+        challenge_code_reason: None,
+        message_extension: None,
     };
     state
         .store

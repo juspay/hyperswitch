@@ -5,7 +5,8 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse},
     router_flow_types::authentication::{Authentication, PreAuthentication},
     router_request_types::authentication::{
-        AuthNFlowType, ChallengeParams, ConnectorAuthenticationRequestData, PreAuthNRequestData,
+        AuthNFlowType, ChallengeParams, ConnectorAuthenticationRequestData,
+        MessageExtensionAttribute, PreAuthNRequestData,
     },
     router_response_types::AuthenticationResponseData,
 };
@@ -164,6 +165,12 @@ impl
                     connector_metadata: None,
                     ds_trans_id: response.authentication_response.ds_trans_id,
                     eci: response.eci,
+                    challenge_code: response.three_ds_requestor_challenge_ind,
+                    challenge_cancel: response.challenge_cancel,
+                    challenge_code_reason: response.trans_status_reason,
+                    message_extension: response
+                        .message_extension
+                        .and_then(|v| serde_json::to_value(v).ok()),
                 })
             }
             NetceteraAuthenticationResponse::Error(error_response) => Err(ErrorResponse {
@@ -432,8 +439,8 @@ pub struct NetceteraAuthenticationRequest {
     pub merchant: Option<netcetera_types::MerchantData>,
     pub broad_info: Option<String>,
     pub device_render_options: Option<netcetera_types::DeviceRenderingOptionsSupported>,
-    pub message_extension: Option<Vec<netcetera_types::MessageExtensionAttribute>>,
-    pub challenge_message_extension: Option<Vec<netcetera_types::MessageExtensionAttribute>>,
+    pub message_extension: Option<Vec<MessageExtensionAttribute>>,
+    pub challenge_message_extension: Option<Vec<MessageExtensionAttribute>>,
     pub browser_information: Option<netcetera_types::Browser>,
     #[serde(rename = "threeRIInd")]
     pub three_ri_ind: Option<String>,
@@ -640,6 +647,11 @@ pub struct NetceteraAuthenticationSuccessResponse {
     pub authentication_response: AuthenticationResponse,
     #[serde(rename = "base64EncodedChallengeRequest")]
     pub encoded_challenge_request: Option<String>,
+    pub challenge_cancel: Option<String>,
+    pub trans_status_reason: Option<String>,
+    #[serde(rename = "threeDSRequestorChallengeInd")]
+    pub three_ds_requestor_challenge_ind: Option<String>,
+    pub message_extension: Option<Vec<MessageExtensionAttribute>>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -708,4 +720,6 @@ pub struct ResultsResponseData {
 
     /// Optional object containing error details if any errors occurred during the process.
     pub error_details: Option<NetceteraErrorDetails>,
+    pub challenge_cancel: Option<String>,
+    pub trans_status_reason: Option<String>,
 }

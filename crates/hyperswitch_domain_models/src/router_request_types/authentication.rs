@@ -69,6 +69,15 @@ impl AuthNFlowType {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct MessageExtensionAttribute {
+    pub id: String,
+    pub name: String,
+    pub criticality_indicator: bool,
+    pub data: String,
+}
+
 #[derive(Clone, Default, Debug)]
 pub struct PreAuthNRequestData {
     // card data
