@@ -4236,6 +4236,8 @@ impl ProfileWrapper {
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update routing algorithm ref in business profile")?;
 
+
+        
         storage_impl::redis::cache::redact_from_redis_and_publish(
             db.get_cache_store().as_ref(),
             [routing_cache_key],

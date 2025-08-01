@@ -59,6 +59,7 @@ pub mod user;
 pub mod user_authentication_method;
 pub mod user_key_store;
 pub mod user_role;
+// pub mod TokenData;
 
 use diesel_impl::{DieselArray, OptionalDieselArray};
 #[cfg(feature = "v2")]
@@ -262,3 +263,10 @@ pub(crate) mod metrics {
 
 #[cfg(feature = "tokenization_v2")]
 pub mod tokenization;
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+pub struct TokenData {
+    pub id: String, 
+    pub response_code: String,
+    pub status: String,
+}

@@ -314,6 +314,11 @@ async fn handle_schedule_failed_payment(
             Ok(webhooks::WebhookResponseTracker::NoEffect)
         })
         .async_unwrap_or_else(|| async {
+            // check retry count of each token if 0 then trigger immediately 
+
+            // checl if any token is available for retry if not then calculate flow
+            // check if there is any token with response 0 
+
             // Call calculate_job
             insert_calculate_pcr_task(
                 billing_connector_account,
@@ -326,6 +331,7 @@ async fn handle_schedule_failed_payment(
                     .as_ref()
                     .map(|attempt| attempt.attempt_id.clone()),
                 revenue_recovery_retry,
+                //add flag if all tokens are inactive for calculate job 
             )
             .await
         })
@@ -1039,7 +1045,7 @@ impl RevenueRecoveryAttempt {
         let payment_id = payment_intent.payment_id.clone();
 
         let process_tracker_id = format!("{runner}_{task}_{}", payment_id.get_string_repr());
-
+        // schedule time skip if in calculate workflow
         let schedule_time = revenue_recovery_flow::get_schedule_time_to_retry_mit_payments(
             db,
             &merchant_id,

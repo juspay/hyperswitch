@@ -314,3 +314,22 @@ impl<T: AsRef<str>> From<T> for RedisKey {
         Self(value.to_string())
     }
 }
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum HsetReply {
+    KeySet,
+    KeyOverwritten, // Field already existed and was overwritten
+}
+
+impl fred::types::FromRedis for HsetReply {
+    fn from_value(value: fred::types::RedisValue) -> Result<Self, fred::error::RedisError> {
+        match value {
+            fred::types::RedisValue::Integer(1) => Ok(Self::KeySet),
+            fred::types::RedisValue::Integer(0) => Ok(Self::KeyOverwritten),
+            _ => Err(fred::error::RedisError::new(
+                fred::error::RedisErrorKind::Unknown,
+                "Unexpected HSET command reply",
+            )),
+        }
+    }
+}
