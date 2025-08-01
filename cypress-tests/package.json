@@ -25,11 +25,15 @@
   },
   "author": "Hyperswitch",
   "license": "ISC",
+  "dependencies": {
+    "express": "^5.1.0",
+    "cors": "^2.8.5"
+  },
   "devDependencies": {
-    "@eslint/js": "^9.31.0",
-    "cypress": "^14.5.2",
+    "@eslint/js": "^9.32.0",
+    "cypress": "^14.5.3",
     "cypress-mochawesome-reporter": "^4.0.0",
-    "eslint": "^9.31.0",
+    "eslint": "^9.32.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-cypress": "^5.1.0",
     "eslint-plugin-prettier": "^5.5.3",

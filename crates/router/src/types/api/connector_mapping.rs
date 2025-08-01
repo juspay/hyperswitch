@@ -364,6 +364,9 @@ impl ConnectorData {
                 enums::Connector::Shift4 => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Shift4::new())))
                 }
+                enums::Connector::Silverflow => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Silverflow::new())))
+                }
                 enums::Connector::Square => Ok(ConnectorEnum::Old(Box::new(&connector::Square))),
                 enums::Connector::Stax => Ok(ConnectorEnum::Old(Box::new(&connector::Stax))),
                 enums::Connector::Stripe => {
