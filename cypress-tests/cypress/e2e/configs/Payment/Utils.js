@@ -403,6 +403,7 @@ export const CONNECTOR_LISTS = {
       "paypal",
     ],
     DDC_RACE_CONDITION: ["worldpay"],
+    MOTO_PAYMENTS: ["worldpayvantiv"],
     // Add more inclusion lists
   },
 };
