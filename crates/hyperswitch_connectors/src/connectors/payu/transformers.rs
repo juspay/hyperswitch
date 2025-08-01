@@ -133,7 +133,9 @@ impl TryFrom<&PayuRouterData<&types::PaymentsAuthorizeRouterData>> for PayuPayme
                             PayuWallet {
                                 value: PayuWalletCode::Jp,
                                 wallet_type: WALLET_IDENTIFIER.to_string(),
-                                authorization_code: Secret::new(apple_pay_encrypted_data.to_string()),
+                                authorization_code: Secret::new(
+                                    apple_pay_encrypted_data.to_string(),
+                                ),
                             }
                         }),
                     })

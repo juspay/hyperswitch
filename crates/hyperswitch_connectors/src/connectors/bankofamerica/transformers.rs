@@ -1,5 +1,6 @@
 use base64::Engine;
 use common_enums::{enums, FutureUsage};
+use common_types::payments::ApplePayPredecryptData;
 use common_utils::{consts, ext_traits::OptionExt, pii};
 use hyperswitch_domain_models::{
     payment_method_data::{
@@ -21,9 +22,6 @@ use hyperswitch_domain_models::{
         RefundsRouterData, SetupMandateRouterData,
     },
 };
-
-use common_types::payments::ApplePayPredecryptData;
-
 use hyperswitch_interfaces::{api, errors};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};

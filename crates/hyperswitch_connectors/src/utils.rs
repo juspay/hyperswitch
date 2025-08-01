@@ -50,7 +50,7 @@ use hyperswitch_domain_models::{
     network_tokenization::NetworkTokenNumber,
     payment_method_data::{self, Card, CardDetailsForNetworkTransactionId, PaymentMethodData},
     router_data::{
-         ErrorResponse, PaymentMethodToken, RecurringMandatePaymentData,
+        ErrorResponse, PaymentMethodToken, RecurringMandatePaymentData,
         RouterData as ConnectorRouterData,
     },
     router_request_types::{

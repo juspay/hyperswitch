@@ -273,11 +273,11 @@ impl TryFrom<(&WalletData, &Option<PaymentMethodToken>)> for TokenizedCardData {
             .application_primary_account_number
             .clone();
 
-        let expiry_year_2_digit = apple_pay_decrypt_data.get_two_digit_expiry_year().change_context(
-            errors::ConnectorError::MissingRequiredField {
+        let expiry_year_2_digit = apple_pay_decrypt_data
+            .get_two_digit_expiry_year()
+            .change_context(errors::ConnectorError::MissingRequiredField {
                 field_name: "Apple pay expiry year",
-            },
-        )?;
+            })?;
         let expiry_month = apple_pay_decrypt_data.get_expiry_month();
 
         Ok(Self {
