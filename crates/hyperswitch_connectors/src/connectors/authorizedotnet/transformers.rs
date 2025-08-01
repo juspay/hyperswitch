@@ -579,7 +579,7 @@ pub struct AuthorizedotnetSetupMandateResponse {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthorizedotnetCustomerResponse {
-    customer_profile_id: String,
+    customer_profile_id: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     customer_payment_profile_id_list: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -598,7 +598,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetCustomerResponse, T, Pay
         match item.response.messages.result_code {
             ResultCode::Ok => Ok(Self {
                 response: Ok(PaymentsResponseData::ConnectorCustomerResponse {
-                    connector_customer_id,
+                    connector_customer_id: connector_customer_id.unwrap_or_default(),
                 }),
                 ..item.data
             }),
