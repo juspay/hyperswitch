@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use error_stack::{report, ResultExt};
+use hyperswitch_connectors::connectors::{Paytm, Phonepe};
 
 use crate::{
     configs::settings::Connectors,
@@ -144,6 +145,9 @@ impl ConnectorData {
                 enums::Connector::Bluesnap => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Bluesnap::new())))
                 }
+                // enums::Connector::Bluecode => {
+                //     Ok(ConnectorEnum::Old(Box::new(connector::Bluecode::new())))
+                // }
                 enums::Connector::Boku => Ok(ConnectorEnum::Old(Box::new(connector::Boku::new()))),
                 enums::Connector::Braintree => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Braintree::new())))
@@ -248,6 +252,9 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Fiservemea::new())))
                 }
                 enums::Connector::Fiuu => Ok(ConnectorEnum::Old(Box::new(connector::Fiuu::new()))),
+                enums::Connector::Flexiti => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Flexiti::new())))
+                }
                 enums::Connector::Forte => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Forte::new())))
                 }
@@ -436,6 +443,8 @@ impl ConnectorData {
                         .attach_printable(format!("invalid connector name: {connector_name}")))
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                 }
+                enums::Connector::Phonepe => Ok(ConnectorEnum::Old(Box::new(Phonepe::new()))),
+                enums::Connector::Paytm => Ok(ConnectorEnum::Old(Box::new(Paytm::new()))),
             },
             Err(_) => Err(report!(errors::ConnectorError::InvalidConnectorName)
                 .attach_printable(format!("invalid connector name: {connector_name}")))

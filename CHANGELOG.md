@@ -4,6 +4,62 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.08.01.0
+
+### Features
+
+- **authentication:** Added authentication sync api ([#8596](https://github.com/juspay/hyperswitch/pull/8596)) ([`794dce1`](https://github.com/juspay/hyperswitch/commit/794dce168e6b4d280c9c742a6e8a3b3283e09602))
+- **connector:**
+  - [payload] add recurring payments ([#8597](https://github.com/juspay/hyperswitch/pull/8597)) ([`64e6dc8`](https://github.com/juspay/hyperswitch/commit/64e6dc860d3c18a87160d374fb4fa6500b0b4285))
+  - [facilitapay] fix refunds, add webhook and void support ([#8778](https://github.com/juspay/hyperswitch/pull/8778)) ([`c38ce38`](https://github.com/juspay/hyperswitch/commit/c38ce386bda3aef1ce8a733c8df2a3a99b068396))
+  - [cybersource] add changes for field CybersourceConsumerAuthInformation ([#8768](https://github.com/juspay/hyperswitch/pull/8768)) ([`6ff7575`](https://github.com/juspay/hyperswitch/commit/6ff757541d3f0bea97edcadd4856a3dfa4ebedb4))
+  - [katapult]add template code for katapult ([#8783](https://github.com/juspay/hyperswitch/pull/8783)) ([`c6e4e72`](https://github.com/juspay/hyperswitch/commit/c6e4e7209f2bff0b72e6616f6b02c9996384413c))
+- **core:** Implement UCS based upi for paytm and phonepe ([#8732](https://github.com/juspay/hyperswitch/pull/8732)) ([`01e9474`](https://github.com/juspay/hyperswitch/commit/01e94748083a7f013d189356022cd241ea65c77f))
+- **router:** Introduce `feature` and `feature_data` to gsm ([#7771](https://github.com/juspay/hyperswitch/pull/7771)) ([`1fa20a9`](https://github.com/juspay/hyperswitch/commit/1fa20a9ae219ab9f1dc7a85f7445c1803cb39ce2))
+
+**Full Changelog:** [`2025.07.31.0...2025.08.01.0`](https://github.com/juspay/hyperswitch/compare/2025.07.31.0...2025.08.01.0)
+
+- - -
+
+## 2025.07.31.0
+
+### Features
+
+- **connector:** [Flexiti]Add support for flexiti connector ([#8743](https://github.com/juspay/hyperswitch/pull/8743)) ([`2bd8c9d`](https://github.com/juspay/hyperswitch/commit/2bd8c9d12d24039494ef76e04a7ce8f47ef2eba8))
+
+### Bug Fixes
+
+- **openapi:** Update create_platform endpoint in api-reference docs ([#8782](https://github.com/juspay/hyperswitch/pull/8782)) ([`8dc4061`](https://github.com/juspay/hyperswitch/commit/8dc4061f9edb1ac2527216b2279a765d0b797523))
+
+### Miscellaneous Tasks
+
+- **router:** Events enhancement for kafka ([#8780](https://github.com/juspay/hyperswitch/pull/8780)) ([`e48e55a`](https://github.com/juspay/hyperswitch/commit/e48e55a04821ab7648ad3434a8483c75e28ba070))
+
+**Full Changelog:** [`2025.07.30.0...2025.07.31.0`](https://github.com/juspay/hyperswitch/compare/2025.07.30.0...2025.07.31.0)
+
+- - -
+
+## 2025.07.30.0
+
+### Features
+
+- **connector:**
+  - [BLUECODE] Added Template Code ([#8756](https://github.com/juspay/hyperswitch/pull/8756)) ([`9f6182b`](https://github.com/juspay/hyperswitch/commit/9f6182b7fbb334447f2dda77f70d780ebbcde0ea))
+  - [FISERV] Added GooglePay Payment Method - Connector Decryption Flow ([#8658](https://github.com/juspay/hyperswitch/pull/8658)) ([`b5586b6`](https://github.com/juspay/hyperswitch/commit/b5586b68d8e7380ee57ebcaf93a68ecd59c686fc))
+  - [Adyen] receive incoming webhooks for pix expiry ([#8720](https://github.com/juspay/hyperswitch/pull/8720)) ([`4587564`](https://github.com/juspay/hyperswitch/commit/4587564824dff214744425d8e6dbfac8850e8416))
+- **routing:** Add api-refs for new decision engine endpoints ([#8709](https://github.com/juspay/hyperswitch/pull/8709)) ([`4dea30f`](https://github.com/juspay/hyperswitch/commit/4dea30ffa0d9bf636af3757c998e12a23f4769bd))
+
+### Bug Fixes
+
+- **connector:**
+  - [Worldpay] handle multiple ddc submission for CompleteAuthorize ([#8741](https://github.com/juspay/hyperswitch/pull/8741)) ([`f6cdddc`](https://github.com/juspay/hyperswitch/commit/f6cdddcb98e08f97dc518c8c14569fe67426bd6f))
+  - [GLOBALPAY] Added Tokenization Flow for CITs ([#8568](https://github.com/juspay/hyperswitch/pull/8568)) ([`f7bc33c`](https://github.com/juspay/hyperswitch/commit/f7bc33cd0f5537e7be05af4064df8715ed47011b))
+- Replace xtrim with xdel to support older redis version ([#8515](https://github.com/juspay/hyperswitch/pull/8515)) ([`3d085ab`](https://github.com/juspay/hyperswitch/commit/3d085abf3853c1658e208a733bf69715f44ba0bb))
+
+**Full Changelog:** [`2025.07.29.0...2025.07.30.0`](https://github.com/juspay/hyperswitch/compare/2025.07.29.0...2025.07.30.0)
+
+- - -
+
 ## 2025.07.29.0
 
 ### Documentation

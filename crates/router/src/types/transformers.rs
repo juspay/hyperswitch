@@ -168,7 +168,7 @@ impl ForeignTryFrom<storage_enums::AttemptStatus> for storage_enums::CaptureStat
             | storage_enums::AttemptStatus::PaymentMethodAwaited
             | storage_enums::AttemptStatus::ConfirmationAwaited
             | storage_enums::AttemptStatus::DeviceDataCollectionPending
-            | storage_enums::AttemptStatus::PartialChargedAndChargeable => {
+            | storage_enums::AttemptStatus::PartialChargedAndChargeable | storage_enums::AttemptStatus::Expired => {
                 Err(errors::ApiErrorResponse::PreconditionFailed {
                     message: "AttemptStatus must be one of these for multiple partial captures [Charged, PartialCharged, Pending, CaptureInitiated, Failure, CaptureFailed]".into(),
                 }.into())
@@ -295,6 +295,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Alma
             | api_enums::PaymentMethodType::AfterpayClearpay
             | api_enums::PaymentMethodType::Klarna
+            | api_enums::PaymentMethodType::Flexiti
             | api_enums::PaymentMethodType::PayBright
             | api_enums::PaymentMethodType::Atome
             | api_enums::PaymentMethodType::Walley
@@ -1585,42 +1586,129 @@ impl ForeignFrom<api_models::organization::OrganizationCreateRequest>
     }
 }
 
-impl ForeignFrom<gsm_api_types::GsmCreateRequest> for storage::GatewayStatusMappingNew {
+impl ForeignFrom<gsm_api_types::GsmCreateRequest>
+    for hyperswitch_domain_models::gsm::GatewayStatusMap
+{
     fn foreign_from(value: gsm_api_types::GsmCreateRequest) -> Self {
+        let inferred_feature_data = common_types::domain::GsmFeatureData::foreign_from(&value);
         Self {
             connector: value.connector.to_string(),
             flow: value.flow,
             sub_flow: value.sub_flow,
             code: value.code,
             message: value.message,
-            decision: value.decision.to_string(),
             status: value.status,
             router_error: value.router_error,
-            step_up_possible: value.step_up_possible,
             unified_code: value.unified_code,
             unified_message: value.unified_message,
             error_category: value.error_category,
-            clear_pan_possible: value.clear_pan_possible,
+            feature_data: value.feature_data.unwrap_or(inferred_feature_data),
+            feature: value.feature.unwrap_or(api_enums::GsmFeature::Retry),
         }
     }
 }
 
-impl ForeignFrom<storage::GatewayStatusMap> for gsm_api_types::GsmResponse {
-    fn foreign_from(value: storage::GatewayStatusMap) -> Self {
+impl ForeignFrom<&gsm_api_types::GsmCreateRequest> for common_types::domain::GsmFeatureData {
+    fn foreign_from(value: &gsm_api_types::GsmCreateRequest) -> Self {
+        // Defaulting alternate_network_possible to false as it is provided only in the Retry feature
+        // If the retry feature is not used, we assume alternate network as false
+        let alternate_network_possible = false;
+
+        match value.feature {
+            Some(api_enums::GsmFeature::Retry) | None => {
+                Self::Retry(common_types::domain::RetryFeatureData {
+                    step_up_possible: value.step_up_possible,
+                    clear_pan_possible: value.clear_pan_possible,
+                    alternate_network_possible,
+                    decision: value.decision,
+                })
+            }
+        }
+    }
+}
+
+impl
+    ForeignFrom<(
+        &gsm_api_types::GsmUpdateRequest,
+        hyperswitch_domain_models::gsm::GatewayStatusMap,
+    )> for (api_enums::GsmFeature, common_types::domain::GsmFeatureData)
+{
+    fn foreign_from(
+        (gsm_update_request, gsm_db_record): (
+            &gsm_api_types::GsmUpdateRequest,
+            hyperswitch_domain_models::gsm::GatewayStatusMap,
+        ),
+    ) -> Self {
+        let gsm_db_record_infered_feature = match gsm_db_record.feature_data.get_decision() {
+            api_enums::GsmDecision::Retry | api_enums::GsmDecision::DoDefault => {
+                api_enums::GsmFeature::Retry
+            }
+        };
+
+        let gsm_feature = gsm_update_request
+            .feature
+            .unwrap_or(gsm_db_record_infered_feature);
+
+        match gsm_feature {
+            api_enums::GsmFeature::Retry => {
+                let gsm_db_record_retry_feature_data =
+                    gsm_db_record.feature_data.get_retry_feature_data();
+
+                let retry_feature_data = common_types::domain::GsmFeatureData::Retry(
+                    common_types::domain::RetryFeatureData {
+                        step_up_possible: gsm_update_request
+                            .step_up_possible
+                            .or(gsm_db_record_retry_feature_data
+                                .clone()
+                                .map(|data| data.step_up_possible))
+                            .unwrap_or_default(),
+                        clear_pan_possible: gsm_update_request
+                            .clear_pan_possible
+                            .or(gsm_db_record_retry_feature_data
+                                .clone()
+                                .map(|data| data.clear_pan_possible))
+                            .unwrap_or_default(),
+                        alternate_network_possible: gsm_db_record_retry_feature_data
+                            .map(|data| data.alternate_network_possible)
+                            .unwrap_or_default(),
+                        decision: gsm_update_request
+                            .decision
+                            .or(Some(gsm_db_record.feature_data.get_decision()))
+                            .unwrap_or_default(),
+                    },
+                );
+                (api_enums::GsmFeature::Retry, retry_feature_data)
+            }
+        }
+    }
+}
+
+impl ForeignFrom<hyperswitch_domain_models::gsm::GatewayStatusMap> for gsm_api_types::GsmResponse {
+    fn foreign_from(value: hyperswitch_domain_models::gsm::GatewayStatusMap) -> Self {
         Self {
             connector: value.connector.to_string(),
             flow: value.flow,
             sub_flow: value.sub_flow,
             code: value.code,
             message: value.message,
-            decision: value.decision.to_string(),
+            decision: value.feature_data.get_decision(),
             status: value.status,
             router_error: value.router_error,
-            step_up_possible: value.step_up_possible,
+            step_up_possible: value
+                .feature_data
+                .get_retry_feature_data()
+                .map(|data| data.is_step_up_possible())
+                .unwrap_or(false),
             unified_code: value.unified_code,
             unified_message: value.unified_message,
             error_category: value.error_category,
-            clear_pan_possible: value.clear_pan_possible,
+            clear_pan_possible: value
+                .feature_data
+                .get_retry_feature_data()
+                .map(|data| data.is_clear_pan_possible())
+                .unwrap_or(false),
+            feature_data: Some(value.feature_data),
+            feature: value.feature,
         }
     }
 }

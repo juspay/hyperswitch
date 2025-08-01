@@ -425,7 +425,8 @@ pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
         | AttemptStatus::AuthorizationFailed
         | AttemptStatus::CaptureFailed
         | AttemptStatus::VoidFailed
-        | AttemptStatus::Failure => true,
+        | AttemptStatus::Failure
+        | AttemptStatus::Expired => true,
         AttemptStatus::Started
         | AttemptStatus::RouterDeclined
         | AttemptStatus::AuthenticationPending
@@ -1676,13 +1677,21 @@ impl PayoutFulfillRequestData for hyperswitch_domain_models::router_request_type
 
 pub trait CustomerData {
     fn get_email(&self) -> Result<Email, Error>;
+    fn is_mandate_payment(&self) -> bool;
 }
 
 impl CustomerData for ConnectorCustomerData {
     fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
     }
+    fn is_mandate_payment(&self) -> bool {
+        // We only need to check if the customer acceptance or setup mandate details are present and if the setup future usage is OffSession.
+        // mandate_reference_id is not needed here as we do not need to check for existing mandates.
+        self.customer_acceptance.is_some()
+            && self.setup_future_usage == Some(FutureUsage::OffSession)
+    }
 }
+
 pub trait PaymentsAuthorizeRequestData {
     fn get_optional_language_from_browser_info(&self) -> Option<String>;
     fn is_auto_capture(&self) -> Result<bool, Error>;
@@ -2190,6 +2199,7 @@ impl PaymentsSetupMandateRequestData for SetupMandateRequestData {
 
 pub trait PaymentMethodTokenizationRequestData {
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+    fn is_mandate_payment(&self) -> bool;
 }
 
 impl PaymentMethodTokenizationRequestData for PaymentMethodTokenizationData {
@@ -2197,6 +2207,15 @@ impl PaymentMethodTokenizationRequestData for PaymentMethodTokenizationData {
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
+    }
+    fn is_mandate_payment(&self) -> bool {
+        ((self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
+            && (self.setup_future_usage == Some(FutureUsage::OffSession)))
+            || self
+                .mandate_id
+                .as_ref()
+                .and_then(|mandate_ids| mandate_ids.mandate_reference_id.as_ref())
+                .is_some()
     }
 }
 
@@ -5475,6 +5494,7 @@ pub enum PaymentMethodDataType {
     AlmaRedirect,
     AtomeRedirect,
     Breadpay,
+    FlexitiRedirect,
     BancontactCard,
     Bizum,
     Blik,
@@ -5607,6 +5627,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::PayLaterData::AfterpayClearpayRedirect { .. } => {
                     Self::AfterpayClearpayRedirect
                 }
+                payment_method_data::PayLaterData::FlexitiRedirect { .. } => Self::FlexitiRedirect,
                 payment_method_data::PayLaterData::PayBrightRedirect {} => Self::PayBrightRedirect,
                 payment_method_data::PayLaterData::WalleyRedirect {} => Self::WalleyRedirect,
                 payment_method_data::PayLaterData::AlmaRedirect {} => Self::AlmaRedirect,
@@ -6295,7 +6316,8 @@ impl FrmTransactionRouterDataRequest for FrmTransactionRouterData {
             | AttemptStatus::Voided
             | AttemptStatus::CaptureFailed
             | AttemptStatus::Failure
-            | AttemptStatus::AutoRefunded => Some(false),
+            | AttemptStatus::AutoRefunded
+            | AttemptStatus::Expired => Some(false),
 
             AttemptStatus::AuthenticationSuccessful
             | AttemptStatus::PartialChargedAndChargeable

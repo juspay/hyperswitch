@@ -1264,6 +1264,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::Mifinity
                     | enums::PaymentMethodType::Paze
                     | enums::PaymentMethodType::IndonesianBankTransfer
+                    | enums::PaymentMethodType::Flexiti
                     | enums::PaymentMethodType::RevolutPay
                     | enums::PaymentMethodType::Breadpay => {
                         Err(errors::ConnectorError::NotImplemented(
@@ -1321,6 +1322,7 @@ impl TryFrom<&PayLaterData> for PaypalPaymentsRequest {
             | PayLaterData::AfterpayClearpayRedirect { .. }
             | PayLaterData::PayBrightRedirect {}
             | PayLaterData::WalleyRedirect {}
+            | PayLaterData::FlexitiRedirect {}
             | PayLaterData::AlmaRedirect {}
             | PayLaterData::AtomeRedirect {}
             | PayLaterData::BreadpayRedirect {} => Err(errors::ConnectorError::NotImplemented(
@@ -2701,7 +2703,8 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaypalCaptureResponse>>
             | storage_enums::AttemptStatus::PaymentMethodAwaited
             | storage_enums::AttemptStatus::ConfirmationAwaited
             | storage_enums::AttemptStatus::DeviceDataCollectionPending
-            | storage_enums::AttemptStatus::Voided => 0,
+            | storage_enums::AttemptStatus::Voided
+            | storage_enums::AttemptStatus::Expired => 0,
             storage_enums::AttemptStatus::Charged
             | storage_enums::AttemptStatus::PartialCharged
             | storage_enums::AttemptStatus::PartialChargedAndChargeable

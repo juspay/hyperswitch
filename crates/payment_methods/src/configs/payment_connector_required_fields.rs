@@ -1071,19 +1071,47 @@ impl Default for RequiredFields {
                 enums::PaymentMethod::Upi,
                 PaymentMethodType(HashMap::from([(
                     enums::PaymentMethodType::UpiCollect,
-                    connectors(vec![(
-                        Connector::Razorpay,
-                        fields(
-                            vec![],
-                            vec![],
-                            vec![
-                                RequiredField::UpiCollectVpaId,
-                                RequiredField::BillingEmail,
-                                RequiredField::BillingPhone,
-                                RequiredField::BillingPhoneCountryCode,
-                            ],
+                    connectors(vec![
+                        (
+                            Connector::Razorpay,
+                            fields(
+                                vec![],
+                                vec![],
+                                vec![
+                                    RequiredField::UpiCollectVpaId,
+                                    RequiredField::BillingEmail,
+                                    RequiredField::BillingPhone,
+                                    RequiredField::BillingPhoneCountryCode,
+                                ],
+                            ),
                         ),
-                    )]),
+                        (
+                            Connector::Phonepe,
+                            fields(
+                                vec![],
+                                vec![],
+                                vec![
+                                    RequiredField::UpiCollectVpaId,
+                                    RequiredField::BillingEmail,
+                                    RequiredField::BillingPhone,
+                                    RequiredField::BillingPhoneCountryCode,
+                                ],
+                            ),
+                        ),
+                        (
+                            Connector::Paytm,
+                            fields(
+                                vec![],
+                                vec![],
+                                vec![
+                                    RequiredField::UpiCollectVpaId,
+                                    RequiredField::BillingEmail,
+                                    RequiredField::BillingPhone,
+                                    RequiredField::BillingPhoneCountryCode,
+                                ],
+                            ),
+                        ),
+                    ]),
                 )])),
             ),
             (
@@ -2732,6 +2760,33 @@ fn get_pay_later_required_fields() -> HashMap<enums::PaymentMethodType, Connecto
                     ),
                 ),
             ]),
+        ),
+        (
+            enums::PaymentMethodType::Flexiti,
+            connectors(vec![(
+                Connector::Flexiti,
+                RequiredFieldFinal {
+                    mandate: HashMap::new(),
+                    non_mandate: HashMap::from([
+                        RequiredField::BillingUserFirstName.to_tuple(),
+                        RequiredField::BillingUserLastName.to_tuple(),
+                        RequiredField::BillingAddressCity.to_tuple(),
+                        RequiredField::BillingAddressState.to_tuple(),
+                        RequiredField::BillingAddressZip.to_tuple(),
+                        RequiredField::BillingAddressLine1.to_tuple(),
+                        RequiredField::BillingAddressLine2.to_tuple(),
+                        RequiredField::BillingAddressState.to_tuple(),
+                        RequiredField::ShippingFirstName.to_tuple(),
+                        RequiredField::ShippingLastName.to_tuple(),
+                        RequiredField::ShippingAddressLine1.to_tuple(),
+                        RequiredField::ShippingAddressLine2.to_tuple(),
+                        RequiredField::ShippingAddressZip.to_tuple(),
+                        RequiredField::ShippingAddressCity.to_tuple(),
+                        RequiredField::ShippingAddressState.to_tuple(),
+                    ]),
+                    common: HashMap::new(),
+                },
+            )]),
         ),
         (
             enums::PaymentMethodType::Klarna,
