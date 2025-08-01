@@ -8297,7 +8297,9 @@
           "payone",
           "paypal",
           "paystack",
+          "paytm",
           "payu",
+          "phonepe",
           "placetopay",
           "powertranz",
           "prophetpay",
@@ -12133,7 +12135,8 @@
           },
           "step_up_possible": {
             "type": "boolean",
-            "description": "indicates if step_up retry is possible"
+            "description": "indicates if step_up retry is possible\n**Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.",
+            "deprecated": true
           },
           "unified_code": {
             "type": "string",
@@ -12155,7 +12158,24 @@
           },
           "clear_pan_possible": {
             "type": "boolean",
-            "description": "indicates if retry with pan is possible"
+            "description": "indicates if retry with pan is possible\n**Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.",
+            "deprecated": true
+          },
+          "feature": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GsmFeature"
+              }
+            ],
+            "nullable": true
+          },
+          "feature_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GsmFeatureData"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -12163,7 +12183,6 @@
         "type": "string",
         "enum": [
           "retry",
-          "requeue",
           "do_default"
         ]
       },
@@ -12230,6 +12249,28 @@
           }
         }
       },
+      "GsmFeature": {
+        "type": "string",
+        "enum": [
+          "retry"
+        ]
+      },
+      "GsmFeatureData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "retry"
+            ],
+            "properties": {
+              "retry": {
+                "$ref": "#/components/schemas/RetryFeatureData"
+              }
+            }
+          }
+        ],
+        "description": "Contains the data relevant to the specified GSM feature, if applicable.\nFor example, if the `feature` is `Retry`, this will include configuration\ndetails specific to the retry behavior."
+      },
       "GsmResponse": {
         "type": "object",
         "required": [
@@ -12241,7 +12282,9 @@
           "status",
           "decision",
           "step_up_possible",
-          "clear_pan_possible"
+          "clear_pan_possible",
+          "feature",
+          "feature_data"
         ],
         "properties": {
           "connector": {
@@ -12274,12 +12317,12 @@
             "nullable": true
           },
           "decision": {
-            "type": "string",
-            "description": "decision to be taken for auto retries flow"
+            "$ref": "#/components/schemas/GsmDecision"
           },
           "step_up_possible": {
             "type": "boolean",
-            "description": "indicates if step_up retry is possible"
+            "description": "indicates if step_up retry is possible\n**Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.",
+            "deprecated": true
           },
           "unified_code": {
             "type": "string",
@@ -12301,7 +12344,14 @@
           },
           "clear_pan_possible": {
             "type": "boolean",
-            "description": "indicates if retry with pan is possible"
+            "description": "indicates if retry with pan is possible\n**Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.",
+            "deprecated": true
+          },
+          "feature": {
+            "$ref": "#/components/schemas/GsmFeature"
+          },
+          "feature_data": {
+            "$ref": "#/components/schemas/GsmFeatureData"
           }
         }
       },
@@ -12386,7 +12436,8 @@
           },
           "step_up_possible": {
             "type": "boolean",
-            "description": "indicates if step_up retry is possible",
+            "description": "indicates if step_up retry is possible\n**Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.",
+            "deprecated": true,
             "nullable": true
           },
           "unified_code": {
@@ -12409,7 +12460,24 @@
           },
           "clear_pan_possible": {
             "type": "boolean",
-            "description": "indicates if retry with pan is possible",
+            "description": "indicates if retry with pan is possible\n**Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.",
+            "deprecated": true,
+            "nullable": true
+          },
+          "feature": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GsmFeature"
+              }
+            ],
+            "nullable": true
+          },
+          "feature_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GsmFeatureData"
+              }
+            ],
             "nullable": true
           }
         }
@@ -22798,6 +22866,33 @@
           "requeue"
         ]
       },
+      "RetryFeatureData": {
+        "type": "object",
+        "description": "Represents the data associated with a retry feature in GSM.",
+        "required": [
+          "step_up_possible",
+          "clear_pan_possible",
+          "alternate_network_possible",
+          "decision"
+        ],
+        "properties": {
+          "step_up_possible": {
+            "type": "boolean",
+            "description": "indicates if step_up retry is possible"
+          },
+          "clear_pan_possible": {
+            "type": "boolean",
+            "description": "indicates if retry with pan is possible"
+          },
+          "alternate_network_possible": {
+            "type": "boolean",
+            "description": "indicates if retry with alternate network possible"
+          },
+          "decision": {
+            "$ref": "#/components/schemas/GsmDecision"
+          }
+        }
+      },
       "RevenueRecoveryMetadata": {
         "type": "object",
         "description": "Revenue recovery metadata for merchant connector account",
@@ -23009,7 +23104,9 @@
           "payone",
           "paypal",
           "paystack",
+          "paytm",
           "payu",
+          "phonepe",
           "placetopay",
           "powertranz",
           "prophetpay",

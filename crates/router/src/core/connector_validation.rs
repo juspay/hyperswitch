@@ -523,6 +523,14 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 threedsecureio::transformers::ThreedsecureioAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Phonepe => {
+                phonepe::transformers::PhonepeAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Paytm => {
+                paytm::transformers::PaytmAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
         }
     }
 }
