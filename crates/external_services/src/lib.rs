@@ -56,9 +56,7 @@ pub mod date_time {
         OffsetDateTime::from_unix_timestamp_nanos(timestamp_nanos)
             .map(|offset_dt| PrimitiveDateTime::new(offset_dt.date(), offset_dt.time()))
             .map_err(|original_error| {
-                router_env::logger::error!(
-                    "Prost timestamp conversion failed: {original_error:?}"
-                );
+                router_env::logger::error!("Prost timestamp conversion failed: {original_error:?}");
                 error_stack::report!(common::DateTimeConversionError::TimestampOutOfRange)
             })
     }

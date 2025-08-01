@@ -243,19 +243,19 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
         );
     }
 
-    let payment_revenue_recovery_metadata=payment_intent
-    .feature_metadata
-    .as_ref()
-    .and_then(|revenue_recovery_data| {
-        revenue_recovery_data
-            .payment_revenue_recovery_metadata
-            .as_ref()
-    })
-    .and_then(|payment_metadata| {
-        payment_metadata
-            .billing_connector_payment_method_details
-            .as_ref()
-    });
+    let payment_revenue_recovery_metadata = payment_intent
+        .feature_metadata
+        .as_ref()
+        .and_then(|revenue_recovery_data| {
+            revenue_recovery_data
+                .payment_revenue_recovery_metadata
+                .as_ref()
+        })
+        .and_then(|payment_metadata| {
+            payment_metadata
+                .billing_connector_payment_method_details
+                .as_ref()
+        });
 
     let card_network_str = payment_revenue_recovery_metadata
         .and_then(|details| match details {
@@ -264,14 +264,13 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
         })
         .map(|cn| cn.to_string())?;
 
-    let card_issuer_str = payment_revenue_recovery_metadata
-        .and_then(|details| match details {
-            BillingConnectorPaymentMethodDetails::Card(card_info) => card_info.card_issuer.clone(),
-            _ => None,
-        })?;
+    let card_issuer_str = payment_revenue_recovery_metadata.and_then(|details| match details {
+        BillingConnectorPaymentMethodDetails::Card(card_info) => card_info.card_issuer.clone(),
+        _ => None,
+    })?;
 
-        // will remove this after we are getting the card issuer from Stripe
-        // .unwrap_or("CHASE".to_string());
+    // will remove this after we are getting the card issuer from Stripe
+    // .unwrap_or("CHASE".to_string());
 
     let card_funding_str = payment_intent
         .feature_metadata
@@ -312,28 +311,28 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
         match client
             .decide_on_retry(decider_request.into(), state.get_recovery_grpc_headers())
             .await
-    {
-        Ok(grpc_response) => grpc_response
-            .retry_flag
-            .then_some(())
-            .and(grpc_response.retry_time)
-            .and_then(|prost_ts| {
-                match date_time::convert_from_prost_timestamp(&prost_ts) {
-                    Ok(pdt) => Some(pdt),
-                    Err(e) => {
-                        logger::error!(
-                            "Failed to convert retry_time from prost::Timestamp: {e:?}"
-                        );
-                        None // If conversion fails, treat as no valid retry time
+        {
+            Ok(grpc_response) => grpc_response
+                .retry_flag
+                .then_some(())
+                .and(grpc_response.retry_time)
+                .and_then(|prost_ts| {
+                    match date_time::convert_from_prost_timestamp(&prost_ts) {
+                        Ok(pdt) => Some(pdt),
+                        Err(e) => {
+                            logger::error!(
+                                "Failed to convert retry_time from prost::Timestamp: {e:?}"
+                            );
+                            None // If conversion fails, treat as no valid retry time
+                        }
                     }
-                }
-            }),
+                }),
 
-        Err(e) => {
-            logger::error!("Recovery decider gRPC call failed: {e:?}");  
-            None
+            Err(e) => {
+                logger::error!("Recovery decider gRPC call failed: {e:?}");
+                None
+            }
         }
-    }
     } else {
         logger::debug!("Recovery decider client is not configured");
         None

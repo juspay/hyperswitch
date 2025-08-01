@@ -32,18 +32,16 @@ use serde;
 ))]
 use tonic::body::Body;
 
-use crate::grpc_client::unified_connector_service::{
-    UnifiedConnectorServiceClient, UnifiedConnectorServiceClientConfig,
-};
-
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+pub use self::revenue_recovery::common::GrpcRecoveryHeaders;
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 pub use self::revenue_recovery::recovery_decider_client::{
     DeciderRequest, DeciderResponse, RecoveryDeciderClientConfig, RecoveryDeciderClientInterface,
     RecoveryDeciderError, RecoveryDeciderResult,
 };
-
-#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
-pub use self::revenue_recovery::common::GrpcRecoveryHeaders;
+use crate::grpc_client::unified_connector_service::{
+    UnifiedConnectorServiceClient, UnifiedConnectorServiceClientConfig,
+};
 
 #[cfg(any(
     feature = "dynamic_routing",
@@ -115,7 +113,6 @@ impl GrpcClientSettings {
         let unified_connector_service_client =
             UnifiedConnectorServiceClient::build_connections(self).await;
 
-
         #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
         let recovery_decider_client = self
             .recovery_decider_client
@@ -124,7 +121,6 @@ impl GrpcClientSettings {
             .transpose()
             .expect("Failed to establish a connection with the Recovery Decider Server")
             .map(|client| -> Box<dyn RecoveryDeciderClientInterface> { Box::new(client) });
-    
 
         Arc::new(GrpcClients {
             #[cfg(feature = "dynamic_routing")]
