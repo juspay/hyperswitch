@@ -29,6 +29,7 @@ pub mod redis;
 pub mod refund;
 mod reverse_lookup;
 pub mod utils;
+pub mod redis_manipulation;
 
 use common_utils::{errors::CustomResult, types::keymanager::KeyManagerState};
 use database::store::PgPool;
@@ -386,6 +387,17 @@ impl UniqueConstraints for diesel_models::PaymentAttempt {
     fn table_name(&self) -> &str {
         "PaymentAttempt"
     }
+}
+
+impl UniqueConstraints for diesel_models::TokenData {
+    fn table_name(&self) -> &str {
+        "t"
+    }
+
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![]
+    }
+
 }
 
 #[cfg(feature = "v1")]

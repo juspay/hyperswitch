@@ -48,6 +48,8 @@ impl RevenueRecoveryPaymentData {
             }
             enums::RevenueRecoveryAlgorithmType::Smart => {
                 // TODO: Integrate the smart retry call to return back a schedule time
+                // move this to calculate workflow
+                logger::error!("Smart type found for Revenue Recovery retry payment");
                 None
             }
         }
