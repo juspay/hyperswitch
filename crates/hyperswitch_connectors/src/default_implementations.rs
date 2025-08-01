@@ -981,7 +981,6 @@ default_imp_for_complete_authorize!(
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
-    connectors::Affirm,
     connectors::Amazonpay,
     connectors::Archipel,
     connectors::Authipay,
