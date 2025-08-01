@@ -303,8 +303,6 @@ jobs:
     name: Run optional Cypress tests for alpha connectors
     needs: build-hyperswitch
     runs-on: ubuntu-latest
-    # This job is not required to pass for PR to be merged
-    continue-on-error: true
 
     services:
       redis:
