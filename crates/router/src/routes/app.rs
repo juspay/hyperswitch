@@ -1852,10 +1852,25 @@ impl Webhooks {
 
 pub struct Configs;
 
-#[cfg(any(feature = "olap", feature = "oltp"))]
+#[cfg(all(feature = "v1",any(feature = "olap", feature = "oltp")))]
 impl Configs {
     pub fn server(config: AppState) -> Scope {
         web::scope("/configs")
+            .app_data(web::Data::new(config))
+            .service(web::resource("/").route(web::post().to(config_key_create)))
+            .service(
+                web::resource("/{key}")
+                    .route(web::get().to(config_key_retrieve))
+                    .route(web::post().to(config_key_update))
+                    .route(web::delete().to(config_key_delete)),
+            )
+    }
+}
+
+#[cfg(all(feature = "v2", any(feature = "olap", feature = "oltp")))]
+impl Configs {
+    pub fn server(config: AppState) -> Scope {
+        web::scope("/v2/configs")
             .app_data(web::Data::new(config))
             .service(web::resource("/").route(web::post().to(config_key_create)))
             .service(
