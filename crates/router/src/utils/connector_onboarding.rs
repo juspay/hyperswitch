@@ -133,7 +133,7 @@ pub async fn get_tracking_id_from_configs(
     connector: enums::Connector,
 ) -> RouterResult<String> {
     use open_feature::EvaluationContext;
-    let context = EvaluationContext {
+    let context: EvaluationContext = EvaluationContext {
         custom_fields: HashMap::from([
             (
                 "connector".to_string(),

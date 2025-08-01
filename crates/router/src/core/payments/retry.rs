@@ -1,4 +1,4 @@
-use std::{str::FromStr, vec::IntoIter};
+use std::{collections::HashMap, str::FromStr, vec::IntoIter};
 
 use common_utils::{ext_traits::Encode, types::MinorUnit};
 use diesel_models::enums as storage_enums;
@@ -216,22 +216,38 @@ pub async fn is_step_up_enabled_for_merchant_connector(
     merchant_id: &common_utils::id_type::MerchantId,
     connector_name: types::Connector,
 ) -> bool {
+    use open_feature::EvaluationContext;
+    let context = EvaluationContext {
+        custom_fields: HashMap::from([(
+            "merchant_id".to_string(),
+            open_feature::EvaluationContextFieldValue::String(
+                merchant_id.get_string_repr().to_string(),
+            ),
+        )]),
+        targeting_key: Some(merchant_id.get_string_repr().to_string()), //todo
+    };
     let key = merchant_id.get_step_up_enabled_key();
     let db = &*state.store;
-    db.find_config_by_key_unwrap_or(key.as_str(), Some("[]".to_string()), None, None, None)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .and_then(|step_up_config| {
-            serde_json::from_str::<Vec<types::Connector>>(&step_up_config.config)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Step-up config parsing failed")
-        })
-        .map_err(|err| {
-            logger::error!(step_up_config_error=?err);
-        })
-        .ok()
-        .map(|connectors_enabled| connectors_enabled.contains(&connector_name))
-        .unwrap_or(false)
+    db.find_config_by_key_unwrap_or(
+        key.as_str(),
+        Some("[]".to_string()),
+        Some(&context),
+        Some("step_up_enabled"),
+        Some(&state),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .and_then(|step_up_config| {
+        serde_json::from_str::<Vec<types::Connector>>(&step_up_config.config)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Step-up config parsing failed")
+    })
+    .map_err(|err| {
+        logger::error!(step_up_config_error=?err);
+    })
+    .ok()
+    .map(|connectors_enabled| connectors_enabled.contains(&connector_name))
+    .unwrap_or(false)
 }
 
 #[cfg(feature = "v1")]
@@ -724,9 +740,9 @@ pub async fn get_merchant_config_for_gsm(
         .find_config_by_key_unwrap_or(
             &merchant_id.get_should_call_gsm_key(),
             Some("false".to_string()),
-                None,
-                None,
-                None,
+            None,
+            None,
+            None,
         )
         .await;
     match config {

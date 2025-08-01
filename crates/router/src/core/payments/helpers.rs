@@ -7213,9 +7213,9 @@ pub async fn is_merchant_eligible_authentication_service(
         .find_config_by_key_unwrap_or(
             consts::AUTHENTICATION_SERVICE_ELIGIBLE_CONFIG,
             Some("[]".to_string()),
-                None,
-                None,
-                None,
+            None,
+            Some("merchants_eligible_for_authentication_service"),
+            Some(&state),
         )
         .await;
 

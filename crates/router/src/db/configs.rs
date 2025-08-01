@@ -141,8 +141,8 @@ impl ConfigInterface for Store {
         superposition_key: Option<&str>,
         state: Option<&SessionState>,
     ) -> CustomResult<storage::Config, errors::StorageError> {
-        if let (Some(context), Some(superposition_key), Some(state)) =
-            (superposition_context, superposition_key, state)
+        if let (Some(superposition_key), Some(state)) =
+            (superposition_key, state)
         {
             if let Some(client) = &state.superposition_client {
                 let kill_switch_context: EvaluationContext = EvaluationContext::default();
@@ -156,7 +156,7 @@ impl ConfigInterface for Store {
                     .unwrap_or(false)
                 {
                     if let Ok(value) = client
-                        .get_string_value(superposition_key, Some(context), None)
+                        .get_string_value(superposition_key, superposition_context, None)
                         .await
                     {
                         eprint!("Using superposition for config: {}", key);
