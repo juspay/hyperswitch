@@ -36,7 +36,7 @@ use crate::{
         payments::{self, helpers},
         utils as core_utils,
     },
-    headers::X_PAYMENT_CONFIRM_SOURCE,
+    headers::{X_CONNECTOR_HTTP_STATUS_CODE, X_PAYMENT_CONFIRM_SOURCE},
     routes::{metrics, SessionState},
     services::{self, RedirectForm},
     types::{
@@ -1586,9 +1586,17 @@ where
             status: payment_intent.status,
         };
 
+        let headers = connector_http_status_code
+            .map(|status_code| {
+                vec![(
+                    X_CONNECTOR_HTTP_STATUS_CODE.to_string(),
+                    Maskable::new_normal(status_code.to_string()),
+                )]
+            })
+            .unwrap_or_default();
+
         Ok(services::ApplicationResponse::JsonWithHeaders((
-            response,
-            vec![],
+            response, headers,
         )))
     }
 }
@@ -1969,6 +1977,15 @@ where
             .clone()
             .or(profile.return_url.clone());
 
+        let headers = connector_http_status_code
+            .map(|status_code| {
+                vec![(
+                    X_CONNECTOR_HTTP_STATUS_CODE.to_string(),
+                    Maskable::new_normal(status_code.to_string()),
+                )]
+            })
+            .unwrap_or_default();
+
         let response = api_models::payments::PaymentsResponse {
             id: payment_intent.id.clone(),
             status: payment_intent.status,
@@ -2000,8 +2017,7 @@ where
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
-            response,
-            vec![],
+            response, headers,
         )))
     }
 }
@@ -2066,6 +2082,15 @@ where
 
         let return_url = payment_intent.return_url.or(profile.return_url.clone());
 
+        let headers = connector_http_status_code
+            .map(|status_code| {
+                vec![(
+                    X_CONNECTOR_HTTP_STATUS_CODE.to_string(),
+                    Maskable::new_normal(status_code.to_string()),
+                )]
+            })
+            .unwrap_or_default();
+
         let response = api_models::payments::PaymentsResponse {
             id: payment_intent.id.clone(),
             status: payment_intent.status,
@@ -2101,8 +2126,7 @@ where
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
-            response,
-            vec![],
+            response, headers,
         )))
     }
 }
@@ -2540,7 +2564,7 @@ where
     let mut headers = connector_http_status_code
         .map(|status_code| {
             vec![(
-                "connector_http_status_code".to_string(),
+                X_CONNECTOR_HTTP_STATUS_CODE.to_string(),
                 Maskable::new_normal(status_code.to_string()),
             )]
         })

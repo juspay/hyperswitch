@@ -397,12 +397,14 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse>
             None => (None, None),
         };
 
+        let status_code = convert_connector_service_status_code(response.status_code)?;
+
         let response = if response.error_code.is_some() {
             Err(ErrorResponse {
                 code: response.error_code().to_owned(),
                 message: response.error_message().to_owned(),
                 reason: Some(response.error_message().to_owned()),
-                status_code: 500, //TODO: To be handled once UCS sends proper status codes
+                status_code,
                 attempt_status: Some(status),
                 connector_transaction_id: connector_response_reference_id,
                 network_decline_code: None,
@@ -455,12 +457,14 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceGetResponse>
                     })
             });
 
+        let status_code = convert_connector_service_status_code(response.status_code)?;
+
         let response = if response.error_code.is_some() {
             Err(ErrorResponse {
                 code: response.error_code().to_owned(),
                 message: response.error_message().to_owned(),
                 reason: Some(response.error_message().to_owned()),
-                status_code: 500, //TODO: To be handled once UCS sends proper status codes
+                status_code,
                 attempt_status: Some(status),
                 connector_transaction_id: connector_response_reference_id,
                 network_decline_code: None,
@@ -514,12 +518,14 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceRegisterResponse>
                     })
             });
 
+        let status_code = convert_connector_service_status_code(response.status_code)?;
+
         let response = if response.error_code.is_some() {
             Err(ErrorResponse {
                 code: response.error_code().to_owned(),
                 message: response.error_message().to_owned(),
                 reason: Some(response.error_message().to_owned()),
-                status_code: 500, //TODO: To be handled once UCS sends proper status codes
+                status_code,
                 attempt_status: Some(status),
                 connector_transaction_id: connector_response_reference_id,
                 network_decline_code: None,
@@ -603,12 +609,14 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingResponse>
             })
         });
 
+        let status_code = convert_connector_service_status_code(response.status_code)?;
+
         let response = if response.error_code.is_some() {
             Err(ErrorResponse {
                 code: response.error_code().to_owned(),
                 message: response.error_message().to_owned(),
                 reason: Some(response.error_message().to_owned()),
-                status_code: 500, //TODO: To be handled once UCS sends proper status codes
+                status_code,
                 attempt_status: Some(status),
                 connector_transaction_id: transaction_id,
                 network_decline_code: None,
@@ -993,4 +1001,15 @@ impl ForeignTryFrom<common_types::payments::CustomerAcceptance>
             online_mandate_details,
         })
     }
+}
+
+pub fn convert_connector_service_status_code(
+    status_code: u32,
+) -> Result<u16, error_stack::Report<UnifiedConnectorServiceError>> {
+    u16::try_from(status_code).map_err(|err| {
+        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(format!(
+            "Failed to convert connector service status code to u16: {err}"
+        ))
+        .into()
+    })
 }
