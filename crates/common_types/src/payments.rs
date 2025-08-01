@@ -429,14 +429,16 @@ pub enum ApplePayPaymentData {
 /// This struct represents the decrypted Apple Pay payment data
 pub struct ApplePayPredecryptData {
     /// The primary account number
+    #[schema(value_type = String, example = "4242424242424242")]
     pub application_primary_account_number: cards::CardNumber, // Should this be String or should we have validation for this?
     /// The application expiration date (PAN expiry month)
-    #[schema(value_type = String, example = "24")]
+    #[schema(value_type = String, example = "12")]
     pub application_expiration_month: Secret<String>,
     /// The application expiration date (PAN expiry year)
     #[schema(value_type = String, example = "24")]
     pub application_expiration_year: Secret<String>,
     /// The payment data, which contains the cryptogram and ECI indicator
+    #[schema(value_type = ApplePayCryptogramData)]
     pub payment_data: ApplePayCryptogramData,
 }
 
@@ -445,8 +447,10 @@ pub struct ApplePayPredecryptData {
 /// This struct represents the cryptogram data for Apple Pay transactions
 pub struct ApplePayCryptogramData {
     /// The online payment cryptogram
+    #[schema(value_type = String, example = "A1B2C3D4E5F6G7H8")]
     pub online_payment_cryptogram: Secret<String>,
     /// The ECI (Electronic Commerce Indicator) value
+    #[schema(value_type = String, example = "05")]
     pub eci_indicator: Option<String>,
 }
 
