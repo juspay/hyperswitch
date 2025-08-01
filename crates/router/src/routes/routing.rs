@@ -1547,9 +1547,7 @@ pub async fn create_elimination_routing(
     let wrapper = routing_types::CreateDynamicRoutingWrapper {
         feature_to_enable: query.into_inner().enable,
         profile_id: path.into_inner().profile_id,
-        payload: api_models::routing::DynamicRoutingPayload::Elimination(
-            json_payload.into_inner(),
-        ),
+        payload: api_models::routing::DynamicRoutingPayload::Elimination(json_payload.into_inner()),
     };
     Box::pin(oss_api::server_wrap(
         flow,
