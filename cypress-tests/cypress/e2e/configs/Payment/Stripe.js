@@ -394,7 +394,7 @@ export const connectorDetails = {
       Configs: {
         CONNECTOR_CREDENTIAL: {
           specName: ["incrementalAuth"],
-          value: "connector_2",
+          value: "connector_3",
         },
       },
       Request: {
