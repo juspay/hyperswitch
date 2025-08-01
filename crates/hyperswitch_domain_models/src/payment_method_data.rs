@@ -406,9 +406,7 @@ pub struct AliPayHkRedirection {}
 pub struct AmazonPayRedirect {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
-pub struct BluecodeQrRedirect {
-    pub shop_name: String,
-}
+pub struct BluecodeQrRedirect {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct PayseraData {}

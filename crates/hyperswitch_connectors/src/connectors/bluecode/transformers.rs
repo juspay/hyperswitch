@@ -139,8 +139,7 @@ impl
             billing_address_city: item.router_data.get_billing_city()?,
             billing_address_line1: item.router_data.get_billing_line1()?,
             billing_address_postal_code: item.router_data.get_billing_zip()?,
-            // webhook_url: item.router_data.request.get_webhook_url()?,
-            webhook_url: "https://31803474f519.ngrok-free.app/webhooks/merchant_1753970617/mca_FgNlKmjbWlvCSEhYYxZH".to_string(),
+            webhook_url: item.router_data.request.get_webhook_url()?,
             success_url: item.router_data.request.get_router_return_url()?,
             failure_url: item.router_data.request.get_router_return_url()?,
         })
