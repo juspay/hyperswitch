@@ -1680,7 +1680,7 @@ pub async fn create_specific_dynamic_routing(
     feature_to_enable: routing::DynamicRoutingFeatures,
     profile_id: common_utils::id_type::ProfileId,
     dynamic_routing_type: routing::DynamicRoutingType,
-    payload: Option<routing_types::DynamicRoutingPayload>,
+    payload: routing_types::DynamicRoutingPayload,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(
         1,
@@ -1730,7 +1730,7 @@ pub async fn create_specific_dynamic_routing(
                 feature_to_enable,
                 dynamic_routing_algo_ref,
                 dynamic_routing_type,
-                payload,
+                Some(payload),
             ))
             .await
         }

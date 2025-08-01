@@ -944,7 +944,7 @@ pub struct CreateDynamicRoutingWrapper {
     pub profile_id: common_utils::id_type::ProfileId,
     pub feature_to_enable: DynamicRoutingFeatures,
     //added payload
-    pub payload: Option<DynamicRoutingPayload>,
+    pub payload: DynamicRoutingPayload,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]

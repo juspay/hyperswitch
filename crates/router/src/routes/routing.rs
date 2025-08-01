@@ -1247,14 +1247,15 @@ pub async fn create_success_based_routing(
     req: HttpRequest,
     query: web::Query<api_models::routing::CreateDynamicRoutingQuery>,
     path: web::Path<routing_types::ToggleDynamicRoutingPath>,
-    json_payload: Option<web::Json<routing_types::SuccessBasedRoutingConfig>>,
+    json_payload: web::Json<routing_types::SuccessBasedRoutingConfig>,
 ) -> impl Responder {
     let flow = Flow::CreateDynamicRouting;
     let wrapper = routing_types::CreateDynamicRoutingWrapper {
         feature_to_enable: query.into_inner().enable,
         profile_id: path.into_inner().profile_id,
-        payload: json_payload
-            .map(|p| api_models::routing::DynamicRoutingPayload::SuccessBased(p.into_inner())),
+        payload: api_models::routing::DynamicRoutingPayload::SuccessBased(
+            json_payload.into_inner(),
+        ),
     };
     Box::pin(oss_api::server_wrap(
         flow,
@@ -1540,14 +1541,15 @@ pub async fn create_elimination_routing(
     req: HttpRequest,
     query: web::Query<api_models::routing::CreateDynamicRoutingQuery>,
     path: web::Path<routing_types::ToggleDynamicRoutingPath>,
-    json_payload: Option<web::Json<routing_types::EliminationRoutingConfig>>,
+    json_payload: web::Json<routing_types::EliminationRoutingConfig>,
 ) -> impl Responder {
     let flow = Flow::ToggleDynamicRouting;
     let wrapper = routing_types::CreateDynamicRoutingWrapper {
         feature_to_enable: query.into_inner().enable,
         profile_id: path.into_inner().profile_id,
-        payload: json_payload
-            .map(|p| api_models::routing::DynamicRoutingPayload::Elimination(p.into_inner())),
+        payload: api_models::routing::DynamicRoutingPayload::Elimination(
+            json_payload.into_inner(),
+        ),
     };
     Box::pin(oss_api::server_wrap(
         flow,

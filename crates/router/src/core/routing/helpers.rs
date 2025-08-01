@@ -2040,7 +2040,7 @@ where
         payload
     );
     //Check for payload
-    if let Some(_payload_config) = &payload {
+    if let Some(payload) = payload {
         return create_specific_dynamic_routing_setup(
             state,
             key_store,
@@ -2241,7 +2241,7 @@ pub async fn create_specific_dynamic_routing_setup(
     mut dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef,
     dynamic_routing_type: routing_types::DynamicRoutingType,
     //payload
-    payload: Option<routing_types::DynamicRoutingPayload>,
+    payload: routing_types::DynamicRoutingPayload,
 ) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>> {
     let db = state.store.as_ref();
     let key_manager_state = &state.into();
