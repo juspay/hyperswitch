@@ -1,4 +1,4 @@
-use common_utils::{consts as common_utils_consts, errors::CustomResult};
+use common_utils::{consts as common_utils_consts, errors::CustomResult, types::Url};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use router_env::logger;
@@ -110,11 +110,8 @@ pub struct UnifiedConnectorServiceClient {
 /// Contains the Unified Connector Service Client config
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct UnifiedConnectorServiceClientConfig {
-    /// Host for the gRPC Client
-    pub host: String,
-
-    /// Port of the gRPC Client
-    pub port: u16,
+    /// Base URL of the gRPC Server
+    pub base_url: Url,
 
     /// Contains the connection timeout duration in seconds
     pub connection_timeout: u64,
@@ -151,13 +148,11 @@ impl UnifiedConnectorServiceClient {
     pub async fn build_connections(config: &GrpcClientSettings) -> Option<Self> {
         match &config.unified_connector_service {
             Some(unified_connector_service_client_config) => {
-                let uri_str = format!(
-                    "https://{}:{}",
-                    unified_connector_service_client_config.host,
-                    unified_connector_service_client_config.port
-                );
-
-                let uri: Uri = match uri_str.parse() {
+                let uri: Uri = match unified_connector_service_client_config
+                    .base_url
+                    .get_string_repr()
+                    .parse()
+                {
                     Ok(parsed_uri) => parsed_uri,
                     Err(err) => {
                         logger::error!(error = ?err, "Failed to parse URI for Unified Connector Service");
