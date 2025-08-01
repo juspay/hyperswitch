@@ -912,7 +912,7 @@ where
                                 Ok(status_code) => Some(status_code),
                                 Err(err) => {
                                     logger::error!(
-                                        "Invalid HTTP status code parsed from connector_http_status_code: {}",
+                                        "Invalid HTTP status code parsed from connector_http_status_code: {:?}",
                                         err
                                     );
                                     None
@@ -920,7 +920,7 @@ where
                             },
                             Err(err) => {
                                 logger::error!(
-                                    "Failed to parse connector_http_status_code from header: {}",
+                                    "Failed to parse connector_http_status_code from header: {:?}",
                                     err
                                 );
                                 None

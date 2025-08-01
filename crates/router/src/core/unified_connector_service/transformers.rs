@@ -974,11 +974,9 @@ impl ForeignTryFrom<common_types::payments::CustomerAcceptance>
 }
 
 pub fn convert_connector_service_status_code(
-    status_code: Option<u32>,
+    status_code: u32,
 ) -> Result<u16, error_stack::Report<UnifiedConnectorServiceError>> {
-    let code = status_code.unwrap_or(500);
-
-    u16::try_from(code).map_err(|err| {
+    u16::try_from(status_code).map_err(|err| {
         UnifiedConnectorServiceError::RequestEncodingFailedWithReason(format!(
             "Failed to convert connector service status code to u16: {err}"
         ))
