@@ -605,7 +605,7 @@ export const connectorDetails = {
         },
       },
     }),
-    PaymentIntentMoto: getCustomExchange({
+    MotoPaymentIntent: getCustomExchange({
       Request: {
         currency: "USD",
         payment_channel: "moto_order",

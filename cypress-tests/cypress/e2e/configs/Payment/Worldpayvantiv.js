@@ -60,7 +60,7 @@ export const connectorDetails = {
         },
       },
     },
-    PaymentIntentMoto: {
+    MotoPaymentIntent: {
       Request: {
         currency: "USD",
         amount: 5000,
@@ -70,7 +70,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_payment_method",
+          status: "processing",
           payment_channel: "moto_order",
         },
       },
