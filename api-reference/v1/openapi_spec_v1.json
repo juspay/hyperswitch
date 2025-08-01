@@ -5174,6 +5174,162 @@
         ]
       }
     },
+    "/routing/evaluate": {
+      "post": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Evaluate",
+        "description": "Evaluate routing rules",
+        "operationId": "Evaluate routing rules",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenRouterDecideGatewayRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Routing rules evaluated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecideGatewayResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request body is malformed"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/routing/feedback": {
+      "post": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Feedback",
+        "description": "Update gateway scores for dynamic routing",
+        "operationId": "Update gateway scores",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateScorePayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Gateway score updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateScoreResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request body is malformed"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/routing/rule/evaluate": {
+      "post": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Rule Evaluate",
+        "description": "Evaluate routing rules",
+        "operationId": "Evaluate routing rules (alternative)",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoutingEvaluateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Routing rules evaluated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutingEvaluateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request body is malformed"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/blocklist": {
       "delete": {
         "tags": [
@@ -6481,6 +6637,66 @@
           }
         ]
       }
+    },
+    "/user/create_platform": {
+      "post": {
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Platform - Create",
+        "description": "Create a new platform account",
+        "operationId": "Create a Platform Account",
+        "requestBody": {
+          "description": "Create a platform account with organization_name",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformAccountCreateRequest"
+              },
+              "examples": {
+                "Create a platform account with organization_name": {
+                  "value": {
+                    "organization_name": "organization_abc"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Platform Account Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformAccountCreateResponse"
+                },
+                "examples": {
+                  "Successful Platform Account Creation": {
+                    "description": "Return values for a successfully created platform account",
+                    "value": {
+                      "merchant_account_type": "platform",
+                      "merchant_id": "merchant_abc",
+                      "org_id": "org_abc",
+                      "org_name": "organization_abc",
+                      "org_type": "platform"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "jwt_key": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -6865,19 +7081,19 @@
       "AcquirerDetails": {
         "type": "object",
         "properties": {
-          "bin": {
+          "acquirer_bin": {
             "type": "string",
             "description": "The bin of the card.",
             "example": "123456",
             "nullable": true
           },
-          "merchant_id": {
+          "acquirer_merchant_id": {
             "type": "string",
             "description": "The merchant id of the card.",
             "example": "merchant_abc",
             "nullable": true
           },
-          "country_code": {
+          "merchant_country_code": {
             "type": "string",
             "description": "The country code of the card.",
             "example": "US/34456",
@@ -7623,7 +7839,8 @@
           "payment_method_awaited",
           "confirmation_awaited",
           "device_data_collection_pending",
-          "integrity_failure"
+          "integrity_failure",
+          "expired"
         ]
       },
       "AuthenticationConnectorDetails": {
@@ -7667,8 +7884,7 @@
         "type": "object",
         "required": [
           "amount",
-          "currency",
-          "profile_acquirer_id"
+          "currency"
         ],
         "properties": {
           "authentication_id": {
@@ -7710,14 +7926,6 @@
             "example": "https://example.com/redirect",
             "nullable": true
           },
-          "acquirer_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/AcquirerDetails"
-              }
-            ],
-            "nullable": true
-          },
           "force_3ds_challenge": {
             "type": "boolean",
             "description": "Force 3DS challenge.",
@@ -7733,7 +7941,16 @@
           },
           "profile_acquirer_id": {
             "type": "string",
-            "description": "Profile Acquirer ID get from profile acquirer configuration"
+            "description": "Profile Acquirer ID get from profile acquirer configuration",
+            "nullable": true
+          },
+          "acquirer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AcquirerDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -7873,6 +8090,14 @@
             "type": "string",
             "description": "Email",
             "nullable": true
+          },
+          "acquirer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AcquirerDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -7883,8 +8108,7 @@
           "merchant_id",
           "status",
           "amount",
-          "currency",
-          "profile_acquirer_id"
+          "currency"
         ],
         "properties": {
           "authentication_id": {
@@ -7970,7 +8194,8 @@
           },
           "profile_acquirer_id": {
             "type": "string",
-            "description": "Profile Acquirer ID get from profile acquirer configuration"
+            "description": "Profile Acquirer ID get from profile acquirer configuration",
+            "nullable": true
           }
         }
       },
@@ -7982,6 +8207,235 @@
           "success",
           "failed"
         ]
+      },
+      "AuthenticationSyncRequest": {
+        "type": "object",
+        "required": [
+          "client_secret"
+        ],
+        "properties": {
+          "client_secret": {
+            "type": "string",
+            "description": "The client secret for this authentication."
+          }
+        }
+      },
+      "AuthenticationSyncResponse": {
+        "type": "object",
+        "required": [
+          "authentication_id",
+          "merchant_id",
+          "status",
+          "amount",
+          "currency",
+          "created_at",
+          "profile_id"
+        ],
+        "properties": {
+          "authentication_id": {
+            "type": "string",
+            "description": "The unique identifier for this authentication.",
+            "example": "auth_mbabizu24mvu3mela5njyhpit4"
+          },
+          "merchant_id": {
+            "type": "string",
+            "description": "This is an identifier for the merchant account.",
+            "example": "merchant_abc"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AuthenticationStatus"
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "The client secret for this authentication.",
+            "nullable": true
+          },
+          "amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "authentication_connector": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationConnectors"
+              }
+            ],
+            "nullable": true
+          },
+          "force_3ds_challenge": {
+            "type": "boolean",
+            "description": "Whether 3DS challenge was forced.",
+            "nullable": true
+          },
+          "return_url": {
+            "type": "string",
+            "description": "The URL to which the user should be redirected after authentication.",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2022-09-10T10:11:12Z"
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile that is associated with this authentication."
+          },
+          "psd2_sca_exemption_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ScaExemptionType"
+              }
+            ],
+            "nullable": true
+          },
+          "acquirer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AcquirerDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "threeds_server_transaction_id": {
+            "type": "string",
+            "description": "The unique identifier from the 3DS server.",
+            "nullable": true
+          },
+          "maximum_supported_3ds_version": {
+            "type": "string",
+            "description": "The maximum supported 3DS version.",
+            "nullable": true
+          },
+          "connector_authentication_id": {
+            "type": "string",
+            "description": "The unique identifier from the connector.",
+            "nullable": true
+          },
+          "three_ds_method_data": {
+            "type": "string",
+            "description": "The data required to perform the 3DS method.",
+            "nullable": true
+          },
+          "three_ds_method_url": {
+            "type": "string",
+            "description": "The URL for the 3DS method.",
+            "nullable": true
+          },
+          "message_version": {
+            "type": "string",
+            "description": "The version of the message.",
+            "nullable": true
+          },
+          "connector_metadata": {
+            "description": "The metadata for this authentication.",
+            "nullable": true
+          },
+          "directory_server_id": {
+            "type": "string",
+            "description": "The unique identifier for the directory server.",
+            "nullable": true
+          },
+          "billing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "shipping": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "browser_information": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "description": "Email.",
+            "nullable": true
+          },
+          "trans_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TransactionStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "acs_url": {
+            "type": "string",
+            "description": "Access Server URL for challenge submission.",
+            "nullable": true
+          },
+          "challenge_request": {
+            "type": "string",
+            "description": "Challenge request to be sent to acs_url.",
+            "nullable": true
+          },
+          "acs_reference_number": {
+            "type": "string",
+            "description": "Unique identifier assigned by EMVCo.",
+            "nullable": true
+          },
+          "acs_trans_id": {
+            "type": "string",
+            "description": "Unique identifier assigned by the ACS.",
+            "nullable": true
+          },
+          "acs_signed_content": {
+            "type": "string",
+            "description": "JWS object created by the ACS for the ARes message.",
+            "nullable": true
+          },
+          "three_ds_requestor_url": {
+            "type": "string",
+            "description": "Three DS Requestor URL.",
+            "nullable": true
+          },
+          "three_ds_requestor_app_url": {
+            "type": "string",
+            "description": "Merchant app URL for OOB authentication.",
+            "nullable": true
+          },
+          "authentication_value": {
+            "type": "string",
+            "description": "The authentication value for this authentication, only available in case of server to server request. Unavailable in case of client request due to security concern.",
+            "nullable": true
+          },
+          "eci": {
+            "type": "string",
+            "description": "ECI value for this authentication, only available in case of server to server request. Unavailable in case of client request due to security concern.",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "description": "Error message if any.",
+            "nullable": true
+          },
+          "error_code": {
+            "type": "string",
+            "description": "Error code if any.",
+            "nullable": true
+          },
+          "profile_acquirer_id": {
+            "type": "string",
+            "description": "Profile Acquirer ID",
+            "nullable": true
+          }
+        }
       },
       "AuthenticationType": {
         "type": "string",
@@ -11245,6 +11699,7 @@
           "fiserv",
           "fiservemea",
           "fiuu",
+          "flexiti",
           "forte",
           "getnet",
           "globalpay",
@@ -11279,7 +11734,9 @@
           "payone",
           "paypal",
           "paystack",
+          "paytm",
           "payu",
+          "phonepe",
           "placetopay",
           "powertranz",
           "prophetpay",
@@ -13320,6 +13777,80 @@
           }
         }
       },
+      "DeRoutableConnectorChoice": {
+        "type": "object",
+        "description": "Routable Connector chosen for a payment",
+        "required": [
+          "gateway_name",
+          "gateway_id"
+        ],
+        "properties": {
+          "gateway_name": {
+            "$ref": "#/components/schemas/RoutableConnectors"
+          },
+          "gateway_id": {
+            "type": "string"
+          }
+        }
+      },
+      "DecideGatewayResponse": {
+        "type": "object",
+        "properties": {
+          "decided_gateway": {
+            "type": "string",
+            "nullable": true
+          },
+          "gateway_priority_map": {
+            "nullable": true
+          },
+          "filter_wise_gateways": {
+            "nullable": true
+          },
+          "priority_logic_tag": {
+            "type": "string",
+            "nullable": true
+          },
+          "routing_approach": {
+            "type": "string",
+            "nullable": true
+          },
+          "gateway_before_evaluation": {
+            "type": "string",
+            "nullable": true
+          },
+          "priority_logic_output": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PriorityLogicOutput"
+              }
+            ],
+            "nullable": true
+          },
+          "reset_approach": {
+            "type": "string",
+            "nullable": true
+          },
+          "routing_dimension": {
+            "type": "string",
+            "nullable": true
+          },
+          "routing_dimension_level": {
+            "type": "string",
+            "nullable": true
+          },
+          "is_scheduled_outage": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "is_dynamic_mga_enabled": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "gateway_mga_id_map": {
+            "nullable": true
+          }
+        }
+      },
       "DecisionEngineEliminationData": {
         "type": "object",
         "required": [
@@ -14109,6 +14640,7 @@
           "payment_cancelled",
           "payment_authorized",
           "payment_captured",
+          "payment_expired",
           "action_required",
           "refund_succeeded",
           "refund_failed",
@@ -15471,7 +16003,8 @@
           },
           "step_up_possible": {
             "type": "boolean",
-            "description": "indicates if step_up retry is possible"
+            "description": "indicates if step_up retry is possible\n**Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.",
+            "deprecated": true
           },
           "unified_code": {
             "type": "string",
@@ -15493,7 +16026,24 @@
           },
           "clear_pan_possible": {
             "type": "boolean",
-            "description": "indicates if retry with pan is possible"
+            "description": "indicates if retry with pan is possible\n**Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.",
+            "deprecated": true
+          },
+          "feature": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GsmFeature"
+              }
+            ],
+            "nullable": true
+          },
+          "feature_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GsmFeatureData"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -15501,7 +16051,6 @@
         "type": "string",
         "enum": [
           "retry",
-          "requeue",
           "do_default"
         ]
       },
@@ -15568,6 +16117,28 @@
           }
         }
       },
+      "GsmFeature": {
+        "type": "string",
+        "enum": [
+          "retry"
+        ]
+      },
+      "GsmFeatureData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "retry"
+            ],
+            "properties": {
+              "retry": {
+                "$ref": "#/components/schemas/RetryFeatureData"
+              }
+            }
+          }
+        ],
+        "description": "Contains the data relevant to the specified GSM feature, if applicable.\nFor example, if the `feature` is `Retry`, this will include configuration\ndetails specific to the retry behavior."
+      },
       "GsmResponse": {
         "type": "object",
         "required": [
@@ -15579,7 +16150,9 @@
           "status",
           "decision",
           "step_up_possible",
-          "clear_pan_possible"
+          "clear_pan_possible",
+          "feature",
+          "feature_data"
         ],
         "properties": {
           "connector": {
@@ -15612,12 +16185,12 @@
             "nullable": true
           },
           "decision": {
-            "type": "string",
-            "description": "decision to be taken for auto retries flow"
+            "$ref": "#/components/schemas/GsmDecision"
           },
           "step_up_possible": {
             "type": "boolean",
-            "description": "indicates if step_up retry is possible"
+            "description": "indicates if step_up retry is possible\n**Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.",
+            "deprecated": true
           },
           "unified_code": {
             "type": "string",
@@ -15639,7 +16212,14 @@
           },
           "clear_pan_possible": {
             "type": "boolean",
-            "description": "indicates if retry with pan is possible"
+            "description": "indicates if retry with pan is possible\n**Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.",
+            "deprecated": true
+          },
+          "feature": {
+            "$ref": "#/components/schemas/GsmFeature"
+          },
+          "feature_data": {
+            "$ref": "#/components/schemas/GsmFeatureData"
           }
         }
       },
@@ -15724,7 +16304,8 @@
           },
           "step_up_possible": {
             "type": "boolean",
-            "description": "indicates if step_up retry is possible",
+            "description": "indicates if step_up retry is possible\n**Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.",
+            "deprecated": true,
             "nullable": true
           },
           "unified_code": {
@@ -15747,7 +16328,24 @@
           },
           "clear_pan_possible": {
             "type": "boolean",
-            "description": "indicates if retry with pan is possible",
+            "description": "indicates if retry with pan is possible\n**Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.",
+            "deprecated": true,
+            "nullable": true
+          },
+          "feature": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GsmFeature"
+              }
+            ],
+            "nullable": true
+          },
+          "feature_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GsmFeatureData"
+              }
+            ],
             "nullable": true
           }
         }
@@ -15895,7 +16493,8 @@
           "requires_capture",
           "partially_captured",
           "partially_captured_and_capturable",
-          "conflicted"
+          "conflicted",
+          "expired"
         ]
       },
       "IssuerData": {
@@ -18636,6 +19235,40 @@
           }
         }
       },
+      "OpenRouterDecideGatewayRequest": {
+        "type": "object",
+        "required": [
+          "paymentInfo",
+          "merchantId"
+        ],
+        "properties": {
+          "paymentInfo": {
+            "$ref": "#/components/schemas/PaymentInfo"
+          },
+          "merchantId": {
+            "type": "string"
+          },
+          "eligibleGatewayList": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "rankingAlgorithm": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RankingAlgorithm"
+              }
+            ],
+            "nullable": true
+          },
+          "eliminationEnabled": {
+            "type": "boolean",
+            "nullable": true
+          }
+        }
+      },
       "OrderDetailsWithAmount": {
         "type": "object",
         "required": [
@@ -19151,6 +19784,18 @@
           {
             "type": "object",
             "required": [
+              "flexiti_redirect"
+            ],
+            "properties": {
+              "flexiti_redirect": {
+                "type": "object",
+                "description": "For Flexiti Redirect as PayLater long term finance Option"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "walley_redirect"
             ],
             "properties": {
@@ -19475,6 +20120,49 @@
               "stripe",
               "adyen"
             ]
+          }
+        }
+      },
+      "PaymentId": {
+        "type": "string",
+        "description": "A type for payment_id that can be used for payment ids"
+      },
+      "PaymentInfo": {
+        "type": "object",
+        "required": [
+          "paymentId",
+          "amount",
+          "currency",
+          "paymentType",
+          "paymentMethodType",
+          "paymentMethod"
+        ],
+        "properties": {
+          "paymentId": {
+            "type": "string"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "paymentType": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "string",
+            "nullable": true
+          },
+          "paymentMethodType": {
+            "type": "string"
+          },
+          "paymentMethod": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "cardIsin": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -20991,6 +21679,7 @@
           "efecty",
           "eft",
           "eps",
+          "flexiti",
           "fps",
           "evoucher",
           "giropay",
@@ -26364,6 +27053,51 @@
           }
         }
       },
+      "PlatformAccountCreateRequest": {
+        "type": "object",
+        "required": [
+          "organization_name"
+        ],
+        "properties": {
+          "organization_name": {
+            "type": "string",
+            "example": "organization_abc",
+            "maxLength": 64
+          }
+        }
+      },
+      "PlatformAccountCreateResponse": {
+        "type": "object",
+        "required": [
+          "org_id",
+          "org_type",
+          "merchant_id",
+          "merchant_account_type"
+        ],
+        "properties": {
+          "org_id": {
+            "type": "string",
+            "example": "org_abc",
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "org_name": {
+            "type": "string",
+            "example": "organization_abc",
+            "nullable": true
+          },
+          "org_type": {
+            "$ref": "#/components/schemas/OrganizationType"
+          },
+          "merchant_id": {
+            "type": "string",
+            "example": "merchant_abc"
+          },
+          "merchant_account_type": {
+            "$ref": "#/components/schemas/MerchantAccountType"
+          }
+        }
+      },
       "PollConfig": {
         "type": "object",
         "required": [
@@ -26449,6 +27183,66 @@
           }
         },
         "additionalProperties": false
+      },
+      "PriorityLogicData": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "failure_reason": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "PriorityLogicOutput": {
+        "type": "object",
+        "properties": {
+          "isEnforcement": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "gws": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "priorityLogicTag": {
+            "type": "string",
+            "nullable": true
+          },
+          "gatewayReferenceIds": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "primaryLogic": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PriorityLogicData"
+              }
+            ],
+            "nullable": true
+          },
+          "fallbackLogic": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PriorityLogicData"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "ProcessorPaymentToken": {
         "type": "object",
@@ -26895,6 +27689,10 @@
           }
         }
       },
+      "ProfileId": {
+        "type": "string",
+        "description": "A type for profile_id that can be used for business profile ids"
+      },
       "ProfileResponse": {
         "type": "object",
         "required": [
@@ -27230,6 +28028,14 @@
             "additionalProperties": {}
           }
         }
+      },
+      "RankingAlgorithm": {
+        "type": "string",
+        "enum": [
+          "SR_BASED_ROUTING",
+          "PL_BASED_ROUTING",
+          "NTW_BASED_ROUTING"
+        ]
       },
       "RealTimePaymentData": {
         "oneOf": [
@@ -28271,6 +29077,33 @@
           "requeue"
         ]
       },
+      "RetryFeatureData": {
+        "type": "object",
+        "description": "Represents the data associated with a retry feature in GSM.",
+        "required": [
+          "step_up_possible",
+          "clear_pan_possible",
+          "alternate_network_possible",
+          "decision"
+        ],
+        "properties": {
+          "step_up_possible": {
+            "type": "boolean",
+            "description": "indicates if step_up retry is possible"
+          },
+          "clear_pan_possible": {
+            "type": "boolean",
+            "description": "indicates if retry with pan is possible"
+          },
+          "alternate_network_possible": {
+            "type": "boolean",
+            "description": "indicates if retry with alternate network possible"
+          },
+          "decision": {
+            "$ref": "#/components/schemas/GsmDecision"
+          }
+        }
+      },
       "RevokeApiKeyResponse": {
         "type": "object",
         "description": "The response body for revoking an API Key.",
@@ -28385,6 +29218,7 @@
           "fiserv",
           "fiservemea",
           "fiuu",
+          "flexiti",
           "forte",
           "getnet",
           "globalpay",
@@ -28415,7 +29249,9 @@
           "payone",
           "paypal",
           "paystack",
+          "paytm",
           "payu",
+          "phonepe",
           "placetopay",
           "powertranz",
           "prophetpay",
@@ -28570,6 +29406,56 @@
           "decision_engine_routing_id": {
             "type": "string",
             "nullable": true
+          }
+        }
+      },
+      "RoutingEvaluateRequest": {
+        "type": "object",
+        "required": [
+          "created_by",
+          "parameters",
+          "fallback_output"
+        ],
+        "properties": {
+          "created_by": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "description": "Parameters that can be used in the routing evaluate request.\neg: {\"parameters\": {\n\"payment_method\": {\"type\": \"enum_variant\", \"value\": \"card\"},\n\"payment_method_type\": {\"type\": \"enum_variant\", \"value\": \"credit\"},\n\"amount\": {\"type\": \"number\", \"value\": 10},\n\"currency\": {\"type\": \"str_value\", \"value\": \"INR\"},\n\"authentication_type\": {\"type\": \"enum_variant\", \"value\": \"three_ds\"},\n\"card_bin\": {\"type\": \"str_value\", \"value\": \"424242\"},\n\"capture_method\": {\"type\": \"enum_variant\", \"value\": \"scheduled\"},\n\"business_country\": {\"type\": \"str_value\", \"value\": \"IN\"},\n\"billing_country\": {\"type\": \"str_value\", \"value\": \"IN\"},\n\"business_label\": {\"type\": \"str_value\", \"value\": \"business_label\"},\n\"setup_future_usage\": {\"type\": \"enum_variant\", \"value\": \"off_session\"},\n\"card_network\": {\"type\": \"enum_variant\", \"value\": \"visa\"},\n\"payment_type\": {\"type\": \"enum_variant\", \"value\": \"recurring_mandate\"},\n\"mandate_type\": {\"type\": \"enum_variant\", \"value\": \"single_use\"},\n\"mandate_acceptance_type\": {\"type\": \"enum_variant\", \"value\": \"online\"},\n\"metadata\":{\"type\": \"metadata_variant\", \"value\": {\"key\": \"key1\", \"value\": \"value1\"}}\n}}"
+          },
+          "fallback_output": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeRoutableConnectorChoice"
+            }
+          }
+        }
+      },
+      "RoutingEvaluateResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "output",
+          "evaluated_output",
+          "eligible_connectors"
+        ],
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "output": {},
+          "evaluated_output": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoutableConnectorChoice"
+            }
+          },
+          "eligible_connectors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoutableConnectorChoice"
+            }
           }
         }
       },
@@ -30436,6 +31322,33 @@
           "external"
         ]
       },
+      "TxnStatus": {
+        "type": "string",
+        "enum": [
+          "STARTED",
+          "AUTHENTICATION_FAILED",
+          "JUSPAY_DECLINED",
+          "PENDING_VBV",
+          "V_B_V_SUCCESSFUL",
+          "AUTHORIZED",
+          "AUTHORIZATION_FAILED",
+          "CHARGED",
+          "AUTHORIZING",
+          "C_O_D_INITIATED",
+          "VOIDED",
+          "VOID_INITIATED",
+          "NOP",
+          "CAPTURE_INITIATED",
+          "CAPTURE_FAILED",
+          "VOID_FAILED",
+          "AUTO_REFUNDED",
+          "PARTIAL_CHARGED",
+          "TO_BE_CHARGED",
+          "PENDING",
+          "FAILURE",
+          "DECLINED"
+        ]
+      },
       "UIWidgetFormLayout": {
         "type": "string",
         "enum": [
@@ -30471,6 +31384,40 @@
           }
         },
         "additionalProperties": false
+      },
+      "UpdateScorePayload": {
+        "type": "object",
+        "required": [
+          "merchantId",
+          "gateway",
+          "status",
+          "paymentId"
+        ],
+        "properties": {
+          "merchantId": {
+            "type": "string"
+          },
+          "gateway": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TxnStatus"
+          },
+          "paymentId": {
+            "type": "string"
+          }
+        }
+      },
+      "UpdateScoreResponse": {
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        }
       },
       "UpiAdditionalData": {
         "oneOf": [
@@ -30579,7 +31526,10 @@
                 ]
               },
               "value": {
-                "$ref": "#/components/schemas/MinorUnit"
+                "type": "integer",
+                "format": "int64",
+                "description": "Represents a number literal",
+                "minimum": 0
               }
             }
           },
@@ -30649,13 +31599,34 @@
               "type": {
                 "type": "string",
                 "enum": [
+                  "global_ref"
+                ]
+              },
+              "value": {
+                "type": "string",
+                "description": "Represents a global reference, which is a reference to a global variable"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
                   "number_array"
                 ]
               },
               "value": {
                 "type": "array",
                 "items": {
-                  "$ref": "#/components/schemas/MinorUnit"
+                  "type": "integer",
+                  "format": "int64",
+                  "minimum": 0
                 },
                 "description": "Represents an array of numbers. This is basically used for\n\"one of the given numbers\" operations\neg: payment.method.amount = (1, 2, 3)"
               }
