@@ -57,10 +57,9 @@ use crate::{
         SubmitEvidenceRouterData,
     },
     utils::{
-        self, is_manual_capture, missing_field_err, AddressDetailsData, ApplePayDecrypt,
-        BrowserInformationData, CardData, ForeignTryFrom,
-        NetworkTokenData as UtilsNetworkTokenData, PaymentsAuthorizeRequestData, PhoneDetailsData,
-        RouterData as OtherRouterData,
+        self, is_manual_capture, missing_field_err, AddressDetailsData, BrowserInformationData,
+        CardData, ForeignTryFrom, NetworkTokenData as UtilsNetworkTokenData,
+        PaymentsAuthorizeRequestData, PhoneDetailsData, RouterData as OtherRouterData,
     },
 };
 
@@ -1264,7 +1263,7 @@ pub struct AdyenPazeData {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenApplePayDecryptData {
-    number: Secret<String>,
+    number: CardNumber,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
     brand: String,
@@ -2216,8 +2215,8 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod
                 if let Some(PaymentMethodToken::ApplePayDecrypt(apple_pay_decrypte)) =
                     item.payment_method_token.clone()
                 {
-                    let expiry_year_4_digit = apple_pay_decrypte.get_four_digit_expiry_year()?;
-                    let exp_month = apple_pay_decrypte.get_expiry_month()?;
+                    let expiry_year_4_digit = apple_pay_decrypte.get_four_digit_expiry_year();
+                    let exp_month = apple_pay_decrypte.get_expiry_month();
                     let apple_pay_decrypted_data = AdyenApplePayDecryptData {
                         number: apple_pay_decrypte.application_primary_account_number,
                         expiry_month: exp_month,
@@ -2229,8 +2228,14 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod
                         apple_pay_decrypted_data,
                     )))
                 } else {
+                    let apple_pay_encrypted_data = data
+                        .payment_data
+                        .get_encrypted_apple_pay_payment_data_mandatory()
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "Apple pay encrypted data",
+                        })?;
                     let apple_pay_data = AdyenApplePay {
-                        apple_pay_token: Secret::new(data.payment_data.to_string()),
+                        apple_pay_token: Secret::new(apple_pay_encrypted_data.to_string()),
                     };
                     Ok(AdyenPaymentMethod::ApplePay(Box::new(apple_pay_data)))
                 }

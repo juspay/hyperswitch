@@ -1858,6 +1858,7 @@ dependencies = [
 name = "common_types"
 version = "0.1.0"
 dependencies = [
+ "cards",
  "common_enums",
  "common_utils",
  "diesel",
