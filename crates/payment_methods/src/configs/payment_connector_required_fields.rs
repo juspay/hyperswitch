@@ -1071,19 +1071,47 @@ impl Default for RequiredFields {
                 enums::PaymentMethod::Upi,
                 PaymentMethodType(HashMap::from([(
                     enums::PaymentMethodType::UpiCollect,
-                    connectors(vec![(
-                        Connector::Razorpay,
-                        fields(
-                            vec![],
-                            vec![],
-                            vec![
-                                RequiredField::UpiCollectVpaId,
-                                RequiredField::BillingEmail,
-                                RequiredField::BillingPhone,
-                                RequiredField::BillingPhoneCountryCode,
-                            ],
+                    connectors(vec![
+                        (
+                            Connector::Razorpay,
+                            fields(
+                                vec![],
+                                vec![],
+                                vec![
+                                    RequiredField::UpiCollectVpaId,
+                                    RequiredField::BillingEmail,
+                                    RequiredField::BillingPhone,
+                                    RequiredField::BillingPhoneCountryCode,
+                                ],
+                            ),
                         ),
-                    )]),
+                        (
+                            Connector::Phonepe,
+                            fields(
+                                vec![],
+                                vec![],
+                                vec![
+                                    RequiredField::UpiCollectVpaId,
+                                    RequiredField::BillingEmail,
+                                    RequiredField::BillingPhone,
+                                    RequiredField::BillingPhoneCountryCode,
+                                ],
+                            ),
+                        ),
+                        (
+                            Connector::Paytm,
+                            fields(
+                                vec![],
+                                vec![],
+                                vec![
+                                    RequiredField::UpiCollectVpaId,
+                                    RequiredField::BillingEmail,
+                                    RequiredField::BillingPhone,
+                                    RequiredField::BillingPhoneCountryCode,
+                                ],
+                            ),
+                        ),
+                    ]),
                 )])),
             ),
             (
