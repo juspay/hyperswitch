@@ -989,6 +989,7 @@ fn get_error_response(
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 })
             })
             .unwrap_or_else(|| ErrorResponse {
@@ -1001,6 +1002,7 @@ fn get_error_response(
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })),
         Some(authorizedotnet::TransactionResponse::AuthorizedotnetTransactionResponseError(_))
         | None => {
@@ -1020,6 +1022,7 @@ fn get_error_response(
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         }
     }

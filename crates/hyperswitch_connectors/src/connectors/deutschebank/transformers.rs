@@ -447,6 +447,7 @@ impl
                     connector_transaction_id: None,network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..item.data
             }),
@@ -519,6 +520,7 @@ fn get_error_response(error_code: String, error_reason: String, status_code: u16
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        connector_metadata: None,
     }
 }
 

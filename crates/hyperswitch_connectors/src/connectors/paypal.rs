@@ -187,6 +187,7 @@ impl Paypal {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -362,6 +363,7 @@ impl ConnectorCommon for Paypal {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -503,6 +505,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -1367,9 +1370,10 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
                                 .unwrap_or(paypal::AuthenticationStatus::Null),
                             )),
                             status_code: res.status_code,
-                             network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
+                            network_advice_code: None,
+                            network_decline_code: None,
+                            network_error_message: None,
+                            connector_metadata: None,
                         }),
                         ..data.clone()
                     }),

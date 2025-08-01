@@ -181,6 +181,7 @@ where
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 })
             } else {
                 None
@@ -384,6 +385,7 @@ where
                                     network_advice_code: None,
                                     network_decline_code: None,
                                     network_error_message: None,
+                                    connector_metadata: None,
                                 };
                                 router_data.response = Err(error_response);
                                 router_data.connector_http_status_code = Some(504);
@@ -452,7 +454,6 @@ async fn handle_response(
             logger::info!(?response);
             let status_code = response.status().as_u16();
             let headers = Some(response.headers().to_owned());
-
             match status_code {
                 200..=202 | 302 | 204 => {
                     // If needed add log line
