@@ -47,10 +47,10 @@ use hyperswitch_domain_models::router_flow_types::{
 pub use hyperswitch_domain_models::{
     payment_address::PaymentAddress,
     router_data::{
-        AccessToken, AdditionalPaymentMethodConnectorResponse, ApplePayCryptogramData,
-        ApplePayPredecryptData, ConnectorAuthType, ConnectorResponseData, ErrorResponse,
-        GooglePayDecryptedData, GooglePayPaymentMethodDetails, PaymentMethodBalance,
-        PaymentMethodToken, RecurringMandatePaymentData, RouterData,
+        AccessToken, AdditionalPaymentMethodConnectorResponse, ConnectorAuthType,
+        ConnectorResponseData, ErrorResponse, GooglePayDecryptedData,
+        GooglePayPaymentMethodDetails, PaymentMethodBalance, PaymentMethodToken,
+        RecurringMandatePaymentData, RouterData,
     },
     router_data_v2::{
         AccessTokenFlowData, DisputesFlowData, ExternalAuthenticationFlowData, FilesFlowData,

@@ -100,7 +100,9 @@ async fn should_authorize_applepay_payment() {
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: domain::PaymentMethodData::Wallet(
                     domain::WalletData::ApplePay(domain::ApplePayWalletData {
-                        payment_data: "someData".to_string(),
+                        payment_data: common_types::payments::ApplePayPaymentData::Encrypted(
+                            "someData".to_string(),
+                        ),
                         transaction_identifier: "someId".to_string(),
                         payment_method: domain::ApplepayPaymentMethod {
                             display_name: "someName".to_string(),

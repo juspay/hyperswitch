@@ -3,7 +3,10 @@
 use std::collections::HashMap;
 
 use common_enums::enums;
-use common_utils::{date_time, errors, events, impl_to_sql_from_sql_json, pii, types::MinorUnit};
+use common_utils::{
+    date_time, errors, events, ext_traits::OptionExt, impl_to_sql_from_sql_json, pii,
+    types::MinorUnit,
+};
 use diesel::{
     sql_types::{Jsonb, Text},
     AsExpression, FromSqlRow,
@@ -409,3 +412,105 @@ pub struct XenditMultipleSplitResponse {
     pub routes: Vec<XenditSplitRoute>,
 }
 impl_to_sql_from_sql_json!(XenditMultipleSplitResponse);
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+#[serde(untagged)]
+/// This enum is used to represent the Apple Pay payment data, which can either be encrypted or decrypted.
+pub enum ApplePayPaymentData {
+    /// This variant contains the decrypted Apple Pay payment data as a structured object.
+    Decrypted(ApplePayPredecryptData),
+    /// This variant contains the encrypted Apple Pay payment data as a string.
+    Encrypted(String),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+/// This struct represents the decrypted Apple Pay payment data
+pub struct ApplePayPredecryptData {
+    /// The primary account number
+    pub application_primary_account_number: cards::CardNumber, // Should this be String or should we have validation for this?
+    /// The application expiration date (PAN expiry month)
+    #[schema(value_type = String, example = "24")]
+    pub application_expiration_month: Secret<String>,
+    /// The application expiration date (PAN expiry year)
+    #[schema(value_type = String, example = "24")]
+    pub application_expiration_year: Secret<String>,
+    /// The payment data, which contains the cryptogram and ECI indicator
+    pub payment_data: ApplePayCryptogramData,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+/// This struct represents the cryptogram data for Apple Pay transactions
+pub struct ApplePayCryptogramData {
+    /// The online payment cryptogram
+    pub online_payment_cryptogram: Secret<String>,
+    /// The ECI (Electronic Commerce Indicator) value
+    pub eci_indicator: Option<String>,
+}
+
+impl ApplePayPaymentData {
+    /// Get the encrypted Apple Pay payment data if it exists
+    pub fn get_encrypted_apple_pay_payment_data_optional(&self) -> Option<&String> {
+        match self {
+            Self::Encrypted(encrypted_data) => Some(encrypted_data),
+            Self::Decrypted(_) => None,
+        }
+    }
+
+    /// Get the decrypted Apple Pay payment data if it exists
+    pub fn get_decrypted_apple_pay_payment_data_optional(&self) -> Option<&ApplePayPredecryptData> {
+        match self {
+            Self::Encrypted(_) => None,
+            Self::Decrypted(decrypted_data) => Some(decrypted_data),
+        }
+    }
+
+    /// Get the encrypted Apple Pay payment data, returning an error if it does not exist
+    pub fn get_encrypted_apple_pay_payment_data_mandatory(
+        &self,
+    ) -> Result<&String, errors::ValidationError> {
+        self.get_encrypted_apple_pay_payment_data_optional()
+            .get_required_value("Encrypted Apple Pay payment data")
+            .attach_printable("Encrypted Apple Pay payment data is mandatory")
+    }
+
+    /// Get the decrypted Apple Pay payment data, returning an error if it does not exist
+    pub fn get_decrypted_apple_pay_payment_data_mandatory(
+        &self,
+    ) -> Result<&ApplePayPredecryptData, errors::ValidationError> {
+        self.get_decrypted_apple_pay_payment_data_optional()
+            .get_required_value("Decrypted Apple Pay payment data")
+            .attach_printable("Decrypted Apple Pay payment data is mandatory")
+    }
+}
+
+impl ApplePayPredecryptData {
+    /// Get the four-digit expiration year from the Apple Pay pre-decrypt data
+    pub fn get_two_digit_expiry_year(&self) -> Result<Secret<String>, errors::ValidationError> {
+        let binding = self.application_expiration_year.clone();
+        let year = binding.peek();
+        Ok(Secret::new(
+            year.get(year.len() - 2..)
+                .ok_or(errors::ValidationError::InvalidValue {
+                    message: "Invalid two-digit year".to_string(),
+                })?
+                .to_string(),
+        ))
+    }
+
+    /// Get the four-digit expiration year from the Apple Pay pre-decrypt data
+    pub fn get_four_digit_expiry_year(&self) -> Secret<String> {
+        let mut year = self.application_expiration_year.peek().clone();
+        if year.len() == 2 {
+            year = format!("20{year}");
+        }
+        Secret::new(year)
+    }
+
+    /// Get the expiration month from the Apple Pay pre-decrypt data
+    pub fn get_expiry_month(&self) -> Secret<String> {
+        self.application_expiration_month.clone()
+    }
+}
