@@ -83,7 +83,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
           shipping_cost: 50,
           amount: 6000,
         },
@@ -149,7 +149,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
         },
       },
     },
@@ -160,9 +160,9 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
           amount: 6000,
-          amount_capturable: 6000,
+          amount_capturable: 0,
         },
       },
     },
@@ -173,9 +173,9 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "partially_captured",
           amount: 6000,
-          amount_capturable: 6000,
+          amount_capturable: 0,
         },
       },
     },
@@ -209,7 +209,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "pending",
+          status: "succeeded",
         },
       },
     },
@@ -220,7 +220,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "pending",
+          status: "succeeded",
         },
       },
     },
@@ -231,7 +231,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "pending",
+          status: "succeeded",
         },
       },
     },
@@ -242,7 +242,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "pending",
+          status: "succeeded",
         },
       },
     },
@@ -256,13 +256,9 @@ export const connectorDetails = {
     },
     ZeroAuthMandate: {
       Response: {
-        status: 501,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Setup Mandate flow for Nmi is not implemented",
-            code: "IR_00",
-          },
+          status: "succeeded",
         },
       },
     },
@@ -289,13 +285,10 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 501,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Setup Mandate flow for Nmi is not implemented",
-            code: "IR_00",
-          },
+          status: "succeeded",
+          setup_future_usage: "off_session",
         },
       },
     },
@@ -311,7 +304,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
         },
       },
     },
@@ -462,7 +455,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
         },
       },
     },
