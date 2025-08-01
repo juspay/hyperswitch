@@ -123,6 +123,10 @@ impl MerchantCountryCode {
             })
             .attach_printable_lazy(|| format!("Invalid country code {code}"))
     }
+    /// Creates a new `MerchantCountryCode` instance from a string.
+    pub fn new(country_code: String) -> Self {
+        Self(country_code)
+    }
 }
 
 impl diesel::serialize::ToSql<Text, diesel::pg::Pg> for MerchantCountryCode {
