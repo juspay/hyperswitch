@@ -20023,6 +20023,40 @@
           }
         }
       },
+      "PaymentChannel": {
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "ecommerce"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "mail_order"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "telephone_order"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "other"
+            ],
+            "properties": {
+              "other": {
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "description": "Describes the channel through which the payment was initiated."
+      },
       "PaymentChargeType": {
         "oneOf": [
           {
@@ -22396,6 +22430,14 @@
             "type": "boolean",
             "description": "If enabled, provides whole connector response",
             "nullable": true
+          },
+          "payment_channel": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChannel"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -22818,6 +22860,14 @@
           "all_keys_required": {
             "type": "boolean",
             "description": "If enabled, provides whole connector response",
+            "nullable": true
+          },
+          "payment_channel": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChannel"
+              }
+            ],
             "nullable": true
           }
         }
@@ -23302,6 +23352,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_channel": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChannel"
               }
             ],
             "nullable": true
@@ -24120,6 +24178,14 @@
             "type": "boolean",
             "description": "If enabled, provides whole connector response",
             "nullable": true
+          },
+          "payment_channel": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChannel"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -24629,6 +24695,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_channel": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChannel"
               }
             ],
             "nullable": true
@@ -25289,6 +25363,14 @@
           "all_keys_required": {
             "type": "boolean",
             "description": "If enabled, provides whole connector response",
+            "nullable": true
+          },
+          "payment_channel": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChannel"
+              }
+            ],
             "nullable": true
           }
         }
