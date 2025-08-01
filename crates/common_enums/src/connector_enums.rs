@@ -97,6 +97,7 @@ pub enum RoutableConnectors {
     Fiserv,
     Fiservemea,
     Fiuu,
+    Flexiti,
     Forte,
     Getnet,
     Globalpay,
@@ -130,7 +131,9 @@ pub enum RoutableConnectors {
     Payone,
     Paypal,
     Paystack,
+    Paytm,
     Payu,
+    Phonepe,
     Placetopay,
     Powertranz,
     Prophetpay,
@@ -262,6 +265,7 @@ pub enum Connector {
     Fiserv,
     Fiservemea,
     Fiuu,
+    Flexiti,
     Forte,
     Getnet,
     Globalpay,
@@ -299,7 +303,9 @@ pub enum Connector {
     Payone,
     Paypal,
     Paystack,
+    Paytm,
     Payu,
+    Phonepe,
     Placetopay,
     Powertranz,
     Prophetpay,
@@ -447,6 +453,7 @@ impl Connector {
             | Self::Fiserv
             | Self::Fiservemea
             | Self::Fiuu
+            | Self::Flexiti
             | Self::Forte
             | Self::Getnet
             | Self::Globalpay
@@ -520,7 +527,9 @@ impl Connector {
             | Self::Noon
             | Self::Tokenio
             | Self::Stripe
-            | Self::Datatrans => false,
+            | Self::Datatrans
+            | Self::Paytm
+            | Self::Phonepe => false,
             Self::Checkout | Self::Nmi |Self::Cybersource | Self::Archipel => true,
         }
     }
@@ -617,6 +626,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Fiserv => Self::Fiserv,
             RoutableConnectors::Fiservemea => Self::Fiservemea,
             RoutableConnectors::Fiuu => Self::Fiuu,
+            RoutableConnectors::Flexiti => Self::Flexiti,
             RoutableConnectors::Forte => Self::Forte,
             RoutableConnectors::Getnet => Self::Getnet,
             RoutableConnectors::Globalpay => Self::Globalpay,
@@ -680,6 +690,8 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Inespay => Self::Inespay,
             RoutableConnectors::Coingate => Self::Coingate,
             RoutableConnectors::Hipay => Self::Hipay,
+            RoutableConnectors::Paytm => Self::Paytm,
+            RoutableConnectors::Phonepe => Self::Phonepe,
         }
     }
 }
@@ -744,6 +756,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Fiserv => Ok(Self::Fiserv),
             Connector::Fiservemea => Ok(Self::Fiservemea),
             Connector::Fiuu => Ok(Self::Fiuu),
+            Connector::Flexiti => Ok(Self::Flexiti),
             Connector::Forte => Ok(Self::Forte),
             Connector::Globalpay => Ok(Self::Globalpay),
             Connector::Globepay => Ok(Self::Globepay),
@@ -805,6 +818,8 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Hipay => Ok(Self::Hipay),
             Connector::Inespay => Ok(Self::Inespay),
             Connector::Redsys => Ok(Self::Redsys),
+            Connector::Paytm => Ok(Self::Paytm),
+            Connector::Phonepe => Ok(Self::Phonepe),
             Connector::CtpMastercard
             | Connector::Gpayments
             | Connector::HyperswitchVault
