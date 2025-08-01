@@ -6466,6 +6466,8 @@ label="Shop Name"
 placeholder="Enter your Shop Name"
 required=true
 type="Text"
+[bluecode.connector_webhook_details]
+merchant_secret="Source verification key"
 
 [flexiti]
 [flexiti.connector_auth.bodykey]

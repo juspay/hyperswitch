@@ -20,6 +20,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
@@ -138,7 +139,8 @@ impl
             billing_address_city: item.router_data.get_billing_city()?,
             billing_address_line1: item.router_data.get_billing_line1()?,
             billing_address_postal_code: item.router_data.get_billing_zip()?,
-            webhook_url: item.router_data.request.get_webhook_url()?,
+            // webhook_url: item.router_data.request.get_webhook_url()?,
+            webhook_url: "https://31803474f519.ngrok-free.app/webhooks/merchant_1753970617/mca_FgNlKmjbWlvCSEhYYxZH".to_string(),
             success_url: item.router_data.request.get_router_return_url()?,
             failure_url: item.router_data.request.get_router_return_url()?,
         })
@@ -363,7 +365,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct BluecodeErrorResponse {
     pub message: String,
-    pub context_data: HashMap<String, serde_json::Value>,
+    pub context_data: HashMap<String, Value>,
 }
 
 pub(crate) fn get_bluecode_webhook_event(
@@ -390,4 +392,28 @@ pub(crate) fn get_webhook_object_from_body(
     let webhook: BluecodeSyncResponse = body.parse_struct("BluecodeIncomingWebhook")?;
 
     Ok(webhook)
+}
+
+pub fn sort_and_minify_json(value: &Value) -> Result<String, errors::ConnectorError> {
+    fn sort_value(val: &Value) -> Value {
+        match val {
+            Value::Object(map) => {
+                let mut entries: Vec<_> = map.iter().collect();
+                entries.sort_by_key(|(k, _)| k.to_owned());
+
+                let sorted_map: Map<String, Value> = entries
+                    .into_iter()
+                    .map(|(k, v)| (k.clone(), sort_value(v)))
+                    .collect();
+
+                Value::Object(sorted_map)
+            }
+            Value::Array(arr) => Value::Array(arr.iter().map(sort_value).collect()),
+            _ => val.clone(),
+        }
+    }
+
+    let sorted_value = sort_value(value);
+    serde_json::to_string(&sorted_value)
+        .map_err(|_| errors::ConnectorError::WebhookBodyDecodingFailed)
 }

@@ -4,6 +4,7 @@ use std::sync::LazyLock;
 
 use common_enums::enums;
 use common_utils::{
+    crypto,
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
@@ -43,7 +44,9 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask};
+use masking::{ExposeInterface, Mask, Secret};
+use ring::hmac;
+use serde_json::Value;
 use transformers as bluecode;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
@@ -625,17 +628,66 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Bluecode 
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Bluecode {
-    async fn verify_webhook_source(
+    fn get_webhook_source_verification_algorithm(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-        _merchant_id: &common_utils::id_type::MerchantId,
-        _connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
-        _connector_account_details: common_utils::crypto::Encryptable<
-            masking::Secret<serde_json::Value>,
-        >,
-        _connector_name: &str,
+    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
+        Ok(Box::new(crypto::HmacSha512))
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let security_header = request
+            .headers
+            .get("x-eorder-webhook-signature")
+            .map(|header_value| {
+                header_value
+                    .to_str()
+                    .map(String::from)
+                    .map_err(|_| errors::ConnectorError::WebhookSignatureNotFound)
+            })
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)??;
+        hex::decode(security_header)
+            .change_context(errors::ConnectorError::WebhookSignatureNotFound)
+    }
+
+    async fn verify_webhook_source(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        merchant_id: &common_utils::id_type::MerchantId,
+        connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: crypto::Encryptable<Secret<Value>>,
+        connector_name: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
-        Ok(false)
+        let connector_webhook_secrets = self
+            .get_webhook_source_verification_merchant_secret(
+                merchant_id,
+                connector_name,
+                connector_webhook_details,
+            )
+            .await?;
+
+        let signature = self
+            .get_webhook_source_verification_signature(request, &connector_webhook_secrets)
+            .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
+
+        let secret_bytes = connector_webhook_secrets.secret.as_ref();
+
+        let parsed: Value = serde_json::from_slice(request.body)
+            .map_err(|_| errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let sorted_payload = bluecode::sort_and_minify_json(&parsed)?;
+
+        let key = hmac::Key::new(hmac::HMAC_SHA512, secret_bytes);
+
+        let verify = hmac::verify(&key, sorted_payload.as_bytes(), &signature)
+            .map(|_| true)
+            .map_err(|_| errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        Ok(verify)
     }
 
     fn get_webhook_object_reference_id(
