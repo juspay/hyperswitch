@@ -9420,6 +9420,13 @@ pub async fn get_all_action_types(
 
     let mut action_types: Vec<ActionType> = Vec::new();
 
+    if is_mandate_flow {
+        if let Ok(connector_mandate_details) = connector_mandate_details {
+            let action_type = ActionType::ConnectorMandate(connector_mandate_details.to_owned());
+            action_types.push(action_type.clone());
+        }
+    }
+
     if let IsNtWithNtiFlow::NtWithNtiSupported(network_transaction_id) =
         is_network_token_with_ntid_flow
     {
@@ -9444,13 +9451,6 @@ pub async fn get_all_action_types(
         if let Some(network_transaction_id) = &payment_method_info.network_transaction_id {
             let action_type =
                 ActionType::CardWithNetworkTransactionId(network_transaction_id.clone());
-            action_types.push(action_type.clone());
-        }
-    }
-
-    if is_mandate_flow {
-        if let Ok(connector_mandate_details) = connector_mandate_details {
-            let action_type = ActionType::ConnectorMandate(connector_mandate_details.to_owned());
             action_types.push(action_type.clone());
         }
     }
