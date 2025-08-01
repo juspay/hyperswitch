@@ -53,6 +53,9 @@ pub mod payment_get;
 #[cfg(feature = "v2")]
 pub mod payment_capture_v2;
 
+#[cfg(feature = "v2")]
+pub mod payment_complete_authorize_v2;
+
 use api_models::enums::FrmSuggestion;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use api_models::routing::RoutableConnectorChoice;
@@ -62,6 +65,8 @@ use router_env::{instrument, tracing};
 
 #[cfg(feature = "v2")]
 pub use self::payment_attempt_list::PaymentGetListAttempts;
+#[cfg(feature = "v2")]
+pub use self::payment_complete_authorize_v2::CompleteAuthorize;
 #[cfg(feature = "v2")]
 pub use self::payment_get::PaymentGet;
 #[cfg(feature = "v2")]
