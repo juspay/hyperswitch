@@ -1082,6 +1082,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                 | WalletData::ApplePayThirdPartySdk(_)
                 | WalletData::DanaRedirect {}
                 | WalletData::GooglePay(_)
+                | WalletData::BluecodeRedirect {}
                 | WalletData::GooglePayRedirect(_)
                 | WalletData::GooglePayThirdPartySdk(_)
                 | WalletData::MbWayRedirect(_)
@@ -1198,6 +1199,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::Efecty
                     | enums::PaymentMethodType::Eft
                     | enums::PaymentMethodType::Eps
+                    | enums::PaymentMethodType::Bluecode
                     | enums::PaymentMethodType::Fps
                     | enums::PaymentMethodType::Evoucher
                     | enums::PaymentMethodType::Giropay
@@ -1265,6 +1267,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::Mifinity
                     | enums::PaymentMethodType::Paze
                     | enums::PaymentMethodType::IndonesianBankTransfer
+                    | enums::PaymentMethodType::Flexiti
                     | enums::PaymentMethodType::RevolutPay
                     | enums::PaymentMethodType::Breadpay => {
                         Err(errors::ConnectorError::NotImplemented(
@@ -1322,6 +1325,7 @@ impl TryFrom<&PayLaterData> for PaypalPaymentsRequest {
             | PayLaterData::AfterpayClearpayRedirect { .. }
             | PayLaterData::PayBrightRedirect {}
             | PayLaterData::WalleyRedirect {}
+            | PayLaterData::FlexitiRedirect {}
             | PayLaterData::AlmaRedirect {}
             | PayLaterData::AtomeRedirect {}
             | PayLaterData::BreadpayRedirect {} => Err(errors::ConnectorError::NotImplemented(

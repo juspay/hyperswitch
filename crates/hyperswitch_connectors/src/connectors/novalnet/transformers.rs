@@ -351,6 +351,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                     | WalletDataPaymentMethod::AmazonPayRedirect(_)
                     | WalletDataPaymentMethod::Paysera(_)
                     | WalletDataPaymentMethod::Skrill(_)
+                    | WalletDataPaymentMethod::BluecodeRedirect {}
                     | WalletDataPaymentMethod::MomoRedirect(_)
                     | WalletDataPaymentMethod::KakaoPayRedirect(_)
                     | WalletDataPaymentMethod::GoPayRedirect(_)
@@ -1606,6 +1607,7 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
                 | WalletDataPaymentMethod::AmazonPayRedirect(_)
                 | WalletDataPaymentMethod::Paysera(_)
                 | WalletDataPaymentMethod::Skrill(_)
+                | WalletDataPaymentMethod::BluecodeRedirect {}
                 | WalletDataPaymentMethod::MomoRedirect(_)
                 | WalletDataPaymentMethod::KakaoPayRedirect(_)
                 | WalletDataPaymentMethod::GoPayRedirect(_)

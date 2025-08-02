@@ -174,6 +174,7 @@ pub struct ConnectorTomlConfig {
 pub struct ConnectorConfig {
     pub authipay: Option<ConnectorTomlConfig>,
     pub juspaythreedsserver: Option<ConnectorTomlConfig>,
+    pub katapult: Option<ConnectorTomlConfig>,
     pub aci: Option<ConnectorTomlConfig>,
     pub adyen: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
@@ -258,7 +259,9 @@ pub struct ConnectorConfig {
     #[cfg(feature = "payouts")]
     pub paypal_payout: Option<ConnectorTomlConfig>,
     pub paystack: Option<ConnectorTomlConfig>,
+    pub paytm: Option<ConnectorTomlConfig>,
     pub payu: Option<ConnectorTomlConfig>,
+    pub phonepe: Option<ConnectorTomlConfig>,
     pub placetopay: Option<ConnectorTomlConfig>,
     pub plaid: Option<ConnectorTomlConfig>,
     pub powertranz: Option<ConnectorTomlConfig>,
@@ -392,6 +395,7 @@ impl ConnectorConfig {
             Connector::Billwerk => Ok(connector_data.billwerk),
             Connector::Bitpay => Ok(connector_data.bitpay),
             Connector::Bluesnap => Ok(connector_data.bluesnap),
+            Connector::Bluecode => Ok(connector_data.bluecode),
             Connector::Boku => Ok(connector_data.boku),
             Connector::Braintree => Ok(connector_data.braintree),
             Connector::Breadpay => Ok(connector_data.breadpay),
@@ -421,6 +425,7 @@ impl ConnectorConfig {
             Connector::Fiserv => Ok(connector_data.fiserv),
             Connector::Fiservemea => Ok(connector_data.fiservemea),
             Connector::Fiuu => Ok(connector_data.fiuu),
+            Connector::Flexiti => Ok(connector_data.flexiti),
             Connector::Forte => Ok(connector_data.forte),
             Connector::Getnet => Ok(connector_data.getnet),
             Connector::Globalpay => Ok(connector_data.globalpay),
@@ -464,6 +469,7 @@ impl ConnectorConfig {
             Connector::Santander => Ok(connector_data.santander),
             Connector::Shift4 => Ok(connector_data.shift4),
             Connector::Signifyd => Ok(connector_data.signifyd),
+            Connector::Silverflow => Ok(connector_data.silverflow),
             Connector::Square => Ok(connector_data.square),
             Connector::Stax => Ok(connector_data.stax),
             Connector::Stripe => Ok(connector_data.stripe),
@@ -500,6 +506,8 @@ impl ConnectorConfig {
             Connector::Netcetera => Ok(connector_data.netcetera),
             Connector::CtpMastercard => Ok(connector_data.ctp_mastercard),
             Connector::Xendit => Ok(connector_data.xendit),
+            Connector::Paytm => Ok(connector_data.paytm),
+            Connector::Phonepe => Ok(connector_data.phonepe),
         }
     }
 }

@@ -813,6 +813,7 @@ fn get_wallet_details(
         | WalletData::GcashRedirect(_)
         | WalletData::AmazonPay(_)
         | WalletData::ApplePay(_)
+        | WalletData::BluecodeRedirect {}
         | WalletData::ApplePayRedirect(_)
         | WalletData::ApplePayThirdPartySdk(_)
         | WalletData::DanaRedirect {}

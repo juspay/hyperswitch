@@ -382,6 +382,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 | WalletDataPaymentMethod::SamsungPay(_)
                 | WalletDataPaymentMethod::TwintRedirect {}
                 | WalletDataPaymentMethod::VippsRedirect {}
+                | WalletDataPaymentMethod::BluecodeRedirect {}
                 | WalletDataPaymentMethod::TouchNGoRedirect(_)
                 | WalletDataPaymentMethod::WeChatPayRedirect(_)
                 | WalletDataPaymentMethod::WeChatPayQr(_)

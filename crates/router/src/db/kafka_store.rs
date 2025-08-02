@@ -3185,8 +3185,8 @@ impl RoutingAlgorithmInterface for KafkaStore {
 impl GsmInterface for KafkaStore {
     async fn add_gsm_rule(
         &self,
-        rule: storage::GatewayStatusMappingNew,
-    ) -> CustomResult<storage::GatewayStatusMap, errors::StorageError> {
+        rule: hyperswitch_domain_models::gsm::GatewayStatusMap,
+    ) -> CustomResult<hyperswitch_domain_models::gsm::GatewayStatusMap, errors::StorageError> {
         self.diesel_store.add_gsm_rule(rule).await
     }
 
@@ -3210,7 +3210,7 @@ impl GsmInterface for KafkaStore {
         sub_flow: String,
         code: String,
         message: String,
-    ) -> CustomResult<storage::GatewayStatusMap, errors::StorageError> {
+    ) -> CustomResult<hyperswitch_domain_models::gsm::GatewayStatusMap, errors::StorageError> {
         self.diesel_store
             .find_gsm_rule(connector, flow, sub_flow, code, message)
             .await
@@ -3223,8 +3223,8 @@ impl GsmInterface for KafkaStore {
         sub_flow: String,
         code: String,
         message: String,
-        data: storage::GatewayStatusMappingUpdate,
-    ) -> CustomResult<storage::GatewayStatusMap, errors::StorageError> {
+        data: hyperswitch_domain_models::gsm::GatewayStatusMappingUpdate,
+    ) -> CustomResult<hyperswitch_domain_models::gsm::GatewayStatusMap, errors::StorageError> {
         self.diesel_store
             .update_gsm_rule(connector, flow, sub_flow, code, message, data)
             .await

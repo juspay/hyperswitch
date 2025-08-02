@@ -1734,13 +1734,21 @@ impl PayoutFulfillRequestData for hyperswitch_domain_models::router_request_type
 
 pub trait CustomerData {
     fn get_email(&self) -> Result<Email, Error>;
+    fn is_mandate_payment(&self) -> bool;
 }
 
 impl CustomerData for ConnectorCustomerData {
     fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
     }
+    fn is_mandate_payment(&self) -> bool {
+        // We only need to check if the customer acceptance or setup mandate details are present and if the setup future usage is OffSession.
+        // mandate_reference_id is not needed here as we do not need to check for existing mandates.
+        self.customer_acceptance.is_some()
+            && self.setup_future_usage == Some(FutureUsage::OffSession)
+    }
 }
+
 pub trait PaymentsAuthorizeRequestData {
     fn get_optional_language_from_browser_info(&self) -> Option<String>;
     fn is_auto_capture(&self) -> Result<bool, Error>;
@@ -5520,6 +5528,7 @@ pub enum PaymentMethodDataType {
     DanaRedirect,
     DuitNow,
     GooglePay,
+    Bluecode,
     GooglePayRedirect,
     GooglePayThirdPartySdk,
     MbWayRedirect,
@@ -5544,6 +5553,7 @@ pub enum PaymentMethodDataType {
     AlmaRedirect,
     AtomeRedirect,
     Breadpay,
+    FlexitiRedirect,
     BancontactCard,
     Bizum,
     Blik,
@@ -5650,6 +5660,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 }
                 payment_method_data::WalletData::DanaRedirect {} => Self::DanaRedirect,
                 payment_method_data::WalletData::GooglePay(_) => Self::GooglePay,
+                payment_method_data::WalletData::BluecodeRedirect {} => Self::Bluecode,
                 payment_method_data::WalletData::GooglePayRedirect(_) => Self::GooglePayRedirect,
                 payment_method_data::WalletData::GooglePayThirdPartySdk(_) => {
                     Self::GooglePayThirdPartySdk
@@ -5677,6 +5688,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::PayLaterData::AfterpayClearpayRedirect { .. } => {
                     Self::AfterpayClearpayRedirect
                 }
+                payment_method_data::PayLaterData::FlexitiRedirect { .. } => Self::FlexitiRedirect,
                 payment_method_data::PayLaterData::PayBrightRedirect {} => Self::PayBrightRedirect,
                 payment_method_data::PayLaterData::WalleyRedirect {} => Self::WalleyRedirect,
                 payment_method_data::PayLaterData::AlmaRedirect {} => Self::AlmaRedirect,
@@ -6273,6 +6285,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         connector_testing_data: data.request.connector_testing_data.clone(),
         order_id: None,
         locale: None,
+        payment_channel: None,
     }
 }
 

@@ -2450,6 +2450,7 @@ pub enum PaymentMethodDataType {
     DanaRedirect,
     DuitNow,
     GooglePay,
+    Bluecode,
     GooglePayRedirect,
     GooglePayThirdPartySdk,
     MbWayRedirect,
@@ -2474,6 +2475,7 @@ pub enum PaymentMethodDataType {
     AlmaRedirect,
     AtomeRedirect,
     BreadpayRedirect,
+    FlexitiRedirect,
     BancontactCard,
     Bizum,
     Blik,
@@ -2579,6 +2581,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                 }
                 domain::payments::WalletData::DanaRedirect {} => Self::DanaRedirect,
                 domain::payments::WalletData::GooglePay(_) => Self::GooglePay,
+                domain::payments::WalletData::BluecodeRedirect {} => Self::Bluecode,
                 domain::payments::WalletData::GooglePayRedirect(_) => Self::GooglePayRedirect,
                 domain::payments::WalletData::GooglePayThirdPartySdk(_) => {
                     Self::GooglePayThirdPartySdk
@@ -2609,6 +2612,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                 domain::payments::PayLaterData::PayBrightRedirect {} => Self::PayBrightRedirect,
                 domain::payments::PayLaterData::WalleyRedirect {} => Self::WalleyRedirect,
                 domain::payments::PayLaterData::AlmaRedirect {} => Self::AlmaRedirect,
+                domain::payments::PayLaterData::FlexitiRedirect {} => Self::FlexitiRedirect,
                 domain::payments::PayLaterData::AtomeRedirect {} => Self::AtomeRedirect,
                 domain::payments::PayLaterData::BreadpayRedirect {} => Self::BreadpayRedirect,
             },

@@ -123,7 +123,7 @@ pub enum MandateType {
 pub enum PayoutBankTransferType {
     Ach,
     Bacs,
-    Sepa,
+    SepaBankTransfer,
 }
 
 #[cfg(feature = "payouts")]

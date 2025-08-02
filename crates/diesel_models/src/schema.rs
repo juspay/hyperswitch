@@ -595,6 +595,9 @@ diesel::table! {
         #[max_length = 64]
         error_category -> Nullable<Varchar>,
         clear_pan_possible -> Bool,
+        feature_data -> Nullable<Jsonb>,
+        #[max_length = 64]
+        feature -> Nullable<Varchar>,
     }
 }
 
@@ -1066,6 +1069,8 @@ diesel::table! {
         #[max_length = 2048]
         extended_return_url -> Nullable<Varchar>,
         is_payment_id_from_merchant -> Nullable<Bool>,
+        #[max_length = 64]
+        payment_channel -> Nullable<Varchar>,
     }
 }
 
