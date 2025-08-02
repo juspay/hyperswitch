@@ -41,9 +41,10 @@ use common_utils::{
 };
 use diesel_models::payment_method;
 use error_stack::{report, ResultExt};
-#[cfg(feature = "v1")]
-use euclid::dssa::graph::{AnalysisContext, CgraphExt};
-use euclid::frontend::dir;
+use euclid::{
+    dssa::graph::{AnalysisContext, CgraphExt},
+    frontend::dir,
+};
 use hyperswitch_constraint_graph as cgraph;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::customer::CustomerUpdate;
@@ -3968,25 +3969,6 @@ pub async fn filter_payment_methods(
         }
     }
     Ok(())
-}
-
-// v2 type for PaymentMethodListRequest will not have the installment_payment_enabled field,
-// need to re-evaluate filter logic
-#[cfg(feature = "v2")]
-#[allow(clippy::too_many_arguments)]
-pub async fn filter_payment_methods(
-    _graph: &cgraph::ConstraintGraph<dir::DirValue>,
-    _mca_id: String,
-    _payment_methods: &[Secret<serde_json::Value>],
-    _req: &mut api::PaymentMethodListRequest,
-    _resp: &mut [ResponsePaymentMethodIntermediate],
-    _payment_intent: Option<&storage::PaymentIntent>,
-    _payment_attempt: Option<&storage::PaymentAttempt>,
-    _address: Option<&domain::Address>,
-    _connector: String,
-    _configs: &settings::Settings<RawSecret>,
-) -> errors::CustomResult<(), errors::ApiErrorResponse> {
-    todo!()
 }
 
 fn filter_amount_based(

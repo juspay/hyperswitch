@@ -612,7 +612,7 @@ pub async fn list_customer_payment_method_api(
     state: web::Data<AppState>,
     customer_id: web::Path<id_type::GlobalCustomerId>,
     req: HttpRequest,
-    query_payload: web::Query<api_models::payment_methods::PaymentMethodListRequest>,
+    query_payload: web::Query<api_models::payment_methods::ListMethodsForPaymentMethodsRequest>,
 ) -> HttpResponse {
     let flow = Flow::CustomerPaymentMethodsList;
     let payload = query_payload.into_inner();
@@ -956,6 +956,7 @@ pub async fn default_payment_method_set_api(
     .await
 }
 
+#[cfg(feature = "v1")]
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]
