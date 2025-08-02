@@ -1,21 +1,47 @@
 import { customerAcceptance } from "./Commons.js";
 
 const successfulNo3DSCardDetails = {
-  card_number: "4242424242424242",
+  card_number: "5185570141917102",
   card_exp_month: "01",
   card_exp_year: "50",
-  card_holder_name: "joseph Doe",
+  card_holder_name: "Joseph Doe",
   card_cvc: "123",
 };
 
-const singleUseMandateData = {
-  customer_acceptance: customerAcceptance,
-  mandate_type: {
-    single_use: {
-      amount: 8000,
-      currency: "USD",
-    },
+const billingDetails = {
+  address: {
+    line1: "1467",
+    line2: "CA",
+    line3: "CA",
+    city: "Florence",
+    state: "Tuscany",
+    zip: "12345",
+    first_name: "Max",
+    last_name: "Mustermann",
   },
+  email: "mauro.morandi@nexi.it",
+  phone: {
+    number: "9123456789",
+    country_code: "+91",
+  },
+};
+
+const paymentMethodDataNo3DSResponse = {
+  card: {
+    last4: "7102",
+    card_type: "DEBIT",
+    card_network: "Visa",
+    card_issuer: "MASTERCARD INTERNATIONAL",
+    card_issuing_country: "UNITEDSTATES",
+    card_isin: "518557",
+    card_extended_bin: null,
+    card_exp_month: "01",
+    card_exp_year: "50",
+    card_holder_name: "Joseph Doe",
+    payment_checks: null,
+    authentication_data: null,
+  },
+  billing: null,
 };
 
 export const connectorDetails = {
@@ -36,25 +62,14 @@ export const connectorDetails = {
       },
     },
     PaymentIntentOffSession: {
+      // Need to Skip this because on confirming Off Session Payments, even though it succeeds, it does not yield a `connector_mandate_id`
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
+        setup_future_usage: "off_session",
         currency: "USD",
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "CA",
-            line3: "CA",
-            city: "Florence",
-            state: "Tuscany",
-            zip: "12345",
-            first_name: "Max",
-            last_name: "Mustermann",
-          },
-          email: "mauro.morandi@nexi.it",
-          phone: {
-            number: "9123456789",
-            country_code: "+91",
-          },
-        },
+        billing: billingDetails,
       },
       Response: {
         status: 200,
@@ -78,6 +93,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          payment_method_data: paymentMethodDataNo3DSResponse,
         },
       },
     },
@@ -96,6 +112,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          payment_method_data: paymentMethodDataNo3DSResponse,
         },
       },
     },
@@ -187,26 +204,28 @@ export const connectorDetails = {
     },
     IncrementalAuth: {
       Request: {
-        amount: 7000,
+        amount: 8000,
       },
       Response: {
         status: 200,
         body: {
           status: "requires_capture",
-          amount: 7000,
-          amount_capturable: 7000,
+          amount: 8000,
+          amount_capturable: 8000,
           amount_received: null,
         },
       },
     },
     ZeroAuthMandate: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 200,
@@ -216,6 +235,10 @@ export const connectorDetails = {
       },
     },
     ZeroAuthPaymentIntent: {
+      // Need to Skip this because on confirming Off Session Payments, even though it succeeds, it does not yield a `connector_mandate_id`
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 0,
         setup_future_usage: "off_session",
@@ -225,23 +248,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_payment_method",
-          setup_future_usage: "off_session",
-        },
-      },
-    },
-    ZeroAuthConfirmPayment: {
-      Request: {
-        payment_type: "setup_mandate",
-        payment_method: "card",
-        payment_method_type: "credit",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
           setup_future_usage: "off_session",
         },
       },
@@ -264,15 +270,6 @@ export const connectorDetails = {
         },
       },
     },
-    SaveCardConfirmAutoCaptureOffSession: {
-      Request: {},
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
     SaveCardUseNo3DSAutoCaptureOffSession: {
       Request: {
         setup_future_usage: "off_session",
@@ -287,10 +284,14 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          payment_method_data: paymentMethodDataNo3DSResponse,
         },
       },
     },
     SaveCardUseNo3DSManualCaptureOffSession: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         setup_future_usage: "off_session",
         payment_method: "card",
@@ -304,22 +305,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
-        },
-      },
-    },
-    SaveCardConfirmAutoCaptureOffSessionWithoutBilling: {
-      Request: {
-        setup_future_usage: "off_session",
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "No eligible connector was found for the current payment method configuration",
-            code: "IR_39",
-          },
+          payment_method_data: paymentMethodDataNo3DSResponse,
         },
       },
     },
@@ -337,6 +323,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          payment_method_data: paymentMethodDataNo3DSResponse,
         },
       },
     },
@@ -376,6 +363,92 @@ export const connectorDetails = {
           amount_received: 6550,
           amount: 6500,
           net_amount: 6550,
+          payment_method_data: paymentMethodDataNo3DSResponse,
+        },
+      },
+    },
+    MandateMultiUseNo3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method_data: paymentMethodDataNo3DSResponse,
+        },
+      },
+    },
+    MandateMultiUseNo3DSManualCapture: {
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+          payment_method_data: paymentMethodDataNo3DSResponse,
+        },
+      },
+    },
+    MITManualCapture: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    MandateSingleUseNo3DSAutoCapture: {
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MandateSingleUseNo3DSManualCapture: {
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    PaymentMethodIdMandateNo3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method_data: paymentMethodDataNo3DSResponse,
+        },
+      },
+    },
+    PaymentMethodIdMandateNo3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+          payment_method_data: paymentMethodDataNo3DSResponse,
         },
       },
     },

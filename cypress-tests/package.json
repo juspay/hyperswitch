@@ -13,22 +13,32 @@
     "cypress:payments": "cypress run --headless --spec 'cypress/e2e/spec/Payment/**/*'",
     "cypress:payouts": "cypress run --headless --spec 'cypress/e2e/spec/Payout/**/*'",
     "cypress:routing": "cypress run --headless --spec 'cypress/e2e/spec/Routing/**/*'",
+    "report:generate": "node scripts/report-generator.js",
+    "report:open": "open dashboard/index.html || start dashboard/index.html || xdg-open dashboard/index.html",
+    "dashboard:serve": "node scripts/serve-dashboard.js",
+    "dashboard": "npm run dashboard:serve",
+    "cypress:ci:report": "npm run cypress:ci && npm run report:generate",
+    "build": "node scripts/build.js",
     "format": "prettier --config .prettierrc . --write",
     "format:check": "prettier --config .prettierrc . --check",
     "lint": "eslint ."
   },
   "author": "Hyperswitch",
   "license": "ISC",
+  "dependencies": {
+    "express": "^5.1.0",
+    "cors": "^2.8.5"
+  },
   "devDependencies": {
-    "@eslint/js": "^9.28.0",
-    "cypress": "^14.4.0",
-    "cypress-mochawesome-reporter": "^3.8.2",
-    "eslint": "^9.28.0",
-    "eslint-config-prettier": "^10.1.5",
-    "eslint-plugin-cypress": "^5.0.1",
-    "eslint-plugin-prettier": "^5.4.1",
-    "globals": "^16.2.0",
+    "@eslint/js": "^9.32.0",
+    "cypress": "^14.5.3",
+    "cypress-mochawesome-reporter": "^4.0.0",
+    "eslint": "^9.32.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-cypress": "^5.1.0",
+    "eslint-plugin-prettier": "^5.5.3",
+    "globals": "^16.3.0",
     "jsqr": "^1.4.0",
-    "prettier": "^3.5.3"
+    "prettier": "^3.6.2"
   }
 }

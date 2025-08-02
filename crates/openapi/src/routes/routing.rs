@@ -26,7 +26,7 @@ pub async fn routing_create_config() {}
 /// Create a routing algorithm
 #[utoipa::path(
     post,
-    path = "/v2/routing-algorithm",
+    path = "/v2/routing-algorithms",
     request_body = RoutingConfigRequest,
     responses(
         (status = 200, description = "Routing Algorithm created", body = RoutingDictionaryRecord),
@@ -92,7 +92,7 @@ pub async fn routing_retrieve_config() {}
 /// Retrieve a routing algorithm with its algorithm id
 #[utoipa::path(
     get,
-    path = "/v2/routing-algorithm/{id}",
+    path = "/v2/routing-algorithms/{id}",
     params(
         ("id" = String, Path, description = "The unique identifier for a routing algorithm"),
     ),
@@ -386,3 +386,69 @@ pub async fn contract_based_routing_setup_config() {}
    security(("api_key" = []), ("jwt_key" = []))
 )]
 pub async fn contract_based_routing_update_configs() {}
+
+#[cfg(feature = "v1")]
+/// Routing - Evaluate
+///
+/// Evaluate routing rules
+#[utoipa::path(
+    post,
+    path = "/routing/evaluate",
+    request_body = OpenRouterDecideGatewayRequest,
+    responses(
+        (status = 200, description = "Routing rules evaluated successfully", body = DecideGatewayResponse),
+        (status = 400, description = "Request body is malformed"),
+        (status = 500, description = "Internal server error"),
+        (status = 404, description = "Resource missing"),
+        (status = 422, description = "Unprocessable request"),
+        (status = 403, description = "Forbidden"),
+    ),
+   tag = "Routing",
+   operation_id = "Evaluate routing rules",
+   security(("api_key" = []))
+)]
+pub async fn call_decide_gateway_open_router() {}
+
+#[cfg(feature = "v1")]
+/// Routing - Feedback
+///
+/// Update gateway scores for dynamic routing
+#[utoipa::path(
+    post,
+    path = "/routing/feedback",
+    request_body = UpdateScorePayload,
+    responses(
+        (status = 200, description = "Gateway score updated successfully", body = UpdateScoreResponse),
+        (status = 400, description = "Request body is malformed"),
+        (status = 500, description = "Internal server error"),
+        (status = 404, description = "Resource missing"),
+        (status = 422, description = "Unprocessable request"),
+        (status = 403, description = "Forbidden"),
+    ),
+   tag = "Routing",
+   operation_id = "Update gateway scores",
+   security(("api_key" = []))
+)]
+pub async fn call_update_gateway_score_open_router() {}
+
+#[cfg(feature = "v1")]
+/// Routing - Rule Evaluate
+///
+/// Evaluate routing rules
+#[utoipa::path(
+    post,
+    path = "/routing/rule/evaluate",
+    request_body = RoutingEvaluateRequest,
+    responses(
+        (status = 200, description = "Routing rules evaluated successfully", body = RoutingEvaluateResponse),
+        (status = 400, description = "Request body is malformed"),
+        (status = 500, description = "Internal server error"),
+        (status = 404, description = "Resource missing"),
+        (status = 422, description = "Unprocessable request"),
+        (status = 403, description = "Forbidden"),
+    ),
+   tag = "Routing",
+   operation_id = "Evaluate routing rules (alternative)",
+   security(("api_key" = []))
+)]
+pub async fn evaluate_routing_rule() {}

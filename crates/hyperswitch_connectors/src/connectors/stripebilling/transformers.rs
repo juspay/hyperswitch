@@ -402,6 +402,13 @@ impl TryFrom<StripebillingInvoiceBody> for revenue_recovery::RevenueRecoveryInvo
             .data
             .first()
             .map(|linedata| linedata.period.end);
+        let billing_started_at = item
+            .data
+            .object
+            .lines
+            .data
+            .first()
+            .map(|linedata| linedata.period.start);
         Ok(Self {
             amount: item.data.object.amount,
             currency: item.data.object.currency,
@@ -413,17 +420,13 @@ impl TryFrom<StripebillingInvoiceBody> for revenue_recovery::RevenueRecoveryInvo
                 .map(api_models::payments::Address::from),
             retry_count: Some(item.data.object.attempt_count),
             next_billing_at,
+            billing_started_at,
         })
     }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct StripebillingBillingConnectorPaymentSyncResponseData {
-    pub latest_charge: StripebillingLatestChargeData,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct StripebillingLatestChargeData {
+pub struct StripebillingRecoveryDetailsData {
     #[serde(rename = "id")]
     pub charge_id: String,
     pub status: StripebillingChargeStatus,
@@ -509,7 +512,7 @@ impl
     TryFrom<
         ResponseRouterData<
             recovery_router_flows::BillingConnectorPaymentsSync,
-            StripebillingBillingConnectorPaymentSyncResponseData,
+            StripebillingRecoveryDetailsData,
             recovery_request_types::BillingConnectorPaymentsSyncRequest,
             recovery_response_types::BillingConnectorPaymentsSyncResponse,
         >,
@@ -519,12 +522,12 @@ impl
     fn try_from(
         item: ResponseRouterData<
             recovery_router_flows::BillingConnectorPaymentsSync,
-            StripebillingBillingConnectorPaymentSyncResponseData,
+            StripebillingRecoveryDetailsData,
             recovery_request_types::BillingConnectorPaymentsSyncRequest,
             recovery_response_types::BillingConnectorPaymentsSyncResponse,
         >,
     ) -> Result<Self, Self::Error> {
-        let charge_details = item.response.latest_charge;
+        let charge_details = item.response;
         let merchant_reference_id =
             id_type::PaymentReferenceId::from_str(charge_details.invoice_id.as_str())
                 .change_context(errors::ConnectorError::MissingRequiredField {

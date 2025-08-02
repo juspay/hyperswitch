@@ -95,6 +95,7 @@ impl MandateResponseExt for MandateResponse {
         let payment_method_type = payment_method
             .get_payment_method_subtype()
             .map(|pmt| pmt.to_string());
+        let user_agent = mandate.get_user_agent_extended().unwrap_or_default();
         Ok(Self {
             mandate_id: mandate.mandate_id,
             customer_acceptance: Some(api::payments::CustomerAcceptance {
@@ -106,7 +107,7 @@ impl MandateResponseExt for MandateResponse {
                 accepted_at: mandate.customer_accepted_at,
                 online: Some(api::payments::OnlineMandate {
                     ip_address: mandate.customer_ip_address,
-                    user_agent: mandate.customer_user_agent.unwrap_or_default(),
+                    user_agent,
                 }),
             }),
             card,

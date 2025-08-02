@@ -385,10 +385,12 @@ impl
                 .attach_printable("cavv must not be null when authentication_status is success")?;
             Ok(Self {
                 eci: authentication.eci.clone(),
+                created_at: authentication.created_at,
                 cavv,
                 threeds_server_transaction_id,
                 message_version,
                 ds_trans_id: authentication.ds_trans_id.clone(),
+                authentication_type: authentication.authentication_type,
             })
         } else {
             Err(errors::ApiErrorResponse::PaymentAuthenticationFailed { data: None }.into())

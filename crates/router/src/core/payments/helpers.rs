@@ -2037,6 +2037,29 @@ pub fn decide_payment_method_retrieval_action(
     }
 }
 
+pub async fn is_ucs_enabled(state: &SessionState, config_key: &str) -> bool {
+    let db = state.store.as_ref();
+    db.find_config_by_key_unwrap_or(config_key, Some("false".to_string()))
+        .await
+        .inspect_err(|error| {
+            logger::error!(
+                ?error,
+                "Failed to fetch `{config_key}` UCS enabled config from DB"
+            );
+        })
+        .ok()
+        .and_then(|config| {
+            config
+                .config
+                .parse::<bool>()
+                .inspect_err(|error| {
+                    logger::error!(?error, "Failed to parse `{config_key}` UCS enabled config");
+                })
+                .ok()
+        })
+        .unwrap_or(false)
+}
+
 pub async fn should_execute_based_on_rollout(
     state: &SessionState,
     config_key: &str,
@@ -3099,6 +3122,107 @@ pub fn get_handle_response_url(
 }
 
 #[cfg(feature = "v1")]
+pub fn get_handle_response_url_for_modular_authentication(
+    authentication_id: id_type::AuthenticationId,
+    business_profile: &domain::Profile,
+    response: &api_models::authentication::AuthenticationAuthenticateResponse,
+    connector: String,
+    return_url: Option<String>,
+    client_secret: Option<&masking::Secret<String>>,
+    amount: Option<MinorUnit>,
+) -> RouterResult<api::RedirectionResponse> {
+    let authentication_return_url = return_url;
+    let trans_status = response
+        .transaction_status
+        .clone()
+        .get_required_value("transaction_status")?;
+
+    let redirection_response = make_pg_redirect_response_for_authentication(
+        authentication_id,
+        connector,
+        amount,
+        trans_status,
+    );
+
+    let return_url = make_merchant_url_with_response_for_authentication(
+        business_profile,
+        redirection_response,
+        authentication_return_url.as_ref(),
+        client_secret,
+        None,
+    )
+    .attach_printable("Failed to make merchant url with response")?;
+
+    make_url_with_signature(&return_url, business_profile)
+}
+
+#[cfg(feature = "v1")]
+pub fn make_merchant_url_with_response_for_authentication(
+    business_profile: &domain::Profile,
+    redirection_response: hyperswitch_domain_models::authentication::PgRedirectResponseForAuthentication,
+    request_return_url: Option<&String>,
+    client_secret: Option<&masking::Secret<String>>,
+    manual_retry_allowed: Option<bool>,
+) -> RouterResult<String> {
+    // take return url if provided in the request else use merchant return url
+    let url = request_return_url
+        .or(business_profile.return_url.as_ref())
+        .get_required_value("return_url")?;
+
+    let status_check = redirection_response.status;
+
+    let authentication_client_secret = client_secret
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Expected client secret to be `Some`")?;
+
+    let authentication_id = redirection_response
+        .authentication_id
+        .get_string_repr()
+        .to_owned();
+    let merchant_url_with_response = if business_profile.redirect_to_merchant_with_http_post {
+        url::Url::parse_with_params(
+            url,
+            &[
+                ("status", status_check.to_string()),
+                ("authentication_id", authentication_id),
+                (
+                    "authentication_client_secret",
+                    authentication_client_secret.peek().to_string(),
+                ),
+                (
+                    "manual_retry_allowed",
+                    manual_retry_allowed.unwrap_or(false).to_string(),
+                ),
+            ],
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to parse the url with param")?
+    } else {
+        let amount = redirection_response.amount.get_required_value("amount")?;
+        url::Url::parse_with_params(
+            url,
+            &[
+                ("status", status_check.to_string()),
+                ("authentication_id", authentication_id),
+                (
+                    "authentication_client_secret",
+                    authentication_client_secret.peek().to_string(),
+                ),
+                ("amount", amount.to_string()),
+                (
+                    "manual_retry_allowed",
+                    manual_retry_allowed.unwrap_or(false).to_string(),
+                ),
+            ],
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to parse the url with param")?
+    };
+
+    Ok(merchant_url_with_response.to_string())
+}
+
+#[cfg(feature = "v1")]
 pub fn make_merchant_url_with_response(
     business_profile: &domain::Profile,
     redirection_response: api::PgRedirectResponse,
@@ -3307,6 +3431,22 @@ pub fn make_pg_redirect_response(
 }
 
 #[cfg(feature = "v1")]
+pub fn make_pg_redirect_response_for_authentication(
+    authentication_id: id_type::AuthenticationId,
+    connector: String,
+    amount: Option<MinorUnit>,
+    trans_status: common_enums::TransactionStatus,
+) -> hyperswitch_domain_models::authentication::PgRedirectResponseForAuthentication {
+    hyperswitch_domain_models::authentication::PgRedirectResponseForAuthentication {
+        authentication_id,
+        status: trans_status,
+        gateway_id: connector,
+        customer_id: None,
+        amount,
+    }
+}
+
+#[cfg(feature = "v1")]
 pub fn make_url_with_signature(
     redirect_url: &str,
     business_profile: &domain::Profile,
@@ -3421,7 +3561,7 @@ pub fn generate_mandate(
                         .get_ip_address()
                         .map(masking::Secret::new),
                 )
-                .set_customer_user_agent(customer_acceptance.get_user_agent())
+                .set_customer_user_agent_extended(customer_acceptance.get_user_agent())
                 .set_customer_accepted_at(Some(customer_acceptance.get_accepted_at()))
                 .set_metadata(payment_method_data_option.map(|payment_method_data| {
                     pii::SecretSerdeValue::new(
@@ -3728,6 +3868,7 @@ mod tests {
             force_3ds_challenge_trigger: None,
             is_iframe_redirection_enabled: None,
             is_payment_id_from_merchant: None,
+            payment_channel: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3805,6 +3946,7 @@ mod tests {
             force_3ds_challenge_trigger: None,
             is_iframe_redirection_enabled: None,
             is_payment_id_from_merchant: None,
+            payment_channel: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -3880,6 +4022,7 @@ mod tests {
             force_3ds_challenge_trigger: None,
             is_iframe_redirection_enabled: None,
             is_payment_id_from_merchant: None,
+            payment_channel: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -4258,7 +4401,8 @@ pub fn get_attempt_type(
                     | enums::AttemptStatus::AutoRefunded
                     | enums::AttemptStatus::PaymentMethodAwaited
                     | enums::AttemptStatus::DeviceDataCollectionPending
-                    | enums::AttemptStatus::IntegrityFailure => {
+                    | enums::AttemptStatus::IntegrityFailure
+                    | enums::AttemptStatus::Expired => {
                         metrics::MANUAL_RETRY_VALIDATION_FAILED.add(
                             1,
                             router_env::metric_attributes!((
@@ -4314,7 +4458,8 @@ pub fn get_attempt_type(
         | enums::IntentStatus::PartiallyCapturedAndCapturable
         | enums::IntentStatus::Processing
         | enums::IntentStatus::Succeeded
-        | enums::IntentStatus::Conflicted => {
+        | enums::IntentStatus::Conflicted
+        | enums::IntentStatus::Expired => {
             Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                 message: format!(
                     "You cannot {action} this payment because it has status {}",
@@ -4561,18 +4706,19 @@ pub fn is_manual_retry_allowed(
             | enums::AttemptStatus::AutoRefunded
             | enums::AttemptStatus::PaymentMethodAwaited
             | enums::AttemptStatus::DeviceDataCollectionPending
-            | storage_enums::AttemptStatus::IntegrityFailure => {
+            | enums::AttemptStatus::IntegrityFailure
+            | enums::AttemptStatus::Expired => {
                 logger::error!("Payment Attempt should not be in this state because Attempt to Intent status mapping doesn't allow it");
                 None
             }
 
-            storage_enums::AttemptStatus::VoidFailed
-            | storage_enums::AttemptStatus::RouterDeclined
-            | storage_enums::AttemptStatus::CaptureFailed => Some(false),
+            enums::AttemptStatus::VoidFailed
+            | enums::AttemptStatus::RouterDeclined
+            | enums::AttemptStatus::CaptureFailed => Some(false),
 
-            storage_enums::AttemptStatus::AuthenticationFailed
-            | storage_enums::AttemptStatus::AuthorizationFailed
-            | storage_enums::AttemptStatus::Failure => Some(true),
+            enums::AttemptStatus::AuthenticationFailed
+            | enums::AttemptStatus::AuthorizationFailed
+            | enums::AttemptStatus::Failure => Some(true),
         },
         enums::IntentStatus::Cancelled
         | enums::IntentStatus::RequiresCapture
@@ -4580,7 +4726,8 @@ pub fn is_manual_retry_allowed(
         | enums::IntentStatus::PartiallyCapturedAndCapturable
         | enums::IntentStatus::Processing
         | enums::IntentStatus::Succeeded
-        | enums::IntentStatus::Conflicted => Some(false),
+        | enums::IntentStatus::Conflicted
+        | enums::IntentStatus::Expired => Some(false),
 
         enums::IntentStatus::RequiresCustomerAction
         | enums::IntentStatus::RequiresMerchantAction
@@ -6297,7 +6444,7 @@ pub async fn get_gsm_record(
     error_message: Option<String>,
     connector_name: String,
     flow: String,
-) -> Option<storage::gsm::GatewayStatusMap> {
+) -> Option<hyperswitch_domain_models::gsm::GatewayStatusMap> {
     let get_gsm = || async {
         state.store.find_gsm_rule(
                 connector_name.clone(),

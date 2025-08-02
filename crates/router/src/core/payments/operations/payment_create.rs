@@ -598,6 +598,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             token_data: None,
             confirm: request.confirm,
             payment_method_data: payment_method_data_after_card_bin_call.map(Into::into),
+            payment_method_token: None,
             payment_method_info,
             refunds: vec![],
             disputes: vec![],
@@ -881,7 +882,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .as_ref()
             .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount);
 
-        let routing_approach = payment_data.payment_attempt.routing_approach;
+        let routing_approach = payment_data.payment_attempt.routing_approach.clone();
 
         payment_data.payment_attempt = state
             .store
@@ -1620,6 +1621,7 @@ impl PaymentCreate {
                 .is_iframe_redirection_enabled
                 .or(business_profile.is_iframe_redirection_enabled),
             is_payment_id_from_merchant: Some(is_payment_id_from_merchant),
+            payment_channel: request.payment_channel.clone(),
         })
     }
 

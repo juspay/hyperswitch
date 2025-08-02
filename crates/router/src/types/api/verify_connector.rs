@@ -65,6 +65,8 @@ impl VerifyConnectorData {
             merchant_config_currency: None,
             connector_testing_data: None,
             order_id: None,
+            locale: None,
+            payment_channel: None,
         }
     }
 
