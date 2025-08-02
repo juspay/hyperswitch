@@ -379,6 +379,7 @@ impl TryFrom<&WalletData> for PaymentMethodType {
             WalletData::Paysera(_) => Ok(Self::Paysera),
             WalletData::Skrill(_) => Ok(Self::Skrill),
             WalletData::AliPayQr(_)
+            | WalletData::AmazonPay(_)
             | WalletData::AliPayHkRedirect(_)
             | WalletData::AmazonPayRedirect(_)
             | WalletData::MomoRedirect(_)
