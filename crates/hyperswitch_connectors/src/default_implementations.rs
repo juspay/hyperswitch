@@ -1193,7 +1193,6 @@ default_imp_for_incremental_authorization!(
     connectors::Signifyd,
     connectors::Stax,
     connectors::Square,
-    connectors::Stripe,
     connectors::Stripebilling,
     connectors::Taxjar,
     connectors::Threedsecureio,
