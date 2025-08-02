@@ -1242,6 +1242,14 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
                 [card_basic(), email(), full_name(), billing_address()].concat(),
             ),
         ),
+        (
+            Connector::Barclaycard,
+            fields(
+                vec![],
+                vec![],
+                [card_basic(), full_name(), billing_address()].concat(),
+            ),
+        ),
         (Connector::Billwerk, fields(vec![], vec![], card_basic())),
         (
             Connector::Bluesnap,
@@ -2407,6 +2415,10 @@ fn get_wallet_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorFi
                             RequiredField::BillingAddressLine1.to_tuple(),
                         ]),
                     },
+                ),
+                (
+                    Connector::Barclaycard,
+                    fields(vec![], vec![], [full_name(), billing_address()].concat()),
                 ),
                 (Connector::Bluesnap, fields(vec![], vec![], vec![])),
                 (Connector::Noon, fields(vec![], vec![], vec![])),
