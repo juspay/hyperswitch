@@ -3,6 +3,7 @@ use std::{collections::HashMap, str::FromStr, vec::IntoIter};
 use common_utils::{ext_traits::Encode, types::MinorUnit};
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
+use open_feature::StructValue;
 use router_env::{
     logger,
     tracing::{self, instrument},
@@ -26,6 +27,7 @@ use crate::{
     },
     services,
     types::{self, api, domain, storage},
+    utils::superposition::openfeature_value_to_json,
 };
 
 #[instrument(skip_all)]
@@ -210,6 +212,23 @@ where
     Ok(router_data)
 }
 
+#[derive(serde::Deserialize)]
+struct ConnectorList(Vec<types::Connector>);
+
+impl TryFrom<StructValue> for ConnectorList {
+    type Error = serde_json::Error;
+
+    fn try_from(val: StructValue) -> Result<Self, Self::Error> {
+        let json_map = val
+            .fields
+            .into_iter()
+            .map(|(k, v)| (k, openfeature_value_to_json(v)))
+            .collect::<serde_json::Map<_, _>>();
+
+        serde_json::from_value(serde_json::Value::Object(json_map))
+    }
+}
+
 #[instrument(skip_all)]
 pub async fn is_step_up_enabled_for_merchant_connector(
     state: &app::SessionState,
@@ -226,23 +245,16 @@ pub async fn is_step_up_enabled_for_merchant_connector(
         )]),
         targeting_key: Some(merchant_id.get_string_repr().to_string()), //todo
     };
-    let mut step_up_enabled_connectors = "[]".to_string();
+    let mut step_up_enabled_connectors: Vec<types::Connector> = Vec::new();
     if let Some(superposition_client) = &state.superposition_client {
         step_up_enabled_connectors = superposition_client
-            .get_string_value("step_up_enabled", Some(&context), None)
+            .get_struct_value::<ConnectorList>("step_up_enabled", Some(&context), None)
             .await
-            .unwrap_or("[]".to_string());
+            .map(|list| list.0)
+            .unwrap_or_default();
     }
 
-    serde_json::from_str::<Vec<types::Connector>>(&step_up_enabled_connectors)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Step-up config parsing failed")
-        .map_err(|err| {
-            logger::error!(step_up_config_error=?err);
-        })
-        .ok()
-        .map(|connectors_enabled| connectors_enabled.contains(&connector_name))
-        .unwrap_or(false)
+    step_up_enabled_connectors.contains(&connector_name)
 }
 
 #[cfg(feature = "v1")]

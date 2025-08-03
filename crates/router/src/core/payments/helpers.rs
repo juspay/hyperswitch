@@ -27,6 +27,7 @@ use common_utils::{
     },
 };
 use diesel_models::enums;
+use open_feature::StructValue;
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, ResultExt};
 use futures::future::Either;
@@ -89,9 +90,7 @@ use crate::{
         RecipientIdType, RecurringMandatePaymentData, RouterData,
     },
     utils::{
-        self,
-        crypto::{self, SignMessage},
-        OptionExt, StringExt,
+        self, crypto::{self, SignMessage}, superposition::openfeature_value_to_json, OptionExt, StringExt
     },
 };
 #[cfg(feature = "v2")]
@@ -7194,23 +7193,36 @@ pub fn validate_platform_request_for_marketplace(
     Ok(())
 }
 
+#[derive(serde::Deserialize)]
+struct MerchantIdList(Vec<String>);
+
+impl TryFrom<StructValue> for MerchantIdList {
+    type Error = serde_json::Error;
+
+    fn try_from(val: StructValue) -> Result<Self, Self::Error> {
+        let json_map = val
+            .fields
+            .into_iter()
+            .map(|(k, v)| (k, openfeature_value_to_json(v)))
+            .collect::<serde_json::Map<_, _>>();
+
+        serde_json::from_value(serde_json::Value::Object(json_map))
+    }
+}
+
 pub async fn is_merchant_eligible_authentication_service(
     merchant_id: &id_type::MerchantId,
     state: &SessionState,
 ) -> RouterResult<bool> {
-    let mut merchants_eligible_for_authentication_service = "[]".to_string();
+    let mut auth_eligible_array = Vec::new();
 
     if let Some(superposition_client) = &state.superposition_client {
-        merchants_eligible_for_authentication_service = superposition_client
-            .get_string_value("poll_config_external_three_ds", None, None)
+        auth_eligible_array = superposition_client
+            .get_struct_value::<MerchantIdList>("poll_config_external_three_ds", None, None)
             .await
-            .unwrap_or("[]".to_string());
+            .map(|list| list.0)
+            .unwrap_or(Vec::new());
     }
-
-    let auth_eligible_array: Vec<String> =
-        serde_json::from_str(&merchants_eligible_for_authentication_service)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("unable to parse authentication service config")?;
 
     Ok(auth_eligible_array.contains(&merchant_id.get_string_repr().to_owned()))
 }

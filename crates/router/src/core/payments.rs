@@ -3302,7 +3302,11 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 error_stack::report!(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Superposition client not initialized")
             })?
-            .get_struct_value::<router_types::PollConfig>("poll_config_external_three_ds", Some(&context), None)
+            .get_struct_value::<router_types::PollConfig>(
+                "poll_config_external_three_ds",
+                Some(&context),
+                None,
+            )
             .await
             .map_err(|e| {
                 error_stack::report!(errors::ApiErrorResponse::InternalServerError)
