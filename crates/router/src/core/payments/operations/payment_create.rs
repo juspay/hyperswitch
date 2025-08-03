@@ -1621,6 +1621,7 @@ impl PaymentCreate {
                 .is_iframe_redirection_enabled
                 .or(business_profile.is_iframe_redirection_enabled),
             is_payment_id_from_merchant: Some(is_payment_id_from_merchant),
+            payment_channel: request.payment_channel.clone(),
         })
     }
 
