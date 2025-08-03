@@ -1,6 +1,7 @@
 pub mod address;
 pub mod api_keys;
 pub mod revenue_recovery_redis_operation;
+pub mod retry_mapper_redis_operation;
 pub mod authentication;
 pub mod authorization;
 pub mod blocklist;
