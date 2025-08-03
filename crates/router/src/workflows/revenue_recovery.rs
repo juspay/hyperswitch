@@ -42,7 +42,10 @@ use crate::{
     types::{
         api::{self as api_types},
         domain,
-        storage::revenue_recovery as pcr_storage_types,
+        storage::{
+            revenue_recovery as pcr_storage_types,
+            revenue_recovery_redis_operation::{RedisPspTokenMap, PspTokenStatus},
+        },
     },
 };
 use crate::{routes::SessionState, types::storage};
@@ -499,4 +502,41 @@ impl From<InternalDeciderRequest> for external_grpc_client::DeciderRequest {
             wait_time: internal_request.wait_time,
         }
     }
+}
+
+#[cfg(feature = "v2")]
+pub async fn get_best_psp_token_available(
+    state: &SessionState,
+    customer_id: id_type::CustomerId,
+    psp_token_list: Vec<String>,
+    intent_id: &str,
+    merchant_id: &id_type::MerchantId,
+    payment_intent_id: String,
+) -> Result<Option<PspTokenStatus>, errors::ProcessTrackerError> {
+    logger::info!(
+        customer_id = %customer_id.get_string_repr(),
+        intent_id = %intent_id,
+        psp_token_count = %psp_token_list.len(),
+        "Starting PSP token selection process"
+    );
+
+    // TODO: Implement the full logic here
+    // This function should:
+    // 1. Insert/update PSP tokens in Redis
+    // 2. Filter available (unlocked) tokens
+    // 3. Check for success tokens first
+    // 4. If no success tokens, call get_schedule_time_for_smart_retry for each token
+    // 5. Select the best token and lock it
+    
+    // For now, return None as placeholder
+    // You can call get_schedule_time_for_smart_retry like this:
+    // let _schedule_time = pcr::get_schedule_time_for_smart_retry(
+    //     state,
+    //     &payment_attempt,
+    //     &payment_intent,
+    //     retry_count,
+    // ).await?;
+    
+    logger::warn!("get_best_psp_token_available is not yet implemented");
+    Ok(None)
 }
