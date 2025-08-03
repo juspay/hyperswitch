@@ -734,7 +734,7 @@ pub async fn get_merchant_config_for_gsm(
     let config = db
         .find_config_by_key_unwrap_or(
             &merchant_id.get_should_call_gsm_key(),
-            Some("false".to_string())
+            Some("false".to_string()),
         )
         .await;
     match config {

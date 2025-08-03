@@ -10,37 +10,23 @@
 //! a value from the feature flag provider needs to be deserialized into a
 //! specific application struct.
 
-use open_feature::Value;
-use serde_json;
-
-/// Implements the standard `From` trait to convert an `open_feature::Value`
-/// into a `serde_json::Value`.
-///
-/// This conversion is recursive, handling nested objects and arrays, and it
-/// allows the rest of the application to use the powerful `serde_json::from_value`
-/// function to deserialize feature flag results into strongly-typed structs.
-
-use serde_json;
-#[derive(Debug)]
-pub struct SerdeValue(pub serde_json::Value);
-
-impl From<open_feature::Value> for serde_json::Value {
-    fn from(val: open_feature::Value) -> Self {
-        match val {
-            Value::Null => serde_json::Value::Null,
-            Value::Boolean(b) => serde_json::Value::Bool(b),
-            Value::String(s) => serde_json::Value::String(s),
-            Value::Integer(i) => serde_json::Value::Number(i.into()),
-            Value::Double(f) => serde_json::Number::from_f64(f)
-                .map_or(serde_json::Value::Null, serde_json::Value::Number),
-            Value::Array(arr) => {
-                serde_json::Value::Array(arr.into_iter().map(Into::into).collect())
-            }
-            Value::Object(obj) => {
-                serde_json::Value::Object(
-                    obj.into_iter().map(|(k, v)| (k, v.into())).collect()
-                )
-            }
+pub fn openfeature_value_to_json(val: open_feature::Value) -> serde_json::Value {
+    match val {
+        open_feature::Value::Bool(b) => serde_json::Value::Bool(b),
+        open_feature::Value::Int(i) => serde_json::Value::Number(i.into()),
+        open_feature::Value::Float(f) => {
+            serde_json::Number::from_f64(f).map_or(serde_json::Value::Null, serde_json::Value::Number)
+        }
+        open_feature::Value::String(s) => serde_json::Value::String(s),
+        open_feature::Value::Array(arr) => {
+            serde_json::Value::Array(arr.into_iter().map(openfeature_value_to_json).collect())
+        }
+        open_feature::Value::Struct(s) => {
+            let map = s.fields
+                .into_iter()
+                .map(|(k, v)| (k, openfeature_value_to_json(v)))
+                .collect();
+            serde_json::Value::Object(map)
         }
     }
 }

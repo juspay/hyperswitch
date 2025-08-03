@@ -124,7 +124,7 @@ use crate::{
         payments::{OperationSessionGetters, PaymentData},
     },
     services,
-    types::transformers::{ForeignFrom, ForeignTryFrom},
+    types::transformers::{ForeignFrom, ForeignTryFrom}, utils::superposition::openfeature_value_to_json,
 };
 
 pub type PaymentsAuthorizeRouterData =
@@ -544,9 +544,12 @@ impl PollConfig {
 impl TryFrom<StructValue> for PollConfig {
     type Error = serde_json::Error;
 
-    fn try_from(value: StructValue) -> Result<Self, Self::Error> {
-        let json_map: serde_json::Map<String, serde_json::Value> =
-            value.fields.into_iter().map(|(k, v)| (k, v.into())).collect();
+    fn try_from(val: StructValue) -> Result<Self, Self::Error> {
+        let json_map = val
+            .fields
+            .into_iter()
+            .map(|(k, v)| (k, openfeature_value_to_json(v))) 
+            .collect::<serde_json::Map<_, _>>();
 
         serde_json::from_value(serde_json::Value::Object(json_map))
     }

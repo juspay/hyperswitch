@@ -1063,7 +1063,11 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
                     if let Some(superposition_client) = &state.superposition_client {
                         poll_config = superposition_client
-                            .get_struct_value("poll_config_external_three_ds", Some(&context), None)
+                            .get_struct_value::<types::PollConfig>(
+                                "poll_config_external_three_ds",
+                                Some(&context),
+                                None,
+                            )
                             .await
                             .unwrap_or(types::PollConfig::default());
                     }
@@ -1359,7 +1363,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     let mut poll_config = types::PollConfig::default();
                     if let Some(superposition_client) = &state.superposition_client {
                         poll_config = superposition_client
-                            .get_struct_value("poll_config_external_three_ds", Some(&context), None)
+                            .get_struct_value::<types::PollConfig>("poll_config_external_three_ds", Some(&context), None)
                             .await
                             .unwrap_or(types::PollConfig::default());
                     }
