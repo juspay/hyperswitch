@@ -1,7 +1,5 @@
 use std::{collections::HashSet, sync::Arc};
 
-use open_feature::EvaluationContext;
-use crate::routes::SessionState;
 use ::payment_methods::state::PaymentMethodsStorageInterface;
 use common_enums::enums::MerchantStorageScheme;
 use common_utils::{
@@ -365,12 +363,9 @@ impl ConfigInterface for KafkaStore {
         &self,
         key: &str,
         default_config: Option<String>,
-        superposition_context: Option<&EvaluationContext>,
-        flag_key: Option<&str>,
-        state: Option<&SessionState>,
     ) -> CustomResult<storage::Config, errors::StorageError> {
         self.diesel_store
-            .find_config_by_key_unwrap_or(key, default_config, superposition_context, flag_key, state)
+            .find_config_by_key_unwrap_or(key, default_config)
             .await
     }
 }

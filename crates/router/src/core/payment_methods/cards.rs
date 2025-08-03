@@ -4149,23 +4149,13 @@ pub async fn list_customer_payment_method(
         )]),
         targeting_key: Some(merchant_id.get_string_repr().to_string()),
     };
-
-    let is_requires_cvv = db
-        .find_config_by_key_unwrap_or(
-            &merchant_context
-                .get_merchant_account()
-                .get_id()
-                .get_requires_cvv_key(),
-            Some("true".to_string()),
-            Some(&context),
-            Some("requires_cvv"),
-            Some(&state),
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to fetch requires_cvv config")?;
-
-    let requires_cvv = is_requires_cvv.config != "false";
+    let mut requires_cvv = true;
+    if let Some(superposition_client) = &state.superposition_client {
+        requires_cvv = superposition_client
+            .get_bool_value("requires_cvv", Some(&context), None)
+            .await
+            .unwrap_or(true);
+    }
 
     let resp: Vec<hyperswitch_domain_models::payment_methods::PaymentMethod> = db
         .find_payment_method_by_customer_id_merchant_id_status(

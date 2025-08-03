@@ -11,6 +11,7 @@ pub mod user;
 pub mod user_role;
 #[cfg(feature = "olap")]
 pub mod verify_connector;
+pub mod superposition;
 use std::fmt::Debug;
 
 use api_models::{

@@ -226,28 +226,23 @@ pub async fn is_step_up_enabled_for_merchant_connector(
         )]),
         targeting_key: Some(merchant_id.get_string_repr().to_string()), //todo
     };
-    let key = merchant_id.get_step_up_enabled_key();
-    let db = &*state.store;
-    db.find_config_by_key_unwrap_or(
-        key.as_str(),
-        Some("[]".to_string()),
-        Some(&context),
-        Some("step_up_enabled"),
-        Some(&state),
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .and_then(|step_up_config| {
-        serde_json::from_str::<Vec<types::Connector>>(&step_up_config.config)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Step-up config parsing failed")
-    })
-    .map_err(|err| {
-        logger::error!(step_up_config_error=?err);
-    })
-    .ok()
-    .map(|connectors_enabled| connectors_enabled.contains(&connector_name))
-    .unwrap_or(false)
+    let mut step_up_enabled_connectors = "[]".to_string();
+    if let Some(superposition_client) = &state.superposition_client {
+        step_up_enabled_connectors = superposition_client
+            .get_string_value("step_up_enabled", Some(&context), None)
+            .await
+            .unwrap_or("[]".to_string());
+    }
+
+    serde_json::from_str::<Vec<types::Connector>>(&step_up_enabled_connectors)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Step-up config parsing failed")
+        .map_err(|err| {
+            logger::error!(step_up_config_error=?err);
+        })
+        .ok()
+        .map(|connectors_enabled| connectors_enabled.contains(&connector_name))
+        .unwrap_or(false)
 }
 
 #[cfg(feature = "v1")]
@@ -739,10 +734,7 @@ pub async fn get_merchant_config_for_gsm(
     let config = db
         .find_config_by_key_unwrap_or(
             &merchant_id.get_should_call_gsm_key(),
-            Some("false".to_string()),
-            None,
-            None,
-            None,
+            Some("false".to_string())
         )
         .await;
     match config {

@@ -3291,30 +3291,27 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
         let context = EvaluationContext {
             custom_fields: HashMap::from([(
                 "connector".to_string(),
-                open_feature::EvaluationContextFieldValue::String(
-                    connector.clone()
-                        .to_string(),
-                ),
+                open_feature::EvaluationContextFieldValue::String(connector.clone().to_string()),
             )]),
-            targeting_key: Some(connector.clone()),//todo
+            targeting_key: Some(connector.clone()), //todo
         };
-        let poll_config = state
-            .store
-            .find_config_by_key_unwrap_or(
-                &router_types::PollConfig::get_poll_config_key(connector),
-                Some(default_config_str),
-                Some(&context),
-                Some("poll_config"),
-                Some(&state),
-            )
+        let poll_config: router_types::PollConfig = state
+            .superposition_client
+            .as_deref()
+            .ok_or_else(|| {
+                error_stack::report!(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Superposition client not initialized")
+            })?
+            .get_struct_value("poll_config_external_three_ds", Some(&context), None)
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("The poll config was not found in the DB")?;
-        let poll_config: router_types::PollConfig = poll_config
-            .config
-            .parse_struct("PollConfig")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error while parsing PollConfig")?;
+            .map_err(|e| {
+                error_stack::report!(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(format!(
+                        "Failed to get PollConfig from Superposition: {:?}",
+                        e
+                    ))
+            })?;
+
         let profile_id = payments_response
             .profile_id
             .as_ref()
@@ -4472,8 +4469,7 @@ where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
     let merchant_id = merchant_context.get_merchant_account().get_id();
-    let blocklist_enabled_key = merchant_id.get_blocklist_guard_key();
-    
+
     use open_feature::EvaluationContext;
     let context = EvaluationContext {
         custom_fields: HashMap::from([(
@@ -4484,28 +4480,13 @@ where
         )]),
         targeting_key: Some(merchant_id.get_string_repr().to_string()),
     };
-    let blocklist_guard_enabled = state
-        .store
-        .find_config_by_key_unwrap_or(
-            &blocklist_enabled_key,
-            Some("false".to_string()),
-            Some(&context),
-            Some("blocklist_guard_enabled"),
-            Some(&state)
-        )
-        .await;
-
-    let blocklist_guard_enabled: bool = match blocklist_guard_enabled {
-        Ok(config) => serde_json::from_str(&config.config).unwrap_or(false),
-
-        // If it is not present in db we are defaulting it to false
-        Err(inner) => {
-            if !inner.current_context().is_db_not_found() {
-                logger::error!("Error fetching guard blocklist enabled config {:?}", inner);
-            }
-            false
-        }
-    };
+    let mut blocklist_guard_enabled = false;
+    if let Some(superposition_client) = &state.superposition_client {
+        blocklist_guard_enabled = superposition_client
+            .get_bool_value("blocklist_guard_enabled", Some(&context), None)
+            .await
+            .unwrap_or(false);
+    }
 
     if blocklist_guard_enabled {
         Ok(operation

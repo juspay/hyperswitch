@@ -1059,28 +1059,15 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         )]),
                         targeting_key: Some("connector".to_string()), //todo
                     };
-                    let poll_config = state
-                        .store
-                        .find_config_by_key_unwrap_or(
-                            &types::PollConfig::get_poll_config_key(
-                                authentication_store
-                                    .authentication
-                                    .authentication_connector
-                                    .clone(),
-                            ),
-                            Some(default_config_str),
-                            Some(&context),
-                            Some("poll_config"),
-                            Some(&state),
-                        )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("The poll config was not found in the DB")?;
-                    let poll_config: types::PollConfig = poll_config
-                        .config
-                        .parse_struct("PollConfig")
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Error while parsing PollConfig")?;
+                    let mut poll_config = types::PollConfig::default();
+
+                    if let Some(superposition_client) = &state.superposition_client {
+                        poll_config = superposition_client
+                            .get_struct_value("poll_config_external_three_ds", Some(&context), None)
+                            .await
+                            .unwrap_or(types::PollConfig::default());
+                    }
+
                     payment_data.poll_config = Some(poll_config)
                 }
                 Some(authentication_store)
@@ -1369,25 +1356,14 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         )]),
                         targeting_key: Some("connector".to_string()), //todo
                     };
-                    let poll_config = state
-                        .store
-                        .find_config_by_key_unwrap_or(
-                            &types::PollConfig::get_poll_config_key(
-                                updated_authentication.authentication_connector.clone(),
-                            ),
-                            Some(default_config_str),
-                            Some(&context),
-                            Some("poll_config"),
-                            Some(&state),
-                        )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("The poll config was not found in the DB")?;
-                    let poll_config: types::PollConfig = poll_config
-                        .config
-                        .parse_struct("PollConfig")
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Error while parsing PollConfig")?;
+                    let mut poll_config = types::PollConfig::default();
+                    if let Some(superposition_client) = &state.superposition_client {
+                        poll_config = superposition_client
+                            .get_struct_value("poll_config_external_three_ds", Some(&context), None)
+                            .await
+                            .unwrap_or(types::PollConfig::default());
+                    }
+
                     payment_data.poll_config = Some(poll_config)
                 }
                 },

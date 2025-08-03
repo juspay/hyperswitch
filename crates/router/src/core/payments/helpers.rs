@@ -4601,10 +4601,7 @@ pub async fn get_additional_payment_data(
             let enable_extended_bin =db
             .find_config_by_key_unwrap_or(
                 format!("{}_enable_extended_card_bin", profile_id.get_string_repr()).as_str(),
-                Some("false".to_string()),
-                None,
-                None,
-                None,
+                Some("false".to_string())
             )
             .await.map_err(|err| services::logger::error!(message="Failed to fetch the config", extended_card_bin_error=?err)).ok();
 
@@ -4917,10 +4914,7 @@ pub async fn get_additional_payment_data(
             let enable_extended_bin =db
             .find_config_by_key_unwrap_or(
                 format!("{}_enable_extended_card_bin", profile_id.get_string_repr()).as_str(),
-             Some("false".to_string()),
-                None,
-                None,
-                None,
+             Some("false".to_string())
             )
             .await.map_err(|err| services::logger::error!(message="Failed to fetch the config", extended_card_bin_error=?err)).ok();
 
@@ -6862,9 +6856,6 @@ pub async fn config_skip_saving_wallet_at_connector(
         .find_config_by_key_unwrap_or(
             &merchant_id.get_skip_saving_wallet_at_connector_key(),
             Some("[]".to_string()),
-            None,
-            None,
-            None,
         )
         .await;
     Ok(match config {
@@ -7207,30 +7198,19 @@ pub async fn is_merchant_eligible_authentication_service(
     merchant_id: &id_type::MerchantId,
     state: &SessionState,
 ) -> RouterResult<bool> {
-    let merchants_eligible_for_authentication_service = state
-        .store
-        .as_ref()
-        .find_config_by_key_unwrap_or(
-            consts::AUTHENTICATION_SERVICE_ELIGIBLE_CONFIG,
-            Some("[]".to_string()),
-            None,
-            Some("merchants_eligible_for_authentication_service"),
-            Some(&state),
-        )
-        .await;
+    let mut merchants_eligible_for_authentication_service = "[]".to_string();
 
-    let auth_eligible_array: Vec<String> = match merchants_eligible_for_authentication_service {
-        Ok(config) => serde_json::from_str(&config.config)
+    if let Some(superposition_client) = &state.superposition_client {
+        merchants_eligible_for_authentication_service = superposition_client
+            .get_string_value("poll_config_external_three_ds", None, None)
+            .await
+            .unwrap_or("[]".to_string());
+    }
+
+    let auth_eligible_array: Vec<String> =
+        serde_json::from_str(&merchants_eligible_for_authentication_service)
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("unable to parse authentication service config")?,
-        Err(err) => {
-            logger::error!(
-                "Error fetching authentication service enabled merchant config {:?}",
-                err
-            );
-            Vec::new()
-        }
-    };
+            .attach_printable("unable to parse authentication service config")?;
 
     Ok(auth_eligible_array.contains(&merchant_id.get_string_repr().to_owned()))
 }

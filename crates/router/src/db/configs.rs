@@ -1,6 +1,5 @@
 use diesel_models::configs::ConfigUpdateInternal;
 use error_stack::report;
-use open_feature::EvaluationContext;
 use router_env::{instrument, tracing};
 use storage_impl::redis::cache::{self, CacheKind, CONFIG_CACHE};
 
@@ -9,7 +8,6 @@ use crate::{
     connection,
     core::errors::{self, CustomResult},
     db::StorageInterface,
-    routes::SessionState,
     types::storage,
 };
 
@@ -30,9 +28,6 @@ pub trait ConfigInterface {
         key: &str,
         // If the config is not found it will be created with the default value.
         default_config: Option<String>,
-        superposition_context: Option<&EvaluationContext>,
-        superposition_key: Option<&str>,
-        state: Option<&SessionState>,
     ) -> CustomResult<storage::Config, errors::StorageError>;
 
     async fn find_config_by_key_from_db(
@@ -137,39 +132,7 @@ impl ConfigInterface for Store {
         key: &str,
         // If the config is not found it will be cached with the default value.
         default_config: Option<String>,
-        superposition_context: Option<&EvaluationContext>,
-        superposition_key: Option<&str>,
-        state: Option<&SessionState>,
     ) -> CustomResult<storage::Config, errors::StorageError> {
-        if let (Some(superposition_key), Some(state)) =
-            (superposition_key, state)
-        {
-            if let Some(client) = &state.superposition_client {
-                let kill_switch_context: EvaluationContext = EvaluationContext::default();
-                if client
-                    .get_bool_value(
-                        "use_superposition_for_configs",
-                        Some(&kill_switch_context),
-                        None,
-                    )
-                    .await
-                    .unwrap_or(false)
-                {
-                    if let Ok(value) = client
-                        .get_string_value(superposition_key, superposition_context, None)
-                        .await
-                    {
-                        eprint!("Using superposition for config: {}", key);
-                        return Ok(storage::Config {
-                            key: key.to_string(),
-                            config: value,
-                        });
-                    }
-                }
-            }
-        }
-
-        eprint!("Using fallback database for config: {}", key);
         let find_else_unwrap_or = || async {
             let conn = connection::pg_connection_write(self).await?;
             match storage::Config::find_by_key(&conn, key)
@@ -301,9 +264,6 @@ impl ConfigInterface for MockDb {
         &self,
         key: &str,
         _default_config: Option<String>,
-        superposition_context: Option<&EvaluationContext>,
-        superposition_key: Option<&str>,
-        state: Option<&SessionState>,
     ) -> CustomResult<storage::Config, errors::StorageError> {
         self.find_config_by_key(key).await
     }

@@ -1417,10 +1417,7 @@ pub async fn get_additional_payout_data(
             let enable_extended_bin =db
             .find_config_by_key_unwrap_or(
                 format!("{}_enable_extended_card_bin", profile_id.get_string_repr()).as_str(),
-             Some("false".to_string()),
-                None,
-                None,
-                None,)
+             Some("false".to_string()))
             .await.map_err(|err| services::logger::error!(message="Failed to fetch the config", extended_card_bin_error=?err)).ok();
 
             let card_extended_bin = match enable_extended_bin {

@@ -14,6 +14,7 @@ pub mod fraud_check;
 pub mod payment_methods;
 pub mod pm_auth;
 use masking::Secret;
+use open_feature::StructValue;
 pub mod storage;
 pub mod transformers;
 use std::marker::PhantomData;
@@ -537,6 +538,17 @@ pub struct PollConfig {
 impl PollConfig {
     pub fn get_poll_config_key(connector: String) -> String {
         format!("poll_config_external_three_ds_{connector}")
+    }
+}
+
+impl TryFrom<StructValue> for PollConfig {
+    type Error = serde_json::Error;
+
+    fn try_from(value: StructValue) -> Result<Self, Self::Error> {
+        let json_map: serde_json::Map<String, serde_json::Value> =
+            value.fields.into_iter().map(|(k, v)| (k, v.into())).collect();
+
+        serde_json::from_value(serde_json::Value::Object(json_map))
     }
 }
 
