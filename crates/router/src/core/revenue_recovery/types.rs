@@ -325,7 +325,6 @@ impl Action {
         revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
         revenue_recovery_metadata: &PaymentRevenueRecoveryMetadata,
     ) -> RecoveryResult<Self> {
-        let db = &*state.store;
         let response = revenue_recovery_core::api::call_proxy_api(
             state,
             payment_intent,
@@ -394,7 +393,7 @@ impl Action {
                     };
 
                     Self::decide_retry_failure_action(
-                        db,
+                        state,
                         merchant_id,
                         process.clone(),
                         revenue_recovery_payment_data,
@@ -578,7 +577,7 @@ impl Action {
             revenue_recovery_payment_data,
         )
         .await;
-        let db = &*state.store;
+
         match response {
             Ok(_payment_data) => match payment_attempt.status.foreign_into() {
                 RevenueRecoveryPaymentsAttemptStatus::Succeeded => {
@@ -586,7 +585,7 @@ impl Action {
                 }
                 RevenueRecoveryPaymentsAttemptStatus::Failed => {
                     Self::decide_retry_failure_action(
-                        db,
+                        state,
                         revenue_recovery_payment_data.merchant_account.get_id(),
                         process.clone(),
                         revenue_recovery_payment_data,
@@ -779,15 +778,58 @@ impl Action {
     }
 
     pub(crate) async fn decide_retry_failure_action(
-        db: &dyn StorageInterface,
+        state: &SessionState,
         merchant_id: &id_type::MerchantId,
         pt: storage::ProcessTracker,
         revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
         payment_attempt: &payment_attempt::PaymentAttempt,
     ) -> RecoveryResult<Self> {
+        let db = &*state.store;
         let next_retry_count = pt.retry_count + 1;
+        let error_message = payment_attempt
+            .error
+            .as_ref()
+            .map(|details| details.message.clone());
+        let error_code = payment_attempt
+            .error
+            .as_ref()
+            .map(|details| details.code.clone());
+        let connector_name = payment_attempt
+            .connector
+            .clone()
+            .ok_or(errors::RecoveryError::ValueNotFound)
+            .attach_printable("unable to derive payment connector from payment attempt")?;
+        let gsm_record = helpers::get_gsm_record(
+            state,
+            error_code,
+            error_message,
+            connector_name,
+            "revenue_recovery".to_string(),
+        )
+        .await;
+        let is_hard_decline = gsm_record
+            .map(|gsm_record| {
+                if let Some(gsm_error_category) = gsm_record.error_category {
+                    match gsm_error_category {
+                        common_enums::ErrorCategory::HardDecline => {
+                            //TODO:Add logic for card_switch
+                            true
+                        }
+                        _ => false,
+                    }
+                } else {
+                    true
+                }
+            })
+            .unwrap_or(true);
+
         let schedule_time = revenue_recovery_payment_data
-            .get_schedule_time_based_on_retry_type(db, merchant_id, next_retry_count)
+            .get_schedule_time_based_on_retry_type(
+                db,
+                merchant_id,
+                next_retry_count,
+                is_hard_decline,
+            )
             .await;
 
         match schedule_time {
@@ -797,7 +839,6 @@ impl Action {
         }
     }
 }
-
 // TODO: Move these to impl based functions
 async fn record_back_to_billing_connector(
     state: &SessionState,

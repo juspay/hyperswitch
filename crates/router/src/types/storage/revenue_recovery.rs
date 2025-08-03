@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use common_enums::enums;
-use common_utils::id_type;
+use common_utils::{date_time, id_type};
 use hyperswitch_domain_models::{
     business_profile, merchant_account, merchant_connector_account, merchant_key_store,
 };
@@ -32,6 +32,7 @@ impl RevenueRecoveryPaymentData {
         db: &dyn StorageInterface,
         merchant_id: &id_type::MerchantId,
         retry_count: i32,
+        is_hard_decline: bool,
     ) -> Option<time::PrimitiveDateTime> {
         match self.retry_algorithm {
             enums::RevenueRecoveryAlgorithmType::Monitoring => {
@@ -47,8 +48,12 @@ impl RevenueRecoveryPaymentData {
                 .await
             }
             enums::RevenueRecoveryAlgorithmType::Smart => {
-                // TODO: Integrate the smart retry call to return back a schedule time
-                None
+                if is_hard_decline {
+                    None
+                } else {
+                    // TODO: Integrate the smart retry call to return back a schedule time
+                    Some(date_time::now())
+                }
             }
         }
     }
