@@ -1152,6 +1152,7 @@ pub async fn construct_upload_file_router_data<'a>(
     payment_attempt: &storage::PaymentAttempt,
     merchant_context: &domain::MerchantContext,
     create_file_request: &api::CreateFileRequest,
+    dispute_data: storage::Dispute,
     connector_id: &str,
     file_key: String,
 ) -> RouterResult<types::UploadFileRouterData> {
@@ -1207,6 +1208,8 @@ pub async fn construct_upload_file_router_data<'a>(
             file: create_file_request.file.clone(),
             file_type: create_file_request.file_type.clone(),
             file_size: create_file_request.file_size,
+            dispute_id: dispute_data.dispute_id.clone(),
+            connector_dispute_id: dispute_data.connector_dispute_id.clone(),
         },
         response: Err(ErrorResponse::default()),
         access_token: None,
@@ -1659,6 +1662,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
     state: &'a SessionState,
     merchant_context: &domain::MerchantContext,
     file_metadata: &diesel_models::file::FileMetadata,
+    dispute: Option<storage::Dispute>,
     connector_id: &str,
 ) -> RouterResult<types::RetrieveFileRouterData> {
     let profile_id = file_metadata
@@ -1714,6 +1718,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
                 .clone()
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Missing provider file id")?,
+            connector_dispute_id: dispute.map(|dispute_data| dispute_data.connector_dispute_id),
         },
         response: Err(ErrorResponse::default()),
         access_token: None,

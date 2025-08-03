@@ -15,6 +15,13 @@ pub struct FileId {
     pub file_id: String,
 }
 
+#[derive(Default, Debug, Deserialize, Serialize)]
+pub struct FileRetrieveRequest {
+    pub file_id: String,
+    pub dispute_id: Option<String>,
+}
+
+
 #[derive(Debug)]
 pub enum FileDataRequired {
     Required,

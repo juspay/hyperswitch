@@ -19,3 +19,11 @@ pub struct FileMetadataResponse {
     /// File availability
     pub available: bool,
 }
+
+
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct FileRetrieveQuery {
+    ///Dispute Id
+    pub dispute_id: Option<String>,
+}

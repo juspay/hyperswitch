@@ -18,6 +18,7 @@ use crate::{
     services::{authentication::AuthenticationType, kafka::KafkaMessage},
     types::api::{
         AttachEvidenceRequest, Config, ConfigUpdate, CreateFileRequest, DisputeId, FileId, PollId,
+        FileRetrieveRequest,
     },
 };
 
@@ -111,6 +112,7 @@ impl_api_event_type!(
         Config,
         CreateFileRequest,
         FileId,
+        FileRetrieveRequest,
         AttachEvidenceRequest,
         ConfigUpdate
     )

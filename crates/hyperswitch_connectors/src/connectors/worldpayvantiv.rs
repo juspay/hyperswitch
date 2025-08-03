@@ -18,16 +18,16 @@ use hyperswitch_domain_models::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
-        Fetch, Dsync, Evidence, Accept, Upload, 
+        Fetch, Dsync, Evidence, Accept, Upload, Retrieve,
     },
     router_request_types::{
         AccessTokenRequestData, AcceptDisputeRequestData, FetchDisputesRequestData, DisputeSyncData, PaymentMethodTokenizationData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, RetrieveFileRequestData,
         PaymentsSyncData, RefundsData, SetupMandateRequestData, SubmitEvidenceRequestData, UploadFileRequestData,
     },
     router_response_types::{
         AcceptDisputeResponse, ConnectorInfo, FetchDisputesResponse, DisputeSyncResponse, PaymentMethodDetails, PaymentsResponseData,
-        RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt, SubmitEvidenceResponse, UploadFileResponse,
+        RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt, SubmitEvidenceResponse, UploadFileResponse, RetrieveFileResponse
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
@@ -36,7 +36,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::{
     api::{
-        self, disputes::{FetchDisputes, DisputeSync, DefendDispute, AcceptDispute}, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration,
+        self, disputes::{Dispute, FetchDisputes, SubmitEvidence, DisputeSync, AcceptDispute}, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration,
         ConnectorSpecifications, ConnectorValidation, files::{FilePurpose, FileUpload, RetrieveFile, UploadFile},
     },
     configs::Connectors,
@@ -51,7 +51,7 @@ use transformers as worldpayvantiv;
 
 use crate::{
     constants::headers,
-    types::{FetchDisputeRouterData, UploadFileRouterData, DisputeSyncRouterData, SubmitEvidenceRouterData, AcceptDisputeRouterData, ResponseRouterData},
+    types::{FetchDisputeRouterData, UploadFileRouterData, DisputeSyncRouterData, SubmitEvidenceRouterData, AcceptDisputeRouterData, ResponseRouterData, RetrieveFileRouterData},
     utils as connector_utils,
 };
 
@@ -711,7 +711,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Worldpayv
     }
 }
 
-
+impl Dispute for Worldpayvantiv {}
 impl FetchDisputes for Worldpayvantiv {}
 impl DisputeSync for Worldpayvantiv {}
 impl SubmitEvidence for Worldpayvantiv {}
@@ -726,11 +726,27 @@ impl ConnectorIntegration<Fetch, FetchDisputesRequestData, FetchDisputesResponse
         req: &FetchDisputeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.get_auth_header(&req.connector_auth_type)
+        let mut headers = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                types::FetchDisputesType::get_content_type(self)
+                .to_string()
+                .into(),
+            ),
+            (
+                headers::ACCEPT.to_string(),
+                types::FetchDisputesType::get_content_type(self)
+                .to_string()
+                .into(),
+            )];
+
+        let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
+        headers.append(&mut auth_header);
+        Ok(headers) 
     }
 
     fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
+        "application/com.vantivcnp.services-v2+xml"
     }
 
     fn get_url(
@@ -799,11 +815,23 @@ impl ConnectorIntegration<Dsync, DisputeSyncData, DisputeSyncResponse>
         req: &DisputeSyncRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.get_auth_header(&req.connector_auth_type)
-    }
+        let mut headers = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                types::FetchDisputesType::get_content_type(self)
+                .to_string()
+                .into(),
+            ),
+            (
+                headers::ACCEPT.to_string(),
+                types::FetchDisputesType::get_content_type(self)
+                .to_string()
+                .into(),
+            )];
 
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
+        let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
+        headers.append(&mut auth_header);
+        Ok(headers) 
     }
 
     fn get_url(
@@ -867,7 +895,23 @@ impl ConnectorIntegration<Evidence, SubmitEvidenceRequestData, SubmitEvidenceRes
         req: &SubmitEvidenceRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.get_auth_header(&req.connector_auth_type)
+        let mut headers = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                types::FetchDisputesType::get_content_type(self)
+                .to_string()
+                .into(),
+            ),
+            (
+                headers::ACCEPT.to_string(),
+                types::FetchDisputesType::get_content_type(self)
+                .to_string()
+                .into(),
+            )];
+
+        let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
+        headers.append(&mut auth_header);
+        Ok(headers) 
     }
 
     fn get_url(
@@ -925,7 +969,7 @@ impl ConnectorIntegration<Evidence, SubmitEvidenceRequestData, SubmitEvidenceRes
         data: &SubmitEvidenceRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<DefendDisputeRouterData, errors::ConnectorError> {
+    ) -> CustomResult<SubmitEvidenceRouterData, errors::ConnectorError> {
         let response: worldpayvantiv::ChargebackUpdateResponse =
         connector_utils::deserialize_xml_to_struct(&res.response)?;
     event_builder.map(|i| i.set_response_body(&response));
@@ -955,7 +999,23 @@ impl ConnectorIntegration<Accept, AcceptDisputeRequestData, AcceptDisputeRespons
         req: &AcceptDisputeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.get_auth_header(&req.connector_auth_type)
+        let mut headers = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                types::FetchDisputesType::get_content_type(self)
+                .to_string()
+                .into(),
+            ),
+            (
+                headers::ACCEPT.to_string(),
+                types::FetchDisputesType::get_content_type(self)
+                .to_string()
+                .into(),
+            )];
+
+        let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
+        headers.append(&mut auth_header);
+        Ok(headers) 
     }
 
     fn get_url(
@@ -1037,85 +1097,207 @@ impl ConnectorIntegration<Accept, AcceptDisputeRequestData, AcceptDisputeRespons
 
 impl UploadFile for Worldpayvantiv {}
 
-// impl ConnectorIntegration<Upload, UploadFileRequestData, UploadFileResponse> for Worldpayvantiv {
-//     fn get_headers(
-//         &self,
-//         req: &RouterData<Upload, UploadFileRequestData, UploadFileResponse>,
-//         _connectors: &Connectors,
-//     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-//         self.get_auth_header(&req.connector_auth_type)
-//     }
+impl ConnectorIntegration<Upload, UploadFileRequestData, UploadFileResponse> for Worldpayvantiv {
+    fn get_headers(
+        &self,
+        req: &RouterData<Upload, UploadFileRequestData, UploadFileResponse>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        let mut headers = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                types::FetchDisputesType::get_content_type(self)
+                .to_string()
+                .into(),
+            ),
+            (
+                headers::ACCEPT.to_string(),
+                types::FetchDisputesType::get_content_type(self)
+                .to_string()
+                .into(),
+            )];
 
-//     fn get_url(
-//         &self,
-//         req: &UploadFileRouterData,
-//         connectors: &Connectors,
-//     ) -> CustomResult<String, errors::ConnectorError> {
-//         Ok(format!(
-//             "{}/services/chargebacks/upload/{}/{}",
-//             connectors.worldpayvantiv.third_base_url.to_owned(),
-//             req.request.connector_dispute_id,
-//             req.request.
-//         ))
-//     }
+        let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
+        headers.append(&mut auth_header);
+        Ok(headers) 
+    }
 
-//     fn get_request_body(
-//         &self,
-//         req: &UploadFileRouterData,
-//         _connectors: &Connectors,
-//     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-//         let connector_req = transformers::construct_file_upload_request(req.clone())?;
-//         Ok(RequestContent::FormData(connector_req))
-//     }
+    fn get_url(
+        &self,
+        req: &UploadFileRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let file_type = if req.request.file_type == mime::IMAGE_GIF {
+            "gif"
+        } else if req.request.file_type == mime::IMAGE_JPEG {
+            "jpeg"
+        } else if req.request.file_type == mime::IMAGE_PNG {
+            "png"
+        } else if req.request.file_type == mime::APPLICATION_PDF {
+            "pdf"
+        } else {
+            return Err(errors::ConnectorError::FileValidationFailed {
+                reason: "file_type does not match JPEG, JPG, PNG, or PDF format".to_owned(),
+            })?;
+        };
 
-//     fn build_request(
-//         &self,
-//         req: &UploadFileRouterData,
-//         connectors: &Connectors,
-//     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-//         Ok(Some(
-//             RequestBuilder::new()
-//                 .method(Method::Post)
-//                 .url(&UploadFileType::get_url(self, req, connectors)?)
-//                 .attach_default_headers()
-//                 .headers(UploadFileType::get_headers(self, req, connectors)?)
-//                 .set_body(UploadFileType::get_request_body(self, req, connectors)?)
-//                 .build(),
-//         ))
-//     }
+        Ok(format!(
+            "{}/services/chargebacks/upload/{}/{}.{file_type}",
+            connectors.worldpayvantiv.third_base_url.to_owned(),
+            req.request.connector_dispute_id,
+            req.request.file_key,
+        ))
+    }
 
-//     fn handle_response(
-//         &self,
-//         data: &UploadFileRouterData,
-//         event_builder: Option<&mut ConnectorEvent>,
-//         res: Response,
-//     ) -> CustomResult<
-//         RouterData<Upload, UploadFileRequestData, UploadFileResponse>,
-//         errors::ConnectorError,
-//     > {
-//         let response: checkout::FileUploadResponse = res
-//             .response
-//             .parse_struct("Checkout FileUploadResponse")
-//             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-//         event_builder.map(|i| i.set_response_body(&response));
-//         router_env::logger::info!(connector_response=?response);
-//         Ok(UploadFileRouterData {
-//             response: Ok(UploadFileResponse {
-//                 provider_file_id: response.file_id,
-//             }),
-//             ..data.clone()
-//         })
-//     }
+    fn get_request_body(
+        &self,
+        req: &UploadFileRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        Ok(RequestContent::RawBytes(req.request.file.clone()))
+    }
 
-//     fn get_error_response(
-//         &self,
-//         res: Response,
-//         event_builder: Option<&mut ConnectorEvent>,
-//     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-//         self.build_error_response(res, event_builder)
-//     }
-// }
+    fn build_request(
+        &self,
+        req: &UploadFileRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::UploadFileType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::UploadFileType::get_headers(self, req, connectors)?)
+                .set_body(types::UploadFileType::get_request_body(self, req, connectors)?)
+                .build(),
+        ))
+    }
 
+    fn handle_response(
+        &self,
+        data: &UploadFileRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<
+        RouterData<Upload, UploadFileRequestData, UploadFileResponse>,
+        errors::ConnectorError,
+    > {
+        let response: worldpayvantiv::ChargebackDocumentUploadResponse =
+        connector_utils::deserialize_xml_to_struct(&res.response)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        handle_vantiv_dispute_error_response(res, event_builder)
+    }
+}
+
+
+
+impl RetrieveFile for Worldpayvantiv {}
+
+impl ConnectorIntegration<Retrieve, RetrieveFileRequestData, RetrieveFileResponse> for Worldpayvantiv {
+    fn get_headers(
+        &self,
+        req: &RouterData<Retrieve, RetrieveFileRequestData, RetrieveFileResponse>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        let mut headers = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                types::FetchDisputesType::get_content_type(self)
+                .to_string()
+                .into(),
+            ),
+            (
+                headers::ACCEPT.to_string(),
+                types::FetchDisputesType::get_content_type(self)
+                .to_string()
+                .into(),
+            )];
+
+        let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
+        headers.append(&mut auth_header);
+        Ok(headers) 
+    }
+
+    fn get_url(
+        &self,
+        req: &RetrieveFileRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+       let connector_dispute_id =  req.request.connector_dispute_id.clone().ok_or(errors::ConnectorError::MissingRequiredField{field_name: "connector_dispute_id"})?;
+        Ok(format!(
+            "{}/services/chargebacks/retrieve/{connector_dispute_id}/{}",
+            connectors.worldpayvantiv.third_base_url.to_owned(),
+            req.request.provider_file_id,
+        ))
+    }
+
+    fn build_request(
+        &self,
+        req: &RetrieveFileRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Get)
+                .url(&types::RetrieveFileType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::RetrieveFileType::get_headers(self, req, connectors)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &RetrieveFileRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<RetrieveFileRouterData, errors::ConnectorError> {
+        let response: Result<worldpayvantiv::ChargebackDocumentUploadResponse, _> =
+        connector_utils::deserialize_xml_to_struct(&res.response);
+        match response {
+        Ok(response) => {
+            event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+            RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })},
+        Err(_) => {
+            event_builder.map(|event| event.set_response_body(&serde_json::json!({"connector_response_type": "file", "status_code": res.status_code})));
+            router_env::logger::info!(connector_response_type=?"file");
+            let response = res.response;
+            Ok(RetrieveFileRouterData {
+                response: Ok(RetrieveFileResponse {
+                    file_data: response.to_vec(),
+                }),
+                ..data.clone()
+            })
+        }
+        }
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        handle_vantiv_dispute_error_response(res, event_builder)
+    }
+}
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Worldpayvantiv {
@@ -1237,13 +1419,13 @@ impl FileUpload for Worldpayvantiv {
                     "image/png",
                     "image/tiff",
                 ];               
-                if file_size > worldpayvantiv::worldpayvantiv_constants::MAX_FILE_SIZE {
-                    Err(ConnectorError::FileValidationFailed {
+                if file_size > 2000000 {
+                    Err(errors::ConnectorError::FileValidationFailed {
                         reason: "file_size exceeded the max file size of 2MB".to_owned(),
                     })?
                 }
                 if !supported_file_types.contains(&file_type.to_string().as_str()) {
-                    Err(ConnectorError::FileValidationFailed {
+                    Err(errors::ConnectorError::FileValidationFailed {
                         reason: "file_type does not match JPEG, JPG, PNG, or PDF format".to_owned(),
                     })?
                 }
@@ -1252,8 +1434,6 @@ impl FileUpload for Worldpayvantiv {
         Ok(())
     }
 }
-
-
 
 static WORLDPAYVANTIV_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
     LazyLock::new(|| {

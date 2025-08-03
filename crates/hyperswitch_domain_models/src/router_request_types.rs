@@ -882,6 +882,7 @@ pub struct FetchDisputesRequestData {
 #[derive(Clone, Debug)]
 pub struct RetrieveFileRequestData {
     pub provider_file_id: String,
+    pub connector_dispute_id: Option<String>,
 }
 
 #[serde_as]
@@ -893,6 +894,8 @@ pub struct UploadFileRequestData {
     #[serde_as(as = "serde_with::DisplayFromStr")]
     pub file_type: mime::Mime,
     pub file_size: i32,
+    pub dispute_id: String,
+    pub connector_dispute_id: String
 }
 
 #[cfg(feature = "payouts")]
