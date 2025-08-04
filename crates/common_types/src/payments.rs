@@ -16,7 +16,7 @@ use euclid::frontend::{
     ast::Program,
     dir::{DirKeyKind, EuclidDirFilter},
 };
-use masking::{PeekInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
@@ -516,5 +516,12 @@ impl ApplePayPredecryptData {
     /// Get the expiration month from the Apple Pay pre-decrypt data
     pub fn get_expiry_month(&self) -> Secret<String> {
         self.application_expiration_month.clone()
+    }
+
+    /// Get the expiry date in MMYY format from the Apple Pay pre-decrypt data
+    pub fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::ValidationError> {
+        let year = self.get_two_digit_expiry_year()?.expose();
+        let month = self.application_expiration_month.clone().expose();
+        Ok(Secret::new(format!("{month}{year}")))
     }
 }
