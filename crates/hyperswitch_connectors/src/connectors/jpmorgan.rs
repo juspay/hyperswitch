@@ -847,7 +847,7 @@ static JPMORGAN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             enums::PaymentMethodType::Debit,
             PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: Some(
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
@@ -866,7 +866,7 @@ static JPMORGAN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             enums::PaymentMethodType::Credit,
             PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: Some(
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({

@@ -131,6 +131,12 @@ diesel::table! {
         return_url -> Nullable<Varchar>,
         amount -> Nullable<Int8>,
         currency -> Nullable<Currency>,
+        billing_address -> Nullable<Bytea>,
+        shipping_address -> Nullable<Bytea>,
+        browser_info -> Nullable<Jsonb>,
+        email -> Nullable<Bytea>,
+        #[max_length = 128]
+        profile_acquirer_id -> Nullable<Varchar>,
     }
 }
 
@@ -730,6 +736,8 @@ diesel::table! {
         merchant_connector_id -> Nullable<Varchar>,
         #[max_length = 64]
         updated_by -> Nullable<Varchar>,
+        #[max_length = 2048]
+        customer_user_agent_extended -> Nullable<Varchar>,
     }
 }
 

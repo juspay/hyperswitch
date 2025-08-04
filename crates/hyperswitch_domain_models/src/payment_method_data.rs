@@ -10,6 +10,7 @@ use common_enums::enums as api_enums;
 #[cfg(feature = "v2")]
 use common_utils::ext_traits::OptionExt;
 use common_utils::{
+    ext_traits::StringExt,
     id_type,
     new_type::{
         MaskedBankAccount, MaskedIban, MaskedRoutingNumber, MaskedSortCode, MaskedUpiVpaId,
@@ -75,6 +76,14 @@ impl PaymentMethodData {
         }
     }
 
+    pub fn get_wallet_data(&self) -> Option<&WalletData> {
+        if let Self::Wallet(wallet_data) = self {
+            Some(wallet_data)
+        } else {
+            None
+        }
+    }
+
     pub fn is_network_token_payment_method_data(&self) -> bool {
         matches!(self, Self::NetworkToken(_))
     }
@@ -82,6 +91,14 @@ impl PaymentMethodData {
     pub fn get_co_badged_card_data(&self) -> Option<&payment_methods::CoBadgedCardData> {
         if let Self::Card(card) = self {
             card.co_badged_card_data.as_ref()
+        } else {
+            None
+        }
+    }
+
+    pub fn get_card_data(&self) -> Option<&Card> {
+        if let Self::Card(card) = self {
+            Some(card)
         } else {
             None
         }
@@ -225,6 +242,7 @@ pub enum PayLaterData {
     WalleyRedirect {},
     AlmaRedirect {},
     AtomeRedirect {},
+    BreadpayRedirect {},
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -261,6 +279,32 @@ pub enum WalletData {
     SwishQr(SwishQrData),
     Mifinity(MifinityData),
     RevolutPay(RevolutPayData),
+}
+
+impl WalletData {
+    pub fn get_paze_wallet_data(&self) -> Option<&PazeWalletData> {
+        if let Self::Paze(paze_wallet_data) = self {
+            Some(paze_wallet_data)
+        } else {
+            None
+        }
+    }
+
+    pub fn get_apple_pay_wallet_data(&self) -> Option<&ApplePayWalletData> {
+        if let Self::ApplePay(apple_pay_wallet_data) = self {
+            Some(apple_pay_wallet_data)
+        } else {
+            None
+        }
+    }
+
+    pub fn get_google_pay_wallet_data(&self) -> Option<&GooglePayWalletData> {
+        if let Self::GooglePay(google_pay_wallet_data) = self {
+            Some(google_pay_wallet_data)
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -430,6 +474,26 @@ pub struct ApplePayWalletData {
     pub payment_method: ApplepayPaymentMethod,
     /// The unique identifier for the transaction
     pub transaction_identifier: String,
+}
+
+impl ApplePayWalletData {
+    pub fn get_payment_method_type(&self) -> Option<api_enums::PaymentMethodType> {
+        self.payment_method
+            .pm_type
+            .clone()
+            .parse_enum("ApplePayPaymentMethodType")
+            .ok()
+            .and_then(|payment_type| match payment_type {
+                common_enums::ApplePayPaymentMethodType::Debit => {
+                    Some(api_enums::PaymentMethodType::Debit)
+                }
+                common_enums::ApplePayPaymentMethodType::Credit => {
+                    Some(api_enums::PaymentMethodType::Credit)
+                }
+                common_enums::ApplePayPaymentMethodType::Prepaid
+                | common_enums::ApplePayPaymentMethodType::Store => None,
+            })
+    }
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -655,6 +719,8 @@ pub enum BankTransferData {
         source_bank_account_id: Option<MaskedBankAccount>,
         /// Destination bank account UUID.
         destination_bank_account_id: Option<MaskedBankAccount>,
+        /// The expiration date and time for the Pix QR code
+        expiry_date: Option<time::PrimitiveDateTime>,
     },
     Pse {},
     LocalBankTransfer {
@@ -663,6 +729,9 @@ pub enum BankTransferData {
     InstantBankTransfer {},
     InstantBankTransferFinland {},
     InstantBankTransferPoland {},
+    IndonesianBankTransfer {
+        bank_name: Option<common_enums::BankNames>,
+    },
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -1128,6 +1197,7 @@ impl From<api_models::payments::PayLaterData> for PayLaterData {
             api_models::payments::PayLaterData::WalleyRedirect {} => Self::WalleyRedirect {},
             api_models::payments::PayLaterData::AlmaRedirect {} => Self::AlmaRedirect {},
             api_models::payments::PayLaterData::AtomeRedirect {} => Self::AtomeRedirect {},
+            api_models::payments::PayLaterData::BreadpayRedirect {} => Self::BreadpayRedirect {},
         }
     }
 }
@@ -1563,12 +1633,14 @@ impl From<api_models::payments::BankTransferData> for BankTransferData {
                 cnpj,
                 source_bank_account_id,
                 destination_bank_account_id,
+                expiry_date,
             } => Self::Pix {
                 pix_key,
                 cpf,
                 cnpj,
                 source_bank_account_id,
                 destination_bank_account_id,
+                expiry_date,
             },
             api_models::payments::BankTransferData::Pse {} => Self::Pse {},
             api_models::payments::BankTransferData::LocalBankTransfer { bank_code } => {
@@ -1582,6 +1654,9 @@ impl From<api_models::payments::BankTransferData> for BankTransferData {
             }
             api_models::payments::BankTransferData::InstantBankTransferPoland {} => {
                 Self::InstantBankTransferPoland {}
+            }
+            api_models::payments::BankTransferData::IndonesianBankTransfer { bank_name } => {
+                Self::IndonesianBankTransfer { bank_name }
             }
         }
     }
@@ -1607,6 +1682,7 @@ impl From<BankTransferData> for api_models::payments::additional_info::BankTrans
                 cnpj,
                 source_bank_account_id,
                 destination_bank_account_id,
+                expiry_date,
             } => Self::Pix(Box::new(
                 api_models::payments::additional_info::PixBankTransferAdditionalData {
                     pix_key: pix_key.map(MaskedBankAccount::from),
@@ -1614,6 +1690,7 @@ impl From<BankTransferData> for api_models::payments::additional_info::BankTrans
                     cnpj: cnpj.map(MaskedBankAccount::from),
                     source_bank_account_id,
                     destination_bank_account_id,
+                    expiry_date,
                 },
             )),
             BankTransferData::Pse {} => Self::Pse {},
@@ -1625,6 +1702,9 @@ impl From<BankTransferData> for api_models::payments::additional_info::BankTrans
             BankTransferData::InstantBankTransfer {} => Self::InstantBankTransfer {},
             BankTransferData::InstantBankTransferFinland {} => Self::InstantBankTransferFinland {},
             BankTransferData::InstantBankTransferPoland {} => Self::InstantBankTransferPoland {},
+            BankTransferData::IndonesianBankTransfer { bank_name } => {
+                Self::IndonesianBankTransfer { bank_name }
+            }
         }
     }
 }
@@ -1814,6 +1894,7 @@ impl GetPaymentMethodType for PayLaterData {
             Self::WalleyRedirect {} => api_enums::PaymentMethodType::Walley,
             Self::AlmaRedirect {} => api_enums::PaymentMethodType::Alma,
             Self::AtomeRedirect {} => api_enums::PaymentMethodType::Atome,
+            Self::BreadpayRedirect {} => api_enums::PaymentMethodType::Breadpay,
         }
     }
 }
@@ -1884,6 +1965,9 @@ impl GetPaymentMethodType for BankTransferData {
             }
             Self::InstantBankTransferPoland {} => {
                 api_enums::PaymentMethodType::InstantBankTransferPoland
+            }
+            Self::IndonesianBankTransfer { .. } => {
+                api_enums::PaymentMethodType::IndonesianBankTransfer
             }
         }
     }

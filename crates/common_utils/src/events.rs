@@ -137,6 +137,7 @@ pub enum ApiEventsType {
         profile_acquirer_id: id_type::ProfileAcquirerId,
     },
     ThreeDsDecisionRule,
+    Chat,
 }
 
 impl ApiEventMetric for serde_json::Value {}

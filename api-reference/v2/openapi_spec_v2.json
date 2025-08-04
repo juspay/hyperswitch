@@ -20,7 +20,7 @@
     }
   ],
   "paths": {
-    "/v2/organization": {
+    "/v2/organizations": {
       "post": {
         "tags": [
           "Organization"
@@ -67,7 +67,7 @@
         ]
       }
     },
-    "/v2/organization/{id}": {
+    "/v2/organizations/{id}": {
       "get": {
         "tags": [
           "Organization"
@@ -164,7 +164,7 @@
         ]
       }
     },
-    "/v2/organization/{id}/merchant-accounts": {
+    "/v2/organizations/{id}/merchant-accounts": {
       "get": {
         "tags": [
           "Organization"
@@ -1220,7 +1220,7 @@
         ]
       }
     },
-    "/v2/routing-algorithm": {
+    "/v2/routing-algorithms": {
       "post": {
         "tags": [
           "Routing"
@@ -1275,7 +1275,7 @@
         ]
       }
     },
-    "/v2/routing-algorithm/{id}": {
+    "/v2/routing-algorithms/{id}": {
       "get": {
         "tags": [
           "Routing"
@@ -1809,7 +1809,14 @@
             }
           },
           "400": {
-            "description": "Missing Mandatory fields"
+            "description": "Missing Mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1999,7 +2006,14 @@
             }
           },
           "400": {
-            "description": "Missing Mandatory fields"
+            "description": "Missing Mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2122,7 +2136,14 @@
             }
           },
           "400": {
-            "description": "Missing Mandatory fields"
+            "description": "Missing Mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2173,7 +2194,14 @@
             }
           },
           "400": {
-            "description": "Missing mandatory fields"
+            "description": "Missing mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2850,7 +2878,7 @@
         ]
       }
     },
-    "/v2/payment-method-session": {
+    "/v2/payment-method-sessions": {
       "post": {
         "tags": [
           "Payment Method Session"
@@ -2897,7 +2925,7 @@
         ]
       }
     },
-    "/v2/payment-method-session/{id}": {
+    "/v2/payment-method-sessions/{id}": {
       "get": {
         "tags": [
           "Payment Method Session"
@@ -2994,7 +3022,7 @@
         ]
       }
     },
-    "/v2/payment-method-session/{id}/list-payment-methods": {
+    "/v2/payment-method-sessions/{id}/list-payment-methods": {
       "get": {
         "tags": [
           "Payment Method Session"
@@ -3035,7 +3063,7 @@
         ]
       }
     },
-    "/v2/payment-method-session/{id}/update-saved-payment-method": {
+    "/v2/payment-method-sessions/{id}/update-saved-payment-method": {
       "put": {
         "tags": [
           "Payment Method Session"
@@ -3098,7 +3126,7 @@
         ]
       }
     },
-    "/v2/payment-method-session/{id}/confirm": {
+    "/v2/payment-method-sessions/{id}/confirm": {
       "post": {
         "tags": [
           "Payment Method Session"
@@ -3231,7 +3259,14 @@
             }
           },
           "400": {
-            "description": "Missing Mandatory fields"
+            "description": "Missing Mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3241,7 +3276,7 @@
         ]
       }
     },
-    "/v2/refunds/{id}/update_metadata": {
+    "/v2/refunds/{id}/update-metadata": {
       "put": {
         "tags": [
           "Refunds"
@@ -3289,7 +3324,14 @@
             }
           },
           "400": {
-            "description": "Missing Mandatory fields"
+            "description": "Missing Mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3377,7 +3419,7 @@
         ]
       }
     },
-    "/v2/process_tracker/revenue_recovery_workflow/{revenue_recovery_id}": {
+    "/v2/process-trackers/revenue-recovery-workflow/{revenue_recovery_id}": {
       "get": {
         "tags": [
           "Revenue Recovery"
@@ -4805,7 +4847,8 @@
           "payment_method_awaited",
           "confirmation_awaited",
           "device_data_collection_pending",
-          "integrity_failure"
+          "integrity_failure",
+          "expired"
         ]
       },
       "AuthenticationConnectorDetails": {
@@ -6263,6 +6306,27 @@
                 "type": "object"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "indonesian_bank_transfer"
+            ],
+            "properties": {
+              "indonesian_bank_transfer": {
+                "type": "object",
+                "properties": {
+                  "bank_name": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankNames"
+                      }
+                    ],
+                    "nullable": true
+                  }
+                }
+              }
+            }
           }
         ]
       },
@@ -6535,13 +6599,20 @@
                   "source_bank_account_id": {
                     "type": "string",
                     "description": "Source bank account number",
-                    "example": "8b2812f0-d6c8-4073-97bb-9fa964d08bc5",
+                    "example": "8b******-****-****-****-*******08bc5",
                     "nullable": true
                   },
                   "destination_bank_account_id": {
                     "type": "string",
-                    "description": "Destination bank account number",
-                    "example": "9b95f84e-de61-460b-a14b-f23b4e71c97b",
+                    "description": "Partially masked destination bank account number _Deprecated: Will be removed in next stable release._",
+                    "deprecated": true,
+                    "example": "********-****-460b-****-f23b4e71c97b",
+                    "nullable": true
+                  },
+                  "expiry_date": {
+                    "type": "string",
+                    "description": "The expiration date and time for the Pix QR code in ISO 8601 format",
+                    "example": "2025-09-10T10:11:12Z",
                     "nullable": true
                   }
                 }
@@ -6606,6 +6677,27 @@
             "properties": {
               "instant_bank_transfer_poland": {
                 "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "indonesian_bank_transfer"
+            ],
+            "properties": {
+              "indonesian_bank_transfer": {
+                "type": "object",
+                "properties": {
+                  "bank_name": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankNames"
+                      }
+                    ],
+                    "nullable": true
+                  }
+                }
               }
             }
           }
@@ -8147,12 +8239,14 @@
           "bluesnap",
           "boku",
           "braintree",
+          "breadpay",
           "cashtocode",
           "celero",
           "chargebee",
           "checkout",
           "coinbase",
           "coingate",
+          "custombilling",
           "cryptopay",
           "ctp_mastercard",
           "ctp_visa",
@@ -10589,6 +10683,7 @@
           "payment_cancelled",
           "payment_authorized",
           "payment_captured",
+          "payment_expired",
           "action_required",
           "refund_succeeded",
           "refund_failed",
@@ -10838,7 +10933,7 @@
             ],
             "nullable": true
           },
-          "payment_revenue_recovery_metadata": {
+          "revenue_recovery": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/PaymentRevenueRecoveryMetadata"
@@ -11404,6 +11499,28 @@
       },
       "GcashRedirection": {
         "type": "object"
+      },
+      "GenericErrorResponseOpenApi": {
+        "type": "object",
+        "required": [
+          "error_type",
+          "message",
+          "code"
+        ],
+        "properties": {
+          "error_type": {
+            "type": "string",
+            "example": "invalid_request"
+          },
+          "message": {
+            "type": "string",
+            "example": "Missing required param: {param}"
+          },
+          "code": {
+            "type": "string",
+            "example": "IR_04"
+          }
+        }
       },
       "GenericLinkUiConfig": {
         "type": "object",
@@ -12465,7 +12582,8 @@
           "requires_capture",
           "partially_captured",
           "partially_captured_and_capturable",
-          "conflicted"
+          "conflicted",
+          "expired"
         ]
       },
       "JCSVoucherData": {
@@ -14971,8 +15089,23 @@
           "created_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "organization_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OrganizationType"
+              }
+            ],
+            "nullable": true
           }
         }
+      },
+      "OrganizationType": {
+        "type": "string",
+        "enum": [
+          "standard",
+          "platform"
+        ]
       },
       "OrganizationUpdateRequest": {
         "type": "object",
@@ -15360,6 +15493,17 @@
                 "type": "object"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "breadpay_redirect"
+            ],
+            "properties": {
+              "breadpay_redirect": {
+                "type": "object"
+              }
+            }
           }
         ]
       },
@@ -15567,7 +15711,9 @@
         "type": "object",
         "required": [
           "id",
-          "status"
+          "status",
+          "amount",
+          "created_at"
         ],
         "properties": {
           "id": {
@@ -15576,6 +15722,20 @@
           },
           "status": {
             "$ref": "#/components/schemas/AttemptStatus"
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The amount of the payment attempt",
+            "example": 6540
+          },
+          "error_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecordAttemptErrorDetails"
+              }
+            ],
+            "nullable": true
           },
           "payment_intent_feature_metadata": {
             "allOf": [
@@ -15592,6 +15752,11 @@
               }
             ],
             "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "attempt created at timestamp"
           }
         }
       },
@@ -15722,6 +15887,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/PaymentAttemptFeatureMetadata"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodDataResponseWithBilling"
               }
             ],
             "nullable": true
@@ -17663,7 +17836,6 @@
           "ali_pay_hk",
           "alma",
           "amazon_pay",
-          "skrill",
           "paysera",
           "apple_pay",
           "atome",
@@ -17676,6 +17848,7 @@
           "boleto",
           "bca_bank_transfer",
           "bni_va",
+          "breadpay",
           "bri_va",
           "card_redirect",
           "cimb_va",
@@ -17733,6 +17906,7 @@
           "samsung_pay",
           "sepa",
           "sepa_bank_transfer",
+          "skrill",
           "sofort",
           "swish",
           "touch_n_go",
@@ -17758,7 +17932,8 @@
           "instant_bank_transfer",
           "instant_bank_transfer_finland",
           "instant_bank_transfer_poland",
-          "revolut_pay"
+          "revolut_pay",
+          "indonesian_bank_transfer"
         ]
       },
       "PaymentMethodUpdate": {
@@ -17963,6 +18138,12 @@
             "$ref": "#/components/schemas/BillingConnectorPaymentMethodDetails"
           },
           "invoice_next_billing_time": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Invoice Next billing time",
+            "nullable": true
+          },
+          "invoice_billing_started_at_time": {
             "type": "string",
             "format": "date-time",
             "description": "Invoice Next billing time",
@@ -19318,6 +19499,14 @@
           "raw_connector_response": {
             "type": "string",
             "description": "Stringified connector raw response body. Only returned if `return_raw_connector_response` is true",
+            "nullable": true
+          },
+          "feature_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeatureMetadata"
+              }
+            ],
             "nullable": true
           }
         }
@@ -20881,8 +21070,15 @@
           },
           "destination_bank_account_id": {
             "type": "string",
-            "description": "Partially masked destination bank account number",
+            "description": "Partially masked destination bank account number _Deprecated: Will be removed in next stable release._",
+            "deprecated": true,
             "example": "********-****-460b-****-f23b4e71c97b",
+            "nullable": true
+          },
+          "expiry_date": {
+            "type": "string",
+            "description": "The expiration date and time for the Pix QR code in ISO 8601 format",
+            "example": "2025-09-10T10:11:12Z",
             "nullable": true
           }
         }
@@ -21752,6 +21948,39 @@
           "active",
           "disabled"
         ]
+      },
+      "RecordAttemptErrorDetails": {
+        "type": "object",
+        "description": "Error details for the payment",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "error code sent by billing connector."
+          },
+          "message": {
+            "type": "string",
+            "description": "error message sent by billing connector."
+          },
+          "network_advice_code": {
+            "type": "string",
+            "description": "This field can be returned for both approved and refused Mastercard payments.\nThis code provides additional information about the type of transaction or the reason why the payment failed.\nIf the payment failed, the network advice code gives guidance on if and when you can retry the payment.",
+            "nullable": true
+          },
+          "network_decline_code": {
+            "type": "string",
+            "description": "For card errors resulting from a card issuer decline, a brand specific 2, 3, or 4 digit code which indicates the reason the authorization failed.",
+            "nullable": true
+          },
+          "network_error_message": {
+            "type": "string",
+            "description": "A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.",
+            "nullable": true
+          }
+        }
       },
       "RecurringDetails": {
         "oneOf": [
@@ -22712,9 +22941,11 @@
           "bluesnap",
           "boku",
           "braintree",
+          "breadpay",
           "cashtocode",
           "celero",
           "chargebee",
+          "custombilling",
           "checkout",
           "coinbase",
           "coingate",

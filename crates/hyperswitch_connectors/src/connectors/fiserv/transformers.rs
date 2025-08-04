@@ -90,11 +90,45 @@ pub struct CheckoutPaymentsRequest {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum FiservChannel {
+    Web,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum FiservPaymentInitiator {
+    Merchant,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum FiservCustomerConfirmation {
+    ReviewAndPay,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FiservInteractions {
+    channel: FiservChannel,
+    customer_confirmation: FiservCustomerConfirmation,
+    payment_initiator: FiservPaymentInitiator,
+    return_urls: FiservReturnUrls,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FiservReturnUrls {
+    success_url: String,
+    cancel_url: String,
+}
+
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FiservPaymentMethod {
-    provider: String,
+    provider: FiservWallet,
     #[serde(rename = "type")]
-    wallet_type: String,
+    wallet_type: FiservWalletType,
 }
 
 #[derive(Debug, Serialize)]
@@ -104,12 +138,11 @@ pub struct FiservOrder {
 }
 
 #[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FiservInteractions {
-    channel: String,
-    customer_confirmation: String,
-    payment_initiator: String,
-    return_urls: FiservReturnUrls,
+#[serde(rename_all = "UPPERCASE")]
+pub enum FiservWallet {
+    ApplePay,
+    GooglePay,
+    PayPal,
 }
 
 #[derive(Debug, Serialize)]
@@ -117,7 +150,6 @@ pub struct FiservInteractions {
 pub enum Source {
     #[serde(rename = "GooglePay")]
     GooglePay(GooglePayData),
-
     #[serde(rename = "PaymentCard")]
     PaymentCard { card: CardData },
     #[serde(rename = "ApplePay")]
@@ -164,6 +196,7 @@ pub struct DecryptedWalletDetails {
 pub enum FiservWalletType {
     ApplePay,
     GooglePay,
+    PaypalWallet,
 }
 
 #[derive(Debug, Serialize)]
@@ -193,7 +226,7 @@ pub struct WalletCardData {
     expiration_year: Secret<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Default, Debug, Serialize)]
 pub struct Amount {
     total: FloatMajorUnit,
     currency: String,
@@ -252,13 +285,6 @@ pub enum TransactionInteractionEciIndicator {
 pub enum TransactionInteractionPosConditionCode {
     #[default]
     CardNotPresentEcom,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FiservReturnUrls {
-    success_url: String,
-    cancel_url: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -355,7 +381,6 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
             total: item.amount,
             currency: item.router_data.request.currency.to_string(),
         };
-
         let metadata = item.router_data.get_connector_meta()?.clone();
         let session: FiservSessionObject = metadata
             .expose()
@@ -462,16 +487,16 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
                     Ok(FiservCheckoutChargesRequest::Checkout(
                         CheckoutPaymentsRequest {
                             payment_method: FiservPaymentMethod {
-                                provider: "PAYPAL".to_string(),
-                                wallet_type: "PAYPAL_WALLET".to_string(),
+                                provider: FiservWallet::PayPal,
+                                wallet_type: FiservWalletType::PaypalWallet,
                             },
                             order: FiservOrder {
                                 intent: FiservIntent::Authorize,
                             },
                             interactions: FiservInteractions {
-                                channel: "WEB".to_string(),
-                                customer_confirmation: "REVIEW_AND_PAY".to_string(),
-                                payment_initiator: "MERCHANT".to_string(),
+                                channel: FiservChannel::Web,
+                                customer_confirmation: FiservCustomerConfirmation::ReviewAndPay,
+                                payment_initiator: FiservPaymentInitiator::Merchant,
                                 return_urls: FiservReturnUrls {
                                     success_url: return_url.clone(),
                                     cancel_url: return_url,

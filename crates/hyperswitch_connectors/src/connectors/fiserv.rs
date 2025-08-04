@@ -50,9 +50,7 @@ use transformers as fiserv;
 use uuid::Uuid;
 
 use crate::{
-    constants::headers,
-    types::ResponseRouterData,
-    utils::{self as connector_utils, convert_amount},
+    constants::headers, types::ResponseRouterData, utils as connector_utils, utils::convert_amount,
 };
 
 #[derive(Clone)]

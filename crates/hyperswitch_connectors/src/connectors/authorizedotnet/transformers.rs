@@ -412,14 +412,23 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerProfileRequest {
                     })
                 });
 
+                let merchant_customer_id = match &item.request.customer_id {
+                    Some(customer_id)
+                        if customer_id.clone().get_string_repr().len() <= MAX_ID_LENGTH =>
+                    {
+                        Some(customer_id.clone())
+                    }
+                    _ => None,
+                };
+
                 Ok(Self {
                     create_customer_profile_request: AuthorizedotnetZeroMandateRequest {
                         merchant_authentication,
                         profile: Profile {
-                            merchant_customer_id: item.request.customer_id.clone(),
+                            merchant_customer_id,
                             // The payment ID is included in the description because the connector requires unique description when creating a mandate.
                             description: None,
-                            email: item.get_optional_shipping_email(),
+                            email: item.request.email.clone(),
                             payment_profiles: PaymentProfiles {
                                 customer_type: CustomerType::Individual,
                                 payment: PaymentDetails::CreditCard(CreditCardDetails {
@@ -458,14 +467,22 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerProfileRequest {
                             }]
                         })
                     });
+                    let merchant_customer_id = match &item.request.customer_id {
+                        Some(customer_id)
+                            if customer_id.clone().get_string_repr().len() <= MAX_ID_LENGTH =>
+                        {
+                            Some(customer_id.clone())
+                        }
+                        _ => None,
+                    };
                     Ok(Self {
                         create_customer_profile_request: AuthorizedotnetZeroMandateRequest {
                             merchant_authentication,
                             profile: Profile {
-                                merchant_customer_id: item.request.customer_id.clone(),
+                                merchant_customer_id,
                                 // The payment ID is included in the description because the connector requires unique description when creating a mandate.
                                 description: None,
-                                email: item.get_optional_shipping_email(),
+                                email: item.request.email.clone(),
                                 payment_profiles: PaymentProfiles {
                                     customer_type: CustomerType::Individual,
                                     payment: PaymentDetails::OpaqueData(WalletDetails {
@@ -504,14 +521,22 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerProfileRequest {
                             }]
                         })
                     });
+                    let merchant_customer_id = match &item.request.customer_id {
+                        Some(customer_id)
+                            if customer_id.clone().get_string_repr().len() <= MAX_ID_LENGTH =>
+                        {
+                            Some(customer_id.clone())
+                        }
+                        _ => None,
+                    };
                     Ok(Self {
                         create_customer_profile_request: AuthorizedotnetZeroMandateRequest {
                             merchant_authentication,
                             profile: Profile {
-                                merchant_customer_id: item.request.customer_id.clone(),
+                                merchant_customer_id,
                                 // The payment ID is included in the description because the connector requires unique description when creating a mandate.
                                 description: None,
-                                email: item.get_optional_shipping_email(),
+                                email: item.request.email.clone(),
                                 payment_profiles: PaymentProfiles {
                                     customer_type: CustomerType::Individual,
                                     payment: PaymentDetails::OpaqueData(WalletDetails {
@@ -826,12 +851,16 @@ impl
             }),
             profile: None,
             order: Order {
-                invoice_number: item
-                    .router_data
-                    .request
-                    .merchant_order_reference_id
-                    .clone()
-                    .unwrap_or_else(get_random_string),
+                invoice_number: match &item.router_data.request.merchant_order_reference_id {
+                    Some(merchant_order_reference_id) => {
+                        if merchant_order_reference_id.len() <= MAX_ID_LENGTH {
+                            merchant_order_reference_id.to_string()
+                        } else {
+                            get_random_string()
+                        }
+                    }
+                    None => get_random_string(),
+                },
 
                 description: item.router_data.connector_request_reference_id.clone(),
             },
@@ -911,12 +940,16 @@ impl
                     })
                 }),
             order: Order {
-                invoice_number: item
-                    .router_data
-                    .request
-                    .merchant_order_reference_id
-                    .clone()
-                    .unwrap_or_else(get_random_string),
+                invoice_number: match &item.router_data.request.merchant_order_reference_id {
+                    Some(merchant_order_reference_id) => {
+                        if merchant_order_reference_id.len() <= MAX_ID_LENGTH {
+                            merchant_order_reference_id.to_string()
+                        } else {
+                            get_random_string()
+                        }
+                    }
+                    None => get_random_string(),
+                },
 
                 description: item.router_data.connector_request_reference_id.clone(),
             },
@@ -988,12 +1021,16 @@ impl
             })),
             profile,
             order: Order {
-                invoice_number: item
-                    .router_data
-                    .request
-                    .merchant_order_reference_id
-                    .clone()
-                    .unwrap_or_else(get_random_string),
+                invoice_number: match &item.router_data.request.merchant_order_reference_id {
+                    Some(merchant_order_reference_id) => {
+                        if merchant_order_reference_id.len() <= MAX_ID_LENGTH {
+                            merchant_order_reference_id.to_string()
+                        } else {
+                            get_random_string()
+                        }
+                    }
+                    None => get_random_string(),
+                },
 
                 description: item.router_data.connector_request_reference_id.clone(),
             },
@@ -1065,12 +1102,16 @@ impl
             )?),
             profile,
             order: Order {
-                invoice_number: item
-                    .router_data
-                    .request
-                    .merchant_order_reference_id
-                    .clone()
-                    .unwrap_or_else(get_random_string),
+                invoice_number: match &item.router_data.request.merchant_order_reference_id {
+                    Some(merchant_order_reference_id) => {
+                        if merchant_order_reference_id.len() <= MAX_ID_LENGTH {
+                            merchant_order_reference_id.to_string()
+                        } else {
+                            get_random_string()
+                        }
+                    }
+                    None => get_random_string(),
+                },
 
                 description: item.router_data.connector_request_reference_id.clone(),
             },
@@ -1865,10 +1906,22 @@ impl<F, Req> TryFrom<ResponseRouterData<F, AuthorizedotnetSyncResponse, Req, Pay
                     ..item.data
                 })
             }
-            None => Ok(Self {
-                response: Err(get_err_response(item.http_code, item.response.messages)?),
-                ..item.data
-            }),
+
+            // E00053 indicates "server too busy"
+            // If the server is too busy, we return the already available data
+            None => match item
+                .response
+                .messages
+                .message
+                .iter()
+                .find(|msg| msg.code == "E00053")
+            {
+                Some(_) => Ok(item.data),
+                None => Ok(Self {
+                    response: Err(get_err_response(item.http_code, item.response.messages)?),
+                    ..item.data
+                }),
+            },
         }
     }
 }

@@ -277,9 +277,15 @@ async fn drainer(
                 _ => break,
             },
         }
+
+        if store.use_legacy_version() {
+            store
+                .delete_from_stream(stream_name, &last_processed_id)
+                .await?;
+        }
     }
 
-    if !last_processed_id.is_empty() {
+    if !(last_processed_id.is_empty() || store.use_legacy_version()) {
         let entries_trimmed = store
             .trim_from_stream(stream_name, &last_processed_id)
             .await?;

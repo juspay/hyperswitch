@@ -170,6 +170,9 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::routing::toggle_elimination_routing,
         routes::routing::contract_based_routing_setup_config,
         routes::routing::contract_based_routing_update_configs,
+        routes::routing::call_decide_gateway_open_router,
+        routes::routing::call_update_gateway_score_open_router,
+        routes::routing::evaluate_routing_rule,
 
         // Routes for blocklist
         routes::blocklist::remove_entry_from_blocklist,
@@ -213,6 +216,9 @@ Never share your secret api keys. Keep them guarded and secure.
 
         // Routes for authentication
         routes::authentication::authentication_create,
+
+        // Routes for platform account
+        routes::platform::create_platform_account,
     ),
     components(schemas(
         common_utils::types::MinorUnit,
@@ -362,6 +368,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::MerchantProductType,
         api_models::enums::CtpServiceProvider,
         api_models::enums::PaymentLinkSdkLabelType,
+        api_models::enums::OrganizationType,
         api_models::enums::PaymentLinkShowSdkTerms,
         api_models::admin::MerchantConnectorCreate,
         api_models::admin::AdditionalMerchantData,
@@ -464,6 +471,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentsConfirmRequest,
         api_models::payments::PaymentsResponse,
         api_models::payments::PaymentsCreateResponseOpenApi,
+        api_models::errors::types::GenericErrorResponseOpenApi,
         api_models::payments::PaymentRetrieveBody,
         api_models::payments::PaymentsRetrieveRequest,
         api_models::payments::PaymentsCaptureRequest,
@@ -798,6 +806,30 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::authentication::AuthenticationCreateRequest,
         api_models::authentication::AuthenticationResponse,
         api_models::authentication::AcquirerDetails,
+        api_models::authentication::NextAction,
+        common_utils::request::Method,
+        api_models::authentication::EligibilityResponseParams,
+        api_models::authentication::ThreeDsData,
+        api_models::authentication::AuthenticationEligibilityRequest,
+        api_models::authentication::AuthenticationEligibilityResponse,
+        api_models::open_router::OpenRouterDecideGatewayRequest,
+        api_models::open_router::DecideGatewayResponse,
+        api_models::open_router::UpdateScorePayload,
+        api_models::open_router::UpdateScoreResponse,
+        api_models::routing::RoutingEvaluateRequest,
+        api_models::routing::RoutingEvaluateResponse,
+        api_models::routing::ValueType,
+        api_models::routing::DeRoutableConnectorChoice,
+        api_models::routing::RoutableConnectorChoice,
+        api_models::open_router::PaymentInfo,
+        common_utils::id_type::PaymentId,
+        common_utils::id_type::ProfileId,
+        api_models::open_router::RankingAlgorithm,
+        api_models::open_router::TxnStatus,
+        api_models::open_router::PriorityLogicOutput,
+        api_models::open_router::PriorityLogicData,
+        api_models::user::PlatformAccountCreateRequest,
+        api_models::user::PlatformAccountCreateResponse,
     )),
     modifiers(&SecurityAddon)
 )]

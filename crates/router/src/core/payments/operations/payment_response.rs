@@ -2565,7 +2565,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
                 | common_enums::AttemptStatus::AutoRefunded
                 | common_enums::AttemptStatus::Unresolved
                 | common_enums::AttemptStatus::Pending
-                | common_enums::AttemptStatus::Failure => (),
+                | common_enums::AttemptStatus::Failure
+                | common_enums::AttemptStatus::Expired => (),
 
                 common_enums::AttemptStatus::Started
                 | common_enums::AttemptStatus::AuthenticationPending

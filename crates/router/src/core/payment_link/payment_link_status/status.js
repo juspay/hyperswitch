@@ -360,7 +360,7 @@ function renderStatusDetails(paymentDetails) {
             url.search = params.toString();
             setTimeout(function () {
               // Finally redirect
-              window.location.href = url.toString();
+              window.top.location.href = url.toString();
             }, 1000);
           }
         }, i * 1000);
