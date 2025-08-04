@@ -379,9 +379,9 @@ async fn process_ucs_webhook_transform(
     bool,
     Option<unified_connector_service::WebhookTransformData>,
 )> {
-    // Use the high-level UCS abstraction which encapsulates all request building and communication logic
+    // Use the new UCS abstraction which provides clean separation
     let (event_type, source_verified, transform_data) =
-        unified_connector_service::transform_webhook_via_ucs(
+        unified_connector_service::call_unified_connector_service_for_webhook(
             state,
             merchant_context,
             connector_name,
@@ -490,13 +490,12 @@ async fn determine_webhook_processing_path(
     merchant_connector_account: Option<&domain::MerchantConnectorAccount>,
 ) -> errors::RouterResult<WebhookProcessingResult> {
     // Check if UCS webhook transformation should be used BEFORE any connector-specific processing
-    let should_use_ucs =
-        unified_connector_service::should_call_unified_connector_service_for_webhooks(
-            state,
-            merchant_context,
-            connector_name,
-        )
-        .await?;
+    let should_use_ucs = unified_connector_service::decide_webhook_ucs_processing(
+        state,
+        merchant_context,
+        connector_name,
+    )
+    .await?;
 
     if should_use_ucs {
         // UCS PATH: Use raw body, no decoding needed
