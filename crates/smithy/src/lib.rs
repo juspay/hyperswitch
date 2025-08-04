@@ -195,6 +195,7 @@ fn generate_enum_impl(
     attrs: &[Attribute],
 ) -> syn::Result<TokenStream2> {
     let variants = extract_enum_variants(&data_enum.variants)?;
+    let serde_enum_attrs = parse_serde_enum_attributes(attrs)?;
 
     let enum_doc = extract_documentation(attrs);
     let enum_doc_expr = enum_doc
@@ -217,10 +218,21 @@ fn generate_enum_impl(
                     .map(|doc| quote! { Some(#doc.to_string()) })
                     .unwrap_or(quote! { None });
 
+                // Apply serde rename transformation if specified
+                let rename_all = serde_enum_attrs.rename_all.as_deref();
+                let transformed_name = if let Some(rename_pattern) = rename_all {
+                    // Generate the transformation at compile time
+                    let transformed = transform_variant_name(variant_name, Some(rename_pattern));
+                    quote! { #transformed.to_string() }
+                } else {
+                    quote! { #variant_name.to_string() }
+                };
+
                 quote! {
-                    enum_values.insert(#variant_name.to_string(), smithy_core::SmithyEnumValue {
-                        name: #variant_name.to_string(),
+                    enum_values.insert(#transformed_name, smithy_core::SmithyEnumValue {
+                        name: #transformed_name,
                         documentation: #variant_doc,
+                        is_default: false,
                     });
                 }
             })
@@ -288,9 +300,19 @@ fn generate_enum_impl(
                     quote! { format!("com.hyperswitch.types#{}", #inline_struct_name) }
                 };
 
+                // Apply serde rename transformation if specified
+                let rename_all = serde_enum_attrs.rename_all.as_deref();
+                let transformed_name = if let Some(rename_pattern) = rename_all {
+                    // Generate the transformation at compile time
+                    let transformed = transform_variant_name(variant_name, Some(rename_pattern));
+                    quote! { #transformed.to_string() }
+                } else {
+                    quote! { #variant_name.to_string() }
+                };
+
                 Some(quote! {
                     let target_type = #target_type_expr;
-                    members.insert(#variant_name.to_string(), smithy_core::SmithyMember {
+                    members.insert(#transformed_name, smithy_core::SmithyMember {
                         target: target_type,
                         documentation: #variant_doc,
                         traits: vec![]
@@ -473,6 +495,11 @@ struct SerdeAttributes {
     flatten: bool,
 }
 
+#[derive(Default)]
+struct SerdeEnumAttributes {
+    rename_all: Option<String>,
+}
+
 fn parse_serde_attributes(attrs: &[Attribute]) -> syn::Result<SerdeAttributes> {
     let mut serde_attributes = SerdeAttributes::default();
 
@@ -493,6 +520,104 @@ fn parse_serde_attributes(attrs: &[Attribute]) -> syn::Result<SerdeAttributes> {
     }
 
     Ok(serde_attributes)
+}
+
+fn parse_serde_enum_attributes(attrs: &[Attribute]) -> syn::Result<SerdeEnumAttributes> {
+    let mut serde_enum_attributes = SerdeEnumAttributes::default();
+
+    for attr in attrs {
+        if attr.path().is_ident("serde") {
+            attr.parse_nested_meta(|meta| {
+                if meta.path.is_ident("rename_all") {
+                    if let Ok(value) = meta.value() {
+                        if let Ok(lit) = value.parse::<Lit>() {
+                            if let Lit::Str(lit_str) = lit {
+                                serde_enum_attributes.rename_all = Some(lit_str.value());
+                            }
+                        }
+                    }
+                }
+                Ok(())
+            })?;
+        }
+    }
+
+    Ok(serde_enum_attributes)
+}
+
+fn transform_variant_name(name: &str, rename_all: Option<&str>) -> String {
+    match rename_all {
+        Some("snake_case") => to_snake_case(name),
+        Some("camelCase") => to_camel_case(name),
+        Some("kebab-case") => to_kebab_case(name),
+        Some("PascalCase") => name.to_string(), // No change for PascalCase
+        Some("SCREAMING_SNAKE_CASE") => to_screaming_snake_case(name),
+        Some("lowercase") => name.to_lowercase(),
+        Some("UPPERCASE") => name.to_uppercase(),
+        _ => name.to_string(), // No transformation if no rename_all or unknown pattern
+    }
+}
+
+fn to_snake_case(input: &str) -> String {
+    let mut result = String::new();
+    let mut chars = input.chars().peekable();
+    
+    while let Some(ch) = chars.next() {
+        if ch.is_uppercase() && !result.is_empty() {
+            // Add underscore before uppercase letters (except the first character)
+            result.push('_');
+        }
+        result.push(ch.to_lowercase().next().unwrap());
+    }
+    
+    result
+}
+
+fn to_camel_case(input: &str) -> String {
+    let mut result = String::new();
+    let mut chars = input.chars();
+    
+    // First character should be lowercase
+    if let Some(ch) = chars.next() {
+        result.push(ch.to_lowercase().next().unwrap());
+    }
+    
+    // Rest of the characters remain the same
+    for ch in chars {
+        result.push(ch);
+    }
+    
+    result
+}
+
+fn to_kebab_case(input: &str) -> String {
+    let mut result = String::new();
+    let mut chars = input.chars().peekable();
+    
+    while let Some(ch) = chars.next() {
+        if ch.is_uppercase() && !result.is_empty() {
+            // Add hyphen before uppercase letters (except the first character)
+            result.push('-');
+        }
+        result.push(ch.to_lowercase().next().unwrap());
+    }
+    
+    result
+}
+
+fn to_screaming_snake_case(input: &str) -> String {
+    let mut result = String::new();
+    let mut chars = input.chars().peekable();
+    
+    while let Some(ch) = chars.next() {
+        if ch.is_uppercase() && !result.is_empty() {
+            // Add underscore before uppercase letters (except the first character)
+            result.push('_');
+        }
+        result.push(ch.to_uppercase().next().unwrap());
+    }
+    
+    result
 }
 
 fn parse_smithy_field_attributes(attrs: &[Attribute]) -> syn::Result<SmithyFieldAttributes> {
