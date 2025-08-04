@@ -3,9 +3,7 @@ import {
   multiUseMandateData,
   singleUseMandateData,
 } from "./Commons";
-import {
-  generateRandomEmail,
-} from "../../../utils/RequestBodyUtils";
+import { generateRandomEmail } from "../../../utils/RequestBodyUtils";
 
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",

@@ -348,8 +348,11 @@ pub struct ShipToList {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct Profile {
+    #[serde(skip_serializing_if = "Option::is_none")]
     merchant_customer_id: Option<CustomerId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     email: Option<Email>,
     #[serde(skip_serializing_if = "Option::is_none")]
     payment_profiles: Option<PaymentProfiles>,
@@ -441,7 +444,7 @@ impl TryFrom<&ConnectorCustomerRouterData> for CustomerRequest {
                 merchant_authentication,
                 profile: Profile {
                     merchant_customer_id,
-                    description: item.request.description.clone(),
+                    description: None,
                     email: item.request.email.clone(),
                     payment_profiles: None,
                     ship_to_list,
@@ -490,13 +493,23 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerPaymentProfileRequest {
                         data_value: Secret::new(wallet_data.get_encoded_wallet_token()?),
                     }),
                 }),
-                WalletData::ApplePay(applepay_token) => Ok(PaymentProfile {
-                    bill_to,
-                    payment: PaymentDetails::OpaqueData(WalletDetails {
-                        data_descriptor: WalletMethod::Applepay,
-                        data_value: Secret::new(applepay_token.payment_data.clone()),
-                    }),
-                }),
+                WalletData::ApplePay(applepay_token) => {
+                    let apple_pay_encrypted_data = applepay_token
+                        .payment_data
+                        .get_encrypted_apple_pay_payment_data_mandatory()
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "Apple pay encrypted data",
+                        })?;
+
+                    Ok(PaymentProfile {
+                        bill_to,
+                        payment: PaymentDetails::OpaqueData(WalletDetails {
+                            data_descriptor: WalletMethod::Applepay,
+                            data_value: Secret::new(apple_pay_encrypted_data.clone()),
+                        }),
+                    })
+                }
+
                 WalletData::AliPayQr(_)
                 | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
@@ -598,7 +611,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetCustomerResponse, T, Pay
         match item.response.messages.result_code {
             ResultCode::Ok => Ok(Self {
                 response: Ok(PaymentsResponseData::ConnectorCustomerResponse {
-                    connector_customer_id: connector_customer_id,
+                    connector_customer_id,
                 }),
                 ..item.data
             }),
