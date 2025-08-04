@@ -24,6 +24,18 @@ pub async fn get_data_from_hyperswitch_ai_workflow(
     user_from_token: auth::UserFromToken,
     req: chat_api::ChatRequest,
 ) -> CustomResult<ApplicationResponse<chat_api::ChatResponse>, ChatErrors> {
+    let role_info = roles::RoleInfo::from_role_id_org_id_tenant_id(
+        &state,
+        &user_from_token.role_id,
+        &user_from_token.org_id,
+        user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
+    )
+    .await
+    .change_context(ChatErrors::InternalServerError)
+    .attach_printable("Failed to retrieve role information")?;
     let url = format!(
         "{}/webhook",
         state.conf.chat.get_inner().hyperswitch_ai_host
@@ -38,6 +50,7 @@ pub async fn get_data_from_hyperswitch_ai_workflow(
         org_id: user_from_token.org_id.clone(),
         merchant_id: user_from_token.merchant_id.clone(),
         profile_id: user_from_token.profile_id.clone(),
+        role_id: role_info.get_role_id(),
     };
     logger::info!("Request for AI service: {:?}", request_body);
 

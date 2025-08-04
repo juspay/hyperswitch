@@ -12,4 +12,5 @@ pub struct HyperswitchAiDataRequest {
     pub profile_id: id_type::ProfileId,
     pub org_id: id_type::OrganizationId,
     pub query: GetDataMessage,
+    pub role_id: String,
 }
