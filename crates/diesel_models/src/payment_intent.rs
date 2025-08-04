@@ -65,6 +65,7 @@ pub struct PaymentIntent {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_payment_id_from_merchant: Option<bool>,
     pub payment_channel: Option<common_enums::PaymentChannel>,
+    pub enable_partial_authorization: Option<bool>,
     pub merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
@@ -159,6 +160,7 @@ pub struct PaymentIntent {
     pub extended_return_url: Option<String>,
     pub is_payment_id_from_merchant: Option<bool>,
     pub payment_channel: Option<common_enums::PaymentChannel>,
+    pub enable_partial_authorization: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression, PartialEq)]
@@ -336,6 +338,7 @@ pub struct PaymentIntentNew {
     pub organization_id: common_utils::id_type::OrganizationId,
     pub tax_details: Option<TaxDetails>,
     pub skip_external_tax_calculation: Option<bool>,
+    pub enable_partial_authorization: Option<bool>,
     pub merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
@@ -435,6 +438,7 @@ pub struct PaymentIntentNew {
     pub extended_return_url: Option<String>,
     pub is_payment_id_from_merchant: Option<bool>,
     pub payment_channel: Option<common_enums::PaymentChannel>,
+    pub enable_partial_authorization: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -596,6 +600,7 @@ pub struct PaymentIntentUpdateFields {
     pub force_3ds_challenge: Option<bool>,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub payment_channel: Option<common_enums::PaymentChannel>,
+    pub enable_partial_authorization: Option<bool>,
 }
 
 // TODO: uncomment fields as necessary
@@ -683,6 +688,7 @@ impl PaymentIntentUpdateInternal {
             updated_by,
             force_3ds_challenge,
             is_iframe_redirection_enabled,
+            enable_partial_authorization,
         } = self;
 
         PaymentIntent {
@@ -755,6 +761,8 @@ impl PaymentIntentUpdateInternal {
             id: source.id,
             is_payment_id_from_merchant: source.is_payment_id_from_merchant,
             payment_channel: source.payment_channel,
+            enable_partial_authorization: enable_partial_authorization
+                .or(source.enable_partial_authorization),
         }
     }
 }
@@ -804,6 +812,7 @@ pub struct PaymentIntentUpdateInternal {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub extended_return_url: Option<String>,
     pub payment_channel: Option<common_enums::PaymentChannel>,
+    pub enable_partial_authorization: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -850,6 +859,7 @@ impl PaymentIntentUpdate {
             is_iframe_redirection_enabled,
             extended_return_url,
             payment_channel,
+            enable_partial_authorization,
         } = self.into();
         PaymentIntent {
             amount: amount.unwrap_or(source.amount),
@@ -900,6 +910,8 @@ impl PaymentIntentUpdate {
                 .or(source.is_iframe_redirection_enabled),
             extended_return_url: extended_return_url.or(source.extended_return_url),
             payment_channel: payment_channel.or(source.payment_channel),
+            enable_partial_authorization: enable_partial_authorization
+                .or(source.enable_partial_authorization),
             ..source
         }
     }
@@ -953,6 +965,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 extended_return_url: None,
                 payment_channel: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::Update(value) => Self {
                 amount: Some(value.amount),
@@ -996,6 +1009,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_iframe_redirection_enabled: value.is_iframe_redirection_enabled,
                 extended_return_url: value.return_url,
                 payment_channel: value.payment_channel,
+                enable_partial_authorization: value.enable_partial_authorization,
             },
             PaymentIntentUpdate::PaymentCreateUpdate {
                 return_url,
@@ -1046,6 +1060,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 extended_return_url: return_url,
                 payment_channel: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::PGStatusUpdate {
                 status,
@@ -1092,6 +1107,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 extended_return_url: None,
                 payment_channel: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::MerchantStatusUpdate {
                 status,
@@ -1139,6 +1155,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 extended_return_url: None,
                 payment_channel: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::ResponseUpdate {
                 // amount,
@@ -1193,6 +1210,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 extended_return_url: None,
                 payment_channel: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id,
@@ -1239,6 +1257,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 extended_return_url: None,
                 payment_channel: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::StatusAndAttemptUpdate {
                 status,
@@ -1286,6 +1305,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 extended_return_url: None,
                 payment_channel: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::ApproveUpdate {
                 status,
@@ -1332,6 +1352,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 extended_return_url: None,
                 payment_channel: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::RejectUpdate {
                 status,
@@ -1378,6 +1399,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 extended_return_url: None,
                 payment_channel: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::SurchargeApplicableUpdate {
                 surcharge_applicable,
@@ -1423,6 +1445,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 extended_return_url: None,
                 payment_channel: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount } => Self {
                 amount: Some(amount),
@@ -1465,6 +1488,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 extended_return_url: None,
                 payment_channel: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::AuthorizationCountUpdate {
                 authorization_count,
@@ -1509,6 +1533,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 extended_return_url: None,
                 payment_channel: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::CompleteAuthorizeUpdate {
                 shipping_address_id,
@@ -1553,6 +1578,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 extended_return_url: None,
                 payment_channel: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::ManualUpdate { status, updated_by } => Self {
                 status,
@@ -1595,6 +1621,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 extended_return_url: None,
                 payment_channel: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::SessionResponseUpdate {
                 tax_details,
@@ -1642,6 +1669,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 extended_return_url: None,
                 payment_channel: None,
+                enable_partial_authorization: None,
             },
         }
     }

@@ -82,6 +82,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
             authentication_data: None,
             customer_acceptance: None,
             locale: None,
+            enable_partial_authorization: None,
             ..utils::PaymentAuthorizeType::default().0
         },
         response: Err(types::ErrorResponse::default()),
@@ -136,6 +137,8 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
+        amount_capturable: None,
+        minor_amount_capturable: None,
     }
 }
 
@@ -210,6 +213,8 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
+        amount_capturable: None,
+        minor_amount_capturable: None,
     }
 }
 

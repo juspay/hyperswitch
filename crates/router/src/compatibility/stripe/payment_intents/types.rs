@@ -429,7 +429,10 @@ impl From<api_enums::IntentStatus> for StripePaymentStatus {
             api_enums::IntentStatus::RequiresPaymentMethod => Self::RequiresPaymentMethod,
             api_enums::IntentStatus::RequiresConfirmation => Self::RequiresConfirmation,
             api_enums::IntentStatus::RequiresCapture
-            | api_enums::IntentStatus::PartiallyCapturedAndCapturable => Self::RequiresCapture,
+            | api_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | api_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => {
+                Self::RequiresCapture
+            }
             api_enums::IntentStatus::Cancelled => Self::Canceled,
         }
     }

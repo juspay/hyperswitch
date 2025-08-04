@@ -467,6 +467,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 )
             })
             .unwrap_or(Ok(payment_intent.request_incremental_authorization))?;
+        payment_intent.enable_partial_authorization = request
+            .enable_partial_authorization
+            .or(payment_intent.enable_partial_authorization);
         payment_attempt.business_sub_label = request
             .business_sub_label
             .clone()
@@ -1936,7 +1939,16 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         straight_through_algorithm: m_straight_through_algorithm,
                         error_code: m_error_code,
                         error_message: m_error_message,
-                        amount_capturable: Some(authorized_amount),
+                        amount_capturable: if payment_data
+                            .payment_intent
+                            .enable_partial_authorization
+                            == Some(true)
+                        {
+                            // Setting this value to None, in case of partial authorization as we do not know the value yet
+                            None
+                        } else {
+                            Some(authorized_amount)
+                        },
                         updated_by: storage_scheme.to_string(),
                         merchant_connector_id,
                         external_three_ds_authentication_attempted,
@@ -2055,6 +2067,9 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .is_iframe_redirection_enabled,
                         is_confirm_operation: true, // Indicates that this is a confirm operation
                         payment_channel: payment_data.payment_intent.payment_channel,
+                        enable_partial_authorization: payment_data
+                            .payment_intent
+                            .enable_partial_authorization,
                     })),
                     &m_key_store,
                     storage_scheme,

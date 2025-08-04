@@ -204,6 +204,8 @@ pub struct Authorization {
     pub processing_type: Option<VantivProcessingType>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub original_network_transaction_id: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub allow_partial_auth: Option<bool>,
 }
 
 #[derive(Debug, Serialize)]
@@ -230,6 +232,8 @@ pub struct Sale {
     pub processing_type: Option<VantivProcessingType>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub original_network_transaction_id: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub allow_partial_auth: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -546,6 +550,7 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
                         token: processing_info.token,
                         processing_type: processing_info.processing_type,
                         original_network_transaction_id: processing_info.network_transaction_id,
+                        allow_partial_auth: item.router_data.request.enable_partial_authorization.and_then(|enable_partial_authorization| enable_partial_authorization.then_some(true))
                     }),
                 )
             } else {
@@ -571,6 +576,7 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
                         token: processing_info.token,
                         processing_type: processing_info.processing_type,
                         original_network_transaction_id: processing_info.network_transaction_id,
+                        allow_partial_auth: item.router_data.request.enable_partial_authorization.and_then(|enable_partial_authorization| enable_partial_authorization.then_some(true)),
                     }),
                     None,
                 )
@@ -635,7 +641,7 @@ fn get_processing_info(
                             .ok_or(errors::ConnectorError::MissingConnectorMandateID)?
                             .into(),
                         exp_date: format!(
-                            "{}_{}",
+                            "{}{}",
                             card_mandate_data.card_exp_month.peek(),
                             card_mandate_data.card_exp_year.peek()
                         )
@@ -866,6 +872,7 @@ pub struct PaymentResponse {
     pub fraud_result: Option<FraudResult>,
     pub token_response: Option<TokenResponse>,
     pub network_transaction_id: Option<Secret<String>>,
+    pub approved_amount: Option<MinorUnit>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -1189,6 +1196,7 @@ impl<F>
                             charges: None,
                         }),
                         connector_response,
+                        amount_captured: sale_response.approved_amount.map(MinorUnit::get_amount_as_i64),
                         ..item.data
                     })
                 }
@@ -1239,6 +1247,16 @@ impl<F>
                             charges: None,
                         }),
                         connector_response,
+                        amount_captured: if payment_flow_type == WorldpayvantivPaymentFlow::Sale {
+                            auth_response.approved_amount.map(MinorUnit::get_amount_as_i64)
+                        } else {
+                            None
+                        },
+                        amount_capturable: if payment_flow_type == WorldpayvantivPaymentFlow::Auth {
+                            auth_response.approved_amount.map(MinorUnit::get_amount_as_i64)
+                        } else {
+                            None
+                        },
                         ..item.data
                     })
                 }

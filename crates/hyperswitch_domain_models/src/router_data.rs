@@ -44,6 +44,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
     pub connector_wallets_details: Option<common_utils::pii::SecretSerdeValue>,
     pub amount_captured: Option<i64>,
+    pub amount_capturable: Option<i64>,
     pub access_token: Option<AccessToken>,
     pub session_token: Option<String>,
     pub reference_id: Option<String>,
@@ -90,6 +91,7 @@ pub struct RouterData<Flow, Request, Response> {
 
     // minor amount for amount framework
     pub minor_amount_captured: Option<MinorUnit>,
+    pub minor_amount_capturable: Option<MinorUnit>,
 
     pub integrity_check: Result<(), IntegrityCheckError>,
 

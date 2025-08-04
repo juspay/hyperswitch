@@ -456,6 +456,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .clone()
             .or(payment_intent.payment_channel);
 
+        payment_intent.enable_partial_authorization = request
+            .enable_partial_authorization
+            .or(payment_intent.enable_partial_authorization);
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -949,6 +953,9 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         .is_iframe_redirection_enabled,
                     is_confirm_operation: false, // this is not a confirm operation
                     payment_channel: payment_data.payment_intent.payment_channel,
+                    enable_partial_authorization: payment_data
+                        .payment_intent
+                        .enable_partial_authorization,
                 })),
                 key_store,
                 storage_scheme,

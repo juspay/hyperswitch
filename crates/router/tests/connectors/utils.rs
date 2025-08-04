@@ -555,6 +555,8 @@ pub trait ConnectorActions: Connector {
             authentication_id: None,
             raw_connector_response: None,
             is_payment_id_from_merchant: None,
+            amount_capturable: None,
+            minor_amount_capturable: None,
         }
     }
 
@@ -999,6 +1001,7 @@ impl Default for PaymentAuthorizeType {
             order_id: None,
             locale: None,
             payment_channel: None,
+            enable_partial_authorization: None,
         };
         Self(data)
     }

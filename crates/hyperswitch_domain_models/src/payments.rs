@@ -117,6 +117,7 @@ pub struct PaymentIntent {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_payment_id_from_merchant: Option<bool>,
     pub payment_channel: Option<common_enums::PaymentChannel>,
+    pub enable_partial_authorization: Option<bool>,
 }
 
 impl PaymentIntent {

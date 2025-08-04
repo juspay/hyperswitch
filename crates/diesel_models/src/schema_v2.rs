@@ -1003,6 +1003,7 @@ diesel::table! {
         is_payment_id_from_merchant -> Nullable<Bool>,
         #[max_length = 64]
         payment_channel -> Nullable<Varchar>,
+        enable_partial_authorization -> Nullable<Bool>,
         #[max_length = 64]
         merchant_reference_id -> Nullable<Varchar>,
         billing_address -> Nullable<Bytea>,

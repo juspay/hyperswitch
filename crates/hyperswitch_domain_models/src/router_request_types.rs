@@ -82,6 +82,7 @@ pub struct PaymentsAuthorizeData {
     pub order_id: Option<String>,
     pub locale: Option<String>,
     pub payment_channel: Option<common_enums::PaymentChannel>,
+    pub enable_partial_authorization: Option<bool>,
 }
 #[derive(Debug, Clone)]
 pub struct PaymentsPostSessionTokensData {
@@ -1027,6 +1028,7 @@ pub struct SetupMandateRequestData {
     pub shipping_cost: Option<MinorUnit>,
     pub connector_testing_data: Option<pii::SecretSerdeValue>,
     pub customer_id: Option<id_type::CustomerId>,
+    pub enable_partial_authorization: Option<bool>,
 }
 
 #[derive(Debug, Clone)]

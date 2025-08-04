@@ -145,6 +145,8 @@ pub async fn construct_relay_refund_router_data<F>(
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
+        amount_capturable: None,
+        minor_amount_capturable: None,
     };
 
     Ok(router_data)

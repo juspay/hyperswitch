@@ -1190,6 +1190,9 @@ pub struct PaymentsRequest {
     /// Indicates how the payment was initiated (e.g., ecommerce, mail, or telephone).
     #[schema(value_type = Option<PaymentChannel>)]
     pub payment_channel: Option<common_enums::PaymentChannel>,
+
+    /// Allow partial authorization for this payment
+    pub enable_partial_authorization: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -5236,6 +5239,9 @@ pub struct PaymentsResponse {
     /// Contains whole connector response
     #[schema(value_type = Option<String>)]
     pub whole_connector_response: Option<Secret<String>>,
+
+    /// Allow partial authorization for this payment
+    pub enable_partial_authorization: Option<bool>,
 }
 
 #[cfg(feature = "v2")]

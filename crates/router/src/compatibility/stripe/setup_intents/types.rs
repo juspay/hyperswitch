@@ -313,7 +313,8 @@ impl From<api_enums::IntentStatus> for StripeSetupStatus {
                 Self::Succeeded
             }
             api_enums::IntentStatus::Failed | api_enums::IntentStatus::Expired => Self::Canceled,
-            api_enums::IntentStatus::Processing => Self::Processing,
+            api_enums::IntentStatus::Processing
+            | api_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => Self::Processing,
             api_enums::IntentStatus::RequiresCustomerAction => Self::RequiresAction,
             api_enums::IntentStatus::RequiresMerchantAction
             | api_enums::IntentStatus::Conflicted => Self::RequiresAction,

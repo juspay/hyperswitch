@@ -2124,6 +2124,7 @@ impl From<AttemptStatus> for IntentStatus {
             | AttemptStatus::Failure => Self::Failed,
             AttemptStatus::Voided => Self::Cancelled,
             AttemptStatus::Expired => Self::Expired,
+            AttemptStatus::PartiallyAuthorized => Self::PartiallyAuthorizedAndRequiresCapture,
         }
     }
 }
@@ -2144,6 +2145,9 @@ impl From<IntentStatus> for Option<EventType> {
             }
             IntentStatus::RequiresCapture => Some(EventType::PaymentAuthorized),
             IntentStatus::RequiresPaymentMethod | IntentStatus::RequiresConfirmation => None,
+            IntentStatus::PartiallyAuthorizedAndRequiresCapture => {
+                Some(EventType::PaymentPartiallyAuthorized)
+            }
         }
     }
 }

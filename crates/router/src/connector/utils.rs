@@ -141,6 +141,8 @@ pub trait PaymentResponseRouterData {
     fn get_attempt_status_for_db_update<F>(
         &self,
         payment_data: &PaymentData<F>,
+        amount_captured: Option<i64>,
+        amount_capturable: Option<i64>,
     ) -> enums::AttemptStatus
     where
         F: Clone;
@@ -154,6 +156,8 @@ where
     fn get_attempt_status_for_db_update<F>(
         &self,
         payment_data: &PaymentData<F>,
+        amount_captured: Option<i64>,
+        amount_capturable: Option<i64>,
     ) -> enums::AttemptStatus
     where
         F: Clone,
@@ -167,13 +171,33 @@ where
                 }
             }
             enums::AttemptStatus::Charged => {
-                let captured_amount =
-                    types::Capturable::get_captured_amount(&self.request, payment_data);
+                let captured_amount = types::Capturable::get_captured_amount(
+                    &self.request,
+                    amount_captured,
+                    payment_data,
+                );
                 let total_capturable_amount = payment_data.payment_attempt.get_total_amount();
                 if Some(total_capturable_amount) == captured_amount.map(MinorUnit::new) {
                     enums::AttemptStatus::Charged
                 } else if captured_amount.is_some() {
                     enums::AttemptStatus::PartialCharged
+                } else {
+                    self.status
+                }
+            }
+            enums::AttemptStatus::Authorized => {
+                let capturable_amount = types::Capturable::get_amount_capturable(
+                    &self.request,
+                    payment_data,
+                    amount_capturable,
+                    payment_data.payment_attempt.status,
+                );
+                if Some(payment_data.payment_attempt.get_total_amount())
+                    == capturable_amount.map(MinorUnit::new)
+                {
+                    enums::AttemptStatus::Authorized
+                } else if capturable_amount.is_some() {
+                    enums::AttemptStatus::PartiallyAuthorized
                 } else {
                     self.status
                 }
@@ -2201,7 +2225,8 @@ impl FrmTransactionRouterDataRequest for fraud_check::FrmTransactionRouterData {
             storage_enums::AttemptStatus::AuthenticationSuccessful
             | storage_enums::AttemptStatus::PartialChargedAndChargeable
             | storage_enums::AttemptStatus::Authorized
-            | storage_enums::AttemptStatus::Charged => Some(true),
+            | storage_enums::AttemptStatus::Charged
+            | storage_enums::AttemptStatus::PartiallyAuthorized => Some(true),
 
             storage_enums::AttemptStatus::Started
             | storage_enums::AttemptStatus::AuthenticationPending
@@ -2248,7 +2273,8 @@ pub fn is_payment_failure(status: enums::AttemptStatus) -> bool {
         | common_enums::AttemptStatus::PaymentMethodAwaited
         | common_enums::AttemptStatus::ConfirmationAwaited
         | common_enums::AttemptStatus::DeviceDataCollectionPending
-        | common_enums::AttemptStatus::IntegrityFailure => false,
+        | common_enums::AttemptStatus::IntegrityFailure
+        | common_enums::AttemptStatus::PartiallyAuthorized => false,
     }
 }
 
