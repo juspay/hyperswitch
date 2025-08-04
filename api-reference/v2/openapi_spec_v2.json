@@ -2441,10 +2441,11 @@
             "description": "The connector to filter payments list",
             "required": true,
             "schema": {
-              "type": "array",
-              "items": {
-                "$ref": "#/components/schemas/Connector"
-              },
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Connector"
+                }
+              ],
               "nullable": true
             }
           },
@@ -2454,10 +2455,11 @@
             "description": "The currency to filter payments list",
             "required": true,
             "schema": {
-              "type": "array",
-              "items": {
-                "$ref": "#/components/schemas/Currency"
-              },
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Currency"
+                }
+              ],
               "nullable": true
             }
           },
@@ -2467,10 +2469,11 @@
             "description": "The payment status to filter payments list",
             "required": true,
             "schema": {
-              "type": "array",
-              "items": {
-                "$ref": "#/components/schemas/IntentStatus"
-              },
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/IntentStatus"
+                }
+              ],
               "nullable": true
             }
           },
@@ -2480,10 +2483,11 @@
             "description": "The payment method type to filter payments list",
             "required": true,
             "schema": {
-              "type": "array",
-              "items": {
-                "$ref": "#/components/schemas/PaymentMethod"
-              },
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/PaymentMethod"
+                }
+              ],
               "nullable": true
             }
           },
@@ -2493,10 +2497,11 @@
             "description": "The payment method subtype to filter payments list",
             "required": true,
             "schema": {
-              "type": "array",
-              "items": {
-                "$ref": "#/components/schemas/PaymentMethodType"
-              },
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/PaymentMethodType"
+                }
+              ],
               "nullable": true
             }
           },
@@ -2506,10 +2511,11 @@
             "description": "The authentication type to filter payments list",
             "required": true,
             "schema": {
-              "type": "array",
-              "items": {
-                "$ref": "#/components/schemas/AuthenticationType"
-              },
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/AuthenticationType"
+                }
+              ],
               "nullable": true
             }
           },
@@ -2519,10 +2525,7 @@
             "description": "The merchant connector id to filter payments list",
             "required": true,
             "schema": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
+              "type": "string",
               "nullable": true
             }
           },
@@ -2550,10 +2553,11 @@
             "description": "The card networks to filter payments list",
             "required": true,
             "schema": {
-              "type": "array",
-              "items": {
-                "$ref": "#/components/schemas/CardNetwork"
-              },
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/CardNetwork"
+                }
+              ],
               "nullable": true
             }
           },
