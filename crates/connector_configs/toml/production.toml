@@ -5099,9 +5099,20 @@ key1="merchant_id"
 [mpgs]
 [mpgs.connector_auth.HeaderKey]
 api_key = "API Key"
+
 [bluecode]
+[[bluecode.wallet]]
+  payment_method_type = "bluecode"
 [bluecode.connector_auth.HeaderKey]
-api_key = "API Key"
+api_key = "E-Order Token"
+[bluecode.metadata.shop_name]
+name="shop_name"
+label="Shop Name"
+placeholder="Enter your Shop Name"
+required=true
+type="Text"
+[bluecode.connector_webhook_details]
+merchant_secret="Source verification key"
 
 [katapult]
 [katapult.connector_auth.HeaderKey]
