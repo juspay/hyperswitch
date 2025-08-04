@@ -162,6 +162,8 @@ pub struct Settings<S: SecretState> {
     pub merchant_id_auth: MerchantIdAuthSettings,
     #[serde(default)]
     pub infra_values: Option<HashMap<String, String>>,
+    #[serde(default)]
+    pub enhancement: Option<HashMap<String, String>>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -620,6 +622,13 @@ pub struct PaymentMethodTokenFilter {
     pub payment_method_type: Option<PaymentMethodTypeTokenFilter>,
     pub long_lived_token: bool,
     pub apple_pay_pre_decrypt_flow: Option<ApplePayPreDecryptFlow>,
+    pub flow: Option<PaymentFlow>,
+}
+
+#[derive(Debug, Deserialize, Clone, PartialEq)]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
+pub enum PaymentFlow {
+    Mandates,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

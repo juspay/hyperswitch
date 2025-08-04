@@ -229,6 +229,12 @@ pub trait PaymentMethodsController {
         merchant_id: &id_type::MerchantId,
         card_network: Option<common_enums::CardNetwork>,
     ) -> errors::PmResult<()>;
+
+    #[cfg(feature = "v1")]
+    async fn get_card_details_from_locker(
+        &self,
+        pm: &payment_methods::PaymentMethod,
+    ) -> errors::PmResult<api::CardDetailFromLocker>;
 }
 
 pub async fn create_encrypted_data<T>(

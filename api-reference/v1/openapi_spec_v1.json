@@ -5174,6 +5174,162 @@
         ]
       }
     },
+    "/routing/evaluate": {
+      "post": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Evaluate",
+        "description": "Evaluate routing rules",
+        "operationId": "Evaluate routing rules",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenRouterDecideGatewayRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Routing rules evaluated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecideGatewayResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request body is malformed"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/routing/feedback": {
+      "post": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Feedback",
+        "description": "Update gateway scores for dynamic routing",
+        "operationId": "Update gateway scores",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateScorePayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Gateway score updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateScoreResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request body is malformed"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/routing/rule/evaluate": {
+      "post": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Rule Evaluate",
+        "description": "Evaluate routing rules",
+        "operationId": "Evaluate routing rules (alternative)",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoutingEvaluateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Routing rules evaluated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutingEvaluateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request body is malformed"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/blocklist": {
       "delete": {
         "tags": [
@@ -6481,6 +6637,66 @@
           }
         ]
       }
+    },
+    "/user/create_platform": {
+      "post": {
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Platform - Create",
+        "description": "Create a new platform account",
+        "operationId": "Create a Platform Account",
+        "requestBody": {
+          "description": "Create a platform account with organization_name",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformAccountCreateRequest"
+              },
+              "examples": {
+                "Create a platform account with organization_name": {
+                  "value": {
+                    "organization_name": "organization_abc"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Platform Account Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformAccountCreateResponse"
+                },
+                "examples": {
+                  "Successful Platform Account Creation": {
+                    "description": "Return values for a successfully created platform account",
+                    "value": {
+                      "merchant_account_type": "platform",
+                      "merchant_id": "merchant_abc",
+                      "org_id": "org_abc",
+                      "org_name": "organization_abc",
+                      "org_type": "platform"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "jwt_key": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -7623,7 +7839,8 @@
           "payment_method_awaited",
           "confirmation_awaited",
           "device_data_collection_pending",
-          "integrity_failure"
+          "integrity_failure",
+          "expired"
         ]
       },
       "AuthenticationConnectorDetails": {
@@ -9373,6 +9590,27 @@
                 "type": "object"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "indonesian_bank_transfer"
+            ],
+            "properties": {
+              "indonesian_bank_transfer": {
+                "type": "object",
+                "properties": {
+                  "bank_name": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankNames"
+                      }
+                    ],
+                    "nullable": true
+                  }
+                }
+              }
+            }
           }
         ]
       },
@@ -9645,13 +9883,14 @@
                   "source_bank_account_id": {
                     "type": "string",
                     "description": "Source bank account number",
-                    "example": "8b2812f0-d6c8-4073-97bb-9fa964d08bc5",
+                    "example": "8b******-****-****-****-*******08bc5",
                     "nullable": true
                   },
                   "destination_bank_account_id": {
                     "type": "string",
-                    "description": "Destination bank account number",
-                    "example": "9b95f84e-de61-460b-a14b-f23b4e71c97b",
+                    "description": "Partially masked destination bank account number _Deprecated: Will be removed in next stable release._",
+                    "deprecated": true,
+                    "example": "********-****-460b-****-f23b4e71c97b",
                     "nullable": true
                   },
                   "expiry_date": {
@@ -9722,6 +9961,27 @@
             "properties": {
               "instant_bank_transfer_poland": {
                 "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "indonesian_bank_transfer"
+            ],
+            "properties": {
+              "indonesian_bank_transfer": {
+                "type": "object",
+                "properties": {
+                  "bank_name": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankNames"
+                      }
+                    ],
+                    "nullable": true
+                  }
+                }
               }
             }
           }
@@ -11180,6 +11440,7 @@
           "bluesnap",
           "boku",
           "braintree",
+          "breadpay",
           "cashtocode",
           "celero",
           "chargebee",
@@ -11201,6 +11462,7 @@
           "fiserv",
           "fiservemea",
           "fiuu",
+          "flexiti",
           "forte",
           "getnet",
           "globalpay",
@@ -13275,6 +13537,80 @@
           }
         }
       },
+      "DeRoutableConnectorChoice": {
+        "type": "object",
+        "description": "Routable Connector chosen for a payment",
+        "required": [
+          "gateway_name",
+          "gateway_id"
+        ],
+        "properties": {
+          "gateway_name": {
+            "$ref": "#/components/schemas/RoutableConnectors"
+          },
+          "gateway_id": {
+            "type": "string"
+          }
+        }
+      },
+      "DecideGatewayResponse": {
+        "type": "object",
+        "properties": {
+          "decided_gateway": {
+            "type": "string",
+            "nullable": true
+          },
+          "gateway_priority_map": {
+            "nullable": true
+          },
+          "filter_wise_gateways": {
+            "nullable": true
+          },
+          "priority_logic_tag": {
+            "type": "string",
+            "nullable": true
+          },
+          "routing_approach": {
+            "type": "string",
+            "nullable": true
+          },
+          "gateway_before_evaluation": {
+            "type": "string",
+            "nullable": true
+          },
+          "priority_logic_output": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PriorityLogicOutput"
+              }
+            ],
+            "nullable": true
+          },
+          "reset_approach": {
+            "type": "string",
+            "nullable": true
+          },
+          "routing_dimension": {
+            "type": "string",
+            "nullable": true
+          },
+          "routing_dimension_level": {
+            "type": "string",
+            "nullable": true
+          },
+          "is_scheduled_outage": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "is_dynamic_mga_enabled": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "gateway_mga_id_map": {
+            "nullable": true
+          }
+        }
+      },
       "DecisionEngineEliminationData": {
         "type": "object",
         "required": [
@@ -14064,6 +14400,7 @@
           "payment_cancelled",
           "payment_authorized",
           "payment_captured",
+          "payment_expired",
           "action_required",
           "refund_succeeded",
           "refund_failed",
@@ -15850,7 +16187,8 @@
           "requires_capture",
           "partially_captured",
           "partially_captured_and_capturable",
-          "conflicted"
+          "conflicted",
+          "expired"
         ]
       },
       "IssuerData": {
@@ -18591,6 +18929,40 @@
           }
         }
       },
+      "OpenRouterDecideGatewayRequest": {
+        "type": "object",
+        "required": [
+          "paymentInfo",
+          "merchantId"
+        ],
+        "properties": {
+          "paymentInfo": {
+            "$ref": "#/components/schemas/PaymentInfo"
+          },
+          "merchantId": {
+            "type": "string"
+          },
+          "eligibleGatewayList": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "rankingAlgorithm": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RankingAlgorithm"
+              }
+            ],
+            "nullable": true
+          },
+          "eliminationEnabled": {
+            "type": "boolean",
+            "nullable": true
+          }
+        }
+      },
       "OrderDetailsWithAmount": {
         "type": "object",
         "required": [
@@ -19106,6 +19478,18 @@
           {
             "type": "object",
             "required": [
+              "flexiti_redirect"
+            ],
+            "properties": {
+              "flexiti_redirect": {
+                "type": "object",
+                "description": "For Flexiti Redirect as PayLater long term finance Option"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "walley_redirect"
             ],
             "properties": {
@@ -19134,6 +19518,17 @@
             ],
             "properties": {
               "atome_redirect": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "breadpay_redirect"
+            ],
+            "properties": {
+              "breadpay_redirect": {
                 "type": "object"
               }
             }
@@ -19419,6 +19814,49 @@
               "stripe",
               "adyen"
             ]
+          }
+        }
+      },
+      "PaymentId": {
+        "type": "string",
+        "description": "A type for payment_id that can be used for payment ids"
+      },
+      "PaymentInfo": {
+        "type": "object",
+        "required": [
+          "paymentId",
+          "amount",
+          "currency",
+          "paymentType",
+          "paymentMethodType",
+          "paymentMethod"
+        ],
+        "properties": {
+          "paymentId": {
+            "type": "string"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "paymentType": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "string",
+            "nullable": true
+          },
+          "paymentMethodType": {
+            "type": "string"
+          },
+          "paymentMethod": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "cardIsin": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -20908,7 +21346,6 @@
           "ali_pay_hk",
           "alma",
           "amazon_pay",
-          "skrill",
           "paysera",
           "apple_pay",
           "atome",
@@ -20921,6 +21358,7 @@
           "boleto",
           "bca_bank_transfer",
           "bni_va",
+          "breadpay",
           "bri_va",
           "card_redirect",
           "cimb_va",
@@ -20935,6 +21373,7 @@
           "efecty",
           "eft",
           "eps",
+          "flexiti",
           "fps",
           "evoucher",
           "giropay",
@@ -20978,6 +21417,7 @@
           "samsung_pay",
           "sepa",
           "sepa_bank_transfer",
+          "skrill",
           "sofort",
           "swish",
           "touch_n_go",
@@ -21003,7 +21443,8 @@
           "instant_bank_transfer",
           "instant_bank_transfer_finland",
           "instant_bank_transfer_poland",
-          "revolut_pay"
+          "revolut_pay",
+          "indonesian_bank_transfer"
         ]
       },
       "PaymentMethodUpdate": {
@@ -26293,7 +26734,8 @@
           },
           "destination_bank_account_id": {
             "type": "string",
-            "description": "Partially masked destination bank account number",
+            "description": "Partially masked destination bank account number _Deprecated: Will be removed in next stable release._",
+            "deprecated": true,
             "example": "********-****-460b-****-f23b4e71c97b",
             "nullable": true
           },
@@ -26302,6 +26744,51 @@
             "description": "The expiration date and time for the Pix QR code in ISO 8601 format",
             "example": "2025-09-10T10:11:12Z",
             "nullable": true
+          }
+        }
+      },
+      "PlatformAccountCreateRequest": {
+        "type": "object",
+        "required": [
+          "organization_name"
+        ],
+        "properties": {
+          "organization_name": {
+            "type": "string",
+            "example": "organization_abc",
+            "maxLength": 64
+          }
+        }
+      },
+      "PlatformAccountCreateResponse": {
+        "type": "object",
+        "required": [
+          "org_id",
+          "org_type",
+          "merchant_id",
+          "merchant_account_type"
+        ],
+        "properties": {
+          "org_id": {
+            "type": "string",
+            "example": "org_abc",
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "org_name": {
+            "type": "string",
+            "example": "organization_abc",
+            "nullable": true
+          },
+          "org_type": {
+            "$ref": "#/components/schemas/OrganizationType"
+          },
+          "merchant_id": {
+            "type": "string",
+            "example": "merchant_abc"
+          },
+          "merchant_account_type": {
+            "$ref": "#/components/schemas/MerchantAccountType"
           }
         }
       },
@@ -26390,6 +26877,66 @@
           }
         },
         "additionalProperties": false
+      },
+      "PriorityLogicData": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "failure_reason": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "PriorityLogicOutput": {
+        "type": "object",
+        "properties": {
+          "isEnforcement": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "gws": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "priorityLogicTag": {
+            "type": "string",
+            "nullable": true
+          },
+          "gatewayReferenceIds": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "primaryLogic": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PriorityLogicData"
+              }
+            ],
+            "nullable": true
+          },
+          "fallbackLogic": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PriorityLogicData"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "ProcessorPaymentToken": {
         "type": "object",
@@ -26836,6 +27383,10 @@
           }
         }
       },
+      "ProfileId": {
+        "type": "string",
+        "description": "A type for profile_id that can be used for business profile ids"
+      },
       "ProfileResponse": {
         "type": "object",
         "required": [
@@ -27171,6 +27722,14 @@
             "additionalProperties": {}
           }
         }
+      },
+      "RankingAlgorithm": {
+        "type": "string",
+        "enum": [
+          "SR_BASED_ROUTING",
+          "PL_BASED_ROUTING",
+          "NTW_BASED_ROUTING"
+        ]
       },
       "RealTimePaymentData": {
         "oneOf": [
@@ -28306,6 +28865,7 @@
           "bluesnap",
           "boku",
           "braintree",
+          "breadpay",
           "cashtocode",
           "celero",
           "chargebee",
@@ -28325,6 +28885,7 @@
           "fiserv",
           "fiservemea",
           "fiuu",
+          "flexiti",
           "forte",
           "getnet",
           "globalpay",
@@ -28509,6 +29070,56 @@
           "decision_engine_routing_id": {
             "type": "string",
             "nullable": true
+          }
+        }
+      },
+      "RoutingEvaluateRequest": {
+        "type": "object",
+        "required": [
+          "created_by",
+          "parameters",
+          "fallback_output"
+        ],
+        "properties": {
+          "created_by": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "description": "Parameters that can be used in the routing evaluate request.\neg: {\"parameters\": {\n\"payment_method\": {\"type\": \"enum_variant\", \"value\": \"card\"},\n\"payment_method_type\": {\"type\": \"enum_variant\", \"value\": \"credit\"},\n\"amount\": {\"type\": \"number\", \"value\": 10},\n\"currency\": {\"type\": \"str_value\", \"value\": \"INR\"},\n\"authentication_type\": {\"type\": \"enum_variant\", \"value\": \"three_ds\"},\n\"card_bin\": {\"type\": \"str_value\", \"value\": \"424242\"},\n\"capture_method\": {\"type\": \"enum_variant\", \"value\": \"scheduled\"},\n\"business_country\": {\"type\": \"str_value\", \"value\": \"IN\"},\n\"billing_country\": {\"type\": \"str_value\", \"value\": \"IN\"},\n\"business_label\": {\"type\": \"str_value\", \"value\": \"business_label\"},\n\"setup_future_usage\": {\"type\": \"enum_variant\", \"value\": \"off_session\"},\n\"card_network\": {\"type\": \"enum_variant\", \"value\": \"visa\"},\n\"payment_type\": {\"type\": \"enum_variant\", \"value\": \"recurring_mandate\"},\n\"mandate_type\": {\"type\": \"enum_variant\", \"value\": \"single_use\"},\n\"mandate_acceptance_type\": {\"type\": \"enum_variant\", \"value\": \"online\"},\n\"metadata\":{\"type\": \"metadata_variant\", \"value\": {\"key\": \"key1\", \"value\": \"value1\"}}\n}}"
+          },
+          "fallback_output": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeRoutableConnectorChoice"
+            }
+          }
+        }
+      },
+      "RoutingEvaluateResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "output",
+          "evaluated_output",
+          "eligible_connectors"
+        ],
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "output": {},
+          "evaluated_output": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoutableConnectorChoice"
+            }
+          },
+          "eligible_connectors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoutableConnectorChoice"
+            }
           }
         }
       },
@@ -29955,7 +30566,7 @@
       "ThreeDsData": {
         "type": "object",
         "required": [
-          "threeds_server_transaction_id",
+          "three_ds_server_transaction_id",
           "maximum_supported_3ds_version",
           "connector_authentication_id",
           "three_ds_method_data",
@@ -29964,7 +30575,7 @@
           "directory_server_id"
         ],
         "properties": {
-          "threeds_server_transaction_id": {
+          "three_ds_server_transaction_id": {
             "type": "string",
             "description": "The unique identifier for this authentication from the 3DS server."
           },
@@ -30375,6 +30986,33 @@
           "external"
         ]
       },
+      "TxnStatus": {
+        "type": "string",
+        "enum": [
+          "STARTED",
+          "AUTHENTICATION_FAILED",
+          "JUSPAY_DECLINED",
+          "PENDING_VBV",
+          "V_B_V_SUCCESSFUL",
+          "AUTHORIZED",
+          "AUTHORIZATION_FAILED",
+          "CHARGED",
+          "AUTHORIZING",
+          "C_O_D_INITIATED",
+          "VOIDED",
+          "VOID_INITIATED",
+          "NOP",
+          "CAPTURE_INITIATED",
+          "CAPTURE_FAILED",
+          "VOID_FAILED",
+          "AUTO_REFUNDED",
+          "PARTIAL_CHARGED",
+          "TO_BE_CHARGED",
+          "PENDING",
+          "FAILURE",
+          "DECLINED"
+        ]
+      },
       "UIWidgetFormLayout": {
         "type": "string",
         "enum": [
@@ -30410,6 +31048,40 @@
           }
         },
         "additionalProperties": false
+      },
+      "UpdateScorePayload": {
+        "type": "object",
+        "required": [
+          "merchantId",
+          "gateway",
+          "status",
+          "paymentId"
+        ],
+        "properties": {
+          "merchantId": {
+            "type": "string"
+          },
+          "gateway": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TxnStatus"
+          },
+          "paymentId": {
+            "type": "string"
+          }
+        }
+      },
+      "UpdateScoreResponse": {
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        }
       },
       "UpiAdditionalData": {
         "oneOf": [
@@ -30518,7 +31190,10 @@
                 ]
               },
               "value": {
-                "$ref": "#/components/schemas/MinorUnit"
+                "type": "integer",
+                "format": "int64",
+                "description": "Represents a number literal",
+                "minimum": 0
               }
             }
           },
@@ -30588,13 +31263,34 @@
               "type": {
                 "type": "string",
                 "enum": [
+                  "global_ref"
+                ]
+              },
+              "value": {
+                "type": "string",
+                "description": "Represents a global reference, which is a reference to a global variable"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
                   "number_array"
                 ]
               },
               "value": {
                 "type": "array",
                 "items": {
-                  "$ref": "#/components/schemas/MinorUnit"
+                  "type": "integer",
+                  "format": "int64",
+                  "minimum": 0
                 },
                 "description": "Represents an array of numbers. This is basically used for\n\"one of the given numbers\" operations\neg: payment.method.amount = (1, 2, 3)"
               }

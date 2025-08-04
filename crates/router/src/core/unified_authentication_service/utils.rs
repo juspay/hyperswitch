@@ -246,12 +246,10 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                     .ok_or(ApiErrorResponse::InternalServerError)
                     .attach_printable("missing trans_status in PostAuthentication Details")?;
 
-                let authentication_value = authentication_details
+                authentication_details
                     .dynamic_data_details
                     .and_then(|details| details.dynamic_data_value)
-                    .map(ExposeInterface::expose);
-
-                authentication_value
+                    .map(ExposeInterface::expose)
                     .async_map(|auth_val| {
                         crate::core::payment_methods::vault::create_tokenize(
                             state,
@@ -324,7 +322,7 @@ pub fn get_checkout_event_status_and_reason(
 pub fn authenticate_authentication_client_secret_and_check_expiry(
     req_client_secret: &String,
     authentication: &diesel_models::authentication::Authentication,
-) -> RouterResult<bool> {
+) -> RouterResult<()> {
     let stored_client_secret = authentication
         .authentication_client_secret
         .clone()
@@ -342,8 +340,10 @@ pub fn authenticate_authentication_client_secret_and_check_expiry(
             .created_at
             .saturating_add(time::Duration::seconds(DEFAULT_SESSION_EXPIRY));
 
-        let expired = current_timestamp > session_expiry;
-
-        Ok(expired)
+        if current_timestamp > session_expiry {
+            Err(report!(ApiErrorResponse::ClientSecretExpired))
+        } else {
+            Ok(())
+        }
     }
 }

@@ -425,7 +425,21 @@ payment_method_type = "CartesBancaires"
 [[airwallex.debit]]
 payment_method_type = "UnionPay"
 [[airwallex.wallet]]
-payment_method_type = "google_pay"
+  payment_method_type = "google_pay"
+[[airwallex.wallet]]
+  payment_method_type = "paypal"
+[[airwallex.wallet]]
+  payment_method_type = "skrill"
+[[airwallex.bank_redirect]]
+  payment_method_type = "trustly"
+[[airwallex.bank_redirect]]
+  payment_method_type = "blik"
+[[airwallex.bank_redirect]]
+  payment_method_type = "ideal"
+[[airwallex.pay_later]]
+  payment_method_type = "klarna"
+[[airwallex.pay_later]]
+  payment_method_type = "atome"
 [airwallex.connector_auth.BodyKey]
 api_key = "API Key"
 key1 = "Client ID"
@@ -1985,6 +1999,76 @@ label = "Terminal ID"
 placeholder = "Enter Terminal ID"
 required = true
 type = "Text"
+
+[[fiserv.metadata.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[fiserv.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[fiserv.metadata.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
+[[fiserv.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+[[fiserv.connector_wallets_details.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[fiserv.connector_wallets_details.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[fiserv.connector_wallets_details.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
+[[fiserv.connector_wallets_details.google_pay]]
+name="public_key"
+label="Google Pay Public Key"
+placeholder="Enter Google Pay Public Key"
+required=true
+type="Text"
+[[fiserv.connector_wallets_details.google_pay]]
+name="private_key"
+label="Google Pay Private Key"
+placeholder="Enter Google Pay Private Key"
+required=true
+type="Text"
+[[fiserv.connector_wallets_details.google_pay]]
+name="recipient_id"
+label="Recipient Id"
+placeholder="Enter Recipient Id"
+required=true
+type="Text"
+[[fiserv.connector_wallets_details.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 [fiservemea]
 [[fiservemea.credit]]
@@ -6053,6 +6137,13 @@ payment_method_type = "pix"
 api_key = "Password"
 key1 = "Username"
 
+[facilitapay.metadata.destination_account_number]
+name="destination_account_number"
+label="Destination Account Number"
+placeholder="Enter Destination Account Number"
+required=true
+type="Text"
+
 [archipel]
 [archipel.connector_auth.HeaderKey]
 api_key = "Enter CA Certificate PEM"
@@ -6328,11 +6419,32 @@ merchant_secret="Source verification key"
 [affirm.connector_auth.HeaderKey]
 api_key = "API Key"
 
+[trustpayments]
+[trustpayments.connector_auth.HeaderKey]
+api_key = "API Key"
+
 [blackhawknetwork]
 [blackhawknetwork.connector_auth.HeaderKey]
 api_key = "API Key"
 
 [breadpay]
-[breadpay.connector_auth.HeaderKey]
+[breadpay.connector_auth.BodyKey]
 api_key = "API Key"
+key1 = "API Secret"
+
+[mpgs]
+[mpgs.connector_auth.HeaderKey]
+api_key = "API Key"
+
+[bluecode]
+[bluecode.connector_auth.HeaderKey]
+api_key = "API Key"
+
+[flexiti]
+[flexiti.connector_auth.bodykey]
+api_key = "Client id"
+key1 = "Client secret"
+[[flexiti.pay_later]]
+payment_method_type = "flexiti"
+payment_experience = "redirect_to_url"
 

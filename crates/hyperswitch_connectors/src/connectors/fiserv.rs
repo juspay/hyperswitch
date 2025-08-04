@@ -49,10 +49,7 @@ use transformers as fiserv;
 use uuid::Uuid;
 
 use crate::{
-    constants::headers,
-    types::ResponseRouterData,
-    utils as connector_utils,
-    utils::{construct_not_implemented_error_report, convert_amount},
+    constants::headers, types::ResponseRouterData, utils as connector_utils, utils::convert_amount,
 };
 
 #[derive(Clone)]
@@ -207,30 +204,13 @@ impl ConnectorCommon for Fiserv {
     }
 }
 
-impl ConnectorValidation for Fiserv {
-    fn validate_connector_against_payment_request(
-        &self,
-        capture_method: Option<enums::CaptureMethod>,
-        _payment_method: enums::PaymentMethod,
-        _pmt: Option<enums::PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            enums::CaptureMethod::Automatic
-            | enums::CaptureMethod::Manual
-            | enums::CaptureMethod::SequentialAutomatic => Ok(()),
-            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
-                construct_not_implemented_error_report(capture_method, self.id()),
-            ),
-        }
-    }
-}
-
 impl api::ConnectorAccessToken for Fiserv {}
 
 impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Fiserv {
     // Not Implemented (R)
 }
+
+impl ConnectorValidation for Fiserv {}
 
 impl api::Payment for Fiserv {}
 
@@ -965,6 +945,17 @@ static FISERV_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Laz
                     }
                 }),
             ),
+        },
+    );
+
+    fiserv_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        enums::PaymentMethodType::GooglePay,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
         },
     );
 

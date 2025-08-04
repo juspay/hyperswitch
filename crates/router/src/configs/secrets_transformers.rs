@@ -547,5 +547,6 @@ pub(crate) async fn fetch_raw_secrets(
         clone_connector_allowlist: conf.clone_connector_allowlist,
         merchant_id_auth: conf.merchant_id_auth,
         infra_values: conf.infra_values,
+        enhancement: conf.enhancement,
     }
 }

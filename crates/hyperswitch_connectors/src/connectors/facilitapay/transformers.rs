@@ -3,6 +3,8 @@ use common_enums::{enums, PaymentMethod};
 use common_utils::{
     errors::CustomResult,
     ext_traits::{BytesExt, Encode},
+    new_type::MaskedBankAccount,
+    pii,
     types::StringMajorUnit,
 };
 use error_stack::ResultExt;
@@ -18,6 +20,7 @@ use hyperswitch_interfaces::{
     consts, errors, events::connector_api_logs::ConnectorEvent, types::Response,
 };
 use masking::{ExposeInterface, Secret};
+use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
 
@@ -34,7 +37,7 @@ use super::{
 };
 use crate::{
     types::{RefreshTokenRouterData, RefundsResponseRouterData, ResponseRouterData},
-    utils::{is_payment_failure, missing_field_err, QrImage, RouterData as OtherRouterData},
+    utils::{self, is_payment_failure, missing_field_err, QrImage, RouterData as OtherRouterData},
 };
 type Error = error_stack::Report<errors::ConnectorError>;
 
@@ -47,6 +50,65 @@ impl<T> From<(StringMajorUnit, T)> for FacilitapayRouterData<T> {
     }
 }
 
+// Auth Struct
+#[derive(Debug, Clone)]
+pub struct FacilitapayAuthType {
+    pub(super) username: Secret<String>,
+    pub(super) password: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FacilitapayConnectorMetadataObject {
+    // pub destination_account_number: Secret<String>,
+    pub destination_account_number: MaskedBankAccount,
+}
+
+// Helper to build the request from Hyperswitch Auth Type
+impl FacilitapayAuthRequest {
+    fn from_auth_type(auth: &FacilitapayAuthType) -> Self {
+        Self {
+            user: FacilitapayCredentials {
+                username: auth.username.clone(),
+                password: auth.password.clone(),
+            },
+        }
+    }
+}
+
+impl TryFrom<&ConnectorAuthType> for FacilitapayAuthType {
+    type Error = Error;
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
+        match auth_type {
+            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+                username: key1.to_owned(),
+                password: api_key.to_owned(),
+            }),
+            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+        }
+    }
+}
+
+impl TryFrom<&RefreshTokenRouterData> for FacilitapayAuthRequest {
+    type Error = Error;
+    fn try_from(item: &RefreshTokenRouterData) -> Result<Self, Self::Error> {
+        let auth_type = FacilitapayAuthType::try_from(&item.connector_auth_type)?;
+        Ok(Self::from_auth_type(&auth_type))
+    }
+}
+
+impl TryFrom<&Option<pii::SecretSerdeValue>> for FacilitapayConnectorMetadataObject {
+    type Error = Error;
+
+    fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
+        let metadata: Self = utils::to_connector_meta_from_secret(meta_data.clone())
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "merchant_connector_account.metadata",
+            })?;
+
+        Ok(metadata)
+    }
+}
+
 impl TryFrom<&FacilitapayRouterData<&types::PaymentsAuthorizeRouterData>>
     for FacilitapayPaymentsRequest
 {
@@ -54,11 +116,13 @@ impl TryFrom<&FacilitapayRouterData<&types::PaymentsAuthorizeRouterData>>
     fn try_from(
         item: &FacilitapayRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
+        let metadata =
+            FacilitapayConnectorMetadataObject::try_from(&item.router_data.connector_meta_data)?;
+
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::BankTransfer(bank_transfer_data) => match *bank_transfer_data {
                 BankTransferData::Pix {
                     source_bank_account_id,
-                    destination_bank_account_id,
                     ..
                 } => {
                     // Set expiry time to 15 minutes from now
@@ -80,11 +144,7 @@ impl TryFrom<&FacilitapayRouterData<&types::PaymentsAuthorizeRouterData>>
                                 },
                             )?,
 
-                            to_bank_account_id: destination_bank_account_id.clone().ok_or(
-                                errors::ConnectorError::MissingRequiredField {
-                                    field_name: "destination bank account id",
-                                },
-                            )?,
+                            to_bank_account_id: metadata.destination_account_number,
                             currency: item.router_data.request.currency,
                             exchange_currency: item.router_data.request.currency,
                             value: item.amount.clone(),
@@ -112,6 +172,7 @@ impl TryFrom<&FacilitapayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | BankTransferData::InstantBankTransfer {}
                 | BankTransferData::InstantBankTransferFinland {}
                 | BankTransferData::InstantBankTransferPoland {}
+                | BankTransferData::IndonesianBankTransfer { .. }
                 | BankTransferData::LocalBankTransfer { .. } => {
                     Err(errors::ConnectorError::NotImplemented(
                         "Selected payment method through Facilitapay".to_string(),
@@ -143,46 +204,6 @@ impl TryFrom<&FacilitapayRouterData<&types::PaymentsAuthorizeRouterData>>
                 .into())
             }
         }
-    }
-}
-
-// Helper to build the request from Hyperswitch Auth Type
-impl FacilitapayAuthRequest {
-    fn from_auth_type(auth: &FacilitapayAuthType) -> Self {
-        Self {
-            user: FacilitapayCredentials {
-                username: auth.username.clone(),
-                password: auth.password.clone(),
-            },
-        }
-    }
-}
-
-// Auth Struct
-#[derive(Debug, Clone)]
-pub struct FacilitapayAuthType {
-    pub(super) username: Secret<String>,
-    pub(super) password: Secret<String>,
-}
-
-impl TryFrom<&ConnectorAuthType> for FacilitapayAuthType {
-    type Error = Error;
-    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
-        match auth_type {
-            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
-                username: key1.to_owned(),
-                password: api_key.to_owned(),
-            }),
-            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
-        }
-    }
-}
-
-impl TryFrom<&RefreshTokenRouterData> for FacilitapayAuthRequest {
-    type Error = Error;
-    fn try_from(item: &RefreshTokenRouterData) -> Result<Self, Self::Error> {
-        let auth_type = FacilitapayAuthType::try_from(&item.connector_auth_type)?;
-        Ok(Self::from_auth_type(&auth_type))
     }
 }
 
@@ -394,7 +415,13 @@ impl<F, T> TryFrom<ResponseRouterData<F, FacilitapayPaymentsResponse, T, Payment
         let status = if item.data.payment_method == PaymentMethod::BankTransfer
             && item.response.data.status == FacilitapayPaymentStatus::Identified
         {
-            common_enums::AttemptStatus::AuthenticationPending
+            if item.response.data.currency != item.response.data.exchange_currency {
+                // Cross-currency: Identified is not terminal
+                common_enums::AttemptStatus::Pending
+            } else {
+                // Local currency: Identified is terminal
+                common_enums::AttemptStatus::Charged
+            }
         } else {
             common_enums::AttemptStatus::from(item.response.data.status.clone())
         };

@@ -4066,3 +4066,96 @@ Cypress.Commands.add("setConfigs", (globalState, key, value, requestType) => {
     });
   });
 });
+
+// DDC Race Condition Test Commands
+Cypress.Commands.add(
+  "ddcServerSideRaceConditionTest",
+  (confirmData, globalState) => {
+    const ddcConfig = confirmData.DDCConfig;
+    const paymentId = globalState.get("paymentID");
+    const merchantId = globalState.get("merchantId");
+    const completeUrl = `${Cypress.env("BASEURL")}/payments/${paymentId}/${merchantId}${ddcConfig.completeUrlPath}`;
+
+    cy.request({
+      method: "GET",
+      url: completeUrl,
+      qs: {
+        [ddcConfig.collectionReferenceParam]: ddcConfig.firstSubmissionValue,
+      },
+      failOnStatusCode: false,
+    }).then((firstResponse) => {
+      if (
+        firstResponse.status === 400 &&
+        firstResponse.body?.error?.message?.includes("No eligible connector")
+      ) {
+        throw new Error(
+          `Connector configuration issue detected. Response: ${JSON.stringify(firstResponse.body)}`
+        );
+      }
+
+      expect(firstResponse.status).to.be.oneOf([200, 302]);
+      cy.log(`First request status: ${firstResponse.status}`);
+
+      cy.request({
+        method: "GET",
+        url: completeUrl,
+        qs: {
+          [ddcConfig.collectionReferenceParam]: ddcConfig.secondSubmissionValue,
+        },
+        failOnStatusCode: false,
+      }).then((secondResponse) => {
+        cy.log(`Second request status: ${secondResponse.status}`);
+
+        expect(secondResponse.status).to.eq(ddcConfig.expectedError.status);
+        expect(secondResponse.body).to.deep.equal(ddcConfig.expectedError.body);
+
+        cy.log(
+          "✅ Server-side race condition protection verified - second submission properly rejected"
+        );
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "ddcClientSideRaceConditionTest",
+  (confirmData, globalState) => {
+    const ddcConfig = confirmData.DDCConfig;
+    const paymentId = globalState.get("paymentID");
+    const merchantId = globalState.get("merchantId");
+    const nextActionUrl = `${Cypress.env("BASEURL")}${ddcConfig.redirectUrlPath}/${paymentId}/${merchantId}/${paymentId}_1`;
+
+    cy.intercept("GET", nextActionUrl, (req) => {
+      req.reply((res) => {
+        let modifiedHtml = res.body.toString();
+        modifiedHtml = modifiedHtml.replace(
+          "</body>",
+          ddcConfig.raceConditionScript + "</body>"
+        );
+        res.send(modifiedHtml);
+      });
+    }).as("ddcPageWithRaceCondition");
+
+    cy.intercept("GET", "**/redirect/complete/**").as("ddcSubmission");
+    const delayBeforeSubmission = ddcConfig.delayBeforeSubmission || 2000;
+
+    cy.visit(nextActionUrl);
+    cy.wait("@ddcPageWithRaceCondition");
+    cy.wait("@ddcSubmission");
+    cy.wait(delayBeforeSubmission);
+
+    cy.get("@ddcSubmission.all").should("have.length", 1);
+
+    cy.get("@ddcSubmission").then((interception) => {
+      const collectionRef =
+        interception.request.query[ddcConfig.collectionReferenceParam] || "";
+      cy.log(
+        `Single submission detected with ${ddcConfig.collectionReferenceParam}: "${collectionRef}"`
+      );
+    });
+
+    cy.log(
+      "✅ Client-side race condition protection verified - only one submission occurred"
+    );
+  }
+);

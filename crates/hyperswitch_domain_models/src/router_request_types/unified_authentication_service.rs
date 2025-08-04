@@ -5,7 +5,7 @@ use common_utils::types::MinorUnit;
 use masking::Secret;
 use time::PrimitiveDateTime;
 
-use crate::{address::Address, payment_method_data::PaymentMethodData};
+use crate::address::Address;
 
 #[derive(Clone, Debug)]
 pub struct UasPreAuthenticationRequestData {
@@ -43,9 +43,6 @@ pub struct AuthenticationInfo {
 }
 #[derive(Clone, Debug)]
 pub struct UasAuthenticationRequestData {
-    pub payment_method_data: PaymentMethodData,
-    pub billing_address: Address,
-    pub shipping_address: Option<Address>,
     pub browser_details: Option<super::BrowserInformation>,
     pub transaction_details: TransactionDetails,
     pub pre_authentication_data: super::authentication::PreAuthenticationData,
@@ -53,7 +50,6 @@ pub struct UasAuthenticationRequestData {
     pub sdk_information: Option<api_models::payments::SdkInformation>,
     pub email: Option<common_utils::pii::Email>,
     pub threeds_method_comp_ind: api_models::payments::ThreeDsCompletionIndicator,
-    pub three_ds_requestor_url: String,
     pub webhook_url: String,
 }
 

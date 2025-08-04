@@ -882,7 +882,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .as_ref()
             .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount);
 
-        let routing_approach = payment_data.payment_attempt.routing_approach;
+        let routing_approach = payment_data.payment_attempt.routing_approach.clone();
 
         payment_data.payment_attempt = state
             .store

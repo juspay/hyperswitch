@@ -28,10 +28,12 @@ impl From<enums::PayLaterType> for global_enums::PaymentMethodType {
             enums::PayLaterType::Affirm => Self::Affirm,
             enums::PayLaterType::AfterpayClearpay => Self::AfterpayClearpay,
             enums::PayLaterType::Alma => Self::Alma,
+            enums::PayLaterType::Flexiti => Self::Flexiti,
             enums::PayLaterType::Klarna => Self::Klarna,
             enums::PayLaterType::PayBright => Self::PayBright,
             enums::PayLaterType::Walley => Self::Walley,
             enums::PayLaterType::Atome => Self::Atome,
+            enums::PayLaterType::Breadpay => Self::Breadpay,
         }
     }
 }
@@ -129,6 +131,7 @@ impl From<enums::BankTransferType> for global_enums::PaymentMethodType {
             enums::BankTransferType::InstantBankTransfer => Self::InstantBankTransfer,
             enums::BankTransferType::InstantBankTransferFinland => Self::InstantBankTransferFinland,
             enums::BankTransferType::InstantBankTransferPoland => Self::InstantBankTransferPoland,
+            enums::BankTransferType::IndonesianBankTransfer => Self::IndonesianBankTransfer,
         }
     }
 }

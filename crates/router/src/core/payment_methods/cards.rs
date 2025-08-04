@@ -891,6 +891,14 @@ impl PaymentMethodsController for PmCards<'_> {
     }
 
     #[cfg(feature = "v1")]
+    async fn get_card_details_from_locker(
+        &self,
+        pm: &domain::PaymentMethod,
+    ) -> errors::RouterResult<api::CardDetailFromLocker> {
+        get_card_details_from_locker(self.state, pm).await
+    }
+
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn retrieve_payment_method(
         &self,
@@ -4205,6 +4213,7 @@ pub async fn list_customer_payment_method(
             &pm,
             Some(parent_payment_method_token.clone()),
             true,
+            false,
             &merchant_context,
         )
         .await?;
@@ -4349,6 +4358,7 @@ pub async fn list_customer_payment_method(
 }
 
 #[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
 pub async fn get_pm_list_context(
     state: &routes::SessionState,
     payment_method: &enums::PaymentMethod,
@@ -4358,6 +4368,7 @@ pub async fn get_pm_list_context(
     #[cfg(feature = "payouts")] parent_payment_method_token: Option<String>,
     #[cfg(not(feature = "payouts"))] _parent_payment_method_token: Option<String>,
     is_payment_associated: bool,
+    force_fetch_card_from_vault: bool,
     merchant_context: &domain::MerchantContext,
 ) -> Result<Option<PaymentMethodListContext>, error_stack::Report<errors::ApiErrorResponse>> {
     let cards = PmCards {
@@ -4366,7 +4377,11 @@ pub async fn get_pm_list_context(
     };
     let payment_method_retrieval_context = match payment_method {
         enums::PaymentMethod::Card => {
-            let card_details = cards.get_card_details_with_locker_fallback(pm).await?;
+            let card_details = if force_fetch_card_from_vault {
+                Some(cards.get_card_details_from_locker(pm).await?)
+            } else {
+                cards.get_card_details_with_locker_fallback(pm).await?
+            };
 
             card_details.as_ref().map(|card| PaymentMethodListContext {
                 card_details: Some(card.clone()),

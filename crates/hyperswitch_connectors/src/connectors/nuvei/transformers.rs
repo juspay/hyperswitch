@@ -1006,11 +1006,13 @@ where
                     get_pay_later_info(AlternativePaymentMethodType::AfterPay, item)
                 }
                 PayLaterData::KlarnaSdk { .. }
+                | PayLaterData::FlexitiRedirect {}
                 | PayLaterData::AffirmRedirect {}
                 | PayLaterData::PayBrightRedirect {}
                 | PayLaterData::WalleyRedirect {}
                 | PayLaterData::AlmaRedirect {}
-                | PayLaterData::AtomeRedirect {} => Err(errors::ConnectorError::NotImplemented(
+                | PayLaterData::AtomeRedirect {}
+                | PayLaterData::BreadpayRedirect {} => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("nuvei"),
                 )
                 .into()),

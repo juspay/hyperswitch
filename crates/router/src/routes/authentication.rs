@@ -1,7 +1,7 @@
 use actix_web::{web, HttpRequest, Responder};
-use api_models::authentication::AuthenticationCreateRequest;
 #[cfg(feature = "v1")]
 use api_models::authentication::AuthenticationEligibilityRequest;
+use api_models::authentication::{AuthenticationAuthenticateRequest, AuthenticationCreateRequest};
 use router_env::{instrument, tracing, Flow};
 
 use crate::{
@@ -74,6 +74,50 @@ pub async fn authentication_eligibility(
                 merchant_context,
                 req,
                 authentication_id.clone(),
+            )
+        },
+        &*auth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v1")]
+#[instrument(skip_all, fields(flow = ?Flow::AuthenticationAuthenticate))]
+pub async fn authentication_authenticate(
+    state: web::Data<app::AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<AuthenticationAuthenticateRequest>,
+    path: web::Path<common_utils::id_type::AuthenticationId>,
+) -> impl Responder {
+    let flow = Flow::AuthenticationAuthenticate;
+    let authentication_id = path.into_inner();
+    let api_auth = auth::ApiKeyAuth::default();
+    let payload = AuthenticationAuthenticateRequest {
+        authentication_id,
+        ..json_payload.into_inner()
+    };
+
+    let (auth, auth_flow) =
+        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
+            Ok((auth, auth_flow)) => (auth, auth_flow),
+            Err(e) => return api::log_and_return_error_response(e),
+        };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            unified_authentication_service::authentication_authenticate_core(
+                state,
+                merchant_context,
+                req,
+                auth_flow,
             )
         },
         &*auth,
