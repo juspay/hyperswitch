@@ -907,13 +907,14 @@ pub async fn add_dispute_list_sync_task_to_pt(
                 created_from: current_time,
                 profile_id
             };
-            let runner = common_enums::ProcessTrackerRunner::ProcessDisputeWorkflow;
+            let runner = common_enums::ProcessTrackerRunner::DisputeListSyncWorkflow;
             let task = "DISPUTE_LIST";
             let tag = ["LIST", "DISPUTE"];
+            let txn_id = format!("{}_{current_time}", merchant_connector_id.get_string_repr());
             let process_tracker_id = scheduler::utils::get_process_tracker_id(
                 runner,
                 task,
-                merchant_connector_id.get_string_repr(),
+                &txn_id,
                 &merchant_id,
             );
             let process_tracker_entry = diesel_models::ProcessTrackerNew::new(
@@ -928,6 +929,7 @@ pub async fn add_dispute_list_sync_task_to_pt(
             )
             .map_err(errors::StorageError::from)?;
             db.insert_process(process_tracker_entry).await?;
+            println!("ssssssss added to pT");
             Ok(())
         
 }
