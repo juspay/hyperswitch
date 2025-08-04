@@ -8457,6 +8457,7 @@ pub enum ProcessTrackerRunner {
     PaymentMethodStatusUpdateWorkflow,
     PassiveRecoveryWorkflow,
     ProcessDisputeWorkflow,
+    DisputeListSyncWorkflow,
 }
 
 #[derive(Debug)]

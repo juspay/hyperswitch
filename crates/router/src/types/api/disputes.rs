@@ -68,3 +68,13 @@ pub struct ProcessDisputePTData {
     pub dispute_payload: types::DisputeSyncResponse,
     pub merchant_id: common_utils::id_type::MerchantId,
 }
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct DisputeListPTData {
+    pub connector_name: String,
+    pub merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub created_from: time::PrimitiveDateTime,
+    pub profile_id: common_utils::id_type::ProfileId,
+}
+

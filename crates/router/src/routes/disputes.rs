@@ -98,7 +98,6 @@ pub async fn fetch_disputes(
                 state,
                 merchant_context,
                 connector_id.clone(),
-                auth.profile_id,
                 fetch_dispute_request.clone(),
             )
         },

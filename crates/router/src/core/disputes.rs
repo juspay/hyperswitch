@@ -5,7 +5,7 @@ use api_models::{
 };
 use common_utils::ext_traits::{Encode, ValueExt};
 use error_stack::ResultExt;
-use router_env::{instrument, tracing};
+use router_env::{instrument, tracing::{self, Instrument}};
 use strum::IntoEnumIterator;
 pub mod transformers;
 
@@ -716,7 +716,6 @@ pub async fn fetch_disputes_from_connector(
     state: SessionState,
     merchant_context: domain::MerchantContext,
     merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
-    profile_id: Option<common_utils::id_type::ProfileId>,
     req: FetchDisputesRequestData,
 ) -> RouterResponse<FetchDisputesResponse> {
     let db = &*state.store;
@@ -883,4 +882,52 @@ pub async fn add_process_dispute_task_to_pt(
         }
         None => Ok(()),
     }
+}
+
+
+
+#[cfg(feature = "v1")]
+pub async fn add_dispute_list_sync_task_to_pt(
+    db: &dyn StorageInterface,
+    connector_name: &str,
+    merchant_id: common_utils::id_type::MerchantId,
+    merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
+    schedule_time: time::PrimitiveDateTime,
+    current_time: time::PrimitiveDateTime,
+    profile_id: common_utils::id_type::ProfileId,
+) -> common_utils::errors::CustomResult<(), errors::StorageError> {
+            TASKS_ADDED_COUNT.add(
+                1,
+                router_env::metric_attributes!(("flow", "dispute_list_sync")),
+            );
+            let tracking_data = disputes::DisputeListPTData {
+                connector_name: connector_name.to_string(),
+                merchant_id: merchant_id.clone(),
+                merchant_connector_id: merchant_connector_id.clone(),
+                created_from: current_time,
+                profile_id
+            };
+            let runner = common_enums::ProcessTrackerRunner::ProcessDisputeWorkflow;
+            let task = "DISPUTE_LIST";
+            let tag = ["LIST", "DISPUTE"];
+            let process_tracker_id = scheduler::utils::get_process_tracker_id(
+                runner,
+                task,
+                merchant_connector_id.get_string_repr(),
+                &merchant_id,
+            );
+            let process_tracker_entry = diesel_models::ProcessTrackerNew::new(
+                process_tracker_id,
+                task,
+                runner,
+                tag,
+                tracking_data,
+                None,
+                schedule_time,
+                common_types::consts::API_VERSION,
+            )
+            .map_err(errors::StorageError::from)?;
+            db.insert_process(process_tracker_entry).await?;
+            Ok(())
+        
 }

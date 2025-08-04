@@ -13,3 +13,5 @@ pub mod tokenized_data;
 pub mod revenue_recovery;
 
 pub mod process_dispute;
+
+pub mod dispute_list_sync;

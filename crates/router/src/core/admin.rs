@@ -4,6 +4,8 @@ use api_models::{
     admin::{self as admin_types},
     enums as api_enums, routing as routing_types,
 };
+use std::ops::Deref;
+use tracing_futures::Instrument;
 use common_enums::{MerchantAccountRequestType, MerchantAccountType, OrganizationType};
 use common_utils::{
     date_time,
@@ -35,6 +37,7 @@ use crate::{
         payments::helpers,
         pm_auth::helpers::PaymentAuthConnectorDataExt,
         routing, utils as core_utils,
+        disputes::add_dispute_list_sync_task_to_pt,
     },
     db::{AccountsStorageInterface, StorageInterface},
     routes::{metrics, SessionState},
@@ -2602,6 +2605,41 @@ pub async fn create_connector(
                     .unwrap_or_default(),
             },
         )?;
+
+    let connector =  api_enums::Connector::from_str(&mca.connector_name)
+    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+        field_name: "connector",
+    })?;
+
+    if helpers::should_add_dispute_sync_task_to_pt(&state, connector) {
+        let offset_date_time = time::OffsetDateTime::now_utc(); 
+            let current_time = time::PrimitiveDateTime::new(offset_date_time.date(), offset_date_time.time());
+            let dispute_polling_interval = business_profile.dispute_polling_interval.map(|dispute_polling_interval| *dispute_polling_interval.deref()).unwrap_or(24);
+            let schedule_time = current_time
+    .checked_add(time::Duration::hours(dispute_polling_interval as i64))
+    .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+        println!("sssssssssss called 1");
+        let m_db = state.clone().store;
+        let connector_name = mca.connector_name.clone();
+        let merchant_id = mca.merchant_id.clone();
+        let merchant_connector_id = mca.merchant_connector_id.clone();
+        let business_profile_id = business_profile.get_id().clone();
+        tokio::spawn(
+            async move {
+                println!("sssssssssss called 2");
+                add_dispute_list_sync_task_to_pt(
+                    &*m_db,
+                    &connector_name,
+                    merchant_id.clone(),
+                    merchant_connector_id.clone(),
+                    schedule_time,
+                   current_time,
+                   business_profile_id)
+                .await
+            }
+            .in_current_span(),
+        );
+    }
 
     #[cfg(feature = "v1")]
     //update merchant default config
