@@ -18,18 +18,12 @@ use common_utils::consts;
 use dynamic_routing::{DynamicRoutingClientConfig, RoutingStrategy};
 #[cfg(feature = "dynamic_routing")]
 use health_check_client::HealthCheckClient;
-#[cfg(any(
-    feature = "dynamic_routing",
-    feature = "revenue_recovery"
-))]
+#[cfg(any(feature = "dynamic_routing", feature = "revenue_recovery"))]
 use hyper_util::client::legacy::connect::HttpConnector;
 #[cfg(feature = "dynamic_routing")]
 use router_env::logger;
 use serde;
-#[cfg(any(
-    feature = "dynamic_routing",
-    feature = "revenue_recovery"
-))]
+#[cfg(any(feature = "dynamic_routing", feature = "revenue_recovery"))]
 use tonic::body::Body;
 
 #[cfg(feature = "revenue_recovery")]
@@ -43,10 +37,7 @@ use crate::grpc_client::unified_connector_service::{
     UnifiedConnectorServiceClient, UnifiedConnectorServiceClientConfig,
 };
 
-#[cfg(any(
-    feature = "dynamic_routing",
-    feature = "revenue_recovery"
-))]
+#[cfg(any(feature = "dynamic_routing", feature = "revenue_recovery"))]
 /// Hyper based Client type for maintaining connection pool for all gRPC services
 pub type Client = hyper_util::client::legacy::Client<HttpConnector, Body>;
 
@@ -87,10 +78,7 @@ impl GrpcClientSettings {
     #[allow(clippy::expect_used)]
     pub async fn get_grpc_client_interface(&self) -> Arc<GrpcClients> {
         // Define the hyper client if any gRPC feature is enabled
-        #[cfg(any(
-            feature = "dynamic_routing",
-            feature = "revenue_recovery"
-        ))]
+        #[cfg(any(feature = "dynamic_routing", feature = "revenue_recovery"))]
         let client =
             hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new())
                 .http2_only(true)
