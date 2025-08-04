@@ -229,17 +229,17 @@ bank_redirect.trustly.connector_list = "adyen"
 bank_redirect.open_banking_uk.connector_list = "adyen"
 
 [mandates.supported_payment_methods]
-bank_debit.ach = { connector_list = "gocardless,adyen,stripe" }                 
-bank_debit.becs = { connector_list = "gocardless,stripe,adyen" }                      
-bank_debit.bacs = { connector_list = "stripe,gocardless" }                           
-bank_debit.sepa = { connector_list = "gocardless,adyen,stripe,deutschebank" }                
+bank_debit.ach = { connector_list = "gocardless,adyen,stripe" }
+bank_debit.becs = { connector_list = "gocardless,stripe,adyen" }
+bank_debit.bacs = { connector_list = "stripe,gocardless" }
+bank_debit.sepa = { connector_list = "gocardless,adyen,stripe,deutschebank" }
 card.credit.connector_list = "stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,payload"
 card.debit.connector_list = "stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,payload"
-pay_later.klarna.connector_list = "adyen,aci"                       
-wallet.apple_pay.connector_list = "stripe,adyen,cybersource,noon,bankofamerica,nexinets,novalnet,authorizedotnet,wellsfargo"        
+pay_later.klarna.connector_list = "adyen,aci"
+wallet.apple_pay.connector_list = "stripe,adyen,cybersource,noon,bankofamerica,nexinets,novalnet,authorizedotnet,wellsfargo"
 wallet.samsung_pay.connector_list = "cybersource"
-wallet.google_pay.connector_list = "stripe,adyen,cybersource,bankofamerica,noon,globalpay,multisafepay,novalnet,authorizedotnet,wellsfargo"            
-wallet.paypal.connector_list = "adyen,globalpay,nexinets,novalnet,paypal,authorizedotnet"                         
+wallet.google_pay.connector_list = "stripe,adyen,cybersource,bankofamerica,noon,globalpay,multisafepay,novalnet,authorizedotnet,wellsfargo"
+wallet.paypal.connector_list = "adyen,globalpay,nexinets,novalnet,paypal,authorizedotnet"
 wallet.momo.connector_list = "adyen"
 wallet.kakao_pay.connector_list = "adyen"
 wallet.go_pay.connector_list = "adyen"
@@ -248,17 +248,17 @@ wallet.dana.connector_list = "adyen"
 wallet.twint.connector_list = "adyen"
 wallet.vipps.connector_list = "adyen"
 
-bank_redirect.ideal.connector_list = "stripe,adyen,globalpay,multisafepay,nexinets,aci"   
-bank_redirect.sofort.connector_list = "globalpay,aci,multisafepay"  
-bank_redirect.giropay.connector_list = "globalpay,multisafepay,nexinets,aci"        
+bank_redirect.ideal.connector_list = "stripe,adyen,globalpay,multisafepay,nexinets,aci"
+bank_redirect.sofort.connector_list = "globalpay,aci,multisafepay"
+bank_redirect.giropay.connector_list = "globalpay,multisafepay,nexinets,aci"
 bank_redirect.bancontact_card.connector_list="adyen,stripe"
 bank_redirect.trustly.connector_list="adyen,aci"
 bank_redirect.open_banking_uk.connector_list="adyen"
 bank_redirect.eps.connector_list="globalpay,nexinets,aci,multisafepay"
 
 [mandates.update_mandate_supported]
-card.credit = { connector_list = "cybersource" }            # Update Mandate supported payment method type and connector for card 
-card.debit = { connector_list = "cybersource" }             # Update Mandate supported payment method type and connector for card 
+card.credit = { connector_list = "cybersource" }            # Update Mandate supported payment method type and connector for card
+card.debit = { connector_list = "cybersource" }             # Update Mandate supported payment method type and connector for card
 
 [network_transaction_id_supported_connectors]
 connector_list = "adyen,archipel,cybersource,novalnet,stripe,worldpay,worldpayvantiv"
@@ -432,8 +432,8 @@ google_pay = { currency = "USD" }
 samsung_pay = { currency = "USD" }
 
 [pm_filters.cybersource]
-credit = { currency = "USD,GBP,EUR,PLN,SEK" }
-debit = { currency = "USD,GBP,EUR,PLN,SEK" }
+credit = { currency = "USD,GBP,EUR,PLN,SEK,XOF" }
+debit = { currency = "USD,GBP,EUR,PLN,SEK,XOF" }
 apple_pay = { currency = "ARS, CAD, CLP, COP, CNY, EUR, HKD, KWD, MYR, MXN, NZD, PEN, QAR, SAR, SGD, ZAR, UAH, GBP, AED, USD, PLN, SEK" }
 google_pay = { currency = "ARS, AUD, CAD, CLP, COP, EUR, HKD, INR, KWD, MYR, MXN, NZD, PEN, QAR, SAR, SGD, ZAR, UAH, AED, GBP, USD, PLN, SEK" }
 samsung_pay = { currency = "USD,GBP,EUR,SEK" }
@@ -761,6 +761,9 @@ eft = { country = "NG, ZA, GH, KE, CI", currency = "NGN, GHS, ZAR, KES, USD" }
 [pm_filters.santander]
 pix = { country = "BR", currency = "BRL" }
 
+[pm_filters.bluecode]
+bluecode = { country = "AT,BE,BG,HR,CY,CZ,DK,EE,FI,FR,DE,GR,HU,IE,IT,LV,LT,LU,MT,NL,PL,PT,RO,SK,SI,ES,SE,IS,LI,NO", currency = "EUR" }
+
 [payout_method_filters.stripe]
 ach = { country = "US", currency = "USD" }
 
@@ -828,5 +831,5 @@ billing_connectors_which_requires_invoice_sync_call = "recurly"
 click_to_pay = {connector_list = "adyen, cybersource, trustpay"}
 
 [revenue_recovery]
-monitoring_threshold_in_seconds = 2592000 
-retry_algorithm_type = "cascading" 
+monitoring_threshold_in_seconds = 2592000
+retry_algorithm_type = "cascading"

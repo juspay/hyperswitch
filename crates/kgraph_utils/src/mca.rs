@@ -40,6 +40,7 @@ fn get_dir_value_payment_method(
             Ok(dirval!(PayLaterType = AfterpayClearpay))
         }
         api_enums::PaymentMethodType::GooglePay => Ok(dirval!(WalletType = GooglePay)),
+        api_enums::PaymentMethodType::Bluecode => Ok(dirval!(WalletType = Bluecode)),
         api_enums::PaymentMethodType::ApplePay => Ok(dirval!(WalletType = ApplePay)),
         api_enums::PaymentMethodType::Paypal => Ok(dirval!(WalletType = Paypal)),
         api_enums::PaymentMethodType::CryptoCurrency => Ok(dirval!(CryptoType = CryptoCurrency)),
