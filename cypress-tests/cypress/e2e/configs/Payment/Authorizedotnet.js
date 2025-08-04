@@ -3,6 +3,9 @@ import {
   multiUseMandateData,
   singleUseMandateData,
 } from "./Commons";
+import {
+  generateRandomEmail,
+} from "../../../utils/RequestBodyUtils";
 
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
@@ -56,6 +59,7 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        email: generateRandomEmail(),
       },
       Response: {
         status: 200,
@@ -71,6 +75,7 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "off_session",
+        email: generateRandomEmail(),
       },
       Response: {
         status: 200,
@@ -83,6 +88,7 @@ export const connectorDetails = {
       Request: {
         currency: "USD",
         shipping_cost: 50,
+        email: generateRandomEmail(),
       },
       Response: {
         status: 200,
@@ -101,6 +107,7 @@ export const connectorDetails = {
         },
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        email: generateRandomEmail(),
       },
       Response: {
         status: 200,
@@ -122,6 +129,7 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        email: generateRandomEmail(),
       },
       Response: {
         status: 200,
@@ -140,6 +148,7 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        email: generateRandomEmail(),
       },
       Response: {
         status: 200,
@@ -158,6 +167,7 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        email: generateRandomEmail(),
       },
       Response: {
         status: 200,
@@ -176,6 +186,7 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        email: generateRandomEmail(),
       },
       Response: {
         status: 200,
@@ -193,6 +204,7 @@ export const connectorDetails = {
         },
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        email: generateRandomEmail(),
       },
       Response: {
         status: 200,
@@ -310,6 +322,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
+        email: generateRandomEmail(),
       },
       Response: {
         status: 200,
@@ -327,6 +340,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
+        email: generateRandomEmail(),
       },
       Response: {
         status: 200,
@@ -344,6 +358,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
+        email: generateRandomEmail(),
       },
       Response: {
         status: 200,
@@ -361,6 +376,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
+        email: generateRandomEmail(),
       },
       Response: {
         status: 200,
@@ -377,6 +393,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: multiUseMandateData,
+        email: generateRandomEmail(),
       },
       Response: {
         status: 200,
@@ -394,6 +411,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: multiUseMandateData,
+        email: generateRandomEmail(),
       },
       Response: {
         status: 200,
@@ -411,6 +429,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: multiUseMandateData,
+        email: generateRandomEmail(),
       },
       Response: {
         status: 200,
@@ -428,6 +447,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: multiUseMandateData,
+        email: generateRandomEmail(),
       },
       Response: {
         status: 200,
@@ -463,6 +483,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
+        email: generateRandomEmail(),
       },
       Response: {
         status: 200,
@@ -493,6 +514,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        email: generateRandomEmail(),
       },
       Response: {
         status: 200,
@@ -511,6 +533,7 @@ export const connectorDetails = {
         currency: "USD",
         setup_future_usage: "on_session",
         customer_acceptance: customerAcceptance,
+        email: generateRandomEmail(),
       },
       Response: {
         status: 200,
@@ -528,6 +551,7 @@ export const connectorDetails = {
         },
         setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance,
+        email: generateRandomEmail(),
       },
       Response: {
         status: 200,
@@ -545,6 +569,7 @@ export const connectorDetails = {
         },
         setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance,
+        email: generateRandomEmail(),
       },
       Response: {
         status: 200,
@@ -561,6 +586,7 @@ export const connectorDetails = {
         },
         setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance,
+        email: generateRandomEmail(),
       },
       Response: {
         status: 200,
@@ -572,6 +598,7 @@ export const connectorDetails = {
     SaveCardConfirmAutoCaptureOffSession: {
       Request: {
         setup_future_usage: "off_session",
+        email: generateRandomEmail(),
       },
       Response: {
         status: 200,
@@ -583,6 +610,7 @@ export const connectorDetails = {
     SaveCardConfirmManualCaptureOffSession: {
       Request: {
         setup_future_usage: "off_session",
+        email: generateRandomEmail(),
       },
       Response: {
         status: 200,
@@ -600,6 +628,7 @@ export const connectorDetails = {
         currency: "USD",
         setup_future_usage: "on_session",
         customer_acceptance: customerAcceptance,
+        email: generateRandomEmail(),
       },
       Response: {
         status: 200,
@@ -617,6 +646,7 @@ export const connectorDetails = {
         currency: "USD",
         mandate_data: null,
         customer_acceptance: customerAcceptance,
+        email: generateRandomEmail(),
       },
       Response: {
         status: 200,
@@ -634,6 +664,7 @@ export const connectorDetails = {
         currency: "USD",
         mandate_data: null,
         customer_acceptance: customerAcceptance,
+        email: generateRandomEmail(),
       },
       Response: {
         status: 200,
@@ -652,6 +683,7 @@ export const connectorDetails = {
         mandate_data: null,
         authentication_type: "three_ds",
         customer_acceptance: customerAcceptance,
+        email: generateRandomEmail(),
       },
       Response: {
         status: 200,
@@ -669,6 +701,7 @@ export const connectorDetails = {
         mandate_data: null,
         authentication_type: "three_ds",
         customer_acceptance: customerAcceptance,
+        email: generateRandomEmail(),
       },
       Response: {
         status: 200,
