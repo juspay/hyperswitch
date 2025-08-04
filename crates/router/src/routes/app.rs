@@ -557,9 +557,20 @@ impl AppState {
 
 pub struct Health;
 
+#[feature = "v1"]
 impl Health {
     pub fn server(state: AppState) -> Scope {
         web::scope("health")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::get().to(health)))
+            .service(web::resource("/ready").route(web::get().to(deep_health_check)))
+    }
+}
+
+#[feature = "v2"]
+impl Health {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/v2/health")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::get().to(health)))
             .service(web::resource("/ready").route(web::get().to(deep_health_check)))
