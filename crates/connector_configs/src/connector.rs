@@ -133,6 +133,7 @@ pub struct ConfigMetadata {
     pub platform_url: Option<InputData>,
     pub report_group: Option<InputData>,
     pub proxy_url: Option<InputData>,
+    pub shop_name: Option<InputData>,
 }
 
 #[serde_with::skip_serializing_none]
