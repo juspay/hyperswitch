@@ -301,7 +301,7 @@ export const connectorDetails = {
         },
       },
     },
-    Capture: {
+    Capture: getCustomExchange({
       Request: {
         amount_to_capture: 6000,
       },
@@ -314,7 +314,16 @@ export const connectorDetails = {
           amount_received: 6000,
         },
       },
-    },
+      ResponseCustom: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount: 8000,
+          amount_capturable: 0,
+          amount_received: 8000,
+        },
+      },
+    }),
     PartialCapture: {
       Request: {
         amount_to_capture: 2000,
@@ -394,7 +403,7 @@ export const connectorDetails = {
       Configs: {
         CONNECTOR_CREDENTIAL: {
           specName: ["incrementalAuth"],
-          value: "connector_3",
+          value: "connector_2",
         },
       },
       Request: {
