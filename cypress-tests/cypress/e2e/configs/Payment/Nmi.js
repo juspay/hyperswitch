@@ -1,6 +1,6 @@
 const successfulNo3DSCardDetails = {
-  card_number: "4000000000002503",
-  card_exp_month: "08",
+  card_number: "4532111111111112",
+  card_exp_month: "10",
   card_exp_year: "50",
   card_holder_name: "joseph Doe",
   card_cvc: "999",
@@ -255,6 +255,14 @@ export const connectorDetails = {
       },
     },
     ZeroAuthMandate: {
+      Request: {
+        payment_type: "setup_mandate",
+        payment_method: "card",
+        setup_future_usage: "off_session",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+      },
       Response: {
         status: 200,
         body: {
@@ -280,6 +288,7 @@ export const connectorDetails = {
       Request: {
         payment_type: "setup_mandate",
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -555,6 +564,35 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+        },
+      },
+    },
+    PaymentIntentOffSession: {
+      Request: {
+        amount: 6000,
+        authentication_type: "no_three_ds",
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    SaveCardConfirmAutoCaptureOffSession: {
+      Request: {
+        setup_future_usage: "off_session",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     },
