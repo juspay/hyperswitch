@@ -521,13 +521,11 @@ pub async fn perform_static_routing_v1(
                     logger::error!(error=?e, "decision_engine_euclid_evaluation_error: Failed to extract connector from Output");
                     e
                 }).unwrap_or_default();
-            let a = transform_de_output_for_router(
+            transform_de_output_for_router(
                 de_output_conenctor.clone(),
                 de_euclid_evaluate_response.evaluated_output.clone(),
             )
-            .expect("not found");
-            // de_euclid_evaluate_response.evaluated_output
-            a
+            .expect("not found")
         } else {
             // errors are ignored as this is just for diff checking as of now (optional flow).
             logger::error!("decision_engine_euclid_evaluation_error: error in evaluation of rule");
@@ -559,9 +557,6 @@ pub async fn perform_static_routing_v1(
         routable_connectors.clone(),
         "evaluate_routing".to_string(),
     );
-
-    logger::error!("<<<<<<32<<<<<<{:?}>>>>>>>>>>>>>>>>", de_evaluated_connector);
-    logger::error!("<<<<<<44<<<<<<{:?}>>>>>>>>>>>>>>>>", routable_connectors);
 
     Ok((
         utils::select_routing_result(

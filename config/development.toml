@@ -1206,8 +1206,8 @@ click_to_pay = {connector_list = "adyen, cybersource"}
 
 [open_router]
 dynamic_routing_enabled = false
-static_routing_enabled = true
-url = "http://localhost:8082"
+static_routing_enabled = false
+url = "http://localhost:8080"
 
 [grpc_client.unified_connector_service]
 host = "localhost"

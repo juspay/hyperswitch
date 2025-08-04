@@ -349,10 +349,12 @@ pub async fn perform_decision_euclid_routing(
 
     logger::debug!(decision_engine_euclid_response=?euclid_response,"decision_engine_euclid");
     logger::debug!(decision_engine_euclid_selected_connector=?euclid_response.evaluated_output,"decision_engine_euclid");
-    logger::error!(">>>>>>>>>>>>0>>>>>>>>>{:?}", euclid_response.output);
     Ok(euclid_response)
 }
 
+/// This function transforms the the decision_engine response in a way, that can be usable, for the
+/// further flows, basically adding the evaluated_output to the top of output and removing the
+/// duplicacy
 pub fn transform_de_output_for_router(
     de_output: Vec<ConnectorInfo>,
     de_evaluated_output: Vec<RoutableConnectorChoice>,
@@ -369,15 +371,11 @@ pub fn transform_de_output_for_router(
 
     let mut seen = HashSet::new();
     let mut ordered = Vec::with_capacity(de_output.len() + de_evaluated_output.len());
-
-    // Add evaluated output first
     for eval_conn in &de_evaluated_output {
         if seen.insert(eval_conn.connector.clone()) {
             ordered.push(eval_conn.clone());
         }
     }
-
-    // Add remaining from de_output
     for conn in de_output {
         let key = RoutableConnectors::from_str(&conn.gateway_name).map_err(|_| {
             errors::RoutingError::GenericConversionError {
@@ -385,16 +383,17 @@ pub fn transform_de_output_for_router(
                 to: "RoutableConnectors".to_string(),
             }
         })?;
-
         if seen.insert(key) {
             let de_choice = DeRoutableConnectorChoice::try_from(conn)?;
             ordered.push(RoutableConnectorChoice::from(de_choice));
         }
     }
-
     Ok(ordered)
 }
 
+/// Custom deserializer for output from decision_engine, this is required as untagged enum is
+/// stored but the enum requires tagged deserialization, hence deserializing it into specific
+/// variants
 pub fn extract_de_output_connectors(
     output_value: serde_json::Value,
 ) -> RoutingResult<Vec<ConnectorInfo>> {
