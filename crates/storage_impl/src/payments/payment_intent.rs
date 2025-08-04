@@ -958,69 +958,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             PaymentIntentFetchConstraints::Single { payment_intent_id } => {
                 query = query.filter(pi_dsl::payment_id.eq(payment_intent_id.to_owned()));
             }
-            PaymentIntentFetchConstraints::ListGet(params) => {
-                if let Some(limit) = params.limit {
-                    query = query.limit(limit.into());
-                }
-
-                if let Some(customer_id) = &params.customer_id {
-                    query = query.filter(pi_dsl::customer_id.eq(customer_id.clone()));
-                }
-                if let Some(profile_id) = &params.profile_id {
-                    query = query.filter(pi_dsl::profile_id.eq(profile_id.clone()));
-                }
-
-                query = match (params.starting_at, &params.starting_after_id) {
-                    (Some(starting_at), _) => query.filter(pi_dsl::created_at.ge(starting_at)),
-                    (None, Some(starting_after_id)) => {
-                        // TODO: Fetch partial columns for this query since we only need some columns
-                        let starting_at = self
-                            .find_payment_intent_by_payment_id_merchant_id(
-                                state,
-                                starting_after_id,
-                                merchant_id,
-                                merchant_key_store,
-                                storage_scheme,
-                            )
-                            .await?
-                            .created_at;
-                        query.filter(pi_dsl::created_at.ge(starting_at))
-                    }
-                    (None, None) => query,
-                };
-
-                query = match (params.ending_at, &params.ending_before_id) {
-                    (Some(ending_at), _) => query.filter(pi_dsl::created_at.le(ending_at)),
-                    (None, Some(ending_before_id)) => {
-                        // TODO: Fetch partial columns for this query since we only need some columns
-                        let ending_at = self
-                            .find_payment_intent_by_payment_id_merchant_id(
-                                state,
-                                ending_before_id,
-                                merchant_id,
-                                merchant_key_store,
-                                storage_scheme,
-                            )
-                            .await?
-                            .created_at;
-                        query.filter(pi_dsl::created_at.le(ending_at))
-                    }
-                    (None, None) => query,
-                };
-
-                query = query.offset(params.offset.into());
-
-                query = match &params.currency {
-                    Some(currency) => query.filter(pi_dsl::currency.eq(currency.clone())),
-                    None => query,
-                };
-
-                query = match &params.status {
-                    Some(status) => query.filter(pi_dsl::status.eq(status.clone())),
-                    None => query,
-                };
-            }
-            PaymentIntentFetchConstraints::ListPost(params) => {
+            PaymentIntentFetchConstraints::List(params) => {
                 if let Some(limit) = params.limit {
                     query = query.limit(limit.into());
                 }
@@ -1205,8 +1143,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             PaymentIntentFetchConstraints::Single { payment_intent_id } => {
                 query.filter(pi_dsl::payment_id.eq(payment_intent_id.to_owned()))
             }
-            PaymentIntentFetchConstraints::ListGet(params)
-            | PaymentIntentFetchConstraints::ListPost(params) => {
+            PaymentIntentFetchConstraints::List(params) => {
                 query = match params.order {
                     Order {
                         on: SortOn::Amount,

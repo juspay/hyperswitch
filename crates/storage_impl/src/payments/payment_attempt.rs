@@ -497,7 +497,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
 
     #[cfg(all(feature = "v1", feature = "olap"))]
     #[instrument(skip_all)]
-    async fn get_total_count_of_filtered_payment_attempts_post(
+    async fn get_total_count_of_filtered_payment_attempts(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         active_attempt_ids: &[String],
@@ -1727,7 +1727,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
 
     #[cfg(all(feature = "v1", feature = "olap"))]
     #[instrument(skip_all)]
-    async fn get_total_count_of_filtered_payment_attempts_post(
+    async fn get_total_count_of_filtered_payment_attempts(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         active_attempt_ids: &[String],
