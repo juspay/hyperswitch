@@ -5075,7 +5075,6 @@ where
                     "Apple Pay wallet data not found in the payment method data during the Apple Pay decryption flow",
                 )?;
 
-        // here we can add a validation to check if the apple pay wallet data is of type ecrypted
         let apple_pay_data =
             ApplePayData::token_json(domain::WalletData::ApplePay(apple_pay_wallet_data.clone()))
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -5090,7 +5089,7 @@ where
 
         let apple_pay_predecrypt_internal = apple_pay_data
             .parse_value::<hyperswitch_domain_models::router_data::ApplePayPredecryptDataInternal>(
-                "ApplePayPredecryptData",
+                "ApplePayPredecryptDataInternal",
             )
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable(
