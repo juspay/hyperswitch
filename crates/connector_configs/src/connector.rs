@@ -6,7 +6,6 @@ use api_models::{
     enums::{AuthenticationConnectors, Connector, PmAuthConnectors, TaxConnectors},
     payments,
 };
-use masking::Secret;
 use serde::{Deserialize, Serialize};
 use toml;
 
