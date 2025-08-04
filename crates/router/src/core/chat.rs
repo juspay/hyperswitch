@@ -50,7 +50,7 @@ pub async fn get_data_from_hyperswitch_ai_workflow(
         org_id: user_from_token.org_id.clone(),
         merchant_id: user_from_token.merchant_id.clone(),
         profile_id: user_from_token.profile_id.clone(),
-        role_id: role_info.get_role_id(),
+        role_id: role_info.get_role_id().to_string(),
     };
     logger::info!("Request for AI service: {:?}", request_body);
 
