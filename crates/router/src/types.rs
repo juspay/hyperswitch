@@ -39,7 +39,7 @@ use hyperswitch_domain_models::router_flow_types::{
         Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture,
         CompleteAuthorize, CreateConnectorCustomer, CreateOrder, IncrementalAuthorization,
         InitPayment, PSync, PostProcessing, PostSessionTokens, PreProcessing, Reject,
-        SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
+        SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void, PostCaptureVoid,
     },
     refunds::{Execute, RSync},
     webhooks::VerifyWebhookSource,
@@ -72,7 +72,7 @@ pub use hyperswitch_domain_models::{
         CompleteAuthorizeRedirectResponse, ConnectorCustomerData, CreateOrderRequestData,
         DefendDisputeRequestData, DestinationChargeRefund, DirectChargeRefund,
         MandateRevokeRequestData, MultipleCaptureRequestData, PaymentMethodTokenizationData,
-        PaymentsApproveData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        PaymentsApproveData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
         PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
         PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
@@ -103,7 +103,7 @@ pub use hyperswitch_interfaces::types::{
     MandateRevokeType, PaymentsAuthorizeType, PaymentsBalanceType, PaymentsCaptureType,
     PaymentsCompleteAuthorizeType, PaymentsInitType, PaymentsPostProcessingType,
     PaymentsPostSessionTokensType, PaymentsPreAuthorizeType, PaymentsPreProcessingType,
-    PaymentsSessionType, PaymentsSyncType, PaymentsUpdateMetadataType, PaymentsVoidType,
+    PaymentsSessionType, PaymentsSyncType, PaymentsUpdateMetadataType, PaymentsVoidType,PaymentsPostCaptureVoidType,
     RefreshTokenType, RefundExecuteType, RefundSyncType, Response, RetrieveFileType,
     SdkSessionUpdateType, SetupMandateType, SubmitEvidenceType, TokenizationType, UploadFileType,
     VerifyWebhookSourceType,
@@ -164,6 +164,7 @@ pub type PaymentsUpdateMetadataRouterData =
     RouterData<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsResponseData>;
 
 pub type PaymentsCancelRouterData = RouterData<Void, PaymentsCancelData, PaymentsResponseData>;
+pub type PaymentsCancelPostCaptureRouterData = RouterData<PostCaptureVoid, PaymentsCancelPostCaptureData, PaymentsResponseData>;
 pub type PaymentsRejectRouterData = RouterData<Reject, PaymentsRejectData, PaymentsResponseData>;
 pub type PaymentsApproveRouterData = RouterData<Approve, PaymentsApproveData, PaymentsResponseData>;
 pub type PaymentsSessionRouterData = RouterData<Session, PaymentsSessionData, PaymentsResponseData>;
@@ -184,6 +185,8 @@ pub type PaymentsResponseRouterData<R> =
     ResponseRouterData<Authorize, R, PaymentsAuthorizeData, PaymentsResponseData>;
 pub type PaymentsCancelResponseRouterData<R> =
     ResponseRouterData<Void, R, PaymentsCancelData, PaymentsResponseData>;
+pub type PaymentsCancelPostCaptureResponseRouterData<R> =
+    ResponseRouterData<PostCaptureVoid, R, PaymentsCancelPostCaptureData, PaymentsResponseData>;
 pub type PaymentsBalanceResponseRouterData<R> =
     ResponseRouterData<Balance, R, PaymentsAuthorizeData, PaymentsResponseData>;
 pub type PaymentsSyncResponseRouterData<R> =
@@ -416,6 +419,43 @@ impl Capturable for SdkPaymentsSessionUpdateData {}
 impl Capturable for PaymentsPostSessionTokensData {}
 impl Capturable for PaymentsUpdateMetadataData {}
 impl Capturable for PaymentsCancelData {
+    fn get_captured_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
+    where
+        F: Clone,
+    {
+        // return previously captured amount
+        payment_data
+            .payment_intent
+            .amount_captured
+            .map(|amt| amt.get_amount_as_i64())
+    }
+    fn get_amount_capturable<F>(
+        &self,
+        _payment_data: &PaymentData<F>,
+        attempt_status: common_enums::AttemptStatus,
+    ) -> Option<i64>
+    where
+        F: Clone,
+    {
+        let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
+        match intent_status {
+            common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::PartiallyCaptured
+            | common_enums::IntentStatus::Conflicted
+            | common_enums::IntentStatus::Expired => Some(0),
+            common_enums::IntentStatus::Succeeded
+            | common_enums::IntentStatus::Failed
+            | common_enums::IntentStatus::RequiresCustomerAction
+            | common_enums::IntentStatus::RequiresMerchantAction
+            | common_enums::IntentStatus::RequiresPaymentMethod
+            | common_enums::IntentStatus::RequiresConfirmation
+            | common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+        }
+    }
+}
+impl Capturable for PaymentsCancelPostCaptureData {
     fn get_captured_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
     where
         F: Clone,

@@ -10,7 +10,7 @@ use crate::{
         CompleteAuthorize, CreateConnectorCustomer, CreateOrder, Execute, IncrementalAuthorization,
         PSync, PaymentMethodToken, PostAuthenticate, PostSessionTokens, PreAuthenticate,
         PreProcessing, RSync, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata,
-        VerifyWebhookSource, Void,
+        VerifyWebhookSource, Void,PostCaptureVoid,
     },
     router_request_types::{
         revenue_recovery::{
@@ -24,7 +24,7 @@ use crate::{
         },
         AccessTokenRequestData, AuthorizeSessionTokenData, CompleteAuthorizeData,
         ConnectorCustomerData, CreateOrderRequestData, MandateRevokeRequestData,
-        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
         PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostSessionTokensData,
         PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
         PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData,
@@ -52,6 +52,7 @@ pub type PaymentsPreProcessingRouterData =
 pub type PaymentsSyncRouterData = RouterData<PSync, PaymentsSyncData, PaymentsResponseData>;
 pub type PaymentsCaptureRouterData = RouterData<Capture, PaymentsCaptureData, PaymentsResponseData>;
 pub type PaymentsCancelRouterData = RouterData<Void, PaymentsCancelData, PaymentsResponseData>;
+pub type PaymentsCancelPostCaptureRouterData = RouterData<PostCaptureVoid, PaymentsCancelPostCaptureData, PaymentsResponseData>;
 pub type SetupMandateRouterData =
     RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>;
 pub type RefundsRouterData<F> = RouterData<F, RefundsData, RefundsResponseData>;

@@ -81,7 +81,7 @@ use time;
 
 #[cfg(feature = "v1")]
 pub use self::operations::{
-    PaymentApprove, PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate,
+    PaymentApprove, PaymentCancel,PaymentCancelPostCapture, PaymentCapture, PaymentConfirm, PaymentCreate,
     PaymentIncrementalAuthorization, PaymentPostSessionTokens, PaymentReject, PaymentSession,
     PaymentSessionUpdate, PaymentStatus, PaymentUpdate, PaymentUpdateMetadata,
 };
@@ -6877,6 +6877,11 @@ where
                 ) && payment_data.get_force_sync().unwrap_or(false)
         }
         "PaymentCancel" => matches!(
+            payment_data.get_payment_intent().status,
+            storage_enums::IntentStatus::RequiresCapture
+                | storage_enums::IntentStatus::PartiallyCapturedAndCapturable
+        ),
+        "PaymentCancelPostCapture" => matches!(
             payment_data.get_payment_intent().status,
             storage_enums::IntentStatus::RequiresCapture
                 | storage_enums::IntentStatus::PartiallyCapturedAndCapturable

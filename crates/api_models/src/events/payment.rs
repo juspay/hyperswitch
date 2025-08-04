@@ -12,7 +12,7 @@ use crate::{
     payment_methods::PaymentMethodListResponse,
     payments::{
         ExtendedCardInfoResponse, PaymentIdType, PaymentListFilterConstraints,
-        PaymentListResponseV2, PaymentsApproveRequest, PaymentsCancelRequest,
+        PaymentListResponseV2, PaymentsApproveRequest, PaymentsCancelRequest, PaymentsCancelPostCaptureRequest,
         PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
         PaymentsDynamicTaxCalculationRequest, PaymentsDynamicTaxCalculationResponse,
         PaymentsExternalAuthenticationRequest, PaymentsExternalAuthenticationResponse,
@@ -125,6 +125,15 @@ impl ApiEventMetric for PaymentsDynamicTaxCalculationResponse {}
 
 #[cfg(feature = "v1")]
 impl ApiEventMetric for PaymentsCancelRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.payment_id.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ApiEventMetric for PaymentsCancelPostCaptureRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Payment {
             payment_id: self.payment_id.clone(),

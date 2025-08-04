@@ -6,14 +6,14 @@ use hyperswitch_domain_models::{
             Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
             CreateConnectorCustomer, IncrementalAuthorization, PSync, PaymentMethodToken,
             PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
-            SetupMandate, UpdateMetadata, Void,
+            SetupMandate, UpdateMetadata, Void, PostCaptureVoid,
         },
         CreateOrder,
     },
     router_request_types::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
         CreateOrderRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        PaymentsAuthorizeData, PaymentsCancelData,PaymentsCancelPostCaptureData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
         PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
         PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
@@ -35,6 +35,7 @@ pub trait Payment:
     + PaymentSync
     + PaymentCapture
     + PaymentVoid
+    + PaymentPostCaptureVoid
     + PaymentApprove
     + PaymentReject
     + MandateSetup
@@ -84,6 +85,12 @@ pub trait PaymentSync:
 /// trait PaymentVoid
 pub trait PaymentVoid:
     api::ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData>
+{
+}
+
+/// trait PaymentPostCaptureVoid
+pub trait PaymentPostCaptureVoid:
+    api::ConnectorIntegration<PostCaptureVoid, PaymentsCancelPostCaptureData, PaymentsResponseData>
 {
 }
 
