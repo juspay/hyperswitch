@@ -1,7 +1,7 @@
 #[allow(clippy::expect_used)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Compilation for v2 protos
-    #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+    #[cfg(feature = "revenue_recovery")]
     {
         let proto_base_path = router_env::workspace_path().join("proto");
         let out_dir = std::path::PathBuf::from(std::env::var("OUT_DIR")?);

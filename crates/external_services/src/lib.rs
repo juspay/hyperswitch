@@ -28,7 +28,7 @@ pub mod managers;
 /// crm module
 pub mod crm;
 
-#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+#[cfg(feature = "revenue_recovery")]
 /// date_time module
 pub mod date_time {
     use prost_types::Timestamp;

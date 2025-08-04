@@ -16,8 +16,6 @@ v1 = ["hyperswitch_interfaces/v1", "common_utils/v1"]
 v2 = ["hyperswitch_interfaces/v2", "common_utils/v2"]
 revenue_recovery = [
     "dep:prost",
-    "dep:tonic",
-    "dep:tonic-build",
     "dep:router_env",
     "tokio/macros",
     "tokio/rt-multi-thread",
@@ -58,7 +56,7 @@ prost = { version = "0.13", optional = true }
 prost-types = { version = "0.13", optional = true }
 time = { version = "0.3.41", features = ["serde", "serde-well-known", "std"] }
 tokio = "1.45.1"
-tonic = { version = "0.13.1", optional = true }
+tonic =  "0.13.1"
 tonic-reflection = "0.13.1"
 tonic-types = "0.13.1"
 hyper-util = { version = "0.1.12", optional = true }
@@ -82,7 +80,7 @@ api_models = { version = "0.1.0", path = "../api_models", optional = true }
 
 
 [build-dependencies]
-tonic-build = { version = "0.13.1", optional = true }
+tonic-build =  "0.13.1"
 router_env = { version = "0.1.0", path = "../router_env", default-features = false, optional = true }
 
 [lints]

@@ -339,6 +339,7 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
     }
 }
 
+#[cfg(feature = "v2")]
 #[derive(Debug)]
 struct InternalDeciderRequest {
     first_error_message: String,
@@ -351,6 +352,7 @@ struct InternalDeciderRequest {
     retry_count: f64,
 }
 
+#[cfg(feature = "v2")]
 impl From<InternalDeciderRequest> for external_grpc_client::DeciderRequest {
     fn from(internal_request: InternalDeciderRequest) -> Self {
         Self {
