@@ -19,10 +19,8 @@ pub mod types {
     #[serde(rename_all = "UPPERCASE")]
     #[strum(serialize_all = "UPPERCASE")]
     pub enum VaultType {
-        Vgs,
-        Skyflow,
-        Basis,
-        Hashicorp,
+        /// VGS vault - direct token replacement without modifications
+        Vgs
     }
 
     #[derive(
@@ -138,6 +136,9 @@ pub mod types {
         pub endpoint_path: String,
         pub http_method: HttpMethod,
         pub headers: HashMap<String, String>,
+        /// Optional proxy URL for environments without direct internet access
+        /// Equivalent to curl's -x parameter (e.g., "http://proxy.company.com:8080")
+        pub proxy_url: Option<String>,
     }
 
     #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -147,13 +148,8 @@ pub mod types {
         pub connection_config: ConnectionConfig,
     }
 
-    #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
-    pub struct InjectorResponse {
-        pub success: bool,
-        pub message: String,
-        pub processed_payload: Option<String>,
-        pub response_data: Option<serde_json::Value>,
-    }
+    // Direct serde_json::Value response for connector-agnostic handling
+    pub type InjectorResponse = serde_json::Value;
 }
 
 // Re-export all types when v2 feature is enabled

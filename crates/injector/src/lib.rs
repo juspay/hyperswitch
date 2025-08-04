@@ -46,6 +46,15 @@ pub mod injector_core {
         pub field: String,
     }
 
+    // Utility function to safely mask tokens for logging
+    fn mask_token(token: &str) -> String {
+        if token.len() <= 8 {
+            "*".repeat(token.len())
+        } else {
+            format!("{}***{}", &token[..4], &token[token.len()-4..])
+        }
+    }
+
     pub fn parse_token(input: &str) -> IResult<&str, TokenReference> {
         let (input, field) = delimited(
             tag("{{"),
@@ -103,13 +112,14 @@ pub mod injector_core {
             &self,
             value: Value,
             vault_data: &Value,
+            vault_type: &injector::VaultType,
         ) -> error_stack::Result<Value, InjectorError> {
             match value {
                 Value::Object(obj) => {
                     let new_obj = obj
                         .into_iter()
                         .map(|(key, val)| {
-                            self.interpolate_token_references_with_vault_data(val, vault_data)
+                            self.interpolate_token_references_with_vault_data(val, vault_data, vault_type)
                                 .map(|processed| (key, processed))
                         })
                         .collect::<error_stack::Result<serde_json::Map<_, _>, InjectorError>>()?;
@@ -117,7 +127,7 @@ pub mod injector_core {
                 }
                 Value::String(s) => {
                     if let Ok((_, token_ref)) = parse_token(&s) {
-                        self.extract_field_from_vault_data(vault_data, &token_ref.field)
+                        self.extract_field_from_vault_data(vault_data, &token_ref.field, vault_type)
                     } else {
                         Ok(Value::String(s))
                     }
@@ -127,18 +137,37 @@ pub mod injector_core {
         }
 
         #[instrument(skip_all)]
-        fn extract_field_from_vault_data(&self, vault_data: &Value, field_name: &str) -> error_stack::Result<Value, InjectorError> {
-            logger::debug!("Extracting field '{}' from vault data", field_name);
+        fn extract_field_from_vault_data(&self, vault_data: &Value, field_name: &str, vault_type: &injector::VaultType) -> error_stack::Result<Value, InjectorError> {
+            logger::debug!("Extracting field '{}' from vault data using vault type {:?}", field_name, vault_type);
+            
             match vault_data {
                 Value::Object(obj) => {
-                    find_field_recursively_in_vault_data(obj, field_name)
+                    let raw_value = find_field_recursively_in_vault_data(obj, field_name)
                         .ok_or_else(|| {
                             error_stack::Report::new(InjectorError::TokenReplacementFailed(format!("Field '{field_name}' not found")))
-                        })
+                        })?;
+                    
+                    // Apply vault-specific token transformation
+                    self.apply_vault_specific_transformation(raw_value, vault_type, field_name)
                 }
                 _ => Err(error_stack::Report::new(InjectorError::TokenReplacementFailed(
                     "Vault data is not a valid JSON object".to_string(),
                 ))),
+            }
+        }
+
+        #[instrument(skip_all)]
+        fn apply_vault_specific_transformation(
+            &self, 
+            token_value: Value, 
+            vault_type: &injector::VaultType, 
+            field_name: &str
+        ) -> error_stack::Result<Value, InjectorError> {
+            match vault_type {
+                injector::VaultType::Vgs => {
+                    logger::debug!("VGS vault: Using direct token replacement for field '{}'", field_name);
+                    Ok(token_value)
+                }
             }
         }
 
@@ -235,9 +264,29 @@ pub mod injector_core {
             }
             
             let request = request_builder.build();
-
-            // Use default proxy for now
-            let proxy = Proxy::default();
+            
+            let proxy = if let Some(proxy_url) = &config.proxy_url {
+                logger::debug!("Using proxy: {}", proxy_url);
+                // Determine if it's HTTP or HTTPS proxy based on URL scheme
+                if proxy_url.starts_with("https://") {
+                    Proxy {
+                        http_url: None,
+                        https_url: Some(proxy_url.clone()),
+                        idle_pool_connection_timeout: Some(90),
+                        bypass_proxy_hosts: None,
+                    }
+                } else {
+                    Proxy {
+                        http_url: Some(proxy_url.clone()),
+                        https_url: None,
+                        idle_pool_connection_timeout: Some(90),
+                        bypass_proxy_hosts: None,
+                    }
+                }
+            } else {
+                logger::debug!("No proxy configured, using direct connection");
+                Proxy::default()
+            };
             
             // Send request using external_services http_client
             logger::debug!("Sending HTTP request to connector");
@@ -320,9 +369,13 @@ pub mod injector_core {
                 "Processing token injection request"
             );
             
-            // Process template string directly
+            // Process template string directly with vault-specific logic
             let template_value = Value::String(domain_request.connector_payload.template);
-            let processed_value = self.interpolate_token_references_with_vault_data(template_value, &vault_data)?;
+            let processed_value = self.interpolate_token_references_with_vault_data(
+                template_value, 
+                &vault_data, 
+                &domain_request.token_data.vault_type
+            )?;
             
             let processed_payload = match processed_value {
                 Value::String(s) => s,
@@ -352,36 +405,18 @@ pub mod injector_core {
                 })
                 .unwrap_or(ContentType::ApplicationXWwwFormUrlencoded);
             
-            // Make HTTP request to connector
-            match self.make_http_request(&domain_request.connection_config, &processed_payload, &content_type).await {
-                Ok(response_data) => {
-                    let elapsed = start_time.elapsed();
-                    logger::info!(
-                        duration_ms = elapsed.as_millis(),
-                        "Token injection completed successfully"
-                    );
-                    Ok(InjectorResponse {
-                        success: true,
-                        message: "Token injection completed successfully".to_string(),
-                        processed_payload: Some(processed_payload),
-                        response_data: Some(response_data),
-                    })
-                }
-                Err(e) => {
-                    let elapsed = start_time.elapsed();
-                    logger::error!(
-                        duration_ms = elapsed.as_millis(),
-                        error = ?e,
-                        "Token injection failed"
-                    );
-                    Ok(InjectorResponse {
-                        success: false,
-                        message: format!("Token injection failed: {}", e),
-                        processed_payload: Some(processed_payload),
-                        response_data: None,
-                    })
-                }
-            }
+            // Make HTTP request to connector and return raw response
+            let response_data = self.make_http_request(&domain_request.connection_config, &processed_payload, &content_type).await?;
+            
+            let elapsed = start_time.elapsed();
+            logger::info!(
+                duration_ms = elapsed.as_millis(),
+                response_size = serde_json::to_string(&response_data).map(|s| s.len()).unwrap_or(0),
+                "Token injection completed successfully"
+            );
+            
+            // Return the raw connector response for connector-agnostic handling
+            Ok(response_data)
         }
     }
 }
@@ -411,7 +446,9 @@ mod tests {
             "exp_year": "tok_sandbox_2026"
         });
         
-        let result = injector.interpolate_token_references_with_vault_data(template, &vault_data).unwrap();
+        // Test with VGS vault (direct replacement)
+        let vault_type = injector::VaultType::Vgs;
+        let result = injector.interpolate_token_references_with_vault_data(template, &vault_data, &vault_type).unwrap();
         assert_eq!(result, serde_json::Value::String("card_number=tok_sandbox_card123&cvv=tok_sandbox_cvv456&expiry=tok_sandbox_12/tok_sandbox_2026&amount=50&currency=USD&transaction_type=purchase".to_string()));
     }
 
@@ -424,7 +461,8 @@ mod tests {
             "card_number": "4111111111111111"
         });
         
-        let result = injector.interpolate_token_references_with_vault_data(template, &vault_data);
+        let vault_type = injector::VaultType::Vgs;
+        let result = injector.interpolate_token_references_with_vault_data(template, &vault_data, &vault_type);
         assert!(result.is_err());
     }
 
@@ -441,6 +479,43 @@ mod tests {
         let obj = vault_data.as_object().unwrap();
         let result = find_field_recursively_in_vault_data(obj, "number");
         assert_eq!(result, Some(serde_json::Value::String("4111111111111111".to_string())));
+    }
+
+    #[test]
+    fn test_vault_specific_token_handling() {
+        let injector = Injector::new();
+        let template = serde_json::Value::String("{{$card_number}}".to_string());
+        
+        let vault_data = serde_json::json!({
+            "card_number": "tok_sandbox_4111111111111111"
+        });
+        
+        // Test VGS vault - direct replacement
+        let vgs_result = injector.interpolate_token_references_with_vault_data(
+            template.clone(), 
+            &vault_data, 
+            &injector::VaultType::Vgs
+        ).unwrap();
+        assert_eq!(vgs_result, serde_json::Value::String("tok_sandbox_4111111111111111".to_string()));
+        
+        // Test Skyflow vault - should also work (but could have different processing)
+        let skyflow_result = injector.interpolate_token_references_with_vault_data(
+            template.clone(), 
+            &vault_data, 
+            &injector::VaultType::Skyflow
+        ).unwrap();
+        assert_eq!(skyflow_result, serde_json::Value::String("tok_sandbox_4111111111111111".to_string()));
+        
+        // Test Basis vault with specific token format
+        let basis_vault_data = serde_json::json!({
+            "card_number": "token_basis_card123"
+        });
+        let basis_result = injector.interpolate_token_references_with_vault_data(
+            template.clone(), 
+            &basis_vault_data, 
+            &injector::VaultType::Basis
+        ).unwrap();
+        assert_eq!(basis_result, serde_json::Value::String("token_basis_card123".to_string()));
     }
 }
 
