@@ -14,7 +14,7 @@ use external_services::email::{
     no_email::NoEmailClient, ses::AwsSes, smtp::SmtpServer, EmailClientConfigs, EmailService,
 };
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
-use external_services::grpc_client::revenue_recovery::common::GrpcRecoveryHeaders;
+use external_services::grpc_client::revenue_recovery::GrpcRecoveryHeaders;
 use external_services::{
     file_storage::FileStorageInterface,
     grpc_client::{GrpcClients, GrpcHeaders},

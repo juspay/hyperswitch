@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use common_utils::errors::CustomResult;
 use error_stack::{Report, ResultExt};
 use router_env::logger;
+use tokio::sync::watch::error;
 
 use crate::grpc_client::Client;
 
@@ -44,7 +45,7 @@ pub trait RecoveryDeciderClientInterface: dyn_clone::DynClone + Send + Sync + De
     async fn decide_on_retry(
         &mut self,
         request_payload: DeciderRequest,
-        recovery_headers: super::common::GrpcRecoveryHeaders,
+        recovery_headers: super::GrpcRecoveryHeaders,
     ) -> RecoveryDeciderResult<DeciderResponse>;
 }
 
@@ -62,11 +63,9 @@ impl RecoveryDeciderClientConfig {
     pub fn get_recovery_decider_connection(
         &self,
         hyper_client: Client,
-    ) -> Result<DeciderClient<Client>, Report<RecoveryDeciderError>> {
+    ) -> Result<Option<DeciderClient<Client>>, Report<RecoveryDeciderError>> {
         if self.base_url.is_empty() {
-            return Err(Report::new(RecoveryDeciderError::ConfigError(
-                "Base URL is not configured for Recovery Decider client".to_string(),
-            )));
+            return Ok(None);
         }
 
         let uri = self
@@ -80,7 +79,7 @@ impl RecoveryDeciderClientConfig {
 
         let service_client = DeciderClient::with_origin(hyper_client, uri);
 
-        Ok(service_client)
+        Ok(Some(service_client))
     }
 }
 
@@ -90,20 +89,19 @@ impl RecoveryDeciderClientInterface for DeciderClient<Client> {
     async fn decide_on_retry(
         &mut self,
         request_payload: DeciderRequest,
-        recovery_headers: super::common::GrpcRecoveryHeaders,
+        recovery_headers: super::GrpcRecoveryHeaders,
     ) -> RecoveryDeciderResult<DeciderResponse> {
         let request =
-            super::common::create_revenue_recovery_grpc_request(request_payload, recovery_headers);
+            super::create_revenue_recovery_grpc_request(request_payload, recovery_headers);
 
         logger::debug!(decider_request =?request);
 
         let grpc_response = self
             .decide(request)
             .await
-            .map_err(|status| {
-                logger::error!(grpc_error =?status, "Decider service call failed");
-                RecoveryDeciderError::ServiceError(status.message().to_string())
-            })?
+            .change_context(RecoveryDeciderError::ServiceError(
+                "Decider service call failed".to_string(),
+            ))?
             .into_inner();
 
         logger::debug!(grpc_decider_response =?grpc_response);

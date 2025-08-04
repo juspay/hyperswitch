@@ -21,7 +21,7 @@ revenue_recovery = [
     "tokio/rt-multi-thread",
     "dep:hyper-util",
     "dep:http-body-util",
-    "prost-types",
+    "dep:prost-types",
 ]
 dynamic_routing = [
     "dep:prost",
@@ -56,7 +56,7 @@ prost = { version = "0.13", optional = true }
 prost-types = { version = "0.13", optional = true }
 time = { version = "0.3.41", features = ["serde", "serde-well-known", "std"] }
 tokio = "1.45.1"
-tonic =  "0.13.1"
+tonic = "0.13.1"
 tonic-reflection = "0.13.1"
 tonic-types = "0.13.1"
 hyper-util = { version = "0.1.12", optional = true }
@@ -80,7 +80,7 @@ api_models = { version = "0.1.0", path = "../api_models", optional = true }
 
 
 [build-dependencies]
-tonic-build =  "0.13.1"
+tonic-build = "0.13.1"
 router_env = { version = "0.1.0", path = "../router_env", default-features = false, optional = true }
 
 [lints]

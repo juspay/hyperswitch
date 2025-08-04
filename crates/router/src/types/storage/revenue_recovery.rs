@@ -9,7 +9,7 @@ use hyperswitch_domain_models::{
     payments::{payment_attempt::PaymentAttempt, PaymentIntent},
 };
 use masking::PeekInterface;
-use prost_types::Timestamp;
+// use prost_types::Timestamp;
 use router_env::logger;
 
 use crate::{db::StorageInterface, routes::SessionState, workflows::revenue_recovery};
@@ -76,5 +76,5 @@ pub struct RevenueRecoverySettings {
 #[derive(Debug, serde::Deserialize, Clone, Default)]
 pub struct RecoveryTimestamp {
     pub initial_timestamp_in_hours: i64,
-    pub final_timestamp_in_days: i64,
+    pub final_timestamp_in_hours: i64,
 }

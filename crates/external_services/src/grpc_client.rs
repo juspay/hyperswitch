@@ -27,11 +27,12 @@ use serde;
 use tonic::body::Body;
 
 #[cfg(feature = "revenue_recovery")]
-pub use self::revenue_recovery::common::GrpcRecoveryHeaders;
-#[cfg(feature = "revenue_recovery")]
-pub use self::revenue_recovery::recovery_decider_client::{
-    DeciderRequest, DeciderResponse, RecoveryDeciderClientConfig, RecoveryDeciderClientInterface,
-    RecoveryDeciderError, RecoveryDeciderResult,
+pub use self::revenue_recovery::{
+    recovery_decider_client::{
+        DeciderRequest, DeciderResponse, RecoveryDeciderClientConfig,
+        RecoveryDeciderClientInterface, RecoveryDeciderError, RecoveryDeciderResult,
+    },
+    GrpcRecoveryHeaders,
 };
 use crate::grpc_client::unified_connector_service::{
     UnifiedConnectorServiceClient, UnifiedConnectorServiceClientConfig,
@@ -50,7 +51,7 @@ pub struct GrpcClients {
     /// Health Check client for all gRPC services
     #[cfg(feature = "dynamic_routing")]
     pub health_client: HealthCheckClient,
-    /// Recovery Decoder Client
+    /// Recovery Decider Client
     #[cfg(feature = "revenue_recovery")]
     pub recovery_decider_client: Option<Box<dyn RecoveryDeciderClientInterface>>,
     /// Unified Connector Service client
@@ -77,7 +78,6 @@ impl GrpcClientSettings {
     /// This function will be called at service startup.
     #[allow(clippy::expect_used)]
     pub async fn get_grpc_client_interface(&self) -> Arc<GrpcClients> {
-        // Define the hyper client if any gRPC feature is enabled
         #[cfg(any(feature = "dynamic_routing", feature = "revenue_recovery"))]
         let client =
             hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new())
@@ -108,6 +108,7 @@ impl GrpcClientSettings {
             .map(|config| config.get_recovery_decider_connection(client.clone()))
             .transpose()
             .expect("Failed to establish a connection with the Recovery Decider Server")
+            .flatten()
             .map(|client| -> Box<dyn RecoveryDeciderClientInterface> { Box::new(client) });
 
         Arc::new(GrpcClients {

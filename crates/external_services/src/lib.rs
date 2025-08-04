@@ -32,12 +32,11 @@ pub mod crm;
 /// date_time module
 pub mod date_time {
     use prost_types::Timestamp;
-    use time::{OffsetDateTime, PrimitiveDateTime};
 
-    use super::grpc_client::revenue_recovery::common;
+    use super::grpc_client::revenue_recovery;
 
     /// Converts a `time::PrimitiveDateTime` to a `prost_types::Timestamp`.
-    pub fn convert_to_prost_timestamp(dt: PrimitiveDateTime) -> Timestamp {
+    pub fn convert_to_prost_timestamp(dt: time::PrimitiveDateTime) -> Timestamp {
         let odt = dt.assume_utc();
         Timestamp {
             seconds: odt.unix_timestamp(),
@@ -50,15 +49,13 @@ pub mod date_time {
     /// Converts a `prost_types::Timestamp` to an `time::PrimitiveDateTime`.
     pub fn convert_from_prost_timestamp(
         ts: &Timestamp,
-    ) -> error_stack::Result<PrimitiveDateTime, common::DateTimeConversionError> {
+    ) -> error_stack::Result<time::PrimitiveDateTime, revenue_recovery::DateTimeConversionError>
+    {
         let timestamp_nanos = i128::from(ts.seconds) * 1_000_000_000 + i128::from(ts.nanos);
 
-        OffsetDateTime::from_unix_timestamp_nanos(timestamp_nanos)
-            .map(|offset_dt| PrimitiveDateTime::new(offset_dt.date(), offset_dt.time()))
-            .map_err(|original_error| {
-                router_env::logger::error!("Prost timestamp conversion failed: {original_error:?}");
-                error_stack::report!(common::DateTimeConversionError::TimestampOutOfRange)
-            })
+        time::OffsetDateTime::from_unix_timestamp_nanos(timestamp_nanos)
+            .map(|offset_dt| time::PrimitiveDateTime::new(offset_dt.date(), offset_dt.time()))
+            .change_context(revenue_recovery::DateTimeConversionError::TimestampOutOfRange)
     }
 }
 

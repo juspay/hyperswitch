@@ -213,7 +213,7 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                 let action = Box::pin(Action::payment_sync_call(
                     state,
                     revenue_recovery_payment_data,
-                    payment_intent.clone(),
+                    payment_intent,
                     &process_tracker,
                     payment_attempt,
                 ))
@@ -570,7 +570,7 @@ impl Action {
     pub async fn payment_sync_call(
         state: &SessionState,
         revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
-        payment_intent: PaymentIntent,
+        payment_intent: &PaymentIntent,
         process: &storage::ProcessTracker,
         payment_attempt: payment_attempt::PaymentAttempt,
     ) -> RecoveryResult<Self> {
@@ -593,7 +593,7 @@ impl Action {
                         process.clone(),
                         revenue_recovery_payment_data,
                         &payment_attempt,
-                        &payment_intent,
+                        payment_intent,
                     )
                     .await
                 }

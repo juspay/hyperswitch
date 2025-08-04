@@ -10,9 +10,9 @@ use diesel_models::types::BillingConnectorPaymentMethodDetails;
 #[cfg(feature = "v2")]
 use error_stack::ResultExt;
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
-use external_services::date_time;
-#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
-use external_services::grpc_client::revenue_recovery::recovery_decider_client as external_grpc_client;
+use external_services::{
+    date_time, grpc_client::revenue_recovery::recovery_decider_client as external_grpc_client,
+};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
@@ -222,10 +222,10 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
     payment_intent: &PaymentIntent,
     retry_count: i32,
 ) -> Option<time::PrimitiveDateTime> {
-    let first_error_message = payment_attempt
-        .error
-        .as_ref()
-        .map_or(String::new(), |error| error.message.clone());
+    let first_error_message = payment_attempt.error.as_ref().map_or(
+        hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string(),
+        |error| error.message.clone(),
+    );
 
     let billing_state = payment_intent
         .billing_address
@@ -243,7 +243,7 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
         );
     }
 
-    let payment_revenue_recovery_metadata = payment_intent
+    let billing_connector_payment_method_details = payment_intent
         .feature_metadata
         .as_ref()
         .and_then(|revenue_recovery_data| {
@@ -257,20 +257,16 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
                 .as_ref()
         });
 
-    let card_network_str = payment_revenue_recovery_metadata
+    let card_network_str = billing_connector_payment_method_details
         .and_then(|details| match details {
             BillingConnectorPaymentMethodDetails::Card(card_info) => card_info.card_network.clone(),
-            _ => None,
         })
         .map(|cn| cn.to_string())?;
 
-    let card_issuer_str = payment_revenue_recovery_metadata.and_then(|details| match details {
-        BillingConnectorPaymentMethodDetails::Card(card_info) => card_info.card_issuer.clone(),
-        _ => None,
-    })?;
-
-    // will remove this after we are getting the card issuer from Stripe
-    // .unwrap_or("CHASE".to_string());
+    let card_issuer_str =
+        billing_connector_payment_method_details.and_then(|details| match details {
+            BillingConnectorPaymentMethodDetails::Card(card_info) => card_info.card_issuer.clone(),
+        })?;
 
     let card_funding_str = payment_intent
         .feature_metadata
@@ -284,15 +280,14 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
 
     let start_time_primitive = payment_intent.created_at;
     let recovery_timestamp_config = &state.conf.revenue_recovery.recovery_timestamp;
-    // 1 hr after the actual start time
+
     let modified_start_time_primitive = start_time_primitive.saturating_add(time::Duration::hours(
         recovery_timestamp_config.initial_timestamp_in_hours,
     ));
     let start_time_proto = date_time::convert_to_prost_timestamp(modified_start_time_primitive);
 
-    // Calculate end_time as start_time + 30 days
-    let end_time_primitive = start_time_primitive.saturating_add(time::Duration::days(
-        recovery_timestamp_config.final_timestamp_in_days,
+    let end_time_primitive = start_time_primitive.saturating_add(time::Duration::hours(
+        recovery_timestamp_config.final_timestamp_in_hours,
     ));
     let end_time_proto = date_time::convert_to_prost_timestamp(end_time_primitive);
 

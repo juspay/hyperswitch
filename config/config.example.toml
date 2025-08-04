@@ -1146,7 +1146,7 @@ host = "localhost"                      # Unified Connector Service Client Host
 port = 8000                             # Unified Connector Service Client Port
 connection_timeout = 10                 # Connection Timeout Duration in Seconds
 
-[grpc_client.recovery_decider_client]
+[grpc_client.recovery_decider_client] # Revenue recovery client base url
 base_url = "http://127.0.0.1:8080" #Base URL
 
 [billing_connectors_invoice_sync]
@@ -1155,6 +1155,10 @@ billing_connectors_which_requires_invoice_sync_call = "recurly" # List of billin
 [revenue_recovery]
 monitoring_threshold_in_seconds = 2592000 # 30*24*60*60 secs , threshold for monitoring the retry system
 retry_algorithm_type = "cascading" # type of retry algorithm
+
+[revenue_recovery.recovery_timestamp] # Timestamp configuration for Revenue Recovery
+initial_timestamp_in_hours = 1          # number of hours added to start time for Decider service of Revenue Recovery
+final_timestamp_in_hours = 720          # number of days added to start time for ent time in Revenue Recovery
 
 [clone_connector_allowlist]
 merchant_ids = "merchant_ids"           # Comma-separated list of allowed merchant IDs
