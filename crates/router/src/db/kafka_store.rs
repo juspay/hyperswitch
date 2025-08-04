@@ -4128,9 +4128,11 @@ impl HyperswitchAiInteractionInterface for KafkaStore {
         limit: i64,
         offset: i64,
     ) -> CustomResult<Vec<storage::HyperswitchAiInteraction>, errors::StorageError> {
-            self.diesel_store.list_hyperswitch_ai_interactions(merchant_id, limit, offset).await
+        self.diesel_store
+            .list_hyperswitch_ai_interactions(merchant_id, limit, offset)
+            .await
     }
-}   
+}
 
 #[async_trait::async_trait]
 impl ThemeInterface for KafkaStore {

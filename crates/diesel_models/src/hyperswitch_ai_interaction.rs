@@ -1,11 +1,20 @@
-use common_utils::{encryption::Encryption, pii, types::Description};
+use common_utils::encryption::Encryption;
 use diesel::{self, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::schema::hyperswitch_ai_interaction;
 
-#[derive(Clone, Debug, Deserialize, Identifiable, Queryable, Selectable, Serialize)]
+#[derive(
+    Clone,
+    Debug,
+    Deserialize,
+    Identifiable,
+    Queryable,
+    Selectable,
+    Serialize,
+    router_derive::DebugAsDisplay,
+)]
 #[diesel(table_name = hyperswitch_ai_interaction, primary_key(id), check_for_backend(diesel::pg::Pg))]
 pub struct HyperswitchAiInteraction {
     pub id: String,
@@ -18,7 +27,6 @@ pub struct HyperswitchAiInteraction {
     pub user_query: Option<Encryption>,
     pub response: Option<Encryption>,
     pub database_query: Option<String>,
-    // we can also add a variable for interaction flow
     pub interaction_status: Option<String>,
     pub created_at: PrimitiveDateTime,
 }

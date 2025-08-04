@@ -4,7 +4,6 @@ use hyperswitch_interfaces::secrets_interface::{
     secret_state::{RawSecret, SecretStateContainer, SecuredSecret},
     SecretManagementInterface, SecretsManagementError,
 };
-use masking::PeekInterface;
 
 use crate::settings::{self, Settings};
 
