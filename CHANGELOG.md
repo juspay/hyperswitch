@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.08.04.1
+
+### Bug Fixes
+
+- **wasm:** [BLUECODE] Added metadata configs for dashboard ([#8824](https://github.com/juspay/hyperswitch/pull/8824)) ([`5ac15cd`](https://github.com/juspay/hyperswitch/commit/5ac15cd4d388b058610465968bc7abde6b879332))
+
+**Full Changelog:** [`2025.08.04.0...2025.08.04.1`](https://github.com/juspay/hyperswitch/compare/2025.08.04.0...2025.08.04.1)
+
+- - -
+
 ## 2025.08.04.0
 
 ### Features
