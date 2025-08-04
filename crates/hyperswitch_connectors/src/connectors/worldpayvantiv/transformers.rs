@@ -530,7 +530,7 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
             })?
         };
 
-        let (card, cardholder_authentication) = get_vantiv_card_data(&item)?;
+        let (card, cardholder_authentication) = get_vantiv_card_data(item)?;
         let report_group = item
             .router_data
             .request
@@ -627,14 +627,11 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
 
 impl From<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for OrderSource {
     fn from(item: &WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>) -> Self {
-        if let PaymentMethodData::Wallet(wallet_data) =
-            &item.router_data.request.payment_method_data
+        if let PaymentMethodData::Wallet(
+            hyperswitch_domain_models::payment_method_data::WalletData::ApplePay(_),
+        ) = &item.router_data.request.payment_method_data
         {
-            if let hyperswitch_domain_models::payment_method_data::WalletData::ApplePay(_) =
-                wallet_data
-            {
-                return OrderSource::ApplePay;
-            }
+            return Self::ApplePay;
         }
 
         match item.router_data.request.payment_channel {
