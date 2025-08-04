@@ -33,6 +33,7 @@ impl ValidateStatusForOperation for PaymentsCapture {
     ) -> Result<(), errors::ApiErrorResponse> {
         match intent_status {
             common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable => Ok(()),
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Conflicted

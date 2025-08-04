@@ -2587,6 +2587,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
                 | common_enums::AttemptStatus::AuthenticationPending
                 | common_enums::AttemptStatus::AuthenticationSuccessful
                 | common_enums::AttemptStatus::Authorized
+                | common_enums::AttemptStatus::PartiallyAuthorized
                 | common_enums::AttemptStatus::Charged
                 | common_enums::AttemptStatus::Authorizing
                 | common_enums::AttemptStatus::CodInitiated

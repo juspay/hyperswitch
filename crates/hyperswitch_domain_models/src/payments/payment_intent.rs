@@ -1738,6 +1738,7 @@ impl behaviour::Conversion for PaymentIntent {
             is_iframe_redirection_enabled,
             is_payment_id_from_merchant,
             payment_channel: None,
+            enable_partial_authorization: None,
         })
     }
     async fn convert_back(
@@ -1969,6 +1970,7 @@ impl behaviour::Conversion for PaymentIntent {
             routing_algorithm_id: self.routing_algorithm_id,
             is_payment_id_from_merchant: self.is_payment_id_from_merchant,
             payment_channel: None,
+            enable_partial_authorization: None,
         })
     }
 }

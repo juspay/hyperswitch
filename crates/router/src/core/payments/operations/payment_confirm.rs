@@ -1942,7 +1942,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         amount_capturable: if payment_data
                             .payment_intent
                             .enable_partial_authorization
-                            == Some(true)
+                            .is_some_and(|val| val)
                         {
                             // Setting this value to None, in case of partial authorization as we do not know the value yet
                             None

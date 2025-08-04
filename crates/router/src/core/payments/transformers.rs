@@ -330,6 +330,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         order_id: None,
         locale: None,
         payment_channel: None,
+        enable_partial_authorization: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -409,6 +410,8 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: payment_data.payment_intent.is_payment_id_from_merchant,
+        amount_capturable: None,
+        minor_amount_capturable: None,
     };
 
     Ok(router_data)
@@ -574,6 +577,8 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         authentication_id: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
+        amount_capturable: None,
+        minor_amount_capturable: None,
     };
 
     Ok(router_data)
@@ -702,6 +707,8 @@ pub async fn construct_router_data_for_psync<'a>(
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
+        amount_capturable: None,
+        minor_amount_capturable: None,
     };
 
     Ok(router_data)
@@ -885,6 +892,8 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         authentication_id: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
+        amount_capturable: None,
+        minor_amount_capturable: None,
     };
 
     Ok(router_data)
@@ -1025,6 +1034,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         complete_authorize_url,
         connector_testing_data: None,
         customer_id: None,
+        enable_partial_authorization: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -1104,6 +1114,8 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
+        amount_capturable: None,
+        minor_amount_capturable: None,
     };
 
     Ok(router_data)
@@ -3618,7 +3630,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             order_id: None,
             locale: None,
             payment_channel: None,
-            enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
+            enable_partial_authorization: None,
         })
     }
 }

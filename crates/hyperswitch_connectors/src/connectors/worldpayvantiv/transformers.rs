@@ -550,7 +550,13 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
                         token: processing_info.token,
                         processing_type: processing_info.processing_type,
                         original_network_transaction_id: processing_info.network_transaction_id,
-                        allow_partial_auth: item.router_data.request.enable_partial_authorization.and_then(|enable_partial_authorization| enable_partial_authorization.then_some(true))
+                        allow_partial_auth: item
+                            .router_data
+                            .request
+                            .enable_partial_authorization
+                            .and_then(|enable_partial_authorization| {
+                                enable_partial_authorization.then_some(true)
+                            }),
                     }),
                 )
             } else {
@@ -576,7 +582,13 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
                         token: processing_info.token,
                         processing_type: processing_info.processing_type,
                         original_network_transaction_id: processing_info.network_transaction_id,
-                        allow_partial_auth: item.router_data.request.enable_partial_authorization.and_then(|enable_partial_authorization| enable_partial_authorization.then_some(true)),
+                        allow_partial_auth: item
+                            .router_data
+                            .request
+                            .enable_partial_authorization
+                            .and_then(|enable_partial_authorization| {
+                                enable_partial_authorization.then_some(true)
+                            }),
                     }),
                     None,
                 )

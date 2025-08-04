@@ -518,7 +518,11 @@ impl Capturable for PaymentsSyncData {
     }
 
     #[cfg(feature = "v2")]
-    fn get_captured_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
+    fn get_captured_amount<F>(
+        &self,
+        _amount_captured: Option<i64>,
+        payment_data: &PaymentData<F>,
+    ) -> Option<i64>
     where
         F: Clone,
     {
@@ -531,6 +535,7 @@ impl Capturable for PaymentsSyncData {
             .map(|amt| amt.get_amount_as_i64())
     }
 
+    #[cfg(feature = "v1")]
     fn get_amount_capturable<F>(
         &self,
         payment_data: &PaymentData<F>,
@@ -546,6 +551,23 @@ impl Capturable for PaymentsSyncData {
             amount_capturable.or(Some(MinorUnit::get_amount_as_i64(
                 payment_data.payment_attempt.amount_capturable,
             )))
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    fn get_amount_capturable<F>(
+        &self,
+        payment_data: &PaymentData<F>,
+        amount_capturable: Option<i64>,
+        attempt_status: common_enums::AttemptStatus,
+    ) -> Option<i64>
+    where
+        F: Clone,
+    {
+        if attempt_status.is_terminal_status() {
+            Some(0)
+        } else {
+            None
         }
     }
 }

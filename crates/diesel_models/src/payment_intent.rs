@@ -688,7 +688,6 @@ impl PaymentIntentUpdateInternal {
             updated_by,
             force_3ds_challenge,
             is_iframe_redirection_enabled,
-            enable_partial_authorization,
         } = self;
 
         PaymentIntent {
@@ -761,8 +760,7 @@ impl PaymentIntentUpdateInternal {
             id: source.id,
             is_payment_id_from_merchant: source.is_payment_id_from_merchant,
             payment_channel: source.payment_channel,
-            enable_partial_authorization: enable_partial_authorization
-                .or(source.enable_partial_authorization),
+            enable_partial_authorization: None,
         }
     }
 }
