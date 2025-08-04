@@ -14,7 +14,7 @@ use router_env::{instrument, logger, tracing};
 use crate::{
     db::errors::chat::ChatErrors,
     routes::{app::SessionStateInfo, SessionState},
-    services::{authentication as auth, ApplicationResponse},
+    services::{authentication as auth, authorization::roles, ApplicationResponse},
     utils,
 };
 
@@ -80,10 +80,7 @@ pub async fn get_data_from_hyperswitch_ai_workflow(
                 }
             }
             Err(e) => {
-                logger::error!(
-                    "Failed to construct hyperswitch_ai_interaction: {:?}",
-                    e
-                );
+                logger::error!("Failed to construct hyperswitch_ai_interaction: {:?}", e);
             }
         }
     });
@@ -93,68 +90,90 @@ pub async fn get_data_from_hyperswitch_ai_workflow(
 
 pub async fn list_chat_conversations(
     state: SessionState,
+    user_from_token: auth::UserFromToken,
     req: chat_api::ChatListRequest,
 ) -> CustomResult<ApplicationResponse<chat_api::ChatListResponse>, ChatErrors> {
-    let db = state.store.as_ref();
-    let hyperswitch_ai_interactions = db
-        .list_hyperswitch_ai_interactions(
-            req.merchant_id,
-            req.limit.unwrap_or(100),
-            req.offset.unwrap_or(0),
-        )
-        .await
-        .change_context(ChatErrors::InternalServerError)
-        .attach_printable("Error when fetching hyperswitch_ai_interactions")?;
+    let role_info = roles::RoleInfo::from_role_id_org_id_tenant_id(
+        &state,
+        &user_from_token.role_id,
+        &user_from_token.org_id,
+        user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
+    )
+    .await
+    .change_context(ChatErrors::InternalServerError)
+    .attach_printable("Failed to retrieve role information")?;
+    if role_info.is_internal() {
+        let db = state.store.as_ref();
+        let hyperswitch_ai_interactions = db
+            .list_hyperswitch_ai_interactions(
+                req.merchant_id,
+                req.limit.unwrap_or(100),
+                req.offset.unwrap_or(0),
+            )
+            .await
+            .change_context(ChatErrors::InternalServerError)
+            .attach_printable("Error when fetching hyperswitch_ai_interactions")?;
 
-    let encryption_key = state.conf.chat.get_inner().encryption_key.clone().expose();
-    let key = match hex::decode(&encryption_key) {
-        Ok(key) => key,
-        Err(e) => {
-            router_env::logger::error!("Failed to decode encryption key: {}", e);
-            // Fallback to using the string as bytes, which was the previous behavior
-            encryption_key.as_bytes().to_vec()
+        let encryption_key = state.conf.chat.get_inner().encryption_key.clone().expose();
+        let key = match hex::decode(&encryption_key) {
+            Ok(key) => key,
+            Err(e) => {
+                router_env::logger::error!("Failed to decode encryption key: {}", e);
+                // Fallback to using the string as bytes, which was the previous behavior
+                encryption_key.as_bytes().to_vec()
+            }
+        };
+
+        let mut conversations = Vec::new();
+
+        for interaction in hyperswitch_ai_interactions {
+            let user_query_encrypted = interaction
+                .user_query
+                .ok_or(ChatErrors::InternalServerError)?;
+            let response_encrypted = interaction
+                .response
+                .ok_or(ChatErrors::InternalServerError)?;
+
+            let user_query_decrypted_bytes = GcmAes256
+                .decode_message(&key, user_query_encrypted.into_inner().into())
+                .change_context(ChatErrors::InternalServerError)
+                .attach_printable("Failed to decrypt user query")?;
+
+            let response_decrypted_bytes = GcmAes256
+                .decode_message(&key, response_encrypted.into_inner().into())
+                .change_context(ChatErrors::InternalServerError)
+                .attach_printable("Failed to decrypt response")?;
+
+            let user_query_decrypted = String::from_utf8(user_query_decrypted_bytes)
+                .change_context(ChatErrors::InternalServerError)
+                .attach_printable("Failed to convert decrypted user query to string")?;
+
+            let response_decrypted = serde_json::from_slice(&response_decrypted_bytes)
+                .change_context(ChatErrors::InternalServerError)
+                .attach_printable("Failed to deserialize decrypted response")?;
+
+            conversations.push(chat_api::ChatConversation {
+                id: interaction.id,
+                session_id: interaction.session_id,
+                user_id: interaction.user_id,
+                merchant_id: interaction.merchant_id,
+                profile_id: interaction.profile_id,
+                org_id: interaction.org_id,
+                role_id: interaction.role_id,
+                user_query: user_query_decrypted.into(),
+                response: response_decrypted,
+                database_query: interaction.database_query,
+                interaction_status: interaction.interaction_status,
+                created_at: interaction.created_at,
+            });
         }
-    };
 
-    let mut conversations = Vec::new();
-
-    for interaction in hyperswitch_ai_interactions {
-        let user_query_encrypted = interaction.user_query.ok_or(ChatErrors::InternalServerError)?;
-        let response_encrypted = interaction.response.ok_or(ChatErrors::InternalServerError)?;
-
-        let user_query_decrypted_bytes = GcmAes256
-            .decode_message(&key, user_query_encrypted.into_inner().into())
-            .change_context(ChatErrors::InternalServerError)
-            .attach_printable("Failed to decrypt user query")?;
-
-        let response_decrypted_bytes = GcmAes256
-            .decode_message(&key, response_encrypted.into_inner().into())
-            .change_context(ChatErrors::InternalServerError)
-            .attach_printable("Failed to decrypt response")?;
-
-        let user_query_decrypted = String::from_utf8(user_query_decrypted_bytes)
-            .change_context(ChatErrors::InternalServerError)
-            .attach_printable("Failed to convert decrypted user query to string")?;
-
-        let response_decrypted = serde_json::from_slice(&response_decrypted_bytes)
-            .change_context(ChatErrors::InternalServerError)
-            .attach_printable("Failed to deserialize decrypted response")?;
-
-        conversations.push(chat_api::ChatConversation {
-            id: interaction.id,
-            session_id: interaction.session_id,
-            user_id: interaction.user_id,
-            merchant_id: interaction.merchant_id,
-            profile_id: interaction.profile_id,
-            org_id: interaction.org_id,
-            role_id: interaction.role_id,
-            user_query: user_query_decrypted.into(),
-            response: response_decrypted,
-            database_query: interaction.database_query,
-            interaction_status: interaction.interaction_status,
-            created_at: interaction.created_at,
-        });
+        return Ok(ApplicationResponse::Json(conversations));
+    } else {
+        return Err(ChatErrors::InternalServerError)
+            .attach_printable("Error when fetching hyperswitch_ai_interactions");
     }
-
-    Ok(ApplicationResponse::Json(conversations))
 }

@@ -49,10 +49,8 @@ pub async fn get_all_conversations_for_user(
         state,
         &http_req,
         payload.into_inner(),
-        |state, _: (), payload, _| {
-            chat_core::list_chat_conversations(state, payload)
-        },
-        &auth::AdminApiAuth,
+        |state, user: auth::UserFromToken, payload, _| chat_core::list_chat_conversations(state, user, payload),
+        &auth::DashboardNoPermissionAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
