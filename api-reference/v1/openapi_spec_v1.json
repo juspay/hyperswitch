@@ -7832,6 +7832,7 @@
           "void_failed",
           "auto_refunded",
           "partial_charged",
+          "partially_authorized",
           "partial_charged_and_chargeable",
           "unresolved",
           "pending",
@@ -14640,6 +14641,7 @@
           "payment_processing",
           "payment_cancelled",
           "payment_authorized",
+          "payment_partially_authorized",
           "payment_captured",
           "payment_expired",
           "action_required",
@@ -16494,6 +16496,7 @@
           "requires_capture",
           "partially_captured",
           "partially_captured_and_capturable",
+          "partially_authorized_and_requires_capture",
           "conflicted",
           "expired"
         ]
@@ -22441,6 +22444,11 @@
               }
             ],
             "nullable": true
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
+            "nullable": true
           }
         }
       },
@@ -22871,6 +22879,11 @@
                 "$ref": "#/components/schemas/PaymentChannel"
               }
             ],
+            "nullable": true
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
             "nullable": true
           }
         }
@@ -23467,6 +23480,11 @@
           "whole_connector_response": {
             "type": "string",
             "description": "Contains whole connector response",
+            "nullable": true
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
             "nullable": true
           }
         }
@@ -24189,6 +24207,11 @@
               }
             ],
             "nullable": true
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -24811,6 +24834,11 @@
             "type": "string",
             "description": "Contains whole connector response",
             "nullable": true
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
+            "nullable": true
           }
         }
       },
@@ -25374,6 +25402,11 @@
                 "$ref": "#/components/schemas/PaymentChannel"
               }
             ],
+            "nullable": true
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
             "nullable": true
           }
         }
