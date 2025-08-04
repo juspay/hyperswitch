@@ -19,6 +19,7 @@ pub fn create_client(
     client_certificate: Option<masking::Secret<String>>,
     client_certificate_key: Option<masking::Secret<String>>,
     ca_certificate: Option<masking::Secret<String>>,
+    merchant_proxy_url: Option<masking::Secret<String>>,
 ) -> CustomResult<reqwest::Client, HttpClientError> {
     // Case 1: Mutual TLS with client certificate and key
     if let (Some(encoded_certificate), Some(encoded_certificate_key)) =
@@ -29,7 +30,7 @@ pub fn create_client(
         }
 
         logger::debug!("Creating HTTP client with mutual TLS (client cert + key)");
-        let client_builder = get_client_builder(proxy_config)?;
+        let client_builder = get_client_builder(proxy_config, merchant_proxy_url.clone())?;
 
         let identity = create_identity_from_certificate_and_key(
             encoded_certificate.clone(),
@@ -41,6 +42,7 @@ pub fn create_client(
             .fold(client_builder, |client_builder, certificate| {
                 client_builder.add_root_certificate(certificate)
             });
+            logger::debug!("Client builder with CA certificate: {:?}", client_builder);
         return client_builder
             .identity(identity)
             .use_rustls_tls()
@@ -56,7 +58,7 @@ pub fn create_client(
         let cert = reqwest::Certificate::from_pem(pem.as_bytes())
             .change_context(HttpClientError::ClientConstructionFailed)
             .attach_printable("Failed to parse CA certificate PEM block")?;
-        let client_builder = get_client_builder(proxy_config)?.add_root_certificate(cert);
+        let client_builder = get_client_builder(proxy_config, None)?.add_root_certificate(cert);
         return client_builder
             .use_rustls_tls()
             .build()
@@ -72,6 +74,7 @@ pub fn create_client(
 #[allow(missing_docs)]
 pub fn get_client_builder(
     proxy_config: &Proxy,
+    merchant_proxy_url: Option<masking::Secret<String>>,
 ) -> CustomResult<reqwest::ClientBuilder, HttpClientError> {
     let mut client_builder = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
@@ -83,6 +86,19 @@ pub fn get_client_builder(
 
     let proxy_exclusion_config =
         reqwest::NoProxy::from_string(&proxy_config.bypass_proxy_hosts.clone().unwrap_or_default());
+
+    // Proxy all HTTPS traffic through the merchant-specific proxy if provided,
+
+
+     // otherwise use the configured HTTPS proxy
+     if let Some(merchant_url) = merchant_proxy_url {
+         client_builder = client_builder.proxy(
+             reqwest::Proxy::https(merchant_url.expose())
+                 .change_context(HttpClientError::InvalidProxyConfiguration)
+                 .attach_printable("Merchant HTTPS proxy configuration error")?
+                 .no_proxy(proxy_exclusion_config.clone()),
+         );
+     }
 
     // Proxy all HTTPS traffic through the configured HTTPS proxy
     if let Some(url) = proxy_config.https_url.as_ref() {
@@ -100,9 +116,10 @@ pub fn get_client_builder(
             reqwest::Proxy::http(url)
                 .change_context(HttpClientError::InvalidProxyConfiguration)
                 .attach_printable("HTTP proxy configuration error")?
-                .no_proxy(proxy_exclusion_config),
+                .no_proxy(proxy_exclusion_config.clone()),
         );
     }
+    logger::debug!("{:?} HTTP CLient Request", client_builder);
 
     Ok(client_builder)
 }
@@ -148,7 +165,7 @@ pub fn create_certificate(
 fn get_base_client(proxy_config: &Proxy) -> CustomResult<reqwest::Client, HttpClientError> {
     Ok(DEFAULT_CLIENT
         .get_or_try_init(|| {
-            get_client_builder(proxy_config)?
+            get_client_builder(proxy_config, None)?
                 .build()
                 .change_context(HttpClientError::ClientConstructionFailed)
                 .attach_printable("Failed to construct base client")
