@@ -1,5 +1,4 @@
-use std::fmt::Debug;
-use std::{collections::HashMap, ops::Deref};
+use std::{collections::HashMap, fmt::Debug, ops::Deref};
 
 use api_models::{self, enums as api_enums, payments};
 use common_enums::{enums, AttemptStatus, PaymentChargeType, StripeChargeType};
@@ -15,9 +14,9 @@ use common_utils::{
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{
-        self, BankRedirectData, Card, CardRedirectData, ExternalVaultPaymentMethodData,
-        GiftCardData, GooglePayWalletData, PayLaterData, PaymentMethodData, VoucherData,
-        WalletData, ExternalVaultCard
+        self, BankRedirectData, Card, CardRedirectData, ExternalVaultCard,
+        ExternalVaultPaymentMethodData, GiftCardData, GooglePayWalletData, PayLaterData,
+        PaymentMethodData, VoucherData, WalletData,
     },
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
@@ -4472,7 +4471,6 @@ where
     }
 }
 
-
 impl TryFrom<&ExternalVaultCard> for StripePaymentMethodData<VaultTokenHolder> {
     type Error = ConnectorError;
     fn try_from(card: &ExternalVaultCard) -> Result<Self, Self::Error> {
@@ -4558,9 +4556,14 @@ impl TryFrom<(&ExternalVaultProxyPaymentsRouterData, MinorUnit)>
         //     (None, Some(token)) => Some(token),
         //     (None, None) => None,
 
-        let payment_data = match item.request.payment_method_data {
-            ExternalVaultPaymentMethodData::Card(ref card) => {
-                StripePaymentMethodData::<VaultTokenHolder>::try_from(card)?
+        let payment_data = match item.request.payment_method_data.clone() {
+            ExternalVaultPaymentMethodData::Card(card) => {
+                StripePaymentMethodData::<VaultTokenHolder>::try_from(&*card)?
+            }
+            ExternalVaultPaymentMethodData::VaultToken(_) => {
+                Err(ConnectorError::MissingRequiredField {
+                    field_name: "payment_method_data",
+                })?
             }
         };
         let pm = Some(Secret::new(
@@ -4582,7 +4585,7 @@ impl TryFrom<(&ExternalVaultProxyPaymentsRouterData, MinorUnit)>
             shipping: None,
             billing: billing_address,
             capture_method: StripeCaptureMethod::from(item.request.capture_method),
-            payment_data:Some(payment_data),
+            payment_data: Some(payment_data),
             payment_method_options: None,
             payment_method: pm,
             customer: None,

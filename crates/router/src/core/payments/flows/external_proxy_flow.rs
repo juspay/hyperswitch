@@ -28,7 +28,6 @@ use crate::{
     utils::OptionExt,
 };
 
-
 #[cfg(feature = "v2")]
 #[async_trait]
 impl
@@ -54,23 +53,26 @@ impl
             types::PaymentsResponseData,
         >,
     > {
-        Box::pin(transformers::construct_external_vault_proxy_payment_router_data(
-            state,
-            self.clone(),
-            connector_id,
-            merchant_context,
-            customer,
-            merchant_connector_account,
-            merchant_recipient_data,
-            header_payload,
-        ))
+        Box::pin(
+            transformers::construct_external_vault_proxy_payment_router_data(
+                state,
+                self.clone(),
+                connector_id,
+                merchant_context,
+                customer,
+                merchant_connector_account,
+                merchant_recipient_data,
+                header_payload,
+            ),
+        )
         .await
     }
-
 }
 
 #[async_trait]
-impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData> for types::ExternalVaultProxyPaymentsRouterData {
+impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
+    for types::ExternalVaultProxyPaymentsRouterData
+{
     async fn decide_flows<'a>(
         mut self,
         state: &SessionState,
@@ -88,24 +90,24 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData> for
         > = connector.connector.get_connector_integration();
 
         // if self.should_proceed_with_authorize() {
-            // self.decide_authentication_type();
-            logger::debug!(auth_type=?self.auth_type);
-            let mut auth_router_data = services::execute_connector_processing_step(
-                state,
-                connector_integration,
-                &self,
-                call_connector_action.clone(),
-                connector_request,
-                return_raw_connector_response,
-            )
-            .await
-            .to_payment_failed_response()?;
+        // self.decide_authentication_type();
+        logger::debug!(auth_type=?self.auth_type);
+        let mut auth_router_data = services::execute_connector_processing_step(
+            state,
+            connector_integration,
+            &self,
+            call_connector_action.clone(),
+            connector_request,
+            return_raw_connector_response,
+        )
+        .await
+        .to_payment_failed_response()?;
 
-            // External vault proxy doesn't use integrity checks
-            auth_router_data.integrity_check = Ok(());
-            metrics::PAYMENT_COUNT.add(1, &[]); // Move outside of the if block
+        // External vault proxy doesn't use integrity checks
+        auth_router_data.integrity_check = Ok(());
+        metrics::PAYMENT_COUNT.add(1, &[]); // Move outside of the if block
 
-            Ok(auth_router_data)
+        Ok(auth_router_data)
         // } else {
         //     Ok(self.clone())
         // }

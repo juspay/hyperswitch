@@ -13,7 +13,14 @@ use serde_with::serde_as;
 
 use super::payment_method_data::PaymentMethodData;
 use crate::{
-    address, errors::api_error_response::ApiErrorResponse, mandates, payment_method_data::ExternalVaultPaymentMethodData, payments, router_data::{self, RouterData}, router_flow_types as flows, router_response_types as response_types, vault::PaymentMethodVaultingData
+    address,
+    errors::api_error_response::ApiErrorResponse,
+    mandates,
+    payment_method_data::ExternalVaultPaymentMethodData,
+    payments,
+    router_data::{self, RouterData},
+    router_flow_types as flows, router_response_types as response_types,
+    vault::PaymentMethodVaultingData,
 };
 #[derive(Debug, Clone)]
 pub struct PaymentsAuthorizeData {
@@ -145,7 +152,11 @@ pub struct ExternalVaultProxyPaymentsData {
 // Implement ConnectorCustomerData conversion for ExternalVaultProxy RouterData
 impl
     TryFrom<
-        &RouterData<flows::ExternalVaultProxy, ExternalVaultProxyPaymentsData, response_types::PaymentsResponseData>,
+        &RouterData<
+            flows::ExternalVaultProxy,
+            ExternalVaultProxyPaymentsData,
+            response_types::PaymentsResponseData,
+        >,
     > for ConnectorCustomerData
 {
     type Error = error_stack::Report<ApiErrorResponse>;

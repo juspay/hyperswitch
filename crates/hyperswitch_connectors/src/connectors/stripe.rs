@@ -37,9 +37,10 @@ use hyperswitch_domain_models::{
         UploadFileResponse,
     },
     types::{
-        ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
-        PaymentsCaptureRouterData, PaymentsSyncRouterData, PaymentsUpdateMetadataRouterData,
-        RefundsRouterData, TokenizationRouterData, ExternalVaultProxyPaymentsRouterData
+        ConnectorCustomerRouterData, ExternalVaultProxyPaymentsRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsSyncRouterData, PaymentsUpdateMetadataRouterData, RefundsRouterData,
+        TokenizationRouterData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -2767,7 +2768,13 @@ impl ConnectorIntegration<PoRecipientAccount, PayoutsData, PayoutsResponseData> 
 }
 
 // ExternalVaultProxy implementation for Stripe
-impl ConnectorIntegration<hyperswitch_domain_models::router_flow_types::ExternalVaultProxy, hyperswitch_domain_models::router_request_types::ExternalVaultProxyPaymentsData, PaymentsResponseData> for Stripe {
+impl
+    ConnectorIntegration<
+        hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
+        hyperswitch_domain_models::router_request_types::ExternalVaultProxyPaymentsData,
+        PaymentsResponseData,
+    > for Stripe
+{
     fn get_headers(
         &self,
         req: &ExternalVaultProxyPaymentsRouterData,

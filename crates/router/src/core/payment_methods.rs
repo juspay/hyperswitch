@@ -47,7 +47,7 @@ use hyperswitch_domain_models::{
     router_data_v2::flow_common_types::VaultConnectorFlowData,
     router_flow_types::ExternalVaultInsertFlow, types::VaultRouterData,
 };
-use masking::{PeekInterface, Secret};
+use masking::{ExposeOptionInterface, PeekInterface, Secret};
 use router_env::{instrument, tracing};
 use time::Duration;
 
@@ -1183,6 +1183,20 @@ pub async fn populate_bin_details_for_payment_method(
 #[async_trait::async_trait]
 pub trait PaymentMethodExt {
     async fn populate_bin_details_for_payment_method(&self, state: &SessionState) -> Self;
+
+    fn convert_to_vault_payment_method_data(
+        &self,
+    ) -> RouterResult<payment_methods::PaymentMethodsData>;
+
+    fn convert_from_vault_payment_method_data(
+        vault_data: payment_methods::PaymentMethodsData,
+        external_vault_token_data: payment_methods::ExternalVaultTokenData,
+        vault_token: payment_method_data::VaultToken,
+    ) -> RouterResult<Self>
+    where
+        Self: Sized;
+
+    fn get_external_vault_token_data(&self) -> Option<payment_methods::ExternalVaultTokenData>;
 }
 
 #[cfg(feature = "v2")]
@@ -1237,6 +1251,153 @@ impl PaymentMethodExt for domain::PaymentMethodVaultingData {
                 }
             }
             _ => self.clone(),
+        }
+    }
+
+    fn convert_to_vault_payment_method_data(
+        &self,
+    ) -> RouterResult<payment_methods::PaymentMethodsData> {
+        Err(report!(errors::ApiErrorResponse::UnprocessableEntity {
+            message: "Payment method data is not supported for vaulting".to_string()
+        })
+        .attach_printable("Payment method data is not supported for vaulting"))
+    }
+
+    fn convert_from_vault_payment_method_data(
+        vault_data: payment_methods::PaymentMethodsData,
+        external_vault_token_data: payment_methods::ExternalVaultTokenData,
+        vault_token: payment_method_data::VaultToken,
+    ) -> RouterResult<Self> {
+        Err(report!(errors::ApiErrorResponse::UnprocessableEntity {
+            message: "Payment method data is not supported for vaulting".to_string()
+        }))
+    }
+
+    fn get_external_vault_token_data(&self) -> Option<payment_methods::ExternalVaultTokenData> {
+        None
+    }
+}
+
+#[cfg(feature = "v2")]
+#[async_trait::async_trait]
+impl PaymentMethodExt for domain::ExternalVaultPaymentMethodData {
+    async fn populate_bin_details_for_payment_method(&self, state: &SessionState) -> Self {
+        match self {
+            Self::Card(card) => {
+                let card_isin = card.bin_number.clone();
+
+                if card.card_issuer.is_some()
+                    && card.card_network.is_some()
+                    && card.card_type.is_some()
+                    && card.card_issuing_country.is_some()
+                {
+                    Self::Card(card.clone())
+                } else if let Some(card_isin) = card_isin {
+                    let card_info = state
+                        .store
+                        .get_card_info(&card_isin)
+                        .await
+                        .map_err(|error| services::logger::error!(card_info_error=?error))
+                        .ok()
+                        .flatten();
+
+                    Self::Card(Box::new(domain::ExternalVaultCard {
+                        card_number: card.card_number.clone(),
+                        card_exp_month: card.card_exp_month.clone(),
+                        card_exp_year: card.card_exp_year.clone(),
+                        card_holder_name: card.card_holder_name.clone(),
+                        bin_number: card.bin_number.clone(),
+                        last_four: card.last_four.clone(),
+                        nick_name: card.nick_name.clone(),
+                        card_issuing_country: card_info
+                            .as_ref()
+                            .and_then(|val| val.card_issuing_country.clone()),
+                        card_network: card_info.as_ref().and_then(|val| val.card_network.clone()),
+                        card_issuer: card_info.as_ref().and_then(|val| val.card_issuer.clone()),
+                        card_type: card_info.as_ref().and_then(|val| val.card_type.clone()),
+                        card_cvc: card.card_cvc.clone(),
+                        co_badged_card_data: card.co_badged_card_data.clone(),
+                        bank_code: card.bank_code.clone(),
+                    }))
+                } else {
+                    Self::Card(card.clone())
+                }
+            }
+            _ => self.clone(),
+        }
+    }
+
+    fn convert_to_vault_payment_method_data(
+        &self,
+    ) -> RouterResult<payment_methods::PaymentMethodsData> {
+        match self.clone() {
+            Self::Card(card_details) => Ok(payment_methods::PaymentMethodsData::Card(
+                payment_methods::CardDetailsPaymentMethod {
+                    last4_digits: card_details.last_four,
+                    expiry_month: Some(Secret::new(card_details.card_exp_month)),
+                    expiry_year: Some(Secret::new(card_details.card_exp_year)),
+                    card_holder_name: card_details.card_holder_name,
+                    nick_name: card_details.nick_name,
+                    issuer_country: card_details.card_issuing_country,
+                    card_network: card_details.card_network,
+                    card_issuer: card_details.card_issuer,
+                    card_type: card_details.card_type,
+                    card_isin: card_details.bin_number,
+                    saved_to_locker: false,
+                    co_badged_card_data: None,
+                },
+            )),
+            Self::VaultToken(_) => Err(report!(errors::ApiErrorResponse::UnprocessableEntity {
+                message: "Vault token data is not supported for vaulting".to_string()
+            })
+            .attach_printable("Vault token data is not supported for vaulting")),
+        }
+    }
+
+    fn convert_from_vault_payment_method_data(
+        vault_data: payment_methods::PaymentMethodsData,
+        external_vault_token_data: payment_methods::ExternalVaultTokenData,
+        vault_token: payment_method_data::VaultToken,
+    ) -> RouterResult<Self> {
+        match vault_data {
+            payment_methods::PaymentMethodsData::Card(card_details) => {
+                Ok(Self::Card(Box::new(domain::ExternalVaultCard {
+                    card_number: external_vault_token_data.tokenized_card_number,
+                    card_exp_month: card_details
+                        .expiry_month
+                        .expose_option()
+                        .unwrap_or_default(),
+                    card_exp_year: card_details.expiry_year.expose_option().unwrap_or_default(),
+                    card_holder_name: card_details.card_holder_name,
+                    bin_number: card_details.card_isin,
+                    last_four: card_details.last4_digits,
+                    nick_name: card_details.nick_name,
+                    card_issuing_country: card_details.issuer_country,
+                    card_network: card_details.card_network,
+                    card_issuer: card_details.card_issuer,
+                    card_type: card_details.card_type,
+                    card_cvc: vault_token.card_cvc,
+                    co_badged_card_data: None, // Co-badged data is not supported in external vault
+                    bank_code: None,           // Bank code is not stored in external vault
+                })))
+            }
+            payment_methods::PaymentMethodsData::BankDetails(_)
+            | payment_methods::PaymentMethodsData::WalletDetails(_) => {
+                Err(errors::ApiErrorResponse::UnprocessableEntity {
+                    message: "External vaulting is not supported for this payment method type"
+                        .to_string(),
+                }
+                .into())
+            }
+        }
+    }
+
+    fn get_external_vault_token_data(&self) -> Option<payment_methods::ExternalVaultTokenData> {
+        match self.clone() {
+            Self::Card(card_details) => Some(payment_methods::ExternalVaultTokenData {
+                tokenized_card_number: card_details.card_number,
+            }),
+            Self::VaultToken(_) => None,
         }
     }
 }
@@ -1684,6 +1845,7 @@ pub async fn create_payment_method_for_intent(
                 network_token_payment_method_data: None,
                 network_token_requestor_reference_id: None,
                 external_vault_source: None,
+                external_vault_token_data: None,
             },
             storage_scheme,
         )

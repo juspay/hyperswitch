@@ -1521,6 +1521,12 @@ where
     // Get the trackers related to track the state of the payment
     let operations::GetTrackerResponse { mut payment_data } = get_tracker_response;
     // consume the req merchant_connector_id and set it in the payment_data
+
+    operation
+        .to_domain()?
+        .create_or_fetch_payment_method(state, &merchant_context, &profile, &mut payment_data)
+        .await?;
+
     let connector = operation
         .to_domain()?
         .perform_routing(&merchant_context, &profile, state, &mut payment_data)
@@ -2269,7 +2275,7 @@ where
         .await?;
 
     let (payment_data, _req, connector_http_status_code, external_latency) =
-    external_vault_proxy_for_payments_operation_core::<_, _, _, _, _>(
+        external_vault_proxy_for_payments_operation_core::<_, _, _, _, _>(
             &state,
             req_state,
             merchant_context.clone(),
@@ -2293,7 +2299,6 @@ where
         None,
     )
 }
-
 
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]

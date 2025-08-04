@@ -37,9 +37,9 @@ use hyperswitch_domain_models::router_flow_types::{
     mandate_revoke::MandateRevoke,
     payments::{
         Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture,
-        CompleteAuthorize, CreateConnectorCustomer, CreateOrder, IncrementalAuthorization,
-        InitPayment, PSync, PostProcessing, PostSessionTokens, PreProcessing, Reject,
-        SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,ExternalVaultProxy
+        CompleteAuthorize, CreateConnectorCustomer, CreateOrder, ExternalVaultProxy,
+        IncrementalAuthorization, InitPayment, PSync, PostProcessing, PostSessionTokens,
+        PreProcessing, Reject, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
     },
     refunds::{Execute, RSync},
     webhooks::VerifyWebhookSource,
@@ -71,11 +71,11 @@ pub use hyperswitch_domain_models::{
         BrowserInformation, ChargeRefunds, ChargeRefundsOptions, CompleteAuthorizeData,
         CompleteAuthorizeRedirectResponse, ConnectorCustomerData, CreateOrderRequestData,
         DefendDisputeRequestData, DestinationChargeRefund, DirectChargeRefund,
-        MandateRevokeRequestData, MultipleCaptureRequestData, PaymentMethodTokenizationData,
-        PaymentsApproveData, PaymentsAuthorizeData, ExternalVaultProxyPaymentsData, PaymentsCancelData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
-        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
+        ExternalVaultProxyPaymentsData, MandateRevokeRequestData, MultipleCaptureRequestData,
+        PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
+        PaymentsRejectData, PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
         PaymentsUpdateMetadataData, RefundsData, ResponseId, RetrieveFileRequestData,
         SdkPaymentsSessionUpdateData, SetupMandateRequestData, SplitRefundsRequest,
         SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData, VaultRequestData,
@@ -1054,7 +1054,7 @@ impl Tokenizable for ExternalVaultProxyPaymentsData {
     }
 }
 
-// Note: GetIntegrityObject trait implementation for ExternalVaultProxyPaymentsData 
+// Note: GetIntegrityObject trait implementation for ExternalVaultProxyPaymentsData
 // is implemented in the hyperswitch_domain_models crate to avoid orphan rule violations
 
 impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {

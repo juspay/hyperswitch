@@ -2531,6 +2531,7 @@ pub struct ProxyPaymentMethodDataRequest {
 pub enum ProxyPaymentMethodData {
     #[schema(title = "ProxyCardData")]
     VaultDataCard(ProxyCardData),
+    VaultToken(VaultToken),
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -2551,6 +2552,19 @@ pub struct ProxyCardData {
     #[schema(value_type = String, example = "John Test")]
     pub card_holder_name: String,
 
+    /// The CVC number for the card
+    #[schema(value_type = String, example = "242")]
+    pub card_cvc: String,
+
+    #[schema(value_type = String, example = "424242")]
+    pub bin_number: Option<String>,
+
+    #[schema(value_type = String, example = "4242")]
+    pub last_four: Option<String>,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct VaultToken {
     /// The CVC number for the card
     #[schema(value_type = String, example = "242")]
     pub card_cvc: String,

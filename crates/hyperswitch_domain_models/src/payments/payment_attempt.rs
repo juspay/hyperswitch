@@ -709,7 +709,7 @@ impl PaymentAttempt {
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         let id = id_type::GlobalAttemptId::generate(&cell_id);
         let intent_amount_details = payment_intent.amount_details.clone();
-        let attempt_amount_details = AttemptAmountDetails{
+        let attempt_amount_details = AttemptAmountDetails {
             net_amount: intent_amount_details.order_amount,
             amount_to_capture: None,
             surcharge_amount: None,
@@ -1959,6 +1959,11 @@ pub enum PaymentAttemptUpdate {
         amount_capturable: Option<MinorUnit>,
         updated_by: String,
     },
+    /// Update the payment attempt with payment_method_id when payment_method table entry is created
+    PaymentMethodIdUpdate {
+        payment_method_id: id_type::GlobalPaymentMethodId,
+        updated_by: String,
+    },
     /// Update the payment attempt on confirming the intent, after calling the connector on error response
     ErrorUpdate {
         status: storage_enums::AttemptStatus,
@@ -2948,6 +2953,36 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 amount_to_capture: None,
                 connector_token_details: None,
                 authentication_type: Some(authentication_type),
+                feature_metadata: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_request_reference_id: None,
+                connector_response_reference_id: None,
+            },
+            PaymentAttemptUpdate::PaymentMethodIdUpdate {
+                payment_method_id,
+                updated_by,
+            } => Self {
+                status: None,
+                payment_method_id: Some(payment_method_id),
+                error_message: None,
+                modified_at: common_utils::date_time::now(),
+                browser_info: None,
+                error_code: None,
+                error_reason: None,
+                updated_by,
+                merchant_connector_id: None,
+                unified_code: None,
+                unified_message: None,
+                connector_payment_id: None,
+                connector: None,
+                redirection_data: None,
+                connector_metadata: None,
+                amount_capturable: None,
+                amount_to_capture: None,
+                connector_token_details: None,
+                authentication_type: None,
                 feature_metadata: None,
                 network_advice_code: None,
                 network_decline_code: None,

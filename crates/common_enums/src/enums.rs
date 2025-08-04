@@ -188,6 +188,10 @@ impl AttemptStatus {
             | Self::IntegrityFailure => false,
         }
     }
+
+    pub fn is_success(self) -> bool {
+        matches!(self, Self::Charged | Self::PartialCharged)
+    }
 }
 
 /// Indicates the method by which a card is discovered during a payment
