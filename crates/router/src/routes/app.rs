@@ -1852,7 +1852,7 @@ impl Webhooks {
 
 pub struct Configs;
 
-#[cfg(all(feature = "v1",any(feature = "olap", feature = "oltp")))]
+#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
 impl Configs {
     pub fn server(config: AppState) -> Scope {
         web::scope("/configs")

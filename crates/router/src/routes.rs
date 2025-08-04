@@ -8,12 +8,7 @@ pub mod authentication;
 pub mod blocklist;
 pub mod cache;
 pub mod cards_info;
-#[cfg(feature = "v1")]
 pub mod configs;
-#[cfg(feature = "v2")]
-pub mod configs_v2;
-#[cfg(feature = "v2")]
-pub use configs_v2 as configs;
 #[cfg(feature = "olap")]
 pub mod connector_onboarding;
 #[cfg(any(feature = "olap", feature = "oltp"))]
