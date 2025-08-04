@@ -2362,7 +2362,7 @@ impl From<StripePaymentStatus> for AttemptStatus {
             StripePaymentStatus::Succeeded => Self::Charged,
             StripePaymentStatus::Failed => Self::Failure,
             StripePaymentStatus::Processing => Self::Authorizing,
-            StripePaymentStatus::RequiresCustomerAction => Self::AuthenticationPending,
+            StripePaymentStatus::RequiresCustomerAction => Self::Charged,
             // Make the payment attempt status as failed
             StripePaymentStatus::RequiresPaymentMethod => Self::Failure,
             StripePaymentStatus::RequiresConfirmation => Self::ConfirmationAwaited,
@@ -4566,9 +4566,9 @@ impl TryFrom<(&ExternalVaultProxyPaymentsRouterData, MinorUnit)>
                 })?
             }
         };
-        let pm = Some(Secret::new(
-            "Card".to_string(), // Placeholder, replace with actual payment method ID or token
-        ));
+        // let pm = Some(Secret::new(
+        //     "Card".to_string(), // Placeholder, replace with actual payment method ID or token
+        // ));
         Ok(Self {
             amount,                                      //hopefully we don't loose some cents here
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
@@ -4587,7 +4587,7 @@ impl TryFrom<(&ExternalVaultProxyPaymentsRouterData, MinorUnit)>
             capture_method: StripeCaptureMethod::from(item.request.capture_method),
             payment_data: Some(payment_data),
             payment_method_options: None,
-            payment_method: pm,
+            payment_method: None,
             customer: None,
             setup_mandate_details: None,
             off_session: item.request.off_session,

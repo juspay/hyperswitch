@@ -352,6 +352,7 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
             payment_data.payment_attempt.payment_token.clone(),
         ) {
             (Some(customer_id), Some(_), None) => {
+                println!("inside_saved_card_proxy");
                 let db = &*state.store;
                 let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
                 let key_manager_state = &state.into();
@@ -501,6 +502,7 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
                 .attach_printable("Failed to update payment attempt in db")?;
             }
             (None, None, Some(payment_token)) => {
+                println!("outside_saved_card_proxy");
                 match payment_data.external_vault_pmd.as_ref() {
                     Some(hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::VaultToken(vault_token)) => {
                         let db = &*state.store;
