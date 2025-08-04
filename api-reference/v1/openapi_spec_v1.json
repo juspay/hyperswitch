@@ -11736,6 +11736,7 @@
           "billwerk",
           "bitpay",
           "bluesnap",
+          "bluecode",
           "boku",
           "braintree",
           "breadpay",
@@ -11807,6 +11808,7 @@
           "redsys",
           "santander",
           "shift4",
+          "silverflow",
           "square",
           "stax",
           "stripe",
@@ -20084,6 +20086,40 @@
           }
         }
       },
+      "PaymentChannel": {
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "ecommerce"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "mail_order"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "telephone_order"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "other"
+            ],
+            "properties": {
+              "other": {
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "description": "Describes the channel through which the payment was initiated."
+      },
       "PaymentChargeType": {
         "oneOf": [
           {
@@ -21721,6 +21757,7 @@
           "benefit",
           "bizum",
           "blik",
+          "bluecode",
           "boleto",
           "bca_bank_transfer",
           "bni_va",
@@ -22457,6 +22494,14 @@
             "type": "boolean",
             "description": "If enabled, provides whole connector response",
             "nullable": true
+          },
+          "payment_channel": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChannel"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -22879,6 +22924,14 @@
           "all_keys_required": {
             "type": "boolean",
             "description": "If enabled, provides whole connector response",
+            "nullable": true
+          },
+          "payment_channel": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChannel"
+              }
+            ],
             "nullable": true
           }
         }
@@ -23363,6 +23416,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_channel": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChannel"
               }
             ],
             "nullable": true
@@ -24181,6 +24242,14 @@
             "type": "boolean",
             "description": "If enabled, provides whole connector response",
             "nullable": true
+          },
+          "payment_channel": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChannel"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -24690,6 +24759,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_channel": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChannel"
               }
             ],
             "nullable": true
@@ -25350,6 +25427,14 @@
           "all_keys_required": {
             "type": "boolean",
             "description": "If enabled, provides whole connector response",
+            "nullable": true
+          },
+          "payment_channel": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChannel"
+              }
+            ],
             "nullable": true
           }
         }
@@ -29256,6 +29341,7 @@
           "bambora",
           "bamboraapac",
           "bluesnap",
+          "bluecode",
           "boku",
           "braintree",
           "breadpay",
@@ -29323,6 +29409,7 @@
           "santander",
           "shift4",
           "signifyd",
+          "silverflow",
           "square",
           "stax",
           "stripe",
@@ -32016,6 +32103,18 @@
             "properties": {
               "amazon_pay_redirect": {
                 "$ref": "#/components/schemas/AmazonPayRedirectData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bluecode_redirect"
+            ],
+            "properties": {
+              "bluecode_redirect": {
+                "type": "object",
+                "description": "The wallet data for Bluecode QR Code Redirect"
               }
             }
           },

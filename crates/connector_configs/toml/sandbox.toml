@@ -6397,13 +6397,9 @@ payment_method_type = "Mastercard"
 [[payload.debit]]
 payment_method_type = "Visa"
 
-[payload.connector_auth.CurrencyAuthKey.auth_key_map.USD]
-processing_account_id = "processing_account_id"
-api_key = "API Key"
-[payload.connector_auth.CurrencyAuthKey.auth_key_map.CAD]
-processing_account_id = "processing_account_id"
-api_key = "API Key"
-
+[payload.connector_auth.HeaderKey]
+api_key="API Key"
+  
 [silverflow]
 [[silverflow.credit]]
   payment_method_type = "Mastercard"
@@ -6464,8 +6460,18 @@ api_key="Signing key"
 api_secret="website name"
 key1="merchant_id"
 [bluecode]
+[[bluecode.wallet]]
+  payment_method_type = "bluecode"
 [bluecode.connector_auth.HeaderKey]
-api_key = "API Key"
+api_key = "E-Order Token"
+[bluecode.metadata.shop_name]
+name="shop_name"
+label="Shop Name"
+placeholder="Enter your Shop Name"
+required=true
+type="Text"
+[bluecode.connector_webhook_details]
+merchant_secret="Source verification key"
 
 [katapult]
 [katapult.connector_auth.HeaderKey]

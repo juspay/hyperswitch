@@ -760,6 +760,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::UpiCollect
             | enums::PaymentMethodType::UpiIntent
             | enums::PaymentMethodType::Cashapp
+            | enums::PaymentMethodType::Bluecode
             | enums::PaymentMethodType::Oxxo => Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
             )
@@ -1126,6 +1127,7 @@ fn get_stripe_payment_method_type_from_wallet_data(
         )),
         WalletData::PaypalRedirect(_)
         | WalletData::AliPayQr(_)
+        | WalletData::BluecodeRedirect {}
         | WalletData::Paysera(_)
         | WalletData::Skrill(_)
         | WalletData::AliPayHkRedirect(_)
@@ -1547,6 +1549,7 @@ impl TryFrom<(&WalletData, Option<PaymentMethodToken>)> for StripePaymentMethodD
             ),
             WalletData::AliPayQr(_)
             | WalletData::Paysera(_)
+            | WalletData::BluecodeRedirect {}
             | WalletData::Skrill(_)
             | WalletData::AliPayHkRedirect(_)
             | WalletData::MomoRedirect(_)

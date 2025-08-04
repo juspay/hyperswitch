@@ -430,7 +430,7 @@ pub enum ApplePayPaymentData {
 pub struct ApplePayPredecryptData {
     /// The primary account number
     #[schema(value_type = String, example = "4242424242424242")]
-    pub application_primary_account_number: cards::CardNumber, // Should this be String or should we have validation for this?
+    pub application_primary_account_number: cards::CardNumber,
     /// The application expiration date (PAN expiry month)
     #[schema(value_type = String, example = "12")]
     pub application_expiration_month: Secret<String>,
