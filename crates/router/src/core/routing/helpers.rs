@@ -2240,7 +2240,6 @@ pub async fn create_specific_dynamic_routing_setup(
     feature_to_enable: routing_types::DynamicRoutingFeatures,
     mut dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef,
     dynamic_routing_type: routing_types::DynamicRoutingType,
-    //payload
     payload: routing_types::DynamicRoutingPayload,
 ) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>> {
     let db = state.store.as_ref();

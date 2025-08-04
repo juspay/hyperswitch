@@ -943,15 +943,14 @@ pub struct ToggleDynamicRoutingPath {
 pub struct CreateDynamicRoutingWrapper {
     pub profile_id: common_utils::id_type::ProfileId,
     pub feature_to_enable: DynamicRoutingFeatures,
-    //added payload
     pub payload: DynamicRoutingPayload,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
 pub enum DynamicRoutingPayload {
-    SuccessBased(SuccessBasedRoutingConfig),
-    Elimination(EliminationRoutingConfig),
+    SuccessBasedRoutingPayload(SuccessBasedRoutingConfig),
+    EliminationRoutingPayload(EliminationRoutingConfig),
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
