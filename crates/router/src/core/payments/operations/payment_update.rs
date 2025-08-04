@@ -451,6 +451,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .force_3ds_challenge
             .or(payment_intent.force_3ds_challenge);
 
+        payment_intent.payment_channel = request
+            .payment_channel
+            .clone()
+            .or(payment_intent.payment_channel);
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -475,6 +480,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 .payment_method_data
                 .as_ref()
                 .and_then(|pmd| pmd.payment_method_data.clone().map(Into::into)),
+            payment_method_token: None,
             payment_method_info,
             force_sync: None,
             all_keys_required: None,
@@ -942,6 +948,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         .payment_intent
                         .is_iframe_redirection_enabled,
                     is_confirm_operation: false, // this is not a confirm operation
+                    payment_channel: payment_data.payment_intent.payment_channel,
                 })),
                 key_store,
                 storage_scheme,

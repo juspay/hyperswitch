@@ -795,6 +795,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             token_data,
             confirm: request.confirm,
             payment_method_data: payment_method_data_after_card_bin_call.map(Into::into),
+            payment_method_token: None,
             payment_method_info,
             force_sync: None,
             all_keys_required: None,
@@ -1287,6 +1288,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             payment_data.payment_intent.amount,
                             payment_data.payment_intent.currency,
                             payment_data.service_details.clone(),
+                            None,
+                            None,
+                            None,
+                            None
                         )
                         .await?;
 
@@ -1355,6 +1360,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             payment_data.payment_attempt.organization_id.clone(),
                             payment_data.payment_intent.force_3ds_challenge,
                             payment_data.payment_intent.psd2_sca_exemption_type,
+                            None,
                             None,
                             None,
                             None,
@@ -1429,7 +1435,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     ..
                 } => {
                     let (authentication_connector, three_ds_connector_account) =
-                    authentication::utils::get_authentication_connector_data(state, key_store, business_profile).await?;
+                    authentication::utils::get_authentication_connector_data(state, key_store, business_profile, None).await?;
                 let authentication_connector_name = authentication_connector.to_string();
                 let authentication = authentication::utils::create_new_authentication(
                     state,
@@ -1461,14 +1467,22 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     ).attach_printable("payment_method not found in payment_attempt")?,
                     payment_data.payment_intent.amount,
                     payment_data.payment_intent.currency,
-                    payment_data.service_details.clone()
+                    payment_data.service_details.clone(),
+                    None,
+                    None,
+                    None,
+                    None
                 ).await?;
                 let updated_authentication = uas_utils::utils::external_authentication_update_trackers(
                     state,
                     pre_auth_response,
                     authentication.clone(),
                     acquirer_details,
-                    key_store
+                    key_store,
+                    None,
+                    None,
+                    None,
+                    None,
                 ).await?;
                 let authentication_store = hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
                     cavv: None, // since in case of pre_authentication cavv is not present
@@ -1512,7 +1526,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 },
                 helpers::UnifiedAuthenticationServiceFlow::ExternalAuthenticationPostAuthenticate {authentication_id} => {
                     let (authentication_connector, three_ds_connector_account) =
-                    authentication::utils::get_authentication_connector_data(state, key_store, business_profile).await?;
+                    authentication::utils::get_authentication_connector_data(state, key_store, business_profile, None).await?;
                 let is_pull_mechanism_enabled =
                     utils::check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
                         three_ds_connector_account
@@ -1547,7 +1561,11 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         post_auth_response,
                         authentication,
                         None,
-                        key_store
+                        key_store,
+                        None,
+                        None,
+                        None,
+                        None,
                     ).await?
                 } else {
                     authentication
@@ -2036,6 +2054,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .payment_intent
                             .is_iframe_redirection_enabled,
                         is_confirm_operation: true, // Indicates that this is a confirm operation
+                        payment_channel: payment_data.payment_intent.payment_channel,
                     })),
                     &m_key_store,
                     storage_scheme,

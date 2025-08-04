@@ -45,7 +45,7 @@ pub use hyperswitch_interfaces::{
         BoxedConnectorIntegrationV2, ConnectorIntegrationAnyV2, ConnectorIntegrationV2,
     },
 };
-use masking::{Maskable, PeekInterface};
+use masking::{Maskable, PeekInterface, Secret};
 use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
 use serde::Serialize;
 use serde_json::json;
@@ -310,7 +310,8 @@ where
                                                         .trim_start_matches('\u{feff}')
                                                         .to_string();
                                                 }
-                                                data.raw_connector_response = Some(decoded);
+                                                data.raw_connector_response =
+                                                    Some(Secret::new(decoded));
                                             }
                                             Ok(data)
                                         }
@@ -700,7 +701,11 @@ where
         }
     };
 
-    let infra = state.infra_components.clone();
+    let infra = extract_mapped_fields(
+        &serialized_request,
+        state.enhancement.as_ref(),
+        state.infra_components.as_ref(),
+    );
 
     let api_event = ApiEvent::new(
         tenant_id,
@@ -1180,7 +1185,7 @@ pub fn build_redirection_form(
                     #loader1 {
                         width: 500px,
                     }
-                    @media max-width: 600px {
+                    @media (max-width: 600px) {
                         #loader1 {
                             width: 200px
                         }
@@ -1747,7 +1752,7 @@ pub fn build_redirection_form(
                                 #loader1 {
                                     width: 500px;
                                 }
-                                @media max-width: 600px {
+                                @media (max-width: 600px) {
                                     #loader1 {
                                         width: 200px;
                                     }
@@ -1776,7 +1781,21 @@ pub fn build_redirection_form(
                     script {
                         (PreEscaped(format!(
                             r#"
+                                var ddcProcessed = false;
+                                var timeoutHandle = null;
+                                
                                 function submitCollectionReference(collectionReference) {{
+                                    if (ddcProcessed) {{
+                                        console.log("DDC already processed, ignoring duplicate submission");
+                                        return;
+                                    }}
+                                    ddcProcessed = true;
+                                    
+                                    if (timeoutHandle) {{
+                                        clearTimeout(timeoutHandle);
+                                        timeoutHandle = null;
+                                    }}
+                                    
                                     var redirectPathname = window.location.pathname.replace(/payments\/redirect\/([^\/]+)\/([^\/]+)\/[^\/]+/, "payments/$1/$2/redirect/complete/worldpay");
                                     var redirectUrl = window.location.origin + redirectPathname;
                                     try {{
@@ -1795,12 +1814,17 @@ pub fn build_redirection_form(
                                             window.location.replace(redirectUrl);
                                         }}
                                     }} catch (error) {{
+                                        console.error("Error submitting DDC:", error);
                                         window.location.replace(redirectUrl);
                                     }}
                                 }}
                                 var allowedHost = "{}";
                                 var collectionField = "{}";
                                 window.addEventListener("message", function(event) {{
+                                    if (ddcProcessed) {{
+                                        console.log("DDC already processed, ignoring message event");
+                                        return;
+                                    }}
                                     if (event.origin === allowedHost) {{
                                         try {{
                                             var data = JSON.parse(event.data);
@@ -1820,8 +1844,13 @@ pub fn build_redirection_form(
                                     submitCollectionReference("");
                                 }});
 
-                                // Redirect within 8 seconds if no collection reference is received
-                                window.setTimeout(submitCollectionReference, 8000);
+                                // Timeout after 10 seconds and will submit empty collection reference
+                                timeoutHandle = window.setTimeout(function() {{
+                                    if (!ddcProcessed) {{
+                                        console.log("DDC timeout reached, submitting empty collection reference");
+                                        submitCollectionReference("");
+                                    }}
+                                }}, 10000);
                             "#,
                             endpoint.host_str().map_or(endpoint.as_ref().split('/').take(3).collect::<Vec<&str>>().join("/"), |host| format!("{}://{}", endpoint.scheme(), host)),
                             collection_id.clone().unwrap_or("".to_string())))
@@ -2062,6 +2091,64 @@ pub fn get_payment_link_status(
             Err(errors::ApiErrorResponse::InternalServerError)?
         }
     }
+}
+
+pub fn extract_mapped_fields(
+    value: &serde_json::Value,
+    mapping: Option<&HashMap<String, String>>,
+    existing_enhancement: Option<&serde_json::Value>,
+) -> Option<serde_json::Value> {
+    let mapping = mapping?;
+
+    if mapping.is_empty() {
+        return existing_enhancement.cloned();
+    }
+
+    let mut enhancement = match existing_enhancement {
+        Some(existing) if existing.is_object() => existing.clone(),
+        _ => serde_json::json!({}),
+    };
+
+    for (dot_path, output_key) in mapping {
+        if let Some(extracted_value) = extract_field_by_dot_path(value, dot_path) {
+            if let Some(obj) = enhancement.as_object_mut() {
+                obj.insert(output_key.clone(), extracted_value);
+            }
+        }
+    }
+
+    if enhancement.as_object().is_some_and(|obj| !obj.is_empty()) {
+        Some(enhancement)
+    } else {
+        None
+    }
+}
+
+pub fn extract_field_by_dot_path(
+    value: &serde_json::Value,
+    path: &str,
+) -> Option<serde_json::Value> {
+    let parts: Vec<&str> = path.split('.').collect();
+    let mut current = value;
+
+    for part in parts {
+        match current {
+            serde_json::Value::Object(obj) => {
+                current = obj.get(part)?;
+            }
+            serde_json::Value::Array(arr) => {
+                // Try to parse part as array index
+                if let Ok(index) = part.parse::<usize>() {
+                    current = arr.get(index)?;
+                } else {
+                    return None;
+                }
+            }
+            _ => return None,
+        }
+    }
+
+    Some(current.clone())
 }
 
 #[cfg(test)]

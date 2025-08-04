@@ -1,12 +1,12 @@
-use common_enums::ErrorCategory;
 use utoipa::ToSchema;
 
-use crate::enums::Connector;
+use crate::enums as api_enums;
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct GsmCreateRequest {
     /// The connector through which payment has gone through
-    pub connector: Connector,
+    #[schema(value_type = Connector)]
+    pub connector: api_enums::Connector,
     /// The flow in which the code and message occurred for a connector
     pub flow: String,
     /// The sub_flow in which the code and message occurred  for a connector
@@ -20,23 +20,41 @@ pub struct GsmCreateRequest {
     /// optional error provided by the router
     pub router_error: Option<String>,
     /// decision to be taken for auto retries flow
-    pub decision: GsmDecision,
+    /// **Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.
+    #[schema(deprecated)]
+    #[schema(value_type = GsmDecision)]
+    pub decision: api_enums::GsmDecision,
     /// indicates if step_up retry is possible
+    /// **Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.
+    #[schema(deprecated)]
     pub step_up_possible: bool,
     /// error code unified across the connectors
     pub unified_code: Option<String>,
     /// error message unified across the connectors
     pub unified_message: Option<String>,
     /// category in which error belongs to
-    pub error_category: Option<ErrorCategory>,
+    #[schema(value_type = Option<ErrorCategory>)]
+    pub error_category: Option<api_enums::ErrorCategory>,
     /// indicates if retry with pan is possible
+    /// **Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.
+    #[schema(deprecated)]
     pub clear_pan_possible: bool,
+    /// Indicates the GSM feature associated with the request,
+    /// such as retry mechanisms or other specific functionalities provided by the system.
+    #[schema(value_type = Option<GsmFeature>)]
+    pub feature: Option<api_enums::GsmFeature>,
+    /// Contains the data relevant to the specified GSM feature, if applicable.
+    /// For example, if the `feature` is `Retry`, this will include configuration
+    /// details specific to the retry behavior.
+    #[schema(value_type = Option<GsmFeatureData>)]
+    pub feature_data: Option<common_types::domain::GsmFeatureData>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct GsmRetrieveRequest {
     /// The connector through which payment has gone through
-    pub connector: Connector,
+    #[schema(value_type = Connector)]
+    pub connector: api_enums::Connector,
     /// The flow in which the code and message occurred for a connector
     pub flow: String,
     /// The sub_flow in which the code and message occurred  for a connector
@@ -45,28 +63,6 @@ pub struct GsmRetrieveRequest {
     pub code: String,
     /// message received from the connector
     pub message: String,
-}
-
-#[derive(
-    Default,
-    Clone,
-    Copy,
-    Debug,
-    strum::Display,
-    PartialEq,
-    Eq,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::EnumString,
-    ToSchema,
-)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum GsmDecision {
-    Retry,
-    Requeue,
-    #[default]
-    DoDefault,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -86,17 +82,34 @@ pub struct GsmUpdateRequest {
     /// optional error provided by the router
     pub router_error: Option<String>,
     /// decision to be taken for auto retries flow
-    pub decision: Option<GsmDecision>,
+    /// **Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.
+    #[schema(deprecated)]
+    #[schema(value_type = Option<GsmDecision>)]
+    pub decision: Option<api_enums::GsmDecision>,
     /// indicates if step_up retry is possible
+    /// **Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.
+    #[schema(deprecated)]
     pub step_up_possible: Option<bool>,
     /// error code unified across the connectors
     pub unified_code: Option<String>,
     /// error message unified across the connectors
     pub unified_message: Option<String>,
     /// category in which error belongs to
-    pub error_category: Option<ErrorCategory>,
+    #[schema(value_type = Option<ErrorCategory>)]
+    pub error_category: Option<api_enums::ErrorCategory>,
     /// indicates if retry with pan is possible
+    /// **Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.
+    #[schema(deprecated)]
     pub clear_pan_possible: Option<bool>,
+    /// Indicates the GSM feature associated with the request,
+    /// such as retry mechanisms or other specific functionalities provided by the system.
+    #[schema(value_type = Option<GsmFeature>)]
+    pub feature: Option<api_enums::GsmFeature>,
+    /// Contains the data relevant to the specified GSM feature, if applicable.
+    /// For example, if the `feature` is `Retry`, this will include configuration
+    /// details specific to the retry behavior.
+    #[schema(value_type = Option<GsmFeatureData>)]
+    pub feature_data: Option<common_types::domain::GsmFeatureData>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -143,15 +156,32 @@ pub struct GsmResponse {
     /// optional error provided by the router
     pub router_error: Option<String>,
     /// decision to be taken for auto retries flow
-    pub decision: String,
+    /// **Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.
+    #[schema(deprecated)]
+    #[schema(value_type = GsmDecision)]
+    pub decision: api_enums::GsmDecision,
     /// indicates if step_up retry is possible
+    /// **Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.
+    #[schema(deprecated)]
     pub step_up_possible: bool,
     /// error code unified across the connectors
     pub unified_code: Option<String>,
     /// error message unified across the connectors
     pub unified_message: Option<String>,
     /// category in which error belongs to
-    pub error_category: Option<ErrorCategory>,
+    #[schema(value_type = Option<ErrorCategory>)]
+    pub error_category: Option<api_enums::ErrorCategory>,
     /// indicates if retry with pan is possible
+    /// **Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.
+    #[schema(deprecated)]
     pub clear_pan_possible: bool,
+    /// Indicates the GSM feature associated with the request,
+    /// such as retry mechanisms or other specific functionalities provided by the system.
+    #[schema(value_type = GsmFeature)]
+    pub feature: api_enums::GsmFeature,
+    /// Contains the data relevant to the specified GSM feature, if applicable.
+    /// For example, if the `feature` is `Retry`, this will include configuration
+    /// details specific to the retry behavior.
+    #[schema(value_type = GsmFeatureData)]
+    pub feature_data: Option<common_types::domain::GsmFeatureData>,
 }

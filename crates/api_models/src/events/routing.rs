@@ -178,3 +178,27 @@ impl ApiEventMetric for RuleMigrationError {
         Some(ApiEventsType::Routing)
     }
 }
+
+impl ApiEventMetric for crate::open_router::DecideGatewayResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Routing)
+    }
+}
+
+impl ApiEventMetric for crate::open_router::OpenRouterDecideGatewayRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Routing)
+    }
+}
+
+impl ApiEventMetric for crate::open_router::UpdateScorePayload {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Routing)
+    }
+}
+
+impl ApiEventMetric for crate::open_router::UpdateScoreResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Routing)
+    }
+}

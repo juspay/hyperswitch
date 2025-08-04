@@ -6,7 +6,9 @@ use std::{
 use api_models::{
     open_router as or_types,
     routing::{
-        self as api_routing, ConnectorSelection, ConnectorVolumeSplit, RoutableConnectorChoice,
+        self as api_routing, ComparisonType, ConnectorSelection, ConnectorVolumeSplit,
+        DeRoutableConnectorChoice, MetadataValue, NumberComparison, RoutableConnectorChoice,
+        RoutingEvaluateRequest, RoutingEvaluateResponse, ValueType,
     },
 };
 use async_trait::async_trait;
@@ -1102,16 +1104,6 @@ impl ConnectorInfo {
     }
 }
 
-impl From<DeRoutableConnectorChoice> for RoutableConnectorChoice {
-    fn from(choice: DeRoutableConnectorChoice) -> Self {
-        Self {
-            choice_kind: api_routing::RoutableChoiceKind::FullStruct,
-            connector: choice.gateway_name,
-            merchant_connector_id: choice.gateway_id,
-        }
-    }
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Output {
@@ -1123,6 +1115,7 @@ pub enum Output {
 
 pub type Globals = HashMap<String, HashSet<ValueType>>;
 
+pub type Metadata = HashMap<String, serde_json::Value>;
 /// The program, having a default connector selection and
 /// a bunch of rules. Also can hold arbitrary metadata.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -1459,7 +1452,7 @@ where
     String(String),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct RoutingEventsResponse<Res>
 where
     Res: Serialize + serde::de::DeserializeOwned + Clone,

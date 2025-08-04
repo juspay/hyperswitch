@@ -1810,10 +1810,12 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::BcaBankTransfer => Self::BankTransfer,
             PaymentMethodType::Becs => Self::BankDebit,
             PaymentMethodType::BniVa => Self::BankTransfer,
+            PaymentMethodType::Breadpay => Self::PayLater,
             PaymentMethodType::BriVa => Self::BankTransfer,
             PaymentMethodType::Benefit => Self::CardRedirect,
             PaymentMethodType::Bizum => Self::BankRedirect,
             PaymentMethodType::Blik => Self::BankRedirect,
+            PaymentMethodType::Bluecode => Self::Wallet,
             PaymentMethodType::Alfamart => Self::Voucher,
             PaymentMethodType::CardRedirect => Self::CardRedirect,
             PaymentMethodType::CimbVa => Self::BankTransfer,
@@ -1825,6 +1827,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::Dana => Self::Wallet,
             PaymentMethodType::DanamonVa => Self::BankTransfer,
             PaymentMethodType::Debit => Self::Card,
+            PaymentMethodType::Flexiti => Self::PayLater,
             PaymentMethodType::Fps => Self::RealTimePayment,
             PaymentMethodType::DuitNow => Self::RealTimePayment,
             PaymentMethodType::Eft => Self::BankRedirect,
@@ -1901,6 +1904,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::OpenBankingPIS => Self::OpenBanking,
             PaymentMethodType::DirectCarrierBilling => Self::MobilePayment,
             PaymentMethodType::RevolutPay => Self::Wallet,
+            PaymentMethodType::IndonesianBankTransfer => Self::BankTransfer,
         }
     }
 }
@@ -2119,6 +2123,7 @@ impl From<AttemptStatus> for IntentStatus {
             | AttemptStatus::CaptureFailed
             | AttemptStatus::Failure => Self::Failed,
             AttemptStatus::Voided => Self::Cancelled,
+            AttemptStatus::Expired => Self::Expired,
         }
     }
 }
@@ -2133,6 +2138,7 @@ impl From<IntentStatus> for Option<EventType> {
             | IntentStatus::RequiresCustomerAction
             | IntentStatus::Conflicted => Some(EventType::ActionRequired),
             IntentStatus::Cancelled => Some(EventType::PaymentCancelled),
+            IntentStatus::Expired => Some(EventType::PaymentExpired),
             IntentStatus::PartiallyCaptured | IntentStatus::PartiallyCapturedAndCapturable => {
                 Some(EventType::PaymentCaptured)
             }

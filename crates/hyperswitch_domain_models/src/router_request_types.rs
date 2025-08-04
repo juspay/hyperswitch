@@ -80,6 +80,8 @@ pub struct PaymentsAuthorizeData {
     pub merchant_config_currency: Option<storage_enums::Currency>,
     pub connector_testing_data: Option<pii::SecretSerdeValue>,
     pub order_id: Option<String>,
+    pub locale: Option<String>,
+    pub payment_channel: Option<common_enums::PaymentChannel>,
 }
 #[derive(Debug, Clone)]
 pub struct PaymentsPostSessionTokensData {
@@ -181,6 +183,9 @@ pub struct ConnectorCustomerData {
     pub preprocessing_id: Option<String>,
     pub payment_method_data: Option<PaymentMethodData>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
+    // Mandates
+    pub setup_future_usage: Option<storage_enums::FutureUsage>,
+    pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
 }
 
 impl TryFrom<SetupMandateRequestData> for ConnectorCustomerData {
@@ -194,6 +199,8 @@ impl TryFrom<SetupMandateRequestData> for ConnectorCustomerData {
             name: None,
             preprocessing_id: None,
             split_payments: None,
+            setup_future_usage: data.setup_future_usage,
+            customer_acceptance: data.customer_acceptance,
         })
     }
 }
@@ -219,6 +226,8 @@ impl
             name: data.request.customer_name.clone(),
             preprocessing_id: data.preprocessing_id.clone(),
             split_payments: data.request.split_payments.clone(),
+            setup_future_usage: data.request.setup_future_usage,
+            customer_acceptance: data.request.customer_acceptance.clone(),
         })
     }
 }
@@ -243,6 +252,8 @@ impl TryFrom<&RouterData<flows::Session, PaymentsSessionData, response_types::Pa
             name: data.request.customer_name.clone(),
             preprocessing_id: data.preprocessing_id.clone(),
             split_payments: None,
+            setup_future_usage: None,
+            customer_acceptance: None,
         })
     }
 }
@@ -254,6 +265,10 @@ pub struct PaymentMethodTokenizationData {
     pub currency: storage_enums::Currency,
     pub amount: Option<i64>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
+    pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
+    pub setup_future_usage: Option<storage_enums::FutureUsage>,
+    pub setup_mandate_details: Option<mandates::MandateData>,
+    pub mandate_id: Option<api_models::payments::MandateIds>,
 }
 
 impl TryFrom<SetupMandateRequestData> for PaymentMethodTokenizationData {
@@ -266,6 +281,10 @@ impl TryFrom<SetupMandateRequestData> for PaymentMethodTokenizationData {
             currency: data.currency,
             amount: data.amount,
             split_payments: None,
+            customer_acceptance: data.customer_acceptance,
+            setup_future_usage: data.setup_future_usage,
+            setup_mandate_details: data.setup_mandate_details,
+            mandate_id: data.mandate_id,
         })
     }
 }
@@ -281,6 +300,10 @@ impl<F> From<&RouterData<F, PaymentsAuthorizeData, response_types::PaymentsRespo
             currency: data.request.currency,
             amount: Some(data.request.amount),
             split_payments: data.request.split_payments.clone(),
+            customer_acceptance: data.request.customer_acceptance.clone(),
+            setup_future_usage: data.request.setup_future_usage,
+            setup_mandate_details: data.request.setup_mandate_details.clone(),
+            mandate_id: data.request.mandate_id.clone(),
         }
     }
 }
@@ -295,6 +318,10 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentMethodTokenizationData {
             currency: data.currency,
             amount: Some(data.amount),
             split_payments: data.split_payments.clone(),
+            customer_acceptance: data.customer_acceptance,
+            setup_future_usage: data.setup_future_usage,
+            setup_mandate_details: data.setup_mandate_details,
+            mandate_id: data.mandate_id,
         })
     }
 }
@@ -314,6 +341,10 @@ impl TryFrom<CompleteAuthorizeData> for PaymentMethodTokenizationData {
             currency: data.currency,
             amount: Some(data.amount),
             split_payments: None,
+            customer_acceptance: data.customer_acceptance,
+            setup_future_usage: data.setup_future_usage,
+            setup_mandate_details: data.setup_mandate_details,
+            mandate_id: data.mandate_id,
         })
     }
 }
@@ -681,6 +712,8 @@ pub struct AuthenticationData {
     pub threeds_server_transaction_id: Option<String>,
     pub message_version: Option<common_utils::types::SemanticVersion>,
     pub ds_trans_id: Option<String>,
+    pub created_at: time::PrimitiveDateTime,
+    pub authentication_type: Option<common_enums::DecoupledAuthenticationType>,
 }
 
 #[derive(Debug, Clone)]

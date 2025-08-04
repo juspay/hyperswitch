@@ -714,17 +714,8 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             .create_or_validate(db)
             .await?;
 
-        let merchant_account_type = match organization.get_organization_type() {
-            OrganizationType::Standard => MerchantAccountType::Standard,
-            // Blocking v2 merchant account create for platform
-            OrganizationType::Platform => {
-                return Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "Merchant account creation is not allowed for a platform organization"
-                        .to_string(),
-                }
-                .into())
-            }
-        };
+        // V2 currently supports creation of Standard merchant accounts only, irrespective of organization type
+        let merchant_account_type = MerchantAccountType::Standard;
 
         let key = key_store.key.into_inner();
         let id = identifier.to_owned();
@@ -3379,8 +3370,9 @@ impl ProfileCreateBridge for api::ProfileCreate {
             .as_ref()
             .map(|country_code| country_code.validate_and_get_country_from_merchant_country_code())
             .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error while parsing country from merchant country code")?;
+            .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Invalid merchant country code".to_string(),
+            })?;
 
         Ok(domain::Profile::from(domain::ProfileSetter {
             profile_id,
@@ -3931,8 +3923,9 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
             .as_ref()
             .map(|country_code| country_code.validate_and_get_country_from_merchant_country_code())
             .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error while parsing country from merchant country code")?;
+            .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Invalid merchant country code".to_string(),
+            })?;
 
         Ok(domain::ProfileUpdate::Update(Box::new(
             domain::ProfileGeneralUpdate {

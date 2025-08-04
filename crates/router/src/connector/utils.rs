@@ -2195,7 +2195,8 @@ impl FrmTransactionRouterDataRequest for fraud_check::FrmTransactionRouterData {
             | storage_enums::AttemptStatus::Voided
             | storage_enums::AttemptStatus::CaptureFailed
             | storage_enums::AttemptStatus::Failure
-            | storage_enums::AttemptStatus::AutoRefunded => Some(false),
+            | storage_enums::AttemptStatus::AutoRefunded
+            | storage_enums::AttemptStatus::Expired => Some(false),
 
             storage_enums::AttemptStatus::AuthenticationSuccessful
             | storage_enums::AttemptStatus::PartialChargedAndChargeable
@@ -2226,7 +2227,8 @@ pub fn is_payment_failure(status: enums::AttemptStatus) -> bool {
         | common_enums::AttemptStatus::AuthorizationFailed
         | common_enums::AttemptStatus::CaptureFailed
         | common_enums::AttemptStatus::VoidFailed
-        | common_enums::AttemptStatus::Failure => true,
+        | common_enums::AttemptStatus::Failure
+        | common_enums::AttemptStatus::Expired => true,
         common_enums::AttemptStatus::Started
         | common_enums::AttemptStatus::RouterDeclined
         | common_enums::AttemptStatus::AuthenticationPending
@@ -2437,6 +2439,7 @@ pub enum PaymentMethodDataType {
     DanaRedirect,
     DuitNow,
     GooglePay,
+    Bluecode,
     GooglePayRedirect,
     GooglePayThirdPartySdk,
     MbWayRedirect,
@@ -2460,6 +2463,8 @@ pub enum PaymentMethodDataType {
     WalleyRedirect,
     AlmaRedirect,
     AtomeRedirect,
+    BreadpayRedirect,
+    FlexitiRedirect,
     BancontactCard,
     Bizum,
     Blik,
@@ -2529,6 +2534,7 @@ pub enum PaymentMethodDataType {
     InstantBankTransferFinland,
     InstantBankTransferPoland,
     RevolutPay,
+    IndonesianBankTransfer,
 }
 
 impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
@@ -2563,6 +2569,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                 }
                 domain::payments::WalletData::DanaRedirect {} => Self::DanaRedirect,
                 domain::payments::WalletData::GooglePay(_) => Self::GooglePay,
+                domain::payments::WalletData::BluecodeRedirect {} => Self::Bluecode,
                 domain::payments::WalletData::GooglePayRedirect(_) => Self::GooglePayRedirect,
                 domain::payments::WalletData::GooglePayThirdPartySdk(_) => {
                     Self::GooglePayThirdPartySdk
@@ -2593,7 +2600,9 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                 domain::payments::PayLaterData::PayBrightRedirect {} => Self::PayBrightRedirect,
                 domain::payments::PayLaterData::WalleyRedirect {} => Self::WalleyRedirect,
                 domain::payments::PayLaterData::AlmaRedirect {} => Self::AlmaRedirect,
+                domain::payments::PayLaterData::FlexitiRedirect {} => Self::FlexitiRedirect,
                 domain::payments::PayLaterData::AtomeRedirect {} => Self::AtomeRedirect,
+                domain::payments::PayLaterData::BreadpayRedirect {} => Self::BreadpayRedirect,
             },
             domain::payments::PaymentMethodData::BankRedirect(bank_redirect_data) => {
                 match bank_redirect_data {
@@ -2690,6 +2699,9 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                     }
                     domain::payments::BankTransferData::InstantBankTransferPoland {} => {
                         Self::InstantBankTransferPoland
+                    }
+                    domain::payments::BankTransferData::IndonesianBankTransfer { .. } => {
+                        Self::IndonesianBankTransfer
                     }
                 }
             }
