@@ -401,7 +401,7 @@ export const CONNECTOR_LISTS = {
       "archipel",
       // "cybersource",    // issues with MULTIPLE_CONNECTORS handling
       "paypal",
-      // "stripe",
+      "stripe",
     ],
     DDC_RACE_CONDITION: ["worldpay"],
     // Add more inclusion lists

@@ -131,7 +131,7 @@ export const connectorDetails = {
     PaymentIntentOffSession: {
       Configs: {
         CONNECTOR_CREDENTIAL: {
-          specName: ["connectorAgnosticNTID"],
+          specName: ["connectorAgnosticNTID", "incrementalAuth"],
           value: "connector_2",
         },
       },
@@ -399,33 +399,27 @@ export const connectorDetails = {
         },
       },
     },
-    // IncrementalAuth: {
-    //   Configs: {
-    //     CONNECTOR_CREDENTIAL: {
-    //       specName: ["incrementalAuth"],
-    //       value: "connector_2",
-    //     },
-    //   },
-    //   Request: {
-    //     amount: 8000,
-    //   },
-    //   Response: {
-    //     status: 200,
-    //     body: {
-    //       status: "requires_capture",
-    //       amount: 8000,
-    //       amount_capturable: 8000,
-    //       amount_received: null,
-    //       incremental_authorizations: [
-    //         {
-    //           amount: 8000,
-    //           previously_authorized_amount: 6000,
-    //           status: "requires_capture",
-    //         },
-    //       ],
-    //     },
-    //   },
-    // },
+    IncrementalAuth: {
+      Request: {
+        amount: 8000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+          amount: 8000,
+          amount_capturable: 8000,
+          amount_received: null,
+          incremental_authorizations: [
+            {
+              amount: 8000,
+              previously_authorized_amount: 6000,
+              status: "requires_capture",
+            },
+          ],
+        },
+      },
+    },
     MandateSingleUse3DSAutoCapture: {
       Request: {
         payment_method: "card",
@@ -717,6 +711,12 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSManualCaptureOffSession: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          specName: ["incrementalAuth"],
+          value: "connector_2",
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
