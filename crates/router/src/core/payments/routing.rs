@@ -48,7 +48,9 @@ use rand::SeedableRng;
 use router_env::{instrument, tracing};
 use rustc_hash::FxHashMap;
 use storage_impl::redis::cache::{CacheKey, CGRAPH_CACHE, ROUTING_CACHE};
-use utils::perform_decision_euclid_routing;
+use utils::{
+    extract_de_output_connectors, perform_decision_euclid_routing, transform_de_output_for_router,
+};
 
 #[cfg(feature = "v2")]
 use crate::core::admin;
@@ -492,7 +494,7 @@ pub async fn perform_static_routing_v1(
             .to_string(),
     };
 
-    let de_euclid_connectors = if state.conf.open_router.static_routing_enabled {
+    let de_evaluated_connector = if state.conf.open_router.static_routing_enabled {
         let routing_events_wrapper = utils::RoutingEventsWrapper::new(
             state.tenant.tenant_id.clone(),
             state.request_id,
@@ -505,7 +507,7 @@ pub async fn perform_static_routing_v1(
             false,
         );
 
-        perform_decision_euclid_routing(
+        if let Ok(de_euclid_evaluate_response) = perform_decision_euclid_routing(
             state,
             backend_input.clone(),
             business_profile.get_id().get_string_repr().to_string(),
@@ -513,10 +515,24 @@ pub async fn perform_static_routing_v1(
             get_merchant_fallback_config().await?,
         )
         .await
-        .map_err(|e|
+        {
+            let de_output_conenctor = extract_de_output_connectors(de_euclid_evaluate_response.output)
+                .map_err(|e| {
+                    logger::error!(error=?e, "decision_engine_euclid_evaluation_error: Failed to extract connector from Output");
+                    e
+                }).unwrap_or_default();
+            let a = transform_de_output_for_router(
+                de_output_conenctor.clone(),
+                de_euclid_evaluate_response.evaluated_output.clone(),
+            )
+            .expect("not found");
+            // de_euclid_evaluate_response.evaluated_output
+            a
+        } else {
             // errors are ignored as this is just for diff checking as of now (optional flow).
-            logger::error!(decision_engine_euclid_evaluate_error=?e, "decision_engine_euclid: error in evaluation of rule")
-        ).unwrap_or_default()
+            logger::error!("decision_engine_euclid_evaluation_error: error in evaluation of rule");
+            Vec::default()
+        }
     } else {
         Vec::default()
     };
@@ -539,17 +555,20 @@ pub async fn perform_static_routing_v1(
     };
 
     utils::compare_and_log_result(
-        de_euclid_connectors.clone(),
+        de_evaluated_connector.clone(),
         routable_connectors.clone(),
         "evaluate_routing".to_string(),
     );
+
+    logger::error!("<<<<<<32<<<<<<{:?}>>>>>>>>>>>>>>>>", de_evaluated_connector);
+    logger::error!("<<<<<<44<<<<<<{:?}>>>>>>>>>>>>>>>>", routable_connectors);
 
     Ok((
         utils::select_routing_result(
             state,
             business_profile,
             routable_connectors,
-            de_euclid_connectors,
+            de_evaluated_connector,
         )
         .await,
         routing_approach,

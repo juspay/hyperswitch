@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    str::FromStr,
+};
 
 use api_models::{
     open_router as or_types,
@@ -7,7 +10,7 @@ use api_models::{
     },
 };
 use async_trait::async_trait;
-use common_enums::TransactionType;
+use common_enums::{RoutableConnectors, TransactionType};
 use common_utils::{
     ext_traits::{BytesExt, StringExt},
     id_type,
@@ -299,7 +302,7 @@ pub async fn perform_decision_euclid_routing(
     created_by: String,
     events_wrapper: RoutingEventsWrapper<RoutingEvaluateRequest>,
     fallback_output: Vec<RoutableConnectorChoice>,
-) -> RoutingResult<Vec<RoutableConnectorChoice>> {
+) -> RoutingResult<RoutingEvaluateResponse> {
     logger::debug!("decision_engine_euclid: evaluate api call for euclid routing evaluation");
 
     let mut events_wrapper = events_wrapper;
@@ -346,8 +349,208 @@ pub async fn perform_decision_euclid_routing(
 
     logger::debug!(decision_engine_euclid_response=?euclid_response,"decision_engine_euclid");
     logger::debug!(decision_engine_euclid_selected_connector=?euclid_response.evaluated_output,"decision_engine_euclid");
+    logger::error!(">>>>>>>>>>>>0>>>>>>>>>{:?}", euclid_response.output);
+    Ok(euclid_response)
+}
 
-    Ok(euclid_response.evaluated_output)
+pub fn transform_de_output_for_router(
+    de_output: Vec<ConnectorInfo>,
+    de_evaluated_output: Vec<RoutableConnectorChoice>,
+) -> RoutingResult<Vec<RoutableConnectorChoice>> {
+    if de_evaluated_output.is_empty() {
+        return de_output
+            .into_iter()
+            .map(|c| {
+                let de_choice = DeRoutableConnectorChoice::try_from(c)?;
+                Ok(RoutableConnectorChoice::from(de_choice))
+            })
+            .collect();
+    }
+
+    let mut seen = HashSet::new();
+    let mut ordered = Vec::with_capacity(de_output.len() + de_evaluated_output.len());
+
+    // Add evaluated output first
+    for eval_conn in &de_evaluated_output {
+        if seen.insert(eval_conn.connector.clone()) {
+            ordered.push(eval_conn.clone());
+        }
+    }
+
+    // Add remaining from de_output
+    for conn in de_output {
+        let key = RoutableConnectors::from_str(&conn.gateway_name).map_err(|_| {
+            errors::RoutingError::GenericConversionError {
+                from: "String".to_string(),
+                to: "RoutableConnectors".to_string(),
+            }
+        })?;
+
+        if seen.insert(key) {
+            let de_choice = DeRoutableConnectorChoice::try_from(conn)?;
+            ordered.push(RoutableConnectorChoice::from(de_choice));
+        }
+    }
+
+    Ok(ordered)
+}
+
+pub fn extract_de_output_connectors(
+    output_value: serde_json::Value,
+) -> RoutingResult<Vec<ConnectorInfo>> {
+    let obj = output_value.as_object().ok_or_else(|| {
+        logger::error!("decision_engine_euclid_error: output is not a JSON object");
+        errors::RoutingError::OpenRouterError("Expected output to be a JSON object".into())
+    })?;
+
+    let type_str = obj.get("type").and_then(|v| v.as_str()).ok_or_else(|| {
+        logger::error!("decision_engine_euclid_error: missing or invalid 'type' in output");
+        errors::RoutingError::OpenRouterError("Missing or invalid 'type' field in output".into())
+    })?;
+
+    match type_str {
+        "single" => {
+            let connector_value = obj.get("connector").ok_or_else(|| {
+                logger::error!(
+                    "decision_engine_euclid_error: missing 'connector' field for type=single"
+                );
+                errors::RoutingError::OpenRouterError(
+                    "Missing 'connector' field for single output".into(),
+                )
+            })?;
+            let connector: ConnectorInfo = serde_json::from_value(connector_value.clone())
+                .map_err(|e| {
+                    logger::error!(
+                        ?e,
+                        "decision_engine_euclid_error: Failed to parse single connector"
+                    );
+                    errors::RoutingError::OpenRouterError(
+                        "Failed to deserialize single connector".into(),
+                    )
+                })?;
+            Ok(vec![connector])
+        }
+
+        "priority" => {
+            let connectors_value = obj.get("connectors").ok_or_else(|| {
+                logger::error!(
+                    "decision_engine_euclid_error: missing 'connectors' field for type=priority"
+                );
+                errors::RoutingError::OpenRouterError(
+                    "Missing 'connectors' field for priority output".into(),
+                )
+            })?;
+            let connectors: Vec<ConnectorInfo> = serde_json::from_value(connectors_value.clone())
+                .map_err(|e| {
+                logger::error!(
+                    ?e,
+                    "decision_engine_euclid_error: Failed to parse connectors for priority"
+                );
+                errors::RoutingError::OpenRouterError(
+                    "Failed to deserialize priority connectors".into(),
+                )
+            })?;
+            Ok(connectors)
+        }
+
+        "volume_split" => {
+            let splits_value = obj.get("splits").ok_or_else(|| {
+                logger::error!(
+                    "decision_engine_euclid_error: missing 'splits' field for type=volume_split"
+                );
+                errors::RoutingError::OpenRouterError(
+                    "Missing 'splits' field for volume_split output".into(),
+                )
+            })?;
+
+            // Transform each {connector, split} into {output, split}
+            let fixed_splits: Vec<_> = splits_value
+                .as_array()
+                .ok_or_else(|| {
+                    logger::error!("decision_engine_euclid_error: 'splits' is not an array");
+                    errors::RoutingError::OpenRouterError("'splits' field must be an array".into())
+                })?
+                .iter()
+                .map(|entry| {
+                    let mut entry_map = entry.as_object().cloned().ok_or_else(|| {
+                        logger::error!(
+                            "decision_engine_euclid_error: invalid split entry in volume_split"
+                        );
+                        errors::RoutingError::OpenRouterError(
+                            "Invalid entry in splits array".into(),
+                        )
+                    })?;
+                    if let Some(connector) = entry_map.remove("connector") {
+                        entry_map.insert("output".to_string(), connector);
+                    }
+                    Ok::<_, error_stack::Report<errors::RoutingError>>(serde_json::Value::Object(
+                        entry_map,
+                    ))
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+
+            let splits: Vec<VolumeSplit<ConnectorInfo>> =
+                serde_json::from_value(serde_json::Value::Array(fixed_splits)).map_err(|e| {
+                    logger::error!(
+                        ?e,
+                        "decision_engine_euclid_error: Failed to parse volume_split"
+                    );
+                    errors::RoutingError::OpenRouterError(
+                        "Failed to deserialize volume_split connectors".into(),
+                    )
+                })?;
+
+            Ok(splits.into_iter().map(|s| s.output).collect())
+        }
+
+        "volume_split_priority" => {
+            let splits_value = obj.get("splits").ok_or_else(|| {
+                logger::error!("decision_engine_euclid_error: missing 'splits' field for type=volume_split_priority");
+                errors::RoutingError::OpenRouterError("Missing 'splits' field for volume_split_priority output".into())
+            })?;
+
+            // Transform each {connector: [...], split} into {output: [...], split}
+            let fixed_splits: Vec<_> = splits_value
+                .as_array()
+                .ok_or_else(|| {
+                    logger::error!("decision_engine_euclid_error: 'splits' is not an array");
+                    errors::RoutingError::OpenRouterError("'splits' field must be an array".into())
+                })?
+                .iter()
+                .map(|entry| {
+                    let mut entry_map = entry.as_object().cloned().ok_or_else(|| {
+                        logger::error!("decision_engine_euclid_error: invalid split entry in volume_split_priority");
+                        errors::RoutingError::OpenRouterError("Invalid entry in splits array".into())
+                    })?;
+                    if let Some(connector) = entry_map.remove("connector") {
+                        entry_map.insert("output".to_string(), connector);
+                    }
+                    Ok::<_, error_stack::Report<errors::RoutingError>>(serde_json::Value::Object(entry_map))
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+
+            let splits: Vec<VolumeSplit<Vec<ConnectorInfo>>> =
+                serde_json::from_value(serde_json::Value::Array(fixed_splits)).map_err(|e| {
+                    logger::error!(
+                        ?e,
+                        "decision_engine_euclid_error: Failed to parse volume_split_priority"
+                    );
+                    errors::RoutingError::OpenRouterError(
+                        "Failed to deserialize volume_split_priority connectors".into(),
+                    )
+                })?;
+
+            Ok(splits.into_iter().flat_map(|s| s.output).collect())
+        }
+
+        other => {
+            logger::error!(type_str=%other, "decision_engine_euclid_error: unknown output type");
+            Err(
+                errors::RoutingError::OpenRouterError(format!("Unknown output type: {other}"))
+                    .into(),
+            )
+        }
+    }
 }
 
 pub async fn create_de_euclid_routing_algo(
@@ -458,17 +661,13 @@ pub fn compare_and_log_result<T: RoutingEq<T> + Serialize>(
     result: Vec<T>,
     flow: String,
 ) {
-    let is_equal = de_result.len() == result.len()
-        && de_result
-            .iter()
-            .zip(result.iter())
-            .all(|(a, b)| T::is_equal(a, b));
+    let is_equal = de_result
+        .iter()
+        .zip(result.iter())
+        .all(|(a, b)| T::is_equal(a, b));
 
-    if is_equal {
-        router_env::logger::info!(routing_flow=?flow, is_equal=?is_equal, "decision_engine_euclid");
-    } else {
-        router_env::logger::debug!(routing_flow=?flow, is_equal=?is_equal, de_response=?to_json_string(&de_result), hs_response=?to_json_string(&result), "decision_engine_euclid");
-    }
+    let is_equal_in_length = de_result.len() == result.len();
+    router_env::logger::debug!(routing_flow=?flow, is_equal=?is_equal, is_equal_length=?is_equal_in_length, de_response=?to_json_string(&de_result), hs_response=?to_json_string(&result), "decision_engine_euclid");
 }
 
 pub trait RoutingEq<T> {
@@ -704,7 +903,7 @@ pub struct RoutingEvaluateResponse {
 /// Routable Connector chosen for a payment
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct DeRoutableConnectorChoice {
-    pub gateway_name: common_enums::RoutableConnectors,
+    pub gateway_name: RoutableConnectors,
     pub gateway_id: Option<id_type::MerchantConnectorAccountId>,
 }
 
@@ -863,6 +1062,36 @@ pub struct VolumeSplit<T> {
 pub struct ConnectorInfo {
     pub gateway_name: String,
     pub gateway_id: Option<String>,
+}
+
+impl TryFrom<ConnectorInfo> for DeRoutableConnectorChoice {
+    type Error = error_stack::Report<errors::RoutingError>;
+
+    fn try_from(c: ConnectorInfo) -> Result<Self, Self::Error> {
+        let gateway_id = c
+            .gateway_id
+            .map(|mca| {
+                id_type::MerchantConnectorAccountId::wrap(mca)
+                    .change_context(errors::RoutingError::GenericConversionError {
+                        from: "String".to_string(),
+                        to: "MerchantConnectorAccountId".to_string(),
+                    })
+                    .attach_printable("unable to convert MerchantConnectorAccountId from string")
+            })
+            .transpose()?;
+
+        let gateway_name = RoutableConnectors::from_str(&c.gateway_name)
+            .map_err(|_| errors::RoutingError::GenericConversionError {
+                from: "String".to_string(),
+                to: "RoutableConnectors".to_string(),
+            })
+            .attach_printable("unable to convert connector name to RoutableConnectors")?;
+
+        Ok(Self {
+            gateway_name,
+            gateway_id,
+        })
+    }
 }
 
 impl ConnectorInfo {

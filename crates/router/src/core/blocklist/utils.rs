@@ -54,6 +54,10 @@ pub async fn toggle_blocklist_guard_for_merchant(
         key: key.clone(),
         config: query.status.to_string(),
     };
+    println!(
+        ">>>>>>>>>>>>>>{:?}>>>>>>>>>>>>>{:?}>>>>>>>>>>>>>{:?}",
+        key, maybe_guard, new_config
+    );
     match maybe_guard {
         Ok(_config) => {
             let updated_config = configs::ConfigUpdate::Update {
