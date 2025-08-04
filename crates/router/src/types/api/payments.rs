@@ -1,9 +1,13 @@
+#[cfg(feature = "v1")]
+pub use api_models::payments::PaymentListConstraints;
 #[cfg(feature = "v2")]
 pub use api_models::payments::{
     PaymentAttemptListRequest, PaymentAttemptListResponse, PaymentListFilterConstraints,
     PaymentListResponse, PaymentsConfirmIntentRequest, PaymentsCreateIntentRequest,
     PaymentsIntentResponse, PaymentsUpdateIntentRequest,
 };
+#[cfg(feature = "v2")]
+pub use api_models::payments::{PaymentListConstraintsGet, PaymentListConstraintsPost};
 #[cfg(feature = "v1")]
 pub use api_models::payments::{
     PaymentListFilterConstraints, PaymentListResponse, PaymentListResponseV2, PaymentRetrieveBody,
@@ -18,19 +22,19 @@ pub use api_models::{
         Card, CryptoData, CustomerDetails, CustomerDetailsResponse, HyperswitchVaultSessionDetails,
         MandateAmountData, MandateData, MandateTransactionType, MandateType,
         MandateValidationFields, NextActionType, OpenBankingSessionToken, PayLaterData,
-        PaymentIdType, PaymentListConstraints, PaymentListFilters, PaymentListFiltersV2,
-        PaymentMethodData, PaymentMethodDataRequest, PaymentMethodDataResponse, PaymentOp,
-        PaymentsAggregateResponse, PaymentsApproveRequest, PaymentsCancelRequest,
-        PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
-        PaymentsDynamicTaxCalculationRequest, PaymentsDynamicTaxCalculationResponse,
-        PaymentsExternalAuthenticationRequest, PaymentsIncrementalAuthorizationRequest,
-        PaymentsManualUpdateRequest, PaymentsPostSessionTokensRequest,
-        PaymentsPostSessionTokensResponse, PaymentsRedirectRequest, PaymentsRedirectionResponse,
-        PaymentsRejectRequest, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
-        PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse,
-        PaymentsStartRequest, PaymentsUpdateMetadataRequest, PaymentsUpdateMetadataResponse,
-        PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, UrlDetails,
-        VaultSessionDetails, VerifyRequest, VerifyResponse, VgsSessionDetails, WalletData,
+        PaymentIdType, PaymentListFilters, PaymentListFiltersV2, PaymentMethodData,
+        PaymentMethodDataRequest, PaymentMethodDataResponse, PaymentOp, PaymentsAggregateResponse,
+        PaymentsApproveRequest, PaymentsCancelRequest, PaymentsCaptureRequest,
+        PaymentsCompleteAuthorizeRequest, PaymentsDynamicTaxCalculationRequest,
+        PaymentsDynamicTaxCalculationResponse, PaymentsExternalAuthenticationRequest,
+        PaymentsIncrementalAuthorizationRequest, PaymentsManualUpdateRequest,
+        PaymentsPostSessionTokensRequest, PaymentsPostSessionTokensResponse,
+        PaymentsRedirectRequest, PaymentsRedirectionResponse, PaymentsRejectRequest,
+        PaymentsRequest, PaymentsResponse, PaymentsResponseForm, PaymentsRetrieveRequest,
+        PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
+        PaymentsUpdateMetadataRequest, PaymentsUpdateMetadataResponse, PgRedirectResponse,
+        PhoneDetails, RedirectionResponse, SessionToken, UrlDetails, VaultSessionDetails,
+        VerifyRequest, VerifyResponse, VgsSessionDetails, WalletData,
     },
 };
 pub use common_types::payments::{AcceptanceType, CustomerAcceptance, OnlineMandate};

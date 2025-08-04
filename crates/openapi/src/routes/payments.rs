@@ -1224,7 +1224,7 @@ pub fn list_payment_methods() {}
 #[utoipa::path(
     get,
     path = "/v2/payments/list",
-    params(api_models::payments::PaymentListConstraints),
+    params(api_models::payments::PaymentListConstraintsGet),
     responses(
         (status = 200, description = "Successfully retrieved a payment list", body = PaymentListResponse),
         (status = 404, description = "No payments found")

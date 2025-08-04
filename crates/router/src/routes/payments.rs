@@ -1531,7 +1531,7 @@ pub async fn payments_list(
 pub async fn payments_list(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
-    payload: web::Query<payment_types::PaymentListConstraints>,
+    payload: web::Query<payment_types::PaymentListConstraintsGet>,
 ) -> impl Responder {
     let flow = Flow::PaymentsList;
     let payload = payload.into_inner();
@@ -1566,7 +1566,7 @@ pub async fn payments_list(
 pub async fn payments_list_by_filter(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
-    payload: web::Json<payment_types::PaymentListFilterConstraints>,
+    payload: web::Json<payment_types::PaymentListConstraintsPost>,
 ) -> impl Responder {
     let flow = Flow::PaymentsList;
     let payload = payload.into_inner();

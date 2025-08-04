@@ -6970,7 +6970,7 @@ pub async fn list_payments(
 pub async fn list_payments(
     state: SessionState,
     merchant_context: domain::MerchantContext,
-    constraints: api::PaymentListConstraints,
+    constraints: api::PaymentListConstraintsGet,
 ) -> RouterResponse<payments_api::PaymentListResponse> {
     common_utils::metrics::utils::record_operation_time(
         async {
@@ -7011,7 +7011,7 @@ pub async fn list_payments(
                     .flatten()
                     .collect::<Vec<String>>();
 
-                db.get_total_count_of_filtered_payment_attempts(
+                db.get_total_count_of_filtered_payment_attempts_get(
                     merchant_context.get_merchant_account().get_id(),
                     &active_attempt_ids,
                     constraints.connector,
@@ -7121,7 +7121,7 @@ pub async fn apply_filters_on_payments(
 pub async fn apply_filters_on_payments_v2(
     state: SessionState,
     merchant_context: domain::MerchantContext,
-    constraints: payments_api::PaymentListFilterConstraints,
+    constraints: payments_api::PaymentListConstraintsPost,
 ) -> RouterResponse<payments_api::PaymentListResponse> {
     common_utils::metrics::utils::record_operation_time(
         async {
@@ -7129,7 +7129,7 @@ pub async fn apply_filters_on_payments_v2(
             helpers::validate_payment_list_request_for_joins(*limit)?;
             let db: &dyn StorageInterface = state.store.as_ref();
 
-            // Convert V2 PaymentListFilterConstraints to database fetch constraints
+            // Convert V2 PaymentListFilterConstraintsPost to database fetch constraints
             let fetch_constraints = constraints.clone().into();
             let list: Vec<(storage::PaymentIntent, Option<storage::PaymentAttempt>)> = db
                 .get_filtered_payment_intents_attempt(
@@ -7164,7 +7164,7 @@ pub async fn apply_filters_on_payments_v2(
                     .flatten()
                     .collect::<Vec<String>>();
 
-                db.get_total_count_of_filtered_payment_attempts(
+                db.get_total_count_of_filtered_payment_attempts_post(
                     merchant_context.get_merchant_account().get_id(),
                     &active_attempt_ids,
                     constraints.connector,
