@@ -52,12 +52,12 @@ pub async fn files_create_core(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to insert file_metadata")?;
     let (provider_file_id, file_upload_provider, profile_id, merchant_connector_id) =
-        helpers::upload_and_get_provider_provider_file_id_profile_id(
+    Box::pin(helpers::upload_and_get_provider_provider_file_id_profile_id(
             &state,
             &merchant_context,
             &create_file_request,
             file_key.clone(),
-        )
+        ))
         .await?;
 
     // Update file metadata
