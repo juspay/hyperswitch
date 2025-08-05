@@ -327,6 +327,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         connector_testing_data: None,
         order_id: None,
         locale: None,
+        payment_channel: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -3007,6 +3008,7 @@ where
             issuer_error_message: payment_attempt.issuer_error_message,
             is_iframe_redirection_enabled: payment_intent.is_iframe_redirection_enabled,
             whole_connector_response: payment_data.get_whole_connector_response(),
+            payment_channel: payment_intent.payment_channel,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -3300,7 +3302,8 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             whole_connector_response: None,
             issuer_error_code: pa.issuer_error_code,
             issuer_error_message: pa.issuer_error_message,
-            is_iframe_redirection_enabled:pi.is_iframe_redirection_enabled
+            is_iframe_redirection_enabled:pi.is_iframe_redirection_enabled,
+            payment_channel: pi.payment_channel,
         }
     }
 }
@@ -3630,6 +3633,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             connector_testing_data: None,
             order_id: None,
             locale: None,
+            payment_channel: None,
         })
     }
 }
@@ -3862,6 +3866,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             connector_testing_data,
             order_id: None,
             locale: Some(additional_data.state.locale.clone()),
+            payment_channel: payment_data.payment_intent.payment_channel,
         })
     }
 }

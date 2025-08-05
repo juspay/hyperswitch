@@ -1186,6 +1186,10 @@ pub struct PaymentsRequest {
     #[serde(skip_deserializing)]
     #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
     pub is_payment_id_from_merchant: bool,
+
+    /// Indicates how the payment was initiated (e.g., ecommerce, mail, or telephone).
+    #[schema(value_type = Option<PaymentChannel>)]
+    pub payment_channel: Option<common_enums::PaymentChannel>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -2666,6 +2670,7 @@ impl GetPaymentMethodType for MobilePaymentData {
 impl GetPaymentMethodType for WalletData {
     fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
         match self {
+            Self::BluecodeRedirect {} => api_enums::PaymentMethodType::Bluecode,
             Self::AliPayQr(_) | Self::AliPayRedirect(_) => api_enums::PaymentMethodType::AliPay,
             Self::AliPayHkRedirect(_) => api_enums::PaymentMethodType::AliPayHk,
             Self::AmazonPayRedirect(_) => api_enums::PaymentMethodType::AmazonPay,
@@ -3603,6 +3608,8 @@ pub enum WalletData {
     AliPayHkRedirect(AliPayHkRedirection),
     /// The wallet data for Amazon Pay redirect
     AmazonPayRedirect(AmazonPayRedirectData),
+    /// The wallet data for Bluecode QR Code Redirect
+    BluecodeRedirect {},
     /// The wallet data for Skrill
     Skrill(SkrillData),
     /// The wallet data for Paysera
@@ -3712,7 +3719,8 @@ impl GetAddressFromPaymentMethodData for WalletData {
             | Self::WeChatPayQr(_)
             | Self::CashappQr(_)
             | Self::SwishQr(_)
-            | Self::RevolutPay(_) => None,
+            | Self::RevolutPay(_)
+            | Self::BluecodeRedirect {} => None,
         }
     }
 }
@@ -3898,6 +3906,9 @@ pub struct AliPayRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct AliPayHkRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct BluecodeQrRedirect {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct MomoRedirection {}
@@ -5155,6 +5166,10 @@ pub struct PaymentsResponse {
     #[schema(value_type = Option<BrowserInformation>)]
     /// The browser information used for this payment
     pub browser_info: Option<serde_json::Value>,
+
+    /// Indicates how the payment was initiated (e.g., ecommerce, mail, or telephone).
+    #[schema(value_type = Option<PaymentChannel>)]
+    pub payment_channel: Option<common_enums::PaymentChannel>,
 
     /// A unique identifier for the payment method used in this payment. If the payment method was saved or tokenized, this ID can be used to reference it for future transactions or recurring payments.
     pub payment_method_id: Option<String>,

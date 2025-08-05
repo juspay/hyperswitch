@@ -133,6 +133,7 @@ pub struct ConfigMetadata {
     pub platform_url: Option<InputData>,
     pub report_group: Option<InputData>,
     pub proxy_url: Option<InputData>,
+    pub shop_name: Option<InputData>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -392,6 +393,7 @@ impl ConnectorConfig {
             Connector::Billwerk => Ok(connector_data.billwerk),
             Connector::Bitpay => Ok(connector_data.bitpay),
             Connector::Bluesnap => Ok(connector_data.bluesnap),
+            Connector::Bluecode => Ok(connector_data.bluecode),
             Connector::Boku => Ok(connector_data.boku),
             Connector::Braintree => Ok(connector_data.braintree),
             Connector::Breadpay => Ok(connector_data.breadpay),
@@ -465,6 +467,7 @@ impl ConnectorConfig {
             Connector::Santander => Ok(connector_data.santander),
             Connector::Shift4 => Ok(connector_data.shift4),
             Connector::Signifyd => Ok(connector_data.signifyd),
+            Connector::Silverflow => Ok(connector_data.silverflow),
             Connector::Square => Ok(connector_data.square),
             Connector::Stax => Ok(connector_data.stax),
             Connector::Stripe => Ok(connector_data.stripe),

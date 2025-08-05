@@ -66,6 +66,7 @@ impl VerifyConnectorData {
             connector_testing_data: None,
             order_id: None,
             locale: None,
+            payment_channel: None,
         }
     }
 

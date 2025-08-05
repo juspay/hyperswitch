@@ -557,6 +557,7 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerProfileRequest {
                 | WalletData::AliPayHkRedirect(_)
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::Paysera(_)
+                | WalletData::BluecodeRedirect {}
                 | WalletData::Skrill(_)
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
@@ -2122,6 +2123,7 @@ fn get_wallet_data(
         | WalletData::AmazonPayRedirect(_)
         | WalletData::Paysera(_)
         | WalletData::Skrill(_)
+        | WalletData::BluecodeRedirect {}
         | WalletData::MomoRedirect(_)
         | WalletData::KakaoPayRedirect(_)
         | WalletData::GoPayRedirect(_)
