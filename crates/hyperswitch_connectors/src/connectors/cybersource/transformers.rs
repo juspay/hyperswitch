@@ -4481,7 +4481,6 @@ pub fn get_error_reason(
 }
 
 fn get_cybersource_card_type(card_network: common_enums::CardNetwork) -> Option<&'static str> {
-    //
     match card_network {
         common_enums::CardNetwork::Visa => Some("001"),
         common_enums::CardNetwork::Mastercard => Some("002"),
