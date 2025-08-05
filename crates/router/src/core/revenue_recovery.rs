@@ -64,6 +64,7 @@ pub async fn perform_execute_payment(
                 payment_intent,
                 revenue_recovery_payment_data,
                 &revenue_recovery_metadata,
+                tracking_data.payment_method_unit.clone(),
             )
             .await;
 
@@ -76,6 +77,7 @@ pub async fn perform_execute_payment(
                         execute_task_process,
                         revenue_recovery_payment_data,
                         &revenue_recovery_metadata,
+                        tracking_data.payment_method_unit.clone(),
                     ))
                     .await?;
                     Box::pin(action.execute_payment_task_response_handler(
@@ -84,6 +86,7 @@ pub async fn perform_execute_payment(
                         execute_task_process,
                         revenue_recovery_payment_data,
                         &mut revenue_recovery_metadata,
+                        tracking_data.payment_method_unit.clone(),
                     ))
                     .await?;
                 }
@@ -136,6 +139,7 @@ pub async fn perform_execute_payment(
                         attempt_id.clone(),
                         storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
                         tracking_data.revenue_recovery_retry,
+                        tracking_data.payment_method_unit.clone(),
                     )
                     .await?;
 
@@ -207,6 +211,8 @@ async fn insert_psync_pcr_task_to_pt(
     payment_attempt_id: id_type::GlobalAttemptId,
     runner: storage::ProcessTrackerRunner,
     revenue_recovery_retry: diesel_enum::RevenueRecoveryAlgorithmType,
+    payment_method_unit: diesel_models::types::PaymentProcessorTokenUnit,
+
 ) -> RouterResult<storage::ProcessTracker> {
     let task = PSYNC_WORKFLOW;
     let process_tracker_id = payment_attempt_id.get_psync_revenue_recovery_id(task, runner);
@@ -218,6 +224,7 @@ async fn insert_psync_pcr_task_to_pt(
         profile_id,
         payment_attempt_id,
         revenue_recovery_retry,
+        payment_method_unit,
     };
     let tag = ["REVENUE_RECOVERY"];
     let process_tracker_entry = storage::ProcessTrackerNew::new(
@@ -288,7 +295,7 @@ pub async fn retrieve_revenue_recovery_process_tracker(
     state: SessionState,
     id: id_type::GlobalPaymentId,
 ) -> RouterResponse<revenue_recovery::RevenueRecoveryResponse> {
-    let db = &*state.store;
+    let db: &dyn StorageInterface = &*state.store;
     let task = EXECUTE_WORKFLOW;
     let runner = storage::ProcessTrackerRunner::PassiveRecoveryWorkflow;
     let process_tracker_id = id.get_execute_revenue_recovery_id(task, runner);

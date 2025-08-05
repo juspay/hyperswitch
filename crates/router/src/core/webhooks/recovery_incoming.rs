@@ -304,6 +304,7 @@ async fn handle_schedule_failed_payment(
                     .map(|attempt| attempt.attempt_id.clone()),
                 storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
                 revenue_recovery_retry,
+                payment_attempt_with_recovery_intent.1.feature_metadata.unwrap().revenue_recovery.unwrap().billing_connector_payment_details.payment_method_units[0].clone(),
             )
             .await
         })
@@ -485,11 +486,13 @@ impl RevenueRecoveryAttempt {
         payment_intent: &domain_payments::PaymentIntent,
         revenue_recovery_metadata: &api_payments::PaymentRevenueRecoveryMetadata,
         billing_connector_account: &domain::MerchantConnectorAccount,
+        payment_token_unit: &api_models::mandates::ProcessorPaymentToken,
     ) -> CustomResult<Self, errors::RevenueRecoveryError> {
         let revenue_recovery_data = payment_intent
             .create_revenue_recovery_attempt_data(
                 revenue_recovery_metadata.clone(),
                 billing_connector_account,
+                payment_token_unit,
             )
             .change_context(errors::RevenueRecoveryError::RevenueRecoveryAttemptDataCreateFailed)
             .attach_printable("Failed to build recovery attempt data")?;
@@ -854,6 +857,7 @@ impl RevenueRecoveryAttempt {
         payment_attempt_id: Option<id_type::GlobalAttemptId>,
         runner: storage::ProcessTrackerRunner,
         revenue_recovery_retry: api_enums::RevenueRecoveryAlgorithmType,
+        payment_method_unit: api_models::payments::PaymentProcessorTokenUnit,
     ) -> CustomResult<webhooks::WebhookResponseTracker, errors::RevenueRecoveryError> {
         let task = "EXECUTE_WORKFLOW";
 
@@ -889,6 +893,7 @@ impl RevenueRecoveryAttempt {
                 profile_id,
                 payment_attempt_id,
                 revenue_recovery_retry,
+                payment_method_unit: diesel_models::types::PaymentProcessorTokenUnit::convert_from(payment_method_unit),
             };
 
         let tag = ["PCR"];

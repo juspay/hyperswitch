@@ -8866,15 +8866,16 @@ impl PaymentRevenueRecoveryMetadata {
     ) {
         self.payment_connector_transmission = Some(payment_connector_transmission);
     }
-    pub fn get_payment_token_for_api_request(&self) -> mandates::ProcessorPaymentToken {
-        mandates::ProcessorPaymentToken {
-            processor_payment_token: self
-                .billing_connector_payment_details
-                .payment_processor_token
-                .clone(),
-            merchant_connector_id: Some(self.active_attempt_payment_connector_id.clone()),
-        }
-    }
+    // need to make changes in the below function to support multiple payment method units
+    // pub fn get_payment_token_for_api_request(&self) -> mandates::ProcessorPaymentToken {
+    //     mandates::ProcessorPaymentToken {
+    //         processor_payment_token: self
+    //             .billing_connector_payment_details
+    //             .payment_processor_token
+    //             .clone(),
+    //         merchant_connector_id: Some(self.active_attempt_payment_connector_id.clone()),
+    //     }
+    // }
     pub fn get_merchant_connector_id_for_api_request(&self) -> id_type::MerchantConnectorAccountId {
         self.active_attempt_payment_connector_id.clone()
     }
@@ -8884,9 +8885,20 @@ impl PaymentRevenueRecoveryMetadata {
 #[cfg(feature = "v2")]
 pub struct BillingConnectorPaymentDetails {
     /// Payment Processor Token to process the Revenue Recovery Payment
-    pub payment_processor_token: String,
+    pub payment_method_units: Vec<PaymentProcessorTokenUnit>,
     /// Billing Connector's Customer Id
     pub connector_customer_id: String,
+}
+
+#[cfg(feature="v2")]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq, Eq)]
+pub struct PaymentProcessorTokenUnit {
+    pub payment_processor_token: String,
+    pub expiry_month: Option<String>,
+    pub expiry_year: Option<String>,
+    pub card_issuer: Option<String>,
+    pub card_network: Option<common_enums::CardNetwork>,
+    pub last_four_digits: Option<String>,
 }
 
 // Serialize is required because the api event requires Serialize to be implemented

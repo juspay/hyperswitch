@@ -693,6 +693,7 @@ impl PaymentIntent {
         &self,
         revenue_recovery_metadata: api_models::payments::PaymentRevenueRecoveryMetadata,
         billing_connector_account: &merchant_connector_account::MerchantConnectorAccount,
+        payment_token_unit: &api_models::mandates::ProcessorPaymentToken,
     ) -> CustomResult<
         revenue_recovery::RevenueRecoveryAttemptData,
         errors::api_error_response::ApiErrorResponse,
@@ -724,9 +725,7 @@ impl PaymentIntent {
             connector_transaction_id: None, // No connector id
             error_code: None,
             error_message: None,
-            processor_payment_method_token: revenue_recovery_metadata
-                .billing_connector_payment_details
-                .payment_processor_token,
+            processor_payment_method_token:  payment_token_unit.processor_payment_token.payment_processor_token.clone(),
             connector_customer_id: revenue_recovery_metadata
                 .billing_connector_payment_details
                 .connector_customer_id,
@@ -1026,6 +1025,7 @@ where
                 },
             );
 
+        // need to make changes here too 
         let billing_connector_payment_method_details = Some(
             diesel_models::types::BillingConnectorPaymentMethodDetails::Card(
                 diesel_models::types::BillingConnectorAdditionalCardInfo {
@@ -1051,17 +1051,7 @@ where
                 active_attempt_payment_connector_id: self
                     .payment_attempt
                     .get_attempt_merchant_connector_account_id()?,
-                billing_connector_payment_details:
-                    diesel_models::types::BillingConnectorPaymentDetails {
-                        payment_processor_token: self
-                            .revenue_recovery_data
-                            .processor_payment_method_token
-                            .clone(),
-                        connector_customer_id: self
-                            .revenue_recovery_data
-                            .connector_customer_id
-                            .clone(),
-                    },
+                billing_connector_payment_details:revenue_recovery.unwrap().billing_connector_payment_details.clone(),
                 payment_method_type: self.payment_attempt.payment_method_type,
                 payment_method_subtype: self.payment_attempt.payment_method_subtype,
                 connector: connector.parse().map_err(|err| {

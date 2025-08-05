@@ -324,6 +324,7 @@ impl Action {
         process: &storage::ProcessTracker,
         revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
         revenue_recovery_metadata: &PaymentRevenueRecoveryMetadata,
+        payment_method_unit: &diesel_models::types::PaymentProcessorTokenUnit,
     ) -> RecoveryResult<Self> {
         let db = &*state.store;
         let response = revenue_recovery_core::api::call_proxy_api(
@@ -331,6 +332,7 @@ impl Action {
             payment_intent,
             revenue_recovery_payment_data,
             revenue_recovery_metadata,
+            payment_method_unit,
         )
         .await;
         let recovery_payment_intent =
@@ -427,6 +429,7 @@ impl Action {
         execute_task_process: &storage::ProcessTracker,
         revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
         revenue_recovery_metadata: &mut PaymentRevenueRecoveryMetadata,
+        payment_method_unit: &diesel_models::types::PaymentProcessorTokenUnit,
     ) -> Result<(), errors::ProcessTrackerError> {
         let db = &*state.store;
         match self {
@@ -443,6 +446,7 @@ impl Action {
                     payment_attempt.id.clone(),
                     storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
                     revenue_recovery_payment_data.retry_algorithm,
+                    payment_method_unit.clone(),
                 )
                 .await
                 .change_context(errors::RecoveryError::ProcessTrackerFailure)

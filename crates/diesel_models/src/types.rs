@@ -190,11 +190,24 @@ pub struct PaymentRevenueRecoveryMetadata {
 #[cfg(feature = "v2")]
 pub struct BillingConnectorPaymentDetails {
     /// Payment Processor Token to process the Revenue Recovery Payment
-    pub payment_processor_token: String,
+    pub payment_method_units: Vec<PaymentProcessorTokenUnit>,
     /// Billing Connector's Customer Id
     pub connector_customer_id: String,
 }
 
+#[cfg(feature="v2")]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+pub struct PaymentProcessorTokenUnit {
+    pub payment_processor_token: String,
+    pub expiry_month: Option<String>,
+    pub expiry_year: Option<String>,
+    pub card_issuer: Option<String>,
+    pub card_network: Option<common_enums::enums::CardNetwork>,
+    pub last_four_digits: Option<String>,
+}
+
+
+// this wont be needed 
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case", tag = "type", content = "value")]

@@ -16,6 +16,7 @@ pub struct RevenueRecoveryWorkflowTrackingData {
     pub payment_attempt_id: id_type::GlobalAttemptId,
     pub billing_mca_id: id_type::MerchantConnectorAccountId,
     pub revenue_recovery_retry: enums::RevenueRecoveryAlgorithmType,
+    pub payment_method_unit: diesel_models::types::PaymentProcessorTokenUnit,
 }
 
 #[derive(Debug, Clone)]

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::enums as api_enums;
+use crate::{enums as api_enums,payments};
 
 #[derive(Default, Debug, Deserialize, Serialize)]
 pub struct MandateId {
@@ -131,7 +131,7 @@ pub enum RecurringDetails {
 /// Processor payment token for MIT payments where payment_method_data is not available
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
 pub struct ProcessorPaymentToken {
-    pub processor_payment_token: String,
+    pub processor_payment_token: payments::PaymentProcessorTokenUnit,
     #[schema(value_type = Option<String>)]
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }

@@ -5133,8 +5133,25 @@ impl ForeignFrom<&diesel_models::types::BillingConnectorPaymentDetails>
 {
     fn foreign_from(metadata: &diesel_models::types::BillingConnectorPaymentDetails) -> Self {
         Self {
-            payment_processor_token: metadata.payment_processor_token.clone(),
+            payment_method_units: metadata.payment_method_units.clone().into_iter().map(
+                |from | api_models::payments::PaymentProcessorTokenUnit::foreign_from(&from),
+            ).collect(),
             connector_customer_id: metadata.connector_customer_id.clone(),
+        }
+    }
+}
+
+impl ForeignFrom<&diesel_models::types::PaymentProcessorTokenUnit>
+    for api_models::payments::PaymentProcessorTokenUnit
+{
+    fn foreign_from(token_unit: &diesel_models::types::PaymentProcessorTokenUnit) -> Self {
+        Self {
+            payment_processor_token: token_unit.payment_processor_token.clone(),
+            expiry_year: token_unit.expiry_year.clone(),
+            expiry_month: token_unit.expiry_month.clone(),
+            card_issuer: token_unit.card_issuer.clone(),
+            card_network: token_unit.card_network.clone(),
+            last_four_digits: token_unit.last_four_digits.clone(),
         }
     }
 }

@@ -79,12 +79,25 @@ pub async fn call_proxy_api(
     payment_intent: &payments_domain::PaymentIntent,
     revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
     revenue_recovery: &payments_api::PaymentRevenueRecoveryMetadata,
+    payment_token_unit : &api_models::mandates::ProcessorPaymentToken,
 ) -> RouterResult<payments_domain::PaymentConfirmData<api_types::Authorize>> {
     let operation = payments::operations::proxy_payments_intent::PaymentProxyIntent;
     let req = payments_api::ProxyPaymentsRequest {
         return_url: None,
         amount: payments_api::AmountDetails::new(payment_intent.amount_details.clone().into()),
-        recurring_details: revenue_recovery.get_payment_token_for_api_request(),
+        recurring_details:  mandates::ProcessorPaymentToken {
+            processor_token: payment_token_unit,
+            processor_token_type: payment_token_unit.processor_token_type.clone(),
+            connector_metadata: payment_token_unit.connector_metadata.clone(),
+            merchant_connector_id: Some(revenue_recovery
+                .active_attempt_payment_connector_id
+                .clone()),
+            
+        },
+        //     merchant_connector_id: Some(revenue_recovery
+        //         .active_attempt_payment_connector_id
+        //         .clone()),
+        // },
         shipping: None,
         browser_info: None,
         connector: revenue_recovery.connector.to_string(),
@@ -173,12 +186,14 @@ pub async fn record_internal_attempt_api(
     payment_intent: &payments_domain::PaymentIntent,
     revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
     revenue_recovery_metadata: &payments_api::PaymentRevenueRecoveryMetadata,
+    payment_token_unit: &api_models::mandates::ProcessorPaymentToken,
 ) -> RouterResult<payments_api::PaymentAttemptRecordResponse> {
     let revenue_recovery_attempt_data =
         recovery_incoming::RevenueRecoveryAttempt::get_revenue_recovery_attempt(
             payment_intent,
             revenue_recovery_metadata,
             &revenue_recovery_payment_data.billing_mca,
+            payment_token_unit,
         )
         .change_context(errors::ApiErrorResponse::GenericNotFoundError {
             message: "get_revenue_recovery_attempt was not constructed".to_string(),
