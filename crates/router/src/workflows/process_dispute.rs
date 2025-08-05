@@ -19,6 +19,7 @@ use crate::{
 
 pub struct ProcessDisputeWorkflow;
 
+/// This workflow inserts only new dispute records into the dispute table and triggers related outgoing webhook
 #[async_trait::async_trait]
 impl ProcessTrackerWorkflow<SessionState> for ProcessDisputeWorkflow {
     #[cfg(feature = "v2")]
@@ -110,7 +111,7 @@ impl ProcessTrackerWorkflow<SessionState> for ProcessDisputeWorkflow {
                 tracking_data.connector_name.as_str(),
             )
             .await
-            .map_err(|error| crate::logger::error!("Dispute update failed: {error}"));
+            .map_err(|error| logger::error!("Dispute update failed: {error}"));
 
             match response {
                 Ok(_) => {

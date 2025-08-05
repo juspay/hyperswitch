@@ -19,6 +19,9 @@ use crate::{
 
 pub struct DisputeListWorkflow;
 
+/// This workflow fetches disputes from the connector for a given time range
+/// and creates a process tracker task for each dispute.
+/// It also schedules the next dispute list sync after dispute_polling_hours.
 #[async_trait::async_trait]
 impl ProcessTrackerWorkflow<SessionState> for DisputeListWorkflow {
     #[cfg(feature = "v2")]
@@ -89,7 +92,7 @@ impl ProcessTrackerWorkflow<SessionState> for DisputeListWorkflow {
                     )
                     .await
                     .map_err(|error| {
-                        crate::logger::error!(
+                        logger::error!(
                             "Failed to add dispute list task to process tracker: {error}"
                         )
                     })

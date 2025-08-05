@@ -55,7 +55,7 @@ use crate::{
         storage::{self, enums::MerchantStorageScheme},
         transformers::{ForeignInto, ForeignTryFrom, ForeignTryInto},
     },
-    utils,
+    utils, logger,
 };
 
 #[inline]
@@ -677,7 +677,7 @@ impl CreateProfile {
             )
             .await
             .map_err(|profile_insert_error| {
-                crate::logger::warn!("Profile already exists {profile_insert_error:?}");
+                logger::warn!("Profile already exists {profile_insert_error:?}");
             })
             .map(|business_profile| business_profiles_vector.push(business_profile))
             .ok();
@@ -913,7 +913,7 @@ pub async fn create_profile_from_business_labels(
         .await
         .map_err(|profile_insert_error| {
             // If there is any duplicate error, we need not take any action
-            crate::logger::warn!("Profile already exists {profile_insert_error:?}");
+            logger::warn!("Profile already exists {profile_insert_error:?}");
         });
 
         // If a profile is created, then unset the default profile
@@ -1233,7 +1233,7 @@ pub async fn merchant_account_delete(
                 .await
                 .transpose()
                 .map_err(|err| {
-                    crate::logger::error!("Failed to delete merchant in Decision Engine {err:?}");
+                    logger::error!("Failed to delete merchant in Decision Engine {err:?}");
                 })
                 .ok();
         }
@@ -1258,7 +1258,7 @@ pub async fn merchant_account_delete(
         Ok(_) => Ok::<_, errors::ApiErrorResponse>(()),
         Err(err) => {
             if err.current_context().is_db_not_found() {
-                crate::logger::error!("requires_cvv config not found in db: {err:?}");
+                logger::error!("requires_cvv config not found in db: {err:?}");
                 Ok(())
             } else {
                 Err(err
@@ -2637,7 +2637,7 @@ pub async fn create_connector(
                 )
                 .await
                 .map_err(|error| {
-                    crate::logger::error!(
+                    logger::error!(
                         "Failed to add dispute list task to process tracker: {error}"
                     )
                 })
