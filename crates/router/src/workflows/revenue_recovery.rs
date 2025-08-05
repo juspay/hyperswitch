@@ -44,7 +44,7 @@ use crate::{
         domain,
         storage::{
             revenue_recovery as pcr_storage_types,
-            revenue_recovery_redis_operation::{RedisPspTokenMap, PspTokenStatus},
+            revenue_recovery_redis_operation::RedisTokenManager,
         },
     },
 };

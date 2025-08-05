@@ -10,8 +10,9 @@ use hyperswitch_domain_models::{
 };
 use masking::PeekInterface;
 use router_env::logger;
+use serde::{Deserialize, Serialize};
 
-use crate::{db::StorageInterface, routes::SessionState, workflows::revenue_recovery};
+use crate::{db::StorageInterface, routes::SessionState, workflows::revenue_recovery, SessionState};
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub struct RevenueRecoveryWorkflowTrackingData {
     pub merchant_id: id_type::MerchantId,
@@ -73,6 +74,7 @@ pub struct RevenueRecoverySettings {
     pub monitoring_threshold_in_seconds: i64,
     pub retry_algorithm_type: enums::RevenueRecoveryAlgorithmType,
     pub recovery_timestamp: RecoveryTimestamp,
+    pub card_config: RetryLimitsConfig,
 }
 
 #[derive(Debug, serde::Deserialize, Clone)]
@@ -86,4 +88,37 @@ impl Default for RecoveryTimestamp {
             initial_timestamp_in_hours: 1,
         }
     }
+
+}
+
+#[derive(Debug, serde::Deserialize, Clone, Default)]
+pub struct RetryLimitsConfig {
+    pub amex: NetworkRetryConfig,
+    pub mastercard: NetworkRetryConfig,
+    pub visa: NetworkRetryConfig,
+    pub discover: NetworkRetryConfig,
+}
+
+#[derive(Debug, serde::Deserialize, Clone, Default)]
+pub struct NetworkRetryConfig {
+    pub max_daily_retry_count: u64,
+    pub retry_count_30_day: u64,
+}
+impl RetryLimitsConfig {
+    pub fn get_network_config(network: NetworkType, state: &SessionState) -> &NetworkRetryConfig {
+        match network {
+            NetworkType::Mastercard => &state.conf.revenue_recovery.card_config.mastercard,
+            NetworkType::Visa => &state.conf.revenue_recovery.card_config.visa,
+            NetworkType::Amex => &state.conf.revenue_recovery.card_config.amex,
+            NetworkType::Discover => &state.conf.revenue_recovery.card_config.discover,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum NetworkType {
+    Visa,
+    Mastercard,
+    Amex,
+    Discover,
 }

@@ -841,3 +841,21 @@ retry_algorithm_type = "cascading"
 
 [list_dispute_supported_connectors]
 connector_list = "worldpayvantiv"
+
+
+
+[revenue_recovery.card_config.amex]
+max_daily_retry_count = 3
+retry_count_30_day = 20
+
+[revenue_recovery.card_config.mastercard]
+max_daily_retry_count = 4
+retry_count_30_day = 25
+
+[revenue_recovery.card_config.visa]
+max_daily_retry_count = 5
+retry_count_30_day = 30
+
+[revenue_recovery.card_config.discover]
+max_daily_retry_count = 2
+retry_count_30_day = 15
