@@ -218,7 +218,7 @@ impl HealthCheckInterface for app::SessionState {
     async fn health_check_unified_connector_service(
         &self,
     ) -> CustomResult<HealthState, errors::HealthCheckUnifiedConnectorServiceError> {
-        if let Some(ucs_client) = &self.grpc_client.unified_connector_service_client {
+        if let Some(_ucs_client) = &self.grpc_client.unified_connector_service_client {
             // For now, we'll just check if the client exists and is configured
             // In the future, this could be enhanced to make an actual health check call
             // to the unified connector service if it supports health check endpoints
