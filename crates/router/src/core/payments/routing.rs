@@ -504,6 +504,10 @@ pub async fn perform_static_routing_v1(
             get_merchant_fallback_config().await?,
         )
         .await
+        .map_err(|e|
+            // errors are ignored as this is just for diff checking as of now (optional flow).
+            logger::error!(decision_engine_euclid_evaluate_error=?e, "decision_engine_euclid: error in evaluation of rule")
+        )
         .unwrap_or_default()
     };
 
