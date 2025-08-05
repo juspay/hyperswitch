@@ -2,7 +2,6 @@ use std::marker::PhantomData;
 
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
-use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 use router_derive;
 use router_env::{instrument, tracing};
@@ -11,7 +10,7 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
-        payments::{helpers, operations, PaymentData},
+        payments::{self, helpers, operations, PaymentData},
     },
     events::audit_events::{AuditEvent, AuditEventType},
     routes::{app::ReqState, SessionState},
@@ -29,7 +28,7 @@ use crate::{
 #[operation(operations = "all", flow = "cancel_post_capture")]
 pub struct PaymentCancelPostCapture;
 
-type PaymentCancelOperation<'b, F> =
+type PaymentCancelPostCaptureOperation<'b, F> =
     BoxedOperation<'b, F, api::PaymentsCancelPostCaptureRequest, PaymentData<F>>;
 
 #[async_trait]
@@ -68,14 +67,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        helpers::validate_payment_status_against_not_allowed_statuses(
+        helpers::validate_payment_status_against_allowed_statuses(
             payment_intent.status,
             &[
-                enums::IntentStatus::Failed,
                 enums::IntentStatus::Succeeded,
-                enums::IntentStatus::Cancelled,
-                enums::IntentStatus::Processing,
-                enums::IntentStatus::RequiresMerchantAction,
+                enums::IntentStatus::PartiallyCaptured,
+                enums::IntentStatus::PartiallyCapturedAndCapturable,
             ],
             "cancel_post_capture",
         )?;
@@ -212,6 +209,67 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
 }
 
 #[async_trait]
+impl<F: Clone + Send + Sync> Domain<F, api::PaymentsCancelPostCaptureRequest, PaymentData<F>>
+    for PaymentCancelPostCapture
+{
+    #[instrument(skip_all)]
+    async fn get_or_create_customer_details<'a>(
+        &'a self,
+        _state: &SessionState,
+        _payment_data: &mut PaymentData<F>,
+        _request: Option<payments::CustomerDetails>,
+        _merchant_key_store: &domain::MerchantKeyStore,
+        _storage_scheme: enums::MerchantStorageScheme,
+    ) -> errors::CustomResult<
+        (
+            PaymentCancelPostCaptureOperation<'a, F>,
+            Option<domain::Customer>,
+        ),
+        errors::StorageError,
+    > {
+        Ok((Box::new(self), None))
+    }
+
+    #[instrument(skip_all)]
+    async fn make_pm_data<'a>(
+        &'a self,
+        _state: &'a SessionState,
+        _payment_data: &mut PaymentData<F>,
+        _storage_scheme: enums::MerchantStorageScheme,
+        _merchant_key_store: &domain::MerchantKeyStore,
+        _customer: &Option<domain::Customer>,
+        _business_profile: &domain::Profile,
+        _should_retry_with_pan: bool,
+    ) -> RouterResult<(
+        PaymentCancelPostCaptureOperation<'a, F>,
+        Option<domain::PaymentMethodData>,
+        Option<String>,
+    )> {
+        Ok((Box::new(self), None, None))
+    }
+
+    async fn get_connector<'a>(
+        &'a self,
+        _merchant_context: &domain::MerchantContext,
+        state: &SessionState,
+        _request: &api::PaymentsCancelPostCaptureRequest,
+        _payment_intent: &storage::PaymentIntent,
+    ) -> errors::CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
+        helpers::get_connector_default(state, None).await
+    }
+
+    #[instrument(skip_all)]
+    async fn guard_payment_against_blocklist<'a>(
+        &'a self,
+        _state: &SessionState,
+        _merchant_context: &domain::MerchantContext,
+        _payment_data: &mut PaymentData<F>,
+    ) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
+        Ok(false)
+    }
+}
+
+#[async_trait]
 impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelPostCaptureRequest>
     for PaymentCancelPostCapture
 {
@@ -227,7 +285,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelPostCa
         key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-    ) -> RouterResult<(PaymentCancelOperation<'b, F>, PaymentData<F>)>
+    ) -> RouterResult<(PaymentCancelPostCaptureOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
     {
@@ -290,7 +348,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsCancelPostCaptureRe
         &'b self,
         request: &api::PaymentsCancelPostCaptureRequest,
         merchant_context: &'a domain::MerchantContext,
-    ) -> RouterResult<(PaymentCancelOperation<'b, F>, operations::ValidateResult)> {
+    ) -> RouterResult<(PaymentCancelPostCaptureOperation<'b, F>, operations::ValidateResult)> {
         Ok((
             Box::new(self),
             operations::ValidateResult {

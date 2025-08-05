@@ -309,6 +309,7 @@ impl Capturable for PaymentsAuthorizeData {
                     | common_enums::IntentStatus::Conflicted
                     | common_enums::IntentStatus::Expired => Some(0),
                     common_enums::IntentStatus::Cancelled
+                    | common_enums::IntentStatus::CancelledPostCapture
                     | common_enums::IntentStatus::PartiallyCaptured
                     | common_enums::IntentStatus::RequiresCustomerAction
                     | common_enums::IntentStatus::RequiresMerchantAction
@@ -351,6 +352,7 @@ impl Capturable for PaymentsCaptureData {
             | common_enums::IntentStatus::Expired => Some(0),
             common_enums::IntentStatus::Processing
             | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
@@ -396,6 +398,7 @@ impl Capturable for CompleteAuthorizeData {
                     | common_enums::IntentStatus::Conflicted
                     | common_enums::IntentStatus::Expired => Some(0),
                     common_enums::IntentStatus::Cancelled | common_enums::IntentStatus::PartiallyCaptured
+                    | common_enums::IntentStatus::CancelledPostCapture
                     | common_enums::IntentStatus::RequiresCustomerAction
                     | common_enums::IntentStatus::RequiresMerchantAction
                     | common_enums::IntentStatus::RequiresPaymentMethod
@@ -440,6 +443,7 @@ impl Capturable for PaymentsCancelData {
         let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
         match intent_status {
             common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Processing
             | common_enums::IntentStatus::PartiallyCaptured
             | common_enums::IntentStatus::Conflicted
@@ -477,6 +481,7 @@ impl Capturable for PaymentsCancelPostCaptureData {
         let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
         match intent_status {
             common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Processing
             | common_enums::IntentStatus::PartiallyCaptured
             | common_enums::IntentStatus::Conflicted

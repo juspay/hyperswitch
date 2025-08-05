@@ -141,6 +141,7 @@ pub enum AttemptStatus {
     Authorizing,
     CodInitiated,
     Voided,
+    VoidedPostCharge,
     VoidInitiated,
     CaptureInitiated,
     CaptureFailed,
@@ -166,6 +167,7 @@ impl AttemptStatus {
             | Self::Charged
             | Self::AutoRefunded
             | Self::Voided
+            | Self::VoidedPostCharge
             | Self::VoidFailed
             | Self::CaptureFailed
             | Self::Failure
@@ -1555,6 +1557,7 @@ pub enum EventType {
     PaymentFailed,
     PaymentProcessing,
     PaymentCancelled,
+    PaymentCancelledPostCapture,
     PaymentAuthorized,
     PaymentCaptured,
     PaymentExpired,
@@ -1659,6 +1662,8 @@ pub enum IntentStatus {
     Failed,
     /// This payment has been cancelled.
     Cancelled,
+    /// This payment has been cancelled post capture.
+    CancelledPostCapture,
     /// This payment is still being processed by the payment processor.
     /// The status update might happen through webhooks or polling with the connector.
     Processing,
@@ -1690,6 +1695,7 @@ impl IntentStatus {
             Self::Succeeded
             | Self::Failed
             | Self::Cancelled
+            | Self::CancelledPostCapture
             | Self::PartiallyCaptured
             | Self::Expired => true,
             Self::Processing
@@ -1713,6 +1719,7 @@ impl IntentStatus {
             | Self::Succeeded
             | Self::Failed
             | Self::Cancelled
+            | Self::CancelledPostCapture
             |  Self::PartiallyCaptured
             |  Self::RequiresCapture | Self::Conflicted | Self::Expired=> false,
             Self::Processing
@@ -1826,6 +1833,7 @@ impl From<AttemptStatus> for PaymentMethodStatus {
         match attempt_status {
             AttemptStatus::Failure
             | AttemptStatus::Voided
+            | AttemptStatus::VoidedPostCharge
             | AttemptStatus::Started
             | AttemptStatus::Pending
             | AttemptStatus::Unresolved

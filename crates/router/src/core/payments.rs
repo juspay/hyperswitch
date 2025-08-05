@@ -3137,6 +3137,7 @@ impl ValidateStatusForOperation for &PaymentRedirectSync {
             | common_enums::IntentStatus::Conflicted
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Processing
             | common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresMerchantAction
@@ -6883,7 +6884,8 @@ where
         ),
         "PaymentCancelPostCapture" => matches!(
             payment_data.get_payment_intent().status,
-            storage_enums::IntentStatus::RequiresCapture
+            storage_enums::IntentStatus::Succeeded
+                | storage_enums::IntentStatus::PartiallyCaptured
                 | storage_enums::IntentStatus::PartiallyCapturedAndCapturable
         ),
         "PaymentCapture" => {
@@ -6910,6 +6912,7 @@ where
             payment_data.get_payment_intent().status,
             storage_enums::IntentStatus::RequiresCapture
         ),
+
         _ => false,
     }
 }

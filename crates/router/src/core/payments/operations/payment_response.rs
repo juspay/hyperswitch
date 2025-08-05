@@ -61,7 +61,7 @@ use crate::{
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
 #[operation(
     operations = "post_update_tracker",
-    flow = "sync_data, cancel_data, authorize_data, capture_data, complete_authorize_data, approve_data, reject_data, setup_mandate_data, session_data,incremental_authorization_data, sdk_session_update_data, post_session_tokens_data, update_metadata_data", "cancel_post_capture_data"
+    flow = "sync_data, cancel_data, authorize_data, capture_data, complete_authorize_data, approve_data, reject_data, setup_mandate_data, session_data,incremental_authorization_data, sdk_session_update_data, post_session_tokens_data, update_metadata_data, cancel_post_capture_data"
 )]
 pub struct PaymentResponse;
 
@@ -2596,6 +2596,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
                 | common_enums::AttemptStatus::RouterDeclined
                 | common_enums::AttemptStatus::AuthorizationFailed
                 | common_enums::AttemptStatus::Voided
+                | common_enums::AttemptStatus::VoidedPostCharge
                 | common_enums::AttemptStatus::VoidInitiated
                 | common_enums::AttemptStatus::CaptureFailed
                 | common_enums::AttemptStatus::VoidFailed

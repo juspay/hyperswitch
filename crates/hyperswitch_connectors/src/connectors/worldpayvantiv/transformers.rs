@@ -8,12 +8,12 @@ use hyperswitch_domain_models::{
     },
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsSyncData,
         ResponseId,
     },
     router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData,PaymentsCancelPostCaptureRouterData, PaymentsCaptureRouterData,
         RefundsRouterData,
     },
 };
@@ -79,6 +79,8 @@ pub enum OperationId {
     Auth,
     Capture,
     Void,
+    // VoidPC
+    VoidPC,
     Refund,
 }
 
@@ -128,6 +130,8 @@ pub struct CnpOnlineRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub auth_reversal: Option<AuthReversal>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub void: Option<Void>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub credit: Option<RefundRequest>,
 }
 
@@ -135,6 +139,16 @@ pub struct CnpOnlineRequest {
 pub struct Authentication {
     pub user: Secret<String>,
     pub password: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Void {
+    #[serde(rename = "@id")]
+    pub id: String,
+    #[serde(rename = "@reportGroup")]
+    pub report_group: String,
+    pub cnp_txn_id: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -586,6 +600,7 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
             capture: None,
             auth_reversal: None,
             credit: None,
+            void: None,
         })
     }
 }
@@ -692,6 +707,7 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsCaptureRouterData>> for CnpOnlin
             capture,
             auth_reversal: None,
             credit: None,
+            void: None,
         })
     }
 }
@@ -747,6 +763,7 @@ impl<F> TryFrom<&WorldpayvantivRouterData<&RefundsRouterData<F>>> for CnpOnlineR
             capture: None,
             auth_reversal: None,
             credit,
+            void: None,
         })
     }
 }
@@ -770,6 +787,7 @@ pub struct CnpOnlineResponse {
     pub sale_response: Option<PaymentResponse>,
     pub capture_response: Option<CaptureResponse>,
     pub auth_reversal_response: Option<AuthReversalResponse>,
+    pub void_response: Option<VoidResponse>,
     pub credit_response: Option<CreditResponse>,
 }
 
@@ -888,6 +906,21 @@ pub struct AuthReversalResponse {
     pub report_group: String,
     #[serde(rename = "@customerId", skip_serializing_if = "Option::is_none")]
     pub customer_id: Option<String>,
+    pub cnp_txn_id: String,
+    pub response: WorldpayvantivResponseCode,
+    pub response_time: String,
+    pub post_date: Option<String>,
+    pub message: String,
+    pub location: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VoidResponse {
+    #[serde(rename = "@id")]
+    pub id: String,
+    #[serde(rename = "@reportGroup")]
+    pub report_group: String,
     pub cnp_txn_id: String,
     pub response: WorldpayvantivResponseCode,
     pub response_time: String,
@@ -1049,6 +1082,74 @@ impl<F> TryFrom<ResponseRouterData<F, CnpOnlineResponse, PaymentsCancelData, Pay
     }
 }
 
+impl<F> TryFrom<ResponseRouterData<F, CnpOnlineResponse, PaymentsCancelPostCaptureData, PaymentsResponseData>>
+    for RouterData<F, PaymentsCancelPostCaptureData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, CnpOnlineResponse, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        match item.response.void_response {
+            Some(void_response) => {
+                let status = get_attempt_status(
+                    WorldpayvantivPaymentFlow::VoidPC,
+                    void_response.response,
+                )?;
+                if connector_utils::is_payment_failure(status) {
+                    Ok(Self {
+                        status,
+                        response: Err(ErrorResponse {
+                            code: void_response.response.to_string(),
+                            message: void_response.message.clone(),
+                            reason: Some(void_response.message.clone()),
+                            status_code: item.http_code,
+                            attempt_status: None,
+                            connector_transaction_id: Some(void_response.cnp_txn_id),
+                            network_advice_code: None,
+                            network_decline_code: None,
+                            network_error_message: None,
+                        }),
+                        ..item.data
+                    })
+                } else {
+                    Ok(Self {
+                        status,
+                        response: Ok(PaymentsResponseData::TransactionResponse {
+                            resource_id: ResponseId::ConnectorTransactionId(
+                                void_response.cnp_txn_id,
+                            ),
+                            redirection_data: Box::new(None),
+                            mandate_reference: Box::new(None),
+                            connector_metadata: None,
+                            network_txn_id: None,
+                            connector_response_reference_id: None,
+                            incremental_authorization_allowed: None,
+                            charges: None,
+                        }),
+                        ..item.data
+                    })
+                }
+            }
+            None => Ok(Self {
+                // Incase of API failure
+                status: common_enums::AttemptStatus::VoidFailed,
+                response: Err(ErrorResponse {
+                    code: item.response.response_code,
+                    message: item.response.message.clone(),
+                    reason: Some(item.response.message.clone()),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                }),
+                ..item.data
+            }),
+        }
+    }
+}
+
 impl TryFrom<RefundsResponseRouterData<Execute, CnpOnlineResponse>> for RefundsRouterData<Execute> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1135,6 +1236,48 @@ impl TryFrom<&PaymentsCancelRouterData> for CnpOnlineRequest {
             sale: None,
             capture: None,
             auth_reversal,
+            credit: None,
+            void: None,
+        })
+    }
+}
+
+impl TryFrom<&PaymentsCancelPostCaptureRouterData> for CnpOnlineRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &PaymentsCancelPostCaptureRouterData) -> Result<Self, Self::Error> {
+        let report_group_metadata: WorldpayvantivPaymentMetadata =
+            connector_utils::to_connector_meta(item.request.connector_meta.clone())?;
+        let report_group = report_group_metadata.report_group.clone().ok_or(
+            errors::ConnectorError::RequestEncodingFailedWithReason(
+                "Failed to obtain report_group from metadata".to_string(),
+            ),
+        )?;
+        let void = Some(Void {
+            id: format!(
+                "{}_{}",
+                OperationId::VoidPC,
+                item.connector_request_reference_id
+            ),
+            report_group,
+            cnp_txn_id: item.request.connector_transaction_id.clone(),
+        });
+
+        let worldpayvantiv_auth_type = WorldpayvantivAuthType::try_from(&item.connector_auth_type)?;
+        let authentication = Authentication {
+            user: worldpayvantiv_auth_type.user,
+            password: worldpayvantiv_auth_type.password,
+        };
+
+        Ok(Self {
+            version: worldpayvantiv_constants::WORLDPAYVANTIV_VERSION.to_string(),
+            xmlns: worldpayvantiv_constants::XMLNS.to_string(),
+            merchant_id: worldpayvantiv_auth_type.merchant_id,
+            authentication,
+            authorization: None,
+            sale: None,
+            capture: None,
+            void,
+            auth_reversal: None,
             credit: None,
         })
     }
@@ -1340,6 +1483,7 @@ fn determine_attempt_status<F>(
                 }
                 WorldpayvantivPaymentFlow::Auth => Ok(common_enums::AttemptStatus::Authorized),
                 WorldpayvantivPaymentFlow::Void => Ok(common_enums::AttemptStatus::Voided),
+                WorldpayvantivPaymentFlow::VoidPC => Ok(common_enums::AttemptStatus::VoidedPostCharge),
             },
             PaymentStatus::TransactionDeclined => match flow_type {
                 WorldpayvantivPaymentFlow::Sale | WorldpayvantivPaymentFlow::Capture => {
@@ -1349,6 +1493,7 @@ fn determine_attempt_status<F>(
                     Ok(common_enums::AttemptStatus::AuthorizationFailed)
                 }
                 WorldpayvantivPaymentFlow::Void => Ok(common_enums::AttemptStatus::VoidFailed),
+                WorldpayvantivPaymentFlow::VoidPC => Ok(common_enums::AttemptStatus::VoidFailed),
             },
             PaymentStatus::PaymentStatusNotFound
             | PaymentStatus::NotYetProcessed
@@ -2456,6 +2601,8 @@ pub enum WorldpayvantivPaymentFlow {
     Auth,
     Capture,
     Void,
+    //VoidPC
+    VoidPC,
 }
 
 fn get_payment_flow_type(input: &str) -> Result<WorldpayvantivPaymentFlow, errors::ConnectorError> {
@@ -2463,7 +2610,9 @@ fn get_payment_flow_type(input: &str) -> Result<WorldpayvantivPaymentFlow, error
         Ok(WorldpayvantivPaymentFlow::Auth)
     } else if input.contains("sale") {
         Ok(WorldpayvantivPaymentFlow::Sale)
-    } else if input.contains("void") {
+    } else if input.contains("voidpc") {
+        Ok(WorldpayvantivPaymentFlow::VoidPC)
+    }else if input.contains("void") {
         Ok(WorldpayvantivPaymentFlow::Void)
     } else if input.contains("capture") {
         Ok(WorldpayvantivPaymentFlow::Capture)
@@ -2497,6 +2646,9 @@ fn get_attempt_status(
                 WorldpayvantivPaymentFlow::Auth => Ok(common_enums::AttemptStatus::Authorizing),
                 WorldpayvantivPaymentFlow::Capture => Ok(common_enums::AttemptStatus::CaptureInitiated),
                 WorldpayvantivPaymentFlow::Void => Ok(common_enums::AttemptStatus::VoidInitiated),
+                WorldpayvantivPaymentFlow::VoidPC => {
+                    Ok(common_enums::AttemptStatus::VoidInitiated)
+                }
             },
         WorldpayvantivResponseCode::ShopperCheckoutExpired
             | WorldpayvantivResponseCode::ProcessingNetworkUnavailable
@@ -2847,7 +2999,8 @@ fn get_attempt_status(
                 WorldpayvantivPaymentFlow::Sale => Ok(common_enums::AttemptStatus::Failure),
                 WorldpayvantivPaymentFlow::Auth => Ok(common_enums::AttemptStatus::AuthorizationFailed),
                 WorldpayvantivPaymentFlow::Capture => Ok(common_enums::AttemptStatus::CaptureFailed),
-                WorldpayvantivPaymentFlow::Void => Ok(common_enums::AttemptStatus::VoidFailed)
+                WorldpayvantivPaymentFlow::Void => Ok(common_enums::AttemptStatus::VoidFailed),
+                WorldpayvantivPaymentFlow::VoidPC => Ok(common_enums::AttemptStatus::VoidFailed)
             }
     }
 }

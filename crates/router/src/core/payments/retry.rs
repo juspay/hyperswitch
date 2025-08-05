@@ -782,6 +782,7 @@ impl<F: Send + Clone + Sync, FData: Send + Sync>
                 | storage_enums::AttemptStatus::Authorizing
                 | storage_enums::AttemptStatus::CodInitiated
                 | storage_enums::AttemptStatus::Voided
+                | storage_enums::AttemptStatus::VoidedPostCharge
                 | storage_enums::AttemptStatus::VoidInitiated
                 | storage_enums::AttemptStatus::CaptureInitiated
                 | storage_enums::AttemptStatus::RouterDeclined

@@ -436,6 +436,7 @@ pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
         | AttemptStatus::Authorizing
         | AttemptStatus::CodInitiated
         | AttemptStatus::Voided
+        | AttemptStatus::VoidedPostCharge
         | AttemptStatus::VoidInitiated
         | AttemptStatus::CaptureInitiated
         | AttemptStatus::AutoRefunded
@@ -6327,6 +6328,7 @@ impl FrmTransactionRouterDataRequest for FrmTransactionRouterData {
             | AttemptStatus::RouterDeclined
             | AttemptStatus::AuthorizationFailed
             | AttemptStatus::Voided
+            | AttemptStatus::VoidedPostCharge
             | AttemptStatus::CaptureFailed
             | AttemptStatus::Failure
             | AttemptStatus::AutoRefunded

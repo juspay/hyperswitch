@@ -1076,7 +1076,6 @@ default_imp_for_cancel_post_capture!(
     connectors::Wise,
     connectors::Worldline,
     connectors::Worldpay,
-    connectors::Worldpayvantiv,
     connectors::Worldpayxml,
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
