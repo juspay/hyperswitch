@@ -1652,6 +1652,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "cargo_metadata"
+version = "0.19.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd5eb614ed4c27c5d706420e4320fbe3216ab31fa1c33cd8246ac36dae4479ba"
+dependencies = [
+ "camino",
+ "cargo-platform",
+ "semver 1.0.26",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.12",
+]
+
+[[package]]
 name = "cast"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1847,6 +1861,7 @@ dependencies = [
  "common_enums",
  "common_utils",
  "diesel",
+ "error-stack 0.4.1",
  "euclid",
  "masking",
  "serde",
@@ -3347,13 +3362,17 @@ dependencies = [
 
 [[package]]
 name = "g2h"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "312ad594dd0e3c26f860a52c8b703ab509c546931920f277f1afa9b7127fd755"
+version = "0.4.0"
+source = "git+https://github.com/NishantJoshi00/g2h?branch=fixing-response-serializing#fd2c856b2c6c88a85d6fe51d95b4d3342b788d31"
 dependencies = [
+ "cargo_metadata 0.19.2",
  "heck 0.5.0",
+ "proc-macro2",
+ "prost",
  "prost-build",
+ "prost-types",
  "quote",
+ "thiserror 2.0.12",
  "tonic-build",
 ]
 
@@ -3506,7 +3525,7 @@ dependencies = [
 [[package]]
 name = "grpc-api-types"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=afaef3427f815befe253da152e5f37d3858bbc9f#afaef3427f815befe253da152e5f37d3858bbc9f"
+source = "git+https://github.com/juspay/connector-service?rev=0409f6aa1014dd1b9827fabfa4fa424e16d07ebc#0409f6aa1014dd1b9827fabfa4fa424e16d07ebc"
 dependencies = [
  "axum 0.8.4",
  "error-stack 0.5.0",
@@ -6827,7 +6846,7 @@ dependencies = [
 name = "router_env"
 version = "0.1.0"
 dependencies = [
- "cargo_metadata",
+ "cargo_metadata 0.18.1",
  "config",
  "error-stack 0.4.1",
  "gethostname",
@@ -6880,7 +6899,7 @@ dependencies = [
 [[package]]
 name = "rust-grpc-client"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=afaef3427f815befe253da152e5f37d3858bbc9f#afaef3427f815befe253da152e5f37d3858bbc9f"
+source = "git+https://github.com/juspay/connector-service?rev=0409f6aa1014dd1b9827fabfa4fa424e16d07ebc#0409f6aa1014dd1b9827fabfa4fa424e16d07ebc"
 dependencies = [
  "grpc-api-types",
 ]
@@ -8360,6 +8379,7 @@ dependencies = [
  "async-trait",
  "base64 0.22.1",
  "clap",
+ "common_enums",
  "masking",
  "rand 0.8.5",
  "regex",
@@ -9501,7 +9521,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2990d9ea5967266ea0ccf413a4aa5c42a93dbcfda9cb49a97de6931726b12566"
 dependencies = [
  "anyhow",
- "cargo_metadata",
+ "cargo_metadata 0.18.1",
  "cfg-if 1.0.0",
  "git2",
  "regex",

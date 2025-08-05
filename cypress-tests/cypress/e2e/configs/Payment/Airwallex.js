@@ -798,4 +798,67 @@ export const connectorDetails = {
       },
     },
   },
+  bank_redirect_pm: {
+    Trustly: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "trustly",
+        payment_method_data: {
+          bank_redirect: {
+            trustly: {
+              country: "NL",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    Blik: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "blik",
+        payment_method_data: {
+          bank_redirect: {
+            blik: {
+              blik_code: "000000",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    Ideal: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "ideal",
+        payment_method_data: {
+          bank_redirect: {
+            ideal: {
+              billing_details: {
+                billing_name: "john doe",
+                email: "abc@gmail.com",
+              },
+              country: "NL",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+  },
 };

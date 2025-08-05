@@ -8,6 +8,7 @@
 
 pub mod api;
 pub mod authentication;
+pub mod connector_transformers;
 pub mod domain;
 #[cfg(feature = "frm")]
 pub mod fraud_check;
@@ -295,12 +296,15 @@ impl Capturable for PaymentsAuthorizeData {
     {
         match payment_data.get_capture_method().unwrap_or_default()
         {
-            common_enums::CaptureMethod::Automatic|common_enums::CaptureMethod::SequentialAutomatic  => {
+            common_enums::CaptureMethod::Automatic
+            | common_enums::CaptureMethod::SequentialAutomatic => {
                 let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
                 match intent_status {
                     common_enums::IntentStatus::Succeeded
                     | common_enums::IntentStatus::Failed
-                    | common_enums::IntentStatus::Processing | common_enums::IntentStatus::Conflicted => Some(0),
+                    | common_enums::IntentStatus::Processing
+                    | common_enums::IntentStatus::Conflicted
+                    | common_enums::IntentStatus::Expired => Some(0),
                     common_enums::IntentStatus::Cancelled
                     | common_enums::IntentStatus::PartiallyCaptured
                     | common_enums::IntentStatus::RequiresCustomerAction
@@ -340,7 +344,8 @@ impl Capturable for PaymentsCaptureData {
         match intent_status {
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::Conflicted => Some(0),
+            | common_enums::IntentStatus::Conflicted
+            | common_enums::IntentStatus::Expired => Some(0),
             common_enums::IntentStatus::Processing
             | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::Failed
@@ -382,9 +387,11 @@ impl Capturable for CompleteAuthorizeData {
             common_enums::CaptureMethod::Automatic | common_enums::CaptureMethod::SequentialAutomatic => {
                 let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
                 match intent_status {
-                    common_enums::IntentStatus::Succeeded|
-                    common_enums::IntentStatus::Failed|
-                    common_enums::IntentStatus::Processing | common_enums::IntentStatus::Conflicted => Some(0),
+                    common_enums::IntentStatus::Succeeded
+                    | common_enums::IntentStatus::Failed
+                    | common_enums::IntentStatus::Processing
+                    | common_enums::IntentStatus::Conflicted
+                    | common_enums::IntentStatus::Expired => Some(0),
                     common_enums::IntentStatus::Cancelled | common_enums::IntentStatus::PartiallyCaptured
                     | common_enums::IntentStatus::RequiresCustomerAction
                     | common_enums::IntentStatus::RequiresMerchantAction
@@ -432,7 +439,8 @@ impl Capturable for PaymentsCancelData {
             common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::Processing
             | common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::Conflicted => Some(0),
+            | common_enums::IntentStatus::Conflicted
+            | common_enums::IntentStatus::Expired => Some(0),
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::RequiresCustomerAction
@@ -513,9 +521,9 @@ pub struct PaymentMethodTokenResult {
     pub connector_response: Option<ConnectorResponseData>,
 }
 
+#[derive(Clone)]
 pub struct CreateOrderResult {
-    pub create_order_result: Result<Option<String>, ErrorResponse>,
-    pub is_create_order_performed: bool,
+    pub create_order_result: Result<String, ErrorResponse>,
 }
 
 pub struct PspTokenResult {
@@ -1090,6 +1098,8 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             merchant_config_currency: None,
             connector_testing_data: data.request.connector_testing_data.clone(),
             order_id: None,
+            locale: None,
+            payment_channel: None,
         }
     }
 }

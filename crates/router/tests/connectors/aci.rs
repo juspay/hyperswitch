@@ -81,6 +81,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
             metadata: None,
             authentication_data: None,
             customer_acceptance: None,
+            locale: None,
             ..utils::PaymentAuthorizeType::default().0
         },
         response: Err(types::ErrorResponse::default()),

@@ -425,7 +425,8 @@ pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
         | AttemptStatus::AuthorizationFailed
         | AttemptStatus::CaptureFailed
         | AttemptStatus::VoidFailed
-        | AttemptStatus::Failure => true,
+        | AttemptStatus::Failure
+        | AttemptStatus::Expired => true,
         AttemptStatus::Started
         | AttemptStatus::RouterDeclined
         | AttemptStatus::AuthenticationPending
@@ -499,6 +500,7 @@ pub trait RouterData {
     fn get_optional_shipping(&self) -> Option<&Address>;
     fn get_optional_shipping_line1(&self) -> Option<Secret<String>>;
     fn get_optional_shipping_line2(&self) -> Option<Secret<String>>;
+    fn get_optional_shipping_line3(&self) -> Option<Secret<String>>;
     fn get_optional_shipping_city(&self) -> Option<String>;
     fn get_optional_shipping_country(&self) -> Option<enums::CountryAlpha2>;
     fn get_optional_shipping_zip(&self) -> Option<Secret<String>>;
@@ -511,6 +513,7 @@ pub trait RouterData {
 
     fn get_optional_billing_full_name(&self) -> Option<Secret<String>>;
     fn get_optional_billing_line1(&self) -> Option<Secret<String>>;
+    fn get_optional_billing_line3(&self) -> Option<Secret<String>>;
     fn get_optional_billing_line2(&self) -> Option<Secret<String>>;
     fn get_optional_billing_city(&self) -> Option<String>;
     fn get_optional_billing_country(&self) -> Option<enums::CountryAlpha2>;
@@ -596,6 +599,15 @@ impl<Flow, Request, Response> RouterData
                 .clone()
                 .address
                 .and_then(|shipping_details| shipping_details.line2)
+        })
+    }
+
+    fn get_optional_shipping_line3(&self) -> Option<Secret<String>> {
+        self.address.get_shipping().and_then(|shipping_address| {
+            shipping_address
+                .clone()
+                .address
+                .and_then(|shipping_details| shipping_details.line3)
         })
     }
 
@@ -822,6 +834,17 @@ impl<Flow, Request, Response> RouterData
                     .clone()
                     .address
                     .and_then(|billing_details| billing_details.line2)
+            })
+    }
+
+    fn get_optional_billing_line3(&self) -> Option<Secret<String>> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_details| billing_details.line3)
             })
     }
 
@@ -1664,13 +1687,21 @@ impl PayoutFulfillRequestData for hyperswitch_domain_models::router_request_type
 
 pub trait CustomerData {
     fn get_email(&self) -> Result<Email, Error>;
+    fn is_mandate_payment(&self) -> bool;
 }
 
 impl CustomerData for ConnectorCustomerData {
     fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
     }
+    fn is_mandate_payment(&self) -> bool {
+        // We only need to check if the customer acceptance or setup mandate details are present and if the setup future usage is OffSession.
+        // mandate_reference_id is not needed here as we do not need to check for existing mandates.
+        self.customer_acceptance.is_some()
+            && self.setup_future_usage == Some(FutureUsage::OffSession)
+    }
 }
+
 pub trait PaymentsAuthorizeRequestData {
     fn get_optional_language_from_browser_info(&self) -> Option<String>;
     fn is_auto_capture(&self) -> Result<bool, Error>;
@@ -2178,6 +2209,7 @@ impl PaymentsSetupMandateRequestData for SetupMandateRequestData {
 
 pub trait PaymentMethodTokenizationRequestData {
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+    fn is_mandate_payment(&self) -> bool;
 }
 
 impl PaymentMethodTokenizationRequestData for PaymentMethodTokenizationData {
@@ -2185,6 +2217,15 @@ impl PaymentMethodTokenizationRequestData for PaymentMethodTokenizationData {
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
+    }
+    fn is_mandate_payment(&self) -> bool {
+        ((self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
+            && (self.setup_future_usage == Some(FutureUsage::OffSession)))
+            || self
+                .mandate_id
+                .as_ref()
+                .and_then(|mandate_ids| mandate_ids.mandate_reference_id.as_ref())
+                .is_some()
     }
 }
 
@@ -5427,6 +5468,8 @@ pub enum PaymentMethodDataType {
     AliPayRedirect,
     AliPayHkRedirect,
     AmazonPayRedirect,
+    Skrill,
+    Paysera,
     MomoRedirect,
     KakaoPayRedirect,
     GoPayRedirect,
@@ -5437,6 +5480,7 @@ pub enum PaymentMethodDataType {
     DanaRedirect,
     DuitNow,
     GooglePay,
+    Bluecode,
     GooglePayRedirect,
     GooglePayThirdPartySdk,
     MbWayRedirect,
@@ -5460,6 +5504,8 @@ pub enum PaymentMethodDataType {
     WalleyRedirect,
     AlmaRedirect,
     AtomeRedirect,
+    Breadpay,
+    FlexitiRedirect,
     BancontactCard,
     Bizum,
     Blik,
@@ -5530,6 +5576,7 @@ pub enum PaymentMethodDataType {
     InstantBankTransferFinland,
     InstantBankTransferPoland,
     RevolutPay,
+    IndonesianBankTransfer,
 }
 
 impl From<PaymentMethodData> for PaymentMethodDataType {
@@ -5551,6 +5598,8 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::WalletData::AliPayRedirect(_) => Self::AliPayRedirect,
                 payment_method_data::WalletData::AliPayHkRedirect(_) => Self::AliPayHkRedirect,
                 payment_method_data::WalletData::AmazonPayRedirect(_) => Self::AmazonPayRedirect,
+                payment_method_data::WalletData::Skrill(_) => Self::Skrill,
+                payment_method_data::WalletData::Paysera(_) => Self::Paysera,
                 payment_method_data::WalletData::MomoRedirect(_) => Self::MomoRedirect,
                 payment_method_data::WalletData::KakaoPayRedirect(_) => Self::KakaoPayRedirect,
                 payment_method_data::WalletData::GoPayRedirect(_) => Self::GoPayRedirect,
@@ -5562,6 +5611,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 }
                 payment_method_data::WalletData::DanaRedirect {} => Self::DanaRedirect,
                 payment_method_data::WalletData::GooglePay(_) => Self::GooglePay,
+                payment_method_data::WalletData::BluecodeRedirect {} => Self::Bluecode,
                 payment_method_data::WalletData::GooglePayRedirect(_) => Self::GooglePayRedirect,
                 payment_method_data::WalletData::GooglePayThirdPartySdk(_) => {
                     Self::GooglePayThirdPartySdk
@@ -5589,10 +5639,12 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::PayLaterData::AfterpayClearpayRedirect { .. } => {
                     Self::AfterpayClearpayRedirect
                 }
+                payment_method_data::PayLaterData::FlexitiRedirect { .. } => Self::FlexitiRedirect,
                 payment_method_data::PayLaterData::PayBrightRedirect {} => Self::PayBrightRedirect,
                 payment_method_data::PayLaterData::WalleyRedirect {} => Self::WalleyRedirect,
                 payment_method_data::PayLaterData::AlmaRedirect {} => Self::AlmaRedirect,
                 payment_method_data::PayLaterData::AtomeRedirect {} => Self::AtomeRedirect,
+                payment_method_data::PayLaterData::BreadpayRedirect {} => Self::Breadpay,
             },
             PaymentMethodData::BankRedirect(bank_redirect_data) => match bank_redirect_data {
                 payment_method_data::BankRedirectData::BancontactCard { .. } => {
@@ -5684,6 +5736,9 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 }
                 payment_method_data::BankTransferData::InstantBankTransferPoland {} => {
                     Self::InstantBankTransferPoland
+                }
+                payment_method_data::BankTransferData::IndonesianBankTransfer { .. } => {
+                    Self::IndonesianBankTransfer
                 }
             },
             PaymentMethodData::Crypto(_) => Self::Crypto,
@@ -6180,6 +6235,8 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         merchant_config_currency: None,
         connector_testing_data: data.request.connector_testing_data.clone(),
         order_id: None,
+        locale: None,
+        payment_channel: None,
     }
 }
 
@@ -6272,7 +6329,8 @@ impl FrmTransactionRouterDataRequest for FrmTransactionRouterData {
             | AttemptStatus::Voided
             | AttemptStatus::CaptureFailed
             | AttemptStatus::Failure
-            | AttemptStatus::AutoRefunded => Some(false),
+            | AttemptStatus::AutoRefunded
+            | AttemptStatus::Expired => Some(false),
 
             AttemptStatus::AuthenticationSuccessful
             | AttemptStatus::PartialChargedAndChargeable

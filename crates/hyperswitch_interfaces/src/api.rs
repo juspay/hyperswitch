@@ -37,7 +37,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    configs::Connectors,
+    connector_endpoints::Connectors,
     errors::api_error_response::ApiErrorResponse,
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
@@ -722,7 +722,7 @@ pub trait ConnectorTransactionId: ConnectorCommon + Sync {
     /// fn connector_transaction_id
     fn connector_transaction_id(
         &self,
-        payment_attempt: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> Result<Option<String>, ApiErrorResponse> {
         Ok(payment_attempt
             .get_connector_payment_id()

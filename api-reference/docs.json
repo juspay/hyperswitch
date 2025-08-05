@@ -23,6 +23,7 @@
               {
                 "group": "Essentials",
                 "pages": [
+                  "essentials/authentication",
                   "essentials/error_codes",
                   "essentials/rate_limit",
                   "essentials/go-live"
@@ -147,6 +148,12 @@
                     ]
                   },
                   {
+                    "group": "Platform Account",
+                    "pages": [
+                      "v1/platform/platform--create"
+                    ]
+                  },
+                  {
                     "group": "API Key",
                     "pages": [
                       "v1/api-key/api-key--create",
@@ -213,7 +220,10 @@
                       "v1/routing/routing--retrieve-default-for-profile",
                       "v1/routing/routing--update-default-for-profile",
                       "v1/routing/routing--retrieve",
-                      "v1/routing/routing--activate-config"
+                      "v1/routing/routing--activate-config",
+                      "v1/routing/routing--evaluate",
+                      "v1/routing/routing--feedback",
+                      "v1/routing/routing--rule-evaluate"
                     ]
                   },
                   {

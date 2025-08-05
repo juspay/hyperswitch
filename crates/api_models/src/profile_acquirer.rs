@@ -1,8 +1,6 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::enums;
-
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ProfileAcquirerCreate {
     /// The merchant id assigned by the acquirer
@@ -11,9 +9,6 @@ pub struct ProfileAcquirerCreate {
     /// merchant name
     #[schema(value_type= String,example = "NewAge Retailer")]
     pub merchant_name: String,
-    /// Merchant country code assigned by acquirer
-    #[schema(value_type= String,example = "US")]
-    pub merchant_country_code: enums::CountryAlpha2,
     /// Network provider
     #[schema(value_type= String,example = "VISA")]
     pub network: common_enums::enums::CardNetwork,
@@ -42,9 +37,6 @@ pub struct ProfileAcquirerResponse {
     /// Merchant name
     #[schema(value_type= String,example = "NewAge Retailer")]
     pub merchant_name: String,
-    /// Merchant country code assigned by acquirer
-    #[schema(value_type= String,example = "US")]
-    pub merchant_country_code: enums::CountryAlpha2,
     /// Network provider
     #[schema(value_type= String,example = "VISA")]
     pub network: common_enums::enums::CardNetwork,
@@ -84,7 +76,6 @@ impl
             profile_id: profile_id.clone(),
             acquirer_assigned_merchant_id: acquirer_config.acquirer_assigned_merchant_id.clone(),
             merchant_name: acquirer_config.merchant_name.clone(),
-            merchant_country_code: acquirer_config.merchant_country_code,
             network: acquirer_config.network.clone(),
             acquirer_bin: acquirer_config.acquirer_bin.clone(),
             acquirer_ica: acquirer_config.acquirer_ica.clone(),
@@ -100,8 +91,6 @@ pub struct ProfileAcquirerUpdate {
     pub acquirer_assigned_merchant_id: Option<String>,
     #[schema(value_type = Option<String>, example = "Updated Retailer Name")]
     pub merchant_name: Option<String>,
-    #[schema(value_type = Option<String>, example = "CA")]
-    pub merchant_country_code: Option<enums::CountryAlpha2>,
     #[schema(value_type = Option<String>, example = "MASTERCARD")]
     pub network: Option<common_enums::enums::CardNetwork>,
     #[schema(value_type = Option<String>, example = "987654")]

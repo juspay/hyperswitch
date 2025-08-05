@@ -598,6 +598,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             token_data: None,
             confirm: request.confirm,
             payment_method_data: payment_method_data_after_card_bin_call.map(Into::into),
+            payment_method_token: None,
             payment_method_info,
             refunds: vec![],
             disputes: vec![],
@@ -881,7 +882,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .as_ref()
             .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount);
 
-        let routing_approach = payment_data.payment_attempt.routing_approach;
+        let routing_approach = payment_data.payment_attempt.routing_approach.clone();
 
         payment_data.payment_attempt = state
             .store
@@ -1181,6 +1182,22 @@ impl PaymentCreate {
                             )))
                         }
                         PaymentMethodsData::WalletDetails(wallet) => match payment_method_type {
+                            Some(enums::PaymentMethodType::ApplePay) => {
+                                Some(api_models::payments::AdditionalPaymentData::Wallet {
+                                    apple_pay: api::payments::ApplepayPaymentMethod::try_from(
+                                        wallet,
+                                    )
+                                    .inspect_err(|err| {
+                                        logger::error!(
+                                            "Unable to transform PaymentMethodDataWalletInfo to ApplepayPaymentMethod: {:?}",
+                                            err
+                                        )
+                                    })
+                                    .ok(),
+                                    google_pay: None,
+                                    samsung_pay: None,
+                                })
+                            }
                             Some(enums::PaymentMethodType::GooglePay) => {
                                 Some(api_models::payments::AdditionalPaymentData::Wallet {
                                     apple_pay: None,
@@ -1604,6 +1621,7 @@ impl PaymentCreate {
                 .is_iframe_redirection_enabled
                 .or(business_profile.is_iframe_redirection_enabled),
             is_payment_id_from_merchant: Some(is_payment_id_from_merchant),
+            payment_channel: request.payment_channel.clone(),
         })
     }
 

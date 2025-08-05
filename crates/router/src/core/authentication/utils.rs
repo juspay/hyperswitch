@@ -88,6 +88,10 @@ pub async fn update_trackers<F: Clone, Req>(
                 acquirer_country_code: acquirer_details
                     .and_then(|acquirer_details| acquirer_details.acquirer_country_code),
                 directory_server_id,
+                billing_address: None,
+                shipping_address: None,
+                browser_info: Box::new(None),
+                email: None,
             },
             AuthenticationResponseData::AuthNResponse {
                 authn_flow_type,
@@ -275,6 +279,11 @@ pub async fn create_new_authentication(
         return_url: None,
         amount: None,
         currency: None,
+        billing_address: None,
+        shipping_address: None,
+        browser_info: None,
+        email: None,
+        profile_acquirer_id: None,
     };
     state
         .store
@@ -325,31 +334,46 @@ pub async fn get_authentication_connector_data(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     business_profile: &domain::Profile,
+    authentication_connector: Option<String>,
 ) -> RouterResult<(
     common_enums::AuthenticationConnectors,
     payments::helpers::MerchantConnectorAccountType,
 )> {
-    let authentication_details = business_profile
-        .authentication_connector_details
-        .clone()
-        .get_required_value("authentication_details")
-        .change_context(errors::ApiErrorResponse::UnprocessableEntity {
-            message: "authentication_connector_details is not available in business profile".into(),
-        })
-        .attach_printable("authentication_connector_details not configured by the merchant")?;
-    let authentication_connector = authentication_details
-        .authentication_connectors
-        .first()
-        .ok_or(errors::ApiErrorResponse::UnprocessableEntity {
-            message: format!(
-                "No authentication_connector found for profile_id {:?}",
-                business_profile.get_id()
+    let authentication_connector = if let Some(authentication_connector) = authentication_connector
+    {
+        api_models::enums::convert_authentication_connector(&authentication_connector).ok_or(
+            errors::ApiErrorResponse::UnprocessableEntity {
+                message: format!(
+                "Invalid authentication_connector found in request : {authentication_connector}",
             ),
-        })
-        .attach_printable(
-            "No authentication_connector found from merchant_account.authentication_details",
+            },
         )?
-        .to_owned();
+    } else {
+        let authentication_details = business_profile
+            .authentication_connector_details
+            .clone()
+            .get_required_value("authentication_details")
+            .change_context(errors::ApiErrorResponse::UnprocessableEntity {
+                message: "authentication_connector_details is not available in business profile"
+                    .into(),
+            })
+            .attach_printable("authentication_connector_details not configured by the merchant")?;
+
+        authentication_details
+            .authentication_connectors
+            .first()
+            .ok_or(errors::ApiErrorResponse::UnprocessableEntity {
+                message: format!(
+                    "No authentication_connector found for profile_id {:?}",
+                    business_profile.get_id()
+                ),
+            })
+            .attach_printable(
+                "No authentication_connector found from merchant_account.authentication_details",
+            )?
+            .to_owned()
+    };
+
     let profile_id = business_profile.get_id();
     let authentication_connector_mca = payments::helpers::get_merchant_connector_account(
         state,

@@ -6,7 +6,8 @@ function find_prev_connector() {
     git checkout $self
     cp $self $self.tmp
     # Add new connector to existing list and sort it
-    connectors=(aci adyen adyenplatform airwallex amazonpay applepay archipel authipay authorizedotnet bambora bamboraapac bankofamerica barclaycard billwerk bitpay bluesnap boku braintree cashtocode celero chargebee checkbook checkout coinbase cryptopay ctp_visa cybersource datatrans deutschebank digitalvirgo dlocal dummyconnector dwolla ebanx elavon facilitapay fiserv fiservemea fiuu forte getnet globalpay globepay gocardless gpayments helcim hipay hyperswitch_vault iatapay inespay itaubank jpmorgan juspaythreedsserver klarna mifinity mollie moneris multisafepay netcetera nexinets nexixpay nomupay noon nordea novalnet nuvei opayo opennode paybox payeezy payload payme payone paypal paystack payu placetopay plaid powertranz prophetpay rapyd razorpay recurly redsys santander shift4 silverflow square stax stripe stripebilling taxjar threedsecureio thunes tokenio trustpay tsys unified_authentication_service vgs volt wellsfargo wellsfargopayout wise worldline worldpay worldpayvantiv worldpayxml xendit zsl "$1")
+    connectors=(aci adyen adyenplatform affirm airwallex amazonpay applepay archipel authipay authorizedotnet bambora bamboraapac bankofamerica barclaycard billwerk bitpay blackhawknetwork bluecode bluesnap boku braintree breadpay cashtocode celero chargebee checkbook checkout coinbase cryptopay ctp_visa custombilling cybersource datatrans deutschebank digitalvirgo dlocal dummyconnector dwolla ebanx elavon facilitapay fiserv fiservemea fiuu flexiti forte getnet globalpay globepay gocardless gpayments helcim hipay hyperswitch_vault iatapay inespay itaubank jpmorgan juspaythreedsserver katapult klarna mifinity mollie moneris mpgs multisafepay netcetera nexinets nexixpay nomupay noon nordea novalnet nuvei opayo opennode paybox payeezy payload payme payone paypal paystack paytm payu phonepe placetopay plaid powertranz prophetpay rapyd razorpay recurly redsys santander shift4 silverflow square stax stripe stripebilling taxjar threedsecureio thunes tokenio trustpay trustpayments tsys unified_authentication_service vgs volt wellsfargo wellsfargopayout wise worldline worldpay worldpayvantiv worldpayxml xendit zsl "$1")
+
 
     IFS=$'\n' sorted=($(sort <<<"${connectors[*]}")); unset IFS
     res="$(echo ${sorted[@]})"
@@ -46,7 +47,7 @@ cd $SCRIPT/..
 
 # Remove template files if already created for this connector
 rm -rf $conn/$payment_gateway $conn/$payment_gateway.rs
-git checkout $conn.rs $src/types/api.rs $src/configs/settings.rs config/development.toml config/docker_compose.toml config/config.example.toml loadtest/config/development.toml crates/api_models/src/connector_enums.rs crates/euclid/src/enums.rs crates/api_models/src/routing.rs $src/core/payments/flows.rs crates/common_enums/src/connector_enums.rs crates/common_enums/src/connector_enums.rs-e $src/types/transformers.rs $src/core/admin.rs
+git checkout $conn.rs $src/types/api/connector_mapping.rs $src/configs/settings.rs config/development.toml config/docker_compose.toml config/config.example.toml loadtest/config/development.toml crates/api_models/src/connector_enums.rs crates/euclid/src/enums.rs crates/api_models/src/routing.rs $src/core/payments/flows.rs crates/common_enums/src/connector_enums.rs crates/common_enums/src/connector_enums.rs-e $src/types/connector_transformers.rs $src/core/admin.rs
 
 # Add enum for this connector in required places
 previous_connector=''
@@ -177,11 +178,11 @@ sed -i'' -e "s/^default_imp_for_new_connector_integration_connector_authenticati
 
 sed -i'' -e "/pub ${previous_connector}: ConnectorParams,/a\\
     pub ${payment_gateway}: ConnectorParams,
-" crates/hyperswitch_domain_models/src/configs.rs
+" crates/hyperswitch_domain_models/src/connector_endpoints.rs
 
 
 # Remove temporary files created in above step
-rm $conn.rs-e $src/types/api.rs-e $src/configs/settings.rs-e config/development.toml-e config/docker_compose.toml-e config/config.example.toml-e loadtest/config/development.toml-e crates/api_models/src/connector_enums.rs-e crates/euclid/src/enums.rs-e crates/api_models/src/routing.rs-e $src/core/payments/flows.rs-e crates/common_enums/src/connector_enums.rs-e $src/types/transformers.rs-e $src/core/admin.rs-e crates/hyperswitch_connectors/src/default_implementations.rs-e crates/hyperswitch_connectors/src/default_implementations_v2.rs-e crates/hyperswitch_interfaces/src/configs.rs-e $src/connector.rs-e config/deployments/integration_test.toml-e config/deployments/production.toml-e config/deployments/sandbox.toml-e temp crates/connector_configs/src/connector.rs-e crates/router/tests/connectors/main.rs-e crates/router/src/core/payments/connector_integration_v2_impls.rs-e crates/hyperswitch_domain_models/src/configs.rs-e
+rm $conn.rs-e $src/types/api/connector_mapping.rs-e $src/configs/settings.rs-e config/development.toml-e config/docker_compose.toml-e config/config.example.toml-e loadtest/config/development.toml-e crates/api_models/src/connector_enums.rs-e crates/euclid/src/enums.rs-e crates/api_models/src/routing.rs-e $src/core/payments/flows.rs-e crates/common_enums/src/connector_enums.rs-e $src/types/connector_transformers.rs-e $src/core/admin.rs-e crates/hyperswitch_connectors/src/default_implementations.rs-e crates/hyperswitch_connectors/src/default_implementations_v2.rs-e crates/hyperswitch_interfaces/src/configs.rs-e $src/connector.rs-e config/deployments/integration_test.toml-e config/deployments/production.toml-e config/deployments/sandbox.toml-e temp crates/connector_configs/src/connector.rs-e crates/router/tests/connectors/main.rs-e crates/router/src/core/payments/connector_integration_v2_impls.rs-e crates/hyperswitch_domain_models/src/connector_endpoints.rs-e
 
 cd $conn/
 
