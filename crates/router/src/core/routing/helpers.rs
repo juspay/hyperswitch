@@ -2256,7 +2256,6 @@ pub async fn create_specific_dynamic_routing_setup(
 
     let algo = match dynamic_routing_type {
         routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
-            let default_success_based_routing_config = payload;
 
             routing_algorithm::RoutingAlgorithm {
                 algorithm_id: algorithm_id.clone(),
@@ -2265,7 +2264,7 @@ pub async fn create_specific_dynamic_routing_setup(
                 name: SUCCESS_BASED_DYNAMIC_ROUTING_ALGORITHM.to_string(),
                 description: None,
                 kind: diesel_models::enums::RoutingAlgorithmKind::Dynamic,
-                algorithm_data: serde_json::json!(default_success_based_routing_config),
+                algorithm_data: serde_json::json!(payload),
                 created_at: timestamp,
                 modified_at: timestamp,
                 algorithm_for: common_enums::TransactionType::Payment,
@@ -2273,7 +2272,6 @@ pub async fn create_specific_dynamic_routing_setup(
             }
         }
         routing_types::DynamicRoutingType::EliminationRouting => {
-            let default_elimination_routing_config = payload;
 
             routing_algorithm::RoutingAlgorithm {
                 algorithm_id: algorithm_id.clone(),
@@ -2282,7 +2280,7 @@ pub async fn create_specific_dynamic_routing_setup(
                 name: ELIMINATION_BASED_DYNAMIC_ROUTING_ALGORITHM.to_string(),
                 description: None,
                 kind: diesel_models::enums::RoutingAlgorithmKind::Dynamic,
-                algorithm_data: serde_json::json!(default_elimination_routing_config),
+                algorithm_data: serde_json::json!(payload),
                 created_at: timestamp,
                 modified_at: timestamp,
                 algorithm_for: common_enums::TransactionType::Payment,
@@ -2298,8 +2296,6 @@ pub async fn create_specific_dynamic_routing_setup(
         }
     };
 
-    // Call to DE here
-    // Need to map out the cases if this call should always be made or not
     if state.conf.open_router.dynamic_routing_enabled {
         enable_decision_engine_dynamic_routing_setup(
             state,
