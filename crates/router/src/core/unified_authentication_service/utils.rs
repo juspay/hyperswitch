@@ -235,6 +235,10 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                         connector_metadata: authentication_details.connector_metadata,
                         ds_trans_id: authentication_details.ds_trans_id,
                         eci: authentication_details.eci,
+                        challenge_code: authentication_details.challenge_code,
+                        challenge_cancel: authentication_details.challenge_cancel,
+                        challenge_code_reason: authentication_details.challenge_code_reason,
+                        message_extension: authentication_details.message_extension,
                     },
                 )
             }
@@ -271,6 +275,8 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                         ),
                         trans_status,
                         eci: authentication_details.eci,
+                        challenge_cancel: authentication_details.challenge_cancel,
+                        challenge_code_reason: authentication_details.challenge_code_reason,
                     },
                 )
             }
