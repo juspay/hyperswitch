@@ -1,6 +1,6 @@
 use std::{collections::HashMap, marker::PhantomData};
 
-use common_types::{primitive_wrappers, payments as common_payment_types};
+use common_types::{payments as common_payment_types, primitive_wrappers};
 use common_utils::{
     errors::IntegrityCheckError,
     ext_traits::{OptionExt, ValueExt},
