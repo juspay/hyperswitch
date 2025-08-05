@@ -48,7 +48,6 @@ impl DBOperation {
                 Insertable::ReverseLookUp(_) => "reverse_lookup",
                 Insertable::PaymentMethod(_) => "payment_method",
                 Insertable::Mandate(_) => "mandate",
-                Insertable::None => "redis_only",
             },
             Self::Update { updatable } => match **updatable {
                 Updateable::PaymentIntentUpdate(_) => "payment_intent",
@@ -77,7 +76,6 @@ pub enum DBResult {
     PayoutAttempt(Box<PayoutAttempt>),
     PaymentMethod(Box<PaymentMethod>),
     Mandate(Box<Mandate>),
-    None,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -112,7 +110,6 @@ impl DBOperation {
                     DBResult::PaymentMethod(Box::new(rev.insert(conn).await?))
                 }
                 Insertable::Mandate(m) => DBResult::Mandate(Box::new(m.insert(conn).await?)),
-                Insertable::None => DBResult::None,
             },
             Self::Update { updatable } => match *updatable {
                 #[cfg(feature = "v1")]
@@ -220,8 +217,6 @@ pub enum Insertable {
     PayoutAttempt(PayoutAttemptNew),
     PaymentMethod(PaymentMethodNew),
     Mandate(MandateNew),
-    // TokenData(Box<revenue_recovery_redis_operation::TokenData>),
-    None,
 
 }
 
@@ -307,9 +302,3 @@ pub struct MandateUpdateMems {
     pub orig: Mandate,
     pub update_data: MandateUpdateInternal,
 }
-
-// #[derive(Debug, Serialize, Deserialize)]
-// pub struct TokenData {
-//     pub response_code: String,
-//     pub status: String,
-// }

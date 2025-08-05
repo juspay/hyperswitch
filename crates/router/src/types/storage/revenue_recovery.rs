@@ -6,8 +6,9 @@ use hyperswitch_domain_models::{
     business_profile, merchant_account, merchant_connector_account, merchant_key_store,
 };
 use router_env::logger;
+use serde::{Deserialize, Serialize};
 
-use crate::{db::StorageInterface, workflows::revenue_recovery};
+use crate::{db::StorageInterface, workflows::revenue_recovery, SessionState};
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub struct RevenueRecoveryWorkflowTrackingData {
     pub merchant_id: id_type::MerchantId,
@@ -48,8 +49,6 @@ impl RevenueRecoveryPaymentData {
             }
             enums::RevenueRecoveryAlgorithmType::Smart => {
                 // TODO: Integrate the smart retry call to return back a schedule time
-                // move this to calculate workflow
-                logger::error!("Smart type found for Revenue Recovery retry payment");
                 None
             }
         }
@@ -59,4 +58,38 @@ impl RevenueRecoveryPaymentData {
 pub struct RevenueRecoverySettings {
     pub monitoring_threshold_in_seconds: i64,
     pub retry_algorithm_type: enums::RevenueRecoveryAlgorithmType,
+    pub card_config: RetryLimitsConfig,
+
+}
+
+#[derive(Debug, serde::Deserialize, Clone, Default)]
+pub struct RetryLimitsConfig {
+    pub amex: NetworkRetryConfig,
+    pub mastercard: NetworkRetryConfig,
+    pub visa: NetworkRetryConfig,
+    pub discover: NetworkRetryConfig,
+}
+
+#[derive(Debug, serde::Deserialize, Clone, Default)]
+pub struct NetworkRetryConfig {
+    pub max_daily_retry_count: u64,
+    pub retry_count_30_day: u64,
+}
+impl RetryLimitsConfig {
+    pub fn get_network_config(network: NetworkType, state: &SessionState) -> &NetworkRetryConfig {
+        match network {
+            NetworkType::Mastercard => &state.conf.revenue_recovery.card_config.mastercard,
+            NetworkType::Visa => &state.conf.revenue_recovery.card_config.visa,
+            NetworkType::Amex => &state.conf.revenue_recovery.card_config.amex,
+            NetworkType::Discover => &state.conf.revenue_recovery.card_config.discover,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum NetworkType {
+    Visa,
+    Mastercard,
+    Amex,
+    Discover,
 }

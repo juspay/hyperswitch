@@ -427,7 +427,6 @@ impl Action {
         execute_task_process: &storage::ProcessTracker,
         revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
         revenue_recovery_metadata: &mut PaymentRevenueRecoveryMetadata,
-        // add active token 
     ) -> Result<(), errors::ProcessTrackerError> {
         let db = &*state.store;
         match self {
@@ -787,14 +786,12 @@ impl Action {
         payment_attempt: &payment_attempt::PaymentAttempt,
     ) -> RecoveryResult<Self> {
         let next_retry_count = pt.retry_count + 1;
-        
         let schedule_time = revenue_recovery_payment_data
             .get_schedule_time_based_on_retry_type(db, merchant_id, next_retry_count)
             .await;
 
         match schedule_time {
             Some(schedule_time) => Ok(Self::RetryPayment(schedule_time)),
-            // introduce a new action Retry with different token - > (schedule time)
 
             None => Ok(Self::TerminalFailure(payment_attempt.clone())),
         }
