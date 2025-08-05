@@ -217,7 +217,6 @@ pub enum Insertable {
     PayoutAttempt(PayoutAttemptNew),
     PaymentMethod(PaymentMethodNew),
     Mandate(MandateNew),
-
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -301,4 +300,4 @@ pub struct PaymentMethodUpdateMems {
 pub struct MandateUpdateMems {
     pub orig: Mandate,
     pub update_data: MandateUpdateInternal,
-}
+} 

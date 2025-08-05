@@ -1044,7 +1044,7 @@ impl RevenueRecoveryAttempt {
         let payment_id = payment_intent.payment_id.clone();
 
         let process_tracker_id = format!("{runner}_{task}_{}", payment_id.get_string_repr());
-        
+
         let schedule_time = revenue_recovery_flow::get_schedule_time_to_retry_mit_payments(
             db,
             &merchant_id,
