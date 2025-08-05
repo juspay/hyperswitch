@@ -3,7 +3,6 @@ use std::fmt::Debug;
 use common_utils::errors::CustomResult;
 use error_stack::{Report, ResultExt};
 use router_env::logger;
-use tokio::sync::watch::error;
 
 use crate::grpc_client::Client;
 
