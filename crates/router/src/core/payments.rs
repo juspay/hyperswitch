@@ -53,6 +53,7 @@ use hyperswitch_domain_models::payments::{
     PaymentAttemptListData, PaymentCaptureData, PaymentConfirmData, PaymentIntentData,
     PaymentStatusData,
 };
+use hyperswitch_domain_models::router_flow_types::NextActionFlows;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::router_response_types::RedirectForm;
 pub use hyperswitch_domain_models::{
@@ -229,7 +230,7 @@ where
 
     let (payment_data, connector_response_data) = match connector {
         ConnectorCallType::PreDetermined(connector_data) => {
-            let (mca_type_details, updated_customer, router_data) =
+            let (mca_type_details, updated_customer, mut router_data) =
                 call_connector_service_prerequisites(
                     state,
                     req_state.clone(),
@@ -248,6 +249,45 @@ where
                     req.should_return_raw_response(),
                 )
                 .await?;
+
+            let next_action = decide_auth_flow(
+                &connector_data.connector_data,
+                &payment_data,
+                router_data.auth_type,
+                &operation,
+            );
+
+            let router_data: RouterData<
+                hyperswitch_domain_models::router_flow_types::Authorize,
+                _,
+                router_types::PaymentsResponseData,
+            > = match next_action {
+                NextActionFlows::PreAuthenticate => {
+                    let preauth_request_data = router_data.request.to_owned();
+                    let preauth_response_data =
+                        Err(hyperswitch_domain_models::router_data::ErrorResponse::default());
+
+                    helpers::router_data_type_conversion::<
+                        _,
+                        hyperswitch_domain_models::router_flow_types::Authorize,
+                        _,
+                        _,
+                        _,
+                        _,
+                    >(router_data, preauth_request_data, preauth_response_data)
+                }
+                NextActionFlows::Authenticate => todo!(),
+                NextActionFlows::PostAuthenticate => todo!(),
+                NextActionFlows::Authorize => todo!(),
+            };
+            let operation: BoxedOperation<
+                '_,
+                hyperswitch_domain_models::router_flow_types::Authorize,
+                Req,
+                D,
+            > = Box::new(operations::PaymentIntentConfirm);
+
+            // let operation = Box::new(operations::PaymentIntentConfirm);
 
             let router_data = decide_unified_connector_service_call(
                 state,
@@ -271,6 +311,12 @@ where
                 updated_customer,
             )
             .await?;
+
+            let router_data = helpers::router_data_type_conversion::<_, F, _, _, _, _>(
+                router_data.clone(),
+                router_data.request.to_owned(),
+                router_data.response.clone(),
+            );
 
             let connector_response_data = common_types::domain::ConnectorResponseData {
                 raw_connector_response: router_data.raw_connector_response.clone(),
@@ -4489,52 +4535,6 @@ where
         None => Some(()),
     };
 
-    println!("mauj: continue before preprocessing steps");
-    dbg!(&should_continue_further);
-
-    // (router_data, should_continue_further) = complete_preprocessing_steps_if_required(
-    //     state,
-    //     &connector,
-    //     payment_data,
-    //     router_data,
-    //     operation,
-    //     should_continue_further,
-    // )
-    // .await?;
-
-    (router_data, should_continue_further) = complete_preauth_steps_if_required(
-        state,
-        &connector,
-        payment_data,
-        router_data,
-        operation,
-        should_continue_further,
-    )
-    .await?;
-
-    (router_data, should_continue_further) = complete_auth_steps_if_required(
-        state,
-        &connector,
-        payment_data,
-        router_data,
-        operation,
-        should_continue_further,
-    )
-    .await?;
-
-    (router_data, should_continue_further) = complete_postauth_steps_if_required(
-        state,
-        &connector,
-        payment_data,
-        router_data,
-        operation,
-        should_continue_further,
-    )
-    .await?;
-
-    println!("mauj: continue after preprocessing steps");
-    dbg!(&should_continue_further);
-
     // In case of authorize flow, pre-task and post-tasks are being called in build request
     // if we do not want to proceed further, then the function will return Ok(None, false)
     let (connector_request, should_continue_further) = match should_continue {
@@ -4980,6 +4980,7 @@ where
     })
     .await
 }
+
 #[cfg(feature = "v1")]
 // This function does not perform the tokenization action, as the payment method is not saved in this flow.
 #[allow(clippy::too_many_arguments)]
@@ -6426,14 +6427,12 @@ where
     Ok(router_data_and_should_continue_payment)
 }
 
-async fn complete_preauth_steps_if_required<F, Req, Q, D>(
-    state: &SessionState,
+fn decide_auth_flow<F, Req, Q, D>(
     connector: &api::ConnectorData,
     payment_data: &D,
-    mut router_data: RouterData<F, Req, router_types::PaymentsResponseData>,
+    auth_type: storage_enums::AuthenticationType,
     operation: &BoxedOperation<'_, F, Q, D>,
-    should_continue_payment: bool,
-) -> RouterResult<(RouterData<F, Req, router_types::PaymentsResponseData>, bool)>
+) -> NextActionFlows
 where
     F: Send + Clone + Sync,
     D: OperationSessionGetters<F> + Send + Sync + Clone,
@@ -6444,129 +6443,78 @@ where
 {
     let router_data_and_should_continue_payment = match payment_data.get_payment_method_data() {
         Some(domain::PaymentMethodData::Card(_)) => {
-            if connector.connector_name == router_types::Connector::Cybersource
-                && is_operation_confirmintent(&operation)
-                && router_data.auth_type == storage_enums::AuthenticationType::ThreeDs
-            {
-                router_data = router_data.preauthenticate_steps(state, connector).await?;
+            if connector.connector_name == router_types::Connector::Cybersource {
+                if is_operation_confirmintent(&operation)
+                    && auth_type == storage_enums::AuthenticationType::ThreeDs
+                {
+                    // router_data = router_data.preauthenticate_steps(state, connector).await?;
 
-                // Should continue the flow only if no redirection_data is returned else a response with redirection form shall be returned
-                let should_continue = matches!(
-                    router_data.response,
-                    Ok(router_types::PaymentsResponseData::TransactionResponse {
-                        ref redirection_data,
-                        ..
-                    }) if redirection_data.is_none()
-                ) && router_data.status
-                    != common_enums::AttemptStatus::AuthenticationFailed;
-                (router_data, should_continue)
-            } else if connector.connector_name == router_types::Connector::Bluesnap
-                && is_operation_confirmintent(&operation)
-                && router_data.auth_type == storage_enums::AuthenticationType::ThreeDs
-            {
-                router_data = router_data.preauthenticate_steps(state, connector).await?;
+                    NextActionFlows::PreAuthenticate
 
-                let should_continue = false; // TODO: This needs to be fixed
+                    // // Should continue the flow only if no redirection_data is returned else a response with redirection form shall be returned
+                    // let should_continue = matches!(
+                    //     router_data.response,
+                    //     Ok(router_types::PaymentsResponseData::TransactionResponse {
+                    //         ref redirection_data,
+                    //         ..
+                    //     }) if redirection_data.is_none()
+                    // ) && router_data.status
+                    //     != common_enums::AttemptStatus::AuthenticationFailed;
+                    // (router_data, should_continue)
+                } else if is_operation_complete_authorize(&operation)
+                    && auth_type == storage_enums::AuthenticationType::ThreeDs
+                // && router_data.has_redirect_response_params()
+                {
+                    // router_data = router_data.authenticate_steps(state, connector).await?;
+                    NextActionFlows::Authenticate
 
-                (router_data, should_continue)
+                    // // Should continue the flow only if no redirection_data is returned else a response with redirection form shall be returned
+                    // let should_continue = matches!(
+                    //     router_data.response,
+                    //     Ok(router_types::PaymentsResponseData::TransactionResponse {
+                    //         ref redirection_data,
+                    //         ..
+                    //     }) if redirection_data.is_none()
+                    // ) && router_data.status
+                    //     != common_enums::AttemptStatus::AuthenticationFailed;
+                    // (router_data, should_continue)
+                } else if is_operation_complete_authorize(&operation)
+                // && !router_data.has_redirect_response_params()
+                {
+                    // router_data = router_data.postauthenticate_steps(state, connector).await?;
+
+                    NextActionFlows::PostAuthenticate
+
+                    // // Should continue the flow only if no redirection_data is returned else a response with redirection form shall be returned
+                    // let should_continue = matches!(
+                    //     router_data.response,
+                    //     Ok(router_types::PaymentsResponseData::TransactionResponse {
+                    //         ref redirection_data,
+                    //         ..
+                    //     }) if redirection_data.is_none()
+                    // ) && router_data.status
+                    //     != common_enums::AttemptStatus::AuthenticationFailed;
+                    // (router_data, should_continue)
+                } else {
+                    NextActionFlows::Authorize
+                }
+            // } else if connector.connector_name == router_types::Connector::Bluesnap
+            //     && is_operation_confirmintent(&operation)
+            //     && router_data.auth_type == storage_enums::AuthenticationType::ThreeDs
+            // {
+            //     router_data = router_data.preauthenticate_steps(state, connector).await?;
+
+            //     let should_continue = false; // TODO: This needs to be fixed
+
+            //     (router_data, should_continue)
             } else {
-                (router_data, should_continue_payment)
+                NextActionFlows::Authorize
             }
         }
         _ => todo!(),
     };
 
-    Ok(router_data_and_should_continue_payment)
-}
-
-async fn complete_postauth_steps_if_required<F, Req, Q, D>(
-    state: &SessionState,
-    connector: &api::ConnectorData,
-    payment_data: &D,
-    mut router_data: RouterData<F, Req, router_types::PaymentsResponseData>,
-    operation: &BoxedOperation<'_, F, Q, D>,
-    should_continue_payment: bool,
-) -> RouterResult<(RouterData<F, Req, router_types::PaymentsResponseData>, bool)>
-where
-    F: Send + Clone + Sync,
-    D: OperationSessionGetters<F> + Send + Sync + Clone,
-    Req: Send + Sync,
-    RouterData<F, Req, router_types::PaymentsResponseData>: Feature<F, Req> + Send,
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, Req, router_types::PaymentsResponseData>,
-{
-    let router_data_and_should_continue_payment = match payment_data.get_payment_method_data() {
-        Some(domain::PaymentMethodData::Card(_)) => {
-            if connector.connector_name == router_types::Connector::Cybersource
-                && is_operation_complete_authorize(&operation)
-                && router_data.auth_type == storage_enums::AuthenticationType::ThreeDs
-                && !router_data.has_redirect_response_params()
-            {
-                router_data = router_data.postauthenticate_steps(state, connector).await?;
-
-                // Should continue the flow only if no redirection_data is returned else a response with redirection form shall be returned
-                let should_continue = matches!(
-                    router_data.response,
-                    Ok(router_types::PaymentsResponseData::TransactionResponse {
-                        ref redirection_data,
-                        ..
-                    }) if redirection_data.is_none()
-                ) && router_data.status
-                    != common_enums::AttemptStatus::AuthenticationFailed;
-                (router_data, should_continue)
-            } else {
-                (router_data, should_continue_payment)
-            }
-        }
-        _ => todo!(),
-    };
-
-    Ok(router_data_and_should_continue_payment)
-}
-
-async fn complete_auth_steps_if_required<F, Req, Q, D>(
-    state: &SessionState,
-    connector: &api::ConnectorData,
-    payment_data: &D,
-    mut router_data: RouterData<F, Req, router_types::PaymentsResponseData>,
-    operation: &BoxedOperation<'_, F, Q, D>,
-    should_continue_payment: bool,
-) -> RouterResult<(RouterData<F, Req, router_types::PaymentsResponseData>, bool)>
-where
-    F: Send + Clone + Sync,
-    D: OperationSessionGetters<F> + Send + Sync + Clone,
-    Req: Send + Sync,
-    RouterData<F, Req, router_types::PaymentsResponseData>: Feature<F, Req> + Send,
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, Req, router_types::PaymentsResponseData>,
-{
-    let router_data_and_should_continue_payment = match payment_data.get_payment_method_data() {
-        Some(domain::PaymentMethodData::Card(_)) => {
-            if connector.connector_name == router_types::Connector::Cybersource
-                && is_operation_complete_authorize(&operation)
-                && router_data.auth_type == storage_enums::AuthenticationType::ThreeDs
-                && router_data.has_redirect_response_params()
-            {
-                router_data = router_data.authenticate_steps(state, connector).await?;
-
-                // Should continue the flow only if no redirection_data is returned else a response with redirection form shall be returned
-                let should_continue = matches!(
-                    router_data.response,
-                    Ok(router_types::PaymentsResponseData::TransactionResponse {
-                        ref redirection_data,
-                        ..
-                    }) if redirection_data.is_none()
-                ) && router_data.status
-                    != common_enums::AttemptStatus::AuthenticationFailed;
-                (router_data, should_continue)
-            } else {
-                (router_data, should_continue_payment)
-            }
-        }
-        _ => todo!(),
-    };
-
-    Ok(router_data_and_should_continue_payment)
+    router_data_and_should_continue_payment
 }
 
 #[cfg(feature = "v1")]

@@ -79,3 +79,11 @@ pub struct CreateOrder;
 
 #[derive(Debug, Clone)]
 pub struct PaymentGetListAttempts;
+
+#[derive(Debug, Clone)]
+pub enum NextActionFlows {
+    PreAuthenticate,
+    Authenticate,
+    PostAuthenticate,
+    Authorize,
+}
