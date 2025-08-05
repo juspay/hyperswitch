@@ -349,6 +349,7 @@ pub struct NmiCompleteResponse {
     pub cvvresponse: Option<String>,
     pub orderid: String,
     pub response_code: String,
+    customer_vault_id: Option<Secret<String>>,
 }
 
 impl
@@ -375,7 +376,17 @@ impl
                 Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(item.response.transactionid),
                     redirection_data: Box::new(None),
-                    mandate_reference: Box::new(None),
+                    mandate_reference: match item.response.customer_vault_id {
+                        Some(vault_id) => Box::new(Some(
+                            hyperswitch_domain_models::router_response_types::MandateReference {
+                                connector_mandate_id: Some(vault_id.expose()),
+                                payment_method_id: None,
+                                mandate_metadata: None,
+                                connector_mandate_request_reference_id: None,
+                            },
+                        )),
+                        None => Box::new(None),
+                    },
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
@@ -383,9 +394,9 @@ impl
                     charges: None,
                 }),
                 if item.data.request.is_auto_capture()? {
-                    AttemptStatus::CaptureInitiated
+                    AttemptStatus::Charged
                 } else {
-                    AttemptStatus::Authorizing
+                    AttemptStatus::Authorized
                 },
             ),
             Response::Declined | Response::Error => (
