@@ -927,6 +927,9 @@ where
                 | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
                 | WalletData::AmazonPayRedirect(_)
+                | WalletData::Paysera(_)
+                | WalletData::Skrill(_)
+                | WalletData::BluecodeRedirect {}
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -1004,11 +1007,13 @@ where
                     get_pay_later_info(AlternativePaymentMethodType::AfterPay, item)
                 }
                 PayLaterData::KlarnaSdk { .. }
+                | PayLaterData::FlexitiRedirect {}
                 | PayLaterData::AffirmRedirect {}
                 | PayLaterData::PayBrightRedirect {}
                 | PayLaterData::WalleyRedirect {}
                 | PayLaterData::AlmaRedirect {}
-                | PayLaterData::AtomeRedirect {} => Err(errors::ConnectorError::NotImplemented(
+                | PayLaterData::AtomeRedirect {}
+                | PayLaterData::BreadpayRedirect {} => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("nuvei"),
                 )
                 .into()),

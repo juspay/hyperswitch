@@ -34,6 +34,7 @@ use crate::{
         errors::{self, RouterResult},
         payments::{self, helpers, operations::Operation},
         revenue_recovery::{self as revenue_recovery_core},
+        webhooks::recovery_incoming as recovery_incoming_flow,
     },
     db::StorageInterface,
     logger,
@@ -101,6 +102,23 @@ impl RevenueRecoveryPaymentsAttemptStatus {
     ) -> Result<(), errors::ProcessTrackerError> {
         let db = &*state.store;
 
+        let recovery_payment_intent =
+            hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent::from(
+                payment_intent,
+            );
+
+        let recovery_payment_attempt =
+            hyperswitch_domain_models::revenue_recovery::RecoveryPaymentAttempt::from(
+                &payment_attempt,
+            );
+
+        let recovery_payment_tuple = recovery_incoming_flow::RecoveryPaymentTuple::new(
+            &recovery_payment_intent,
+            &recovery_payment_attempt,
+        );
+
+        let retry_count = process_tracker.retry_count;
+
         match self {
             Self::Succeeded => {
                 // finish psync task as the payment was a success
@@ -110,6 +128,19 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                         business_status::PSYNC_WORKFLOW_COMPLETE,
                     )
                     .await?;
+                // publish events to kafka
+                if let Err(e) = recovery_incoming_flow::RecoveryPaymentTuple::publish_revenue_recovery_event_to_kafka(
+                    state,
+                    &recovery_payment_tuple,
+                    Some(retry_count+1)
+                )
+                .await{
+                    router_env::logger::error!(
+                        "Failed to publish revenue recovery event to kafka: {:?}",
+                        e
+                    );
+                };
+
                 // Record a successful transaction back to Billing Connector
                 // TODO: Add support for retrying failed outgoing recordback webhooks
                 record_back_to_billing_connector(
@@ -130,6 +161,17 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                         business_status::PSYNC_WORKFLOW_COMPLETE,
                     )
                     .await?;
+                // publish events to kafka
+                if let Err(e) = recovery_incoming_flow::RecoveryPaymentTuple::publish_revenue_recovery_event_to_kafka(
+                    state,
+                    &recovery_payment_tuple,
+                    Some(retry_count+1)
+                )
+                .await{
+                    router_env::logger::error!(
+                        "Failed to publish revenue recovery event to kafka : {:?}", e
+                    );
+                };
 
                 // get a reschedule time
                 let schedule_time = get_schedule_time_to_retry_mit_payments(
@@ -150,18 +192,6 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                     db.as_scheduler()
                         .retry_process(process_tracker.clone(), schedule_time)
                         .await?;
-                } else {
-                    // Record a failure transaction back to Billing Connector
-                    // TODO: Add support for retrying failed outgoing recordback webhooks
-                    record_back_to_billing_connector(
-                        state,
-                        &payment_attempt,
-                        payment_intent,
-                        &revenue_recovery_payment_data.billing_mca,
-                    )
-                    .await
-                    .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
-                    .attach_printable("Failed to record back the billing connector")?;
                 }
             }
             Self::Processing => {
@@ -291,13 +321,66 @@ impl Action {
             revenue_recovery_metadata,
         )
         .await;
+        let recovery_payment_intent =
+            hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent::from(
+                payment_intent,
+            );
+
         // handle proxy api's response
         match response {
             Ok(payment_data) => match payment_data.payment_attempt.status.foreign_into() {
-                RevenueRecoveryPaymentsAttemptStatus::Succeeded => Ok(Self::SuccessfulPayment(
-                    payment_data.payment_attempt.clone(),
-                )),
+                RevenueRecoveryPaymentsAttemptStatus::Succeeded => {
+                    let recovery_payment_attempt =
+                        hyperswitch_domain_models::revenue_recovery::RecoveryPaymentAttempt::from(
+                            &payment_data.payment_attempt,
+                        );
+
+                    let recovery_payment_tuple = recovery_incoming_flow::RecoveryPaymentTuple::new(
+                        &recovery_payment_intent,
+                        &recovery_payment_attempt,
+                    );
+
+                    // publish events to kafka
+                    if let Err(e) = recovery_incoming_flow::RecoveryPaymentTuple::publish_revenue_recovery_event_to_kafka(
+                    state,
+                    &recovery_payment_tuple,
+                    Some(process.retry_count+1)
+                )
+                .await{
+                    router_env::logger::error!(
+                        "Failed to publish revenue recovery event to kafka: {:?}",
+                        e
+                    );
+                };
+
+                    Ok(Self::SuccessfulPayment(
+                        payment_data.payment_attempt.clone(),
+                    ))
+                }
                 RevenueRecoveryPaymentsAttemptStatus::Failed => {
+                    let recovery_payment_attempt =
+                        hyperswitch_domain_models::revenue_recovery::RecoveryPaymentAttempt::from(
+                            &payment_data.payment_attempt,
+                        );
+
+                    let recovery_payment_tuple = recovery_incoming_flow::RecoveryPaymentTuple::new(
+                        &recovery_payment_intent,
+                        &recovery_payment_attempt,
+                    );
+
+                    // publish events to kafka
+                    if let Err(e) = recovery_incoming_flow::RecoveryPaymentTuple::publish_revenue_recovery_event_to_kafka(
+                        state,
+                        &recovery_payment_tuple,
+                        Some(process.retry_count+1)
+                    )
+                    .await{
+                        router_env::logger::error!(
+                            "Failed to publish revenue recovery event to kafka: {:?}",
+                            e
+                        );
+                    };
+
                     Self::decide_retry_failure_action(
                         db,
                         merchant_id,
@@ -409,17 +492,8 @@ impl Action {
                     .await
                     .change_context(errors::RecoveryError::ProcessTrackerFailure)
                     .attach_printable("Failed to update the process tracker")?;
-                // Record back to billing connector for terminal status
                 // TODO: Add support for retrying failed outgoing recordback webhooks
-                record_back_to_billing_connector(
-                    state,
-                    payment_attempt,
-                    payment_intent,
-                    &revenue_recovery_payment_data.billing_mca,
-                )
-                .await
-                .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
-                .attach_printable("Failed to record back the billing connector")?;
+
                 Ok(())
             }
             Self::SuccessfulPayment(payment_attempt) => {
@@ -607,18 +681,7 @@ impl Action {
             }
 
             Self::TerminalFailure(payment_attempt) => {
-                // Record a failure transaction back to Billing Connector
                 // TODO: Add support for retrying failed outgoing recordback webhooks
-                record_back_to_billing_connector(
-                    state,
-                    payment_attempt,
-                    payment_intent,
-                    &revenue_recovery_payment_data.billing_mca,
-                )
-                .await
-                .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
-                .attach_printable("Failed to record back the billing connector")?;
-
                 // finish the current psync task
                 db.as_scheduler()
                     .finish_process_with_business_status(

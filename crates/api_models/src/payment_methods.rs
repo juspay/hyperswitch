@@ -16,12 +16,11 @@ use masking::PeekInterface;
 use serde::de;
 use utoipa::{schema, ToSchema};
 
+#[cfg(feature = "v1")]
+use crate::payments::BankCodeResponse;
 #[cfg(feature = "payouts")]
 use crate::payouts;
-use crate::{
-    admin, enums as api_enums, open_router,
-    payments::{self, BankCodeResponse},
-};
+use crate::{admin, enums as api_enums, open_router, payments};
 
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -1471,7 +1470,10 @@ pub enum PaymentMethodSubtypeSpecificData {
         card_networks: Vec<CardNetworkTypes>,
     },
     #[schema(title = "bank")]
-    Bank { bank_names: Vec<BankCodeResponse> },
+    Bank {
+        #[schema(value_type = BankNames)]
+        bank_names: Vec<common_enums::BankNames>,
+    },
 }
 
 #[cfg(feature = "v2")]

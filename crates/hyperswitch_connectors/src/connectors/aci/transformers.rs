@@ -143,6 +143,8 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for PaymentDetails {
             })),
             WalletData::AliPayHkRedirect(_)
             | WalletData::AmazonPayRedirect(_)
+            | WalletData::Paysera(_)
+            | WalletData::Skrill(_)
             | WalletData::MomoRedirect(_)
             | WalletData::KakaoPayRedirect(_)
             | WalletData::GoPayRedirect(_)
@@ -151,6 +153,7 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for PaymentDetails {
             | WalletData::ApplePayThirdPartySdk(_)
             | WalletData::DanaRedirect { .. }
             | WalletData::GooglePay(_)
+            | WalletData::BluecodeRedirect {}
             | WalletData::GooglePayThirdPartySdk(_)
             | WalletData::MobilePayRedirect(_)
             | WalletData::PaypalRedirect(_)

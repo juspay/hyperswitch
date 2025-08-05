@@ -34,7 +34,6 @@ pub async fn create_profile_acquirer(
     let incoming_acquirer_config = common_types::domain::AcquirerConfig {
         acquirer_assigned_merchant_id: request.acquirer_assigned_merchant_id.clone(),
         merchant_name: request.merchant_name.clone(),
-        merchant_country_code: request.merchant_country_code,
         network: request.network.clone(),
         acquirer_bin: request.acquirer_bin.clone(),
         acquirer_ica: request.acquirer_ica.clone(),
@@ -149,9 +148,6 @@ pub async fn update_profile_acquirer_config(
     request
         .merchant_name
         .map(|val| potential_updated_config.merchant_name = val);
-    request
-        .merchant_country_code
-        .map(|val| potential_updated_config.merchant_country_code = val);
     request
         .network
         .map(|val| potential_updated_config.network = val);

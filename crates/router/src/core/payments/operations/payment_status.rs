@@ -517,6 +517,7 @@ async fn get_tracker_for_sync<
         token_data: None,
         confirm: Some(request.force_sync),
         payment_method_data: None,
+        payment_method_token: None,
         payment_method_info,
         force_sync: Some(
             request.force_sync

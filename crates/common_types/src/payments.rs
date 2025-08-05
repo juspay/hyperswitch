@@ -4,7 +4,11 @@ use std::collections::HashMap;
 
 use common_enums::enums;
 use common_utils::{date_time, errors, events, impl_to_sql_from_sql_json, pii, types::MinorUnit};
-use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
+use diesel::{
+    sql_types::{Jsonb, Text},
+    AsExpression, FromSqlRow,
+};
+use error_stack::{Report, Result, ResultExt};
 use euclid::frontend::{
     ast::Program,
     dir::{DirKeyKind, EuclidDirFilter},
@@ -73,7 +77,71 @@ impl AuthenticationConnectorAccountMap {
             .ok_or(errors::ValidationError::MissingRequiredField {
                 field_name: "authentication_product_id.click_to_pay".to_string(),
             })
+            .map_err(Report::from)
             .cloned()
+    }
+}
+
+/// A wrapper type for merchant country codes that provides validation and conversion functionality.
+///
+/// This type stores a country code as a string and provides methods to validate it
+/// and convert it to a `Country` enum variant.
+#[derive(
+    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Text)]
+#[serde(deny_unknown_fields)]
+pub struct MerchantCountryCode(String);
+
+impl MerchantCountryCode {
+    /// Returns the country code as a string.
+    pub fn get_country_code(&self) -> String {
+        self.0.clone()
+    }
+
+    /// Validates the country code and returns a `Country` enum variant.
+    ///
+    /// This method attempts to parse the country code as a u32 and convert it to a `Country` enum variant.
+    /// If the country code is invalid, it returns a `ValidationError` with the appropriate error message.
+    pub fn validate_and_get_country_from_merchant_country_code(
+        &self,
+    ) -> errors::CustomResult<common_enums::Country, errors::ValidationError> {
+        let country_code = self.get_country_code();
+        let code = country_code
+            .parse::<u32>()
+            .map_err(Report::from)
+            .change_context(errors::ValidationError::IncorrectValueProvided {
+                field_name: "merchant_country_code",
+            })
+            .attach_printable_lazy(|| {
+                format!("Country code {country_code} is negative or too large")
+            })?;
+
+        common_enums::Country::from_numeric(code)
+            .map_err(|_| errors::ValidationError::IncorrectValueProvided {
+                field_name: "merchant_country_code",
+            })
+            .attach_printable_lazy(|| format!("Invalid country code {code}"))
+    }
+    /// Creates a new `MerchantCountryCode` instance from a string.
+    pub fn new(country_code: String) -> Self {
+        Self(country_code)
+    }
+}
+
+impl diesel::serialize::ToSql<Text, diesel::pg::Pg> for MerchantCountryCode {
+    fn to_sql<'b>(
+        &'b self,
+        out: &mut diesel::serialize::Output<'b, '_, diesel::pg::Pg>,
+    ) -> diesel::serialize::Result {
+        <String as diesel::serialize::ToSql<Text, diesel::pg::Pg>>::to_sql(&self.0, out)
+    }
+}
+
+impl diesel::deserialize::FromSql<Text, diesel::pg::Pg> for MerchantCountryCode {
+    fn from_sql(bytes: diesel::pg::PgValue<'_>) -> diesel::deserialize::Result<Self> {
+        let s = <String as diesel::deserialize::FromSql<Text, diesel::pg::Pg>>::from_sql(bytes)?;
+        Ok(Self(s))
     }
 }
 

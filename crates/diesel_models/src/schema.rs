@@ -131,6 +131,12 @@ diesel::table! {
         return_url -> Nullable<Varchar>,
         amount -> Nullable<Int8>,
         currency -> Nullable<Currency>,
+        billing_address -> Nullable<Bytea>,
+        shipping_address -> Nullable<Bytea>,
+        browser_info -> Nullable<Jsonb>,
+        email -> Nullable<Bytea>,
+        #[max_length = 128]
+        profile_acquirer_id -> Nullable<Varchar>,
     }
 }
 
@@ -239,6 +245,8 @@ diesel::table! {
         acquirer_config_map -> Nullable<Jsonb>,
         #[max_length = 16]
         merchant_category_code -> Nullable<Varchar>,
+        #[max_length = 32]
+        merchant_country_code -> Nullable<Varchar>,
         dispute_polling_interval -> Nullable<Int4>,
     }
 }
@@ -588,6 +596,9 @@ diesel::table! {
         #[max_length = 64]
         error_category -> Nullable<Varchar>,
         clear_pan_possible -> Bool,
+        feature_data -> Nullable<Jsonb>,
+        #[max_length = 64]
+        feature -> Nullable<Varchar>,
     }
 }
 
@@ -716,6 +727,8 @@ diesel::table! {
         merchant_connector_id -> Nullable<Varchar>,
         #[max_length = 64]
         updated_by -> Nullable<Varchar>,
+        #[max_length = 2048]
+        customer_user_agent_extended -> Nullable<Varchar>,
     }
 }
 
@@ -1057,6 +1070,8 @@ diesel::table! {
         #[max_length = 2048]
         extended_return_url -> Nullable<Varchar>,
         is_payment_id_from_merchant -> Nullable<Bool>,
+        #[max_length = 64]
+        payment_channel -> Nullable<Varchar>,
     }
 }
 

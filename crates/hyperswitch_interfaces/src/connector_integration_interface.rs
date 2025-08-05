@@ -793,7 +793,7 @@ impl api::ConnectorTransactionId for ConnectorEnum {
     /// A `Result` containing an optional transaction ID or an ApiErrorResponse
     fn connector_transaction_id(
         &self,
-        payment_attempt: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> Result<Option<String>, ApiErrorResponse> {
         match self {
             Self::Old(connector) => connector.connector_transaction_id(payment_attempt),

@@ -716,17 +716,8 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             .create_or_validate(db)
             .await?;
 
-        let merchant_account_type = match organization.get_organization_type() {
-            OrganizationType::Standard => MerchantAccountType::Standard,
-            // Blocking v2 merchant account create for platform
-            OrganizationType::Platform => {
-                return Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "Merchant account creation is not allowed for a platform organization"
-                        .to_string(),
-                }
-                .into())
-            }
-        };
+        // V2 currently supports creation of Standard merchant accounts only, irrespective of organization type
+        let merchant_account_type = MerchantAccountType::Standard;
 
         let key = key_store.key.into_inner();
         let id = identifier.to_owned();
@@ -3428,6 +3419,14 @@ impl ProfileCreateBridge for api::ProfileCreate {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("error serializing dynamic_routing_algorithm_ref to JSON Value")?;
 
+        self.merchant_country_code
+            .as_ref()
+            .map(|country_code| country_code.validate_and_get_country_from_merchant_country_code())
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Invalid merchant country code".to_string(),
+            })?;
+
         Ok(domain::Profile::from(domain::ProfileSetter {
             profile_id,
             merchant_id: merchant_context.get_merchant_account().get_id().clone(),
@@ -3542,6 +3541,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
                 .is_pre_network_tokenization_enabled
                 .unwrap_or_default(),
             merchant_category_code: self.merchant_category_code,
+            merchant_country_code: self.merchant_country_code,
             dispute_polling_interval: self.dispute_polling_interval,
         }))
     }
@@ -3692,6 +3692,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
                 .external_vault_connector_details
                 .map(ForeignInto::foreign_into),
             merchant_category_code: self.merchant_category_code,
+            merchant_country_code: self.merchant_country_code,
         }))
     }
 }
@@ -3972,6 +3973,14 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
             self.dynamic_routing_algorithm
         };
 
+        self.merchant_country_code
+            .as_ref()
+            .map(|country_code| country_code.validate_and_get_country_from_merchant_country_code())
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Invalid merchant country code".to_string(),
+            })?;
+
         Ok(domain::ProfileUpdate::Update(Box::new(
             domain::ProfileGeneralUpdate {
                 profile_name: self.profile_name,
@@ -4026,6 +4035,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
                 is_pre_network_tokenization_enabled: self.is_pre_network_tokenization_enabled,
                 merchant_category_code: self.merchant_category_code,
+                merchant_country_code: self.merchant_country_code,
                 dispute_polling_interval: self.dispute_polling_interval,
             },
         )))
@@ -4167,6 +4177,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .external_vault_connector_details
                     .map(ForeignInto::foreign_into),
                 merchant_category_code: self.merchant_category_code,
+                merchant_country_code: self.merchant_country_code,
             },
         )))
     }

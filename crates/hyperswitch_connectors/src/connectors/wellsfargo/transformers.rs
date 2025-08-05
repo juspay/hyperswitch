@@ -188,10 +188,13 @@ impl TryFrom<&SetupMandateRouterData> for WellsfargoZeroMandateRequest {
                 | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
                 | WalletData::AmazonPayRedirect(_)
+                | WalletData::Paysera(_)
+                | WalletData::Skrill(_)
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
                 | WalletData::GcashRedirect(_)
+                | WalletData::BluecodeRedirect {}
                 | WalletData::ApplePayRedirect(_)
                 | WalletData::ApplePayThirdPartySdk(_)
                 | WalletData::DanaRedirect {}
@@ -1251,10 +1254,13 @@ impl TryFrom<&WellsfargoRouterData<&PaymentsAuthorizeRouterData>> for Wellsfargo
                         | WalletData::AliPayRedirect(_)
                         | WalletData::AliPayHkRedirect(_)
                         | WalletData::AmazonPayRedirect(_)
+                        | WalletData::Paysera(_)
+                        | WalletData::Skrill(_)
                         | WalletData::MomoRedirect(_)
                         | WalletData::KakaoPayRedirect(_)
                         | WalletData::GoPayRedirect(_)
                         | WalletData::GcashRedirect(_)
+                        | WalletData::BluecodeRedirect {}
                         | WalletData::ApplePayRedirect(_)
                         | WalletData::ApplePayThirdPartySdk(_)
                         | WalletData::DanaRedirect {}
