@@ -834,3 +834,6 @@ click_to_pay = {connector_list = "adyen, cybersource, trustpay"}
 [revenue_recovery]
 monitoring_threshold_in_seconds = 2592000
 retry_algorithm_type = "cascading"
+
+[list_dispute_supported_connectors]
+connector_list = "worldpayvantiv"

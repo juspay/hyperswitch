@@ -1161,3 +1161,6 @@ connector_names = "stripe, adyen"               # Comma-separated list of allowe
 [infra_values]
 cluster = "CLUSTER"         # value of CLUSTER from deployment
 version = "HOSTNAME"        # value of HOSTNAME from deployment which tells its version
+
+[list_dispute_supported_connectors]
+connector_list = "worldpayvantiv"
