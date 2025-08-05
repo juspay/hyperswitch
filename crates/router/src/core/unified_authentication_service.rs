@@ -1445,37 +1445,36 @@ pub async fn authentication_sync_core(
         .await?;
 
     let updated_authentication = match authentication.trans_status.clone() {
-            Some(trans_status) if trans_status.clone().is_pending() => {
-                let post_auth_response = ExternalAuthentication::post_authentication(
-                    &state,
-                    &business_profile,
-                    None,
-                    &three_ds_connector_account,
-                    &authentication_connector.to_string(),
-                    &authentication_id,
-                    common_enums::PaymentMethod::Card,
-                    merchant_id,
-                    Some(&authentication),
-                )
-                .await?;
-        
-                utils::external_authentication_update_trackers(
-                    &state,
-                    post_auth_response,
-                    authentication.clone(),
-                    None,
-                    merchant_context.get_merchant_key_store(),
-                    None,
-                    None,
-                    None,
-                    None,
-                )
-                .await?
-            }
-        
-            _ => authentication,
-        };
-        
+        Some(trans_status) if trans_status.clone().is_pending() => {
+            let post_auth_response = ExternalAuthentication::post_authentication(
+                &state,
+                &business_profile,
+                None,
+                &three_ds_connector_account,
+                &authentication_connector.to_string(),
+                &authentication_id,
+                common_enums::PaymentMethod::Card,
+                merchant_id,
+                Some(&authentication),
+            )
+            .await?;
+
+            utils::external_authentication_update_trackers(
+                &state,
+                post_auth_response,
+                authentication.clone(),
+                None,
+                merchant_context.get_merchant_key_store(),
+                None,
+                None,
+                None,
+                None,
+            )
+            .await?
+        }
+
+        _ => authentication,
+    };
 
     let acquirer_details = Some(AcquirerDetails {
         acquirer_bin: updated_authentication.acquirer_bin.clone(),
