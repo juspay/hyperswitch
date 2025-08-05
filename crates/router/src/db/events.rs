@@ -1401,6 +1401,7 @@ mod tests {
             is_iframe_redirection_enabled: None,
             whole_connector_response: None,
             payment_channel: None,
+            network_transaction_id: None,
         };
         let content =
             api_webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(expected_response));
