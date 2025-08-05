@@ -845,8 +845,10 @@ pub async fn fetch_disputes_from_connector(
             match response {
                 Err(report)
                     if report
-                    .downcast_ref::<errors::StorageError>()
-                    .is_some_and(|error| matches!(error, errors::StorageError::DuplicateValue { .. })) =>
+                        .downcast_ref::<errors::StorageError>()
+                        .is_some_and(|error| {
+                            matches!(error, errors::StorageError::DuplicateValue { .. })
+                        }) =>
                 {
                     Ok(())
                 }
