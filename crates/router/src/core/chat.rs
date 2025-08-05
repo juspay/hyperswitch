@@ -44,7 +44,7 @@ pub async fn get_data_from_hyperswitch_ai_workflow(
     let request_id = state
         .get_request_id()
         .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
-    
+
     let request_body = chat_domain::HyperswitchAiDataRequest {
         query: chat_domain::GetDataMessage {
             message: req.message.clone(),
@@ -60,11 +60,9 @@ pub async fn get_data_from_hyperswitch_ai_workflow(
         .method(Method::Post)
         .url(&url)
         .attach_default_headers()
+        .header(consts::X_REQUEST_ID, &request_id)
         .set_body(RequestContent::Json(Box::new(request_body.clone())));
 
-    if let Some(request_id) = request_id {
-        request_builder = request_builder.header(consts::X_REQUEST_ID, &request_id);
-    }
     if let Some(session_id) = session_id {
         request_builder = request_builder.header(consts::X_CHAT_SESSION_ID, session_id);
     }
@@ -199,5 +197,7 @@ pub async fn list_chat_conversations(
         });
     }
 
-    return Ok(ApplicationResponse::Json(chat_api::ChatListResponse { conversations }));
+    return Ok(ApplicationResponse::Json(chat_api::ChatListResponse {
+        conversations,
+    }));
 }

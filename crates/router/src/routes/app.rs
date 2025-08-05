@@ -2256,8 +2256,7 @@ impl Chat {
                             .route(web::post().to(chat::get_data_from_hyperswitch_ai_workflow)),
                     )
                     .service(
-                        web::resource("/list")
-                            .route(web::get().to(chat::get_all_conversations)),
+                        web::resource("/list").route(web::get().to(chat::get_all_conversations)),
                     ),
             );
         }
