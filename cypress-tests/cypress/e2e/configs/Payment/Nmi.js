@@ -542,29 +542,6 @@ export const connectorDetails = {
         },
       },
     },
-    SaveCardUseNo3DSAutoCaptureOffSession: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          specName: ["connectorAgnosticNTID"],
-          value: "connector_2",
-        },
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_type: "debit",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        setup_future_usage: "off_session",
-        customer_acceptance: customerAcceptance,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
     SaveCardUse3DSAutoCaptureOffSession: {
       Configs: {
         CONNECTOR_CREDENTIAL: {
@@ -585,39 +562,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
-        },
-      },
-    },
-    SaveCardUseNo3DSManualCaptureOffSession: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        setup_future_usage: "off_session",
-        customer_acceptance: customerAcceptance,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
-      },
-    },
-    SaveCardConfirmAutoCaptureOffSession: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          specName: ["connectorAgnosticNTID"],
-          value: "connector_2",
-        },
-      },
-      Request: {
-        setup_future_usage: "off_session",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
         },
       },
     },
