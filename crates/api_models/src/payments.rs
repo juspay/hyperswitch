@@ -1090,6 +1090,7 @@ pub struct PaymentsRequest {
         "java_enabled": true,
         "java_script_enabled":true
     }"#)]
+    #[smithy(value_type = "Option<BrowserInformation>")]
     pub browser_info: Option<serde_json::Value>,
 
     /// To indicate the type of payment experience that the payment method would go through
@@ -1479,49 +1480,63 @@ pub struct RequestSurchargeDetails {
 // for v2 use the type from common_utils::types
 #[cfg(feature = "v1")]
 /// Browser information to be used for 3DS 2.0
-#[derive(ToSchema, Debug, serde::Deserialize, serde::Serialize)]
+#[derive(ToSchema, Debug, serde::Deserialize, serde::Serialize, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct BrowserInformation {
     /// Color depth supported by the browser
+    #[smithy(value_type = "Option<u8>")]
     pub color_depth: Option<u8>,
 
     /// Whether java is enabled in the browser
+    #[smithy(value_type = "Option<bool>")]
     pub java_enabled: Option<bool>,
 
     /// Whether javascript is enabled in the browser
+    #[smithy(value_type = "Option<bool>")]
     pub java_script_enabled: Option<bool>,
 
     /// Language supported
+    #[smithy(value_type = "Option<String>")]
     pub language: Option<String>,
 
     /// The screen height in pixels
+    #[smithy(value_type = "Option<u32>")]
     pub screen_height: Option<u32>,
 
     /// The screen width in pixels
+    #[smithy(value_type = "Option<u32>")]
     pub screen_width: Option<u32>,
 
     /// Time zone of the client
+    #[smithy(value_type = "Option<i32>")]
     pub time_zone: Option<i32>,
 
     /// Ip address of the client
     #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
     pub ip_address: Option<std::net::IpAddr>,
 
     /// List of headers that are accepted
     #[schema(
         example = "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8"
     )]
+    #[smithy(value_type = "Option<String>")]
     pub accept_header: Option<String>,
 
     /// User-agent of the browser
+    #[smithy(value_type = "Option<String>")]
     pub user_agent: Option<String>,
 
     /// The os type of the client device
+    #[smithy(value_type = "Option<String>")]
     pub os_type: Option<String>,
 
     /// The os version of the client device
+    #[smithy(value_type = "Option<String>")]
     pub os_version: Option<String>,
 
     /// The device model of the client
+    #[smithy(value_type = "Option<String>")]
     pub device_model: Option<String>,
 }
 
