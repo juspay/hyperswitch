@@ -1503,6 +1503,7 @@ impl EventClass {
                 EventType::PaymentFailed,
                 EventType::PaymentProcessing,
                 EventType::PaymentCancelled,
+                EventType::PaymentCancelledPostCapture,
                 EventType::PaymentAuthorized,
                 EventType::PaymentCaptured,
                 EventType::PaymentExpired,

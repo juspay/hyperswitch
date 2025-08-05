@@ -18267,17 +18267,6 @@
           "recurring_mandate"
         ]
       },
-      "PaymentsCancelPostCaptureRequest": {
-        "type": "object",
-        "description": "Request to cancel a payment when the payment is already captured",
-        "properties": {
-          "cancellation_reason": {
-            "type": "string",
-            "description": "The reason for the payment cancel",
-            "nullable": true
-          }
-        }
-      },
       "PaymentsCancelRequest": {
         "type": "object",
         "properties": {
