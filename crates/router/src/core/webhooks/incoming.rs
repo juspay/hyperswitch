@@ -1355,7 +1355,6 @@ pub async fn get_or_update_dispute_object(
             .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
             .attach_printable("dispute stage and status validation failed")?;
 
-            // Add a should update function that will check for the fields that are being updated
             let update_dispute = diesel_models::dispute::DisputeUpdate::Update {
                 dispute_stage: dispute_details.dispute_stage,
                 dispute_status,

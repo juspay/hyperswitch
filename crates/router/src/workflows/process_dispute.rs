@@ -91,7 +91,6 @@ impl ProcessTrackerWorkflow<SessionState> for ProcessDisputeWorkflow {
             .ok()
             .flatten();
 
-        println!("ssssssssss {:?}", dispute);
         if dispute.is_some() {
             // Dispute already exists — mark the process as complete
             state
