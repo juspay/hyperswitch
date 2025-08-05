@@ -175,25 +175,31 @@ crates/router/tests/connectors/
 
 ## Common Payment Flow Types
 
-As you build your connector, you'll encounter several types of payment flows. While not an exhaustive list, the following are some of the most common patterns you'll come across. Please review the [Connector Payment Flow](#) documentation for more details. If you have any questions, please reach out to us on Slack. 
+As you build your connector, you’ll encounter different payment flow patterns.  
+This section gives you:
 
-> **What You’ll Find Here:**  
-> A quick summary of each flow, why it matters, and exactly where in the Hyperswitch codebase you can go to see its definitions and usage.
+- A quick reference table for all flows  
+- Examples of the two most common patterns: **Tokenization‑first** and **Direct Authorization**
 
-### Payment Flow Types Summary
+> For full details, see [Connector Payment Flow documentation](#) or ask us in Slack.
 
-| Flow Name           | Description                                      | Implementation in Hyperswitch                                                                                     |
-|---------------------|--------------------------------------------------|-------------------------------------------------------------------------------------------------------------------|
-| **Access Token**      | Obtain OAuth access token                        | [`crates/router/src/types.rs#L34`](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L34)                         |
-| **Tokenization**      | Exchange credentials for a payment token         | [`crates/hyperswitch_interfaces/src/types.rs#L14`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_interfaces/src/types.rs#L14)              |
-| **Customer Creation** | Create or update customer records                | [`crates/router/src/types.rs#L40`](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L40)                       |
-| **Pre-Processing**    | Any validation or enrichment before auth         | [`crates/router/src/types.rs#L41`](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L41)                       |
-| **Authorization**     | Authorize and immediately capture payment        | [`crates/router/src/types.rs#L39`](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L39)                                         |
-| **Authorization-Only**| Authorize payment for later capture              | [`crates/router/src/types.rs#L39`](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L39)                                     |
-| **Capture**           | Capture a previously authorized payment          | [`crates/router/src/types.rs#L39`](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L39)                                 |
-| **Refund**            | Issue a refund                                   | [`crates/router/src/types.rs#L44`](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L44)                                                  |
-| **Webhook Handling**  | Process asynchronous events from PSP             | [`crates/router/src/types.rs#L45`](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L45)                         |
+---
 
+### 1. Flow Summary Table
+
+| Flow Name           | Description                                      | Implementation in Hyperswitch |
+|---------------------|--------------------------------------------------|--------------------------------|
+| **Access Token**      | Obtain OAuth access token                        | [crates/router/src/types.rs#L34](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L34) |
+| **Tokenization**      | Exchange credentials for a payment token         | [crates/hyperswitch_interfaces/src/types.rs#L14](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_interfaces/src/types.rs#L14) |
+| **Customer Creation** | Create or update customer records                | [crates/router/src/types.rs#L40](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L40) |
+| **Pre‑Processing**    | Validation or enrichment before auth             | [crates/router/src/types.rs#L41](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L41) |
+| **Authorization**     | Authorize and immediately capture payment        | [crates/router/src/types.rs#L39](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L39) |
+| **Authorization‑Only**| Authorize payment for later capture              | [crates/router/src/types.rs#L39](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L39) |
+| **Capture**           | Capture a previously authorized payment          | [crates/router/src/types.rs#L39](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L39) |
+| **Refund**            | Issue a refund                                   | [crates/router/src/types.rs#L44](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L44) |
+| **Webhook Handling**  | Process asynchronous events from PSP             | [crates/router/src/types.rs#L45](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L45) |
+
+---
 ### Flow Type Definitions
 
 Each flow type corresponds to specific request/response data structures and connector integration patterns. All flows follow a standardized pattern with associated:
@@ -202,9 +208,40 @@ Each flow type corresponds to specific request/response data structures and conn
 - **Response data types** (e.g., `PaymentsResponseData`)
 - **Router data wrappers** for connector communication
 
-> 💡 Note: Billwerk uses a tokenization-first pattern, but most PSPs support direct authorization flows. Hyperswitch accommodates both through its modular architecture.
+### 2. Pattern: Tokenization‑First
 
+Some PSPs require payment data to be tokenized before it can be authorized.  
+This is a **two‑step process**:  
 
+1. **Tokenization** – e.g., Billwerk’s implementation:  
+   - [Tokenization](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L178-L271)  
+   - [Authorization](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L273-L366)  
+
+2. **Authorization** – Uses the returned token rather than raw payment details.  
+
+> Most PSPs don’t require this; see the next section for direct authorization.
+
+---
+
+### 3. Pattern: Direct Authorization
+
+Many connectors skip tokenization and send payment data directly in the authorization request.  
+
+- **Authorize.net** – [code](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/authorizedotnet.rs#L401-L497)  
+  Builds `CreateTransactionRequest` directly from payment data in `get_request_body()`.  
+
+- **Helcim** – [code](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/helcim.rs#L295-L385)  
+  Chooses purchase (auto‑capture) or preauth endpoint in `get_url()` and processes payment data directly.  
+
+- **Deutsche Bank** – [code](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/deutschebank.rs#L330-L461)  
+  Selects flow based on 3DS and payment type (card or direct debit).  
+
+**Key differences from tokenization‑first:**
+- Single API call – No separate token step  
+- No token storage – No token management required  
+- Immediate processing – `get_request_body()` handles payment data directly  
+
+All implement the same `ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData>` pattern.
 
 ## Integrate a New Connector
 
