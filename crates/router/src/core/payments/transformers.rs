@@ -36,7 +36,7 @@ use crate::{
         payments::{self, helpers},
         utils as core_utils,
     },
-    headers::X_PAYMENT_CONFIRM_SOURCE,
+    headers::{X_CONNECTOR_HTTP_STATUS_CODE, X_PAYMENT_CONFIRM_SOURCE},
     routes::{metrics, SessionState},
     services::{self, RedirectForm},
     types::{
@@ -327,6 +327,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         connector_testing_data: None,
         order_id: None,
         locale: None,
+        payment_channel: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -1585,9 +1586,17 @@ where
             status: payment_intent.status,
         };
 
+        let headers = connector_http_status_code
+            .map(|status_code| {
+                vec![(
+                    X_CONNECTOR_HTTP_STATUS_CODE.to_string(),
+                    Maskable::new_normal(status_code.to_string()),
+                )]
+            })
+            .unwrap_or_default();
+
         Ok(services::ApplicationResponse::JsonWithHeaders((
-            response,
-            vec![],
+            response, headers,
         )))
     }
 }
@@ -1968,6 +1977,15 @@ where
             .clone()
             .or(profile.return_url.clone());
 
+        let headers = connector_http_status_code
+            .map(|status_code| {
+                vec![(
+                    X_CONNECTOR_HTTP_STATUS_CODE.to_string(),
+                    Maskable::new_normal(status_code.to_string()),
+                )]
+            })
+            .unwrap_or_default();
+
         let response = api_models::payments::PaymentsResponse {
             id: payment_intent.id.clone(),
             status: payment_intent.status,
@@ -1999,8 +2017,7 @@ where
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
-            response,
-            vec![],
+            response, headers,
         )))
     }
 }
@@ -2065,6 +2082,15 @@ where
 
         let return_url = payment_intent.return_url.or(profile.return_url.clone());
 
+        let headers = connector_http_status_code
+            .map(|status_code| {
+                vec![(
+                    X_CONNECTOR_HTTP_STATUS_CODE.to_string(),
+                    Maskable::new_normal(status_code.to_string()),
+                )]
+            })
+            .unwrap_or_default();
+
         let response = api_models::payments::PaymentsResponse {
             id: payment_intent.id.clone(),
             status: payment_intent.status,
@@ -2100,8 +2126,7 @@ where
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
-            response,
-            vec![],
+            response, headers,
         )))
     }
 }
@@ -2539,7 +2564,7 @@ where
     let mut headers = connector_http_status_code
         .map(|status_code| {
             vec![(
-                "connector_http_status_code".to_string(),
+                X_CONNECTOR_HTTP_STATUS_CODE.to_string(),
                 Maskable::new_normal(status_code.to_string()),
             )]
         })
@@ -2983,6 +3008,7 @@ where
             issuer_error_message: payment_attempt.issuer_error_message,
             is_iframe_redirection_enabled: payment_intent.is_iframe_redirection_enabled,
             whole_connector_response: payment_data.get_whole_connector_response(),
+            payment_channel: payment_intent.payment_channel,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -3276,7 +3302,8 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             whole_connector_response: None,
             issuer_error_code: pa.issuer_error_code,
             issuer_error_message: pa.issuer_error_message,
-            is_iframe_redirection_enabled:pi.is_iframe_redirection_enabled
+            is_iframe_redirection_enabled:pi.is_iframe_redirection_enabled,
+            payment_channel: pi.payment_channel,
         }
     }
 }
@@ -3606,6 +3633,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             connector_testing_data: None,
             order_id: None,
             locale: None,
+            payment_channel: None,
         })
     }
 }
@@ -3838,6 +3866,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             connector_testing_data,
             order_id: None,
             locale: Some(additional_data.state.locale.clone()),
+            payment_channel: payment_data.payment_intent.payment_channel,
         })
     }
 }

@@ -1,6 +1,6 @@
 use std::{collections::HashMap, marker::PhantomData};
 
-use common_types::primitive_wrappers;
+use common_types::{payments as common_payment_types, primitive_wrappers};
 use common_utils::{
     errors::IntegrityCheckError,
     ext_traits::{OptionExt, ValueExt},
@@ -244,28 +244,79 @@ pub struct AccessToken {
 #[derive(Debug, Clone, serde::Deserialize)]
 pub enum PaymentMethodToken {
     Token(Secret<String>),
-    ApplePayDecrypt(Box<ApplePayPredecryptData>),
+    ApplePayDecrypt(Box<common_payment_types::ApplePayPredecryptData>),
     GooglePayDecrypt(Box<GooglePayDecryptedData>),
     PazeDecrypt(Box<PazeDecryptedData>),
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ApplePayPredecryptData {
-    pub application_primary_account_number: Secret<String>,
+pub struct ApplePayPredecryptDataInternal {
+    pub application_primary_account_number: cards::CardNumber,
     pub application_expiration_date: String,
     pub currency_code: String,
     pub transaction_amount: i64,
     pub device_manufacturer_identifier: Secret<String>,
     pub payment_data_type: Secret<String>,
-    pub payment_data: ApplePayCryptogramData,
+    pub payment_data: ApplePayCryptogramDataInternal,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ApplePayCryptogramData {
+pub struct ApplePayCryptogramDataInternal {
     pub online_payment_cryptogram: Secret<String>,
     pub eci_indicator: Option<String>,
+}
+
+impl TryFrom<ApplePayPredecryptDataInternal> for common_payment_types::ApplePayPredecryptData {
+    type Error = common_utils::errors::ValidationError;
+    fn try_from(data: ApplePayPredecryptDataInternal) -> Result<Self, Self::Error> {
+        let application_expiration_month = data.clone().get_expiry_month()?;
+        let application_expiration_year = data.clone().get_four_digit_expiry_year()?;
+
+        Ok(Self {
+            application_primary_account_number: data.application_primary_account_number.clone(),
+            application_expiration_month,
+            application_expiration_year,
+            payment_data: data.payment_data.into(),
+        })
+    }
+}
+
+impl From<ApplePayCryptogramDataInternal> for common_payment_types::ApplePayCryptogramData {
+    fn from(payment_data: ApplePayCryptogramDataInternal) -> Self {
+        Self {
+            online_payment_cryptogram: payment_data.online_payment_cryptogram,
+            eci_indicator: payment_data.eci_indicator,
+        }
+    }
+}
+
+impl ApplePayPredecryptDataInternal {
+    /// This logic being applied as apple pay provides application_expiration_date in the YYMMDD format
+    fn get_four_digit_expiry_year(
+        &self,
+    ) -> Result<Secret<String>, common_utils::errors::ValidationError> {
+        Ok(Secret::new(format!(
+            "20{}",
+            self.application_expiration_date.get(0..2).ok_or(
+                common_utils::errors::ValidationError::InvalidValue {
+                    message: "Invalid two-digit year".to_string(),
+                }
+            )?
+        )))
+    }
+
+    fn get_expiry_month(&self) -> Result<Secret<String>, common_utils::errors::ValidationError> {
+        Ok(Secret::new(
+            self.application_expiration_date
+                .get(2..4)
+                .ok_or(common_utils::errors::ValidationError::InvalidValue {
+                    message: "Invalid two-digit month".to_string(),
+                })?
+                .to_owned(),
+        ))
+    }
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]

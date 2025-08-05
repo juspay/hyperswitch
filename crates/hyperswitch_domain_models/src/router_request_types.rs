@@ -81,6 +81,7 @@ pub struct PaymentsAuthorizeData {
     pub connector_testing_data: Option<pii::SecretSerdeValue>,
     pub order_id: Option<String>,
     pub locale: Option<String>,
+    pub payment_channel: Option<common_enums::PaymentChannel>,
 }
 #[derive(Debug, Clone)]
 pub struct PaymentsPostSessionTokensData {

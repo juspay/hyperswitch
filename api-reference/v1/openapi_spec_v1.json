@@ -7459,6 +7459,38 @@
           "$ref": "#/components/schemas/ApplePayAddressParameters"
         }
       },
+      "ApplePayCryptogramData": {
+        "type": "object",
+        "description": "This struct represents the cryptogram data for Apple Pay transactions",
+        "required": [
+          "online_payment_cryptogram",
+          "eci_indicator"
+        ],
+        "properties": {
+          "online_payment_cryptogram": {
+            "type": "string",
+            "description": "The online payment cryptogram",
+            "example": "A1B2C3D4E5F6G7H8"
+          },
+          "eci_indicator": {
+            "type": "string",
+            "description": "The ECI (Electronic Commerce Indicator) value",
+            "example": "05"
+          }
+        }
+      },
+      "ApplePayPaymentData": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ApplePayPredecryptData"
+          },
+          {
+            "type": "string",
+            "description": "This variant contains the encrypted Apple Pay payment data as a string."
+          }
+        ],
+        "description": "This enum is used to represent the Apple Pay payment data, which can either be encrypted or decrypted."
+      },
       "ApplePayPaymentRequest": {
         "type": "object",
         "required": [
@@ -7528,6 +7560,36 @@
           "immediate",
           "recurring"
         ]
+      },
+      "ApplePayPredecryptData": {
+        "type": "object",
+        "description": "This struct represents the decrypted Apple Pay payment data",
+        "required": [
+          "application_primary_account_number",
+          "application_expiration_month",
+          "application_expiration_year",
+          "payment_data"
+        ],
+        "properties": {
+          "application_primary_account_number": {
+            "type": "string",
+            "description": "The primary account number",
+            "example": "4242424242424242"
+          },
+          "application_expiration_month": {
+            "type": "string",
+            "description": "The application expiration date (PAN expiry month)",
+            "example": "12"
+          },
+          "application_expiration_year": {
+            "type": "string",
+            "description": "The application expiration date (PAN expiry year)",
+            "example": "24"
+          },
+          "payment_data": {
+            "$ref": "#/components/schemas/ApplePayCryptogramData"
+          }
+        }
       },
       "ApplePayRecurringDetails": {
         "type": "object",
@@ -7705,8 +7767,7 @@
         ],
         "properties": {
           "payment_data": {
-            "type": "string",
-            "description": "The payment data of Apple pay"
+            "$ref": "#/components/schemas/ApplePayPaymentData"
           },
           "payment_method": {
             "$ref": "#/components/schemas/ApplepayPaymentMethod"
@@ -11675,6 +11736,7 @@
           "billwerk",
           "bitpay",
           "bluesnap",
+          "bluecode",
           "boku",
           "braintree",
           "breadpay",
@@ -11746,6 +11808,7 @@
           "redsys",
           "santander",
           "shift4",
+          "silverflow",
           "square",
           "stax",
           "stripe",
@@ -20023,6 +20086,40 @@
           }
         }
       },
+      "PaymentChannel": {
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "ecommerce"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "mail_order"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "telephone_order"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "other"
+            ],
+            "properties": {
+              "other": {
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "description": "Describes the channel through which the payment was initiated."
+      },
       "PaymentChargeType": {
         "oneOf": [
           {
@@ -21660,6 +21757,7 @@
           "benefit",
           "bizum",
           "blik",
+          "bluecode",
           "boleto",
           "bca_bank_transfer",
           "bni_va",
@@ -22396,6 +22494,14 @@
             "type": "boolean",
             "description": "If enabled, provides whole connector response",
             "nullable": true
+          },
+          "payment_channel": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChannel"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -22818,6 +22924,14 @@
           "all_keys_required": {
             "type": "boolean",
             "description": "If enabled, provides whole connector response",
+            "nullable": true
+          },
+          "payment_channel": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChannel"
+              }
+            ],
             "nullable": true
           }
         }
@@ -23302,6 +23416,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_channel": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChannel"
               }
             ],
             "nullable": true
@@ -24120,6 +24242,14 @@
             "type": "boolean",
             "description": "If enabled, provides whole connector response",
             "nullable": true
+          },
+          "payment_channel": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChannel"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -24629,6 +24759,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_channel": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChannel"
               }
             ],
             "nullable": true
@@ -25289,6 +25427,14 @@
           "all_keys_required": {
             "type": "boolean",
             "description": "If enabled, provides whole connector response",
+            "nullable": true
+          },
+          "payment_channel": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChannel"
+              }
+            ],
             "nullable": true
           }
         }
@@ -29195,6 +29341,7 @@
           "bambora",
           "bamboraapac",
           "bluesnap",
+          "bluecode",
           "boku",
           "braintree",
           "breadpay",
@@ -29262,6 +29409,7 @@
           "santander",
           "shift4",
           "signifyd",
+          "silverflow",
           "square",
           "stax",
           "stripe",
@@ -31955,6 +32103,18 @@
             "properties": {
               "amazon_pay_redirect": {
                 "$ref": "#/components/schemas/AmazonPayRedirectData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bluecode_redirect"
+            ],
+            "properties": {
+              "bluecode_redirect": {
+                "type": "object",
+                "description": "The wallet data for Bluecode QR Code Redirect"
               }
             }
           },
