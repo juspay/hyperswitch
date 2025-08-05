@@ -167,7 +167,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentStartRedirection
             | Flow::ProxyConfirmIntent
             | Flow::PaymentsRetrieveUsingMerchantReferenceId
-            | Flow::PaymentAttemptsList => Self::Payments,
+            | Flow::PaymentAttemptsList
+            | Flow::RecoveryPaymentsCreate => Self::Payments,
 
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve

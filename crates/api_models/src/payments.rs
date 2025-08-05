@@ -1663,6 +1663,33 @@ pub struct PaymentAttemptRecordResponse {
 }
 
 #[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct RecoveryPaymentsResponse {
+    /// Unique identifier for the payment. This ensures idempotency for multiple payments
+    /// that have been done by a single merchant.
+    #[schema(
+        min_length = 30,
+        max_length = 30,
+        example = "pay_mbabizu24mvu3mela5njyhpit4",
+        value_type = String,
+    )]
+    pub payment_id: id_type::GlobalPaymentId,
+
+    #[schema(value_type = IntentStatus, example = "failed", default = "requires_confirmation")]
+    pub status: api_enums::IntentStatus,
+
+     /// The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
+    #[schema(value_type = i64, example = 6540)]
+    pub amount: MinorUnit,
+
+     /// Three-letter ISO currency code (e.g., USD, EUR) for the payment amount.
+    #[schema(value_type = Currency, example = "USD")]
+    pub currency: String,
+
+    pub job_status : Option<common_enums::ProcessTrackerStatus>,
+}
+
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
 pub struct PaymentAttemptFeatureMetadata {
     /// Revenue recovery metadata that might be required by hyperswitch.
@@ -4273,6 +4300,13 @@ pub struct PaymentMethodDataResponseWithBilling {
     // The struct is flattened in order to provide backwards compatibility
     #[serde(flatten)]
     pub payment_method_data: Option<PaymentMethodDataResponse>,
+    pub billing: Option<Address>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, ToSchema, serde::Serialize)]
+pub struct CustomBillingPaymentMethodDataWithBilling {
+    /// The list processor payment method and their addtional payment method info
+    pub payment_method_data: HashMap<String, PaymentMethodDataResponse>,
     pub billing: Option<Address>,
 }
 
@@ -8984,6 +9018,86 @@ pub struct PaymentsAttemptRecordRequest {
     #[schema(example = "Chase")]
     /// Card Issuer
     pub card_issuer: Option<String>,
+}
+
+// Serialize is required because the api event requires Serialize to be implemented
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+#[cfg(feature = "v2")]
+pub struct RecoveryPaymentsCreate {
+    /// The amount details for the payment
+    pub amount_details: AmountDetails,
+
+    /// Unique identifier for the payment. This ensures idempotency for multiple payments
+    /// that have been done by a single merchant.
+    #[schema(
+        value_type = Option<String>,
+        min_length = 30,
+        max_length = 30,
+        example = "pay_mbabizu24mvu3mela5njyhpit4"
+    )]
+    pub merchant_reference_id: id_type::PaymentReferenceId,
+
+    /// Error details for the payment if any
+    pub error: Option<ErrorDetails>,
+
+    /// Billing connector id to update the invoices.
+    #[schema(value_type = String, example = "mca_1234567890")]
+    pub merchant_connector_id: id_type::MerchantConnectorAccountId,
+
+    /// Payments connector id to update the invoices.
+    #[schema(value_type = String, example = "mca_1234567890")]
+    pub payment_merchant_connector_id: id_type::MerchantConnectorAccountId,
+
+    #[schema(value_type = AttemptStatus, example = "charged")]
+    pub status: enums::AttemptStatus,
+
+    /// The billing details of the payment attempt. This address will be used for invoicing.
+    pub billing: Option<Address>,
+
+    /// Number of attempts made for invoice
+    #[schema(value_type = Option<u16>, example = 1)]
+    pub retry_count: Option<u16>,
+
+    /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
+    #[schema(value_type = PaymentMethodType, example = "apple_pay")]
+    pub payment_method_sub_type: api_enums::PaymentMethodType,
+
+    /// primary payment method token at payment processor end.
+    #[schema(value_type = String, example = "token_1234")]
+    pub primary_processor_payment_method_token: String,
+
+    /// The time at which payment attempt was created.
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub transaction_created_at: Option<PrimitiveDateTime>,
+
+    /// Payment method type for the payment attempt
+    #[schema(value_type = Option<PaymentMethod>, example = "wallet")]
+    pub payment_method_type: common_enums::PaymentMethod,
+
+    /// customer id at payment connector for which mandate is attached.
+    #[schema(value_type = String, example = "cust_12345")]
+    pub connector_customer_id: String,
+
+    /// Next Billing time of the Invoice
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub next_billing_date: Option<PrimitiveDateTime>,
+
+    /// Invoice billing started at billing connector end.
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub billing_started_at: Option<PrimitiveDateTime>,
+
+    /// Transaction if reference at payment connector end.
+    pub connector_transaction_id: Option<String>,
+
+    /// payment method token units at payment processor end.
+    pub payment_method_units: CustomBillingPaymentMethodDataWithBilling,
+
+    /// recovery action 
+    pub action : common_payments_types::RecoveryAction,
 }
 
 /// Error details for the payment

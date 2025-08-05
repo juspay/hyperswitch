@@ -638,6 +638,8 @@ pub enum Flow {
     DecisionEngineDecideGatewayCall,
     /// Decision Engine Gateway Feedback Call
     DecisionEngineGatewayFeedbackCall,
+    /// Recovery payments create flow.
+    RecoveryPaymentsCreate,
 }
 
 /// Trait for providing generic behaviour to flow metric

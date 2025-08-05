@@ -409,3 +409,21 @@ pub struct XenditMultipleSplitResponse {
     pub routes: Vec<XenditSplitRoute>,
 }
 impl_to_sql_from_sql_json!(XenditMultipleSplitResponse);
+
+
+/// type of action that needs to taken after consuming recovery payload
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum RecoveryAction {
+    /// Stops the process tracker and update the payment intent.
+    CancelInvoice,
+    /// Records the external transaction against payment intent.
+    ScheduleFailedPayment,
+    /// Records the external payment and stops the internal process tracker.
+    SuccessPaymentExternal,
+    /// Pending payments from billing processor.
+    PendingPayment,
+    /// No action required.
+    NoAction,
+    /// Invalid event has been received.
+    InvalidAction,
+}

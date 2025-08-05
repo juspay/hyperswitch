@@ -15,6 +15,7 @@ use crate::{
     core::{
         errors::{self, http_not_implemented},
         payments::{self, PaymentRedirectFlow},
+        revenue_recovery::api as recovery,
     },
     routes::lock_utils,
     services::{api, authentication as auth},
@@ -111,6 +112,59 @@ pub async fn payments_create(
             ),
         },
         locking_action,
+    ))
+    .await
+}
+
+#[cfg(feature = "v2")]
+pub async fn recovery_payments_create(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<payment_types::RecoveryPaymentsCreate>,
+) -> impl Responder {
+    let flow = Flow::RecoveryPaymentsCreate;
+    let mut payload = json_payload.into_inner();
+    let billing_merchant_connector_id = payload.merchant_connector_id.clone();
+
+    let auth_type = if state.conf.merchant_id_auth.merchant_id_auth_enabled {
+        &auth::MerchantIdAuth
+    } else {
+        match env::which() {
+            env::Env::Production => &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
+            _ => auth::auth_type(
+                &auth::V2ApiKeyAuth {
+                    is_connected_allowed: false,
+                    is_platform_allowed: false,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::ProfilePaymentWrite,
+                },
+                req.headers(),
+            ),
+        }
+    };
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req.clone(),
+        payload,
+        |state, auth: auth::AuthenticationData, req_payload, req_state| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            recovery::custom_revenue_recovery_core(
+                state.to_owned(),
+                req_state,
+                merchant_context,
+                auth.profile,
+                req_payload
+            )
+        },
+        auth_type,
+        api_locking::LockAction::NotApplicable,
     ))
     .await
 }

@@ -40,3 +40,19 @@ impl ForeignFrom<AttemptStatus> for RevenueRecoveryPaymentsAttemptStatus {
         }
     }
 }
+
+impl ForeignFrom<api_models::payments::RecoveryPaymentsCreate>
+    for hyperswitch_domain_models::revenue_recovery::RevenueRecoveryInvoiceData
+{
+    fn foreign_from(data: api_models::payments::RecoveryPaymentsCreate) -> Self {
+        Self {
+            amount: data.amount_details.order_amount().into(),
+            currency: data.amount_details.currency(),
+            merchant_reference_id: data.merchant_reference_id,
+            billing_address: data.billing,
+            retry_count: data.retry_count,
+            next_billing_at: data.next_billing_date,
+            billing_started_at: data.billing_started_at,
+        }
+    }
+}
