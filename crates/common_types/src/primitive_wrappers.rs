@@ -174,7 +174,7 @@ mod bool_wrappers {
 
 mod u32_wrappers {
     use std::ops::Deref;
-
+    use crate::consts::MAX_DISPUTE_POLLING_INTERVAL_IN_HOURS;
     use serde::{Deserialize, Serialize};
     /// Time interval in hours for polling disputes
     #[derive(
@@ -196,10 +196,12 @@ mod u32_wrappers {
     {
         fn from_sql(value: diesel::pg::PgValue<'_>) -> diesel::deserialize::Result<Self> {
             let val = i32::from_sql(value)?;
-            if val >= 0 {
-                Ok(DisputePollingIntervalInHours(val))
-            } else {
+            if val < 0 {
                 Err("DisputePollingIntervalInHours cannot be negative".into())
+            } else if val > MAX_DISPUTE_POLLING_INTERVAL_IN_HOURS {
+                Err("DisputePollingIntervalInHours exceeds the maximum allowed value of 24".into())
+            } else {
+                Ok(Self(val))
             }
         }
     }

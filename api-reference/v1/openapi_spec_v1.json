@@ -3988,6 +3988,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "force_sync",
+            "in": "query",
+            "description": "Decider to enable or disable the connector call for dispute retrieve request",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "nullable": true
+            }
           }
         ],
         "responses": {
@@ -13373,7 +13383,9 @@
         "enum": [
           "pre_dispute",
           "dispute",
-          "pre_arbitration"
+          "pre_arbitration",
+          "arbitration",
+          "dispute_reversal"
         ]
       },
       "DisputeStatus": {
@@ -26467,6 +26479,13 @@
               }
             ],
             "nullable": true
+          },
+          "dispute_polling_interval": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Time interval (in hours) for polling the connector to check dispute statuses",
+            "example": 2,
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -26773,6 +26792,13 @@
               }
             ],
             "nullable": true
+          },
+          "dispute_polling_interval": {
+            "type": "integer",
+            "format": "int32",
+            "example": 2,
+            "nullable": true,
+            "minimum": 0
           }
         }
       },

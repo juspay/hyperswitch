@@ -68,6 +68,8 @@ pub async fn retrieve_dispute(
     .await
 }
 
+#[cfg(feature = "v1")]
+#[instrument(skip_all, fields(flow = ?Flow::DisputesRetrieve))]
 pub async fn fetch_disputes(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -75,30 +77,23 @@ pub async fn fetch_disputes(
     json_payload: web::Query<dispute_types::DisputeFetchQueryData>,
 ) -> HttpResponse {
     let flow = Flow::DisputesList;
-    let connector_id =
-        common_utils::id_type::MerchantConnectorAccountId::wrap(path.into_inner()).unwrap();
-    let format =
-        time::format_description::parse("[year]-[month]-[day]T[hour]:[minute]:[second]").unwrap();
-    let fetch_for = time::PrimitiveDateTime::parse(&json_payload.fetch_for, &format).unwrap();
-    let fetch_dispute_request = crate::types::FetchDisputesRequestData {
-        created_from: fetch_for,
-        created_to: None,
-    };
+    let connector_id = path.into_inner();
+    let payload = json_payload.into_inner();
 
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        (),
-        |state, auth: auth::AuthenticationData, _req, _| {
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            disputes::fetch_disputes_from_connector(
+            disputes::connector_sync_disputes(
                 state,
                 merchant_context,
                 connector_id.clone(),
-                fetch_dispute_request.clone(),
+                req,
             )
         },
         auth::auth_type(

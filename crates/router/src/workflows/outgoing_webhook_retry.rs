@@ -473,12 +473,12 @@ async fn get_outgoing_webhook_content_and_event_type(
         diesel_models::enums::EventClass::Disputes => {
             let dispute_id = tracking_data.primary_object_id.clone();
             let request = DisputeRetrieveRequest {
-                dispute_id: dispute_id,
+                dispute_id,
                 force_sync: None,
             };
 
             let dispute_response =
-                match retrieve_dispute(state, merchant_context.clone(), None, request).await? {
+                match Box::pin(retrieve_dispute(state, merchant_context.clone(), None, request)).await? {
                     ApplicationResponse::Json(dispute_response)
                     | ApplicationResponse::JsonWithHeaders((dispute_response, _)) => {
                         Ok(dispute_response)

@@ -6,7 +6,7 @@ use hyperswitch_domain_models::router_response_types::disputes::FileInfo;
 
 use crate::{
     core::{
-        errors::{self, StorageErrorExt},
+        errors::{self, StorageErrorExt, utils::ConnectorErrorExt},
         payments, utils,
     },
     routes::SessionState,
@@ -140,17 +140,21 @@ pub async fn retrieve_file_from_connector(
     )?;
 
     let dispute = match dispute_id {
-        Some(dispute) => Some(state.store
-        .find_dispute_by_merchant_id_dispute_id(
-            merchant_context.get_merchant_account().get_id(),
-            &dispute,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound { dispute_id: dispute })?),
-        None => None
-
+        Some(dispute) => Some(
+            state
+                .store
+                .find_dispute_by_merchant_id_dispute_id(
+                    merchant_context.get_merchant_account().get_id(),
+                    &dispute,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
+                    dispute_id: dispute,
+                })?,
+        ),
+        None => None,
     };
-                
+
     let connector_integration: services::BoxedFilesConnectorIntegrationInterface<
         api::Retrieve,
         types::RetrieveFileRequestData,
@@ -175,7 +179,7 @@ pub async fn retrieve_file_from_connector(
         None,
     )
     .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .to_files_failed_response()
     .attach_printable("Failed while calling retrieve file connector api")?;
     let retrieve_file_response =
         response
@@ -339,7 +343,7 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
                     types::UploadFileRequestData,
                     types::UploadFileResponse,
                 > = connector_data.connector.get_connector_integration();
-                let router_data  = utils::construct_upload_file_router_data(
+                let router_data = utils::construct_upload_file_router_data(
                     state,
                     &payment_intent,
                     &payment_attempt,

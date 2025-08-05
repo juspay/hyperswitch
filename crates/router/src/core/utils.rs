@@ -51,7 +51,7 @@ use crate::{
         payments::PaymentData,
     },
     db::StorageInterface,
-    routes::{metrics, SessionState},
+    routes::SessionState,
     types::{
         self, api, domain,
         storage::{self, enums},
@@ -886,8 +886,16 @@ pub fn validate_dispute_stage(
     match prev_dispute_stage {
         DisputeStage::PreDispute => true,
         DisputeStage::Dispute => !matches!(dispute_stage, DisputeStage::PreDispute),
-        DisputeStage::PreArbitration => matches!(dispute_stage, DisputeStage::PreArbitration|  DisputeStage::Arbitration | DisputeStage::DisputeReversal),
-        DisputeStage::Arbitration => matches!(dispute_stage, DisputeStage::Arbitration | DisputeStage::DisputeReversal),
+        DisputeStage::PreArbitration => matches!(
+            dispute_stage,
+            DisputeStage::PreArbitration
+                | DisputeStage::Arbitration
+                | DisputeStage::DisputeReversal
+        ),
+        DisputeStage::Arbitration => matches!(
+            dispute_stage,
+            DisputeStage::Arbitration | DisputeStage::DisputeReversal
+        ),
         DisputeStage::DisputeReversal => matches!(dispute_stage, DisputeStage::DisputeReversal),
     }
 }

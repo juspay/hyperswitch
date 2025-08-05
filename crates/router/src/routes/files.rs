@@ -1,7 +1,8 @@
 use actix_multipart::Multipart;
 use actix_web::{web, HttpRequest, HttpResponse};
-use router_env::{instrument, tracing, Flow};
 use api_models::files as file_types;
+use router_env::{instrument, tracing, Flow};
+
 use crate::core::api_locking;
 pub mod transformers;
 
@@ -144,7 +145,7 @@ pub async fn files_retrieve(
     let flow = Flow::RetrieveFile;
     let file_id = files::FileRetrieveRequest {
         file_id: path.into_inner(),
-        dispute_id: json_payload.dispute_id.clone()
+        dispute_id: json_payload.dispute_id.clone(),
     };
     Box::pin(api::server_wrap(
         flow,

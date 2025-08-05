@@ -6,14 +6,18 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
-    router_flow_types::{refunds::{Execute, RSync}, Fetch, Dsync, Upload, Retrieve},
+    router_flow_types::{
+        refunds::{Execute, RSync},
+        Dsync, Fetch, Retrieve, Upload,
+    },
     router_request_types::{
-        FetchDisputesRequestData, DisputeSyncData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
-        PaymentsSyncData, ResponseId,  UploadFileRequestData, RetrieveFileRequestData
+        DisputeSyncData, FetchDisputesRequestData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCaptureData, PaymentsSyncData, ResponseId, RetrieveFileRequestData,
+        UploadFileRequestData,
     },
     router_response_types::{
         DisputeSyncResponse, FetchDisputesResponse, MandateReference, PaymentsResponseData,
-        RefundsResponseData, UploadFileResponse, RetrieveFileResponse,
+        RefundsResponseData, RetrieveFileResponse, UploadFileResponse,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
@@ -23,8 +27,13 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{consts, errors};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
+
 use crate::{
-    types::{AcceptDisputeRouterData, RefundsResponseRouterData, ResponseRouterData, FetchDisputeRouterData, DisputeSyncRouterData, SubmitEvidenceRouterData, RetrieveFileRouterData},
+    types::{
+        AcceptDisputeRouterData, DisputeSyncRouterData, FetchDisputeRouterData,
+        RefundsResponseRouterData, ResponseRouterData, RetrieveFileRouterData,
+        SubmitEvidenceRouterData,
+    },
     utils::{self as connector_utils, CardData, PaymentsAuthorizeRequestData, RouterData as _},
 };
 
@@ -34,6 +43,8 @@ pub mod worldpayvantiv_constants {
     pub const XML_ENCODING: &str = "UTF-8";
     pub const XMLNS: &str = "http://www.vantivcnp.com/schema";
     pub const MAX_ID_LENGTH: usize = 26;
+    pub const XML_STANDALONE: &str = "yes";
+    pub const XML_CHARGEBACK: &str = "http://www.vantivcnp.com/chargebacks";
 }
 
 pub struct WorldpayvantivRouterData<T> {
@@ -694,6 +705,8 @@ pub struct VantivSyncErrorResponse {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename = "errorResponse")]
 pub struct VantivDisputeErrorResponse {
+    #[serde(rename = "@xmlns")]
+    pub xmlns: String,
     pub errors: Vec<VantivDisputeErrors>,
 }
 
@@ -701,7 +714,6 @@ pub struct VantivDisputeErrorResponse {
 pub struct VantivDisputeErrors {
     pub error: String,
 }
-
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename = "cnpOnlineResponse", rename_all = "camelCase")]
@@ -2942,7 +2954,7 @@ pub struct ChargebackRetrievalResponse {
     #[serde(rename = "@xmlns")]
     pub xmlns: String,
     pub transaction_id: String,
-    pub chargeback_case: Vec<ChargebackCase>,
+    pub chargeback_case: Option<Vec<ChargebackCase>>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -2977,11 +2989,11 @@ pub struct ChargebackCase {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Activity {
-    pub activity_date: String,
-    pub activity_type: String,
-    pub from_queue: String,
-    pub to_queue: String,
-    pub notes: String,
+    pub activity_date: Option<String>,
+    pub activity_type: Option<String>,
+    pub from_queue: Option<String>,
+    pub to_queue: Option<String>,
+    pub notes: Option<String>,
 }
 
 impl
@@ -2997,7 +3009,7 @@ impl
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: ResponseRouterData<
-        Fetch,
+            Fetch,
             ChargebackRetrievalResponse,
             FetchDisputesRequestData,
             FetchDisputesResponse,
@@ -3006,6 +3018,7 @@ impl
         let dispute_list = item
             .response
             .chargeback_case
+            .unwrap_or_default()
             .into_iter()
             .map(DisputeSyncResponse::try_from)
             .collect::<Result<Vec<_>, _>>()?;
@@ -3016,7 +3029,6 @@ impl
         })
     }
 }
-
 
 impl
     TryFrom<
@@ -3031,19 +3043,17 @@ impl
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: ResponseRouterData<
-        Dsync,
-        ChargebackRetrievalResponse,
-        DisputeSyncData,
-        DisputeSyncResponse,
+            Dsync,
+            ChargebackRetrievalResponse,
+            DisputeSyncData,
+            DisputeSyncResponse,
         >,
     ) -> Result<Self, Self::Error> {
-        let dispute_response = item
-            .response
-            .chargeback_case
-            .first()
-            .ok_or(errors::ConnectorError::RequestEncodingFailedWithReason (
+        let dispute_response = item.response.chargeback_case.and_then(|chargeback_case| chargeback_case.first().cloned()).ok_or(
+            errors::ConnectorError::RequestEncodingFailedWithReason(
                 "Could not find chargeback case".to_string(),
-            ))?;
+            ),
+        )?;
 
         let dispute_sync_response = DisputeSyncResponse::try_from(dispute_response.clone())?;
         Ok(DisputeSyncRouterData {
@@ -3057,8 +3067,9 @@ fn get_dispute_stage(
     dispute_cycle: String,
 ) -> Result<common_enums::enums::DisputeStage, error_stack::Report<errors::ConnectorError>> {
     match connector_utils::normalize_string(dispute_cycle.clone())
-    .change_context(errors::ConnectorError::RequestEncodingFailed)?
-    .as_str() {
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?
+        .as_str()
+    {
         "arbitration"
         | "arbitrationmastercard"
         | "arbitrationchargeback"
@@ -3079,7 +3090,8 @@ fn get_dispute_stage(
         _ => Err(errors::ConnectorError::NotSupported {
             message: format!("Dispute stage {}", dispute_cycle,),
             connector: "worldpayvantiv",
-        }.into()),
+        }
+        .into()),
     }
 }
 
@@ -3087,8 +3099,9 @@ pub fn get_dispute_status(
     dispute_cycle: String,
 ) -> Result<api_models::enums::DisputeStatus, error_stack::Report<errors::ConnectorError>> {
     match connector_utils::normalize_string(dispute_cycle.clone())
-    .change_context(errors::ConnectorError::RequestEncodingFailed)?
-    .as_str() {
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?
+        .as_str()
+    {
         "arbitration"
         | "arbitrationmastercard"
         | "arbitrationsplit"
@@ -3109,30 +3122,37 @@ pub fn get_dispute_status(
         _ => Err(errors::ConnectorError::NotSupported {
             message: format!("Dispute status {}", dispute_cycle,),
             connector: "worldpayvantiv",
-        }.into()),
+        }
+        .into()),
     }
 }
 
-fn convert_string_to_primitive_date(item: Option<String>) -> Result<Option<time::PrimitiveDateTime>, error_stack::Report<errors::ConnectorError>> {
+fn convert_string_to_primitive_date(
+    item: Option<String>,
+) -> Result<Option<time::PrimitiveDateTime>, error_stack::Report<errors::ConnectorError>> {
     item.map(|day| {
         let full_datetime_str = format!("{}T00:00:00", day);
-        let format = time::macros::format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]");
+        let format =
+            time::macros::format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]");
         time::PrimitiveDateTime::parse(&full_datetime_str, &format)
-    }).transpose().change_context(errors::ConnectorError::ParsingFailed)
+    })
+    .transpose()
+    .change_context(errors::ConnectorError::ParsingFailed)
 }
 
 impl TryFrom<ChargebackCase> for DisputeSyncResponse {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: ChargebackCase) -> Result<Self, Self::Error> {
-
         let amount = connector_utils::convert_amount(
             &StringMinorUnitForConnector,
             item.chargeback_amount,
             item.chargeback_currency_type,
         )?;
-        Ok(DisputeSyncResponse {
-            object_reference_id: api_models::webhooks::ObjectReferenceId::PaymentId(api_models::payments::PaymentIdType::ConnectorTransactionId(item.vantiv_cnp_txn_id)),
-            amount: amount,
+        Ok(Self {
+            object_reference_id: api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(item.vantiv_cnp_txn_id),
+            ),
+            amount,
             currency: item.chargeback_currency_type,
             dispute_stage: get_dispute_stage(item.cycle.clone())?,
             dispute_status: get_dispute_status(item.cycle.clone())?,
@@ -3147,7 +3167,6 @@ impl TryFrom<ChargebackCase> for DisputeSyncResponse {
     }
 }
 
-
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ActivityType {
@@ -3158,35 +3177,27 @@ pub enum ActivityType {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename = "chargebackUpdateRequest", rename_all = "camelCase")]
 pub struct ChargebackUpdateRequest {
+    #[serde(rename = "@xmlns")]
+    xmlns: String,
     activity_type: ActivityType,
 }
 
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename = "chargebackUpdateResponse", rename_all = "camelCase")]
-pub struct ChargebackUpdateResponse {
-    pub transaction_id: String,
-}
-
-
 impl From<&SubmitEvidenceRouterData> for ChargebackUpdateRequest {
-    fn from(
-        _item: &SubmitEvidenceRouterData,
-    ) -> Self {
+    fn from(_item: &SubmitEvidenceRouterData) -> Self {
         Self {
-            activity_type: ActivityType::MerchantRepresent 
-            }
+            xmlns: worldpayvantiv_constants::XML_CHARGEBACK.to_string(),
+            activity_type: ActivityType::MerchantRepresent,
         }
+    }
 }
 
 impl From<&AcceptDisputeRouterData> for ChargebackUpdateRequest {
-    fn from(
-        _item: &AcceptDisputeRouterData,
-    ) -> Self {
+    fn from(_item: &AcceptDisputeRouterData) -> Self {
         Self {
-            activity_type: ActivityType::MerchantAcceptsLiability 
-            }
+            xmlns: worldpayvantiv_constants::XML_CHARGEBACK.to_string(),
+            activity_type: ActivityType::MerchantAcceptsLiability,
         }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -3272,32 +3283,30 @@ pub enum WorldpayvantivFileUploadResponseCode {
     MaxDocumentPageCountReached,
 }
 
-
-fn is_file_uploaded(
-    vantiv_file_upload_status: WorldpayvantivFileUploadResponseCode,
-) -> bool {
+fn is_file_uploaded(vantiv_file_upload_status: WorldpayvantivFileUploadResponseCode) -> bool {
     match vantiv_file_upload_status {
         WorldpayvantivFileUploadResponseCode::Success
-        |WorldpayvantivFileUploadResponseCode::FutureUse002  
+        | WorldpayvantivFileUploadResponseCode::FutureUse002
         | WorldpayvantivFileUploadResponseCode::FutureUse007 => true,
         WorldpayvantivFileUploadResponseCode::InvalidMerchant
-        |WorldpayvantivFileUploadResponseCode::CaseNotFound 
-        |WorldpayvantivFileUploadResponseCode::CaseNotInMerchantQueue
-        |WorldpayvantivFileUploadResponseCode::DocumentAlreadyExists
-        |WorldpayvantivFileUploadResponseCode::InternalError 
-        |WorldpayvantivFileUploadResponseCode::MaxDocumentLimitReached 
-        |WorldpayvantivFileUploadResponseCode::DocumentNotFound
-        |WorldpayvantivFileUploadResponseCode::CaseNotInValidCycle 
-        |WorldpayvantivFileUploadResponseCode::ServerBusy 
-        |WorldpayvantivFileUploadResponseCode::FileSizeExceedsLimit
-        |WorldpayvantivFileUploadResponseCode::InvalidFileContent 
-        |WorldpayvantivFileUploadResponseCode::UnableToConvert 
-        |WorldpayvantivFileUploadResponseCode::InvalidImageSize 
-        |WorldpayvantivFileUploadResponseCode::MaxDocumentPageCountReached  => false
+        | WorldpayvantivFileUploadResponseCode::CaseNotFound
+        | WorldpayvantivFileUploadResponseCode::CaseNotInMerchantQueue
+        | WorldpayvantivFileUploadResponseCode::DocumentAlreadyExists
+        | WorldpayvantivFileUploadResponseCode::InternalError
+        | WorldpayvantivFileUploadResponseCode::MaxDocumentLimitReached
+        | WorldpayvantivFileUploadResponseCode::DocumentNotFound
+        | WorldpayvantivFileUploadResponseCode::CaseNotInValidCycle
+        | WorldpayvantivFileUploadResponseCode::ServerBusy
+        | WorldpayvantivFileUploadResponseCode::FileSizeExceedsLimit
+        | WorldpayvantivFileUploadResponseCode::InvalidFileContent
+        | WorldpayvantivFileUploadResponseCode::UnableToConvert
+        | WorldpayvantivFileUploadResponseCode::InvalidImageSize
+        | WorldpayvantivFileUploadResponseCode::MaxDocumentPageCountReached => false,
     }
 }
 
-impl TryFrom<
+impl
+    TryFrom<
         ResponseRouterData<
             Upload,
             ChargebackDocumentUploadResponse,
@@ -3322,9 +3331,7 @@ impl TryFrom<
                 .document_id
                 .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
 
-            Ok(UploadFileResponse {
-                provider_file_id,
-            })
+            Ok(UploadFileResponse { provider_file_id })
         } else {
             Err(ErrorResponse {
                 code: item.response.response_code.to_string(),
@@ -3339,19 +3346,17 @@ impl TryFrom<
             })
         };
 
-        Ok(RouterData {
+        Ok(Self {
             response,
             ..item.data
         })
     }
 }
 
-
-
-
-impl TryFrom<
+impl
+    TryFrom<
         ResponseRouterData<
-        Retrieve,
+            Retrieve,
             ChargebackDocumentUploadResponse,
             RetrieveFileRequestData,
             RetrieveFileResponse,
@@ -3362,7 +3367,7 @@ impl TryFrom<
 
     fn try_from(
         item: ResponseRouterData<
-        Retrieve,
+            Retrieve,
             ChargebackDocumentUploadResponse,
             RetrieveFileRequestData,
             RetrieveFileResponse,

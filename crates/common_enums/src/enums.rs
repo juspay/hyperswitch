@@ -2996,6 +2996,7 @@ pub enum FileUploadProvider {
     Router,
     Stripe,
     Checkout,
+    Worldpayvantiv,
 }
 
 #[derive(
@@ -8457,7 +8458,7 @@ pub enum ProcessTrackerRunner {
     PaymentMethodStatusUpdateWorkflow,
     PassiveRecoveryWorkflow,
     ProcessDisputeWorkflow,
-    DisputeListSyncWorkflow,
+    DisputeListWorkflow,
 }
 
 #[derive(Debug)]

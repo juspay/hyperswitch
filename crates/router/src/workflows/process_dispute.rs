@@ -8,12 +8,18 @@ use scheduler::{
 };
 
 use crate::{
-    core::{disputes, webhooks::incoming::get_payment_attempt_from_object_reference_id},
+    core::disputes,
     db::StorageInterface,
     errors,
     routes::SessionState,
     types::{api, domain, storage},
 };
+
+#[cfg(feature = "v1")]
+use crate::{
+    core::webhooks::incoming::get_payment_attempt_from_object_reference_id
+};
+
 
 pub struct ProcessDisputeWorkflow;
 
@@ -62,7 +68,7 @@ impl ProcessTrackerWorkflow<SessionState> for ProcessDisputeWorkflow {
         )));
 
         let payment_attempt = get_payment_attempt_from_object_reference_id(
-            &state,
+            state,
             tracking_data.dispute_payload.object_reference_id.clone(),
             &merchant_context,
         )
@@ -77,40 +83,62 @@ impl ProcessTrackerWorkflow<SessionState> for ProcessDisputeWorkflow {
             )
             .await?;
 
-        let dispute = state
+ // Check if the dispute already exists
+let dispute = state
+.store
+.find_by_merchant_id_payment_id_connector_dispute_id(
+    merchant_context.get_merchant_account().get_id(),
+    &payment_attempt.payment_id,
+    &tracking_data.dispute_payload.connector_dispute_id,
+)
+.await
+.ok()
+.flatten();
+
+println!("ssssssssss {:?}", dispute);
+if dispute.is_some() {
+// Dispute already exists — mark the process as complete
+state
+    .store
+    .as_scheduler()
+    .finish_process_with_business_status(process, business_status::COMPLETED_BY_PT)
+    .await?;
+} else {
+// Update dispute data
+let response = disputes::update_dispute_data(
+    state,
+    merchant_context,
+    business_profile,
+    dispute,
+    tracking_data.dispute_payload,
+    payment_attempt,
+    tracking_data.connector_name.as_str(),
+)
+.await
+.map_err(|error| crate::logger::error!("Dispute update failed: {error}"));
+
+match response {
+    Ok(_) => {
+        state
             .store
-            .find_by_merchant_id_payment_id_connector_dispute_id(
-                merchant_context.get_merchant_account().get_id(),
-                &payment_attempt.payment_id,
-                &tracking_data.dispute_payload.connector_dispute_id,
-            )
+            .as_scheduler()
+            .finish_process_with_business_status(process, business_status::COMPLETED_BY_PT)
             .await?;
-        // .map_err(|error| sch_errors::ProcessTrackerError::EStorageError(report!(errors::StorageError::from(error))))?;
-
-        let response = disputes::update_dispute_data(
-            state,
-            merchant_context,
-            business_profile,
-            dispute,
-            tracking_data.dispute_payload,
-            payment_attempt,
-            tracking_data.connector_name.as_str(),
-        )
-        .await
-        .attach_printable("Dispute update failed");
-
-        if response.is_err() {
-            retry_sync_task(
-                db,
-                tracking_data.connector_name,
-                tracking_data.merchant_id,
-                process,
-            )
-            .await?;
-        }
-
-        Ok(())
     }
+    Err(_) => {
+        retry_sync_task(
+            db,
+            tracking_data.connector_name,
+            tracking_data.merchant_id,
+            process,
+        )
+        .await?;
+    }
+}
+}
+Ok(())
+}
+
 
     async fn error_handler<'a>(
         &'a self,

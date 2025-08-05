@@ -1,11 +1,9 @@
-use std::str::FromStr;
+use std::{ops::Deref, str::FromStr};
 
 use api_models::{
     admin::{self as admin_types},
     enums as api_enums, routing as routing_types,
 };
-use std::ops::Deref;
-use tracing_futures::Instrument;
 use common_enums::{MerchantAccountRequestType, MerchantAccountType, OrganizationType};
 use common_utils::{
     date_time,
@@ -23,6 +21,7 @@ use hyperswitch_domain_models::merchant_connector_account::{
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 use pm_auth::types as pm_auth_types;
+use tracing_futures::Instrument;
 use uuid::Uuid;
 
 #[cfg(any(feature = "v1", feature = "v2"))]
@@ -31,13 +30,13 @@ use crate::{
     consts,
     core::{
         connector_validation::ConnectorAuthTypeAndMetadataValidation,
+        disputes,
         encryption::transfer_encryption_key,
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
         payment_methods::{cards, transformers},
         payments::helpers,
         pm_auth::helpers::PaymentAuthConnectorDataExt,
         routing, utils as core_utils,
-        disputes::add_dispute_list_sync_task_to_pt,
     },
     db::{AccountsStorageInterface, StorageInterface},
     routes::{metrics, SessionState},
@@ -2606,19 +2605,27 @@ pub async fn create_connector(
             },
         )?;
 
-    let connector =  api_enums::Connector::from_str(&mca.connector_name)
-    .change_context(errors::ApiErrorResponse::InvalidDataValue {
-        field_name: "connector",
-    })?;
+    #[cfg(feature = "v1")]
+    let connector = api_enums::Connector::from_str(&mca.connector_name).change_context(
+        errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "connector",
+        },
+    )?;
 
+    #[cfg(feature = "v1")]
     if helpers::should_add_dispute_sync_task_to_pt(&state, connector) {
-        let offset_date_time = time::OffsetDateTime::now_utc(); 
-            let current_time = time::PrimitiveDateTime::new(offset_date_time.date(), offset_date_time.time());
-            let dispute_polling_interval = business_profile.dispute_polling_interval.map(|dispute_polling_interval| *dispute_polling_interval.deref()).unwrap_or(24);
-            let schedule_time = current_time
-    .checked_add(time::Duration::hours(dispute_polling_interval as i64))
-    .ok_or(errors::ApiErrorResponse::InternalServerError)?;
-        println!("sssssssssss called 1");
+        let offset_date_time = time::OffsetDateTime::now_utc();
+        let created_from =
+            time::PrimitiveDateTime::new(offset_date_time.date(), offset_date_time.time());
+        let dispute_polling_interval = business_profile
+            .dispute_polling_interval
+            .map(|dispute_polling_interval| *dispute_polling_interval.deref())
+            .unwrap_or(common_types::consts::MAX_DISPUTE_POLLING_INTERVAL_IN_HOURS);
+      
+        let created_till = created_from
+            .checked_add(time::Duration::hours(i64::from(dispute_polling_interval))) 
+            .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+
         let m_db = state.clone().store;
         let connector_name = mca.connector_name.clone();
         let merchant_id = mca.merchant_id.clone();
@@ -2626,18 +2633,21 @@ pub async fn create_connector(
         let business_profile_id = business_profile.get_id().clone();
         tokio::spawn(
             async move {
-                println!("sssssssssss called 2");
-                add_dispute_list_sync_task_to_pt(
-                    &*m_db,
-                    &connector_name,
-                    merchant_id.clone(),
-                    merchant_connector_id.clone(),
-                    schedule_time,
-                   current_time,
-                   business_profile_id)
-                .await
-            }
-            .in_current_span(),
+        disputes::add_dispute_list_task_to_pt(
+            &*m_db,
+            &connector_name,
+            merchant_id.clone(),
+            merchant_connector_id.clone(),
+            business_profile_id,
+            types::FetchDisputesRequestData {
+                created_from,
+                created_till,
+            }  
+        )
+        .await
+        .map_err(|error| crate::logger::error!("Failed to add dispute list task to process tracker: {error}"))
+        }
+        .in_current_span(),
         );
     }
 

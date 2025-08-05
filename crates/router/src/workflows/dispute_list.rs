@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use common_utils::ext_traits::{StringExt, ValueExt};
 use diesel_models::process_tracker::business_status;
 use error_stack::ResultExt;
@@ -6,20 +8,19 @@ use scheduler::{
     consumer::{self, types::process_data, workflows::ProcessTrackerWorkflow},
     errors as sch_errors, utils as scheduler_utils,
 };
-use std::ops::Deref;
 
 use crate::{
-    core::{disputes},
+    core::disputes,
     db::StorageInterface,
     errors,
     routes::SessionState,
     types::{api, domain, storage},
 };
 
-pub struct DisputeListSyncWorkflow;
+pub struct DisputeListWorkflow;
 
 #[async_trait::async_trait]
-impl ProcessTrackerWorkflow<SessionState> for DisputeListSyncWorkflow {
+impl ProcessTrackerWorkflow<SessionState> for DisputeListWorkflow {
     #[cfg(feature = "v2")]
     async fn execute_workflow<'a>(
         &'a self,
@@ -62,7 +63,6 @@ impl ProcessTrackerWorkflow<SessionState> for DisputeListSyncWorkflow {
             key_store.clone(),
         )));
 
-
         let business_profile = state
             .store
             .find_business_profile_by_profile_id(
@@ -72,32 +72,37 @@ impl ProcessTrackerWorkflow<SessionState> for DisputeListSyncWorkflow {
             )
             .await?;
 
-            let offset_date_time = time::OffsetDateTime::now_utc(); 
-            let current_time = time::PrimitiveDateTime::new(offset_date_time.date(), offset_date_time.time());
-            let dispute_polling_interval = business_profile.dispute_polling_interval.map(|dispute_polling_interval| *dispute_polling_interval.deref()).unwrap_or(24);
-            let schedule_time = current_time
-    .checked_add(time::Duration::hours(dispute_polling_interval as i64))
-    .ok_or(sch_errors::ProcessTrackerError::TypeConversionError)?;
+        if process.retry_count == 0 {
+            let m_db = state.clone().store;
+            let m_tracking_data = tracking_data.clone();
+            let dispute_polling_interval = business_profile
+            .dispute_polling_interval
+            .map(|dispute_polling_interval| *dispute_polling_interval.deref())
+            .unwrap_or(common_types::consts::MAX_DISPUTE_POLLING_INTERVAL_IN_HOURS);
 
-        disputes::add_dispute_list_sync_task_to_pt(
-                        db,
-                        &tracking_data.connector_name,
-                        tracking_data.merchant_id.clone(),
-                        tracking_data.merchant_connector_id.clone(),
-                        schedule_time,
-                       current_time,
-                       tracking_data.profile_id).await?;
-        let req = hyperswitch_domain_models::router_request_types::FetchDisputesRequestData {
-            created_from: tracking_data.created_from,
-            created_to: Some(current_time)
-        };
+            tokio::spawn(
+                async move {
+        schedule_next_dispute_list_task(
+            &*m_db,
+            &m_tracking_data,
+            dispute_polling_interval,
+        )
+    .await
+    .map_err(|error| crate::logger::error!("Failed to add dispute list task to process tracker: {error}"))
+    }
+    .in_current_span(),
+    );
+    };
 
-        let response = disputes::fetch_disputes_from_connector(
+        let response = Box::pin(disputes::fetch_disputes_from_connector(
             state.clone(),
             merchant_context,
             tracking_data.merchant_connector_id,
-            req,
-        )
+            hyperswitch_domain_models::router_request_types::FetchDisputesRequestData {
+                created_from: tracking_data.created_from,
+                created_till: tracking_data.created_till, 
+            },
+        ))
         .await
         .attach_printable("Dispute update failed");
 
@@ -109,6 +114,12 @@ impl ProcessTrackerWorkflow<SessionState> for DisputeListSyncWorkflow {
                 process,
             )
             .await?;
+        } else {
+            state
+                .store
+                .as_scheduler()
+                .finish_process_with_business_status(process, business_status::COMPLETED_BY_PT)
+                .await?
         }
 
         Ok(())
@@ -180,34 +191,30 @@ pub async fn retry_sync_task(
     }
 }
 
-#[cfg(test)]
-mod tests {
-    #![allow(clippy::expect_used, clippy::unwrap_used)]
-    use super::*;
+#[cfg(feature = "v1")]
+pub async fn schedule_next_dispute_list_task(
+    db: &dyn StorageInterface,
+    tracking_data: &api::DisputeListPTData,
+    dispute_polling_interval: i32,
+) -> Result<(), errors::ProcessTrackerError> {
+    let new_created_till = tracking_data
+        .created_till
+        .checked_add(time::Duration::hours(i64::from(dispute_polling_interval)))
+        .ok_or(sch_errors::ProcessTrackerError::TypeConversionError)?;
 
-    #[test]
-    fn test_get_default_schedule_time() {
-        let merchant_id =
-            common_utils::id_type::MerchantId::try_from(std::borrow::Cow::from("-")).unwrap();
-        let schedule_time_delta = scheduler_utils::get_schedule_time(
-            process_data::ConnectorPTMapping::default(),
-            &merchant_id,
-            0,
-        )
-        .unwrap();
-        let first_retry_time_delta = scheduler_utils::get_schedule_time(
-            process_data::ConnectorPTMapping::default(),
-            &merchant_id,
-            1,
-        )
-        .unwrap();
-        let cpt_default = process_data::ConnectorPTMapping::default().default_mapping;
-        assert_eq!(
-            vec![schedule_time_delta, first_retry_time_delta],
-            vec![
-                cpt_default.start_after,
-                cpt_default.frequencies.first().unwrap().0
-            ]
-        );
-    }
+    let fetch_request = hyperswitch_domain_models::router_request_types::FetchDisputesRequestData {
+        created_from: tracking_data.created_till,
+        created_till: new_created_till, 
+    };
+
+    disputes::add_dispute_list_task_to_pt(
+        db,
+        &tracking_data.connector_name,
+        tracking_data.merchant_id.clone(),
+        tracking_data.merchant_connector_id.clone(),
+        tracking_data.profile_id.clone(),
+        fetch_request
+    )
+    .await?;
+Ok(())
 }

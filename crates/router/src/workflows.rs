@@ -14,4 +14,4 @@ pub mod revenue_recovery;
 
 pub mod process_dispute;
 
-pub mod dispute_list_sync;
+pub mod dispute_list;

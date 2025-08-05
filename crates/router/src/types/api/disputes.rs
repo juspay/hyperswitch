@@ -13,9 +13,10 @@ pub struct DisputeId {
     pub dispute_id: String,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct DisputeFetchQueryData {
-    pub fetch_for: String,
+    pub fetch_from: String,
+    pub fetch_till: String,
 }
 
 pub use hyperswitch_domain_models::router_flow_types::dispute::{
@@ -69,12 +70,12 @@ pub struct ProcessDisputePTData {
     pub merchant_id: common_utils::id_type::MerchantId,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct DisputeListPTData {
     pub connector_name: String,
     pub merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub created_from: time::PrimitiveDateTime,
     pub profile_id: common_utils::id_type::ProfileId,
+    pub created_from: time::PrimitiveDateTime,
+    pub created_till: time::PrimitiveDateTime,
 }
-

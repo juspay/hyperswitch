@@ -21,7 +21,6 @@ pub struct FileRetrieveRequest {
     pub dispute_id: Option<String>,
 }
 
-
 #[derive(Debug)]
 pub enum FileDataRequired {
     Required,
@@ -34,6 +33,7 @@ impl ForeignTryFrom<FileUploadProvider> for types::Connector {
         match item {
             FileUploadProvider::Stripe => Ok(Self::Stripe),
             FileUploadProvider::Checkout => Ok(Self::Checkout),
+            FileUploadProvider::Worldpayvantiv => Ok(Self::Worldpayvantiv),
             FileUploadProvider::Router => Err(errors::ApiErrorResponse::NotSupported {
                 message: "File upload provider is not a connector".to_owned(),
             }
@@ -48,6 +48,7 @@ impl ForeignTryFrom<&types::Connector> for FileUploadProvider {
         match *item {
             types::Connector::Stripe => Ok(Self::Stripe),
             types::Connector::Checkout => Ok(Self::Checkout),
+            types::Connector::Worldpayvantiv => Ok(Self::Worldpayvantiv),
             _ => Err(errors::ApiErrorResponse::NotSupported {
                 message: "Connector not supported as file provider".to_owned(),
             }

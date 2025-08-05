@@ -813,6 +813,7 @@ pub struct DefendDisputeRequestData {
 #[derive(Default, Debug, Clone)]
 pub struct SubmitEvidenceRequestData {
     pub dispute_id: String,
+    // pub dispute_status: storage_enums::DisputeStatus,
     pub connector_dispute_id: String,
     pub access_activity_log: Option<String>,
     pub billing_address: Option<String>,
@@ -876,7 +877,7 @@ pub struct SubmitEvidenceRequestData {
 #[derive(Debug, Serialize, Clone)]
 pub struct FetchDisputesRequestData {
     pub created_from: time::PrimitiveDateTime,
-    pub created_to: Option<time::PrimitiveDateTime>,
+    pub created_till: time::PrimitiveDateTime,
 }
 
 #[derive(Clone, Debug)]
@@ -895,7 +896,7 @@ pub struct UploadFileRequestData {
     pub file_type: mime::Mime,
     pub file_size: i32,
     pub dispute_id: String,
-    pub connector_dispute_id: String
+    pub connector_dispute_id: String,
 }
 
 #[cfg(feature = "payouts")]
