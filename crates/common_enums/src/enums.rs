@@ -1465,6 +1465,7 @@ impl EventClass {
                 EventType::PaymentCaptured,
                 EventType::PaymentExpired,
                 EventType::ActionRequired,
+                EventType::PaymentScheduled,
             ]),
             Self::Refunds => HashSet::from([EventType::RefundSucceeded, EventType::RefundFailed]),
             Self::Disputes => HashSet::from([
@@ -1518,6 +1519,7 @@ pub enum EventType {
     PaymentAuthorized,
     PaymentCaptured,
     PaymentExpired,
+    PaymentScheduled,
     ActionRequired,
     RefundSucceeded,
     RefundFailed,

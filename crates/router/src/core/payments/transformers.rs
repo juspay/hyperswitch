@@ -1893,7 +1893,7 @@ where
         is_latency_header_enabled: Option<bool>,
         merchant_context: &domain::MerchantContext,
         profile: &domain::Profile,
-        connector_response_data: Option<common_types::domain::ConnectorResponseData>,
+        connector_response_data: Option<common_types::domain::ConnectorResponseData>,       
     ) -> RouterResponse<api_models::payments::PaymentsResponse> {
         let payment_intent = self.payment_intent;
         let payment_attempt = self.payment_attempt;

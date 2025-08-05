@@ -32,16 +32,16 @@ use time::PrimitiveDateTime;
 use crate::{
     core::{
         errors::{self, RouterResult},
-        payments::{self, helpers, operations::Operation},
+        payments::{self, helpers, operations::Operation, transformers::GenerateResponse},
         revenue_recovery::{self as revenue_recovery_core},
-        webhooks::recovery_incoming as recovery_incoming_flow,
+        webhooks::{create_event_and_trigger_outgoing_webhook, recovery_incoming as recovery_incoming_flow},
     },
     db::StorageInterface,
     logger,
     routes::SessionState,
     services::{self, connector_integration_interface::RouterDataConversion},
     types::{
-        self, api as api_types, api::payments as payments_types, storage, transformers::ForeignInto,
+        self, api::{self as api_types, payments as payments_types}, storage, transformers::ForeignInto,
     },
     workflows::{payment_sync, revenue_recovery::get_schedule_time_to_retry_mit_payments},
 };
@@ -128,6 +128,9 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                         business_status::PSYNC_WORKFLOW_COMPLETE,
                     )
                     .await?;
+
+                let event_status = common_enums::EventType::PaymentSucceeded;
+
                 // publish events to kafka
                 if let Err(e) = recovery_incoming_flow::RecoveryPaymentTuple::publish_revenue_recovery_event_to_kafka(
                     state,
@@ -188,13 +191,14 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                 if let Some(schedule_time) = schedule_time {
                     // schedule a retry
                     // TODO: Update connecter called field and active attempt
-
+                    let event_status = common_enums::EventType::PaymentScheduled;
                     db.as_scheduler()
                         .retry_process(process_tracker.clone(), schedule_time)
                         .await?;
                 } else {
                     // Record a failure transaction back to Billing Connector
                     // TODO: Add support for retrying failed outgoing recordback webhooks
+                    let event_status = common_enums::EventType::PaymentFailed;
                     record_back_to_billing_connector(
                         state,
                         &payment_attempt,
@@ -337,6 +341,13 @@ impl Action {
             hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent::from(
                 payment_intent,
             );
+        let business_profile = &revenue_recovery_payment_data.profile;
+        let merchant_context =
+            MerchantContext::NormalMerchant(Box::new(Context(
+                revenue_recovery_payment_data.merchant_account.clone(),
+                revenue_recovery_payment_data.key_store.clone(),
+            )));
+        let event_class = common_enums::EventClass::Payments;
 
         // handle proxy api's response
         match response {
@@ -352,18 +363,41 @@ impl Action {
                         &recovery_payment_attempt,
                     );
 
+                    let payments_response  =  
+                        payment_data.clone().generate_response(state, None, None, None, &merchant_context,business_profile, None);
+
+                    let event_status = common_enums::EventType::PaymentSucceeded;
+
+                    if let Ok(hyperswitch_domain_models::api::ApplicationResponse::JsonWithHeaders((response, _headers))) = payments_response {
+                        // create event and trigger outgoing webhook
+                            let outgoing_webhook_content = api_models::webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(response));
+                            create_event_and_trigger_outgoing_webhook(
+                                state.clone(),
+                                business_profile.clone(),
+                                merchant_context.get_merchant_key_store(),
+                                event_status,
+                                event_class,
+                                payment_data.payment_intent.get_id().get_string_repr().to_string(),
+                                enums::EventObjectType::PaymentDetails,
+                                outgoing_webhook_content,
+                                payment_data.payment_intent.created_at
+                            )
+                            .await.change_context(errors::RecoveryError::InvalidTask)
+                            .attach_printable("Failed to send out going webhook")?;
+                    };
+
                     // publish events to kafka
                     if let Err(e) = recovery_incoming_flow::RecoveryPaymentTuple::publish_revenue_recovery_event_to_kafka(
-                    state,
-                    &recovery_payment_tuple,
-                    Some(process.retry_count+1)
-                )
-                .await{
-                    router_env::logger::error!(
-                        "Failed to publish revenue recovery event to kafka: {:?}",
-                        e
-                    );
-                };
+                        state,
+                        &recovery_payment_tuple,
+                        Some(process.retry_count+1)
+                    )
+                    .await{
+                        router_env::logger::error!(
+                            "Failed to publish revenue recovery event to kafka: {:?}",
+                            e
+                        );
+                    };
 
                     Ok(Self::SuccessfulPayment(
                         payment_data.payment_attempt.clone(),
@@ -379,6 +413,30 @@ impl Action {
                         &recovery_payment_intent,
                         &recovery_payment_attempt,
                     );
+
+                    let event_status = common_enums::EventType::PaymentFailed;
+
+                    let payments_response  =  
+                        payment_data.clone().generate_response(state, None, None, None, &merchant_context,business_profile, None);
+
+                    
+                    if let Ok(hyperswitch_domain_models::api::ApplicationResponse::JsonWithHeaders((response, _headers))) = payments_response {
+                            // create event and trigger outgoing webhook
+                            let outgoing_webhook_content = api_models::webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(response));
+                            create_event_and_trigger_outgoing_webhook(
+                                state.clone(),
+                                business_profile.clone(),
+                                merchant_context.get_merchant_key_store(),
+                                event_status,
+                                event_class,
+                                payment_data.payment_intent.get_id().get_string_repr().to_string(),
+                                enums::EventObjectType::PaymentDetails,
+                                outgoing_webhook_content,
+                                payment_data.payment_intent.created_at
+                            )
+                            .await.change_context(errors::RecoveryError::InvalidTask)
+                            .attach_printable("Failed to send out going webhook")?;
+                    };
 
                     // publish events to kafka
                     if let Err(e) = recovery_incoming_flow::RecoveryPaymentTuple::publish_revenue_recovery_event_to_kafka(
