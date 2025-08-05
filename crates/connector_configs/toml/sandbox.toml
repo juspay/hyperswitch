@@ -6397,9 +6397,13 @@ payment_method_type = "Mastercard"
 [[payload.debit]]
 payment_method_type = "Visa"
 
-[payload.connector_auth.HeaderKey]
-api_key="API Key"
-  
+[payload.connector_auth.CurrencyAuthKey.auth_key_map.USD]
+processing_account_id = "processing_account_id"
+api_key = "API Key"
+[payload.connector_auth.CurrencyAuthKey.auth_key_map.CAD]
+processing_account_id = "processing_account_id"
+api_key = "API Key"
+
 [silverflow]
 [[silverflow.credit]]
   payment_method_type = "Mastercard"
