@@ -113,6 +113,7 @@ pub enum RoutableConnectors {
     Mifinity,
     Mollie,
     Moneris,
+    Mpgs,
     Multisafepay,
     Nexinets,
     Nexixpay,
@@ -285,6 +286,7 @@ pub enum Connector {
     Mifinity,
     Mollie,
     Moneris,
+    Mpgs,
     Multisafepay,
     Netcetera,
     Nexinets,
@@ -474,6 +476,7 @@ impl Connector {
             | Self::Mifinity
             | Self::Mollie
             | Self::Moneris
+            | Self::Mpgs
             | Self::Multisafepay
             | Self::Nexinets
             | Self::Nexixpay
@@ -643,6 +646,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Mifinity => Self::Mifinity,
             RoutableConnectors::Mollie => Self::Mollie,
             RoutableConnectors::Moneris => Self::Moneris,
+            RoutableConnectors::Mpgs => Self::Mpgs,
             RoutableConnectors::Multisafepay => Self::Multisafepay,
             RoutableConnectors::Nexinets => Self::Nexinets,
             RoutableConnectors::Nexixpay => Self::Nexixpay,
@@ -773,6 +777,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Mifinity => Ok(Self::Mifinity),
             Connector::Mollie => Ok(Self::Mollie),
             Connector::Moneris => Ok(Self::Moneris),
+            Connector::Mpgs => Ok(Self::Mpgs),
             Connector::Multisafepay => Ok(Self::Multisafepay),
             Connector::Nexinets => Ok(Self::Nexinets),
             Connector::Nexixpay => Ok(Self::Nexixpay),
