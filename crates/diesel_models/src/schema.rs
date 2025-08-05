@@ -31,6 +31,7 @@ diesel::table! {
         #[max_length = 32]
         updated_by -> Varchar,
         email -> Nullable<Bytea>,
+        origin_zip -> Nullable<Bytea>,
     }
 }
 
@@ -367,6 +368,7 @@ diesel::table! {
         #[max_length = 64]
         updated_by -> Nullable<Varchar>,
         version -> ApiVersion,
+        tax_registration_id -> Nullable<Bytea>,
     }
 }
 
@@ -1072,6 +1074,11 @@ diesel::table! {
         is_payment_id_from_merchant -> Nullable<Bool>,
         #[max_length = 64]
         payment_channel -> Nullable<Varchar>,
+        tax_status -> Nullable<Varchar>,
+        discount_amount -> Nullable<Int8>,
+        shipping_amount_tax -> Nullable<Int8>,
+        duty_amount -> Nullable<Int8>,
+        order_date -> Nullable<Timestamp>,
     }
 }
 

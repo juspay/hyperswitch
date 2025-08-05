@@ -312,6 +312,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::AuthorizationStatus,
         api_models::enums::ElementPosition,
         api_models::enums::ElementSize,
+        api_models::enums::TaxStatus,
         api_models::enums::SizeVariants,
         api_models::enums::MerchantProductType,
         api_models::enums::PaymentLinkDetailsLayout,

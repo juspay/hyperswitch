@@ -1,5 +1,5 @@
 use common_utils::{
-    ext_traits::Encode,
+    ext_traits::Encode, id_type::CustomerId,
     types::{MinorUnit, StringMinorUnitForConnector},
 };
 use error_stack::ResultExt;
@@ -177,15 +177,25 @@ pub struct Capture {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VantivAddressData {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub address_line1: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub address_line2: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub address_line3: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub city: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub state: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub zip: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<common_utils::pii::Email>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub country: Option<common_enums::CountryAlpha2>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub phone: Option<Secret<String>>,
 }
 
@@ -214,6 +224,8 @@ pub struct Authorization {
     pub ship_to_address: Option<VantivAddressData>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub card: Option<WorldpayvantivCardData>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub enhanced_data: Option<EnhancedData>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub token: Option<TokenizationData>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -249,11 +261,78 @@ pub struct Sale {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub card: Option<WorldpayvantivCardData>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub enhanced_data: Option<EnhancedData>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub token: Option<TokenizationData>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub processing_type: Option<VantivProcessingType>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub original_network_transaction_id: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EnhancedData {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub customer_reference: Option<CustomerId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sales_tax: Option<MinorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tax_exempt: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub discount_amount: Option<MinorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shipping_amount: Option<MinorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub duty_amount: Option<MinorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ship_from_postal_code: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub destination_postal_code: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub destination_country_code: Option<common_enums::CountryAlpha2>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub invoice_reference_number: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub line_item_data: Option<Vec<LineItemData>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DetailTax {
+    pub tax_included_in_total: Option<bool>,
+    pub tax_amount: Option<MinorUnit>,
+    pub tax_rate: Option<String>,
+    pub tax_type_identifier: Option<String>,
+    pub card_acceptor_tax_id: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LineItemData {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub item_sequence_number: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub item_description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub product_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub quantity: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub unit_of_measure: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tax_amount: Option<MinorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub line_item_total: Option<MinorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub line_item_total_with_tax: Option<MinorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub item_discount_amount: Option<MinorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub commodity_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub unit_cost: Option<MinorUnit>,
+    // pub detail_tax: Option<DetailTax>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -574,7 +653,9 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
         let bill_to_address = get_bill_to_address(item.router_data);
         let ship_to_address = get_ship_to_address(item.router_data);
         let processing_info = get_processing_info(&item.router_data.request)?;
+        let enhanced_data = get_enhanced_data(item.router_data)?;
         let order_source = OrderSource::from(item);
+
         let (authorization, sale) =
             if item.router_data.request.is_auto_capture()? && item.amount != MinorUnit::zero() {
                 (
@@ -596,6 +677,7 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
                         token: processing_info.token,
                         processing_type: processing_info.processing_type,
                         original_network_transaction_id: processing_info.network_transaction_id,
+                        enhanced_data,
                     }),
                 )
             } else {
@@ -622,6 +704,7 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
                         processing_type: processing_info.processing_type,
                         original_network_transaction_id: processing_info.network_transaction_id,
                         cardholder_authentication,
+                        enhanced_data,
                     }),
                     None,
                 )
@@ -657,6 +740,59 @@ impl From<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for OrderSour
             Some(common_enums::PaymentChannel::MailOrder) => Self::MailOrder,
             Some(common_enums::PaymentChannel::TelephoneOrder) => Self::Telephone,
         }
+    }
+}
+
+fn get_enhanced_data(
+    router_data: &PaymentsAuthorizeRouterData,
+) -> Result<Option<EnhancedData>, error_stack::Report<errors::ConnectorError>> {
+    let l2_l3_data = router_data.l2_l3_data.clone();
+    if let Some(l2_l3_data) = l2_l3_data {
+        let line_item_data = l2_l3_data.order_details.map(|order_details| {
+            order_details
+                .iter()
+                .enumerate()
+                .map(|(i, order)| LineItemData {
+                    item_sequence_number: Some((i + 1).to_string()),
+                    item_description: order
+                        .description
+                        .as_ref()
+                        .map(|desc| desc.chars().take(19).collect::<String>()),
+                    product_code: order.product_id.clone(),
+                    quantity: Some(order.quantity.to_string().clone()),
+                    unit_of_measure: order.unit_of_measure.clone(),
+                    tax_amount: order.total_tax_amount,
+                    line_item_total: Some(order.amount),
+                    line_item_total_with_tax: order.total_tax_amount.map(|tax| tax + order.amount),
+                    item_discount_amount: order.unit_discount_amount,
+                    commodity_code: order.commodity_code.clone(),
+                    unit_cost: Some(order.amount),
+                })
+                .collect()
+        });
+
+        let tax_exempt = match l2_l3_data.tax_status {
+            Some(common_enums::TaxStatus::Exempt) => Some(true),
+            Some(common_enums::TaxStatus::Taxable) => Some(false),
+            None => None,
+        };
+
+        let enhanced_data = EnhancedData {
+            customer_reference: l2_l3_data.customer_id,
+            sales_tax: l2_l3_data.order_tax_amount,
+            tax_exempt,
+            discount_amount: l2_l3_data.discount_amount,
+            shipping_amount: l2_l3_data.shipping_cost,
+            duty_amount: l2_l3_data.duty_amount,
+            ship_from_postal_code: l2_l3_data.shipping_origin_zip,
+            destination_postal_code: l2_l3_data.shipping_destination_zip,
+            destination_country_code: l2_l3_data.shipping_country,
+            invoice_reference_number: l2_l3_data.merchant_order_reference_id,
+            line_item_data,
+        };
+        Ok(Some(enhanced_data))
+    } else {
+        Ok(None)
     }
 }
 

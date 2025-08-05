@@ -49,7 +49,7 @@ pub use hyperswitch_domain_models::{
     router_data::{
         AccessToken, AdditionalPaymentMethodConnectorResponse, ConnectorAuthType,
         ConnectorResponseData, ErrorResponse, GooglePayDecryptedData,
-        GooglePayPaymentMethodDetails, PaymentMethodBalance, PaymentMethodToken,
+        GooglePayPaymentMethodDetails, L2L3Data, PaymentMethodBalance, PaymentMethodToken,
         RecurringMandatePaymentData, RouterData,
     },
     router_data_v2::{
@@ -1171,6 +1171,7 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             psd2_sca_exemption_type: data.psd2_sca_exemption_type,
             raw_connector_response: data.raw_connector_response.clone(),
             is_payment_id_from_merchant: data.is_payment_id_from_merchant,
+            l2_l3_data: data.l2_l3_data.clone(),
         }
     }
 }
@@ -1240,6 +1241,7 @@ impl<F1, F2>
             connector_mandate_request_reference_id: None,
             raw_connector_response: None,
             is_payment_id_from_merchant: data.is_payment_id_from_merchant,
+            l2_l3_data: None,
         }
     }
 }
