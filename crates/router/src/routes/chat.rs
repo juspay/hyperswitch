@@ -38,7 +38,7 @@ pub async fn get_data_from_hyperswitch_ai_workflow(
 }
 
 #[instrument(skip_all)]
-pub async fn get_all_conversations_for_user(
+pub async fn get_all_conversations(
     state: web::Data<AppState>,
     http_req: HttpRequest,
     payload: web::Query<chat_api::ChatListRequest>,
@@ -49,7 +49,9 @@ pub async fn get_all_conversations_for_user(
         state,
         &http_req,
         payload.into_inner(),
-        |state, user: auth::UserFromToken, payload, _| chat_core::list_chat_conversations(state, user, payload),
+        |state, user: auth::UserFromToken, payload, _| {
+            chat_core::list_chat_conversations(state, user, payload)
+        },
         &auth::DashboardNoPermissionAuth,
         api_locking::LockAction::NotApplicable,
     ))

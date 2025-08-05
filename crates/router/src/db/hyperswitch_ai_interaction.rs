@@ -87,22 +87,36 @@ impl HyperswitchAiInteractionInterface for MockDb {
         limit: i64,
         offset: i64,
     ) -> CustomResult<Vec<storage::HyperswitchAiInteraction>, errors::StorageError> {
-        todo!()
-        // let hyperswitch_ai_interactions = self.hyperswitch_ai_interactions.lock().await;
-        // let filtered_interactions: Vec<storage::HyperswitchAiInteraction> =
-        //     hyperswitch_ai_interactions
-        //         .iter()
-        //         .filter(|interaction| {
-        //             if let Some(merchant_id) = merchant_id.as_ref() {
-        //                 interaction.merchant_id.as_ref() == Some(&merchant_id.to_string())
-        //             } else {
-        //                 true
-        //             }
-        //         })
-        //         .skip(offset as usize)
-        //         .take(limit as usize)
-        //         .cloned()
-        //         .collect();
-        // Ok(filtered_interactions)
+        let hyperswitch_ai_interactions = self.hyperswitch_ai_interactions.lock().await;
+
+        let offset_usize = offset.try_into().unwrap_or_else(|_| {
+            common_utils::consts::DEFAULT_LIST_OFFSET
+                .try_into()
+                .unwrap_or(usize::MIN)
+        });
+
+        let limit_usize = limit.try_into().unwrap_or_else(|_| {
+            common_utils::consts::DEFAULT_LIST_LIMIT
+                .try_into()
+                .unwrap_or(usize::MAX)
+        });
+
+        let filtered_interactions: Vec<storage::HyperswitchAiInteraction> =
+            hyperswitch_ai_interactions
+                .iter()
+                .filter(
+                    |interaction| match (merchant_id.as_ref(), &interaction.merchant_id) {
+                        (Some(merchant_id), Some(interaction_merchant_id)) => {
+                            interaction_merchant_id == &merchant_id.get_string_repr().to_owned()
+                        }
+                        (None, _) => true,
+                        _ => false,
+                    },
+                )
+                .skip(offset_usize)
+                .take(limit_usize)
+                .cloned()
+                .collect();
+        Ok(filtered_interactions)
     }
 }

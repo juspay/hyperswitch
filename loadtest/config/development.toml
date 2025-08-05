@@ -728,3 +728,4 @@ billing_connectors_which_requires_invoice_sync_call = "recurly"
 [chat]
 enabled = false 
 hyperswitch_ai_host = "http://0.0.0.0:8000"
+encryption_key = ""

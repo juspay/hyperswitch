@@ -1230,4 +1230,4 @@ version = "HOSTNAME"
 [chat]
 enabled = true
 hyperswitch_ai_host = "http://0.0.0.0:8000"
-encryption_key = "A8EF32E029BC3342E54BF2E172A4D7AA43E8EF9D2C3A624A9F04E2EF79DC698F"
+encryption_key = ""

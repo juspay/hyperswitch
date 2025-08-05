@@ -2233,8 +2233,8 @@ impl Chat {
                             .route(web::post().to(chat::get_data_from_hyperswitch_ai_workflow)),
                     )
                     .service(
-                        web::resource("/conversations")
-                            .route(web::get().to(chat::get_all_conversations_for_user)),
+                        web::resource("/list")
+                            .route(web::get().to(chat::get_all_conversations)),
                     ),
             );
         }

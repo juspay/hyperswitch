@@ -1138,3 +1138,4 @@ allow_connected_merchants = false # Enable or disable connected merchant account
 [chat]
 enabled = false                                # Enable or disable chat features
 hyperswitch_ai_host = "http://0.0.0.0:8000"    # Hyperswitch ai workflow host
+encryption_key = ""                            # Key to encrypt and decrypt chats

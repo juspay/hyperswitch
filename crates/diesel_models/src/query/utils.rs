@@ -83,6 +83,7 @@ macro_rules! impl_get_primary_key {
 impl_get_primary_key!(
     // v1 tables
     schema::dashboard_metadata::table,
+    schema::hyperswitch_ai_interaction::table,
     schema::merchant_connector_account::table,
     schema::merchant_key_store::table,
     schema::payment_methods::table,

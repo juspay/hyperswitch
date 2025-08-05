@@ -41,4 +41,7 @@ pub struct ChatConversation {
     pub created_at: PrimitiveDateTime,
 }
 
-pub type ChatListResponse = Vec<ChatConversation>;
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct ChatListResponse {
+    pub conversations: Vec<ChatConversation>,
+}
