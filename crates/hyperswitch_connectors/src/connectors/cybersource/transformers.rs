@@ -1285,15 +1285,31 @@ It is only supported for secure transactions in France.
 */
 
 fn extract_score_id(message_extensions: &[MessageExtensionAttribute]) -> Option<u32> {
-    message_extensions
-        .iter()
-        .find(|attr| attr.id.ends_with("CB-SCORE"))
-        .and_then(|attr| {
-            attr.id
-                .split('_')
-                .next()
-                .and_then(|prefix| prefix.trim_start_matches('A').parse::<u32>().ok())
-        })
+    message_extensions.iter().find_map(|attr| {
+        attr.id
+            .ends_with("CB-SCORE")
+            .then(|| {
+                attr.id
+                    .split('_')
+                    .next()
+                    .and_then(|p| p.strip_prefix('A'))
+                    .and_then(|s| {
+                        s.parse::<u32>().map(Some).unwrap_or_else(|err| {
+                            router_env::logger::error!(
+                                "Failed to parse score_id from '{}': {}",
+                                s,
+                                err
+                            );
+                            None
+                        })
+                    })
+                    .or_else(|| {
+                        router_env::logger::error!("Unexpected prefix format in id: {}", attr.id);
+                        None
+                    })
+            })
+            .flatten()
+    })
 }
 
 impl From<common_enums::DecoupledAuthenticationType> for EffectiveAuthenticationType {
@@ -1404,17 +1420,24 @@ impl
                 let effective_authentication_type = authn_data.authentication_type.map(Into::into);
                 let network_score: Option<u32> =
                     if ccard.card_network == Some(common_enums::CardNetwork::CartesBancaires) {
-                        authn_data
-                            .message_extension
-                            .as_ref()
-                            .and_then(|secret| {
-                                serde_json::from_value::<Vec<MessageExtensionAttribute>>(
-                                    secret.clone().expose(),
-                                )
-                                .ok()
-                            })
-                            .as_ref()
-                            .and_then(|exts| extract_score_id(exts))
+                        match authn_data.message_extension.as_ref() {
+                            Some(secret) => {
+                                let exposed_value = secret.clone().expose();
+                                match serde_json::from_value::<Vec<MessageExtensionAttribute>>(
+                                    exposed_value,
+                                ) {
+                                    Ok(exts) => extract_score_id(&exts),
+                                    Err(err) => {
+                                        router_env::logger::error!(
+                                            "Failed to deserialize message_extension: {:?}",
+                                            err
+                                        );
+                                        None
+                                    }
+                                }
+                            }
+                            None => None,
+                        }
                     } else {
                         None
                     };
@@ -1524,17 +1547,24 @@ impl
                 .ok();
                 let network_score: Option<u32> =
                     if ccard.card_network == Some(common_enums::CardNetwork::CartesBancaires) {
-                        authn_data
-                            .message_extension
-                            .as_ref()
-                            .and_then(|secret| {
-                                serde_json::from_value::<Vec<MessageExtensionAttribute>>(
-                                    secret.clone().expose(),
-                                )
-                                .ok()
-                            })
-                            .as_ref()
-                            .and_then(|exts| extract_score_id(exts))
+                        match authn_data.message_extension.as_ref() {
+                            Some(secret) => {
+                                let exposed_value = secret.clone().expose();
+                                match serde_json::from_value::<Vec<MessageExtensionAttribute>>(
+                                    exposed_value,
+                                ) {
+                                    Ok(exts) => extract_score_id(&exts),
+                                    Err(err) => {
+                                        router_env::logger::error!(
+                                            "Failed to deserialize message_extension: {:?}",
+                                            err
+                                        );
+                                        None
+                                    }
+                                }
+                            }
+                            None => None,
+                        }
                     } else {
                         None
                     };
@@ -1649,17 +1679,24 @@ impl
                 let network_score: Option<u32> = if token_data.card_network
                     == Some(common_enums::CardNetwork::CartesBancaires)
                 {
-                    authn_data
-                        .message_extension
-                        .as_ref()
-                        .and_then(|secret| {
-                            serde_json::from_value::<Vec<MessageExtensionAttribute>>(
-                                secret.clone().expose(),
-                            )
-                            .ok()
-                        })
-                        .as_ref()
-                        .and_then(|exts| extract_score_id(exts))
+                    match authn_data.message_extension.as_ref() {
+                        Some(secret) => {
+                            let exposed_value = secret.clone().expose();
+                            match serde_json::from_value::<Vec<MessageExtensionAttribute>>(
+                                exposed_value,
+                            ) {
+                                Ok(exts) => extract_score_id(&exts),
+                                Err(err) => {
+                                    router_env::logger::error!(
+                                        "Failed to deserialize message_extension: {:?}",
+                                        err
+                                    );
+                                    None
+                                }
+                            }
+                        }
+                        None => None,
+                    }
                 } else {
                     None
                 };

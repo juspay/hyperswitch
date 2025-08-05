@@ -3,7 +3,7 @@ pub mod fraud_check;
 pub mod revenue_recovery;
 use std::collections::HashMap;
 
-use common_utils::{request::Method, types::MinorUnit};
+use common_utils::{pii, request::Method, types::MinorUnit};
 pub use disputes::{AcceptDisputeResponse, DefendDisputeResponse, SubmitEvidenceResponse};
 
 use crate::{
@@ -11,7 +11,6 @@ use crate::{
     router_request_types::{authentication::AuthNFlowType, ResponseId},
     vault::PaymentMethodVaultingData,
 };
-use common_utils::pii;
 
 #[derive(Debug, Clone)]
 pub struct RefundsResponseData {

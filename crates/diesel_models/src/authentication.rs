@@ -1,6 +1,5 @@
-use common_utils::encryption::Encryption;
+use common_utils::{encryption::Encryption, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
-use common_utils::pii;
 use serde::{self, Deserialize, Serialize};
 use serde_json;
 

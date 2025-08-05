@@ -168,9 +168,18 @@ impl
                     challenge_code: response.three_ds_requestor_challenge_ind,
                     challenge_cancel: response.challenge_cancel,
                     challenge_code_reason: response.trans_status_reason,
-                    message_extension: response
-                        .message_extension
-                        .and_then(|v| serde_json::to_value(v).ok().map(Secret::new)),
+                    message_extension: response.message_extension.and_then(|v| {
+                        match serde_json::to_value(&v) {
+                            Ok(val) => Some(Secret::new(val)),
+                            Err(e) => {
+                                router_env::logger::error!(
+                                    "Failed to serialize message_extension: {:?}",
+                                    e
+                                );
+                                None
+                            }
+                        }
+                    }),
                 })
             }
             NetceteraAuthenticationResponse::Error(error_response) => Err(ErrorResponse {
