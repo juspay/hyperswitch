@@ -39,6 +39,7 @@ use crate::{
         routing, utils as core_utils,
     },
     db::{AccountsStorageInterface, StorageInterface},
+    logger,
     routes::{metrics, SessionState},
     services::{
         self,
@@ -55,7 +56,7 @@ use crate::{
         storage::{self, enums::MerchantStorageScheme},
         transformers::{ForeignInto, ForeignTryFrom, ForeignTryInto},
     },
-    utils, logger,
+    utils,
 };
 
 #[inline]
@@ -2637,9 +2638,7 @@ pub async fn create_connector(
                 )
                 .await
                 .map_err(|error| {
-                    logger::error!(
-                        "Failed to add dispute list task to process tracker: {error}"
-                    )
+                    logger::error!("Failed to add dispute list task to process tracker: {error}")
                 })
             }
             .in_current_span(),

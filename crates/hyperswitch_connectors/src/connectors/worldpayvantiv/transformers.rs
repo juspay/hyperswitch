@@ -1,5 +1,6 @@
 use common_utils::{
-    ext_traits::Encode, id_type::CustomerId,
+    ext_traits::Encode,
+    id_type::CustomerId,
     types::{MinorUnit, StringMinorUnitForConnector},
 };
 use error_stack::ResultExt;
