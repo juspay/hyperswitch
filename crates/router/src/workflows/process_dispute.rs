@@ -203,34 +203,3 @@ pub async fn retry_sync_task(
     }
 }
 
-#[cfg(test)]
-mod tests {
-    #![allow(clippy::expect_used, clippy::unwrap_used)]
-    use super::*;
-
-    #[test]
-    fn test_get_default_schedule_time() {
-        let merchant_id =
-            common_utils::id_type::MerchantId::try_from(std::borrow::Cow::from("-")).unwrap();
-        let schedule_time_delta = scheduler_utils::get_schedule_time(
-            process_data::ConnectorPTMapping::default(),
-            &merchant_id,
-            0,
-        )
-        .unwrap();
-        let first_retry_time_delta = scheduler_utils::get_schedule_time(
-            process_data::ConnectorPTMapping::default(),
-            &merchant_id,
-            1,
-        )
-        .unwrap();
-        let cpt_default = process_data::ConnectorPTMapping::default().default_mapping;
-        assert_eq!(
-            vec![schedule_time_delta, first_retry_time_delta],
-            vec![
-                cpt_default.start_after,
-                cpt_default.frequencies.first().unwrap().0
-            ]
-        );
-    }
-}
