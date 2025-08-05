@@ -254,10 +254,10 @@ diesel::table! {
         default_fallback_routing -> Nullable<Jsonb>,
         three_ds_decision_manager_config -> Nullable<Jsonb>,
         should_collect_cvv_during_payment -> Nullable<Bool>,
-        is_external_vault_enabled -> Nullable<Bool>,
-        external_vault_connector_details -> Nullable<Jsonb>,
         revenue_recovery_retry_algorithm_type -> Nullable<RevenueRecoveryAlgorithmType>,
         revenue_recovery_retry_algorithm_data -> Nullable<Jsonb>,
+        is_external_vault_enabled -> Nullable<Bool>,
+        external_vault_connector_details -> Nullable<Jsonb>,
     }
 }
 
@@ -376,7 +376,7 @@ diesel::table! {
         merchant_reference_id -> Nullable<Varchar>,
         default_billing_address -> Nullable<Bytea>,
         default_shipping_address -> Nullable<Bytea>,
-        status -> DeleteStatus,
+        status -> Nullable<DeleteStatus>,
         #[max_length = 64]
         id -> Varchar,
     }
@@ -793,7 +793,7 @@ diesel::table! {
         connector_webhook_details -> Nullable<Jsonb>,
         frm_config -> Nullable<Array<Nullable<Jsonb>>>,
         #[max_length = 64]
-        profile_id -> Varchar,
+        profile_id -> Nullable<Varchar>,
         applepay_verified_domains -> Nullable<Array<Nullable<Text>>>,
         pm_auth_config -> Nullable<Jsonb>,
         status -> ConnectorStatus,
@@ -854,7 +854,7 @@ diesel::table! {
         surcharge_amount -> Nullable<Int8>,
         #[max_length = 64]
         payment_method_id -> Nullable<Varchar>,
-        authentication_type -> AuthenticationType,
+        authentication_type -> Nullable<AuthenticationType>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
         last_synced -> Nullable<Timestamp>,
@@ -885,7 +885,7 @@ diesel::table! {
         unified_code -> Nullable<Varchar>,
         #[max_length = 1024]
         unified_message -> Nullable<Varchar>,
-        net_amount -> Int8,
+        net_amount -> Nullable<Int8>,
         external_three_ds_authentication_attempted -> Nullable<Bool>,
         #[max_length = 64]
         authentication_connector -> Nullable<Varchar>,
@@ -915,7 +915,9 @@ diesel::table! {
         processor_merchant_id -> Nullable<Varchar>,
         #[max_length = 255]
         created_by -> Nullable<Varchar>,
-        payment_method_type_v2 -> Varchar,
+        #[max_length = 255]
+        connector_request_reference_id -> Nullable<Varchar>,
+        payment_method_type_v2 -> Nullable<Varchar>,
         #[max_length = 128]
         connector_payment_id -> Nullable<Varchar>,
         #[max_length = 64]
@@ -937,8 +939,6 @@ diesel::table! {
         #[max_length = 32]
         network_decline_code -> Nullable<Varchar>,
         network_error_message -> Nullable<Text>,
-        #[max_length = 255]
-        connector_request_reference_id -> Nullable<Varchar>,
     }
 }
 
@@ -951,7 +951,7 @@ diesel::table! {
         merchant_id -> Varchar,
         status -> IntentStatus,
         amount -> Int8,
-        currency -> Currency,
+        currency -> Nullable<Currency>,
         amount_captured -> Nullable<Int8>,
         #[max_length = 64]
         customer_id -> Nullable<Varchar>,
@@ -972,7 +972,7 @@ diesel::table! {
         feature_metadata -> Nullable<Json>,
         attempt_count -> Int2,
         #[max_length = 64]
-        profile_id -> Varchar,
+        profile_id -> Nullable<Varchar>,
         #[max_length = 255]
         payment_link_id -> Nullable<Varchar>,
         #[max_length = 32]
@@ -980,7 +980,7 @@ diesel::table! {
         surcharge_applicable -> Nullable<Bool>,
         request_incremental_authorization -> Nullable<RequestIncrementalAuthorization>,
         authorization_count -> Nullable<Int4>,
-        session_expiry -> Timestamp,
+        session_expiry -> Nullable<Timestamp>,
         request_external_three_ds_authentication -> Nullable<Bool>,
         frm_metadata -> Nullable<Jsonb>,
         customer_details -> Nullable<Bytea>,
@@ -1273,7 +1273,7 @@ diesel::table! {
         #[max_length = 64]
         id -> Varchar,
         #[max_length = 64]
-        merchant_reference_id -> Varchar,
+        merchant_reference_id -> Nullable<Varchar>,
         #[max_length = 64]
         connector_id -> Nullable<Varchar>,
     }

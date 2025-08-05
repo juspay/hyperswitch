@@ -26,6 +26,8 @@ use common_utils::{
     pii::{self, Email},
     types::{MinorUnit, StringMajorUnit},
 };
+#[cfg(feature = "v2")]
+use deserialize_form_style_query_parameter::option_form_vec_deserialize;
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret, WithType};
 use router_derive::Setter;
@@ -3986,7 +3988,8 @@ pub struct GpayTokenizationData {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct ApplePayWalletData {
     /// The payment data of Apple pay
-    pub payment_data: String,
+    #[schema(value_type = ApplePayPaymentData)]
+    pub payment_data: common_types::payments::ApplePayPaymentData,
     /// The payment method of Apple pay
     pub payment_method: ApplepayPaymentMethod,
     /// The unique identifier for the transaction
@@ -7768,7 +7771,38 @@ pub enum SdkType {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
-pub struct PaymentMethodsListRequest {}
+pub struct ListMethodsForPaymentsRequest {
+    /// This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK
+    #[schema(max_length = 30, min_length = 30, example = "secret_k2uj3he2893eiu2d")]
+    pub client_secret: Option<String>,
+
+    /// The two-letter ISO currency code
+    #[serde(deserialize_with = "option_form_vec_deserialize", default)]
+    #[schema(value_type = Option<Vec<CountryAlpha2>>, example = json!(["US", "UK", "IN"]))]
+    pub accepted_countries: Option<Vec<api_enums::CountryAlpha2>>,
+
+    /// Filter by amount
+    #[schema(example = 60)]
+    pub amount: Option<MinorUnit>,
+
+    /// The three-letter ISO currency code
+    #[serde(deserialize_with = "option_form_vec_deserialize", default)]
+    #[schema(value_type = Option<Vec<Currency>>,example = json!(["USD", "EUR"]))]
+    pub accepted_currencies: Option<Vec<api_enums::Currency>>,
+
+    /// Indicates whether the payment method supports recurring payments. Optional.
+    #[schema(example = true)]
+    pub recurring_enabled: Option<bool>,
+
+    /// Indicates whether the payment method is eligible for card networks
+    #[serde(deserialize_with = "option_form_vec_deserialize", default)]
+    #[schema(value_type = Option<Vec<CardNetwork>>, example = json!(["visa", "mastercard"]))]
+    pub card_networks: Option<Vec<api_enums::CardNetwork>>,
+
+    /// Indicates the limit of last used payment methods
+    #[schema(example = 1)]
+    pub limit: Option<i64>,
+}
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, ToSchema)]
@@ -7804,8 +7838,8 @@ pub struct ResponsePaymentMethodTypesForPayments {
 
     /// Required fields for the payment_method_type.
     /// This is the union of all the required fields for the payment method type enabled in all the connectors.
-    #[schema(value_type = Option<RequiredFieldInfo>)]
-    pub required_fields: Option<Vec<payment_methods::RequiredFieldInfo>>,
+    #[schema(value_type = RequiredFieldInfo)]
+    pub required_fields: Vec<payment_methods::RequiredFieldInfo>,
 
     /// surcharge details for this payment method type if exists
     #[schema(value_type = Option<SurchargeDetailsResponse>)]
