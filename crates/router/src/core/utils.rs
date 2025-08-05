@@ -113,6 +113,7 @@ pub async fn construct_payout_router_data<'a, F>(
             first_name: a.first_name.clone().map(Encryptable::into_inner),
             last_name: a.last_name.clone().map(Encryptable::into_inner),
             state: a.state.map(Encryptable::into_inner),
+            origin_zip: a.origin_zip.map(Encryptable::into_inner),
         };
 
         api_models::payments::Address {
@@ -206,6 +207,7 @@ pub async fn construct_payout_router_data<'a, F>(
                     email: c.email.map(Email::from),
                     phone: c.phone.map(Encryptable::into_inner),
                     phone_country_code: c.phone_country_code,
+                    tax_registration_id: c.tax_registration_id.map(Encryptable::into_inner),
                 }),
             connector_transfer_method_id,
         },
@@ -237,6 +239,7 @@ pub async fn construct_payout_router_data<'a, F>(
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
+        l2_l3_data: None,
     };
 
     Ok(router_data)
@@ -405,6 +408,7 @@ pub async fn construct_refund_router_data<'a, F>(
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
+        l2_l3_data: None,
     };
 
     Ok(router_data)
@@ -609,6 +613,7 @@ pub async fn construct_refund_router_data<'a, F>(
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
+        l2_l3_data: None,
     };
 
     Ok(router_data)
@@ -1036,6 +1041,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
+        l2_l3_data: None,
     };
     Ok(router_data)
 }
@@ -1137,6 +1143,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
+        l2_l3_data: None,
     };
     Ok(router_data)
 }
@@ -1244,6 +1251,7 @@ pub async fn construct_upload_file_router_data<'a>(
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
+        l2_l3_data: None,
     };
     Ok(router_data)
 }
@@ -1370,6 +1378,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
+        l2_l3_data: None,
     };
     Ok(router_data)
 }
@@ -1474,6 +1483,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
+        l2_l3_data: None,
     };
     Ok(router_data)
 }
@@ -1570,6 +1580,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
+        l2_l3_data: None,
     };
     Ok(router_data)
 }

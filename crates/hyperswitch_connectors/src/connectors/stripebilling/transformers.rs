@@ -384,6 +384,7 @@ impl From<StripebillingInvoiceBillingAddress> for api_models::payments::AddressD
             line3: None,
             first_name: None,
             last_name: None,
+            origin_zip: None,
         }
     }
 }

@@ -548,5 +548,6 @@ pub(crate) async fn fetch_raw_secrets(
         merchant_id_auth: conf.merchant_id_auth,
         infra_values: conf.infra_values,
         enhancement: conf.enhancement,
+        l2_l3_data_config: conf.l2_l3_data_config,
     }
 }

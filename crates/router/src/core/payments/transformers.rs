@@ -175,6 +175,7 @@ where
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: payment_data.payment_intent.is_payment_id_from_merchant,
+        l2_l3_data: None,
     };
     Ok(router_data)
 }
@@ -407,6 +408,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: payment_data.payment_intent.is_payment_id_from_merchant,
+        l2_l3_data: None,
     };
 
     Ok(router_data)
@@ -572,6 +574,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         authentication_id: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
+        l2_l3_data: None,
     };
 
     Ok(router_data)
@@ -700,6 +703,7 @@ pub async fn construct_router_data_for_psync<'a>(
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
+        l2_l3_data: None,
     };
 
     Ok(router_data)
@@ -883,6 +887,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         authentication_id: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
+        l2_l3_data: None,
     };
 
     Ok(router_data)
@@ -1102,6 +1107,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
+        l2_l3_data: None,
     };
 
     Ok(router_data)
@@ -1228,7 +1234,71 @@ where
         .connector_mandate_detail
         .as_ref()
         .and_then(|detail| detail.get_connector_mandate_request_reference_id());
+    let order_details = payment_data
+        .payment_intent
+        .order_details
+        .as_ref()
+        .map(|order_details| {
+            order_details
+                .iter()
+                .map(|data| {
+                    data.to_owned()
+                        .parse_value("OrderDetailsWithAmount")
+                        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                            field_name: "OrderDetailsWithAmount",
+                        })
+                        .attach_printable("Unable to parse OrderDetailsWithAmount")
+                })
+                .collect::<Result<Vec<_>, _>>()
+        })
+        .transpose()?;
+    let l2_l3_data = state.conf.l2_l3_data_config.enabled.then(|| {
+        let shipping_address = unified_address.get_shipping();
+        let billing_address = unified_address.get_payment_billing();
 
+        types::L2L3Data {
+            order_date: payment_data.payment_intent.order_date,
+            tax_status: payment_data.payment_intent.tax_status,
+            customer_tax_registration_id: customer.as_ref().and_then(|c| {
+                c.tax_registration_id
+                    .as_ref()
+                    .map(|e| e.clone().into_inner())
+            }),
+            order_details: order_details.clone(),
+            discount_amount: payment_data.payment_intent.discount_amount,
+            shipping_cost: payment_data.payment_intent.shipping_cost,
+            shipping_amount_tax: payment_data.payment_intent.shipping_amount_tax,
+            duty_amount: payment_data.payment_intent.duty_amount,
+            order_tax_amount: payment_data
+                .payment_attempt
+                .net_amount
+                .get_order_tax_amount(),
+            merchant_order_reference_id: payment_data
+                .payment_intent
+                .merchant_order_reference_id
+                .clone(),
+            customer_id: payment_data.payment_intent.customer_id.clone(),
+            shipping_origin_zip: shipping_address
+                .and_then(|addr| addr.address.as_ref())
+                .and_then(|details| details.origin_zip.clone()),
+            shipping_state: shipping_address
+                .as_ref()
+                .and_then(|addr| addr.address.as_ref())
+                .and_then(|details| details.state.clone()),
+            shipping_country: shipping_address
+                .as_ref()
+                .and_then(|addr| addr.address.as_ref())
+                .and_then(|details| details.country),
+            shipping_destination_zip: shipping_address
+                .as_ref()
+                .and_then(|addr| addr.address.as_ref())
+                .and_then(|details| details.zip.clone()),
+            billing_address_city: billing_address
+                .as_ref()
+                .and_then(|addr| addr.address.as_ref())
+                .and_then(|details| details.city.clone()),
+        }
+    });
     crate::logger::debug!("unified address details {:?}", unified_address);
 
     router_data = types::RouterData {
@@ -1304,6 +1374,7 @@ where
         psd2_sca_exemption_type: payment_data.payment_intent.psd2_sca_exemption_type,
         raw_connector_response: None,
         is_payment_id_from_merchant: payment_data.payment_intent.is_payment_id_from_merchant,
+        l2_l3_data,
     };
 
     Ok(router_data)
@@ -1497,6 +1568,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         psd2_sca_exemption_type: payment_data.payment_intent.psd2_sca_exemption_type,
         raw_connector_response: None,
         is_payment_id_from_merchant: payment_data.payment_intent.is_payment_id_from_merchant,
+        l2_l3_data: None,
     };
 
     Ok(router_data)
@@ -4980,6 +5052,7 @@ impl ForeignFrom<CustomerDetails> for router_request_types::CustomerDetails {
             email: customer.email,
             phone: customer.phone,
             phone_country_code: customer.phone_country_code,
+            tax_registration_id: customer.tax_registration_id,
         }
     }
 }

@@ -291,6 +291,11 @@ pub async fn generate_sample_data(
             is_iframe_redirection_enabled: None,
             is_payment_id_from_merchant: None,
             payment_channel: None,
+            order_date: None,
+            discount_amount: None,
+            duty_amount: None,
+            tax_status: None,
+            shipping_amount_tax: None,
         };
         let (connector_transaction_id, processor_transaction_data) =
             ConnectorTransactionId::form_id_and_data(attempt_id.clone());
