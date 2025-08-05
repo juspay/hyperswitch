@@ -12,8 +12,12 @@ use crate::{
 };
 
 #[async_trait]
-impl ConstructFlowSpecificData<api::PostCaptureVoid, types::PaymentsCancelPostCaptureData, types::PaymentsResponseData>
-    for PaymentData<api::PostCaptureVoid>
+impl
+    ConstructFlowSpecificData<
+        api::PostCaptureVoid,
+        types::PaymentsCancelPostCaptureData,
+        types::PaymentsResponseData,
+    > for PaymentData<api::PostCaptureVoid>
 {
     #[cfg(feature = "v2")]
     async fn construct_router_data<'a>(
@@ -59,7 +63,11 @@ impl ConstructFlowSpecificData<api::PostCaptureVoid, types::PaymentsCancelPostCa
 
 #[async_trait]
 impl Feature<api::PostCaptureVoid, types::PaymentsCancelPostCaptureData>
-    for types::RouterData<api::PostCaptureVoid, types::PaymentsCancelPostCaptureData, types::PaymentsResponseData>
+    for types::RouterData<
+        api::PostCaptureVoid,
+        types::PaymentsCancelPostCaptureData,
+        types::PaymentsResponseData,
+    >
 {
     async fn decide_flows<'a>(
         self,

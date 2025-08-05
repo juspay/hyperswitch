@@ -8,13 +8,13 @@ use hyperswitch_domain_models::{
     },
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsSyncData,
-        ResponseId,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsSyncData, ResponseId,
     },
     router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCancelRouterData,PaymentsCancelPostCaptureRouterData, PaymentsCaptureRouterData,
-        RefundsRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelPostCaptureRouterData, PaymentsCancelRouterData,
+        PaymentsCaptureRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{consts, errors};
@@ -1082,19 +1082,29 @@ impl<F> TryFrom<ResponseRouterData<F, CnpOnlineResponse, PaymentsCancelData, Pay
     }
 }
 
-impl<F> TryFrom<ResponseRouterData<F, CnpOnlineResponse, PaymentsCancelPostCaptureData, PaymentsResponseData>>
-    for RouterData<F, PaymentsCancelPostCaptureData, PaymentsResponseData>
+impl<F>
+    TryFrom<
+        ResponseRouterData<
+            F,
+            CnpOnlineResponse,
+            PaymentsCancelPostCaptureData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<F, PaymentsCancelPostCaptureData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, CnpOnlineResponse, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+        item: ResponseRouterData<
+            F,
+            CnpOnlineResponse,
+            PaymentsCancelPostCaptureData,
+            PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         match item.response.void_response {
             Some(void_response) => {
-                let status = get_attempt_status(
-                    WorldpayvantivPaymentFlow::VoidPC,
-                    void_response.response,
-                )?;
+                let status =
+                    get_attempt_status(WorldpayvantivPaymentFlow::VoidPC, void_response.response)?;
                 if connector_utils::is_payment_failure(status) {
                     Ok(Self {
                         status,
@@ -1483,7 +1493,9 @@ fn determine_attempt_status<F>(
                 }
                 WorldpayvantivPaymentFlow::Auth => Ok(common_enums::AttemptStatus::Authorized),
                 WorldpayvantivPaymentFlow::Void => Ok(common_enums::AttemptStatus::Voided),
-                WorldpayvantivPaymentFlow::VoidPC => Ok(common_enums::AttemptStatus::VoidedPostCharge),
+                WorldpayvantivPaymentFlow::VoidPC => {
+                    Ok(common_enums::AttemptStatus::VoidedPostCharge)
+                }
             },
             PaymentStatus::TransactionDeclined => match flow_type {
                 WorldpayvantivPaymentFlow::Sale | WorldpayvantivPaymentFlow::Capture => {
@@ -2612,7 +2624,7 @@ fn get_payment_flow_type(input: &str) -> Result<WorldpayvantivPaymentFlow, error
         Ok(WorldpayvantivPaymentFlow::Sale)
     } else if input.contains("voidpc") {
         Ok(WorldpayvantivPaymentFlow::VoidPC)
-    }else if input.contains("void") {
+    } else if input.contains("void") {
         Ok(WorldpayvantivPaymentFlow::Void)
     } else if input.contains("capture") {
         Ok(WorldpayvantivPaymentFlow::Capture)

@@ -45,7 +45,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<
-        operations::GetTrackerResponse<'a, F, api::PaymentsCancelPostCaptureRequest, PaymentData<F>>,
+        operations::GetTrackerResponse<
+            'a,
+            F,
+            api::PaymentsCancelPostCaptureRequest,
+            PaymentData<F>,
+        >,
     > {
         let db = &*state.store;
         let key_manager_state = &state.into();
@@ -340,7 +345,8 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelPostCa
     }
 }
 
-impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsCancelPostCaptureRequest, PaymentData<F>>
+impl<F: Send + Clone + Sync>
+    ValidateRequest<F, api::PaymentsCancelPostCaptureRequest, PaymentData<F>>
     for PaymentCancelPostCapture
 {
     #[instrument(skip_all)]
@@ -348,7 +354,10 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsCancelPostCaptureRe
         &'b self,
         request: &api::PaymentsCancelPostCaptureRequest,
         merchant_context: &'a domain::MerchantContext,
-    ) -> RouterResult<(PaymentCancelPostCaptureOperation<'b, F>, operations::ValidateResult)> {
+    ) -> RouterResult<(
+        PaymentCancelPostCaptureOperation<'b, F>,
+        operations::ValidateResult,
+    )> {
         Ok((
             Box::new(self),
             operations::ValidateResult {

@@ -324,8 +324,9 @@ impl From<api_enums::IntentStatus> for StripeSetupStatus {
                 logger::error!("Invalid status change");
                 Self::Canceled
             }
-            api_enums::IntentStatus::Cancelled
-            | api_enums::IntentStatus::CancelledPostCapture => Self::Canceled,
+            api_enums::IntentStatus::Cancelled | api_enums::IntentStatus::CancelledPostCapture => {
+                Self::Canceled
+            }
         }
     }
 }

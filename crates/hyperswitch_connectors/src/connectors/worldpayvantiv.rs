@@ -16,21 +16,24 @@ use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
-        payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void, PostCaptureVoid},
+        payments::{
+            Authorize, Capture, PSync, PaymentMethodToken, PostCaptureVoid, Session, SetupMandate,
+            Void,
+        },
         refunds::{Execute, RSync},
     },
     router_request_types::{
         AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData,PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
-        RefundsData, SetupMandateRequestData,
+        PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        PaymentsSessionData, PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
         SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCancelPostCaptureRouterData, PaymentsCaptureRouterData,
-        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelPostCaptureRouterData, PaymentsCancelRouterData,
+        PaymentsCaptureRouterData, PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -545,7 +548,9 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Wo
     }
 }
 
-impl ConnectorIntegration<PostCaptureVoid, PaymentsCancelPostCaptureData, PaymentsResponseData> for Worldpayvantiv {
+impl ConnectorIntegration<PostCaptureVoid, PaymentsCancelPostCaptureData, PaymentsResponseData>
+    for Worldpayvantiv
+{
     fn get_headers(
         &self,
         req: &PaymentsCancelPostCaptureRouterData,
@@ -593,9 +598,13 @@ impl ConnectorIntegration<PostCaptureVoid, PaymentsCancelPostCaptureData, Paymen
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
-                .url(&types::PaymentsPostCaptureVoidType::get_url(self, req, connectors)?)
+                .url(&types::PaymentsPostCaptureVoidType::get_url(
+                    self, req, connectors,
+                )?)
                 .attach_default_headers()
-                .headers(types::PaymentsPostCaptureVoidType::get_headers(self, req, connectors)?)
+                .headers(types::PaymentsPostCaptureVoidType::get_headers(
+                    self, req, connectors,
+                )?)
                 .set_body(types::PaymentsPostCaptureVoidType::get_request_body(
                     self, req, connectors,
                 )?)

@@ -38,8 +38,8 @@ use hyperswitch_domain_models::router_flow_types::{
     payments::{
         Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture,
         CompleteAuthorize, CreateConnectorCustomer, CreateOrder, IncrementalAuthorization,
-        InitPayment, PSync, PostProcessing, PostSessionTokens, PreProcessing, Reject,
-        SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void, PostCaptureVoid,
+        InitPayment, PSync, PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing,
+        Reject, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
     },
     refunds::{Execute, RSync},
     webhooks::VerifyWebhookSource,
@@ -72,10 +72,10 @@ pub use hyperswitch_domain_models::{
         CompleteAuthorizeRedirectResponse, ConnectorCustomerData, CreateOrderRequestData,
         DefendDisputeRequestData, DestinationChargeRefund, DirectChargeRefund,
         MandateRevokeRequestData, MultipleCaptureRequestData, PaymentMethodTokenizationData,
-        PaymentsApproveData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
-        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
+        PaymentsApproveData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
+        PaymentsRejectData, PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
         PaymentsUpdateMetadataData, RefundsData, ResponseId, RetrieveFileRequestData,
         SdkPaymentsSessionUpdateData, SetupMandateRequestData, SplitRefundsRequest,
         SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData, VaultRequestData,
@@ -101,12 +101,12 @@ pub use hyperswitch_domain_models::{
 pub use hyperswitch_interfaces::types::{
     AcceptDisputeType, ConnectorCustomerType, DefendDisputeType, IncrementalAuthorizationType,
     MandateRevokeType, PaymentsAuthorizeType, PaymentsBalanceType, PaymentsCaptureType,
-    PaymentsCompleteAuthorizeType, PaymentsInitType, PaymentsPostProcessingType,
-    PaymentsPostSessionTokensType, PaymentsPreAuthorizeType, PaymentsPreProcessingType,
-    PaymentsSessionType, PaymentsSyncType, PaymentsUpdateMetadataType, PaymentsVoidType,PaymentsPostCaptureVoidType,
-    RefreshTokenType, RefundExecuteType, RefundSyncType, Response, RetrieveFileType,
-    SdkSessionUpdateType, SetupMandateType, SubmitEvidenceType, TokenizationType, UploadFileType,
-    VerifyWebhookSourceType,
+    PaymentsCompleteAuthorizeType, PaymentsInitType, PaymentsPostCaptureVoidType,
+    PaymentsPostProcessingType, PaymentsPostSessionTokensType, PaymentsPreAuthorizeType,
+    PaymentsPreProcessingType, PaymentsSessionType, PaymentsSyncType, PaymentsUpdateMetadataType,
+    PaymentsVoidType, RefreshTokenType, RefundExecuteType, RefundSyncType, Response,
+    RetrieveFileType, SdkSessionUpdateType, SetupMandateType, SubmitEvidenceType, TokenizationType,
+    UploadFileType, VerifyWebhookSourceType,
 };
 #[cfg(feature = "payouts")]
 pub use hyperswitch_interfaces::types::{
@@ -164,7 +164,8 @@ pub type PaymentsUpdateMetadataRouterData =
     RouterData<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsResponseData>;
 
 pub type PaymentsCancelRouterData = RouterData<Void, PaymentsCancelData, PaymentsResponseData>;
-pub type PaymentsCancelPostCaptureRouterData = RouterData<PostCaptureVoid, PaymentsCancelPostCaptureData, PaymentsResponseData>;
+pub type PaymentsCancelPostCaptureRouterData =
+    RouterData<PostCaptureVoid, PaymentsCancelPostCaptureData, PaymentsResponseData>;
 pub type PaymentsRejectRouterData = RouterData<Reject, PaymentsRejectData, PaymentsResponseData>;
 pub type PaymentsApproveRouterData = RouterData<Approve, PaymentsApproveData, PaymentsResponseData>;
 pub type PaymentsSessionRouterData = RouterData<Session, PaymentsSessionData, PaymentsResponseData>;

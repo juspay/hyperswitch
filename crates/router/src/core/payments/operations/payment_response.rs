@@ -1025,12 +1025,18 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
 
 #[cfg(feature = "v1")]
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelPostCaptureData> for PaymentResponse {
+impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelPostCaptureData>
+    for PaymentResponse
+{
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
         mut payment_data: PaymentData<F>,
-        router_data: types::RouterData<F, types::PaymentsCancelPostCaptureData, types::PaymentsResponseData>,
+        router_data: types::RouterData<
+            F,
+            types::PaymentsCancelPostCaptureData,
+            types::PaymentsResponseData,
+        >,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
         locale: &Option<String>,

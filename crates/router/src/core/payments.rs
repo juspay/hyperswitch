@@ -81,9 +81,9 @@ use time;
 
 #[cfg(feature = "v1")]
 pub use self::operations::{
-    PaymentApprove, PaymentCancel,PaymentCancelPostCapture, PaymentCapture, PaymentConfirm, PaymentCreate,
-    PaymentIncrementalAuthorization, PaymentPostSessionTokens, PaymentReject, PaymentSession,
-    PaymentSessionUpdate, PaymentStatus, PaymentUpdate, PaymentUpdateMetadata,
+    PaymentApprove, PaymentCancel, PaymentCancelPostCapture, PaymentCapture, PaymentConfirm,
+    PaymentCreate, PaymentIncrementalAuthorization, PaymentPostSessionTokens, PaymentReject,
+    PaymentSession, PaymentSessionUpdate, PaymentStatus, PaymentUpdate, PaymentUpdateMetadata,
 };
 use self::{
     conditional_configs::perform_decision_management,

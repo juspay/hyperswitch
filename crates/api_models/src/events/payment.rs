@@ -12,8 +12,8 @@ use crate::{
     payment_methods::PaymentMethodListResponse,
     payments::{
         ExtendedCardInfoResponse, PaymentIdType, PaymentListFilterConstraints,
-        PaymentListResponseV2, PaymentsApproveRequest, PaymentsCancelRequest, PaymentsCancelPostCaptureRequest,
-        PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
+        PaymentListResponseV2, PaymentsApproveRequest, PaymentsCancelPostCaptureRequest,
+        PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
         PaymentsDynamicTaxCalculationRequest, PaymentsDynamicTaxCalculationResponse,
         PaymentsExternalAuthenticationRequest, PaymentsExternalAuthenticationResponse,
         PaymentsIncrementalAuthorizationRequest, PaymentsManualUpdateRequest,

@@ -5,14 +5,14 @@ use hyperswitch_domain_models::{
     router_flow_types::payments::{
         Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
         CreateConnectorCustomer, CreateOrder, IncrementalAuthorization, PSync, PaymentMethodToken,
-        PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
-        SetupMandate, UpdateMetadata, Void, PostCaptureVoid,
+        PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing, Reject,
+        SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
     },
     router_request_types::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
         CreateOrderRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
         PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
         PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
         PaymentsUpdateMetadataData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
@@ -55,7 +55,12 @@ pub trait PaymentVoidV2:
 
 /// trait PaymentPostCaptureVoidV2
 pub trait PaymentPostCaptureVoidV2:
-    ConnectorIntegrationV2<PostCaptureVoid, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>
+    ConnectorIntegrationV2<
+    PostCaptureVoid,
+    PaymentFlowData,
+    PaymentsCancelPostCaptureData,
+    PaymentsResponseData,
+>
 {
 }
 

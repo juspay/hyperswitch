@@ -92,7 +92,7 @@ impl Conversion {
             Derives::SyncData => syn::Ident::new("PaymentsSyncData", Span::call_site()),
             Derives::Cancel => syn::Ident::new("PaymentsCancelRequest", Span::call_site()),
             Derives::CancelData => syn::Ident::new("PaymentsCancelData", Span::call_site()),
-            
+
             Derives::ApproveData => syn::Ident::new("PaymentsApproveData", Span::call_site()),
             Derives::Reject => syn::Ident::new("PaymentsRejectRequest", Span::call_site()),
             Derives::RejectData => syn::Ident::new("PaymentsRejectData", Span::call_site()),
@@ -132,7 +132,9 @@ impl Conversion {
             Derives::UpdateMetadataData => {
                 syn::Ident::new("PaymentsUpdateMetadataData", Span::call_site())
             }
-            Derives::CancelPostCapture => syn::Ident::new("PaymentsCancelPostCaptureRequest", Span::call_site()),
+            Derives::CancelPostCapture => {
+                syn::Ident::new("PaymentsCancelPostCaptureRequest", Span::call_site())
+            }
             Derives::CancelPostCaptureData => {
                 syn::Ident::new("PaymentsCancelPostCaptureData", Span::call_site())
             }
