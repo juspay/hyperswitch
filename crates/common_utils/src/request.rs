@@ -120,7 +120,7 @@ impl Request {
 
     pub fn add_merchant_proxy_url(&mut self, merchant_url: Option<Secret<String>>) {
         self.merchant_proxy_url = merchant_url;
-     }
+    }
 }
 
 #[derive(Debug)]
@@ -201,7 +201,7 @@ impl RequestBuilder {
     pub fn add_merchant_proxy_url(mut self, url: Option<Secret<String>>) -> Self {
         self.merchant_proxy_url = url;
         self
-     }
+    }
 
     pub fn build(self) -> Request {
         Request {

@@ -752,7 +752,7 @@ impl PaymentAttempt {
             last_synced: None,
             cancellation_reason: None,
             browser_info: request.browser_info.clone(),
-            payment_token: None,
+            payment_token: request.payment_token.clone(),
             connector_metadata: None,
             payment_experience: None,
             payment_method_data: None,
@@ -771,7 +771,7 @@ impl PaymentAttempt {
             charges: None,
             client_source: None,
             client_version: None,
-            customer_acceptance: None,
+            customer_acceptance: request.customer_acceptance.clone(),
             profile_id: payment_intent.profile_id.clone(),
             organization_id: payment_intent.organization_id.clone(),
             payment_method_type: payment_method_type_data

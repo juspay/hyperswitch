@@ -5480,7 +5480,7 @@ pub struct ExternalVaultProxyPaymentsRequest {
 
     /// This "CustomerAcceptance" object is passed during Payments-Confirm request, it enlists the type, time, and mode of acceptance properties related to an acceptance done by the customer. The customer_acceptance sub object is usually passed by the SDK or client.
     #[schema(value_type = Option<CustomerAcceptance>)]
-    pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
+    pub customer_acceptance: Option<Secret<common_payments_types::CustomerAcceptance>>,
 
     /// Additional details required by 3DS 2.0
     #[schema(value_type = Option<BrowserInformation>)]

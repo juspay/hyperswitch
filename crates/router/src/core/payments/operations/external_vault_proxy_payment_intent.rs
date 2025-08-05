@@ -352,7 +352,6 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
             payment_data.payment_attempt.payment_token.clone(),
         ) {
             (Some(customer_id), Some(_), None) => {
-                println!("inside_saved_card_proxy");
                 let db = &*state.store;
                 let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
                 let key_manager_state = &state.into();
@@ -501,15 +500,37 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to update payment attempt in db")?;
             }
-            (None, None, Some(payment_token)) => {
-                println!("outside_saved_card_proxy");
+            (_, None, Some(payment_token)) => {
                 match payment_data.external_vault_pmd.as_ref() {
                     Some(hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::VaultToken(vault_token)) => {
                         let db = &*state.store;
 
-                        let payment_method_id = payment_data.payment_attempt.payment_method_id.clone().get_required_value("payment_method_id")
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("Payment method id is none when constructing response")?;
+                        let pm_token_data = payment_methods::utils::retrieve_payment_token_data(
+                            state,
+                            payment_token.to_string(),
+                            Some(&payment_data.payment_attempt.payment_method_type),
+                        )
+                        .await?;
+
+                        let payment_method_id = match pm_token_data {
+                            storage::PaymentTokenData::PermanentCard(card_token_data) => {
+                                card_token_data.payment_method_id
+                            }
+                            storage::PaymentTokenData::TemporaryGeneric(_) => {
+                                Err(errors::ApiErrorResponse::NotImplemented {
+                                    message: errors::NotImplementedMessage::Reason(
+                                        "TemporaryGeneric Token not implemented".to_string(),
+                                    ),
+                                })?
+                            }
+                            storage::PaymentTokenData::AuthBankDebit(_) => {
+                                Err(errors::ApiErrorResponse::NotImplemented {
+                                    message: errors::NotImplementedMessage::Reason(
+                                        "AuthBankDebit Token not implemented".to_string(),
+                                    ),
+                                })?
+                            }
+                        };
 
                         let payment_method = db.find_payment_method(
                             &state.into(),

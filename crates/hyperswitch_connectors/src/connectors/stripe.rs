@@ -2,7 +2,6 @@ pub mod transformers;
 
 use std::collections::HashMap;
 
-use masking::ExposeInterface;
 use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::{
     CallConnectorAction, CaptureMethod, PaymentAction, PaymentChargeType, PaymentMethodType,
@@ -68,11 +67,14 @@ use hyperswitch_interfaces::{
     errors::ConnectorError,
     events::connector_api_logs::ConnectorEvent,
     types::{
-        ConnectorCustomerType, ExternalProxyType, PaymentsAuthorizeType, PaymentsCaptureType, PaymentsSyncType, PaymentsUpdateMetadataType, PaymentsVoidType, RefundExecuteType, RefundSyncType, Response, RetrieveFileType, SubmitEvidenceType, TokenizationType, UploadFileType
+        ConnectorCustomerType, ExternalProxyType, PaymentsAuthorizeType, PaymentsCaptureType,
+        PaymentsSyncType, PaymentsUpdateMetadataType, PaymentsVoidType, RefundExecuteType,
+        RefundSyncType, Response, RetrieveFileType, SubmitEvidenceType, TokenizationType,
+        UploadFileType,
     },
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
-use masking::{Mask as _, Maskable, PeekInterface};
+use masking::{ExposeInterface, Mask as _, Maskable, PeekInterface};
 use router_env::{instrument, tracing};
 use stripe::auth_headers;
 
@@ -2825,38 +2827,36 @@ impl
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, ConnectorError> {
         let mut request_builder = RequestBuilder::new()
-             .method(Method::Post)
-             .url(&ExternalProxyType::get_url(self, req, connectors)?)
-             .attach_default_headers()
-             .headers(ExternalProxyType::get_headers(self, req, connectors)?)
-             .set_body(ExternalProxyType::get_request_body(
-                 self, req, connectors,
-             )?);
+            .method(Method::Post)
+            .url(&ExternalProxyType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(ExternalProxyType::get_headers(self, req, connectors)?)
+            .set_body(ExternalProxyType::get_request_body(self, req, connectors)?);
 
-         // Add proxy and certificate handling for ExternalProxyCardData
+        // Add proxy and certificate handling for ExternalProxyCardData
 
-             if let Some(connector_metadata) = &req.connector_meta_data {
-                 let metadata_value = connector_metadata.clone().expose();
+        if let Some(connector_metadata) = &req.connector_meta_data {
+            let metadata_value = connector_metadata.clone().expose();
 
-                 // Add certificate configuration
-                 if let Some(cert_value) = metadata_value.get("certificate_path") {
-                     if let Some(cert_path) = cert_value.as_str() {
-                         // Add CA certificate
-                         request_builder = request_builder
-                             .add_ca_certificate_pem(Some(cert_path.to_string().into()));
-                     }
-                 }
+            // Add certificate configuration
+            if let Some(cert_value) = metadata_value.get("certificate_path") {
+                if let Some(cert_path) = cert_value.as_str() {
+                    // Add CA certificate
+                    request_builder =
+                        request_builder.add_ca_certificate_pem(Some(cert_path.to_string().into()));
+                }
+            }
 
-                 if let Some(proxy_url) = metadata_value.get("external_proxy_url") {
-                     if let Some(proxy_url) = proxy_url.as_str() {
-                         // Add Proxy URL
-                         request_builder = request_builder
-                             .add_merchant_proxy_url(Some(proxy_url.to_string().into()));
-                     }
-                 }
-         }
+            if let Some(proxy_url) = metadata_value.get("external_proxy_url") {
+                if let Some(proxy_url) = proxy_url.as_str() {
+                    // Add Proxy URL
+                    request_builder =
+                        request_builder.add_merchant_proxy_url(Some(proxy_url.to_string().into()));
+                }
+            }
+        }
 
-         Ok(Some(request_builder.build()))
+        Ok(Some(request_builder.build()))
     }
 
     fn handle_response(

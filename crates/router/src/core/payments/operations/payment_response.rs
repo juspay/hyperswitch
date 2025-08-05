@@ -2453,6 +2453,23 @@ impl<F: Clone>
 
         let response_router_data = response;
 
+        if let (true, true, Some(payment_method_id)) = (
+            response_router_data.status.is_success(),
+            payment_data.payment_attempt.customer_acceptance.is_some(),
+            payment_data.payment_attempt.payment_method_id.clone(),
+        ) {
+            payment_methods::update_payment_method_status_internal(
+                state,
+                key_store,
+                storage_scheme,
+                common_enums::PaymentMethodStatus::Active,
+                &payment_method_id,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to update payment method")?;
+        };
+
         let payment_intent_update =
             response_router_data.get_payment_intent_update(&payment_data, storage_scheme);
 
@@ -2512,6 +2529,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
                 PaymentConfirmData<F>,
             >,
     {
+        println!("in_post_tracker_confirm_update");
         use hyperswitch_domain_models::router_data::TrackerPostUpdateObjects;
 
         let db = &*state.store;
@@ -2641,6 +2659,30 @@ impl<F: Clone> PostUpdateTracker<F, PaymentStatusData<F>, types::PaymentsSyncDat
         let key_manager_state = &state.into();
 
         let response_router_data = response;
+
+        println!(
+            "current_sync_status: status {:?}, ca: {:?}, payment_method_id {:?}",
+            response_router_data.status,
+            payment_data.payment_attempt.customer_acceptance.is_some(),
+            payment_data.payment_attempt.payment_method_id.clone()
+        );
+
+        if let (true, true, Some(payment_method_id)) = (
+            response_router_data.status.is_success(),
+            payment_data.payment_attempt.customer_acceptance.is_some(),
+            payment_data.payment_attempt.payment_method_id.clone(),
+        ) {
+            payment_methods::update_payment_method_status_internal(
+                state,
+                key_store,
+                storage_scheme,
+                common_enums::PaymentMethodStatus::Active,
+                &payment_method_id,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to update payment method")?;
+        };
 
         let payment_intent_update =
             response_router_data.get_payment_intent_update(&payment_data, storage_scheme);
@@ -2792,6 +2834,23 @@ impl
         let key_manager_state = &state.into();
 
         let response_router_data = response;
+
+        if let (true, true, Some(payment_method_id)) = (
+            response_router_data.status.is_success(),
+            payment_data.payment_attempt.customer_acceptance.is_some(),
+            payment_data.payment_attempt.payment_method_id.clone(),
+        ) {
+            payment_methods::update_payment_method_status_internal(
+                state,
+                key_store,
+                storage_scheme,
+                common_enums::PaymentMethodStatus::Active,
+                &payment_method_id,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to update payment method")?;
+        };
 
         let payment_intent_update =
             response_router_data.get_payment_intent_update(&payment_data, storage_scheme);

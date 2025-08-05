@@ -2362,7 +2362,7 @@ impl From<StripePaymentStatus> for AttemptStatus {
             StripePaymentStatus::Succeeded => Self::Charged,
             StripePaymentStatus::Failed => Self::Failure,
             StripePaymentStatus::Processing => Self::Authorizing,
-            StripePaymentStatus::RequiresCustomerAction => Self::Charged,
+            StripePaymentStatus::RequiresCustomerAction => Self::AuthenticationPending,
             // Make the payment attempt status as failed
             StripePaymentStatus::RequiresPaymentMethod => Self::Failure,
             StripePaymentStatus::RequiresConfirmation => Self::ConfirmationAwaited,
