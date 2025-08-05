@@ -1123,7 +1123,7 @@ impl ConnectorIntegration<Upload, UploadFileRequestData, UploadFileResponse> for
                 reason: "file_type does not match JPEG, JPG, PNG, or PDF format".to_owned(),
             })?;
         };
-        let file_name = req.request.file_key.split('/').last().ok_or(
+        let file_name = req.request.file_key.split('/').next_back().ok_or(
             errors::ConnectorError::RequestEncodingFailedWithReason(
                 "Failed fetching file_id from file_key".to_string(),
             ),

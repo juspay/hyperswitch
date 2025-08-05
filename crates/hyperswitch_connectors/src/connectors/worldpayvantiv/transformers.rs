@@ -3225,7 +3225,7 @@ fn get_dispute_stage(
 
         "retrievalrequest" => Ok(common_enums::enums::DisputeStage::PreDispute),
         _ => Err(errors::ConnectorError::NotSupported {
-            message: format!("Dispute stage {}", dispute_cycle,),
+            message: format!("Dispute stage {dispute_cycle}",),
             connector: "worldpayvantiv",
         }
         .into()),
@@ -3257,7 +3257,7 @@ pub fn get_dispute_status(
             Ok(api_models::enums::DisputeStatus::DisputeOpened)
         }
         _ => Err(errors::ConnectorError::NotSupported {
-            message: format!("Dispute status {}", dispute_cycle,),
+            message: format!("Dispute status {dispute_cycle}"),
             connector: "worldpayvantiv",
         }
         .into()),
@@ -3268,7 +3268,7 @@ fn convert_string_to_primitive_date(
     item: Option<String>,
 ) -> Result<Option<time::PrimitiveDateTime>, error_stack::Report<errors::ConnectorError>> {
     item.map(|day| {
-        let full_datetime_str = format!("{}T00:00:00", day);
+        let full_datetime_str = format!("{day}T00:00:00");
         let format =
             time::macros::format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]");
         time::PrimitiveDateTime::parse(&full_datetime_str, &format)
