@@ -95,6 +95,7 @@ impl TryFrom<&AuthenticationTokenRouterData> for NordeaOAuthRequest {
     type Error = Error;
     fn try_from(item: &AuthenticationTokenRouterData) -> Result<Self, Self::Error> {
         let country = item.get_billing_country()?;
+
         // Set refresh_token maximum expiry duration to 180 days (259200 / 60 = 180)
         // Minimum is 1 minute
         let duration = Some(259200);
@@ -352,8 +353,8 @@ impl From<NordeaPaymentStatus> for common_enums::AttemptStatus {
             NordeaPaymentStatus::Confirmed | NordeaPaymentStatus::Paid => Self::Charged,
 
             NordeaPaymentStatus::PendingConfirmation
-            | NordeaPaymentStatus::PendingSecondConfirmation => Self::ConfirmationAwaited,
-            NordeaPaymentStatus::PendingUserApproval => Self::AuthenticationPending,
+            | NordeaPaymentStatus::PendingSecondConfirmation
+            | NordeaPaymentStatus::PendingUserApproval => Self::Pending,
 
             NordeaPaymentStatus::OnHold | NordeaPaymentStatus::Unknown => Self::Pending,
 

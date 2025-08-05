@@ -553,7 +553,7 @@ credit = { country = "US, CA", currency = "CAD,USD" }
 debit = { country = "US, CA", currency = "CAD,USD" }
 
 [pm_filters.nordea]
-sepa = { country = "CH,DE,DK,EE,FI,GB,LT,LU,LV,NO,PL,RU,SE,SG,US", currency = "DKK,EUR,NOK,SEK,NOK" }
+sepa = { country = "DK,FI,NO,SE", currency = "DKK,EUR,NOK,SEK" }
 
 [pm_filters.fiuu]
 duit_now = { country = "MY", currency = "MYR" }
@@ -732,5 +732,5 @@ billing_connectors_which_require_payment_sync = "stripebilling, recurly"
 billing_connectors_which_requires_invoice_sync_call = "recurly"
 
 [chat]
-enabled = false 
+enabled = false
 hyperswitch_ai_host = "http://0.0.0.0:8000"

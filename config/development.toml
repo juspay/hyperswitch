@@ -806,7 +806,7 @@ credit = { country = "US, CA", currency = "CAD,USD"}
 debit = { country = "US, CA", currency = "CAD,USD"}
 
 [pm_filters.nordea]
-sepa = { country = "CH,DE,DK,EE,FI,GB,LT,LU,LV,NO,PL,RU,SE,SG,US", currency = "DKK,EUR,NOK,SEK,NOK" }
+sepa = { country = "DK,FI,NO,SE", currency = "DKK,EUR,NOK,SEK" }
 
 [pm_filters.fiuu]
 duit_now = { country = "MY", currency = "MYR" }
