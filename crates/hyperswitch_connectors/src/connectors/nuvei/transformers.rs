@@ -612,21 +612,28 @@ impl TryFrom<GooglePayWalletData> for NuveiPaymentsRequest {
         })
     }
 }
-impl From<ApplePayWalletData> for NuveiPaymentsRequest {
-    fn from(apple_pay_data: ApplePayWalletData) -> Self {
-        Self {
+impl TryFrom<ApplePayWalletData> for NuveiPaymentsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(apple_pay_data: ApplePayWalletData) -> Result<Self, Self::Error> {
+        let apple_pay_encrypted_data = apple_pay_data
+            .payment_data
+            .get_encrypted_apple_pay_payment_data_mandatory()
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "Apple pay encrypted data",
+            })?;
+        Ok(Self {
             payment_option: PaymentOption {
                 card: Some(Card {
                     external_token: Some(ExternalToken {
                         external_token_provider: ExternalTokenProvider::ApplePay,
-                        mobile_token: Secret::new(apple_pay_data.payment_data),
+                        mobile_token: Secret::new(apple_pay_encrypted_data.clone()),
                     }),
                     ..Default::default()
                 }),
                 ..Default::default()
             },
             ..Default::default()
-        }
+        })
     }
 }
 
@@ -917,7 +924,7 @@ where
             PaymentMethodData::MandatePayment => Self::try_from(item),
             PaymentMethodData::Wallet(wallet) => match wallet {
                 WalletData::GooglePay(gpay_data) => Self::try_from(gpay_data),
-                WalletData::ApplePay(apple_pay_data) => Ok(Self::from(apple_pay_data)),
+                WalletData::ApplePay(apple_pay_data) => Ok(Self::try_from(apple_pay_data)?),
                 WalletData::PaypalRedirect(_) => Self::foreign_try_from((
                     AlternativePaymentMethodType::Expresscheckout,
                     None,
@@ -929,6 +936,7 @@ where
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::Paysera(_)
                 | WalletData::Skrill(_)
+                | WalletData::BluecodeRedirect {}
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)

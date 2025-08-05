@@ -683,8 +683,8 @@ google_pay = { currency = "USD" }
 samsung_pay = { currency = "USD" }
 
 [pm_filters.cybersource]
-credit = { currency = "USD,GBP,EUR,PLN,SEK" }
-debit = { currency = "USD,GBP,EUR,PLN,SEK" }
+credit = { currency = "USD,GBP,EUR,PLN,SEK,XOF" }
+debit = { currency = "USD,GBP,EUR,PLN,SEK,XOF" }
 apple_pay = { currency = "ARS, CAD, CLP, COP, CNY, EUR, HKD, KWD, MYR, MXN, NZD, PEN, QAR, SAR, SGD, ZAR, UAH, GBP, AED, USD, PLN, SEK" }
 google_pay = { currency = "ARS, AUD, CAD, CLP, COP, EUR, HKD, INR, KWD, MYR, MXN, NZD, PEN, QAR, SAR, SGD, ZAR, UAH, AED, GBP, USD, PLN, SEK" }
 samsung_pay = { currency = "USD,GBP,EUR,SEK" }
@@ -882,6 +882,9 @@ google_pay = { country = "AU,AT,BE,BR,CA,CN,HK,MY,NZ,SG,US", currency = "AUD,EUR
 
 [pm_filters.santander]
 pix = { country = "BR", currency = "BRL" }
+
+[pm_filters.bluecode]
+bluecode = { country = "AT,BE,BG,HR,CY,CZ,DK,EE,FI,FR,DE,GR,HU,IE,IT,LV,LT,LU,MT,NL,PL,PT,RO,SK,SI,ES,SE,IS,LI,NO", currency = "EUR" }
 
 [connector_customer]
 connector_list = "adyen,facilitapay,gocardless,hyperswitch_vault,stax,stripe"
@@ -1151,7 +1154,7 @@ billing_connectors_which_requires_invoice_sync_call = "recurly" # List of billin
 
 [revenue_recovery]
 monitoring_threshold_in_seconds = 2592000 # 30*24*60*60 secs , threshold for monitoring the retry system
-retry_algorithm_type = "cascading" # type of retry algorithm 
+retry_algorithm_type = "cascading" # type of retry algorithm
 
 [clone_connector_allowlist]
 merchant_ids = "merchant_ids"           # Comma-separated list of allowed merchant IDs

@@ -529,6 +529,12 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerProfileRequest {
                         }
                         _ => None,
                     };
+                    let apple_pay_encrypted_data = applepay_token
+                        .payment_data
+                        .get_encrypted_apple_pay_payment_data_mandatory()
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "Apple pay encrypted data",
+                        })?;
                     Ok(Self {
                         create_customer_profile_request: AuthorizedotnetZeroMandateRequest {
                             merchant_authentication,
@@ -541,9 +547,7 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerProfileRequest {
                                     customer_type: CustomerType::Individual,
                                     payment: PaymentDetails::OpaqueData(WalletDetails {
                                         data_descriptor: WalletMethod::Applepay,
-                                        data_value: Secret::new(
-                                            applepay_token.payment_data.clone(),
-                                        ),
+                                        data_value: Secret::new(apple_pay_encrypted_data.clone()),
                                     }),
                                 },
                                 ship_to_list,
@@ -557,6 +561,7 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerProfileRequest {
                 | WalletData::AliPayHkRedirect(_)
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::Paysera(_)
+                | WalletData::BluecodeRedirect {}
                 | WalletData::Skrill(_)
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
@@ -2108,10 +2113,18 @@ fn get_wallet_data(
             data_descriptor: WalletMethod::Googlepay,
             data_value: Secret::new(wallet_data.get_encoded_wallet_token()?),
         })),
-        WalletData::ApplePay(applepay_token) => Ok(PaymentDetails::OpaqueData(WalletDetails {
-            data_descriptor: WalletMethod::Applepay,
-            data_value: Secret::new(applepay_token.payment_data.clone()),
-        })),
+        WalletData::ApplePay(applepay_token) => {
+            let apple_pay_encrypted_data = applepay_token
+                .payment_data
+                .get_encrypted_apple_pay_payment_data_mandatory()
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "Apple pay encrypted data",
+                })?;
+            Ok(PaymentDetails::OpaqueData(WalletDetails {
+                data_descriptor: WalletMethod::Applepay,
+                data_value: Secret::new(apple_pay_encrypted_data.clone()),
+            }))
+        }
         WalletData::PaypalRedirect(_) => Ok(PaymentDetails::PayPal(PayPalDetails {
             success_url: return_url.to_owned(),
             cancel_url: return_url.to_owned(),
@@ -2122,6 +2135,7 @@ fn get_wallet_data(
         | WalletData::AmazonPayRedirect(_)
         | WalletData::Paysera(_)
         | WalletData::Skrill(_)
+        | WalletData::BluecodeRedirect {}
         | WalletData::MomoRedirect(_)
         | WalletData::KakaoPayRedirect(_)
         | WalletData::GoPayRedirect(_)

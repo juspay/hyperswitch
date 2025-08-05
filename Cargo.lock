@@ -459,6 +459,7 @@ dependencies = [
  "common_enums",
  "common_types",
  "common_utils",
+ "deserialize_form_style_query_parameter",
  "error-stack 0.4.1",
  "euclid",
  "masking",
@@ -1858,6 +1859,7 @@ dependencies = [
 name = "common_types"
 version = "0.1.0"
 dependencies = [
+ "cards",
  "common_enums",
  "common_utils",
  "diesel",
@@ -2564,6 +2566,15 @@ dependencies = [
  "quote",
  "syn 2.0.101",
  "unicode-xid",
+]
+
+[[package]]
+name = "deserialize_form_style_query_parameter"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32f5980bcca58eff485f9b5208f325e15cf5e6b23bfe878fae13f9576e6b6e62"
+dependencies = [
+ "serde",
 ]
 
 [[package]]

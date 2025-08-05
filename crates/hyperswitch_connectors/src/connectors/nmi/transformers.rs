@@ -541,13 +541,14 @@ impl TryFrom<(&PaymentMethodData, Option<&PaymentsAuthorizeRouterData>)> for Pay
             },
             PaymentMethodData::Wallet(ref wallet_type) => match wallet_type {
                 WalletData::GooglePay(ref googlepay_data) => Ok(Self::from(googlepay_data)),
-                WalletData::ApplePay(ref applepay_data) => Ok(Self::from(applepay_data)),
+                WalletData::ApplePay(ref applepay_data) => Ok(Self::try_from(applepay_data)?),
                 WalletData::AliPayQr(_)
                 | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::Paysera(_)
                 | WalletData::Skrill(_)
+                | WalletData::BluecodeRedirect {}
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -652,12 +653,20 @@ impl From<&GooglePayWalletData> for PaymentMethod {
     }
 }
 
-impl From<&ApplePayWalletData> for PaymentMethod {
-    fn from(wallet_data: &ApplePayWalletData) -> Self {
+impl TryFrom<&ApplePayWalletData> for PaymentMethod {
+    type Error = Error;
+    fn try_from(apple_pay_wallet_data: &ApplePayWalletData) -> Result<Self, Self::Error> {
+        let apple_pay_encrypted_data = apple_pay_wallet_data
+            .payment_data
+            .get_encrypted_apple_pay_payment_data_mandatory()
+            .change_context(ConnectorError::MissingRequiredField {
+                field_name: "Apple pay encrypted data",
+            })?;
+
         let apple_pay_data = ApplePayData {
-            applepay_payment_data: Secret::new(wallet_data.payment_data.clone()),
+            applepay_payment_data: Secret::new(apple_pay_encrypted_data.clone()),
         };
-        Self::ApplePay(Box::new(apple_pay_data))
+        Ok(Self::ApplePay(Box::new(apple_pay_data)))
     }
 }
 
