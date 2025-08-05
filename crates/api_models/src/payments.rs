@@ -6225,65 +6225,6 @@ impl PaymentListConstraintsPost {
     }
 }
 
-#[cfg(feature = "v2")]
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
-pub struct PaymentListFilterConstraints {
-    /// The identifier for payment
-    pub payment_id: Option<id_type::GlobalPaymentId>,
-    /// The identifier for business profile
-    pub profile_id: Option<id_type::ProfileId>,
-    /// The identifier for customer
-    pub customer_id: Option<id_type::GlobalCustomerId>,
-    /// The limit on the number of objects. The default limit is 10 and max limit is 20
-    #[serde(default = "default_payments_list_limit")]
-    pub limit: u32,
-    /// The starting point within a list of objects
-    pub offset: Option<u32>,
-    /// The start amount to filter list of transactions which are greater than or equal to the start amount
-    pub start_amount: Option<i64>,
-    /// The end amount to filter list of transactions which are less than or equal to the end amount
-    pub end_amount: Option<i64>,
-    /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
-    #[serde(flatten)]
-    pub time_range: Option<common_utils::types::TimeRange>,
-    /// The list of connectors to filter payments list
-    pub connector: Option<Vec<api_enums::Connector>>,
-    /// The list of currencies to filter payments list
-    pub currency: Option<Vec<enums::Currency>>,
-    /// The list of payment status to filter payments list
-    pub status: Option<Vec<enums::IntentStatus>>,
-    /// The list of payment method types to filter payments list
-    pub payment_method_type: Option<Vec<enums::PaymentMethod>>,
-    /// The list of payment method subtypes to filter payments list
-    pub payment_method_subtype: Option<Vec<enums::PaymentMethodType>>,
-    /// The list of authentication types to filter payments list
-    pub authentication_type: Option<Vec<enums::AuthenticationType>>,
-    /// The list of merchant connector ids to filter payments list for selected label
-    pub merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
-    /// The field on which the payments list should be sorted
-    #[serde(default)]
-    pub order_on: SortOn,
-    /// The order in which payments list should be sorted
-    #[serde(default)]
-    pub order_by: SortBy,
-    /// The List of all the card networks to filter payments list
-    pub card_network: Option<Vec<enums::CardNetwork>>,
-    /// The identifier for merchant order reference id
-    pub merchant_order_reference_id: Option<String>,
-}
-
-#[cfg(feature = "v2")]
-impl PaymentListFilterConstraints {
-    pub fn has_no_attempt_filters(&self) -> bool {
-        self.connector.is_none()
-            && self.payment_method_type.is_none()
-            && self.payment_method_subtype.is_none()
-            && self.authentication_type.is_none()
-            && self.merchant_connector_id.is_none()
-            && self.card_network.is_none()
-    }
-}
-
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, serde::Serialize, ToSchema)]
 pub struct PaymentListResponse {

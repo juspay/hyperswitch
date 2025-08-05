@@ -2,9 +2,9 @@
 pub use api_models::payments::PaymentListConstraints;
 #[cfg(feature = "v2")]
 pub use api_models::payments::{
-    PaymentAttemptListRequest, PaymentAttemptListResponse, PaymentListFilterConstraints,
-    PaymentListResponse, PaymentsConfirmIntentRequest, PaymentsCreateIntentRequest,
-    PaymentsIntentResponse, PaymentsUpdateIntentRequest,
+    PaymentAttemptListRequest, PaymentAttemptListResponse, PaymentListResponse,
+    PaymentsConfirmIntentRequest, PaymentsCreateIntentRequest, PaymentsIntentResponse,
+    PaymentsUpdateIntentRequest,
 };
 #[cfg(feature = "v2")]
 pub use api_models::payments::{PaymentListConstraintsGet, PaymentListConstraintsPost};

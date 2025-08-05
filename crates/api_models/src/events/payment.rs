@@ -2,16 +2,14 @@ use common_utils::events::{ApiEventMetric, ApiEventsType};
 
 #[cfg(feature = "v2")]
 use super::{
-    PaymentAttemptListRequest, PaymentAttemptListResponse, PaymentListFilterConstraints,
-    PaymentStartRedirectionRequest, PaymentsCreateIntentRequest, PaymentsGetIntentRequest,
-    PaymentsIntentResponse, PaymentsRequest,
+    PaymentAttemptListRequest, PaymentAttemptListResponse, PaymentListConstraintsGet,
+    PaymentListConstraintsPost, PaymentStartRedirectionRequest, PaymentsCreateIntentRequest,
+    PaymentsGetIntentRequest, PaymentsIntentResponse, PaymentsRequest,
 };
 #[cfg(feature = "v2")]
 use crate::payment_methods::PaymentMethodListResponseForSession;
 #[cfg(feature = "v1")]
 use crate::payments::PaymentListConstraints;
-#[cfg(feature = "v2")]
-use crate::payments::{PaymentListConstraintsGet, PaymentListConstraintsPost};
 #[cfg(feature = "v1")]
 use crate::{
     payment_methods::PaymentMethodListResponse,
@@ -488,12 +486,6 @@ impl ApiEventMetric for payments::PaymentsCaptureResponse {
     }
 }
 
-#[cfg(feature = "v2")]
-impl ApiEventMetric for PaymentListFilterConstraints {
-    fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        Some(ApiEventsType::ResourceListAPI)
-    }
-}
 #[cfg(feature = "v2")]
 impl ApiEventMetric for PaymentListConstraintsGet {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
