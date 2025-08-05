@@ -31,6 +31,7 @@ use serde::{Deserialize, Serialize};
 use super::RoutingResult;
 use crate::{
     core::errors,
+    db::domain,
     routes::{app::SessionStateInfo, SessionState},
     services::{self, logger},
     types::transformers::ForeignInto,
@@ -352,30 +353,23 @@ pub async fn perform_decision_euclid_routing(
     Ok(euclid_response)
 }
 
-/// This function transforms the the decision_engine response in a way, that can be usable, for the
-/// further flows, basically adding the evaluated_output to the top of output and removing the
-/// duplicacy
+/// This function transforms the decision_engine response in a way that's usable for further flows:
+/// It places evaluated_output connectors first, followed by remaining output connectors (no duplicates).
 pub fn transform_de_output_for_router(
     de_output: Vec<ConnectorInfo>,
     de_evaluated_output: Vec<RoutableConnectorChoice>,
 ) -> RoutingResult<Vec<RoutableConnectorChoice>> {
-    if de_evaluated_output.is_empty() {
-        return de_output
-            .into_iter()
-            .map(|c| {
-                let de_choice = DeRoutableConnectorChoice::try_from(c)?;
-                Ok(RoutableConnectorChoice::from(de_choice))
-            })
-            .collect();
-    }
-
     let mut seen = HashSet::new();
+
+    // evaluated connectors on top, to ensure the fallback is based on other connectors.
     let mut ordered = Vec::with_capacity(de_output.len() + de_evaluated_output.len());
-    for eval_conn in &de_evaluated_output {
-        if seen.insert(eval_conn.connector.clone()) {
-            ordered.push(eval_conn.clone());
+    for eval_conn in de_evaluated_output {
+        if seen.insert(eval_conn.connector) {
+            ordered.push(eval_conn);
         }
     }
+
+    // Add remaining connectors from de_output (only if not already seen), for fallback
     for conn in de_output {
         let key = RoutableConnectors::from_str(&conn.gateway_name).map_err(|_| {
             errors::RoutingError::GenericConversionError {
@@ -391,12 +385,66 @@ pub fn transform_de_output_for_router(
     Ok(ordered)
 }
 
+pub async fn decision_engine_routing(
+    state: &SessionState,
+    backend_input: BackendInput,
+    business_profile: &domain::Profile,
+    payment_id: String,
+    merchant_fallback_config: Vec<RoutableConnectorChoice>,
+) -> RoutingResult<Vec<RoutableConnectorChoice>> {
+    let routing_events_wrapper = RoutingEventsWrapper::new(
+        state.tenant.tenant_id.clone(),
+        state.request_id,
+        payment_id,
+        business_profile.get_id().to_owned(),
+        business_profile.merchant_id.to_owned(),
+        "DecisionEngine: Euclid Static Routing".to_string(),
+        None,
+        true,
+        false,
+    );
+
+    let de_euclid_evaluate_response = perform_decision_euclid_routing(
+        state,
+        backend_input.clone(),
+        business_profile.get_id().get_string_repr().to_string(),
+        routing_events_wrapper,
+        merchant_fallback_config,
+    )
+    .await;
+
+    let Ok(de_euclid_response) = de_euclid_evaluate_response else {
+        logger::error!("decision_engine_euclid_evaluation_error: error in evaluation of rule");
+        return Ok(Vec::default());
+    };
+
+    let de_output_conenctor = extract_de_output_connectors(de_euclid_response.output)
+            .map_err(|e| {
+                logger::error!(error=?e, "decision_engine_euclid_evaluation_error: Failed to extract connector from Output");
+                e
+            })?;
+
+    transform_de_output_for_router(
+            de_output_conenctor.clone(),
+            de_euclid_response.evaluated_output.clone(),
+        )
+        .map_err(|e| {
+            logger::error!(error=?e, "decision_engine_euclid_evaluation_error: failed to transform connector from de-output");
+            e
+        })
+}
+
 /// Custom deserializer for output from decision_engine, this is required as untagged enum is
 /// stored but the enum requires tagged deserialization, hence deserializing it into specific
 /// variants
 pub fn extract_de_output_connectors(
     output_value: serde_json::Value,
 ) -> RoutingResult<Vec<ConnectorInfo>> {
+    const SINGLE: &str = "single";
+    const PRIORITY: &str = "priority";
+    const VOLUME_SPLIT: &str = "volume_split";
+    const VOLUME_SPLIT_PRIORITY: &str = "volume_split_priority";
+
     let obj = output_value.as_object().ok_or_else(|| {
         logger::error!("decision_engine_euclid_error: output is not a JSON object");
         errors::RoutingError::OpenRouterError("Expected output to be a JSON object".into())
@@ -408,7 +456,7 @@ pub fn extract_de_output_connectors(
     })?;
 
     match type_str {
-        "single" => {
+        SINGLE => {
             let connector_value = obj.get("connector").ok_or_else(|| {
                 logger::error!(
                     "decision_engine_euclid_error: missing 'connector' field for type=single"
@@ -430,7 +478,7 @@ pub fn extract_de_output_connectors(
             Ok(vec![connector])
         }
 
-        "priority" => {
+        PRIORITY => {
             let connectors_value = obj.get("connectors").ok_or_else(|| {
                 logger::error!(
                     "decision_engine_euclid_error: missing 'connectors' field for type=priority"
@@ -452,7 +500,7 @@ pub fn extract_de_output_connectors(
             Ok(connectors)
         }
 
-        "volume_split" => {
+        VOLUME_SPLIT => {
             let splits_value = obj.get("splits").ok_or_else(|| {
                 logger::error!(
                     "decision_engine_euclid_error: missing 'splits' field for type=volume_split"
@@ -502,7 +550,7 @@ pub fn extract_de_output_connectors(
             Ok(splits.into_iter().map(|s| s.output).collect())
         }
 
-        "volume_split_priority" => {
+        VOLUME_SPLIT_PRIORITY => {
             let splits_value = obj.get("splits").ok_or_else(|| {
                 logger::error!("decision_engine_euclid_error: missing 'splits' field for type=volume_split_priority");
                 errors::RoutingError::OpenRouterError("Missing 'splits' field for volume_split_priority output".into())
