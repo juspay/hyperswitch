@@ -4834,6 +4834,7 @@
           "authorizing",
           "cod_initiated",
           "voided",
+          "voided_post_charge",
           "void_initiated",
           "capture_initiated",
           "capture_failed",
@@ -10686,6 +10687,7 @@
           "payment_failed",
           "payment_processing",
           "payment_cancelled",
+          "payment_cancelled_post_capture",
           "payment_authorized",
           "payment_captured",
           "payment_expired",
@@ -12645,6 +12647,7 @@
           "succeeded",
           "failed",
           "cancelled",
+          "cancelled_post_capture",
           "processing",
           "requires_customer_action",
           "requires_merchant_action",
@@ -18263,6 +18266,16 @@
           "setup_mandate",
           "recurring_mandate"
         ]
+      },
+      "PaymentsCancelPostCaptureRequest": {
+        "type": "object",
+        "properties": {
+          "cancellation_reason": {
+            "type": "string",
+            "description": "The reason for the payment cancel",
+            "nullable": true
+          }
+        }
       },
       "PaymentsCancelRequest": {
         "type": "object",
