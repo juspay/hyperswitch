@@ -214,6 +214,7 @@ where
         .perform_routing(&merchant_context, profile, state, &mut payment_data)
         .await?;
 
+    let mut connector_http_status_code = None;
     let (payment_data, connector_response_data) = match connector {
         ConnectorCallType::PreDetermined(connector_data) => {
             let (mca_type_details, updated_customer, router_data) =
@@ -264,6 +265,9 @@ where
             };
 
             let payments_response_operation = Box::new(PaymentResponse);
+
+            connector_http_status_code = router_data.connector_http_status_code;
+            add_connector_http_status_code_metrics(connector_http_status_code);
 
             payments_response_operation
                 .to_post_update_tracker()?
@@ -342,6 +346,9 @@ where
 
             let payments_response_operation = Box::new(PaymentResponse);
 
+            connector_http_status_code = router_data.connector_http_status_code;
+            add_connector_http_status_code_metrics(connector_http_status_code);
+
             payments_response_operation
                 .to_post_update_tracker()?
                 .save_pm_and_mandate(
@@ -395,7 +402,7 @@ where
         payment_data,
         req,
         customer,
-        None,
+        connector_http_status_code,
         None,
         connector_response_data,
     ))
@@ -492,6 +499,9 @@ where
 
     let payments_response_operation = Box::new(PaymentResponse);
 
+    let connector_http_status_code = router_data.connector_http_status_code;
+    add_connector_http_status_code_metrics(connector_http_status_code);
+
     let payment_data = payments_response_operation
         .to_post_update_tracker()?
         .update_tracker(
@@ -503,7 +513,13 @@ where
         )
         .await?;
 
-    Ok((payment_data, req, None, None, connector_response_data))
+    Ok((
+        payment_data,
+        req,
+        connector_http_status_code,
+        None,
+        connector_response_data,
+    ))
 }
 
 #[cfg(feature = "v1")]
