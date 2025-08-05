@@ -15,6 +15,7 @@ use common_utils::{
     request::Method,
     types::MinorUnit,
 };
+use std::str::FromStr;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     network_tokenization::NetworkTokenNumber,
@@ -1391,10 +1392,37 @@ pub struct DokuBankData {
 pub struct AdyenRefundRequest {
     merchant_account: Secret<String>,
     amount: Amount,
-    merchant_refund_reason: Option<String>,
+    merchant_refund_reason: Option<AdyenRefundRequestReason>,
     reference: String,
     splits: Option<Vec<AdyenSplitData>>,
     store: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum AdyenRefundRequestReason {
+    FRAUD,
+    #[serde(rename = "CUSTOMER REQUEST")]
+    CUSTOMERREQUEST,
+    RETURN,
+    DUPLICATE,
+    OTHER
+}
+
+impl FromStr for AdyenRefundRequestReason {
+    type Err = error_stack::Report<errors::ConnectorError>;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_uppercase().as_str() {
+            "FRAUD" => Ok(Self::FRAUD),
+            "CUSTOMER REQUEST" => Ok(Self::CUSTOMERREQUEST),
+            "RETURN" => Ok(Self::RETURN),
+            "DUPLICATE" => Ok(Self::DUPLICATE),
+            "OTHER" => Ok(Self::OTHER),
+            _ => Err(report!(errors::ConnectorError::InvalidDataFormat {
+                field_name: "refund_reason",
+            })),
+        }
+    }
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -4693,7 +4721,13 @@ impl<F> TryFrom<&AdyenRouterData<&RefundsRouterData<F>>> for AdyenRefundRequest 
                 currency: item.router_data.request.currency,
                 value: item.amount,
             },
-            merchant_refund_reason: item.router_data.request.reason.clone(),
+            merchant_refund_reason: item
+                .router_data
+                .request
+                .reason
+                .as_ref()
+                .map(|reason| AdyenRefundRequestReason::from_str(reason))
+                .transpose()?,
             reference: item.router_data.request.refund_id.clone(),
             store,
             splits,

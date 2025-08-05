@@ -114,6 +114,8 @@ payment_method_type = "apple_pay"
 payment_method_type = "google_pay"
 [[adyen.wallet]]
 payment_method_type = "paypal"
+[[adyen.voucher]]
+  payment_method_type = "boleto"
 [adyen.connector_auth.BodyKey]
 api_key = "Adyen API Key"
 key1 = "Adyen Account Id"
