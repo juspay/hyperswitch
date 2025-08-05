@@ -250,7 +250,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 serialized_request,
             } => {
                 // Early return for unsupported event types
-                return Ok((response, webhook_tracker, serialized_request));
+                return Ok((*response, webhook_tracker, serialized_request));
             }
         };
 
@@ -307,7 +307,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             {
                 Ok(response) => {
                     // Extract event object for serialization
-                    event_object = if let Some(ref transform_data) = webhook_transform_data {
+                    event_object = if let Some(transform_data) = webhook_transform_data {
                         if let Some(webhook_content) = &transform_data.webhook_content {
                             Box::new(
                                 serde_json::to_value(webhook_content)
@@ -399,11 +399,11 @@ enum WebhookProcessingResult {
     ProcessFurther {
         event_type: webhooks::IncomingWebhookEvent,
         source_verified: bool,
-        transform_data: Option<unified_connector_service::WebhookTransformData>,
+        transform_data: Option<Box<unified_connector_service::WebhookTransformData>>,
         decoded_body: Option<actix_web::web::Bytes>,
     },
     EarlyReturn {
-        response: services::ApplicationResponse<serde_json::Value>,
+        response: Box<services::ApplicationResponse<serde_json::Value>>,
         webhook_tracker: WebhookResponseTracker,
         serialized_request: serde_json::Value,
     },
@@ -471,7 +471,7 @@ async fn process_non_ucs_webhook(
                 .attach_printable("Failed while early return in case of event type parsing")?;
 
             Ok(WebhookProcessingResult::EarlyReturn {
-                response,
+                response: Box::new(response),
                 webhook_tracker: WebhookResponseTracker::NoEffect,
                 serialized_request: serde_json::Value::Null,
             })
@@ -512,7 +512,7 @@ async fn determine_webhook_processing_path(
         Ok(WebhookProcessingResult::ProcessFurther {
             event_type,
             source_verified,
-            transform_data,
+            transform_data: transform_data.map(Box::new),
             decoded_body: None, // UCS path uses raw body
         })
     } else {
@@ -550,7 +550,7 @@ async fn process_webhook_business_logic(
     connector_name: &str,
     event_type: webhooks::IncomingWebhookEvent,
     source_verified_via_ucs: bool,
-    webhook_transform_data: &Option<unified_connector_service::WebhookTransformData>,
+    webhook_transform_data: &Option<Box<unified_connector_service::WebhookTransformData>>,
     request_details: &IncomingWebhookRequestDetails<'_>,
     is_relay_webhook: bool,
 ) -> errors::RouterResult<WebhookResponseTracker> {
@@ -651,7 +651,7 @@ async fn process_webhook_business_logic(
     logger::info!(source_verified=?source_verified);
 
     let event_object: Box<dyn masking::ErasedMaskSerialize> =
-        if let Some(ref transform_data) = webhook_transform_data {
+        if let Some(transform_data) = webhook_transform_data {
             // Use UCS transform data if available
             if let Some(webhook_content) = &transform_data.webhook_content {
                 // Convert UCS webhook content to appropriate format

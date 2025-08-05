@@ -449,9 +449,12 @@ pub fn build_webhook_secrets_from_merchant_connector_account(
         .map_err(|_| UnifiedConnectorServiceError::FailedToObtainAuthType)?;
 
     #[cfg(feature = "v2")]
-    let webhook_details = merchant_connector_account
-        .get_webhook_details()
-        .ok_or(UnifiedConnectorServiceError::FailedToObtainAuthType)?;
+    let webhook_details = match merchant_connector_account {
+        MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(mca) => {
+            mca.connector_webhook_details.as_ref()
+        }
+        MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => None,
+    };
 
     match webhook_details {
         Some(details) => {
@@ -495,7 +498,8 @@ pub async fn transform_webhook_via_ucs(
         #[cfg(feature = "v1")]
         let mca_type = MerchantConnectorAccountType::DbVal(Box::new(mca.clone()));
         #[cfg(feature = "v2")]
-        let mca_type = mca.get_connector_account_details().clone();
+        let mca_type =
+            MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(mca.clone()));
 
         build_webhook_secrets_from_merchant_connector_account(&mca_type)
             .ok()
@@ -522,7 +526,9 @@ pub async fn transform_webhook_via_ucs(
             #[cfg(feature = "v1")]
             let mca_type = MerchantConnectorAccountType::DbVal(Box::new(mca.clone()));
             #[cfg(feature = "v2")]
-            let mca_type = mca.get_connector_account_details().clone();
+            let mca_type = MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
+                mca.clone(),
+            ));
 
             build_unified_connector_service_auth_metadata(mca_type, merchant_context)
         })
@@ -616,7 +622,8 @@ pub async fn call_unified_connector_service_for_webhook(
         #[cfg(feature = "v1")]
         let mca_type = MerchantConnectorAccountType::DbVal(Box::new(mca.clone()));
         #[cfg(feature = "v2")]
-        let mca_type = mca.get_connector_account_details().clone();
+        let mca_type =
+            MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(mca.clone()));
 
         build_webhook_secrets_from_merchant_connector_account(&mca_type)
             .ok()
@@ -641,7 +648,9 @@ pub async fn call_unified_connector_service_for_webhook(
             #[cfg(feature = "v1")]
             let mca_type = MerchantConnectorAccountType::DbVal(Box::new(mca.clone()));
             #[cfg(feature = "v2")]
-            let mca_type = mca.get_connector_account_details().clone();
+            let mca_type = MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
+                mca.clone(),
+            ));
 
             build_unified_connector_service_auth_metadata(mca_type, merchant_context)
         })
