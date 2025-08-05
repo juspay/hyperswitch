@@ -1,3 +1,5 @@
+import { getCustomExchange } from "./Modifiers";
+
 const successfulNo3DSCardDetails = {
   card_number: "4012000033330026",
   card_exp_month: "01",
@@ -165,7 +167,7 @@ export const connectorDetails = {
         },
       },
     },
-    Capture: {
+    Capture: getCustomExchange({
       Request: {
         amount_to_capture: 6000,
       },
@@ -178,7 +180,16 @@ export const connectorDetails = {
           amount_received: 6000,
         },
       },
-    },
+      ResponseCustom: {
+        status: 422,
+        body: {
+          error: {
+            code: "IR_06",
+            message: "amount_to_capture is greater than amount", // Incremental authorization is not allowed within 4 days of the initial authorization. Since the capture amount (8000) exceeds the authorized amount, this request fails.
+          },
+        },
+      },
+    }),
     PartialCapture: {
       Request: {
         amount_to_capture: 2000,
@@ -251,6 +262,29 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+        },
+      },
+    },
+    IncrementalAuth: {
+      Request: {
+        amount: 8000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+          amount: 8000,
+          amount_capturable: 6000, // Incremental Authorization can be done atleast 4 days after the authorization in case of Paypal
+          amount_received: null,
+          incremental_authorizations: [
+            {
+              amount: 8000,
+              previously_authorized_amount: 6000,
+              status: "failure",
+              error_code: "REAUTHORIZATION_TOO_SOON",
+              error_message: "REAUTHORIZATION_TOO_SOON",
+            },
+          ],
         },
       },
     },

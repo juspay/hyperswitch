@@ -400,8 +400,11 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
                 WalletData::ApplePayThirdPartySdk(_) => Ok(Self::ApplePay),
                 WalletData::AliPayQr(_)
                 | WalletData::AliPayRedirect(_)
+                | WalletData::BluecodeRedirect {}
                 | WalletData::AliPayHkRedirect(_)
                 | WalletData::AmazonPayRedirect(_)
+                | WalletData::Paysera(_)
+                | WalletData::Skrill(_)
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)

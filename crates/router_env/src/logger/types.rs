@@ -349,6 +349,8 @@ pub enum Flow {
     ApplePayCertificatesMigration,
     /// Gsm Rule Delete flow
     GsmRuleDelete,
+    /// Get data from embedded flow
+    GetDataFromHyperswitchAiFlow,
     /// User Sign Up
     UserSignUp,
     /// User Sign Up
@@ -521,6 +523,20 @@ pub enum Flow {
     UpdateTheme,
     /// Delete theme
     DeleteTheme,
+    /// Create user theme
+    CreateUserTheme,
+    /// Update user theme
+    UpdateUserTheme,
+    /// Delete user theme
+    DeleteUserTheme,
+    /// Upload file to user theme storage
+    UploadFileToUserThemeStorage,
+    /// Get user theme using theme id
+    GetUserThemeUsingThemeId,
+    ///List All Themes In Lineage
+    ListAllThemesInLineage,
+    /// Get user theme using lineage
+    GetUserThemeUsingLineage,
     /// List initial webhook delivery attempts
     WebhookEventInitialDeliveryAttemptList,
     /// List delivery attempts for a webhook event
@@ -550,6 +566,8 @@ pub enum Flow {
     PaymentStartRedirection,
     /// Volume split on the routing type
     VolumeSplitOnRoutingType,
+    /// Routing evaluate rule flow
+    RoutingEvaluateRule,
     /// Relay flow
     Relay,
     /// Relay retrieve flow
@@ -598,6 +616,14 @@ pub enum Flow {
     CloneConnector,
     /// Authentication Create flow
     AuthenticationCreate,
+    /// Authentication Eligibility flow
+    AuthenticationEligibility,
+    /// Authentication Sync flow
+    AuthenticationSync,
+    /// Authentication Sync Post Update flow
+    AuthenticationSyncPostUpdate,
+    /// Authentication Authenticate flow
+    AuthenticationAuthenticate,
     ///Proxy Flow
     Proxy,
     /// Profile Acquirer Create flow
@@ -608,6 +634,10 @@ pub enum Flow {
     ThreeDsDecisionRuleExecute,
     /// Incoming Network Token Webhook Receive
     IncomingNetworkTokenWebhookReceive,
+    /// Decision Engine Decide Gateway Call
+    DecisionEngineDecideGatewayCall,
+    /// Decision Engine Gateway Feedback Call
+    DecisionEngineGatewayFeedbackCall,
     /// Tokenization delete flow
     TokenizationDelete,
 }

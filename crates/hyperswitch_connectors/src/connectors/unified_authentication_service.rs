@@ -27,8 +27,8 @@ use hyperswitch_domain_models::{
     },
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
-        UasAuthenticationConfirmationRouterData, UasPostAuthenticationRouterData,
-        UasPreAuthenticationRouterData,
+        UasAuthenticationConfirmationRouterData, UasAuthenticationRouterData,
+        UasPostAuthenticationRouterData, UasPreAuthenticationRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -310,34 +310,38 @@ impl
         req: &UasPreAuthenticationRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let transaction_details = req.request.transaction_details.clone().ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "transaction_details",
-            },
-        )?;
-        let amount = utils::convert_amount(
-            self.amount_converter,
-            transaction_details
-                .amount
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "amount",
-                })?,
-            transaction_details
-                .currency
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
-                })?,
-        )?;
+        let connector_req = if req.request.service_details.is_some() {
+            let transaction_details = req.request.transaction_details.clone().ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "transaction_details",
+                },
+            )?;
+            let amount = utils::convert_amount(
+                self.amount_converter,
+                transaction_details
+                    .amount
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "amount",
+                    })?,
+                transaction_details.currency.ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "currency",
+                    },
+                )?,
+            )?;
 
-        let connector_router_data =
-            unified_authentication_service::UnifiedAuthenticationServiceRouterData::from((
-                amount, req,
-            ));
-
-        let connector_req = unified_authentication_service::UnifiedAuthenticationServicePreAuthenticateRequest::try_from(
-            &connector_router_data,
-        )?;
-
+            let connector_router_data =
+                unified_authentication_service::UnifiedAuthenticationServiceRouterData::from((
+                    amount, req,
+                ));
+            unified_authentication_service::UnifiedAuthenticationServicePreAuthenticateRequest::try_from(
+                        &connector_router_data,
+                    )?
+        } else {
+            unified_authentication_service::UnifiedAuthenticationServicePreAuthenticateRequest::try_from(
+                req,
+            )?
+        };
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -486,6 +490,107 @@ impl
 impl ConnectorIntegration<Authenticate, UasAuthenticationRequestData, UasAuthenticationResponseData>
     for UnifiedAuthenticationService
 {
+    fn get_headers(
+        &self,
+        req: &UasAuthenticationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &UasAuthenticationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}authentication_initiation",
+            self.base_url(connectors)
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &UasAuthenticationRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let transaction_details = req.request.transaction_details.clone();
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            transaction_details
+                .amount
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "amount",
+                })?,
+            transaction_details
+                .currency
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "currency",
+                })?,
+        )?;
+
+        let connector_router_data =
+            unified_authentication_service::UnifiedAuthenticationServiceRouterData::from((
+                amount, req,
+            ));
+        let connector_req = unified_authentication_service::UnifiedAuthenticationServiceAuthenticateRequest::try_from(
+                    &connector_router_data,
+                )?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &UasAuthenticationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::UasAuthenticationType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::UasAuthenticationType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::UasAuthenticationType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &UasAuthenticationRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<UasAuthenticationRouterData, errors::ConnectorError> {
+        let response: unified_authentication_service::UnifiedAuthenticationServiceAuthenticateResponse =
+        res.response
+            .parse_struct("UnifiedAuthenticationService UnifiedAuthenticationServiceAuthenticateResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
 }
 
 impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData>

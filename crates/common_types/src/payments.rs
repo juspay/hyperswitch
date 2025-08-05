@@ -3,13 +3,20 @@
 use std::collections::HashMap;
 
 use common_enums::enums;
-use common_utils::{date_time, errors, events, impl_to_sql_from_sql_json, pii, types::MinorUnit};
-use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
+use common_utils::{
+    date_time, errors, events, ext_traits::OptionExt, impl_to_sql_from_sql_json, pii,
+    types::MinorUnit,
+};
+use diesel::{
+    sql_types::{Jsonb, Text},
+    AsExpression, FromSqlRow,
+};
+use error_stack::{Report, Result, ResultExt};
 use euclid::frontend::{
     ast::Program,
     dir::{DirKeyKind, EuclidDirFilter},
 };
-use masking::{PeekInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
@@ -73,7 +80,71 @@ impl AuthenticationConnectorAccountMap {
             .ok_or(errors::ValidationError::MissingRequiredField {
                 field_name: "authentication_product_id.click_to_pay".to_string(),
             })
+            .map_err(Report::from)
             .cloned()
+    }
+}
+
+/// A wrapper type for merchant country codes that provides validation and conversion functionality.
+///
+/// This type stores a country code as a string and provides methods to validate it
+/// and convert it to a `Country` enum variant.
+#[derive(
+    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Text)]
+#[serde(deny_unknown_fields)]
+pub struct MerchantCountryCode(String);
+
+impl MerchantCountryCode {
+    /// Returns the country code as a string.
+    pub fn get_country_code(&self) -> String {
+        self.0.clone()
+    }
+
+    /// Validates the country code and returns a `Country` enum variant.
+    ///
+    /// This method attempts to parse the country code as a u32 and convert it to a `Country` enum variant.
+    /// If the country code is invalid, it returns a `ValidationError` with the appropriate error message.
+    pub fn validate_and_get_country_from_merchant_country_code(
+        &self,
+    ) -> errors::CustomResult<common_enums::Country, errors::ValidationError> {
+        let country_code = self.get_country_code();
+        let code = country_code
+            .parse::<u32>()
+            .map_err(Report::from)
+            .change_context(errors::ValidationError::IncorrectValueProvided {
+                field_name: "merchant_country_code",
+            })
+            .attach_printable_lazy(|| {
+                format!("Country code {country_code} is negative or too large")
+            })?;
+
+        common_enums::Country::from_numeric(code)
+            .map_err(|_| errors::ValidationError::IncorrectValueProvided {
+                field_name: "merchant_country_code",
+            })
+            .attach_printable_lazy(|| format!("Invalid country code {code}"))
+    }
+    /// Creates a new `MerchantCountryCode` instance from a string.
+    pub fn new(country_code: String) -> Self {
+        Self(country_code)
+    }
+}
+
+impl diesel::serialize::ToSql<Text, diesel::pg::Pg> for MerchantCountryCode {
+    fn to_sql<'b>(
+        &'b self,
+        out: &mut diesel::serialize::Output<'b, '_, diesel::pg::Pg>,
+    ) -> diesel::serialize::Result {
+        <String as diesel::serialize::ToSql<Text, diesel::pg::Pg>>::to_sql(&self.0, out)
+    }
+}
+
+impl diesel::deserialize::FromSql<Text, diesel::pg::Pg> for MerchantCountryCode {
+    fn from_sql(bytes: diesel::pg::PgValue<'_>) -> diesel::deserialize::Result<Self> {
+        let s = <String as diesel::deserialize::FromSql<Text, diesel::pg::Pg>>::from_sql(bytes)?;
+        Ok(Self(s))
     }
 }
 
@@ -341,3 +412,116 @@ pub struct XenditMultipleSplitResponse {
     pub routes: Vec<XenditSplitRoute>,
 }
 impl_to_sql_from_sql_json!(XenditMultipleSplitResponse);
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+#[serde(untagged)]
+/// This enum is used to represent the Apple Pay payment data, which can either be encrypted or decrypted.
+pub enum ApplePayPaymentData {
+    /// This variant contains the decrypted Apple Pay payment data as a structured object.
+    Decrypted(ApplePayPredecryptData),
+    /// This variant contains the encrypted Apple Pay payment data as a string.
+    Encrypted(String),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+/// This struct represents the decrypted Apple Pay payment data
+pub struct ApplePayPredecryptData {
+    /// The primary account number
+    #[schema(value_type = String, example = "4242424242424242")]
+    pub application_primary_account_number: cards::CardNumber,
+    /// The application expiration date (PAN expiry month)
+    #[schema(value_type = String, example = "12")]
+    pub application_expiration_month: Secret<String>,
+    /// The application expiration date (PAN expiry year)
+    #[schema(value_type = String, example = "24")]
+    pub application_expiration_year: Secret<String>,
+    /// The payment data, which contains the cryptogram and ECI indicator
+    #[schema(value_type = ApplePayCryptogramData)]
+    pub payment_data: ApplePayCryptogramData,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+/// This struct represents the cryptogram data for Apple Pay transactions
+pub struct ApplePayCryptogramData {
+    /// The online payment cryptogram
+    #[schema(value_type = String, example = "A1B2C3D4E5F6G7H8")]
+    pub online_payment_cryptogram: Secret<String>,
+    /// The ECI (Electronic Commerce Indicator) value
+    #[schema(value_type = String, example = "05")]
+    pub eci_indicator: Option<String>,
+}
+
+impl ApplePayPaymentData {
+    /// Get the encrypted Apple Pay payment data if it exists
+    pub fn get_encrypted_apple_pay_payment_data_optional(&self) -> Option<&String> {
+        match self {
+            Self::Encrypted(encrypted_data) => Some(encrypted_data),
+            Self::Decrypted(_) => None,
+        }
+    }
+
+    /// Get the decrypted Apple Pay payment data if it exists
+    pub fn get_decrypted_apple_pay_payment_data_optional(&self) -> Option<&ApplePayPredecryptData> {
+        match self {
+            Self::Encrypted(_) => None,
+            Self::Decrypted(decrypted_data) => Some(decrypted_data),
+        }
+    }
+
+    /// Get the encrypted Apple Pay payment data, returning an error if it does not exist
+    pub fn get_encrypted_apple_pay_payment_data_mandatory(
+        &self,
+    ) -> Result<&String, errors::ValidationError> {
+        self.get_encrypted_apple_pay_payment_data_optional()
+            .get_required_value("Encrypted Apple Pay payment data")
+            .attach_printable("Encrypted Apple Pay payment data is mandatory")
+    }
+
+    /// Get the decrypted Apple Pay payment data, returning an error if it does not exist
+    pub fn get_decrypted_apple_pay_payment_data_mandatory(
+        &self,
+    ) -> Result<&ApplePayPredecryptData, errors::ValidationError> {
+        self.get_decrypted_apple_pay_payment_data_optional()
+            .get_required_value("Decrypted Apple Pay payment data")
+            .attach_printable("Decrypted Apple Pay payment data is mandatory")
+    }
+}
+
+impl ApplePayPredecryptData {
+    /// Get the four-digit expiration year from the Apple Pay pre-decrypt data
+    pub fn get_two_digit_expiry_year(&self) -> Result<Secret<String>, errors::ValidationError> {
+        let binding = self.application_expiration_year.clone();
+        let year = binding.peek();
+        Ok(Secret::new(
+            year.get(year.len() - 2..)
+                .ok_or(errors::ValidationError::InvalidValue {
+                    message: "Invalid two-digit year".to_string(),
+                })?
+                .to_string(),
+        ))
+    }
+
+    /// Get the four-digit expiration year from the Apple Pay pre-decrypt data
+    pub fn get_four_digit_expiry_year(&self) -> Secret<String> {
+        let mut year = self.application_expiration_year.peek().clone();
+        if year.len() == 2 {
+            year = format!("20{year}");
+        }
+        Secret::new(year)
+    }
+
+    /// Get the expiration month from the Apple Pay pre-decrypt data
+    pub fn get_expiry_month(&self) -> Secret<String> {
+        self.application_expiration_month.clone()
+    }
+
+    /// Get the expiry date in MMYY format from the Apple Pay pre-decrypt data
+    pub fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::ValidationError> {
+        let year = self.get_two_digit_expiry_year()?.expose();
+        let month = self.application_expiration_month.clone().expose();
+        Ok(Secret::new(format!("{month}{year}")))
+    }
+}

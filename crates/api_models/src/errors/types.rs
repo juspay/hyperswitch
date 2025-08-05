@@ -1,7 +1,7 @@
-use std::borrow::Cow;
-
 use reqwest::StatusCode;
+use router_derive::PolymorphicSchema;
 use serde::Serialize;
+use utoipa::ToSchema;
 
 #[derive(Debug, serde::Serialize)]
 pub enum ErrorType {
@@ -38,31 +38,45 @@ impl ApiError {
     }
 }
 
-#[derive(Debug, serde::Serialize)]
-struct ErrorResponse<'a> {
+#[derive(Debug, serde::Serialize, ToSchema, PolymorphicSchema)]
+#[generate_schemas(GenericErrorResponseOpenApi)]
+pub struct ErrorResponse {
     #[serde(rename = "type")]
-    error_type: &'static str,
-    message: Cow<'a, str>,
-    code: String,
+    #[schema(
+        example = "invalid_request",
+        value_type = &'static str
+    )]
+    pub error_type: &'static str,
+    #[schema(
+        example = "Missing required param: {param}",
+        value_type = String
+    )]
+    pub message: String,
+    #[schema(
+        example = "IR_04",
+        value_type = String
+    )]
+    pub code: String,
     #[serde(flatten)]
-    extra: &'a Option<Extra>,
+    pub extra: Option<Extra>,
+
     #[cfg(feature = "detailed_errors")]
     #[serde(skip_serializing_if = "Option::is_none")]
-    stacktrace: Option<&'a serde_json::Value>,
+    pub stacktrace: Option<serde_json::Value>,
 }
 
-impl<'a> From<&'a ApiErrorResponse> for ErrorResponse<'a> {
-    fn from(value: &'a ApiErrorResponse) -> Self {
+impl From<&ApiErrorResponse> for ErrorResponse {
+    fn from(value: &ApiErrorResponse) -> Self {
         let error_info = value.get_internal_error();
         let error_type = value.error_type();
         Self {
             code: format!("{}_{:02}", error_info.sub_code, error_info.error_identifier),
-            message: Cow::Borrowed(value.get_internal_error().error_message.as_str()),
+            message: error_info.error_message.clone(),
             error_type,
-            extra: &error_info.extra,
+            extra: error_info.extra.clone(),
 
             #[cfg(feature = "detailed_errors")]
-            stacktrace: error_info.stacktrace.as_ref(),
+            stacktrace: error_info.stacktrace.clone(),
         }
     }
 }
@@ -103,7 +117,7 @@ pub enum ApiErrorResponse {
 
 impl ::core::fmt::Display for ApiErrorResponse {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let error_response: ErrorResponse<'_> = self.into();
+        let error_response: ErrorResponse = self.into();
         write!(
             f,
             r#"{{"error":{}}}"#,

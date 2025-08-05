@@ -1764,6 +1764,13 @@ pub fn get_external_authentication_request_poll_id(
 ) -> String {
     payment_id.get_external_authentication_request_poll_id()
 }
+
+pub fn get_modular_authentication_request_poll_id(
+    authentication_id: &common_utils::id_type::AuthenticationId,
+) -> String {
+    authentication_id.get_external_authentication_request_poll_id()
+}
+
 pub fn get_html_redirect_response_popup(
     return_url_with_query_params: String,
 ) -> RouterResult<String> {
@@ -1809,6 +1816,89 @@ pub fn get_html_redirect_response_for_external_authentication(
             IntentStatus::RequiresCustomerAction => {
                 // Request poll id sent to client for retrieve_poll_status api
                 let req_poll_id = get_external_authentication_request_poll_id(&payment_id);
+                let poll_frequency = poll_config.frequency;
+                let poll_delay_in_secs = poll_config.delay_in_secs;
+                html! {
+                    head {
+                        title { "Redirect Form" }
+                        (PreEscaped(format!(r#"
+                                <script>
+                                    let return_url = "{return_url_with_query_params}";
+                                    let poll_status_data = {{
+                                        'poll_id': '{req_poll_id}',
+                                        'frequency': '{poll_frequency}',
+                                        'delay_in_secs': '{poll_delay_in_secs}',
+                                        'return_url_with_query_params': return_url
+                                    }};
+                                    try {{
+                                        // if inside iframe, send post message to parent for redirection
+                                        if (window.self !== window.parent) {{
+                                            window.parent.postMessage({{poll_status: poll_status_data}}, '*')
+                                        // if parent, redirect self to return_url
+                                        }} else {{
+                                            window.location.href = return_url
+                                        }}
+                                    }}
+                                    catch(err) {{
+                                        // if error occurs, send post message to parent and wait for 10 secs to redirect. if doesn't redirect, redirect self to return_url
+                                        window.parent.postMessage({{poll_status: poll_status_data}}, '*')
+                                        setTimeout(function() {{
+                                            window.location.href = return_url
+                                        }}, 10000);
+                                        console.log(err.message)
+                                    }}
+                                </script>
+                                "#)))
+                    }
+                }
+                .into_string()
+            },
+            _ => {
+                html! {
+                    head {
+                        title { "Redirect Form" }
+                        (PreEscaped(format!(r#"
+                                <script>
+                                    let return_url = "{return_url_with_query_params}";
+                                    try {{
+                                        // if inside iframe, send post message to parent for redirection
+                                        if (window.self !== window.parent) {{
+                                            window.parent.postMessage({{openurl_if_required: return_url}}, '*')
+                                        // if parent, redirect self to return_url
+                                        }} else {{
+                                            window.location.href = return_url
+                                        }}
+                                    }}
+                                    catch(err) {{
+                                        // if error occurs, send post message to parent and wait for 10 secs to redirect. if doesn't redirect, redirect self to return_url
+                                        window.parent.postMessage({{openurl_if_required: return_url}}, '*')
+                                        setTimeout(function() {{
+                                            window.location.href = return_url
+                                        }}, 10000);
+                                        console.log(err.message)
+                                    }}
+                                </script>
+                                "#)))
+                    }
+                }
+                .into_string()
+            },
+        };
+    Ok(html)
+}
+
+#[cfg(feature = "v1")]
+pub fn get_html_redirect_response_for_external_modular_authentication(
+    return_url_with_query_params: String,
+    authentication_response: &api_models::authentication::AuthenticationResponse,
+    authentication_id: common_utils::id_type::AuthenticationId,
+    poll_config: &PollConfig,
+) -> RouterResult<String> {
+    // if authentication_status is pending then set poll_id, fetch poll config and do a poll_status post message, else do open_url post message to redirect to return_url
+    let html = match authentication_response.status {
+            common_enums::AuthenticationStatus::Pending => {
+                // Request poll id sent to client for retrieve_poll_status api
+                let req_poll_id = get_modular_authentication_request_poll_id(&authentication_id);
                 let poll_frequency = poll_config.frequency;
                 let poll_delay_in_secs = poll_config.delay_in_secs;
                 html! {

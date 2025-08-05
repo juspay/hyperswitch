@@ -1,4 +1,5 @@
 pub mod apple_pay_certificates_migration;
+pub mod chat;
 pub mod connector_onboarding;
 pub mod customer;
 pub mod dispute;
