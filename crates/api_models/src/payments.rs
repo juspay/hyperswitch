@@ -7637,6 +7637,7 @@ pub struct PaymentsCancelRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
+/// Request to cancel a payment when the payment is already captured
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsCancelPostCaptureRequest {
     /// The identifier for the payment

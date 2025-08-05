@@ -79,7 +79,7 @@ pub enum OperationId {
     Auth,
     Capture,
     Void,
-    // VoidPC
+    // VoidPostCapture
     VoidPC,
     Refund,
 }
@@ -2613,7 +2613,7 @@ pub enum WorldpayvantivPaymentFlow {
     Auth,
     Capture,
     Void,
-    //VoidPC
+    //VoidPostCapture
     VoidPC,
 }
 
