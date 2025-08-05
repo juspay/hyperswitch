@@ -20,7 +20,7 @@ use dynamic_routing::{DynamicRoutingClientConfig, RoutingStrategy};
 use health_check_client::HealthCheckClient;
 #[cfg(any(feature = "dynamic_routing", feature = "revenue_recovery"))]
 use hyper_util::client::legacy::connect::HttpConnector;
-#[cfg(feature = "dynamic_routing")]
+#[cfg(any(feature = "dynamic_routing", feature = "revenue_recovery"))]
 use router_env::logger;
 use serde;
 #[cfg(any(feature = "dynamic_routing", feature = "revenue_recovery"))]
@@ -102,14 +102,23 @@ impl GrpcClientSettings {
             UnifiedConnectorServiceClient::build_connections(self).await;
 
         #[cfg(feature = "revenue_recovery")]
-        let recovery_decider_client = self
-            .recovery_decider_client
-            .as_ref()
-            .map(|config| config.get_recovery_decider_connection(client.clone()))
-            .transpose()
-            .expect("Failed to establish a connection with the Recovery Decider Server")
-            .flatten()
-            .map(|client| -> Box<dyn RecoveryDeciderClientInterface> { Box::new(client) });
+        let recovery_decider_client = {
+            let client_result = self
+                .recovery_decider_client
+                .as_ref()
+                .map(|config| config.get_recovery_decider_connection(client.clone()))
+                .transpose()
+                .expect("Failed to establish a connection with the Recovery Decider Server")
+                .flatten()
+                .map(|client| -> Box<dyn RecoveryDeciderClientInterface> { Box::new(client) });
+
+            match &client_result {
+                Some(_) => logger::info!("Recovery Decider gRPC client successfully initialized"),
+                None => {}
+            }
+
+            client_result
+        };
 
         Arc::new(GrpcClients {
             #[cfg(feature = "dynamic_routing")]
