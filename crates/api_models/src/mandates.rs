@@ -185,13 +185,4 @@ impl RecurringDetails {
     pub fn is_network_transaction_id_and_card_details_flow(self) -> bool {
         matches!(self, Self::NetworkTransactionIdAndCardDetails(_))
     }
-
-    pub fn get_network_transaction_id(&self) -> Option<Secret<String>> {
-        match self {
-            Self::NetworkTransactionIdAndCardDetails(details) => {
-                Some(details.network_transaction_id.clone())
-            }
-            Self::MandateId(_) | Self::PaymentMethodId(_) | Self::ProcessorPaymentToken(_) => None,
-        }
-    }
 }

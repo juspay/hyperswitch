@@ -5175,8 +5175,7 @@ pub struct PaymentsResponse {
     pub payment_method_id: Option<String>,
 
     /// The network transaction ID is a unique identifier for the transaction as recognized by the payment network (e.g., Visa, Mastercard), this ID can be used to reference it for future transactions or recurring payments.
-    #[schema(value_type = Option<String>)]
-    pub network_transaction_id: Option<Secret<String>>,
+    pub network_transaction_id: Option<String>,
 
     /// Payment Method Status, refers to the status of the payment method used for this payment.
     #[schema(value_type = Option<PaymentMethodStatus>)]

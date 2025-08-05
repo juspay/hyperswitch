@@ -9608,7 +9608,6 @@ pub trait OperationSessionGetters<F> {
     fn get_all_keys_required(&self) -> Option<bool>;
     fn get_capture_method(&self) -> Option<enums::CaptureMethod>;
     fn get_merchant_connector_id_in_attempt(&self) -> Option<id_type::MerchantConnectorAccountId>;
-    fn get_network_transaction_id(&self) -> Option<Secret<String>>;
     #[cfg(feature = "v2")]
     fn get_merchant_connector_details(
         &self,
@@ -9739,12 +9738,6 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
     }
     fn get_merchant_connector_id_in_attempt(&self) -> Option<id_type::MerchantConnectorAccountId> {
         self.payment_attempt.merchant_connector_id.clone()
-    }
-
-    fn get_network_transaction_id(&self) -> Option<Secret<String>> {
-        self.recurring_details
-            .as_ref()
-            .and_then(|details| details.get_network_transaction_id())
     }
 
     fn get_creds_identifier(&self) -> Option<&str> {
