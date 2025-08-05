@@ -1719,10 +1719,6 @@ pub async fn create_specific_dynamic_routing(
     match feature_to_enable {
         routing::DynamicRoutingFeatures::Metrics
         | routing::DynamicRoutingFeatures::DynamicConnectorSelection => {
-            // occurs when algorithm is already present in the db
-            // 1. If present with same feature then return response as already enabled
-            // 2. Else update the feature and persist the same on db
-            // 3. If not present in db then create a new default entry
             Box::pin(helpers::enable_dynamic_routing_algorithm(
                 &state,
                 merchant_context.get_merchant_key_store().clone(),

@@ -2034,11 +2034,6 @@ pub async fn enable_specific_routing_algorithm<A>(
 where
     A: routing_types::DynamicRoutingAlgoAccessor + Clone + Debug,
 {
-    logger::debug!(
-        "enable_specific_routing_algorithm called with dynamic_routing_type: {:?}, payload: {:?}",
-        dynamic_routing_type,
-        payload
-    );
     //Check for payload
     if let Some(payload) = payload {
         return create_specific_dynamic_routing_setup(
@@ -2249,13 +2244,18 @@ pub async fn create_specific_dynamic_routing_setup(
     let algorithm_id = common_utils::generate_routing_id_of_default_length();
     let timestamp = common_utils::date_time::now();
 
-    logger::debug!(
-        "default_specific_dynamic_routing_setup called with dynamic_routing_type: {:?}, payload: {:?}",
-        dynamic_routing_type, payload
-    );
-
     let algo = match dynamic_routing_type {
         routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
+            let success_config = match payload {
+                routing_types::DynamicRoutingPayload::SuccessBasedRoutingPayload(config) => config,
+                _ => {
+                    return Err((errors::ApiErrorResponse::InvalidRequestData {
+                        message: "Invalid payload type for Success Rate Based Routing".to_string(),
+                    })
+                    .into())
+                }
+            };
+
             routing_algorithm::RoutingAlgorithm {
                 algorithm_id: algorithm_id.clone(),
                 profile_id: profile_id.clone(),
@@ -2263,7 +2263,7 @@ pub async fn create_specific_dynamic_routing_setup(
                 name: SUCCESS_BASED_DYNAMIC_ROUTING_ALGORITHM.to_string(),
                 description: None,
                 kind: diesel_models::enums::RoutingAlgorithmKind::Dynamic,
-                algorithm_data: serde_json::json!(payload),
+                algorithm_data: serde_json::json!(success_config),
                 created_at: timestamp,
                 modified_at: timestamp,
                 algorithm_for: common_enums::TransactionType::Payment,
@@ -2271,6 +2271,16 @@ pub async fn create_specific_dynamic_routing_setup(
             }
         }
         routing_types::DynamicRoutingType::EliminationRouting => {
+            let elimination_config = match payload {
+                routing_types::DynamicRoutingPayload::EliminationRoutingPayload(config) => config,
+                _ => {
+                    return Err((errors::ApiErrorResponse::InvalidRequestData {
+                        message: "Invalid payload type for Elimination Routing".to_string(),
+                    })
+                    .into())
+                }
+            };
+
             routing_algorithm::RoutingAlgorithm {
                 algorithm_id: algorithm_id.clone(),
                 profile_id: profile_id.clone(),
@@ -2278,7 +2288,7 @@ pub async fn create_specific_dynamic_routing_setup(
                 name: ELIMINATION_BASED_DYNAMIC_ROUTING_ALGORITHM.to_string(),
                 description: None,
                 kind: diesel_models::enums::RoutingAlgorithmKind::Dynamic,
-                algorithm_data: serde_json::json!(payload),
+                algorithm_data: serde_json::json!(elimination_config),
                 created_at: timestamp,
                 modified_at: timestamp,
                 algorithm_for: common_enums::TransactionType::Payment,
