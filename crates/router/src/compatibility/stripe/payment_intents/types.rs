@@ -54,6 +54,7 @@ impl From<StripeBillingDetails> for payments::Address {
                 first_name: None,
                 line3: None,
                 last_name: None,
+                origin_zip: None,
             }),
         }
     }
@@ -204,6 +205,7 @@ impl From<Shipping> for payments::Address {
                 first_name: details.name,
                 line3: None,
                 last_name: None,
+                origin_zip: None,
             }),
         }
     }

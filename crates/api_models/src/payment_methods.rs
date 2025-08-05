@@ -2622,6 +2622,7 @@ impl PaymentMethodRecord {
                 zip: self.billing_address_zip.clone(),
                 first_name: self.billing_address_first_name.clone(),
                 last_name: self.billing_address_last_name.clone(),
+                origin_zip: None,
             })
         } else {
             None

@@ -105,6 +105,10 @@ pub struct CustomerDetails {
     /// The country code for the customer's phone number
     #[schema(max_length = 2, example = "+1")]
     pub phone_country_code: Option<String>,
+
+    /// The tax registration identifier of the customer.
+    #[schema(value_type=Option<String>,max_length = 255)]
+    pub tax_registration_id: Option<Secret<String>>,
 }
 
 #[cfg(feature = "v1")]
@@ -1192,6 +1196,24 @@ pub struct PaymentsRequest {
     /// Indicates how the payment was initiated (e.g., ecommerce, mail, or telephone).
     #[schema(value_type = Option<PaymentChannel>)]
     pub payment_channel: Option<common_enums::PaymentChannel>,
+
+    /// Your tax status for this order or transaction.
+    #[schema(value_type = Option<TaxStatus>)]
+    pub tax_status: Option<api_enums::TaxStatus>,
+
+    /// Total amount of the discount you have applied to the order or transaction.
+    #[schema(value_type = Option<i64>, example = 6540)]
+    pub discount_amount: Option<MinorUnit>,
+
+    /// Tax amount applied to shipping charges.
+    pub shipping_amount_tax: Option<MinorUnit>,
+
+    /// Duty or customs fee amount for international transactions.
+    pub duty_amount: Option<MinorUnit>,
+
+    /// Date the payer placed the order.
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub order_date: Option<PrimitiveDateTime>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1263,6 +1285,7 @@ impl PaymentsRequest {
             email,
             phone,
             phone_country_code,
+            ..
         }) = self.customer.as_ref()
         {
             let invalid_fields = [
@@ -1377,6 +1400,7 @@ mod payments_request_test {
             email: None,
             phone: None,
             phone_country_code: None,
+            tax_registration_id: None,
         };
 
         let payments_request = PaymentsRequest {
@@ -1401,6 +1425,7 @@ mod payments_request_test {
             email: None,
             phone: None,
             phone_country_code: None,
+            tax_registration_id: None,
         };
 
         let payments_request = PaymentsRequest {
@@ -4417,6 +4442,10 @@ pub struct AddressDetails {
     /// The last name for the address
     #[schema(value_type = Option<String>, max_length = 255, example = "Doe")]
     pub last_name: Option<Secret<String>>,
+
+    /// The zip/postal code of the origin
+    #[schema(value_type = Option<String>, max_length = 50, example = "08807")]
+    pub origin_zip: Option<Secret<String>>,
 }
 
 impl AddressDetails {
@@ -4454,6 +4483,7 @@ impl AddressDetails {
                 line3: self.line3.or(other.line3.clone()),
                 zip: self.zip.or(other.zip.clone()),
                 state: self.state.or(other.state.clone()),
+                origin_zip: self.origin_zip.or(other.origin_zip.clone()),
             }
         } else {
             self
@@ -6612,6 +6642,22 @@ pub struct OrderDetailsWithAmount {
     pub product_type: Option<ProductType>,
     /// The tax code for the product
     pub product_tax_code: Option<String>,
+    /// Description for the item
+    pub description: Option<String>,
+    /// Stock Keeping Unit (SKU) or the item identifier for this item.
+    pub sku: Option<String>,
+    /// Universal Product Code for the item.
+    pub upc: Option<String>,
+    /// Code describing a commodity or a group of commodities pertaining to goods classification.
+    pub commodity_code: Option<String>,
+    /// Unit of measure used for the item quantity.
+    pub unit_of_measure: Option<String>,
+    /// Total amount for the item.
+    #[schema(value_type = Option<i64>)]
+    pub total_amount: Option<MinorUnit>, // total_amount,
+    /// Discount amount applied to this item.
+    #[schema(value_type = Option<i64>)]
+    pub unit_discount_amount: Option<MinorUnit>,
 }
 
 impl masking::SerializableSecret for OrderDetailsWithAmount {}
