@@ -101,7 +101,7 @@ pub enum WebhookResponseTracker {
     Recovery {
         payment_id: common_utils::id_type::GlobalPaymentId,
         status: common_enums::IntentStatus,
-        job_status: Option<common_enums::ProcessTrackerStatus>
+        job_status: Option<common_enums::ProcessTrackerStatus>,
     },
     #[cfg(feature = "payouts")]
     Payout {
@@ -184,8 +184,8 @@ impl WebhookResponseTracker {
         match self {
             Self::Payment { payment_id, .. }
             | Self::Refund { payment_id, .. }
-            | Self::Dispute { payment_id, .. } 
-            | Self::Recovery { payment_id, .. }=> Some(payment_id.to_owned()),
+            | Self::Dispute { payment_id, .. }
+            | Self::Recovery { payment_id, .. } => Some(payment_id.to_owned()),
             Self::NoEffect | Self::Mandate { .. } => None,
             #[cfg(feature = "payouts")]
             Self::Payout { .. } => None,

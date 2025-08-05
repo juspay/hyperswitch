@@ -222,7 +222,7 @@ async fn handle_monitoring_threshold(
     Ok(webhooks::WebhookResponseTracker::NoEffect)
 }
 #[allow(clippy::too_many_arguments)]
-async fn  handle_schedule_failed_payment(
+async fn handle_schedule_failed_payment(
     billing_connector_account: &domain::MerchantConnectorAccount,
     intent_retry_count: u16,
     mca_retry_threshold: u16,
@@ -442,7 +442,7 @@ impl RevenueRecoveryAttempt {
         merchant_context: &domain::MerchantContext,
         profile: &domain::Profile,
         payment_intent: revenue_recovery::RecoveryPaymentIntent,
-        payment_merchant_connector_account: domain::MerchantConnectorAccount
+        payment_merchant_connector_account: domain::MerchantConnectorAccount,
     ) -> CustomResult<
         (
             revenue_recovery::RecoveryPaymentAttempt,
@@ -491,7 +491,10 @@ impl RevenueRecoveryAttempt {
             error_message: data.error.as_ref().map(|error| error.message.clone()),
             processor_payment_method_token: data.primary_processor_payment_method_token,
             connector_customer_id: data.connector_customer_id,
-            connector_account_reference_id: payment_merchant_connector_account.id.get_string_repr().to_string(),
+            connector_account_reference_id: payment_merchant_connector_account
+                .id
+                .get_string_repr()
+                .to_string(),
             transaction_created_at: data.transaction_created_at,
             status: data.status,
             payment_method_type: data.payment_method_type,
@@ -516,7 +519,7 @@ impl RevenueRecoveryAttempt {
             charge_id: None,
         });
 
-         recovery_attempt
+        recovery_attempt
             .get_payment_attempt(state, req_state, merchant_context, profile, &payment_intent)
             .await
             .transpose()
@@ -989,7 +992,8 @@ impl RevenueRecoveryAttempt {
         .change_context(errors::RevenueRecoveryError::ProcessTrackerCreationError)
         .attach_printable("Failed to construct process tracker entry")?;
 
-        let tracker = db.insert_process(process_tracker_entry)
+        let tracker = db
+            .insert_process(process_tracker_entry)
             .await
             .change_context(errors::RevenueRecoveryError::ProcessTrackerResponseError)
             .attach_printable("Failed to enter process_tracker_entry in DB")?;
@@ -1486,17 +1490,31 @@ impl RecoveryAction {
             | webhooks::IncomingWebhookEvent::PayoutCancelled
             | webhooks::IncomingWebhookEvent::PayoutCreated
             | webhooks::IncomingWebhookEvent::PayoutExpired
-            | webhooks::IncomingWebhookEvent::PayoutReversed => common_types::payments::RecoveryAction::InvalidAction,
+            | webhooks::IncomingWebhookEvent::PayoutReversed => {
+                common_types::payments::RecoveryAction::InvalidAction
+            }
             webhooks::IncomingWebhookEvent::RecoveryPaymentFailure => match attempt_triggered_by {
-                Some(common_enums::TriggeredBy::Internal) => common_types::payments::RecoveryAction::NoAction,
-                Some(common_enums::TriggeredBy::External) | None => common_types::payments::RecoveryAction::ScheduleFailedPayment,
+                Some(common_enums::TriggeredBy::Internal) => {
+                    common_types::payments::RecoveryAction::NoAction
+                }
+                Some(common_enums::TriggeredBy::External) | None => {
+                    common_types::payments::RecoveryAction::ScheduleFailedPayment
+                }
             },
             webhooks::IncomingWebhookEvent::RecoveryPaymentSuccess => match attempt_triggered_by {
-                Some(common_enums::TriggeredBy::Internal) => common_types::payments::RecoveryAction::NoAction,
-                Some(common_enums::TriggeredBy::External) | None => common_types::payments::RecoveryAction::SuccessPaymentExternal,
+                Some(common_enums::TriggeredBy::Internal) => {
+                    common_types::payments::RecoveryAction::NoAction
+                }
+                Some(common_enums::TriggeredBy::External) | None => {
+                    common_types::payments::RecoveryAction::SuccessPaymentExternal
+                }
             },
-            webhooks::IncomingWebhookEvent::RecoveryPaymentPending => common_types::payments::RecoveryAction::PendingPayment,
-            webhooks::IncomingWebhookEvent::RecoveryInvoiceCancel => common_types::payments::RecoveryAction::CancelInvoice,
+            webhooks::IncomingWebhookEvent::RecoveryPaymentPending => {
+                common_types::payments::RecoveryAction::PendingPayment
+            }
+            webhooks::IncomingWebhookEvent::RecoveryInvoiceCancel => {
+                common_types::payments::RecoveryAction::CancelInvoice
+            }
         }
     }
 

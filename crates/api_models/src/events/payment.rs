@@ -4,7 +4,7 @@ use common_utils::events::{ApiEventMetric, ApiEventsType};
 use super::{
     PaymentAttemptListRequest, PaymentAttemptListResponse, PaymentStartRedirectionRequest,
     PaymentsCreateIntentRequest, PaymentsGetIntentRequest, PaymentsIntentResponse, PaymentsRequest,
-    RecoveryPaymentsCreate,RecoveryPaymentsResponse
+    RecoveryPaymentsCreate, RecoveryPaymentsResponse,
 };
 #[cfg(feature = "v2")]
 use crate::payment_methods::{

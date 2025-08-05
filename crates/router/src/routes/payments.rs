@@ -160,7 +160,7 @@ pub async fn recovery_payments_create(
                 req_state,
                 merchant_context,
                 auth.profile,
-                req_payload
+                req_payload,
             )
         },
         auth_type,

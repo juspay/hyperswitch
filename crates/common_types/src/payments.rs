@@ -526,7 +526,6 @@ impl ApplePayPredecryptData {
     }
 }
 
-
 /// type of action that needs to taken after consuming recovery payload
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum RecoveryAction {

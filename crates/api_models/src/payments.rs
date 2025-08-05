@@ -1684,15 +1684,15 @@ pub struct RecoveryPaymentsResponse {
     #[schema(value_type = IntentStatus, example = "failed", default = "requires_confirmation")]
     pub status: api_enums::IntentStatus,
 
-     /// The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
+    /// The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
     #[schema(value_type = i64, example = 6540)]
     pub amount: MinorUnit,
 
-     /// Three-letter ISO currency code (e.g., USD, EUR) for the payment amount.
+    /// Three-letter ISO currency code (e.g., USD, EUR) for the payment amount.
     #[schema(value_type = Currency, example = "USD")]
     pub currency: String,
 
-    pub job_status : Option<common_enums::ProcessTrackerStatus>,
+    pub job_status: Option<common_enums::ProcessTrackerStatus>,
 }
 
 #[cfg(feature = "v2")]
@@ -9145,8 +9145,8 @@ pub struct RecoveryPaymentsCreate {
     /// payment method token units at payment processor end.
     pub payment_method_units: CustomBillingPaymentMethodDataWithBilling,
 
-    /// recovery action 
-    pub action : common_payments_types::RecoveryAction,
+    /// recovery action
+    pub action: common_payments_types::RecoveryAction,
 }
 
 /// Error details for the payment
