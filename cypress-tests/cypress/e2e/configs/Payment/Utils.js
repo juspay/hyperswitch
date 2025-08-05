@@ -7,6 +7,7 @@ import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
 import { connectorDetails as airwallexConnectorDetails } from "./Airwallex.js";
 import { connectorDetails as archipelConnectorDetails } from "./Archipel.js";
 import { connectorDetails as authipayConnectorDetails } from "./Authipay.js";
+import { connectorDetails as authorizedotnetConnectorDetails } from "./Authorizedotnet.js";
 import { connectorDetails as bamboraConnectorDetails } from "./Bambora.js";
 import { connectorDetails as bamboraapacConnectorDetails } from "./Bamboraapac.js";
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
@@ -17,8 +18,8 @@ import { connectorDetails as checkoutConnectorDetails } from "./Checkout.js";
 import { connectorDetails as commonConnectorDetails } from "./Commons.js";
 import { connectorDetails as cybersourceConnectorDetails } from "./Cybersource.js";
 import { connectorDetails as datatransConnectorDetails } from "./Datatrans.js";
-import { connectorDetails as dlocalConnectorDetails } from "./Dlocal.js";
 import { connectorDetails as deutschebankConnectorDetails } from "./Deutschebank.js";
+import { connectorDetails as dlocalConnectorDetails } from "./Dlocal.js";
 import { connectorDetails as elavonConnectorDetails } from "./Elavon.js";
 import { connectorDetails as facilitapayConnectorDetails } from "./Facilitapay.js";
 import { connectorDetails as fiservConnectorDetails } from "./Fiserv.js";
@@ -38,6 +39,7 @@ import { connectorDetails as nexixpayConnectorDetails } from "./Nexixpay.js";
 import { connectorDetails as nmiConnectorDetails } from "./Nmi.js";
 import { connectorDetails as noonConnectorDetails } from "./Noon.js";
 import { connectorDetails as novalnetConnectorDetails } from "./Novalnet.js";
+import { connectorDetails as nuveiConnectorDetails } from "./Nuvei.js";
 import { connectorDetails as payboxConnectorDetails } from "./Paybox.js";
 import { connectorDetails as payloadConnectorDetails } from "./Payload.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
@@ -45,6 +47,7 @@ import { connectorDetails as payuConnectorDetails } from "./Payu.js";
 import { connectorDetails as powertranzConnectorDetails } from "./PowerTranz.js";
 import { connectorDetails as redsysConnectorDetails } from "./Redsys.js";
 import { connectorDetails as shift4ConnectorDetails } from "./Shift4.js";
+import { connectorDetails as silverflowConnectorDetails } from "./Silverflow.js";
 import { connectorDetails as squareConnectorDetails } from "./Square.js";
 import { connectorDetails as staxConnectorDetails } from "./Stax.js";
 import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
@@ -62,6 +65,7 @@ const connectorDetails = {
   airwallex: airwallexConnectorDetails,
   archipel: archipelConnectorDetails,
   authipay: authipayConnectorDetails,
+  authorizedotnet: authorizedotnetConnectorDetails,
   bambora: bamboraConnectorDetails,
   bamboraapac: bamboraapacConnectorDetails,
   bankofamerica: bankOfAmericaConnectorDetails,
@@ -93,6 +97,7 @@ const connectorDetails = {
   nmi: nmiConnectorDetails,
   noon: noonConnectorDetails,
   novalnet: novalnetConnectorDetails,
+  nuvei: nuveiConnectorDetails,
   paybox: payboxConnectorDetails,
   payload: payloadConnectorDetails,
   paypal: paypalConnectorDetails,
@@ -100,6 +105,7 @@ const connectorDetails = {
   powertranz: powertranzConnectorDetails,
   redsys: redsysConnectorDetails,
   shift4: shift4ConnectorDetails,
+  silverflow: silverflowConnectorDetails,
   square: squareConnectorDetails,
   stax: staxConnectorDetails,
   stripe: stripeConnectorDetails,
@@ -376,6 +382,7 @@ export const CONNECTOR_LISTS = {
       "facilitapay",
       "fiserv",
       "fiuu",
+      "globalpay",
       "jpmorgan",
       "nexinets",
       "payload",
@@ -391,9 +398,11 @@ export const CONNECTOR_LISTS = {
   INCLUDE: {
     MANDATES_USING_NTID_PROXY: ["cybersource"],
     INCREMENTAL_AUTH: [
-      // "cybersource"    // issues with MULTIPLE_CONNECTORS handling
+      "archipel",
+      // "cybersource",    // issues with MULTIPLE_CONNECTORS handling
       "paypal",
     ],
+    DDC_RACE_CONDITION: ["worldpay"],
     // Add more inclusion lists
   },
 };

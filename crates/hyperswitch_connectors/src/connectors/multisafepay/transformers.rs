@@ -527,6 +527,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::Paysera(_)
                 | WalletData::Skrill(_)
+                | WalletData::BluecodeRedirect {}
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -596,6 +597,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::Paysera(_)
                 | WalletData::Skrill(_)
+                | WalletData::BluecodeRedirect {}
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -766,6 +768,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::Paysera(_)
                 | WalletData::Skrill(_)
+                | WalletData::BluecodeRedirect {}
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -797,11 +800,13 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                         PayLaterData::KlarnaRedirect {} => item.router_data.get_billing_email()?,
                         PayLaterData::KlarnaSdk { token: _ }
                         | PayLaterData::AffirmRedirect {}
+                        | PayLaterData::FlexitiRedirect {}
                         | PayLaterData::AfterpayClearpayRedirect {}
                         | PayLaterData::PayBrightRedirect {}
                         | PayLaterData::WalleyRedirect {}
                         | PayLaterData::AlmaRedirect {}
-                        | PayLaterData::AtomeRedirect {} => {
+                        | PayLaterData::AtomeRedirect {}
+                        | PayLaterData::BreadpayRedirect {} => {
                             Err(errors::ConnectorError::NotImplemented(
                                 utils::get_unimplemented_payment_method_error_message(
                                     "multisafepay",

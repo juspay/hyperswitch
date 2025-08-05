@@ -55,7 +55,9 @@ pub enum PayLaterType {
     Klarna,
     PayBright,
     Walley,
+    Flexiti,
     Atome,
+    Breadpay,
 }
 
 #[derive(
@@ -74,6 +76,7 @@ pub enum PayLaterType {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum WalletType {
+    Bluecode,
     GooglePay,
     AmazonPay,
     Skrill,
@@ -223,6 +226,7 @@ pub enum BankTransferType {
     InstantBankTransfer,
     InstantBankTransferFinland,
     InstantBankTransferPoland,
+    IndonesianBankTransfer,
 }
 
 #[derive(

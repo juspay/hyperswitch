@@ -3363,8 +3363,7 @@ dependencies = [
 [[package]]
 name = "g2h"
 version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0aece561ff748cdd2a37c8ee938a47bbf9b2c03823b393a332110599b14ee827"
+source = "git+https://github.com/NishantJoshi00/g2h?branch=fixing-response-serializing#fd2c856b2c6c88a85d6fe51d95b4d3342b788d31"
 dependencies = [
  "cargo_metadata 0.19.2",
  "heck 0.5.0",
@@ -3526,7 +3525,7 @@ dependencies = [
 [[package]]
 name = "grpc-api-types"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=4918efedd5ea6c33e4a1600b988b2cf4948bed10#4918efedd5ea6c33e4a1600b988b2cf4948bed10"
+source = "git+https://github.com/juspay/connector-service?rev=0409f6aa1014dd1b9827fabfa4fa424e16d07ebc#0409f6aa1014dd1b9827fabfa4fa424e16d07ebc"
 dependencies = [
  "axum 0.8.4",
  "error-stack 0.5.0",
@@ -6900,7 +6899,7 @@ dependencies = [
 [[package]]
 name = "rust-grpc-client"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=4918efedd5ea6c33e4a1600b988b2cf4948bed10#4918efedd5ea6c33e4a1600b988b2cf4948bed10"
+source = "git+https://github.com/juspay/connector-service?rev=0409f6aa1014dd1b9827fabfa4fa424e16d07ebc#0409f6aa1014dd1b9827fabfa4fa424e16d07ebc"
 dependencies = [
  "grpc-api-types",
 ]
@@ -8380,6 +8379,7 @@ dependencies = [
  "async-trait",
  "base64 0.22.1",
  "clap",
+ "common_enums",
  "masking",
  "rand 0.8.5",
  "regex",

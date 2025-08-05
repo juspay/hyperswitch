@@ -370,7 +370,8 @@ fn validate_payment_status_for_payment_method_list(
         | common_enums::IntentStatus::RequiresCapture
         | common_enums::IntentStatus::PartiallyCaptured
         | common_enums::IntentStatus::RequiresConfirmation
-        | common_enums::IntentStatus::PartiallyCapturedAndCapturable => {
+        | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+        | common_enums::IntentStatus::Expired => {
             Err(errors::ApiErrorResponse::PaymentUnexpectedState {
                 current_flow: "list_payment_methods".to_string(),
                 field_name: "status".to_string(),
