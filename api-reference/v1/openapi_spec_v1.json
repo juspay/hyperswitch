@@ -7246,6 +7246,13 @@
             "example": "Doe",
             "nullable": true,
             "maxLength": 255
+          },
+          "origin_zip": {
+            "type": "string",
+            "description": "The zip/postal code of the origin",
+            "example": "08807",
+            "nullable": true,
+            "maxLength": 50
           }
         },
         "additionalProperties": false
@@ -7459,6 +7466,38 @@
           "$ref": "#/components/schemas/ApplePayAddressParameters"
         }
       },
+      "ApplePayCryptogramData": {
+        "type": "object",
+        "description": "This struct represents the cryptogram data for Apple Pay transactions",
+        "required": [
+          "online_payment_cryptogram",
+          "eci_indicator"
+        ],
+        "properties": {
+          "online_payment_cryptogram": {
+            "type": "string",
+            "description": "The online payment cryptogram",
+            "example": "A1B2C3D4E5F6G7H8"
+          },
+          "eci_indicator": {
+            "type": "string",
+            "description": "The ECI (Electronic Commerce Indicator) value",
+            "example": "05"
+          }
+        }
+      },
+      "ApplePayPaymentData": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ApplePayPredecryptData"
+          },
+          {
+            "type": "string",
+            "description": "This variant contains the encrypted Apple Pay payment data as a string."
+          }
+        ],
+        "description": "This enum is used to represent the Apple Pay payment data, which can either be encrypted or decrypted."
+      },
       "ApplePayPaymentRequest": {
         "type": "object",
         "required": [
@@ -7528,6 +7567,36 @@
           "immediate",
           "recurring"
         ]
+      },
+      "ApplePayPredecryptData": {
+        "type": "object",
+        "description": "This struct represents the decrypted Apple Pay payment data",
+        "required": [
+          "application_primary_account_number",
+          "application_expiration_month",
+          "application_expiration_year",
+          "payment_data"
+        ],
+        "properties": {
+          "application_primary_account_number": {
+            "type": "string",
+            "description": "The primary account number",
+            "example": "4242424242424242"
+          },
+          "application_expiration_month": {
+            "type": "string",
+            "description": "The application expiration date (PAN expiry month)",
+            "example": "12"
+          },
+          "application_expiration_year": {
+            "type": "string",
+            "description": "The application expiration date (PAN expiry year)",
+            "example": "24"
+          },
+          "payment_data": {
+            "$ref": "#/components/schemas/ApplePayCryptogramData"
+          }
+        }
       },
       "ApplePayRecurringDetails": {
         "type": "object",
@@ -7705,8 +7774,7 @@
         ],
         "properties": {
           "payment_data": {
-            "type": "string",
-            "description": "The payment data of Apple pay"
+            "$ref": "#/components/schemas/ApplePayPaymentData"
           },
           "payment_method": {
             "$ref": "#/components/schemas/ApplepayPaymentMethod"
@@ -13301,6 +13369,12 @@
             "example": "+1",
             "nullable": true,
             "maxLength": 2
+          },
+          "tax_registration_id": {
+            "type": "string",
+            "description": "The tax registration identifier of the customer.",
+            "nullable": true,
+            "maxLength": 255
           }
         }
       },
@@ -13644,6 +13718,13 @@
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500\ncharacters long. Metadata is useful for storing additional, structured information on an\nobject.",
             "nullable": true
+          },
+          "tax_registration_id": {
+            "type": "string",
+            "description": "Customer's tax registration ID",
+            "example": "123456789",
+            "nullable": true,
+            "maxLength": 255
           }
         }
       },
@@ -13721,6 +13802,13 @@
             "example": "pm_djh2837dwduh890123",
             "nullable": true,
             "maxLength": 64
+          },
+          "tax_registration_id": {
+            "type": "string",
+            "description": "The customer's tax registration number.",
+            "example": "123456789",
+            "nullable": true,
+            "maxLength": 255
           }
         }
       },
@@ -13775,6 +13863,13 @@
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500\ncharacters long. Metadata is useful for storing additional, structured information on an\nobject.",
             "nullable": true
+          },
+          "tax_registration_id": {
+            "type": "string",
+            "description": "Customer's tax registration ID",
+            "example": "123456789",
+            "nullable": true,
+            "maxLength": 255
           }
         }
       },
@@ -19349,6 +19444,43 @@
             "type": "string",
             "description": "The tax code for the product",
             "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "Description for the item",
+            "nullable": true
+          },
+          "sku": {
+            "type": "string",
+            "description": "Stock Keeping Unit (SKU) or the item identifier for this item.",
+            "nullable": true
+          },
+          "upc": {
+            "type": "string",
+            "description": "Universal Product Code for the item.",
+            "nullable": true
+          },
+          "commodity_code": {
+            "type": "string",
+            "description": "Code describing a commodity or a group of commodities pertaining to goods classification.",
+            "nullable": true
+          },
+          "unit_of_measure": {
+            "type": "string",
+            "description": "Unit of measure used for the item quantity.",
+            "nullable": true
+          },
+          "total_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total amount for the item.",
+            "nullable": true
+          },
+          "unit_discount_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Discount amount applied to this item.",
+            "nullable": true
           }
         }
       },
@@ -22441,6 +22573,43 @@
               }
             ],
             "nullable": true
+          },
+          "tax_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TaxStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "discount_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total amount of the discount you have applied to the order or transaction.",
+            "example": 6540,
+            "nullable": true
+          },
+          "shipping_amount_tax": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "duty_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "order_date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Date the payer placed the order.",
+            "nullable": true
           }
         }
       },
@@ -22871,6 +23040,43 @@
                 "$ref": "#/components/schemas/PaymentChannel"
               }
             ],
+            "nullable": true
+          },
+          "tax_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TaxStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "discount_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total amount of the discount you have applied to the order or transaction.",
+            "example": 6540,
+            "nullable": true
+          },
+          "shipping_amount_tax": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "duty_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "order_date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Date the payer placed the order.",
             "nullable": true
           }
         }
@@ -24194,6 +24400,43 @@
               }
             ],
             "nullable": true
+          },
+          "tax_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TaxStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "discount_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total amount of the discount you have applied to the order or transaction.",
+            "example": 6540,
+            "nullable": true
+          },
+          "shipping_amount_tax": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "duty_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "order_date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Date the payer placed the order.",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -25384,6 +25627,43 @@
                 "$ref": "#/components/schemas/PaymentChannel"
               }
             ],
+            "nullable": true
+          },
+          "tax_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TaxStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "discount_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total amount of the discount you have applied to the order or transaction.",
+            "example": 6540,
+            "nullable": true
+          },
+          "shipping_amount_tax": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "duty_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "order_date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Date the payer placed the order.",
             "nullable": true
           }
         }
@@ -30949,6 +31229,13 @@
       },
       "SwishQrData": {
         "type": "object"
+      },
+      "TaxStatus": {
+        "type": "string",
+        "enum": [
+          "taxable",
+          "exempt"
+        ]
       },
       "ThirdPartySdkSessionResponse": {
         "type": "object",

@@ -3,6 +3,7 @@ use api_models::payments;
 use api_models::payouts::PayoutMethodData;
 use base64::Engine;
 use common_enums::{enums, FutureUsage};
+use common_types::payments::ApplePayPredecryptData;
 use common_utils::{
     consts, date_time,
     ext_traits::{OptionExt, ValueExt},
@@ -24,9 +25,8 @@ use hyperswitch_domain_models::{
         SamsungPayWalletData, WalletData,
     },
     router_data::{
-        AdditionalPaymentMethodConnectorResponse, ApplePayPredecryptData, ConnectorAuthType,
-        ConnectorResponseData, ErrorResponse, GooglePayDecryptedData, PaymentMethodToken,
-        RouterData,
+        AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
+        ErrorResponse, GooglePayDecryptedData, PaymentMethodToken, RouterData,
     },
     router_flow_types::{
         payments::Authorize,
@@ -61,7 +61,7 @@ use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     unimplemented_payment_method,
     utils::{
-        self, AddressDetailsData, ApplePayDecrypt, CardData, CardIssuer, NetworkTokenData as _,
+        self, AddressDetailsData, CardData, CardIssuer, NetworkTokenData as _,
         PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
         PaymentsPreProcessingRequestData, PaymentsSetupMandateRequestData, PaymentsSyncRequestData,
         RecurringMandateData, RouterData as OtherRouterData,
@@ -194,8 +194,8 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                 WalletData::ApplePay(apple_pay_data) => match item.payment_method_token.clone() {
                     Some(payment_method_token) => match payment_method_token {
                         PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
-                            let expiration_month = decrypt_data.get_expiry_month()?;
-                            let expiration_year = decrypt_data.get_four_digit_expiry_year()?;
+                            let expiration_month = decrypt_data.get_expiry_month();
+                            let expiration_year = decrypt_data.get_four_digit_expiry_year();
                             (
                                 PaymentInformation::ApplePay(Box::new(
                                     ApplePayPaymentInformation {
@@ -225,20 +225,28 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                             Err(unimplemented_payment_method!("Google Pay", "Cybersource"))?
                         }
                     },
-                    None => (
-                        PaymentInformation::ApplePayToken(Box::new(
-                            ApplePayTokenPaymentInformation {
-                                fluid_data: FluidData {
-                                    value: Secret::from(apple_pay_data.payment_data),
-                                    descriptor: Some(FLUID_DATA_DESCRIPTOR.to_string()),
+                    None => {
+                        let apple_pay_encrypted_data = apple_pay_data
+                            .payment_data
+                            .get_encrypted_apple_pay_payment_data_mandatory()
+                            .change_context(errors::ConnectorError::MissingRequiredField {
+                                field_name: "Apple pay encrypted data",
+                            })?;
+                        (
+                            PaymentInformation::ApplePayToken(Box::new(
+                                ApplePayTokenPaymentInformation {
+                                    fluid_data: FluidData {
+                                        value: Secret::from(apple_pay_encrypted_data.clone()),
+                                        descriptor: Some(FLUID_DATA_DESCRIPTOR.to_string()),
+                                    },
+                                    tokenized_card: ApplePayTokenizedCard {
+                                        transaction_type: TransactionType::InApp,
+                                    },
                                 },
-                                tokenized_card: ApplePayTokenizedCard {
-                                    transaction_type: TransactionType::InApp,
-                                },
-                            },
-                        )),
-                        Some(PaymentSolution::ApplePay),
-                    ),
+                            )),
+                            Some(PaymentSolution::ApplePay),
+                        )
+                    }
                 },
                 WalletData::GooglePay(google_pay_data) => (
                     PaymentInformation::GooglePayToken(Box::new(
@@ -492,7 +500,7 @@ pub struct CardPaymentInformation {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TokenizedCard {
-    number: Secret<String>,
+    number: cards::CardNumber,
     expiration_month: Secret<String>,
     expiration_year: Secret<String>,
     cryptogram: Option<Secret<String>>,
@@ -1811,8 +1819,8 @@ impl
             Some(apple_pay_wallet_data.payment_method.network.clone()),
         ))?;
         let client_reference_information = ClientReferenceInformation::from(item);
-        let expiration_month = apple_pay_data.get_expiry_month()?;
-        let expiration_year = apple_pay_data.get_four_digit_expiry_year()?;
+        let expiration_month = apple_pay_data.get_expiry_month();
+        let expiration_year = apple_pay_data.get_four_digit_expiry_year();
         let payment_information =
             PaymentInformation::ApplePay(Box::new(ApplePayPaymentInformation {
                 tokenized_card: TokenizedCard {
@@ -1942,12 +1950,7 @@ impl
         let payment_information =
             PaymentInformation::GooglePay(Box::new(GooglePayPaymentInformation {
                 tokenized_card: TokenizedCard {
-                    number: Secret::new(
-                        google_pay_decrypted_data
-                            .payment_method_details
-                            .pan
-                            .get_card_no(),
-                    ),
+                    number: google_pay_decrypted_data.payment_method_details.pan,
                     cryptogram: google_pay_decrypted_data.payment_method_details.cryptogram,
                     transaction_type,
                     expiration_year: Secret::new(
@@ -2159,10 +2162,21 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
                                         ))?;
                                     let client_reference_information =
                                         ClientReferenceInformation::from(item);
+
+                                    let apple_pay_encrypted_data = apple_pay_data
+                                        .payment_data
+                                        .get_encrypted_apple_pay_payment_data_mandatory()
+                                        .change_context(
+                                            errors::ConnectorError::MissingRequiredField {
+                                                field_name: "Apple pay encrypted data",
+                                            },
+                                        )?;
                                     let payment_information = PaymentInformation::ApplePayToken(
                                         Box::new(ApplePayTokenPaymentInformation {
                                             fluid_data: FluidData {
-                                                value: Secret::from(apple_pay_data.payment_data),
+                                                value: Secret::from(
+                                                    apple_pay_encrypted_data.clone(),
+                                                ),
                                                 descriptor: Some(FLUID_DATA_DESCRIPTOR.to_string()),
                                             },
                                             tokenized_card: ApplePayTokenizedCard {
