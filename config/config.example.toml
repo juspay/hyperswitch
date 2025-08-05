@@ -1145,8 +1145,7 @@ static_routing_enabled = true           # Enable or disable Open Router for stat
 url = "http://localhost:8080"           # Open Router URL
 
 [grpc_client.unified_connector_service]
-host = "localhost"                      # Unified Connector Service Client Host
-port = 8000                             # Unified Connector Service Client Port
+base_url = "http://localhost:8000"      # Unified Connector Service Base URL
 connection_timeout = 10                 # Connection Timeout Duration in Seconds
 
 [billing_connectors_invoice_sync]

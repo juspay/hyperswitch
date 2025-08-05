@@ -1245,8 +1245,7 @@ static_routing_enabled = false
 url = "http://localhost:8080"
 
 [grpc_client.unified_connector_service]
-host = "localhost"
-port = 8000
+base_url = "http://localhost:8000"
 connection_timeout = 10
 ucs_only_connectors = [
   "razorpay",
