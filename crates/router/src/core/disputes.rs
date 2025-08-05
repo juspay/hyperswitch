@@ -393,8 +393,11 @@ pub async fn submit_evidence(
     core_utils::validate_profile_id_from_auth_layer(profile_id, &dispute)?;
     let dispute_id = dispute.dispute_id.clone();
     common_utils::fp_utils::when(
-        !(dispute.dispute_stage == storage_enums::DisputeStage::Dispute
-            && dispute.dispute_status == storage_enums::DisputeStatus::DisputeOpened),
+        dispute.dispute_stage == storage_enums::DisputeStage::DisputeReversal
+            || dispute.dispute_status == storage_enums::DisputeStatus::DisputeExpired
+            || dispute.dispute_status == storage_enums::DisputeStatus::DisputeCancelled
+            || dispute.dispute_status == storage_enums::DisputeStatus::DisputeWon
+            || dispute.dispute_status == storage_enums::DisputeStatus::DisputeLost,
         || {
             metrics::EVIDENCE_SUBMISSION_DISPUTE_STATUS_VALIDATION_FAILURE_METRIC.add(1, &[]);
             Err(errors::ApiErrorResponse::DisputeStatusValidationFailed {

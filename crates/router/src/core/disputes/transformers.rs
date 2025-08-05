@@ -103,6 +103,7 @@ pub async fn get_evidence_request_data(
     .await?;
     Ok(SubmitEvidenceRequestData {
         dispute_id: dispute.dispute_id.clone(),
+        dispute_status: dispute.dispute_status,
         connector_dispute_id: dispute.connector_dispute_id.clone(),
         access_activity_log: evidence_request.access_activity_log,
         billing_address: evidence_request.billing_address,

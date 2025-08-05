@@ -979,7 +979,13 @@ impl ConnectorIntegration<Evidence, SubmitEvidenceRequestData, SubmitEvidenceRes
         _event_builder: Option<&mut ConnectorEvent>,
         _res: Response,
     ) -> CustomResult<SubmitEvidenceRouterData, errors::ConnectorError> {
-        Ok(SubmitEvidenceRouterData { ..data.clone() })
+        Ok(SubmitEvidenceRouterData {
+            response: Ok(SubmitEvidenceResponse {
+                dispute_status: data.request.dispute_status,
+                connector_status: None,
+            }),
+            ..data.clone()
+        })
     }
 
     fn get_error_response(
@@ -1075,7 +1081,13 @@ impl ConnectorIntegration<Accept, AcceptDisputeRequestData, AcceptDisputeRespons
         _event_builder: Option<&mut ConnectorEvent>,
         _res: Response,
     ) -> CustomResult<AcceptDisputeRouterData, errors::ConnectorError> {
-        Ok(AcceptDisputeRouterData { ..data.clone() })
+        Ok(AcceptDisputeRouterData {
+            response: Ok(AcceptDisputeResponse {
+                dispute_status: data.request.dispute_status,
+                connector_status: None,
+            }),
+            ..data.clone()
+        })
     }
 
     fn get_error_response(

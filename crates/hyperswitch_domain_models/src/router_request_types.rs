@@ -836,6 +836,7 @@ impl TryFrom<router_data::ConnectorAuthType> for AccessTokenRequestData {
 pub struct AcceptDisputeRequestData {
     pub dispute_id: String,
     pub connector_dispute_id: String,
+    pub dispute_status: storage_enums::DisputeStatus,
 }
 
 #[derive(Default, Debug, Clone)]
@@ -847,6 +848,7 @@ pub struct DefendDisputeRequestData {
 #[derive(Default, Debug, Clone)]
 pub struct SubmitEvidenceRequestData {
     pub dispute_id: String,
+    pub dispute_status: storage_enums::DisputeStatus,
     pub connector_dispute_id: String,
     pub access_activity_log: Option<String>,
     pub billing_address: Option<String>,

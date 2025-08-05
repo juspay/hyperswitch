@@ -1007,6 +1007,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         request: types::AcceptDisputeRequestData {
             dispute_id: dispute.dispute_id.clone(),
             connector_dispute_id: dispute.connector_dispute_id.clone(),
+            dispute_status: dispute.dispute_status,
         },
         response: Err(ErrorResponse::default()),
         access_token: None,
