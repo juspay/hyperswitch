@@ -12,7 +12,6 @@ use crate::{
         errors::{self, RouterResult, StorageErrorExt},
         payments::{self, helpers, operations, PaymentData},
     },
-    events::audit_events::{AuditEvent, AuditEventType},
     routes::{app::ReqState, SessionState},
     services,
     types::{
@@ -281,66 +280,19 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelPostCa
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        state: &'b SessionState,
-        req_state: ReqState,
-        mut payment_data: PaymentData<F>,
+        _state: &'b SessionState,
+        _req_state: ReqState,
+        payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
-        storage_scheme: enums::MerchantStorageScheme,
+        _storage_scheme: enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
-        key_store: &domain::MerchantKeyStore,
+        _key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(PaymentCancelPostCaptureOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
     {
-        let cancellation_reason = payment_data.payment_attempt.cancellation_reason.clone();
-        let (intent_status_update, attempt_status_update) =
-            if payment_data.payment_intent.status != enums::IntentStatus::RequiresCapture {
-                let payment_intent_update = storage::PaymentIntentUpdate::PGStatusUpdate {
-                    status: enums::IntentStatus::Cancelled,
-                    updated_by: storage_scheme.to_string(),
-                    incremental_authorization_allowed: None,
-                };
-                (Some(payment_intent_update), enums::AttemptStatus::Voided)
-            } else {
-                (None, enums::AttemptStatus::VoidInitiated)
-            };
-
-        if let Some(payment_intent_update) = intent_status_update {
-            payment_data.payment_intent = state
-                .store
-                .update_payment_intent(
-                    &state.into(),
-                    payment_data.payment_intent,
-                    payment_intent_update,
-                    key_store,
-                    storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-        }
-
-        state
-            .store
-            .update_payment_attempt_with_attempt_id(
-                payment_data.payment_attempt.clone(),
-                storage::PaymentAttemptUpdate::VoidUpdate {
-                    status: attempt_status_update,
-                    cancellation_reason: cancellation_reason.clone(),
-                    updated_by: storage_scheme.to_string(),
-                },
-                storage_scheme,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-        req_state
-            .event_context
-            .event(AuditEvent::new(AuditEventType::PaymentCancelled {
-                cancellation_reason,
-            }))
-            .with(payment_data.to_event())
-            .emit();
         Ok((Box::new(self), payment_data))
     }
 }
