@@ -4775,7 +4775,7 @@
         ],
         "properties": {
           "payment_data": {
-            "$ref": "#/components/schemas/Connector"
+            "$ref": "#/components/schemas/ApplePayPaymentData"
           },
           "payment_method": {
             "$ref": "#/components/schemas/ApplepayPaymentMethod"

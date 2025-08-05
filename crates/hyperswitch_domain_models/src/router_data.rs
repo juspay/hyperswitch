@@ -1,6 +1,6 @@
 use std::{collections::HashMap, marker::PhantomData};
 
-use common_types::primitive_wrappers;
+use common_types::{primitive_wrappers, payments as common_payment_types};
 use common_utils::{
     errors::IntegrityCheckError,
     ext_traits::{OptionExt, ValueExt},
@@ -244,7 +244,7 @@ pub struct AccessToken {
 #[derive(Debug, Clone, serde::Deserialize)]
 pub enum PaymentMethodToken {
     Token(Secret<String>),
-    ApplePayDecrypt(Box<common_types::payments::ApplePayPredecryptData>),
+    ApplePayDecrypt(Box<common_payment_types::ApplePayPredecryptData>),
     GooglePayDecrypt(Box<GooglePayDecryptedData>),
     PazeDecrypt(Box<PazeDecryptedData>),
 }
@@ -268,7 +268,7 @@ pub struct ApplePayCryptogramDataInternal {
     pub eci_indicator: Option<String>,
 }
 
-impl TryFrom<ApplePayPredecryptDataInternal> for common_types::payments::ApplePayPredecryptData {
+impl TryFrom<ApplePayPredecryptDataInternal> for common_payment_types::ApplePayPredecryptData {
     type Error = common_utils::errors::ValidationError;
     fn try_from(data: ApplePayPredecryptDataInternal) -> Result<Self, Self::Error> {
         let application_expiration_month = data.clone().get_expiry_month()?;
@@ -283,7 +283,7 @@ impl TryFrom<ApplePayPredecryptDataInternal> for common_types::payments::ApplePa
     }
 }
 
-impl From<ApplePayCryptogramDataInternal> for common_types::payments::ApplePayCryptogramData {
+impl From<ApplePayCryptogramDataInternal> for common_payment_types::ApplePayCryptogramData {
     fn from(payment_data: ApplePayCryptogramDataInternal) -> Self {
         Self {
             online_payment_cryptogram: payment_data.online_payment_cryptogram,
