@@ -442,7 +442,7 @@ pub async fn decision_engine_routing(
 pub fn extract_de_output_connectors(
     output_value: serde_json::Value,
 ) -> RoutingResult<Vec<ConnectorInfo>> {
-    const SINGLE: &str = "single";
+    const SINGLE: &str = "straight_through";
     const PRIORITY: &str = "priority";
     const VOLUME_SPLIT: &str = "volume_split";
     const VOLUME_SPLIT_PRIORITY: &str = "volume_split_priority";
