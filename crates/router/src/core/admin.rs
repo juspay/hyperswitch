@@ -2621,9 +2621,9 @@ pub async fn create_connector(
             .dispute_polling_interval
             .map(|dispute_polling_interval| *dispute_polling_interval.deref())
             .unwrap_or(common_types::consts::MAX_DISPUTE_POLLING_INTERVAL_IN_HOURS);
-      
+
         let created_till = created_from
-            .checked_add(time::Duration::hours(i64::from(dispute_polling_interval))) 
+            .checked_add(time::Duration::hours(i64::from(dispute_polling_interval)))
             .ok_or(errors::ApiErrorResponse::InternalServerError)?;
 
         let m_db = state.clone().store;
@@ -2633,21 +2633,25 @@ pub async fn create_connector(
         let business_profile_id = business_profile.get_id().clone();
         tokio::spawn(
             async move {
-        disputes::add_dispute_list_task_to_pt(
-            &*m_db,
-            &connector_name,
-            merchant_id.clone(),
-            merchant_connector_id.clone(),
-            business_profile_id,
-            types::FetchDisputesRequestData {
-                created_from,
-                created_till,
-            }  
-        )
-        .await
-        .map_err(|error| crate::logger::error!("Failed to add dispute list task to process tracker: {error}"))
-        }
-        .in_current_span(),
+                disputes::add_dispute_list_task_to_pt(
+                    &*m_db,
+                    &connector_name,
+                    merchant_id.clone(),
+                    merchant_connector_id.clone(),
+                    business_profile_id,
+                    types::FetchDisputesRequestData {
+                        created_from,
+                        created_till,
+                    },
+                )
+                .await
+                .map_err(|error| {
+                    crate::logger::error!(
+                        "Failed to add dispute list task to process tracker: {error}"
+                    )
+                })
+            }
+            .in_current_span(),
         );
     }
 

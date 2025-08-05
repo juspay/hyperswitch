@@ -262,12 +262,15 @@ pub fn get_process_tracker_id<'a>(
 pub fn get_process_tracker_id_for_dispute_list<'a>(
     runner: storage::ProcessTrackerRunner,
     merchant_connector_account_id: &'a common_utils::id_type::MerchantConnectorAccountId,
-    created_from: time::PrimitiveDateTime, 
+    created_from: time::PrimitiveDateTime,
     merchant_id: &'a common_utils::id_type::MerchantId,
 ) -> String {
     format!(
         "{runner}_{:04}{}{:02}{:02}_{}_{}",
-        created_from.year(), created_from.month(), created_from.day(), created_from.hour(),
+        created_from.year(),
+        created_from.month(),
+        created_from.day(),
+        created_from.hour(),
         merchant_connector_account_id.get_string_repr(),
         merchant_id.get_string_repr()
     )

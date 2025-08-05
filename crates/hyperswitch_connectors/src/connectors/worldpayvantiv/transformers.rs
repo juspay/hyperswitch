@@ -3049,11 +3049,13 @@ impl
             DisputeSyncResponse,
         >,
     ) -> Result<Self, Self::Error> {
-        let dispute_response = item.response.chargeback_case.and_then(|chargeback_case| chargeback_case.first().cloned()).ok_or(
-            errors::ConnectorError::RequestEncodingFailedWithReason(
+        let dispute_response = item
+            .response
+            .chargeback_case
+            .and_then(|chargeback_case| chargeback_case.first().cloned())
+            .ok_or(errors::ConnectorError::RequestEncodingFailedWithReason(
                 "Could not find chargeback case".to_string(),
-            ),
-        )?;
+            ))?;
 
         let dispute_sync_response = DisputeSyncResponse::try_from(dispute_response.clone())?;
         Ok(DisputeSyncRouterData {

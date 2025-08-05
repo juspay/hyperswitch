@@ -477,25 +477,31 @@ async fn get_outgoing_webhook_content_and_event_type(
                 force_sync: None,
             };
 
-            let dispute_response =
-                match Box::pin(retrieve_dispute(state, merchant_context.clone(), None, request)).await? {
-                    ApplicationResponse::Json(dispute_response)
-                    | ApplicationResponse::JsonWithHeaders((dispute_response, _)) => {
-                        Ok(dispute_response)
-                    }
-                    ApplicationResponse::StatusOk
-                    | ApplicationResponse::TextPlain(_)
-                    | ApplicationResponse::JsonForRedirection(_)
-                    | ApplicationResponse::Form(_)
-                    | ApplicationResponse::GenericLinkForm(_)
-                    | ApplicationResponse::PaymentLinkForm(_)
-                    | ApplicationResponse::FileData(_) => {
-                        Err(errors::ProcessTrackerError::ResourceFetchingFailed {
-                            resource_name: tracking_data.primary_object_id.clone(),
-                        })
-                    }
+            let dispute_response = match Box::pin(retrieve_dispute(
+                state,
+                merchant_context.clone(),
+                None,
+                request,
+            ))
+            .await?
+            {
+                ApplicationResponse::Json(dispute_response)
+                | ApplicationResponse::JsonWithHeaders((dispute_response, _)) => {
+                    Ok(dispute_response)
                 }
-                .map(Box::new)?;
+                ApplicationResponse::StatusOk
+                | ApplicationResponse::TextPlain(_)
+                | ApplicationResponse::JsonForRedirection(_)
+                | ApplicationResponse::Form(_)
+                | ApplicationResponse::GenericLinkForm(_)
+                | ApplicationResponse::PaymentLinkForm(_)
+                | ApplicationResponse::FileData(_) => {
+                    Err(errors::ProcessTrackerError::ResourceFetchingFailed {
+                        resource_name: tracking_data.primary_object_id.clone(),
+                    })
+                }
+            }
+            .map(Box::new)?;
             let event_type = Some(EventType::from(dispute_response.dispute_status));
             logger::debug!(current_resource_status=%dispute_response.dispute_status);
 

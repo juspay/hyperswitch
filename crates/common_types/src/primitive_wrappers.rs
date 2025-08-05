@@ -174,8 +174,10 @@ mod bool_wrappers {
 
 mod u32_wrappers {
     use std::ops::Deref;
-    use crate::consts::MAX_DISPUTE_POLLING_INTERVAL_IN_HOURS;
+
     use serde::{Deserialize, Serialize};
+
+    use crate::consts::MAX_DISPUTE_POLLING_INTERVAL_IN_HOURS;
     /// Time interval in hours for polling disputes
     #[derive(
         Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize, diesel::expression::AsExpression,

@@ -387,7 +387,7 @@ impl Connector {
         matches!((self, payment_method), (Self::Razorpay, PaymentMethod::Upi))
     }
     pub fn supports_file_storage_module(self) -> bool {
-        matches!(self, Self::Stripe | Self::Checkout | Self::Worldpayvantiv )
+        matches!(self, Self::Stripe | Self::Checkout | Self::Worldpayvantiv)
     }
     pub fn requires_defend_dispute(self) -> bool {
         matches!(self, Self::Checkout)

@@ -89,12 +89,7 @@ pub async fn fetch_disputes(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            disputes::connector_sync_disputes(
-                state,
-                merchant_context,
-                connector_id.clone(),
-                req,
-            )
+            disputes::connector_sync_disputes(state, merchant_context, connector_id.clone(), req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {

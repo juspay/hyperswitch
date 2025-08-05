@@ -76,23 +76,27 @@ impl ProcessTrackerWorkflow<SessionState> for DisputeListWorkflow {
             let m_db = state.clone().store;
             let m_tracking_data = tracking_data.clone();
             let dispute_polling_interval = business_profile
-            .dispute_polling_interval
-            .map(|dispute_polling_interval| *dispute_polling_interval.deref())
-            .unwrap_or(common_types::consts::MAX_DISPUTE_POLLING_INTERVAL_IN_HOURS);
+                .dispute_polling_interval
+                .map(|dispute_polling_interval| *dispute_polling_interval.deref())
+                .unwrap_or(common_types::consts::MAX_DISPUTE_POLLING_INTERVAL_IN_HOURS);
 
             tokio::spawn(
                 async move {
-        schedule_next_dispute_list_task(
-            &*m_db,
-            &m_tracking_data,
-            dispute_polling_interval,
-        )
-    .await
-    .map_err(|error| crate::logger::error!("Failed to add dispute list task to process tracker: {error}"))
-    }
-    .in_current_span(),
-    );
-    };
+                    schedule_next_dispute_list_task(
+                        &*m_db,
+                        &m_tracking_data,
+                        dispute_polling_interval,
+                    )
+                    .await
+                    .map_err(|error| {
+                        crate::logger::error!(
+                            "Failed to add dispute list task to process tracker: {error}"
+                        )
+                    })
+                }
+                .in_current_span(),
+            );
+        };
 
         let response = Box::pin(disputes::fetch_disputes_from_connector(
             state.clone(),
@@ -100,7 +104,7 @@ impl ProcessTrackerWorkflow<SessionState> for DisputeListWorkflow {
             tracking_data.merchant_connector_id,
             hyperswitch_domain_models::router_request_types::FetchDisputesRequestData {
                 created_from: tracking_data.created_from,
-                created_till: tracking_data.created_till, 
+                created_till: tracking_data.created_till,
             },
         ))
         .await
@@ -204,7 +208,7 @@ pub async fn schedule_next_dispute_list_task(
 
     let fetch_request = hyperswitch_domain_models::router_request_types::FetchDisputesRequestData {
         created_from: tracking_data.created_till,
-        created_till: new_created_till, 
+        created_till: new_created_till,
     };
 
     disputes::add_dispute_list_task_to_pt(
@@ -213,8 +217,8 @@ pub async fn schedule_next_dispute_list_task(
         tracking_data.merchant_id.clone(),
         tracking_data.merchant_connector_id.clone(),
         tracking_data.profile_id.clone(),
-        fetch_request
+        fetch_request,
     )
     .await?;
-Ok(())
+    Ok(())
 }

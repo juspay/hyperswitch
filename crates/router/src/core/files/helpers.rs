@@ -6,7 +6,7 @@ use hyperswitch_domain_models::router_response_types::disputes::FileInfo;
 
 use crate::{
     core::{
-        errors::{self, StorageErrorExt, utils::ConnectorErrorExt},
+        errors::{self, utils::ConnectorErrorExt, StorageErrorExt},
         payments, utils,
     },
     routes::SessionState,

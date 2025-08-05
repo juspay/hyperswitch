@@ -979,9 +979,7 @@ impl ConnectorIntegration<Evidence, SubmitEvidenceRequestData, SubmitEvidenceRes
         _event_builder: Option<&mut ConnectorEvent>,
         _res: Response,
     ) -> CustomResult<SubmitEvidenceRouterData, errors::ConnectorError> {
-        Ok(SubmitEvidenceRouterData {
-            ..data.clone()
-        })
+        Ok(SubmitEvidenceRouterData { ..data.clone() })
     }
 
     fn get_error_response(
@@ -1077,9 +1075,7 @@ impl ConnectorIntegration<Accept, AcceptDisputeRequestData, AcceptDisputeRespons
         _event_builder: Option<&mut ConnectorEvent>,
         _res: Response,
     ) -> CustomResult<AcceptDisputeRouterData, errors::ConnectorError> {
-        Ok(AcceptDisputeRouterData {
-            ..data.clone()
-        })
+        Ok(AcceptDisputeRouterData { ..data.clone() })
     }
 
     fn get_error_response(
@@ -1099,12 +1095,10 @@ impl ConnectorIntegration<Upload, UploadFileRequestData, UploadFileResponse> for
         req: &RouterData<Upload, UploadFileRequestData, UploadFileResponse>,
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let mut headers = vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                req.request.file_type.to_string().into()
-            ),
-        ];
+        let mut headers = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            req.request.file_type.to_string().into(),
+        )];
 
         let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
         headers.append(&mut auth_header);
@@ -1129,9 +1123,11 @@ impl ConnectorIntegration<Upload, UploadFileRequestData, UploadFileResponse> for
                 reason: "file_type does not match JPEG, JPG, PNG, or PDF format".to_owned(),
             })?;
         };
-        let file_name = req.request.file_key.split('/').last().ok_or( errors::ConnectorError::RequestEncodingFailedWithReason(
-            "Failed fetching file_id from file_key".to_string(),
-        ))?;
+        let file_name = req.request.file_key.split('/').last().ok_or(
+            errors::ConnectorError::RequestEncodingFailedWithReason(
+                "Failed fetching file_id from file_key".to_string(),
+            ),
+        )?;
         Ok(format!(
             "{}/services/chargebacks/upload/{}/{file_name}.{file_type}",
             connectors.worldpayvantiv.third_base_url.to_owned(),
@@ -1205,7 +1201,6 @@ impl ConnectorIntegration<Retrieve, RetrieveFileRequestData, RetrieveFileRespons
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.get_auth_header(&req.connector_auth_type)
-
     }
 
     fn get_url(

@@ -470,7 +470,8 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 _ => errors::ApiErrorResponse::InternalServerError,
             };
             err.change_context(error)
-        })}
+        })
+    }
 
     #[cfg(feature = "payouts")]
     fn to_payout_failed_response(self) -> error_stack::Result<T, errors::ApiErrorResponse> {

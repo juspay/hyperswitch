@@ -17,8 +17,8 @@ use crate::{
     core::payments::PaymentsRedirectResponseData,
     services::{authentication::AuthenticationType, kafka::KafkaMessage},
     types::api::{
-        AttachEvidenceRequest, Config, ConfigUpdate, CreateFileRequest, DisputeId, FileId,
-        FileRetrieveRequest, PollId, DisputeFetchQueryData,
+        AttachEvidenceRequest, Config, ConfigUpdate, CreateFileRequest, DisputeFetchQueryData,
+        DisputeId, FileId, FileRetrieveRequest, PollId,
     },
 };
 
