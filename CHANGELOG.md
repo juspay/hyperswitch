@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.07.30.0-hotfix1
+
+### Bug Fixes
+
+- **connector:** [Wise] send uuid as connector_transaction_id ([#8837](https://github.com/juspay/hyperswitch/pull/8837)) ([`5b31b0e`](https://github.com/juspay/hyperswitch/commit/5b31b0edb99f7bf3735c7a9f30f5d7b042e17ca3))
+
+### Refactors
+
+- **config:** Enable payout in prod release ([#8819](https://github.com/juspay/hyperswitch/pull/8819)) ([`0125d98`](https://github.com/juspay/hyperswitch/commit/0125d98851d78cceef8a35005afe07f4d08fb28b))
+
+**Full Changelog:** [`2025.07.30.0...2025.07.30.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.07.30.0...2025.07.30.0-hotfix1)
+
+- - -
+
 ## 2025.07.30.0
 
 ### Features
