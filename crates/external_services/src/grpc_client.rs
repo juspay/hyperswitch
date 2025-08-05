@@ -112,10 +112,9 @@ impl GrpcClientSettings {
                 .flatten()
                 .map(|client| -> Box<dyn RecoveryDeciderClientInterface> { Box::new(client) });
 
-            match &client_result {
-                Some(_) => logger::info!("Recovery Decider gRPC client successfully initialized"),
-                None => {}
-            }
+                if client_result.is_some() {
+                    logger::info!("Recovery Decider gRPC client successfully initialized");
+                }
 
             client_result
         };
