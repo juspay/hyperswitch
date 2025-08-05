@@ -557,7 +557,7 @@ impl AppState {
 
 pub struct Health;
 
-#[feature = "v1"]
+#[cfg(feature = "v1")]
 impl Health {
     pub fn server(state: AppState) -> Scope {
         web::scope("health")
@@ -567,7 +567,7 @@ impl Health {
     }
 }
 
-#[feature = "v2"]
+#[cfg(feature = "v2")]
 impl Health {
     pub fn server(state: AppState) -> Scope {
         web::scope("/v2/health")
