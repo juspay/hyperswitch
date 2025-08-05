@@ -285,9 +285,14 @@ export SCHEMA_PATH="/absolute/path/to/your/connector-openapi.json"
 We'll walk through the `transformer.rs` file, and what needs to be implemented.
 
 ### 1. **Converts Hyperswitch's internal payment data into your connector's API request format**
- This part of the code takes your internal representation of a payment request, pulls out the token, gathers all the customer and payment fields, and packages them into a clean, JSON-serializable struct ready to send to Billwerk. You'll have to implement the customer and payment fields, as necessary, but you can implement it below: 
+ This part of the code takes your internal representation of a payment request, pulls out the token, gathers all the customer and payment fields, and packages them into a clean, JSON-serializable struct ready to send to your connector of choice (in this case Billwerk). You'll have to implement the customer and payment fields, as necessary. 
+
+ The code below extracts customer data and constructs a payment request:
 
 ```rust
+//TODO: Fill the struct with respective fields
+// Auth Struct
+
 impl TryFrom<&ConnectorAuthType> for NadinebillwerkAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
@@ -383,7 +388,7 @@ The enum uses `#[serde(rename_all = "lowercase")]` to automatically handle JSON 
 
 **Implement Status Conversion**
 
-Implement From<ConnectorStatus> for Hyperswitch’s `AttemptStatus` enum. Below is an example implementation:
+Implement From <ConnectorStatus> for Hyperswitch’s `AttemptStatus` enum. Below is an example implementation:
 
 ```rs
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -491,14 +496,14 @@ impl<F, T> TryFrom<ResponseRouterData<F, BillwerkPaymentsResponse, T, PaymentsRe
     }
 }
 ```
-**Transformation Logic**:
+### Transformation Logic:
 
 - **Error Handling**: Checks for error conditions first and creates appropriate error responses
 - **Status Mapping**: Converts BillwerkPaymentState to standardized AttemptStatus using our enum mapping
 - **Data Extraction**: Maps PSP-specific fields to Hyperswitch's PaymentsResponseData structure
 - **Metadata Preservation**: Ensures important transaction details are retained
 
-**Critical Response Fields**
+#### Critical Response Fields
 
 The transformation populates these essential Hyperswitch fields:
 
@@ -509,7 +514,7 @@ The transformation populates these essential Hyperswitch fields:
 - **network_txn_id**: Captures network-level transaction identifiers
 
 
-**Field Mapping Patterns**:
+### Field Mapping Patterns:
 
 Each critical response field requires specific implementation patterns to ensure consistent behavior across all Hyperswitch connectors. 
 
@@ -561,7 +566,6 @@ pub struct BillwerkErrorResponse {
     pub error: String,  
     pub message: Option<String>,  
 }
-
 ```
 
 - **code**: Optional integer error code from Billwerk
@@ -574,16 +578,15 @@ message: Optional additional error message
 
 Hyperswitch uses separate methods for different HTTP error types:
 
-- **4xx Client Errors**: `get_error_response` handles authentication failures, validation errors, and malformed requests. You can see the details here: `crates/hyperswitch_connectors/src/connectors/billwerk.rs`
-
+- **4xx Client Errors**: [`get_error_response`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L692)) handles authentication failures, validation errors, and malformed requests.
 - **5xx Server Errors**: 
-`get_5xx_error_response` handles internal server errors with potential retry logic. You can see the details here: `crates/hyperswitch_connectors/src/connectors/billwerk.rs`
+[`get_5xx_error_response`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L700) handles internal server errors with potential retry logic.
 
-Both methods delegate to `build_error_response` for consistent processing. This is found `crates/hyperswitch_connectors/src/connectors/billwerk.rs`.
+Both methods delegate to [`build_error_response`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L136) for consistent processing.
 
 **Error Processing Flow**
 
-The `build_error_response` method transforms PSP-specific errors into Hyperswitch's standardized format by taking the `BillwerkErrorResponse` struct as input. You can find details about the `build_error_response` here: `crates/hyperswitch_connectors/src/connectors/billwerk.rs:136-162`.
+The [`build_error_response`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L136) struct serves as the intermediate data structure that bridges Billwerk's API error format and Hyperswitch's standardized error format by taking the `BillwerkErrorResponse` struct as input:
 
 ```rs
 fn build_error_response(
@@ -615,25 +618,27 @@ fn build_error_response(
     }
 }
 ```
+The method performs these key operations:
 
-- **Parse**: Deserialize HTTP response into `BillwerkErrorResponse`
-- **Log**: Record response for debugging
-- **Transform**: Map to Hyperswitch's `ErrorResponse` with standardized fields
-- **Apply**: Use across all payment flows (authorize, capture, refund, etc.)
-Automatic Routing
+- Parses the HTTP response - Deserializes the raw HTTP response into a BillwerkErrorResponse struct using `parse_struct("BillwerkErrorResponse")`
 
-The `BillwerkErrorResponse` struct serves as the intermediate data structure that bridges Billwerk's API error format and Hyperswitch's internal error representation. The method essentially consumes the struct and produces Hyperswitch's standardized error format.
+- Logs the response - Records the connector response for debugging via `event_builder` and `router_env::logger::info!`
 
-**Automatic Error Routing**
+- Transforms error format - Maps Billwerk's error fields to Hyperswitch's standardized `ErrorResponse` structure with appropriate fallbacks:
+- - Uses `response.code` or falls back to `NO_ERROR_CODE`
+ - - Uses `response.message` or falls back to `NO_ERROR_MESSAGE`
+- -  Maps `response.error` to the `reason` field
 
-Hyperswitch's core API automatically routes errors based on HTTP status codes. You can find the details here: `crates/router/src/services/api.rs`.
+### Automatic Error Routing
 
-- 4xx → `get_error_response`
-- 5xx → `get_5xx_error_response`
-- 2xx → `handle_response` (success)
+Hyperswitch's core API automatically routes errors based on HTTP status codes. You can find the details here: [`crates/router/src/services/api.rs`](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/services/api.rs).
+
+- 4xx → [`get_error_response`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L256)
+- 5xx → [`get_5xx_error_response`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L264)
+- 2xx → [`handle_response`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L332)
 
 
-**Integration Pattern**
+### Integration Pattern
 
 The `BillwerkErrorResponse` struct serves as the intermediate data structure that bridges Billwerk's API error format and Hyperswitch's internal error representation. The method essentially consumes the struct and produces Hyperswitch's standardized error format. All connectors implement a similar pattern to ensure uniform error handling. 
 
@@ -646,7 +651,7 @@ The connector interface implementation follows an architectural pattern that sep
 - `mod.rs` - This file implements the standardized Hyperswitch connector interface using the transformers.
 
 ### The `mod.rs` Implementation Pattern
-The file creates the bridge between the data transformation logic (defined in `transformers.rs`) and the connector interface requirements. It serves as the main connector implementation file that brings together all the components defined in the transformers module and implements all the required traits for payment processing. Looking at the connector template structure `connector-template/mod.rs:54-6`7, you can see how it:
+The file creates the bridge between the data transformation logic (defined in `transformers.rs`) and the connector interface requirements. It serves as the main connector implementation file that brings together all the components defined in the transformers module and implements all the required traits for payment processing. Looking at the connector template structure [`connector-template/mod.rs:54-67`](https://github.com/juspay/hyperswitch/blob/main/connector-template/mod.rs#L54-L67), you can see how it:
 
 - **Imports the transformers module** - Brings in your PSP-specific types and conversion logic
 ```rs
@@ -678,6 +683,7 @@ impl ConnectorCommon for {{project-name | downcase | pascal_case}} {
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
         todo!()
+
     //    TODO! Check connector documentation, on which unit they are processing the currency.
     //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
     //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
@@ -726,9 +732,9 @@ impl ConnectorCommon for {{project-name | downcase | pascal_case}} {
 ```
 
 ## ConnectorCommon: The Foundation Trait
-The `ConnectorCommon` trait defines the standardized interface required by Hyperswitch (as outlined in `crates/hyperswitch_interfaces/src/api.rs`) and acts as the bridge to your PSP-specific logic in `transformers.rs`. The `connector-template/mod.rs` file implements this trait using the data types and transformation functions from `transformers.rs`. This allows Hyperswitch to interact with your connector in a consistent, processor-agnostic manner. Every connector must implement the `ConnectorCommon` trait `crates/hyperswitch_interfaces/src/api.rs:319-367`, which provides essential connector properties:
+The `ConnectorCommon` trait defines the standardized interface required by Hyperswitch (as outlined in [`crates/hyperswitch_interfaces/src/api.rs`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_interfaces/src/api.rs#L319-L367) and acts as the bridge to your PSP-specific logic in `transformers.rs`. The `connector-template/mod.rs` file implements this trait using the data types and transformation functions from `transformers.rs`. This allows Hyperswitch to interact with your connector in a consistent, processor-agnostic manner. Every connector must implement the `ConnectorCommon` trait, which provides essential connector properties:
 
-**Core Methods You'll Implement**:
+### Core Methods You'll Implement
 
 - `id()` - Your connector's unique identifier
 ```rs 
@@ -737,7 +743,7 @@ fn id(&self) -> &'static str {
   }
 ```
 
-- `get_currency_unit()` - Whether you handle amounts in base units (dollars) or minor units (cents). See [appendix]()) for more details. 
+- `get_currency_unit()` - Whether you handle amounts in base units (dollars) or minor units (cents). See [appendix]() for more details. 
 ```rs
   fn get_currency_unit(&self) -> api::CurrencyUnit {
       api::CurrencyUnit::Minor
@@ -822,7 +828,7 @@ These methods work together in sequence:
 
 Here are more details around the methods:
 - **`get_url()`**  
-  Constructs API endpoints by combining base URLs (from `ConnectorCommon`) with specific paths. In the Billwerk connector, it reads the connector’s base URL from config and appends the tokenization path. You can find this implementation [here](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L193-L204)
+  Constructs API endpoints by combining base URLs (from `ConnectorCommon`) with specific paths. In the Billwerk connector, it reads the connector’s base URL from config and appends the tokenization path. You can find this implementation [here](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L193-L204).
 
 - **`get_headers()`**  
   Delegates to [`build_headers()`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_interfaces/src/api.rs#L417-L429) in the `ConnectorCommonExt` trait, ensuring consistent header handling (auth, content-type, etc.) across all flows.  
@@ -893,8 +899,8 @@ These traits work together to provide a complete payment processing interface, w
 ## Connector utility functions
 Hyperswitch provides a set of standardized utility functions to streamline data extraction, validation, and formatting across all payment connectors. These are primarily defined in:
 
-- `crates/hyperswitch_connectors/src/utils.rs`
-- `crates/router/src/connector/utils.rs`
+- [`crates/hyperswitch_connectors/src/utils.rs`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/utils.rs)
+- [`crates/router/src/connector/utils.rs`](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/connector/utils.rs)
 
 ###  Key Utilities and Traits
 
