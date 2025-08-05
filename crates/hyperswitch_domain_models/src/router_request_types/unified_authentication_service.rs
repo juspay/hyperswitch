@@ -131,7 +131,7 @@ pub struct AuthenticationDetails {
     pub challenge_code: Option<String>,
     pub challenge_cancel: Option<String>,
     pub challenge_code_reason: Option<String>,
-    pub message_extension: Option<Secret<serde_json::Value>>,
+    pub message_extension: Option<common_utils::pii::SecretSerdeValue>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]

@@ -1,6 +1,6 @@
 use common_utils::encryption::Encryption;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
-use masking::Secret;
+use common_utils::pii;
 use serde::{self, Deserialize, Serialize};
 use serde_json;
 
@@ -65,7 +65,7 @@ pub struct Authentication {
     pub challenge_code: Option<String>,
     pub challenge_cancel: Option<String>,
     pub challenge_code_reason: Option<String>,
-    pub message_extension: Option<Secret<serde_json::Value>>,
+    pub message_extension: Option<pii::SecretSerdeValue>,
 }
 
 impl Authentication {
@@ -129,7 +129,7 @@ pub struct AuthenticationNew {
     pub challenge_code: Option<String>,
     pub challenge_cancel: Option<String>,
     pub challenge_code_reason: Option<String>,
-    pub message_extension: Option<Secret<serde_json::Value>>,
+    pub message_extension: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug)]
@@ -179,7 +179,7 @@ pub enum AuthenticationUpdate {
         challenge_code: Option<String>,
         challenge_cancel: Option<String>,
         challenge_code_reason: Option<String>,
-        message_extension: Option<Secret<serde_json::Value>>,
+        message_extension: Option<pii::SecretSerdeValue>,
     },
     PostAuthenticationUpdate {
         trans_status: common_enums::TransactionStatus,
@@ -245,7 +245,7 @@ pub struct AuthenticationUpdateInternal {
     pub challenge_code: Option<String>,
     pub challenge_cancel: Option<String>,
     pub challenge_code_reason: Option<String>,
-    pub message_extension: Option<Secret<serde_json::Value>>,
+    pub message_extension: Option<pii::SecretSerdeValue>,
 }
 
 impl Default for AuthenticationUpdateInternal {

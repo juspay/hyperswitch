@@ -11,6 +11,7 @@ use crate::{
     router_request_types::{authentication::AuthNFlowType, ResponseId},
     vault::PaymentMethodVaultingData,
 };
+use common_utils::pii;
 
 #[derive(Debug, Clone)]
 pub struct RefundsResponseData {
@@ -91,7 +92,7 @@ pub struct TaxCalculationResponseData {
 pub struct MandateReference {
     pub connector_mandate_id: Option<String>,
     pub payment_method_id: Option<String>,
-    pub mandate_metadata: Option<common_utils::pii::SecretSerdeValue>,
+    pub mandate_metadata: Option<pii::SecretSerdeValue>,
     pub connector_mandate_request_reference_id: Option<String>,
 }
 
@@ -549,7 +550,7 @@ pub enum AuthenticationResponseData {
         challenge_code: Option<String>,
         challenge_cancel: Option<String>,
         challenge_code_reason: Option<String>,
-        message_extension: Option<masking::Secret<serde_json::Value>>,
+        message_extension: Option<pii::SecretSerdeValue>,
     },
     PostAuthNResponse {
         trans_status: common_enums::TransactionStatus,
@@ -563,7 +564,7 @@ pub enum AuthenticationResponseData {
 #[derive(Debug, Clone)]
 pub struct CompleteAuthorizeRedirectResponse {
     pub params: Option<masking::Secret<String>>,
-    pub payload: Option<common_utils::pii::SecretSerdeValue>,
+    pub payload: Option<pii::SecretSerdeValue>,
 }
 
 /// Represents details of a payment method.
