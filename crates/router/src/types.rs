@@ -47,10 +47,10 @@ use hyperswitch_domain_models::router_flow_types::{
 pub use hyperswitch_domain_models::{
     payment_address::PaymentAddress,
     router_data::{
-        AccessToken, AdditionalPaymentMethodConnectorResponse, ApplePayCryptogramData,
-        ApplePayPredecryptData, ConnectorAuthType, ConnectorResponseData, ErrorResponse,
-        GooglePayDecryptedData, GooglePayPaymentMethodDetails, PaymentMethodBalance,
-        PaymentMethodToken, RecurringMandatePaymentData, RouterData,
+        AccessToken, AdditionalPaymentMethodConnectorResponse, ConnectorAuthType,
+        ConnectorResponseData, ErrorResponse, GooglePayDecryptedData,
+        GooglePayPaymentMethodDetails, L2L3Data, PaymentMethodBalance, PaymentMethodToken,
+        RecurringMandatePaymentData, RouterData,
     },
     router_data_v2::{
         AccessTokenFlowData, DisputesFlowData, ExternalAuthenticationFlowData, FilesFlowData,
@@ -296,12 +296,15 @@ impl Capturable for PaymentsAuthorizeData {
     {
         match payment_data.get_capture_method().unwrap_or_default()
         {
-            common_enums::CaptureMethod::Automatic|common_enums::CaptureMethod::SequentialAutomatic  => {
+            common_enums::CaptureMethod::Automatic
+            | common_enums::CaptureMethod::SequentialAutomatic => {
                 let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
                 match intent_status {
                     common_enums::IntentStatus::Succeeded
                     | common_enums::IntentStatus::Failed
-                    | common_enums::IntentStatus::Processing | common_enums::IntentStatus::Conflicted => Some(0),
+                    | common_enums::IntentStatus::Processing
+                    | common_enums::IntentStatus::Conflicted
+                    | common_enums::IntentStatus::Expired => Some(0),
                     common_enums::IntentStatus::Cancelled
                     | common_enums::IntentStatus::PartiallyCaptured
                     | common_enums::IntentStatus::RequiresCustomerAction
@@ -341,7 +344,8 @@ impl Capturable for PaymentsCaptureData {
         match intent_status {
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::Conflicted => Some(0),
+            | common_enums::IntentStatus::Conflicted
+            | common_enums::IntentStatus::Expired => Some(0),
             common_enums::IntentStatus::Processing
             | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::Failed
@@ -383,9 +387,11 @@ impl Capturable for CompleteAuthorizeData {
             common_enums::CaptureMethod::Automatic | common_enums::CaptureMethod::SequentialAutomatic => {
                 let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
                 match intent_status {
-                    common_enums::IntentStatus::Succeeded|
-                    common_enums::IntentStatus::Failed|
-                    common_enums::IntentStatus::Processing | common_enums::IntentStatus::Conflicted => Some(0),
+                    common_enums::IntentStatus::Succeeded
+                    | common_enums::IntentStatus::Failed
+                    | common_enums::IntentStatus::Processing
+                    | common_enums::IntentStatus::Conflicted
+                    | common_enums::IntentStatus::Expired => Some(0),
                     common_enums::IntentStatus::Cancelled | common_enums::IntentStatus::PartiallyCaptured
                     | common_enums::IntentStatus::RequiresCustomerAction
                     | common_enums::IntentStatus::RequiresMerchantAction
@@ -433,7 +439,8 @@ impl Capturable for PaymentsCancelData {
             common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::Processing
             | common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::Conflicted => Some(0),
+            | common_enums::IntentStatus::Conflicted
+            | common_enums::IntentStatus::Expired => Some(0),
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::RequiresCustomerAction
@@ -1091,6 +1098,8 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             merchant_config_currency: None,
             connector_testing_data: data.request.connector_testing_data.clone(),
             order_id: None,
+            locale: None,
+            payment_channel: None,
         }
     }
 }
@@ -1154,6 +1163,7 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             psd2_sca_exemption_type: data.psd2_sca_exemption_type,
             raw_connector_response: data.raw_connector_response.clone(),
             is_payment_id_from_merchant: data.is_payment_id_from_merchant,
+            l2_l3_data: data.l2_l3_data.clone(),
         }
     }
 }
@@ -1223,6 +1233,7 @@ impl<F1, F2>
             connector_mandate_request_reference_id: None,
             raw_connector_response: None,
             is_payment_id_from_merchant: data.is_payment_id_from_merchant,
+            l2_l3_data: None,
         }
     }
 }

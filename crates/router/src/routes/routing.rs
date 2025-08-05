@@ -6,7 +6,10 @@
 use actix_web::{web, HttpRequest, Responder};
 use api_models::{
     enums,
-    routing::{self as routing_types, RoutingRetrieveQuery},
+    routing::{
+        self as routing_types, RoutingEvaluateRequest, RoutingEvaluateResponse,
+        RoutingRetrieveQuery,
+    },
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::merchant_context::MerchantKeyStore;
@@ -19,10 +22,7 @@ use router_env::{
 use crate::{
     core::{
         api_locking, conditional_config,
-        payments::routing::utils::{
-            DecisionEngineApiHandler, EuclidApiClient, RoutingEvaluateRequest,
-            RoutingEvaluateResponse,
-        },
+        payments::routing::utils::{DecisionEngineApiHandler, EuclidApiClient},
         routing, surcharge_decision_config,
     },
     db::errors::StorageErrorExt,
@@ -1671,4 +1671,52 @@ async fn get_merchant_account(
         .await
         .to_not_found_response(ApiErrorResponse::MerchantAccountNotFound)?;
     Ok((key_store, merchant_account))
+}
+
+#[cfg(all(feature = "olap", feature = "v1", feature = "dynamic_routing"))]
+#[instrument(skip_all)]
+pub async fn call_decide_gateway_open_router(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Json<api_models::open_router::OpenRouterDecideGatewayRequest>,
+) -> impl Responder {
+    let flow = Flow::DecisionEngineDecideGatewayCall;
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload.clone(),
+        |state, _auth, payload, _| routing::decide_gateway_open_router(state.clone(), payload),
+        &auth::ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "olap", feature = "v1", feature = "dynamic_routing"))]
+#[instrument(skip_all)]
+pub async fn call_update_gateway_score_open_router(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Json<api_models::open_router::UpdateScorePayload>,
+) -> impl Responder {
+    let flow = Flow::DecisionEngineGatewayFeedbackCall;
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload.clone(),
+        |state, _auth, payload, _| {
+            routing::update_gateway_score_open_router(state.clone(), payload)
+        },
+        &auth::ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
 }

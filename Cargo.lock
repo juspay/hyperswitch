@@ -459,6 +459,7 @@ dependencies = [
  "common_enums",
  "common_types",
  "common_utils",
+ "deserialize_form_style_query_parameter",
  "error-stack 0.4.1",
  "euclid",
  "masking",
@@ -1858,6 +1859,7 @@ dependencies = [
 name = "common_types"
 version = "0.1.0"
 dependencies = [
+ "cards",
  "common_enums",
  "common_utils",
  "diesel",
@@ -2564,6 +2566,15 @@ dependencies = [
  "quote",
  "syn 2.0.101",
  "unicode-xid",
+]
+
+[[package]]
+name = "deserialize_form_style_query_parameter"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32f5980bcca58eff485f9b5208f325e15cf5e6b23bfe878fae13f9576e6b6e62"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
@@ -3363,8 +3374,7 @@ dependencies = [
 [[package]]
 name = "g2h"
 version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0aece561ff748cdd2a37c8ee938a47bbf9b2c03823b393a332110599b14ee827"
+source = "git+https://github.com/NishantJoshi00/g2h?branch=fixing-response-serializing#fd2c856b2c6c88a85d6fe51d95b4d3342b788d31"
 dependencies = [
  "cargo_metadata 0.19.2",
  "heck 0.5.0",
@@ -3526,7 +3536,7 @@ dependencies = [
 [[package]]
 name = "grpc-api-types"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=4918efedd5ea6c33e4a1600b988b2cf4948bed10#4918efedd5ea6c33e4a1600b988b2cf4948bed10"
+source = "git+https://github.com/juspay/connector-service?rev=4387a6310dc9c2693b453b455a8032623f3d6a81#4387a6310dc9c2693b453b455a8032623f3d6a81"
 dependencies = [
  "axum 0.8.4",
  "error-stack 0.5.0",
@@ -6900,7 +6910,7 @@ dependencies = [
 [[package]]
 name = "rust-grpc-client"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=4918efedd5ea6c33e4a1600b988b2cf4948bed10#4918efedd5ea6c33e4a1600b988b2cf4948bed10"
+source = "git+https://github.com/juspay/connector-service?rev=4387a6310dc9c2693b453b455a8032623f3d6a81#4387a6310dc9c2693b453b455a8032623f3d6a81"
 dependencies = [
  "grpc-api-types",
 ]
@@ -8380,6 +8390,7 @@ dependencies = [
  "async-trait",
  "base64 0.22.1",
  "clap",
+ "common_enums",
  "masking",
  "rand 0.8.5",
  "regex",

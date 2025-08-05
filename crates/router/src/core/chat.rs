@@ -18,11 +18,12 @@ use crate::{
     utils,
 };
 
-#[instrument(skip_all)]
+#[instrument(skip_all, fields(?session_id))]
 pub async fn get_data_from_hyperswitch_ai_workflow(
     state: SessionState,
     user_from_token: auth::UserFromToken,
     req: chat_api::ChatRequest,
+    session_id: Option<&str>,
 ) -> CustomResult<ApplicationResponse<chat_api::ChatResponse>, ChatErrors> {
     let role_info = roles::RoleInfo::from_role_id_org_id_tenant_id(
         &state,
@@ -43,6 +44,7 @@ pub async fn get_data_from_hyperswitch_ai_workflow(
     let request_id = state
         .get_request_id()
         .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+    
     let request_body = chat_domain::HyperswitchAiDataRequest {
         query: chat_domain::GetDataMessage {
             message: req.message.clone(),
@@ -54,12 +56,20 @@ pub async fn get_data_from_hyperswitch_ai_workflow(
     };
     logger::info!("Request for AI service: {:?}", request_body);
 
-    let request = RequestBuilder::new()
+    let mut request_builder = RequestBuilder::new()
         .method(Method::Post)
         .url(&url)
         .attach_default_headers()
-        .set_body(RequestContent::Json(Box::new(request_body.clone())))
-        .build();
+        .set_body(RequestContent::Json(Box::new(request_body.clone())));
+
+    if let Some(request_id) = request_id {
+        request_builder = request_builder.header(consts::X_REQUEST_ID, &request_id);
+    }
+    if let Some(session_id) = session_id {
+        request_builder = request_builder.header(consts::X_CHAT_SESSION_ID, session_id);
+    }
+
+    let request = request_builder.build();
 
     let response = http_client::send_request(
         &state.conf.proxy,

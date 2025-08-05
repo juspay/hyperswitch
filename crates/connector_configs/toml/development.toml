@@ -427,6 +427,20 @@ merchant_secret="Source verification key"
   payment_method_type = "UnionPay"
 [[airwallex.wallet]]
   payment_method_type = "google_pay"
+[[airwallex.wallet]]
+  payment_method_type = "paypal"
+[[airwallex.wallet]]
+  payment_method_type = "skrill"
+[[airwallex.bank_redirect]]
+  payment_method_type = "trustly"
+[[airwallex.bank_redirect]]
+  payment_method_type = "blik"
+[[airwallex.bank_redirect]]
+  payment_method_type = "ideal"
+[[airwallex.pay_later]]
+  payment_method_type = "klarna"
+[[airwallex.pay_later]]
+  payment_method_type = "atome"
 [airwallex.connector_auth.BodyKey]
 api_key="API Key"
 key1="Client ID"
@@ -2008,6 +2022,76 @@ type="Text"
 
 [fiserv.connector_webhook_details]
 merchant_secret="Source verification key"
+
+[[fiserv.metadata.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[fiserv.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[fiserv.metadata.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
+[[fiserv.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+[[fiserv.connector_wallets_details.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[fiserv.connector_wallets_details.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[fiserv.connector_wallets_details.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
+[[fiserv.connector_wallets_details.google_pay]]
+name="public_key"
+label="Google Pay Public Key"
+placeholder="Enter Google Pay Public Key"
+required=true
+type="Text"
+[[fiserv.connector_wallets_details.google_pay]]
+name="private_key"
+label="Google Pay Private Key"
+placeholder="Enter Google Pay Private Key"
+required=true
+type="Text"
+[[fiserv.connector_wallets_details.google_pay]]
+name="recipient_id"
+label="Recipient Id"
+placeholder="Enter Recipient Id"
+required=true
+type="Text"
+[[fiserv.connector_wallets_details.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 [fiservemea]
 [[fiservemea.credit]]
@@ -6071,7 +6155,12 @@ api_secret="Secret Key"
 [facilitapay.connector_auth.BodyKey]
   api_key="Password"
   key1="Username"
-
+[facilitapay.metadata.destination_account_number]
+  name="destination_account_number"
+  label="Merchant Account Number"
+  placeholder="Enter Merchant's (to_bank_account_id) Account Number"
+  required=true
+  type="Text"
 
 [archipel]
 [archipel.connector_auth.HeaderKey]
@@ -6326,14 +6415,95 @@ type="Text"
   payment_method_type = "Mastercard"
 [[payload.debit]]
   payment_method_type = "Visa"
-[payload.connector_auth.HeaderKey]
-api_key="API Key"
+
+[payload.connector_auth.CurrencyAuthKey.auth_key_map.USD]
+processing_account_id = "processing_account_id"
+api_key = "API Key"
+[payload.connector_auth.CurrencyAuthKey.auth_key_map.CAD]
+processing_account_id = "processing_account_id"
+api_key = "API Key"
 
 [silverflow]
-[silverflow.connector_auth.BodyKey]
+[[silverflow.credit]]
+  payment_method_type = "Mastercard"
+[[silverflow.credit]]
+  payment_method_type = "Visa"
+[[silverflow.debit]]
+  payment_method_type = "Mastercard"
+[[silverflow.debit]]
+  payment_method_type = "Visa"
+[silverflow.connector_auth.SignatureKey]
 api_key="API Key"
-key1="Secret Key"
+api_secret="API Secret"
+key1="Merchant Acceptor Key"
+[silverflow.connector_webhook_details]
+merchant_secret="Source verification key"
 
 [affirm]
 [affirm.connector_auth.HeaderKey]
 api_key = "API Key"
+
+[blackhawknetwork]
+[blackhawknetwork.connector_auth.HeaderKey]
+api_key = "API Key"
+
+[trustpayments]
+[trustpayments.connector_auth.HeaderKey]
+api_key = "API Key"
+
+[breadpay]
+[breadpay.connector_auth.BodyKey]
+api_key = "API Key"
+key1 = "API Secret"
+[[breadpay.pay_later]]
+payment_method_type = "breadpay"
+payment_experience = "redirect_to_url"
+
+[mpgs]
+[mpgs.connector_auth.HeaderKey]
+api_key = "API Key"
+
+[phonepe]
+[[phonepe.upi]]
+payment_method_type = "upi_collect"
+[[phonepe.upi]]
+payment_method_type = "upi_intent"
+[phonepe.connector_auth.SignatureKey]
+api_key="merchant_id"
+api_secret="key_index"
+key1="salt_key"
+
+[paytm]
+[[paytm.upi]]
+payment_method_type = "upi_collect"
+[[paytm.upi]]
+payment_method_type = "upi_intent"
+[paytm.connector_auth.SignatureKey]
+api_key="Signing key"
+api_secret="website name"
+key1="merchant_id"
+[bluecode]
+[[bluecode.wallet]]
+  payment_method_type = "bluecode"
+[bluecode.connector_auth.HeaderKey]
+api_key = "E-Order Token"
+[bluecode.metadata.shop_name]
+name="shop_name"
+label="Shop Name"
+placeholder="Enter your Shop Name"
+required=true
+type="Text"
+[bluecode.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[katapult]
+[katapult.connector_auth.HeaderKey]
+api_key = "API Key"
+
+[flexiti]
+[flexiti.connector_auth.BodyKey]
+api_key = "Client id"
+key1 = "Client secret"
+[[flexiti.pay_later]]
+payment_method_type = "flexiti"
+payment_experience = "redirect_to_url"

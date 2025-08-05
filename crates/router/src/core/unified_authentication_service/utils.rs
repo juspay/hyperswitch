@@ -2,9 +2,10 @@ use std::marker::PhantomData;
 
 use common_enums::enums::PaymentMethod;
 use common_utils::ext_traits::{AsyncExt, ValueExt};
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse,
+    ext_traits::OptionExt,
     payment_address::PaymentAddress,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_data_v2::UasFlowData,
@@ -17,6 +18,7 @@ use super::types::{
     IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_AUTHENTICATION_FLOW,
 };
 use crate::{
+    consts::DEFAULT_SESSION_EXPIRY,
     core::{
         errors::{utils::ConnectorErrorExt, RouterResult},
         payments,
@@ -126,9 +128,11 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
+        l2_l3_data: None,
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn external_authentication_update_trackers<F: Clone, Req>(
     state: &SessionState,
     router_data: RouterData<F, Req, UasAuthenticationResponseData>,
@@ -137,6 +141,10 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
         hyperswitch_domain_models::router_request_types::authentication::AcquirerDetails,
     >,
     merchant_key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+    billing_address: Option<common_utils::encryption::Encryption>,
+    shipping_address: Option<common_utils::encryption::Encryption>,
+    email: Option<common_utils::encryption::Encryption>,
+    browser_info: Option<serde_json::Value>,
 ) -> RouterResult<diesel_models::authentication::Authentication> {
     let authentication_update = match router_data.response {
         Ok(response) => match response {
@@ -179,6 +187,10 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                     acquirer_country_code: acquirer_details
                         .and_then(|acquirer_details| acquirer_details.acquirer_country_code),
                     directory_server_id: authentication_details.directory_server_id,
+                    browser_info: Box::new(browser_info),
+                    email,
+                    billing_address,
+                    shipping_address,
                 },
             ),
             UasAuthenticationResponseData::Authentication {
@@ -224,6 +236,10 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                         connector_metadata: authentication_details.connector_metadata,
                         ds_trans_id: authentication_details.ds_trans_id,
                         eci: authentication_details.eci,
+                        challenge_code: authentication_details.challenge_code,
+                        challenge_cancel: authentication_details.challenge_cancel,
+                        challenge_code_reason: authentication_details.challenge_code_reason,
+                        message_extension: authentication_details.message_extension,
                     },
                 )
             }
@@ -235,12 +251,10 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                     .ok_or(ApiErrorResponse::InternalServerError)
                     .attach_printable("missing trans_status in PostAuthentication Details")?;
 
-                let authentication_value = authentication_details
+                authentication_details
                     .dynamic_data_details
                     .and_then(|details| details.dynamic_data_value)
-                    .map(ExposeInterface::expose);
-
-                authentication_value
+                    .map(ExposeInterface::expose)
                     .async_map(|auth_val| {
                         crate::core::payment_methods::vault::create_tokenize(
                             state,
@@ -262,6 +276,8 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                         ),
                         trans_status,
                         eci: authentication_details.eci,
+                        challenge_cancel: authentication_details.challenge_cancel,
+                        challenge_code_reason: authentication_details.challenge_code_reason,
                     },
                 )
             }
@@ -307,5 +323,34 @@ pub fn get_checkout_event_status_and_reason(
             Some("03".to_string()),
             Some("No Approval Code received".to_string()),
         ),
+    }
+}
+
+pub fn authenticate_authentication_client_secret_and_check_expiry(
+    req_client_secret: &String,
+    authentication: &diesel_models::authentication::Authentication,
+) -> RouterResult<()> {
+    let stored_client_secret = authentication
+        .authentication_client_secret
+        .clone()
+        .get_required_value("authentication_client_secret")
+        .change_context(ApiErrorResponse::MissingRequiredField {
+            field_name: "client_secret",
+        })
+        .attach_printable("client secret not found in db")?;
+
+    if req_client_secret != &stored_client_secret {
+        Err(report!(ApiErrorResponse::ClientSecretInvalid))
+    } else {
+        let current_timestamp = common_utils::date_time::now();
+        let session_expiry = authentication
+            .created_at
+            .saturating_add(time::Duration::seconds(DEFAULT_SESSION_EXPIRY));
+
+        if current_timestamp > session_expiry {
+            Err(report!(ApiErrorResponse::ClientSecretExpired))
+        } else {
+            Ok(())
+        }
     }
 }

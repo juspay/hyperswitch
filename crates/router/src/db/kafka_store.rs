@@ -747,6 +747,23 @@ impl EventInterface for KafkaStore {
             .await
     }
 
+    async fn find_event_by_merchant_id_idempotent_event_id(
+        &self,
+        state: &KeyManagerState,
+        merchant_id: &id_type::MerchantId,
+        idempotent_event_id: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<domain::Event, errors::StorageError> {
+        self.diesel_store
+            .find_event_by_merchant_id_idempotent_event_id(
+                state,
+                merchant_id,
+                idempotent_event_id,
+                merchant_key_store,
+            )
+            .await
+    }
+
     async fn list_initial_events_by_merchant_id_primary_object_id(
         &self,
         state: &KeyManagerState,
@@ -3186,8 +3203,8 @@ impl RoutingAlgorithmInterface for KafkaStore {
 impl GsmInterface for KafkaStore {
     async fn add_gsm_rule(
         &self,
-        rule: storage::GatewayStatusMappingNew,
-    ) -> CustomResult<storage::GatewayStatusMap, errors::StorageError> {
+        rule: hyperswitch_domain_models::gsm::GatewayStatusMap,
+    ) -> CustomResult<hyperswitch_domain_models::gsm::GatewayStatusMap, errors::StorageError> {
         self.diesel_store.add_gsm_rule(rule).await
     }
 
@@ -3211,7 +3228,7 @@ impl GsmInterface for KafkaStore {
         sub_flow: String,
         code: String,
         message: String,
-    ) -> CustomResult<storage::GatewayStatusMap, errors::StorageError> {
+    ) -> CustomResult<hyperswitch_domain_models::gsm::GatewayStatusMap, errors::StorageError> {
         self.diesel_store
             .find_gsm_rule(connector, flow, sub_flow, code, message)
             .await
@@ -3224,8 +3241,8 @@ impl GsmInterface for KafkaStore {
         sub_flow: String,
         code: String,
         message: String,
-        data: storage::GatewayStatusMappingUpdate,
-    ) -> CustomResult<storage::GatewayStatusMap, errors::StorageError> {
+        data: hyperswitch_domain_models::gsm::GatewayStatusMappingUpdate,
+    ) -> CustomResult<hyperswitch_domain_models::gsm::GatewayStatusMap, errors::StorageError> {
         self.diesel_store
             .update_gsm_rule(connector, flow, sub_flow, code, message, data)
             .await
@@ -4176,13 +4193,19 @@ impl ThemeInterface for KafkaStore {
             .await
     }
 
-    async fn delete_theme_by_lineage_and_theme_id(
+    async fn delete_theme_by_theme_id(
         &self,
         theme_id: String,
-        lineage: ThemeLineage,
     ) -> CustomResult<storage::theme::Theme, errors::StorageError> {
+        self.diesel_store.delete_theme_by_theme_id(theme_id).await
+    }
+
+    async fn list_themes_at_and_under_lineage(
+        &self,
+        lineage: ThemeLineage,
+    ) -> CustomResult<Vec<storage::theme::Theme>, errors::StorageError> {
         self.diesel_store
-            .delete_theme_by_lineage_and_theme_id(theme_id, lineage)
+            .list_themes_at_and_under_lineage(lineage)
             .await
     }
 }

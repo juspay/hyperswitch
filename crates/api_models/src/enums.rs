@@ -166,6 +166,7 @@ pub enum BillingConnectors {
     Chargebee,
     Recurly,
     Stripebilling,
+    Custombilling,
     #[cfg(feature = "dummy_connector")]
     DummyBillingConnector,
 }

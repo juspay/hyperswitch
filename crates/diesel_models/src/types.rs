@@ -39,6 +39,20 @@ pub struct OrderDetailsWithAmount {
     pub tax_rate: Option<f64>,
     /// total tax amount applicable to the product
     pub total_tax_amount: Option<MinorUnit>,
+    /// description of the product
+    pub description: Option<String>,
+    /// stock keeping unit of the product
+    pub sku: Option<String>,
+    /// universal product code of the product
+    pub upc: Option<String>,
+    /// commodity code of the product
+    pub commodity_code: Option<String>,
+    /// unit of measure of the product
+    pub unit_of_measure: Option<String>,
+    /// total amount of the product
+    pub total_amount: Option<MinorUnit>,
+    /// discount amount on the unit
+    pub unit_discount_amount: Option<MinorUnit>,
 }
 
 impl masking::SerializableSecret for OrderDetailsWithAmount {}
@@ -174,6 +188,8 @@ pub struct PaymentRevenueRecoveryMetadata {
     pub connector: common_enums::connector_enums::Connector,
     /// Time at which next invoice will be created
     pub invoice_next_billing_time: Option<time::PrimitiveDateTime>,
+    /// Time at which invoice started
+    pub invoice_billing_started_at_time: Option<time::PrimitiveDateTime>,
     /// Extra Payment Method Details that are needed to be stored
     pub billing_connector_payment_method_details: Option<BillingConnectorPaymentMethodDetails>,
     /// First Payment Attempt Payment Gateway Error Code
