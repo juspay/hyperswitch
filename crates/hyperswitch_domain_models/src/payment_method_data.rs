@@ -1787,6 +1787,7 @@ pub struct TokenizedCardValue1 {
     pub card_holder_name: Option<Secret<String>>,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TokenizedCardValue2 {
@@ -1794,6 +1795,17 @@ pub struct TokenizedCardValue2 {
     pub card_fingerprint: Option<String>,
     pub external_id: Option<String>,
     pub customer_id: Option<id_type::CustomerId>,
+    pub payment_method_id: Option<String>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TokenizedCardValue2 {
+    pub card_security_code: Option<String>,
+    pub card_fingerprint: Option<String>,
+    pub external_id: Option<String>,
+    pub customer_id: Option<id_type::GlobalCustomerId>,
     pub payment_method_id: Option<String>,
 }
 
