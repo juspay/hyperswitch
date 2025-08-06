@@ -3647,7 +3647,58 @@ fn get_dispute_stage(
 
 pub fn get_dispute_status(
     dispute_cycle: String,
-) -> Result<api_models::enums::DisputeStatus, error_stack::Report<errors::ConnectorError>> {
+    dispute_activities: Vec<Activity>,
+) -> Result<common_enums::DisputeStatus, error_stack::Report<errors::ConnectorError>> {
+    if let Some(activity) = get_last_non_auxiliary_activity_type(dispute_activities) 
+    {
+        match activity.as_ref() {
+            "Merchant Accept" | "Issuer Accepted Pre-Arbitration" | "Vantiv Accept" | "Sent Credit" => {
+                Ok(common_enums::DisputeStatus::DisputeAccepted)
+            }
+    
+            "Merchant Represent"
+            | "Respond to Dispute"
+            | "Respond to PreArb"
+            | "Request Arbitration"
+            | "Request Pre-Arbitration"
+            | "Create Arbitration"
+            | "Record Arbitration"
+            | "Create Pre-Arbitration"
+            | "File Arbitration"
+            | "File Pre-Arbitration"
+            | "File Visa Pre-Arbitration"
+            | "Send Representment"
+            | "Send Response"
+            | "Arbitration"
+            | "Arbitration (Mastercard)"
+            | "Arbitration Chargeback"
+            | "Issuer Declined Pre-Arbitration"
+            | "Issuer Arbitration"
+            | "Request Response to Pre-Arbitration"
+            | "Vantiv Represent"
+            | "Vantiv Respond"
+            | "Auto Represent" 
+            | "Arbitration Ruling" => Ok(common_enums::DisputeStatus::DisputeChallenged),
+    
+            "Arbitration Lost" | "Unsuccessful Arbitration" | "Unsuccessful Pre-Arbitration" => {
+                Ok(common_enums::DisputeStatus::DisputeLost)
+            }
+    
+            "Arbitration Won" | "Arbitration Split" | "Successful Arbitration"
+            | "Successful Pre-Arbitration" => Ok(common_enums::DisputeStatus::DisputeWon),
+    
+            "Chargeback Reversal" => Ok(common_enums::DisputeStatus::DisputeCancelled),
+    
+            "Receive Network Transaction" => Ok(common_enums::DisputeStatus::DisputeOpened),
+    
+            "Unaccept" | "Unrepresent" => Ok(common_enums::DisputeStatus::DisputeOpened),
+    
+            unexpected_activity => Err(errors::ConnectorError::UnexpectedResponseError(
+                bytes::Bytes::from(format!("Dispute Activity: {unexpected_activity})")),
+            )
+            .into()),
+        }    
+    } else {
     match connector_utils::normalize_string(dispute_cycle.clone())
         .change_context(errors::ConnectorError::RequestEncodingFailed)?
         .as_str()
@@ -3669,12 +3720,12 @@ pub fn get_dispute_status(
         "firstchargeback" | "retrievalrequest" | "rapiddisputeresolution" => {
             Ok(api_models::enums::DisputeStatus::DisputeOpened)
         }
-        _ => Err(errors::ConnectorError::NotSupported {
-            message: format!("Dispute status {dispute_cycle}"),
-            connector: "worldpayvantiv",
-        }
+        dispute_cycle => Err(errors::ConnectorError::UnexpectedResponseError(
+            bytes::Bytes::from(format!("Dispute Stage: {dispute_cycle}")),
+        )
         .into()),
     }
+}
 }
 
 fn convert_string_to_primitive_date(
@@ -3705,7 +3756,7 @@ impl TryFrom<ChargebackCase> for DisputeSyncResponse {
             amount,
             currency: item.chargeback_currency_type,
             dispute_stage: get_dispute_stage(item.cycle.clone())?,
-            dispute_status: get_dispute_status(item.cycle.clone())?,
+            dispute_status: get_dispute_status(item.cycle.clone(), item.activity)?,
             connector_status: item.cycle.clone(),
             connector_dispute_id: item.case_id.clone(),
             connector_reason: item.reason_code_description.clone(),
@@ -3938,4 +3989,42 @@ impl
             ..item.data.clone()
         })
     }
+}
+
+fn get_last_non_auxiliary_activity_type(activities: Vec<Activity>) -> Option<String> {
+    let auxiliary_activities: std::collections::HashSet<&'static str> = [
+        "Add Note",   
+        "Attach Document",
+        "Attempted Attach Document",
+        "Delete Document",
+        "Update Document",
+        "Move To Error Queue",
+        "Assign to Vantiv",
+        "Assign To Merchant",
+        "Merchant Auto Assign",
+        "Receive Network Transaction",
+        "Issuer Recalled",
+        "Network Decision",
+        "Request Declined",
+        "Sent Gift",
+        "Successful PayPal",
+    ]
+    .iter()
+    .cloned()
+    .collect();
+
+    let mut last_non_auxiliary_activity = None;
+
+    for activity in activities {
+        let auxiliary_activity = activity
+            .activity_type
+            .as_deref()
+            .map(|activity_type| auxiliary_activities.contains(activity_type))
+            .unwrap_or(false);
+
+        if !auxiliary_activity {
+            last_non_auxiliary_activity = activity.activity_type.clone()
+        }
+    }
+    last_non_auxiliary_activity
 }
