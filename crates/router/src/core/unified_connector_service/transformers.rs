@@ -42,6 +42,13 @@ impl ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
             .map(|id| Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(id)),
             })
+            .map_err(|e| {
+                tracing::debug!(
+                    transaction_id_error=?e,
+                    "Failed to extract connector transaction ID for UCS payment sync request"
+                );
+                e
+            })
             .ok();
 
         let connector_ref_id = router_data
@@ -1025,14 +1032,24 @@ impl ForeignTryFrom<&hyperswitch_interfaces::webhooks::IncomingWebhookRequestDet
 
         Ok(Self {
             method: 1, // POST method for webhooks
-            uri: Some(
-                request_details
+            uri: Some({
+                let uri_result = request_details
                     .headers
                     .get("x-forwarded-path")
-                    .and_then(|h| h.to_str().ok())
-                    .unwrap_or("/Unknown")
-                    .to_string(),
-            ),
+                    .and_then(|h| h.to_str().map_err(|e| {
+                        tracing::warn!(
+                            header_conversion_error=?e,
+                            header_value=?h,
+                            "Failed to convert x-forwarded-path header to string for webhook processing"
+                        );
+                        e
+                    }).ok());
+
+                uri_result.unwrap_or_else(|| {
+                    tracing::debug!("x-forwarded-path header not found or invalid, using default '/Unknown'");
+                    "/Unknown"
+                }).to_string()
+            }),
             body: request_details.body.to_vec(),
             headers: headers_map,
             query_params: Some(request_details.query_params.clone()),

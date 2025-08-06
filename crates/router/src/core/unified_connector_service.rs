@@ -436,6 +436,14 @@ pub async fn transform_webhook_via_ucs(
             MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(mca.clone()));
 
         build_webhook_secrets_from_merchant_connector_account(&mca_type)
+            .map_err(|e| {
+                logger::warn!(
+                    build_error=?e,
+                    connector_name=connector_name,
+                    "Failed to build webhook secrets from merchant connector account in transform_webhook_via_ucs"
+                );
+                e
+            })
             .ok()
             .flatten()
     });
@@ -540,6 +548,14 @@ pub async fn call_unified_connector_service_for_webhook(
             MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(mca.clone()));
 
         build_webhook_secrets_from_merchant_connector_account(&mca_type)
+            .map_err(|e| {
+                logger::warn!(
+                    build_error=?e,
+                    connector_name=connector_name,
+                    "Failed to build webhook secrets from merchant connector account in call_unified_connector_service_for_webhook"
+                );
+                e
+            })
             .ok()
             .flatten()
     });
