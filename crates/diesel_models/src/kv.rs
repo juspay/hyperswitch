@@ -300,4 +300,4 @@ pub struct PaymentMethodUpdateMems {
 pub struct MandateUpdateMems {
     pub orig: Mandate,
     pub update_data: MandateUpdateInternal,
-} 
+}
