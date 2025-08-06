@@ -144,6 +144,14 @@ impl RevenueRecoveryPaymentsAttemptStatus {
 
                 // update the status of token in redis
 
+                // Update CALCULATE_WORKFLOW to complete status on payment success
+                if let Err(e) = update_calculate_workflow_on_success(state, payment_intent).await {
+                    router_env::logger::error!(
+                        "Failed to update CALCULATE_WORKFLOW on payment success: {:?}",
+                        e
+                    );
+                };
+
                 // Record a successful transaction back to Billing Connector
                 // TODO: Add support for retrying failed outgoing recordback webhooks
                 record_back_to_billing_connector(
@@ -179,7 +187,7 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                 // Reopen calculate workflow on payment failure
                 reopen_calculate_workflow_on_payment_failure(
                     state,
-                    process_tracker,
+                    &process_tracker,
                     payment_intent,
                     revenue_recovery_payment_data,
                 )

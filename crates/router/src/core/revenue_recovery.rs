@@ -335,7 +335,7 @@ pub async fn perform_calculate_workflow(
             let updated_tracking_data = pcr::RevenueRecoveryWorkflowTrackingData {
                 merchant_id: merchant_id.clone(),
                 profile_id: profile_id.clone(),
-                global_payment_id: payment_intent.id,
+                global_payment_id: payment_intent.id.clone(),
                 payment_attempt_id: None,
                 billing_mca_id,
                 revenue_recovery_retry: common_enums::RevenueRecoveryAlgorithmType::Smart,
