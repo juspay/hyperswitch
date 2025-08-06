@@ -22663,6 +22663,48 @@
               }
             ],
             "nullable": true
+          },
+          "tax_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TaxStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "discount_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total amount of the discount you have applied to the order or transaction.",
+            "example": 6540,
+            "nullable": true
+          },
+          "shipping_amount_tax": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "duty_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "order_date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Date the payer placed the order.",
+            "nullable": true
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
+            "nullable": true
           }
         }
       },
@@ -23093,6 +23135,48 @@
                 "$ref": "#/components/schemas/PaymentChannel"
               }
             ],
+            "nullable": true
+          },
+          "tax_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TaxStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "discount_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total amount of the discount you have applied to the order or transaction.",
+            "example": 6540,
+            "nullable": true
+          },
+          "shipping_amount_tax": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "duty_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "order_date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Date the payer placed the order.",
+            "nullable": true
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
             "nullable": true
           }
         }
@@ -24421,6 +24505,48 @@
               }
             ],
             "nullable": true
+          },
+          "tax_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TaxStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "discount_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total amount of the discount you have applied to the order or transaction.",
+            "example": 6540,
+            "nullable": true
+          },
+          "shipping_amount_tax": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "duty_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "order_date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Date the payer placed the order.",
+            "nullable": true
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -25616,6 +25742,48 @@
                 "$ref": "#/components/schemas/PaymentChannel"
               }
             ],
+            "nullable": true
+          },
+          "tax_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TaxStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "discount_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total amount of the discount you have applied to the order or transaction.",
+            "example": 6540,
+            "nullable": true
+          },
+          "shipping_amount_tax": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "duty_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "order_date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Date the payer placed the order.",
+            "nullable": true
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
             "nullable": true
           }
         }
