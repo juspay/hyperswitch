@@ -4,7 +4,8 @@
     get,
     path = "/disputes/{dispute_id}",
     params(
-        ("dispute_id" = String, Path, description = "The identifier for dispute")
+        ("dispute_id" = String, Path, description = "The identifier for dispute"),
+        ("force_sync" = Option<bool>, Query, description = "Decider to enable or disable the connector call for dispute retrieve request"),
     ),
     responses(
         (status = 200, description = "The dispute was retrieved successfully", body = DisputeResponse),

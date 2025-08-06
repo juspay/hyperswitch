@@ -812,6 +812,40 @@ pub fn payments_connector_session() {}
 )]
 pub fn payments_cancel() {}
 
+/// Payments - Cancel Post Capture
+///
+/// A Payment could can be cancelled when it is in one of these statuses: `succeeded`, `partially_captured`, `partially_captured_and_capturable`.
+#[utoipa::path(
+    post,
+    path = "/payments/{payment_id}/cancel_post_capture",
+    request_body (
+        content = PaymentsCancelPostCaptureRequest,
+        examples(
+            (
+                "Cancel the payment post capture with minimal fields" = (
+                    value = json!({})
+                )
+            ),
+            (
+                "Cancel the payment post capture with cancellation reason" = (
+                    value = json!({"cancellation_reason": "requested_by_customer"})
+                )
+            ),
+        )
+    ),
+    params(
+        ("payment_id" = String, Path, description = "The identifier for payment")
+    ),
+    responses(
+        (status = 200, description = "Payment canceled post capture"),
+        (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
+    ),
+    tag = "Payments",
+    operation_id = "Cancel a Payment Post Capture",
+    security(("api_key" = []))
+)]
+pub fn payments_cancel_post_capture() {}
+
 /// Payments - List
 ///
 /// To list the *payments*

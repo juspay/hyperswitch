@@ -6,7 +6,7 @@ use hyperswitch_domain_models::router_response_types::disputes::FileInfo;
 
 use crate::{
     core::{
-        errors::{self, StorageErrorExt},
+        errors::{self, utils::ConnectorErrorExt, StorageErrorExt},
         payments, utils,
     },
     routes::SessionState,
@@ -122,6 +122,7 @@ pub async fn delete_file_using_file_id(
 pub async fn retrieve_file_from_connector(
     state: &SessionState,
     file_metadata: diesel_models::file::FileMetadata,
+    dispute_id: Option<String>,
     merchant_context: &domain::MerchantContext,
 ) -> CustomResult<Vec<u8>, errors::ApiErrorResponse> {
     let connector = &types::Connector::foreign_try_from(
@@ -137,6 +138,23 @@ pub async fn retrieve_file_from_connector(
         api::GetToken::Connector,
         file_metadata.merchant_connector_id.clone(),
     )?;
+
+    let dispute = match dispute_id {
+        Some(dispute) => Some(
+            state
+                .store
+                .find_dispute_by_merchant_id_dispute_id(
+                    merchant_context.get_merchant_account().get_id(),
+                    &dispute,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
+                    dispute_id: dispute,
+                })?,
+        ),
+        None => None,
+    };
+
     let connector_integration: services::BoxedFilesConnectorIntegrationInterface<
         api::Retrieve,
         types::RetrieveFileRequestData,
@@ -146,6 +164,7 @@ pub async fn retrieve_file_from_connector(
         state,
         merchant_context,
         &file_metadata,
+        dispute,
         connector,
     )
     .await
@@ -160,7 +179,7 @@ pub async fn retrieve_file_from_connector(
         None,
     )
     .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .to_files_failed_response()
     .attach_printable("Failed while calling retrieve file connector api")?;
     let retrieve_file_response =
         response
@@ -178,6 +197,7 @@ pub async fn retrieve_file_from_connector(
 pub async fn retrieve_file_and_provider_file_id_from_file_id(
     state: &SessionState,
     file_id: Option<String>,
+    dispute_id: Option<String>,
     merchant_context: &domain::MerchantContext,
     is_connector_file_data_required: api::FileDataRequired,
 ) -> CustomResult<FileInfo, errors::ApiErrorResponse> {
@@ -223,6 +243,7 @@ pub async fn retrieve_file_and_provider_file_id_from_file_id(
                             retrieve_file_from_connector(
                                 state,
                                 file_metadata_object.clone(),
+                                dispute_id,
                                 merchant_context,
                             )
                             .await?,
@@ -317,7 +338,6 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
-
                 let connector_integration: services::BoxedFilesConnectorIntegrationInterface<
                     api::Upload,
                     types::UploadFileRequestData,
@@ -329,7 +349,8 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
                     &payment_attempt,
                     merchant_context,
                     create_file_request,
-                    &dispute.connector,
+                    dispute,
+                    &connector_data.connector_name.to_string(),
                     file_key,
                 )
                 .await
@@ -351,7 +372,7 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
                     errors::ApiErrorResponse::ExternalConnectorError {
                         code: err.code,
                         message: err.message,
-                        connector: dispute.connector.clone(),
+                        connector: connector_data.connector_name.to_string(),
                         status_code: err.status_code,
                         reason: err.reason,
                     }

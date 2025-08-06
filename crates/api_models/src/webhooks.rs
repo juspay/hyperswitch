@@ -242,32 +242,32 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
 
 pub type MerchantWebhookConfig = std::collections::HashSet<IncomingWebhookEvent>;
 
-#[derive(Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub enum RefundIdType {
     RefundId(String),
     ConnectorRefundId(String),
 }
 
-#[derive(Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub enum MandateIdType {
     MandateId(String),
     ConnectorMandateId(String),
 }
 
-#[derive(Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub enum AuthenticationIdType {
     AuthenticationId(common_utils::id_type::AuthenticationId),
     ConnectorAuthenticationId(String),
 }
 
 #[cfg(feature = "payouts")]
-#[derive(Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub enum PayoutIdType {
     PayoutAttemptId(String),
     ConnectorPayoutId(String),
 }
 
-#[derive(Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub enum ObjectReferenceId {
     PaymentId(payments::PaymentIdType),
     RefundId(RefundIdType),
@@ -280,7 +280,7 @@ pub enum ObjectReferenceId {
 }
 
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
-#[derive(Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub enum InvoiceIdType {
     ConnectorInvoiceId(String),
 }

@@ -360,6 +360,7 @@ async fn get_outgoing_webhook_content_and_event_type(
     tracking_data: &OutgoingWebhookTrackingData,
 ) -> Result<(OutgoingWebhookContent, Option<EventType>), errors::ProcessTrackerError> {
     use api_models::{
+        disputes::DisputeRetrieveRequest,
         mandates::MandateId,
         payments::{PaymentIdType, PaymentsResponse, PaymentsRetrieveRequest},
         refunds::{RefundResponse, RefundsRetrieveRequest},
@@ -373,10 +374,7 @@ async fn get_outgoing_webhook_content_and_event_type(
             refunds::refund_retrieve_core_with_refund_id,
         },
         services::{ApplicationResponse, AuthFlow},
-        types::{
-            api::{DisputeId, PSync},
-            transformers::ForeignFrom,
-        },
+        types::{api::PSync, transformers::ForeignFrom},
     };
 
     let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
@@ -474,27 +472,36 @@ async fn get_outgoing_webhook_content_and_event_type(
 
         diesel_models::enums::EventClass::Disputes => {
             let dispute_id = tracking_data.primary_object_id.clone();
-            let request = DisputeId { dispute_id };
+            let request = DisputeRetrieveRequest {
+                dispute_id,
+                force_sync: None,
+            };
 
-            let dispute_response =
-                match retrieve_dispute(state, merchant_context.clone(), None, request).await? {
-                    ApplicationResponse::Json(dispute_response)
-                    | ApplicationResponse::JsonWithHeaders((dispute_response, _)) => {
-                        Ok(dispute_response)
-                    }
-                    ApplicationResponse::StatusOk
-                    | ApplicationResponse::TextPlain(_)
-                    | ApplicationResponse::JsonForRedirection(_)
-                    | ApplicationResponse::Form(_)
-                    | ApplicationResponse::GenericLinkForm(_)
-                    | ApplicationResponse::PaymentLinkForm(_)
-                    | ApplicationResponse::FileData(_) => {
-                        Err(errors::ProcessTrackerError::ResourceFetchingFailed {
-                            resource_name: tracking_data.primary_object_id.clone(),
-                        })
-                    }
+            let dispute_response = match Box::pin(retrieve_dispute(
+                state,
+                merchant_context.clone(),
+                None,
+                request,
+            ))
+            .await?
+            {
+                ApplicationResponse::Json(dispute_response)
+                | ApplicationResponse::JsonWithHeaders((dispute_response, _)) => {
+                    Ok(dispute_response)
                 }
-                .map(Box::new)?;
+                ApplicationResponse::StatusOk
+                | ApplicationResponse::TextPlain(_)
+                | ApplicationResponse::JsonForRedirection(_)
+                | ApplicationResponse::Form(_)
+                | ApplicationResponse::GenericLinkForm(_)
+                | ApplicationResponse::PaymentLinkForm(_)
+                | ApplicationResponse::FileData(_) => {
+                    Err(errors::ProcessTrackerError::ResourceFetchingFailed {
+                        resource_name: tracking_data.primary_object_id.clone(),
+                    })
+                }
+            }
+            .map(Box::new)?;
             let event_type = Some(EventType::from(dispute_response.dispute_status));
             logger::debug!(current_resource_status=%dispute_response.dispute_status);
 

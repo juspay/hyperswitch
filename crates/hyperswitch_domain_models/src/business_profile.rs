@@ -83,6 +83,7 @@ pub struct Profile {
     pub acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+    pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
 }
 
 #[cfg(feature = "v1")]
@@ -138,6 +139,7 @@ pub struct ProfileSetter {
     pub is_pre_network_tokenization_enabled: bool,
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+    pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
 }
 
 #[cfg(feature = "v1")]
@@ -200,6 +202,7 @@ impl From<ProfileSetter> for Profile {
             acquirer_config_map: None,
             merchant_category_code: value.merchant_category_code,
             merchant_country_code: value.merchant_country_code,
+            dispute_polling_interval: value.dispute_polling_interval,
         }
     }
 }
@@ -262,6 +265,7 @@ pub struct ProfileGeneralUpdate {
     pub is_pre_network_tokenization_enabled: Option<bool>,
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+    pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
 }
 
 #[cfg(feature = "v1")]
@@ -343,6 +347,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_pre_network_tokenization_enabled,
                     merchant_category_code,
                     merchant_country_code,
+                    dispute_polling_interval,
                 } = *update;
 
                 Self {
@@ -395,6 +400,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     acquirer_config_map: None,
                     merchant_category_code,
                     merchant_country_code,
+                    dispute_polling_interval,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -450,6 +456,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 acquirer_config_map: None,
                 merchant_category_code: None,
                 merchant_country_code: None,
+                dispute_polling_interval: None,
             },
             ProfileUpdate::DynamicRoutingAlgorithmUpdate {
                 dynamic_routing_algorithm,
@@ -502,6 +509,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 acquirer_config_map: None,
                 merchant_category_code: None,
                 merchant_country_code: None,
+                dispute_polling_interval: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -554,6 +562,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 acquirer_config_map: None,
                 merchant_category_code: None,
                 merchant_country_code: None,
+                dispute_polling_interval: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -606,6 +615,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 acquirer_config_map: None,
                 merchant_category_code: None,
                 merchant_country_code: None,
+                dispute_polling_interval: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -658,6 +668,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 acquirer_config_map: None,
                 merchant_category_code: None,
                 merchant_country_code: None,
+                dispute_polling_interval: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -710,6 +721,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 acquirer_config_map: None,
                 merchant_category_code: None,
                 merchant_country_code: None,
+                dispute_polling_interval: None,
             },
             ProfileUpdate::AcquirerConfigMapUpdate {
                 acquirer_config_map,
@@ -762,6 +774,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 acquirer_config_map,
                 merchant_category_code: None,
                 merchant_country_code: None,
+                dispute_polling_interval: None,
             },
         }
     }
@@ -834,6 +847,7 @@ impl super::behaviour::Conversion for Profile {
             acquirer_config_map: self.acquirer_config_map,
             merchant_category_code: self.merchant_category_code,
             merchant_country_code: self.merchant_country_code,
+            dispute_polling_interval: self.dispute_polling_interval,
         })
     }
 
@@ -932,6 +946,7 @@ impl super::behaviour::Conversion for Profile {
                 acquirer_config_map: item.acquirer_config_map,
                 merchant_category_code: item.merchant_category_code,
                 merchant_country_code: item.merchant_country_code,
+                dispute_polling_interval: item.dispute_polling_interval,
             })
         }
         .await
@@ -997,6 +1012,7 @@ impl super::behaviour::Conversion for Profile {
             is_pre_network_tokenization_enabled: Some(self.is_pre_network_tokenization_enabled),
             merchant_category_code: self.merchant_category_code,
             merchant_country_code: self.merchant_country_code,
+            dispute_polling_interval: self.dispute_polling_interval,
         })
     }
 }
@@ -2063,6 +2079,7 @@ impl super::behaviour::Conversion for Profile {
             acquirer_config_map: None,
             merchant_category_code: self.merchant_category_code,
             merchant_country_code: self.merchant_country_code,
+            dispute_polling_interval: None,
         })
     }
 

@@ -142,6 +142,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsConfirm
             | Flow::PaymentsCapture
             | Flow::PaymentsCancel
+            | Flow::PaymentsCancelPostCapture
             | Flow::PaymentsApprove
             | Flow::PaymentsReject
             | Flow::PaymentsSessionToken

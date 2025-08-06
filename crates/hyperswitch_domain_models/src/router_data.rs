@@ -775,6 +775,7 @@ impl
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Conflicted
             | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             // For these statuses, update the capturable amount when it reaches terminal / capturable state
@@ -812,6 +813,7 @@ impl
             }
             // No amount is captured
             common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             // For these statuses, update the amount captured when it reaches terminal state
@@ -987,6 +989,7 @@ impl
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Conflicted
             | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             // For these statuses, update the capturable amount when it reaches terminal / capturable state
@@ -1027,6 +1030,7 @@ impl
             }
             // No amount is captured
             common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             common_enums::IntentStatus::RequiresCapture => {
@@ -1224,6 +1228,7 @@ impl
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Conflicted
             | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             // For these statuses, update the capturable amount when it reaches terminal / capturable state
@@ -1263,6 +1268,7 @@ impl
             }
             // No amount is captured
             common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             // For these statuses, update the amount captured when it reaches terminal state
@@ -1458,6 +1464,7 @@ impl
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Conflicted
             | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             // For these statuses, update the capturable amount when it reaches terminal / capturable state
@@ -1495,6 +1502,7 @@ impl
             }
             // No amount is captured
             common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             // For these statuses, update the amount captured when it reaches terminal state

@@ -1,5 +1,5 @@
 pub use bool_wrappers::*;
-
+pub use u32_wrappers::*;
 mod bool_wrappers {
     use std::ops::Deref;
 
@@ -168,6 +168,76 @@ mod bool_wrappers {
         /// Default for `ShouldCollectCvvDuringPayment` is `true`
         fn default() -> Self {
             Self(true)
+        }
+    }
+}
+
+mod u32_wrappers {
+    use std::ops::Deref;
+
+    use serde::{de::Error, Deserialize, Serialize};
+
+    use crate::consts::{
+        DEFAULT_DISPUTE_POLLING_INTERVAL_IN_HOURS, MAX_DISPUTE_POLLING_INTERVAL_IN_HOURS,
+    };
+    /// Time interval in hours for polling disputes
+    #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, diesel::expression::AsExpression)]
+    #[diesel(sql_type = diesel::sql_types::Integer)]
+    pub struct DisputePollingIntervalInHours(i32);
+
+    impl Deref for DisputePollingIntervalInHours {
+        type Target = i32;
+
+        fn deref(&self) -> &Self::Target {
+            &self.0
+        }
+    }
+
+    impl<'de> Deserialize<'de> for DisputePollingIntervalInHours {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: serde::Deserializer<'de>,
+        {
+            let val = i32::deserialize(deserializer)?;
+            if val < 0 {
+                Err(D::Error::custom(
+                    "DisputePollingIntervalInHours cannot be negative",
+                ))
+            } else if val > MAX_DISPUTE_POLLING_INTERVAL_IN_HOURS {
+                Err(D::Error::custom(
+                    "DisputePollingIntervalInHours exceeds the maximum allowed value of 24",
+                ))
+            } else {
+                Ok(Self(val))
+            }
+        }
+    }
+
+    impl diesel::deserialize::FromSql<diesel::sql_types::Integer, diesel::pg::Pg>
+        for DisputePollingIntervalInHours
+    {
+        fn from_sql(value: diesel::pg::PgValue<'_>) -> diesel::deserialize::Result<Self> {
+            i32::from_sql(value).map(Self)
+        }
+    }
+
+    impl diesel::serialize::ToSql<diesel::sql_types::Integer, diesel::pg::Pg>
+        for DisputePollingIntervalInHours
+    {
+        fn to_sql<'b>(
+            &'b self,
+            out: &mut diesel::serialize::Output<'b, '_, diesel::pg::Pg>,
+        ) -> diesel::serialize::Result {
+            <i32 as diesel::serialize::ToSql<diesel::sql_types::Integer, diesel::pg::Pg>>::to_sql(
+                &self.0, out,
+            )
+        }
+    }
+
+    impl Default for DisputePollingIntervalInHours {
+        /// Default for `ShouldCollectCvvDuringPayment` is `true`
+        fn default() -> Self {
+            Self(DEFAULT_DISPUTE_POLLING_INTERVAL_IN_HOURS)
         }
     }
 }

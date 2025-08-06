@@ -221,6 +221,7 @@ pub enum TxnStatus {
     Authorizing,
     CODInitiated,
     Voided,
+    VoidedPostCharge,
     VoidInitiated,
     Nop,
     CaptureInitiated,

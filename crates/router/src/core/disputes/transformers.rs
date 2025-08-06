@@ -22,6 +22,7 @@ pub async fn get_evidence_request_data(
     let cancellation_policy_file_info = retrieve_file_and_provider_file_id_from_file_id(
         state,
         evidence_request.cancellation_policy,
+        None,
         merchant_context,
         api::FileDataRequired::NotRequired,
     )
@@ -29,6 +30,7 @@ pub async fn get_evidence_request_data(
     let customer_communication_file_info = retrieve_file_and_provider_file_id_from_file_id(
         state,
         evidence_request.customer_communication,
+        None,
         merchant_context,
         api::FileDataRequired::NotRequired,
     )
@@ -36,6 +38,7 @@ pub async fn get_evidence_request_data(
     let customer_sifnature_file_info = retrieve_file_and_provider_file_id_from_file_id(
         state,
         evidence_request.customer_signature,
+        None,
         merchant_context,
         api::FileDataRequired::NotRequired,
     )
@@ -43,6 +46,7 @@ pub async fn get_evidence_request_data(
     let receipt_file_info = retrieve_file_and_provider_file_id_from_file_id(
         state,
         evidence_request.receipt,
+        None,
         merchant_context,
         api::FileDataRequired::NotRequired,
     )
@@ -50,6 +54,7 @@ pub async fn get_evidence_request_data(
     let refund_policy_file_info = retrieve_file_and_provider_file_id_from_file_id(
         state,
         evidence_request.refund_policy,
+        None,
         merchant_context,
         api::FileDataRequired::NotRequired,
     )
@@ -57,6 +62,7 @@ pub async fn get_evidence_request_data(
     let service_documentation_file_info = retrieve_file_and_provider_file_id_from_file_id(
         state,
         evidence_request.service_documentation,
+        None,
         merchant_context,
         api::FileDataRequired::NotRequired,
     )
@@ -64,6 +70,7 @@ pub async fn get_evidence_request_data(
     let shipping_documentation_file_info = retrieve_file_and_provider_file_id_from_file_id(
         state,
         evidence_request.shipping_documentation,
+        None,
         merchant_context,
         api::FileDataRequired::NotRequired,
     )
@@ -72,6 +79,7 @@ pub async fn get_evidence_request_data(
         retrieve_file_and_provider_file_id_from_file_id(
             state,
             evidence_request.invoice_showing_distinct_transactions,
+            None,
             merchant_context,
             api::FileDataRequired::NotRequired,
         )
@@ -80,6 +88,7 @@ pub async fn get_evidence_request_data(
         retrieve_file_and_provider_file_id_from_file_id(
             state,
             evidence_request.recurring_transaction_agreement,
+            None,
             merchant_context,
             api::FileDataRequired::NotRequired,
         )
@@ -87,12 +96,14 @@ pub async fn get_evidence_request_data(
     let uncategorized_file_info = retrieve_file_and_provider_file_id_from_file_id(
         state,
         evidence_request.uncategorized_file,
+        None,
         merchant_context,
         api::FileDataRequired::NotRequired,
     )
     .await?;
     Ok(SubmitEvidenceRequestData {
         dispute_id: dispute.dispute_id.clone(),
+        dispute_status: dispute.dispute_status,
         connector_dispute_id: dispute.connector_dispute_id.clone(),
         access_activity_log: evidence_request.access_activity_log,
         billing_address: evidence_request.billing_address,

@@ -33,14 +33,15 @@ use crate::{
         self, ExtendedCardInfoResponse, PaymentIdType, PaymentListConstraints,
         PaymentListFilterConstraints, PaymentListFilters, PaymentListFiltersV2,
         PaymentListResponse, PaymentListResponseV2, PaymentsAggregateResponse,
-        PaymentsApproveRequest, PaymentsCancelRequest, PaymentsCaptureRequest,
-        PaymentsCompleteAuthorizeRequest, PaymentsDynamicTaxCalculationRequest,
-        PaymentsDynamicTaxCalculationResponse, PaymentsExternalAuthenticationRequest,
-        PaymentsExternalAuthenticationResponse, PaymentsIncrementalAuthorizationRequest,
-        PaymentsManualUpdateRequest, PaymentsManualUpdateResponse,
-        PaymentsPostSessionTokensRequest, PaymentsPostSessionTokensResponse, PaymentsRejectRequest,
-        PaymentsRetrieveRequest, PaymentsSessionResponse, PaymentsStartRequest,
-        PaymentsUpdateMetadataRequest, PaymentsUpdateMetadataResponse, RedirectionResponse,
+        PaymentsApproveRequest, PaymentsCancelPostCaptureRequest, PaymentsCancelRequest,
+        PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
+        PaymentsDynamicTaxCalculationRequest, PaymentsDynamicTaxCalculationResponse,
+        PaymentsExternalAuthenticationRequest, PaymentsExternalAuthenticationResponse,
+        PaymentsIncrementalAuthorizationRequest, PaymentsManualUpdateRequest,
+        PaymentsManualUpdateResponse, PaymentsPostSessionTokensRequest,
+        PaymentsPostSessionTokensResponse, PaymentsRejectRequest, PaymentsRetrieveRequest,
+        PaymentsSessionResponse, PaymentsStartRequest, PaymentsUpdateMetadataRequest,
+        PaymentsUpdateMetadataResponse, RedirectionResponse,
     },
 };
 
@@ -133,6 +134,15 @@ impl ApiEventMetric for PaymentsDynamicTaxCalculationResponse {}
 
 #[cfg(feature = "v1")]
 impl ApiEventMetric for PaymentsCancelRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.payment_id.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ApiEventMetric for PaymentsCancelPostCaptureRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Payment {
             payment_id: self.payment_id.clone(),

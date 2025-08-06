@@ -4437,6 +4437,7 @@ pub fn get_attempt_type(
                     | enums::AttemptStatus::PartialCharged
                     | enums::AttemptStatus::PartialChargedAndChargeable
                     | enums::AttemptStatus::Voided
+                    | enums::AttemptStatus::VoidedPostCharge
                     | enums::AttemptStatus::AutoRefunded
                     | enums::AttemptStatus::PaymentMethodAwaited
                     | enums::AttemptStatus::DeviceDataCollectionPending
@@ -4492,6 +4493,7 @@ pub fn get_attempt_type(
             }
         }
         enums::IntentStatus::Cancelled
+        | enums::IntentStatus::CancelledPostCapture
         | enums::IntentStatus::RequiresCapture
         | enums::IntentStatus::PartiallyCaptured
         | enums::IntentStatus::PartiallyCapturedAndCapturable
@@ -4742,6 +4744,7 @@ pub fn is_manual_retry_allowed(
             | enums::AttemptStatus::PartialCharged
             | enums::AttemptStatus::PartialChargedAndChargeable
             | enums::AttemptStatus::Voided
+            | enums::AttemptStatus::VoidedPostCharge
             | enums::AttemptStatus::AutoRefunded
             | enums::AttemptStatus::PaymentMethodAwaited
             | enums::AttemptStatus::DeviceDataCollectionPending
@@ -4760,6 +4763,7 @@ pub fn is_manual_retry_allowed(
             | enums::AttemptStatus::Failure => Some(true),
         },
         enums::IntentStatus::Cancelled
+        | enums::IntentStatus::CancelledPostCapture
         | enums::IntentStatus::RequiresCapture
         | enums::IntentStatus::PartiallyCaptured
         | enums::IntentStatus::PartiallyCapturedAndCapturable

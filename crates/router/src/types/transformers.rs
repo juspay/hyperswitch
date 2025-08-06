@@ -161,6 +161,7 @@ impl ForeignTryFrom<storage_enums::AttemptStatus> for storage_enums::CaptureStat
             | storage_enums::AttemptStatus::Authorizing
             | storage_enums::AttemptStatus::CodInitiated
             | storage_enums::AttemptStatus::Voided
+            | storage_enums::AttemptStatus::VoidedPostCharge
             | storage_enums::AttemptStatus::VoidInitiated
             | storage_enums::AttemptStatus::VoidFailed
             | storage_enums::AttemptStatus::AutoRefunded
