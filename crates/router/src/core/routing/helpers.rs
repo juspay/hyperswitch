@@ -1705,6 +1705,7 @@ fn get_desired_payment_status_for_dynamic_routing_metrics(
         | common_enums::AttemptStatus::Authorizing
         | common_enums::AttemptStatus::CodInitiated
         | common_enums::AttemptStatus::Voided
+        | common_enums::AttemptStatus::VoidedPostCharge
         | common_enums::AttemptStatus::VoidInitiated
         | common_enums::AttemptStatus::CaptureInitiated
         | common_enums::AttemptStatus::VoidFailed
@@ -1714,9 +1715,8 @@ fn get_desired_payment_status_for_dynamic_routing_metrics(
         | common_enums::AttemptStatus::IntegrityFailure
         | common_enums::AttemptStatus::PaymentMethodAwaited
         | common_enums::AttemptStatus::ConfirmationAwaited
-        | common_enums::AttemptStatus::DeviceDataCollectionPending => {
-            common_enums::AttemptStatus::Pending
-        }
+        | common_enums::AttemptStatus::DeviceDataCollectionPending
+        | common_enums::AttemptStatus::Expired => common_enums::AttemptStatus::Pending,
     }
 }
 
@@ -1734,7 +1734,10 @@ impl ForeignFrom<common_enums::AttemptStatus> for open_router::TxnStatus {
             common_enums::AttemptStatus::Charged => Self::Charged,
             common_enums::AttemptStatus::Authorizing => Self::Authorizing,
             common_enums::AttemptStatus::CodInitiated => Self::CODInitiated,
-            common_enums::AttemptStatus::Voided => Self::Voided,
+            common_enums::AttemptStatus::Voided | common_enums::AttemptStatus::Expired => {
+                Self::Voided
+            }
+            common_enums::AttemptStatus::VoidedPostCharge => Self::VoidedPostCharge,
             common_enums::AttemptStatus::VoidInitiated => Self::VoidInitiated,
             common_enums::AttemptStatus::CaptureInitiated => Self::CaptureInitiated,
             common_enums::AttemptStatus::CaptureFailed => Self::CaptureFailed,

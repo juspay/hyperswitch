@@ -5,14 +5,14 @@ use hyperswitch_domain_models::{
     router_data_v2::flow_common_types,
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
-        dispute::{Accept, Defend, Evidence},
+        dispute::{Accept, Defend, Dsync, Evidence, Fetch},
         files::{Retrieve, Upload},
         mandate_revoke::MandateRevoke,
         payments::{
             Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture, CompleteAuthorize,
             CreateConnectorCustomer, CreateOrder, IncrementalAuthorization, InitPayment, PSync,
-            PaymentMethodToken, PostProcessing, PostSessionTokens, PreProcessing, SdkSessionUpdate,
-            Session, SetupMandate, UpdateMetadata, Void,
+            PaymentMethodToken, PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing,
+            SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
         },
         refunds::{Execute, RSync},
         revenue_recovery::{BillingConnectorPaymentsSync, RecoveryRecordBack},
@@ -36,11 +36,11 @@ use hyperswitch_domain_models::{
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
         },
-        AcceptDisputeRequestData, AccessTokenRequestData, AuthenticationTokenCreationRequestData,
-        AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
-        CreateOrderRequestData, DefendDisputeRequestData, MandateRevokeRequestData,
-        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
+        AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
+        CompleteAuthorizeData, ConnectorCustomerData, CreateOrderRequestData,
+        DefendDisputeRequestData, MandateRevokeRequestData, PaymentMethodTokenizationData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
         PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsSessionData,
         PaymentsSyncData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData,
         RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
@@ -52,9 +52,9 @@ use hyperswitch_domain_models::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
             RevenueRecoveryRecordBackResponse,
         },
-        AcceptDisputeResponse, DefendDisputeResponse, MandateRevokeResponseData,
-        PaymentsResponseData, RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
-        TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
+        AcceptDisputeResponse, DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse,
+        MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData, RetrieveFileResponse,
+        SubmitEvidenceResponse, TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
         VerifyWebhookSourceResponseData,
     },
 };
@@ -139,6 +139,9 @@ pub type PaymentsSessionType =
 /// Type alias for `ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData>`
 pub type PaymentsVoidType =
     dyn ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData>;
+/// Type alias for `ConnectorIntegration<PostCaptureVoid, PaymentsCancelPostCaptureData, PaymentsResponseData>`
+pub type PaymentsPostCaptureVoidType =
+    dyn ConnectorIntegration<PostCaptureVoid, PaymentsCancelPostCaptureData, PaymentsResponseData>;
 
 /// Type alias for `ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>`
 pub type TokenizationType = dyn ConnectorIntegration<
@@ -224,6 +227,13 @@ pub type RetrieveFileType =
 /// Type alias for `ConnectorIntegration<Defend, DefendDisputeRequestData, DefendDisputeResponse>`
 pub type DefendDisputeType =
     dyn ConnectorIntegration<Defend, DefendDisputeRequestData, DefendDisputeResponse>;
+
+/// Type alias for `ConnectorIntegration<Fetch, FetchDisputesRequestData, FetchDisputesResponse>`
+pub type FetchDisputesType =
+    dyn ConnectorIntegration<Fetch, FetchDisputesRequestData, FetchDisputesResponse>;
+
+/// Type alias for `ConnectorIntegration<Dsync, DisputeSyncData, DisputeSyncResponse>`
+pub type DisputeSyncType = dyn ConnectorIntegration<Dsync, DisputeSyncData, DisputeSyncResponse>;
 
 /// Type alias for `ConnectorIntegration<PreAuthenticate, UasPreAuthenticationRequestData, UasAuthenticationResponseData>`
 pub type UasPreAuthenticationType = dyn ConnectorIntegration<

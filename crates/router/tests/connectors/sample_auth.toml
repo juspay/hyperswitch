@@ -363,3 +363,5 @@ key1="Client Secret"
 [payload]
 api_key="API Key"
 
+[bluecode]
+api_key="EOrder Token"

@@ -312,7 +312,7 @@ impl From<api_enums::IntentStatus> for StripeSetupStatus {
             api_enums::IntentStatus::Succeeded | api_enums::IntentStatus::PartiallyCaptured => {
                 Self::Succeeded
             }
-            api_enums::IntentStatus::Failed => Self::Canceled,
+            api_enums::IntentStatus::Failed | api_enums::IntentStatus::Expired => Self::Canceled,
             api_enums::IntentStatus::Processing => Self::Processing,
             api_enums::IntentStatus::RequiresCustomerAction => Self::RequiresAction,
             api_enums::IntentStatus::RequiresMerchantAction
@@ -324,7 +324,9 @@ impl From<api_enums::IntentStatus> for StripeSetupStatus {
                 logger::error!("Invalid status change");
                 Self::Canceled
             }
-            api_enums::IntentStatus::Cancelled => Self::Canceled,
+            api_enums::IntentStatus::Cancelled | api_enums::IntentStatus::CancelledPostCapture => {
+                Self::Canceled
+            }
         }
     }
 }

@@ -41,9 +41,10 @@ use common_utils::{
 };
 use diesel_models::payment_method;
 use error_stack::{report, ResultExt};
-#[cfg(feature = "v1")]
-use euclid::dssa::graph::{AnalysisContext, CgraphExt};
-use euclid::frontend::dir;
+use euclid::{
+    dssa::graph::{AnalysisContext, CgraphExt},
+    frontend::dir,
+};
 use hyperswitch_constraint_graph as cgraph;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::customer::CustomerUpdate;
@@ -888,6 +889,14 @@ impl PaymentMethodsController for PmCards<'_> {
             card_network,
         )
         .await
+    }
+
+    #[cfg(feature = "v1")]
+    async fn get_card_details_from_locker(
+        &self,
+        pm: &domain::PaymentMethod,
+    ) -> errors::RouterResult<api::CardDetailFromLocker> {
+        get_card_details_from_locker(self.state, pm).await
     }
 
     #[cfg(feature = "v1")]
@@ -3962,25 +3971,6 @@ pub async fn filter_payment_methods(
     Ok(())
 }
 
-// v2 type for PaymentMethodListRequest will not have the installment_payment_enabled field,
-// need to re-evaluate filter logic
-#[cfg(feature = "v2")]
-#[allow(clippy::too_many_arguments)]
-pub async fn filter_payment_methods(
-    _graph: &cgraph::ConstraintGraph<dir::DirValue>,
-    _mca_id: String,
-    _payment_methods: &[Secret<serde_json::Value>],
-    _req: &mut api::PaymentMethodListRequest,
-    _resp: &mut [ResponsePaymentMethodIntermediate],
-    _payment_intent: Option<&storage::PaymentIntent>,
-    _payment_attempt: Option<&storage::PaymentAttempt>,
-    _address: Option<&domain::Address>,
-    _connector: String,
-    _configs: &settings::Settings<RawSecret>,
-) -> errors::CustomResult<(), errors::ApiErrorResponse> {
-    todo!()
-}
-
 fn filter_amount_based(
     payment_method: &RequestPaymentMethodTypes,
     amount: Option<MinorUnit>,
@@ -4205,6 +4195,7 @@ pub async fn list_customer_payment_method(
             &pm,
             Some(parent_payment_method_token.clone()),
             true,
+            false,
             &merchant_context,
         )
         .await?;
@@ -4349,6 +4340,7 @@ pub async fn list_customer_payment_method(
 }
 
 #[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
 pub async fn get_pm_list_context(
     state: &routes::SessionState,
     payment_method: &enums::PaymentMethod,
@@ -4358,6 +4350,7 @@ pub async fn get_pm_list_context(
     #[cfg(feature = "payouts")] parent_payment_method_token: Option<String>,
     #[cfg(not(feature = "payouts"))] _parent_payment_method_token: Option<String>,
     is_payment_associated: bool,
+    force_fetch_card_from_vault: bool,
     merchant_context: &domain::MerchantContext,
 ) -> Result<Option<PaymentMethodListContext>, error_stack::Report<errors::ApiErrorResponse>> {
     let cards = PmCards {
@@ -4366,7 +4359,11 @@ pub async fn get_pm_list_context(
     };
     let payment_method_retrieval_context = match payment_method {
         enums::PaymentMethod::Card => {
-            let card_details = cards.get_card_details_with_locker_fallback(pm).await?;
+            let card_details = if force_fetch_card_from_vault {
+                Some(cards.get_card_details_from_locker(pm).await?)
+            } else {
+                cards.get_card_details_with_locker_fallback(pm).await?
+            };
 
             card_details.as_ref().map(|card| PaymentMethodListContext {
                 card_details: Some(card.clone()),

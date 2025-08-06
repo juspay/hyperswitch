@@ -28,6 +28,7 @@ impl ForeignFrom<AttemptStatus> for RevenueRecoveryPaymentsAttemptStatus {
             | AttemptStatus::Failure => Self::Failed,
 
             AttemptStatus::Voided
+            | AttemptStatus::VoidedPostCharge
             | AttemptStatus::ConfirmationAwaited
             | AttemptStatus::PartialCharged
             | AttemptStatus::PartialChargedAndChargeable
@@ -35,7 +36,8 @@ impl ForeignFrom<AttemptStatus> for RevenueRecoveryPaymentsAttemptStatus {
             | AttemptStatus::AuthenticationPending
             | AttemptStatus::DeviceDataCollectionPending
             | AttemptStatus::Unresolved
-            | AttemptStatus::IntegrityFailure => Self::InvalidStatus(s.to_string()),
+            | AttemptStatus::IntegrityFailure
+            | AttemptStatus::Expired => Self::InvalidStatus(s.to_string()),
         }
     }
 }

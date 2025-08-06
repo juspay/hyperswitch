@@ -186,8 +186,13 @@ pub async fn trigger_refund_to_gateway(
         &payments::CallConnectorAction::Trigger,
     );
 
-    let connector_response =
-        call_connector_service(state, &connector, add_access_token_result, router_data).await;
+    let connector_response = Box::pin(call_connector_service(
+        state,
+        &connector,
+        add_access_token_result,
+        router_data,
+    ))
+    .await;
 
     let refund_update = get_refund_update_object(
         state,
@@ -286,8 +291,13 @@ pub async fn internal_trigger_refund_to_gateway(
         &payments::CallConnectorAction::Trigger,
     );
 
-    let connector_response =
-        call_connector_service(state, &connector, add_access_token_result, router_data).await;
+    let connector_response = Box::pin(call_connector_service(
+        state,
+        &connector,
+        add_access_token_result,
+        router_data,
+    ))
+    .await;
 
     let refund_update = get_refund_update_object(
         state,
@@ -822,10 +832,14 @@ pub async fn sync_refund_with_gateway(
         &payments::CallConnectorAction::Trigger,
     );
 
-    let connector_response =
-        call_connector_service(state, &connector, add_access_token_result, router_data)
-            .await
-            .to_refund_failed_response()?;
+    let connector_response = Box::pin(call_connector_service(
+        state,
+        &connector,
+        add_access_token_result,
+        router_data,
+    ))
+    .await
+    .to_refund_failed_response()?;
 
     let connector_response = perform_integrity_check(connector_response);
 
@@ -902,10 +916,14 @@ pub async fn internal_sync_refund_with_gateway(
         &payments::CallConnectorAction::Trigger,
     );
 
-    let connector_response =
-        call_connector_service(state, &connector, add_access_token_result, router_data)
-            .await
-            .to_refund_failed_response()?;
+    let connector_response = Box::pin(call_connector_service(
+        state,
+        &connector,
+        add_access_token_result,
+        router_data,
+    ))
+    .await
+    .to_refund_failed_response()?;
 
     let connector_response = perform_integrity_check(connector_response);
 

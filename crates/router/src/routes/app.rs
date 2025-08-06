@@ -132,6 +132,7 @@ pub struct SessionState {
     pub locale: String,
     pub crm_client: Arc<dyn CrmInterface>,
     pub infra_components: Option<serde_json::Value>,
+    pub enhancement: Option<HashMap<String, String>>,
 }
 impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
@@ -245,6 +246,7 @@ pub struct AppState {
     pub theme_storage_client: Arc<dyn FileStorageInterface>,
     pub crm_client: Arc<dyn CrmInterface>,
     pub infra_components: Option<serde_json::Value>,
+    pub enhancement: Option<HashMap<String, String>>,
 }
 impl scheduler::SchedulerAppState for AppState {
     fn get_tenants(&self) -> Vec<id_type::TenantId> {
@@ -410,6 +412,7 @@ impl AppState {
 
             let grpc_client = conf.grpc_client.get_grpc_client_interface().await;
             let infra_component_values = Self::process_env_mappings(conf.infra_values.clone());
+            let enhancement = conf.enhancement.clone();
             Self {
                 flow_name: String::from("default"),
                 stores,
@@ -431,6 +434,7 @@ impl AppState {
                 theme_storage_client,
                 crm_client,
                 infra_components: infra_component_values,
+                enhancement,
             }
         })
         .await
@@ -526,6 +530,7 @@ impl AppState {
             locale: locale.unwrap_or(common_utils::consts::DEFAULT_LOCALE.to_string()),
             crm_client: self.crm_client.clone(),
             infra_components: self.infra_components.clone(),
+            enhancement: self.enhancement.clone(),
         })
     }
 
@@ -799,6 +804,9 @@ impl Payments {
                 )
                 .service(
                     web::resource("/{payment_id}/cancel").route(web::post().to(payments::payments_cancel)),
+                )
+                .service(
+                    web::resource("/{payment_id}/cancel_post_capture").route(web::post().to(payments::payments_cancel_post_capture)),
                 )
                 .service(
                     web::resource("/{payment_id}/capture").route(web::post().to(payments::payments_capture)),
@@ -1963,6 +1971,10 @@ impl Disputes {
             .service(
                 web::resource("/{dispute_id}").route(web::get().to(disputes::retrieve_dispute)),
             )
+            .service(
+                web::resource("/{connector_id}/fetch")
+                    .route(web::get().to(disputes::fetch_disputes)),
+            )
     }
 }
 
@@ -2663,9 +2675,10 @@ impl User {
                     .route(web::delete().to(user::delete_sample_data)),
             )
         }
-
+        // Admin Theme
+        // TODO: To be deprecated
         route = route.service(
-            web::scope("/theme")
+            web::scope("/admin/theme")
                 .service(
                     web::resource("")
                         .route(web::get().to(user::theme::get_theme_using_lineage))
@@ -2679,7 +2692,26 @@ impl User {
                         .route(web::delete().to(user::theme::delete_theme)),
                 ),
         );
-
+        // User Theme
+        route = route.service(
+            web::scope("/theme")
+                .service(
+                    web::resource("")
+                        .route(web::post().to(user::theme::create_user_theme))
+                        .route(web::get().to(user::theme::get_user_theme_using_lineage)),
+                )
+                .service(
+                    web::resource("/list")
+                        .route(web::get().to(user::theme::list_all_themes_in_lineage)),
+                )
+                .service(
+                    web::resource("/{theme_id}")
+                        .route(web::get().to(user::theme::get_user_theme_using_theme_id))
+                        .route(web::put().to(user::theme::update_user_theme))
+                        .route(web::post().to(user::theme::upload_file_to_user_theme_storage))
+                        .route(web::delete().to(user::theme::delete_user_theme)),
+                ),
+        );
         route
     }
 }
@@ -2791,6 +2823,15 @@ impl Authentication {
             .service(
                 web::resource("/{authentication_id}/eligibility")
                     .route(web::post().to(authentication::authentication_eligibility)),
+            )
+            .service(
+                web::resource("/{authentication_id}/authenticate")
+                    .route(web::post().to(authentication::authentication_authenticate)),
+            )
+            .service(
+                web::resource("{merchant_id}/{authentication_id}/sync")
+                    .route(web::post().to(authentication::authentication_sync))
+                    .route(web::get().to(authentication::authentication_sync_post_update)),
             )
     }
 }

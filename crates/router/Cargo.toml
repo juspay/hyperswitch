@@ -21,7 +21,7 @@ encryption_service = ["keymanager_create", "hyperswitch_domain_models/encryption
 km_forward_x_request_id = ["common_utils/km_forward_x_request_id"]
 frm = ["api_models/frm", "hyperswitch_domain_models/frm", "hyperswitch_connectors/frm", "hyperswitch_interfaces/frm"]
 stripe = []
-release = ["stripe", "email", "accounts_cache", "kv_store", "vergen", "recon", "external_services/aws_kms", "external_services/aws_s3", "keymanager_mtls", "keymanager_create", "encryption_service", "dynamic_routing"]
+release = ["stripe", "email", "accounts_cache", "kv_store", "vergen", "recon", "external_services/aws_kms", "external_services/aws_s3", "keymanager_mtls", "keymanager_create", "encryption_service", "dynamic_routing", "payout_retry"]
 oltp = ["storage_impl/oltp"]
 kv_store = ["scheduler/kv_store"]
 accounts_cache = []
@@ -88,7 +88,7 @@ reqwest = { version = "0.11.27", features = ["json", "rustls-tls", "gzip", "mult
 ring = "0.17.14"
 rust_decimal = { version = "1.37.1", features = ["serde-with-float", "serde-with-str"] }
 rust-i18n = { git = "https://github.com/kashif-m/rust-i18n", rev = "f2d8096aaaff7a87a847c35a5394c269f75e077a" }
-unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "4918efedd5ea6c33e4a1600b988b2cf4948bed10", package = "rust-grpc-client" }
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "4387a6310dc9c2693b453b455a8032623f3d6a81", package = "rust-grpc-client" }
 rustc-hash = "1.1.0"
 rustls = "0.22"
 rustls-pemfile = "2"

@@ -5,12 +5,12 @@ use crate::{
     router_data_v2::{self, RouterDataV2},
     router_flow_types::{
         mandate_revoke::MandateRevoke, revenue_recovery::RecoveryRecordBack, AccessTokenAuth,
-        Authenticate, AuthenticationConfirmation, AuthenticationTokenCreation, Authorize,
-        AuthorizeSessionToken, BillingConnectorInvoiceSync, BillingConnectorPaymentsSync,
-        CalculateTax, Capture, CompleteAuthorize, CreateConnectorCustomer, CreateOrder, Execute,
-        IncrementalAuthorization, PSync, PaymentMethodToken, PostAuthenticate, PostSessionTokens,
-        PreAuthenticate, PreProcessing, RSync, SdkSessionUpdate, Session, SetupMandate,
-        UpdateMetadata, VerifyWebhookSource, Void,
+        Authenticate, AuthenticationConfirmation, Authorize, AuthorizeSessionToken,
+        BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, CalculateTax, Capture,
+        CompleteAuthorize, CreateConnectorCustomer, CreateOrder, Execute, IncrementalAuthorization,
+        PSync, PaymentMethodToken, PostAuthenticate, PostSessionTokens, PreAuthenticate,
+        PreProcessing, RSync, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata,
+        VerifyWebhookSource, Void,
     },
     router_request_types::{
         revenue_recovery::{
@@ -22,12 +22,12 @@ use crate::{
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
         },
-        AccessTokenRequestData, AuthenticationTokenCreationRequestData, AuthorizeSessionTokenData,
-        CompleteAuthorizeData, ConnectorCustomerData, CreateOrderRequestData,
-        MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsSessionData,
-        PaymentsSyncData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData,
+        AccessTokenRequestData, AuthorizeSessionTokenData, CompleteAuthorizeData,
+        ConnectorCustomerData, CreateOrderRequestData, MandateRevokeRequestData,
+        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostSessionTokensData,
+        PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
+        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData,
         SdkPaymentsSessionUpdateData, SetupMandateRequestData, VaultRequestData,
         VerifyWebhookSourceRequestData,
     },
@@ -52,6 +52,8 @@ pub type PaymentsPreProcessingRouterData =
 pub type PaymentsSyncRouterData = RouterData<PSync, PaymentsSyncData, PaymentsResponseData>;
 pub type PaymentsCaptureRouterData = RouterData<Capture, PaymentsCaptureData, PaymentsResponseData>;
 pub type PaymentsCancelRouterData = RouterData<Void, PaymentsCancelData, PaymentsResponseData>;
+pub type PaymentsCancelPostCaptureRouterData =
+    RouterData<PostCaptureVoid, PaymentsCancelPostCaptureData, PaymentsResponseData>;
 pub type SetupMandateRouterData =
     RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>;
 pub type RefundsRouterData<F> = RouterData<F, RefundsData, RefundsResponseData>;

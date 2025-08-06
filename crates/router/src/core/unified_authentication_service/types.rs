@@ -78,9 +78,6 @@ pub trait UnifiedAuthenticationService {
 
     #[allow(clippy::too_many_arguments)]
     fn get_authentication_request_data(
-        _payment_method_data: domain::PaymentMethodData,
-        _billing_address: hyperswitch_domain_models::address::Address,
-        _shipping_address: Option<hyperswitch_domain_models::address::Address>,
         _browser_details: Option<BrowserInformation>,
         _amount: Option<common_utils::types::MinorUnit>,
         _currency: Option<common_enums::Currency>,
@@ -92,7 +89,6 @@ pub trait UnifiedAuthenticationService {
         _threeds_method_comp_ind: payments::ThreeDsCompletionIndicator,
         _email: Option<common_utils::pii::Email>,
         _webhook_url: String,
-        _three_ds_requestor_url: String,
     ) -> RouterResult<UasAuthenticationRequestData> {
         Err(errors::ApiErrorResponse::NotImplemented {
             message: NotImplementedMessage::Reason(
@@ -106,10 +102,7 @@ pub trait UnifiedAuthenticationService {
     async fn authentication(
         _state: &SessionState,
         _business_profile: &domain::Profile,
-        _payment_method: common_enums::PaymentMethod,
-        _payment_method_data: domain::PaymentMethodData,
-        _billing_address: hyperswitch_domain_models::address::Address,
-        _shipping_address: Option<hyperswitch_domain_models::address::Address>,
+        _payment_method: &common_enums::PaymentMethod,
         _browser_details: Option<BrowserInformation>,
         _amount: Option<common_utils::types::MinorUnit>,
         _currency: Option<common_enums::Currency>,
@@ -121,7 +114,6 @@ pub trait UnifiedAuthenticationService {
         _threeds_method_comp_ind: payments::ThreeDsCompletionIndicator,
         _email: Option<common_utils::pii::Email>,
         _webhook_url: String,
-        _three_ds_requestor_url: String,
         _merchant_connector_account: &MerchantConnectorAccountType,
         _connector_name: &str,
         _payment_id: Option<common_utils::id_type::PaymentId>,

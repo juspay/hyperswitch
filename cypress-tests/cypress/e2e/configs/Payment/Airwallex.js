@@ -837,5 +837,28 @@ export const connectorDetails = {
         },
       },
     },
+    Ideal: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "ideal",
+        payment_method_data: {
+          bank_redirect: {
+            ideal: {
+              billing_details: {
+                billing_name: "john doe",
+                email: "abc@gmail.com",
+              },
+              country: "NL",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
   },
 };
