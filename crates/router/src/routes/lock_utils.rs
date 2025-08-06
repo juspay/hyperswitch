@@ -142,6 +142,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsConfirm
             | Flow::PaymentsCapture
             | Flow::PaymentsCancel
+            | Flow::PaymentsCancelPostCapture
             | Flow::PaymentsApprove
             | Flow::PaymentsReject
             | Flow::PaymentsSessionToken
@@ -364,6 +365,8 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::AuthenticationCreate
             | Flow::AuthenticationEligibility
+            | Flow::AuthenticationSync
+            | Flow::AuthenticationSyncPostUpdate
             | Flow::AuthenticationAuthenticate => Self::Authentication,
             Flow::Proxy => Self::Proxy,
 

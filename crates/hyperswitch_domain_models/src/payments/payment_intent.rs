@@ -167,6 +167,7 @@ pub struct CustomerData {
     pub email: Option<Email>,
     pub phone: Option<Secret<String>>,
     pub phone_country_code: Option<String>,
+    pub tax_registration_id: Option<Secret<String>>,
 }
 
 #[cfg(feature = "v2")]
@@ -241,7 +242,14 @@ pub struct PaymentIntentUpdateFields {
     pub tax_details: Option<diesel_models::TaxDetails>,
     pub force_3ds_challenge: Option<bool>,
     pub is_iframe_redirection_enabled: Option<bool>,
+    pub tax_status: Option<common_enums::TaxStatus>,
+    pub discount_amount: Option<MinorUnit>,
+    pub order_date: Option<PrimitiveDateTime>,
+    pub shipping_amount_tax: Option<MinorUnit>,
+    pub duty_amount: Option<MinorUnit>,
     pub is_confirm_operation: bool,
+    pub payment_channel: Option<common_enums::PaymentChannel>,
+    pub enable_partial_authorization: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -428,6 +436,13 @@ pub struct PaymentIntentUpdateInternal {
     pub tax_details: Option<diesel_models::TaxDetails>,
     pub force_3ds_challenge: Option<bool>,
     pub is_iframe_redirection_enabled: Option<bool>,
+    pub payment_channel: Option<common_enums::PaymentChannel>,
+    pub tax_status: Option<common_enums::TaxStatus>,
+    pub discount_amount: Option<MinorUnit>,
+    pub order_date: Option<PrimitiveDateTime>,
+    pub shipping_amount_tax: Option<MinorUnit>,
+    pub duty_amount: Option<MinorUnit>,
+    pub enable_partial_authorization: Option<bool>,
 }
 
 // This conversion is used in the `update_payment_intent` function
@@ -828,6 +843,12 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 merchant_order_reference_id: value.merchant_order_reference_id,
                 shipping_details: value.shipping_details,
                 is_payment_processor_token_flow: value.is_payment_processor_token_flow,
+                tax_details: value.tax_details,
+                tax_status: value.tax_status,
+                discount_amount: value.discount_amount,
+                order_date: value.order_date,
+                shipping_amount_tax: value.shipping_amount_tax,
+                duty_amount: value.duty_amount,
                 ..Default::default()
             },
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -1059,6 +1080,13 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                     tax_details: value.tax_details,
                     force_3ds_challenge: value.force_3ds_challenge,
                     is_iframe_redirection_enabled: value.is_iframe_redirection_enabled,
+                    payment_channel: value.payment_channel,
+                    tax_status: value.tax_status,
+                    discount_amount: value.discount_amount,
+                    order_date: value.order_date,
+                    shipping_amount_tax: value.shipping_amount_tax,
+                    duty_amount: value.duty_amount,
+                    enable_partial_authorization: value.enable_partial_authorization,
                 }))
             }
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -1217,6 +1245,13 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             tax_details,
             force_3ds_challenge,
             is_iframe_redirection_enabled,
+            payment_channel,
+            tax_status,
+            discount_amount,
+            order_date,
+            shipping_amount_tax,
+            duty_amount,
+            enable_partial_authorization,
         } = value;
         Self {
             amount,
@@ -1258,6 +1293,13 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             force_3ds_challenge,
             is_iframe_redirection_enabled,
             extended_return_url: return_url,
+            payment_channel,
+            tax_status,
+            discount_amount,
+            order_date,
+            shipping_amount_tax,
+            duty_amount,
+            enable_partial_authorization,
         }
     }
 }
@@ -1727,6 +1769,13 @@ impl behaviour::Conversion for PaymentIntent {
             created_by: created_by.map(|cb| cb.to_string()),
             is_iframe_redirection_enabled,
             is_payment_id_from_merchant,
+            payment_channel: None,
+            tax_status: None,
+            discount_amount: None,
+            shipping_amount_tax: None,
+            duty_amount: None,
+            order_date: None,
+            enable_partial_authorization: None,
         })
     }
     async fn convert_back(
@@ -1957,6 +2006,13 @@ impl behaviour::Conversion for PaymentIntent {
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
             routing_algorithm_id: self.routing_algorithm_id,
             is_payment_id_from_merchant: self.is_payment_id_from_merchant,
+            payment_channel: None,
+            tax_status: None,
+            discount_amount: None,
+            shipping_amount_tax: None,
+            duty_amount: None,
+            order_date: None,
+            enable_partial_authorization: None,
         })
     }
 }
@@ -2032,6 +2088,13 @@ impl behaviour::Conversion for PaymentIntent {
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
             extended_return_url: self.return_url,
             is_payment_id_from_merchant: self.is_payment_id_from_merchant,
+            payment_channel: self.payment_channel,
+            tax_status: self.tax_status,
+            discount_amount: self.discount_amount,
+            order_date: self.order_date,
+            shipping_amount_tax: self.shipping_amount_tax,
+            duty_amount: self.duty_amount,
+            enable_partial_authorization: self.enable_partial_authorization,
         })
     }
 
@@ -2133,6 +2196,13 @@ impl behaviour::Conversion for PaymentIntent {
                 force_3ds_challenge_trigger: storage_model.force_3ds_challenge_trigger,
                 is_iframe_redirection_enabled: storage_model.is_iframe_redirection_enabled,
                 is_payment_id_from_merchant: storage_model.is_payment_id_from_merchant,
+                payment_channel: storage_model.payment_channel,
+                tax_status: storage_model.tax_status,
+                discount_amount: storage_model.discount_amount,
+                shipping_amount_tax: storage_model.shipping_amount_tax,
+                duty_amount: storage_model.duty_amount,
+                order_date: storage_model.order_date,
+                enable_partial_authorization: storage_model.enable_partial_authorization,
             })
         }
         .await
@@ -2206,6 +2276,13 @@ impl behaviour::Conversion for PaymentIntent {
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
             extended_return_url: self.return_url,
             is_payment_id_from_merchant: self.is_payment_id_from_merchant,
+            payment_channel: self.payment_channel,
+            tax_status: self.tax_status,
+            discount_amount: self.discount_amount,
+            order_date: self.order_date,
+            shipping_amount_tax: self.shipping_amount_tax,
+            duty_amount: self.duty_amount,
+            enable_partial_authorization: self.enable_partial_authorization,
         })
     }
 }

@@ -156,6 +156,8 @@ pub enum Flow {
     PaymentsCapture,
     /// Payments cancel flow.
     PaymentsCancel,
+    /// Payments cancel post capture flow.
+    PaymentsCancelPostCapture,
     /// Payments approve flow.
     PaymentsApprove,
     /// Payments reject flow.
@@ -618,6 +620,10 @@ pub enum Flow {
     AuthenticationCreate,
     /// Authentication Eligibility flow
     AuthenticationEligibility,
+    /// Authentication Sync flow
+    AuthenticationSync,
+    /// Authentication Sync Post Update flow
+    AuthenticationSyncPostUpdate,
     /// Authentication Authenticate flow
     AuthenticationAuthenticate,
     ///Proxy Flow

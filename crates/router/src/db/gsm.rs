@@ -1,5 +1,5 @@
 use diesel_models::gsm as storage;
-use error_stack::report;
+use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
 use super::MockDb;
@@ -13,8 +13,8 @@ use crate::{
 pub trait GsmInterface {
     async fn add_gsm_rule(
         &self,
-        rule: storage::GatewayStatusMappingNew,
-    ) -> CustomResult<storage::GatewayStatusMap, errors::StorageError>;
+        rule: hyperswitch_domain_models::gsm::GatewayStatusMap,
+    ) -> CustomResult<hyperswitch_domain_models::gsm::GatewayStatusMap, errors::StorageError>;
     async fn find_gsm_decision(
         &self,
         connector: String,
@@ -30,7 +30,7 @@ pub trait GsmInterface {
         sub_flow: String,
         code: String,
         message: String,
-    ) -> CustomResult<storage::GatewayStatusMap, errors::StorageError>;
+    ) -> CustomResult<hyperswitch_domain_models::gsm::GatewayStatusMap, errors::StorageError>;
     async fn update_gsm_rule(
         &self,
         connector: String,
@@ -38,8 +38,8 @@ pub trait GsmInterface {
         sub_flow: String,
         code: String,
         message: String,
-        data: storage::GatewayStatusMappingUpdate,
-    ) -> CustomResult<storage::GatewayStatusMap, errors::StorageError>;
+        data: hyperswitch_domain_models::gsm::GatewayStatusMappingUpdate,
+    ) -> CustomResult<hyperswitch_domain_models::gsm::GatewayStatusMap, errors::StorageError>;
 
     async fn delete_gsm_rule(
         &self,
@@ -56,12 +56,19 @@ impl GsmInterface for Store {
     #[instrument(skip_all)]
     async fn add_gsm_rule(
         &self,
-        rule: storage::GatewayStatusMappingNew,
-    ) -> CustomResult<storage::GatewayStatusMap, errors::StorageError> {
+        rule: hyperswitch_domain_models::gsm::GatewayStatusMap,
+    ) -> CustomResult<hyperswitch_domain_models::gsm::GatewayStatusMap, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        rule.insert(&conn)
+        let gsm_db_record = diesel_models::gsm::GatewayStatusMappingNew::try_from(rule)
+            .change_context(errors::StorageError::SerializationFailed)
+            .attach_printable("Failed to convert gsm domain models to diesel models")?
+            .insert(&conn)
             .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+            .map_err(|error| report!(errors::StorageError::from(error)))?;
+
+        hyperswitch_domain_models::gsm::GatewayStatusMap::try_from(gsm_db_record)
+            .change_context(errors::StorageError::DeserializationFailed)
+            .attach_printable("Failed to convert gsm diesel models to domain models")
     }
 
     #[instrument(skip_all)]
@@ -89,11 +96,16 @@ impl GsmInterface for Store {
         sub_flow: String,
         code: String,
         message: String,
-    ) -> CustomResult<storage::GatewayStatusMap, errors::StorageError> {
+    ) -> CustomResult<hyperswitch_domain_models::gsm::GatewayStatusMap, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::GatewayStatusMap::find(&conn, connector, flow, sub_flow, code, message)
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+        let gsm_db_record =
+            storage::GatewayStatusMap::find(&conn, connector, flow, sub_flow, code, message)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))?;
+
+        hyperswitch_domain_models::gsm::GatewayStatusMap::try_from(gsm_db_record)
+            .change_context(errors::StorageError::DeserializationFailed)
+            .attach_printable("Failed to convert gsm diesel models to domain models")
     }
 
     #[instrument(skip_all)]
@@ -104,12 +116,26 @@ impl GsmInterface for Store {
         sub_flow: String,
         code: String,
         message: String,
-        data: storage::GatewayStatusMappingUpdate,
-    ) -> CustomResult<storage::GatewayStatusMap, errors::StorageError> {
+        data: hyperswitch_domain_models::gsm::GatewayStatusMappingUpdate,
+    ) -> CustomResult<hyperswitch_domain_models::gsm::GatewayStatusMap, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::GatewayStatusMap::update(&conn, connector, flow, sub_flow, code, message, data)
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+        let gsm_update_data = diesel_models::gsm::GatewayStatusMappingUpdate::try_from(data)
+            .change_context(errors::StorageError::SerializationFailed)?;
+        let gsm_db_record = storage::GatewayStatusMap::update(
+            &conn,
+            connector,
+            flow,
+            sub_flow,
+            code,
+            message,
+            gsm_update_data,
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))?;
+
+        hyperswitch_domain_models::gsm::GatewayStatusMap::try_from(gsm_db_record)
+            .change_context(errors::StorageError::DeserializationFailed)
+            .attach_printable("Failed to convert gsm diesel models to domain models")
     }
 
     #[instrument(skip_all)]
@@ -132,8 +158,8 @@ impl GsmInterface for Store {
 impl GsmInterface for MockDb {
     async fn add_gsm_rule(
         &self,
-        _rule: storage::GatewayStatusMappingNew,
-    ) -> CustomResult<storage::GatewayStatusMap, errors::StorageError> {
+        _rule: hyperswitch_domain_models::gsm::GatewayStatusMap,
+    ) -> CustomResult<hyperswitch_domain_models::gsm::GatewayStatusMap, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
 
@@ -155,7 +181,7 @@ impl GsmInterface for MockDb {
         _sub_flow: String,
         _code: String,
         _message: String,
-    ) -> CustomResult<storage::GatewayStatusMap, errors::StorageError> {
+    ) -> CustomResult<hyperswitch_domain_models::gsm::GatewayStatusMap, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
 
@@ -166,8 +192,8 @@ impl GsmInterface for MockDb {
         _sub_flow: String,
         _code: String,
         _message: String,
-        _data: storage::GatewayStatusMappingUpdate,
-    ) -> CustomResult<storage::GatewayStatusMap, errors::StorageError> {
+        _data: hyperswitch_domain_models::gsm::GatewayStatusMappingUpdate,
+    ) -> CustomResult<hyperswitch_domain_models::gsm::GatewayStatusMap, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
 

@@ -13,6 +13,8 @@ use common_utils::id_type;
 use external_services::email::{
     no_email::NoEmailClient, ses::AwsSes, smtp::SmtpServer, EmailClientConfigs, EmailService,
 };
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+use external_services::grpc_client::revenue_recovery::GrpcRecoveryHeaders;
 use external_services::{
     file_storage::FileStorageInterface,
     grpc_client::{GrpcClients, GrpcHeaders},
@@ -148,6 +150,12 @@ impl SessionState {
     pub fn get_grpc_headers(&self) -> GrpcHeaders {
         GrpcHeaders {
             tenant_id: self.tenant.tenant_id.get_string_repr().to_string(),
+            request_id: self.request_id.map(|req_id| (*req_id).to_string()),
+        }
+    }
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+    pub fn get_recovery_grpc_headers(&self) -> GrpcRecoveryHeaders {
+        GrpcRecoveryHeaders {
             request_id: self.request_id.map(|req_id| (*req_id).to_string()),
         }
     }
@@ -804,6 +812,9 @@ impl Payments {
                 )
                 .service(
                     web::resource("/{payment_id}/cancel").route(web::post().to(payments::payments_cancel)),
+                )
+                .service(
+                    web::resource("/{payment_id}/cancel_post_capture").route(web::post().to(payments::payments_cancel_post_capture)),
                 )
                 .service(
                     web::resource("/{payment_id}/capture").route(web::post().to(payments::payments_capture)),
@@ -1968,6 +1979,10 @@ impl Disputes {
             .service(
                 web::resource("/{dispute_id}").route(web::get().to(disputes::retrieve_dispute)),
             )
+            .service(
+                web::resource("/{connector_id}/fetch")
+                    .route(web::get().to(disputes::fetch_disputes)),
+            )
     }
 }
 
@@ -2820,6 +2835,11 @@ impl Authentication {
             .service(
                 web::resource("/{authentication_id}/authenticate")
                     .route(web::post().to(authentication::authentication_authenticate)),
+            )
+            .service(
+                web::resource("{merchant_id}/{authentication_id}/sync")
+                    .route(web::post().to(authentication::authentication_sync))
+                    .route(web::get().to(authentication::authentication_sync_post_update)),
             )
     }
 }
