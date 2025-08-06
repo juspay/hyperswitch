@@ -3599,9 +3599,9 @@ where
         let decide_wallet_flow = &wallet
             .decide_wallet_flow(state, payment_data, &merchant_connector_account)
             .attach_printable("Failed to decide wallet flow")?
-            .async_map(|payment_proce_data| async move {
+            .async_map(|payment_price_data| async move {
                 wallet
-                    .decrypt_wallet_token(&payment_proce_data, payment_data)
+                    .decrypt_wallet_token(&payment_price_data, payment_data)
                     .await
             })
             .await
@@ -3629,11 +3629,11 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let connector_routing_data = match connector_call_type {
         ConnectorCallType::PreDetermined(connector_routing_data) => connector_routing_data,
-        ConnectorCallType::Retryable(connector_routing_datas) => connector_routing_datas
+        ConnectorCallType::Retryable(connector_routing_data) => connector_routing_data
             .first()
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Found no connector routing data in retryable call")?,
-        ConnectorCallType::SessionMultiple(_session_connector_datas) => {
+        ConnectorCallType::SessionMultiple(_session_connector_data) => {
             return Err(errors::ApiErrorResponse::InternalServerError).attach_printable(
                 "SessionMultiple connector call type is invalid in confirm calls",
             );
