@@ -2055,6 +2055,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .is_iframe_redirection_enabled,
                         is_confirm_operation: true, // Indicates that this is a confirm operation
                         payment_channel: payment_data.payment_intent.payment_channel,
+                        feature_metadata: payment_data.payment_intent.feature_metadata.clone(),
                     })),
                     &m_key_store,
                     storage_scheme,
