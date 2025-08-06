@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 #[cfg(feature = "payouts")]
 use api_models::payouts::{self, PayoutMethodData};
 use api_models::{
@@ -15,7 +17,6 @@ use common_utils::{
     request::Method,
     types::MinorUnit,
 };
-use std::str::FromStr;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     network_tokenization::NetworkTokenNumber,
@@ -1405,7 +1406,7 @@ pub enum AdyenRefundRequestReason {
     CUSTOMERREQUEST,
     RETURN,
     DUPLICATE,
-    OTHER
+    OTHER,
 }
 
 impl FromStr for AdyenRefundRequestReason {
