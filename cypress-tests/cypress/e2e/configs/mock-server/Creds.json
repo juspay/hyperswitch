@@ -2,7 +2,7 @@
   "celero": {
     "connector_account_details": {
       "auth_type": "HeaderKey",
-      "api_key": "apk-testkey123"
+      "api_key": "celero-test-api-key-123"
     }
   },
   "silverflow": {
