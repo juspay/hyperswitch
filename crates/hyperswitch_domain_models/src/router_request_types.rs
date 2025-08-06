@@ -568,6 +568,16 @@ pub struct PaymentsCancelData {
 }
 
 #[derive(Debug, Default, Clone)]
+pub struct PaymentsCancelPostCaptureData {
+    pub currency: Option<storage_enums::Currency>,
+    pub connector_transaction_id: String,
+    pub cancellation_reason: Option<String>,
+    pub connector_meta: Option<serde_json::Value>,
+    // minor amount data for amount framework
+    pub minor_amount: Option<MinorUnit>,
+}
+
+#[derive(Debug, Default, Clone)]
 pub struct PaymentsRejectData {
     pub amount: Option<i64>,
     pub currency: Option<storage_enums::Currency>,

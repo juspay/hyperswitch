@@ -28,6 +28,7 @@ impl ForeignFrom<AttemptStatus> for RevenueRecoveryPaymentsAttemptStatus {
             | AttemptStatus::Failure => Self::Failed,
 
             AttemptStatus::Voided
+            | AttemptStatus::VoidedPostCharge
             | AttemptStatus::ConfirmationAwaited
             | AttemptStatus::PartialCharged
             | AttemptStatus::PartialChargedAndChargeable
