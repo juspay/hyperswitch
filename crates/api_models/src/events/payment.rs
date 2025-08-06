@@ -9,16 +9,16 @@ use super::{
 #[cfg(feature = "v2")]
 use crate::{
     payment_methods::{
-        self, ListMethodsForPaymentMethodsRequest, PaymentMethodListResponseForSession,
-        PaymentMethodResponse, PaymentMethodMigrateResponse, PaymentMethodUpdate,
-        CustomerPaymentMethodsListResponse, ListCountriesCurrenciesRequest,
-        ListCountriesCurrenciesResponse, PaymentMethodCollectLinkRequest,
-        PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkResponse,
+        self, CustomerPaymentMethodsListResponse, ListCountriesCurrenciesRequest,
+        ListCountriesCurrenciesResponse, ListMethodsForPaymentMethodsRequest,
+        PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest,
+        PaymentMethodCollectLinkResponse, PaymentMethodListResponseForSession,
+        PaymentMethodMigrateResponse, PaymentMethodResponse, PaymentMethodUpdate,
     },
     payments::{
-        self, PaymentsCaptureResponse, PaymentMethodListResponseForPayments,
-        PaymentListConstraints, PaymentsResponse, PaymentListFilters, PaymentListFiltersV2,
-        PaymentListResponse, PaymentsAggregateResponse, RedirectionResponse, PaymentsSessionResponse,
+        self, PaymentListConstraints, PaymentListFilters, PaymentListFiltersV2,
+        PaymentListResponse, PaymentMethodListResponseForPayments, PaymentsAggregateResponse,
+        PaymentsCaptureResponse, PaymentsResponse, PaymentsSessionResponse, RedirectionResponse,
     },
 };
 #[cfg(feature = "v1")]
@@ -26,21 +26,21 @@ use crate::{
     payment_methods::{
         self, ListCountriesCurrenciesRequest, ListCountriesCurrenciesResponse,
         PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest,
-        PaymentMethodCollectLinkResponse, PaymentMethodMigrateResponse, PaymentMethodResponse,
-        PaymentMethodUpdate, PaymentMethodListRequest, PaymentMethodListResponse,
+        PaymentMethodCollectLinkResponse, PaymentMethodListRequest, PaymentMethodListResponse,
+        PaymentMethodMigrateResponse, PaymentMethodResponse, PaymentMethodUpdate,
     },
     payments::{
-        self, PaymentListConstraints, PaymentListFilters, PaymentListFiltersV2,
-        PaymentListResponse, PaymentsAggregateResponse, PaymentsSessionResponse,
-        RedirectionResponse, ExtendedCardInfoResponse, PaymentIdType, PaymentListFilterConstraints,
-        PaymentListResponseV2, PaymentsApproveRequest, PaymentsCancelRequest,
-        PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
-        PaymentsDynamicTaxCalculationRequest, PaymentsDynamicTaxCalculationResponse,
-        PaymentsExternalAuthenticationRequest, PaymentsExternalAuthenticationResponse,
-        PaymentsIncrementalAuthorizationRequest, PaymentsManualUpdateRequest,
-        PaymentsManualUpdateResponse, PaymentsPostSessionTokensRequest,
-        PaymentsPostSessionTokensResponse, PaymentsRejectRequest, PaymentsRetrieveRequest,
-        PaymentsStartRequest, PaymentsUpdateMetadataRequest, PaymentsUpdateMetadataResponse,
+        self, ExtendedCardInfoResponse, PaymentIdType, PaymentListConstraints,
+        PaymentListFilterConstraints, PaymentListFilters, PaymentListFiltersV2,
+        PaymentListResponse, PaymentListResponseV2, PaymentsAggregateResponse,
+        PaymentsApproveRequest, PaymentsCancelRequest, PaymentsCaptureRequest,
+        PaymentsCompleteAuthorizeRequest, PaymentsDynamicTaxCalculationRequest,
+        PaymentsDynamicTaxCalculationResponse, PaymentsExternalAuthenticationRequest,
+        PaymentsExternalAuthenticationResponse, PaymentsIncrementalAuthorizationRequest,
+        PaymentsManualUpdateRequest, PaymentsManualUpdateResponse,
+        PaymentsPostSessionTokensRequest, PaymentsPostSessionTokensResponse, PaymentsRejectRequest,
+        PaymentsRetrieveRequest, PaymentsSessionResponse, PaymentsStartRequest,
+        PaymentsUpdateMetadataRequest, PaymentsUpdateMetadataResponse, RedirectionResponse,
     },
 };
 
