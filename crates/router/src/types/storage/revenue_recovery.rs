@@ -12,7 +12,7 @@ use masking::PeekInterface;
 use router_env::logger;
 use serde::{Deserialize, Serialize};
 
-use crate::{db::StorageInterface, routes::SessionState, workflows::revenue_recovery, SessionState};
+use crate::{db::StorageInterface, routes::SessionState, workflows::revenue_recovery};
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub struct RevenueRecoveryWorkflowTrackingData {
     pub merchant_id: id_type::MerchantId,
@@ -88,7 +88,6 @@ impl Default for RecoveryTimestamp {
             initial_timestamp_in_hours: 1,
         }
     }
-
 }
 
 #[derive(Debug, serde::Deserialize, Clone, Default)]
@@ -105,7 +104,10 @@ pub struct NetworkRetryConfig {
     pub retry_count_30_day: u64,
 }
 impl RetryLimitsConfig {
-    pub fn get_network_config(network: Option<CardNetwork>, state: &SessionState) -> &NetworkRetryConfig {
+    pub fn get_network_config(
+        network: Option<CardNetwork>,
+        state: &SessionState,
+    ) -> &NetworkRetryConfig {
         match network {
             Some(CardNetwork::Mastercard) => &state.conf.revenue_recovery.card_config.mastercard,
             Some(CardNetwork::Visa) => &state.conf.revenue_recovery.card_config.visa,
