@@ -1251,7 +1251,7 @@ async fn relay_incoming_webhook_flow(
     Ok(result_response)
 }
 
-async fn get_payment_attempt_from_object_reference_id(
+pub async fn get_payment_attempt_from_object_reference_id(
     state: &SessionState,
     object_reference_id: webhooks::ObjectReferenceId,
     merchant_context: &domain::MerchantContext,
@@ -1288,14 +1288,14 @@ async fn get_payment_attempt_from_object_reference_id(
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn get_or_update_dispute_object(
+pub async fn get_or_update_dispute_object(
     state: SessionState,
     option_dispute: Option<diesel_models::dispute::Dispute>,
     dispute_details: api::disputes::DisputePayload,
     merchant_id: &common_utils::id_type::MerchantId,
     organization_id: &common_utils::id_type::OrganizationId,
     payment_attempt: &PaymentAttempt,
-    event_type: webhooks::IncomingWebhookEvent,
+    dispute_status: common_enums::enums::DisputeStatus,
     business_profile: &domain::Profile,
     connector_name: &str,
 ) -> CustomResult<diesel_models::dispute::Dispute, errors::ApiErrorResponse> {
@@ -1309,9 +1309,7 @@ async fn get_or_update_dispute_object(
                 amount: dispute_details.amount.clone(),
                 currency: dispute_details.currency.to_string(),
                 dispute_stage: dispute_details.dispute_stage,
-                dispute_status: common_enums::DisputeStatus::foreign_try_from(event_type)
-                    .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-                    .attach_printable("event type to dispute status mapping failed")?,
+                dispute_status,
                 payment_id: payment_attempt.payment_id.to_owned(),
                 connector: connector_name.to_owned(),
                 attempt_id: payment_attempt.attempt_id.to_owned(),
@@ -1348,9 +1346,6 @@ async fn get_or_update_dispute_object(
         Some(dispute) => {
             logger::info!("Dispute Already exists, Updating the dispute details");
             metrics::INCOMING_DISPUTE_WEBHOOK_UPDATE_RECORD_METRIC.add(1, &[]);
-            let dispute_status = diesel_models::enums::DisputeStatus::foreign_try_from(event_type)
-                .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-                .attach_printable("event type to dispute state conversion failure")?;
             crate::core::utils::validate_dispute_stage_and_dispute_status(
                 dispute.dispute_stage,
                 dispute.dispute_status,
@@ -1359,6 +1354,7 @@ async fn get_or_update_dispute_object(
             )
             .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
             .attach_printable("dispute stage and status validation failed")?;
+
             let update_dispute = diesel_models::dispute::DisputeUpdate::Update {
                 dispute_stage: dispute_details.dispute_stage,
                 dispute_status,
@@ -1400,6 +1396,8 @@ async fn external_authentication_incoming_webhook_flow(
             ),
             trans_status,
             eci: authentication_details.eci,
+            challenge_cancel: authentication_details.challenge_cancel,
+            challenge_code_reason: authentication_details.challenge_code_reason,
         };
         let authentication =
             if let webhooks::ObjectReferenceId::ExternalAuthenticationID(authentication_id_type) =
@@ -1786,6 +1784,10 @@ async fn disputes_incoming_webhook_flow(
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)?;
+        let dispute_status = common_enums::DisputeStatus::foreign_try_from(event_type)
+            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+            .attach_printable("event type to dispute status mapping failed")?;
+
         let dispute_object = get_or_update_dispute_object(
             state.clone(),
             option_dispute,
@@ -1793,7 +1795,7 @@ async fn disputes_incoming_webhook_flow(
             merchant_context.get_merchant_account().get_id(),
             &merchant_context.get_merchant_account().organization_id,
             &payment_attempt,
-            event_type,
+            dispute_status,
             &business_profile,
             connector.id(),
         )
@@ -2008,7 +2010,7 @@ async fn verify_webhook_source_verification_call(
     }
 }
 
-fn get_connector_by_connector_name(
+pub fn get_connector_by_connector_name(
     state: &SessionState,
     connector_name: &str,
     merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,

@@ -81,6 +81,7 @@ pub struct PaymentsAuthorizeData {
     pub connector_testing_data: Option<pii::SecretSerdeValue>,
     pub order_id: Option<String>,
     pub locale: Option<String>,
+    pub payment_channel: Option<common_enums::PaymentChannel>,
 }
 #[derive(Debug, Clone)]
 pub struct PaymentsPostSessionTokensData {
@@ -182,6 +183,9 @@ pub struct ConnectorCustomerData {
     pub preprocessing_id: Option<String>,
     pub payment_method_data: Option<PaymentMethodData>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
+    // Mandates
+    pub setup_future_usage: Option<storage_enums::FutureUsage>,
+    pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
 }
 
 impl TryFrom<SetupMandateRequestData> for ConnectorCustomerData {
@@ -195,6 +199,8 @@ impl TryFrom<SetupMandateRequestData> for ConnectorCustomerData {
             name: None,
             preprocessing_id: None,
             split_payments: None,
+            setup_future_usage: data.setup_future_usage,
+            customer_acceptance: data.customer_acceptance,
         })
     }
 }
@@ -220,6 +226,8 @@ impl
             name: data.request.customer_name.clone(),
             preprocessing_id: data.preprocessing_id.clone(),
             split_payments: data.request.split_payments.clone(),
+            setup_future_usage: data.request.setup_future_usage,
+            customer_acceptance: data.request.customer_acceptance.clone(),
         })
     }
 }
@@ -244,6 +252,8 @@ impl TryFrom<&RouterData<flows::Session, PaymentsSessionData, response_types::Pa
             name: data.request.customer_name.clone(),
             preprocessing_id: data.preprocessing_id.clone(),
             split_payments: None,
+            setup_future_usage: None,
+            customer_acceptance: None,
         })
     }
 }
@@ -558,6 +568,16 @@ pub struct PaymentsCancelData {
 }
 
 #[derive(Debug, Default, Clone)]
+pub struct PaymentsCancelPostCaptureData {
+    pub currency: Option<storage_enums::Currency>,
+    pub connector_transaction_id: String,
+    pub cancellation_reason: Option<String>,
+    pub connector_meta: Option<serde_json::Value>,
+    // minor amount data for amount framework
+    pub minor_amount: Option<MinorUnit>,
+}
+
+#[derive(Debug, Default, Clone)]
 pub struct PaymentsRejectData {
     pub amount: Option<i64>,
     pub currency: Option<storage_enums::Currency>,
@@ -703,6 +723,12 @@ pub struct AuthenticationData {
     pub message_version: Option<common_utils::types::SemanticVersion>,
     pub ds_trans_id: Option<String>,
     pub created_at: time::PrimitiveDateTime,
+    pub challenge_code: Option<String>,
+    pub challenge_cancel: Option<String>,
+    pub challenge_code_reason: Option<String>,
+    pub message_extension: Option<pii::SecretSerdeValue>,
+    pub acs_trans_id: Option<String>,
+    pub authentication_type: Option<common_enums::DecoupledAuthenticationType>,
 }
 
 #[derive(Debug, Clone)]
@@ -825,6 +851,7 @@ impl TryFrom<router_data::ConnectorAuthType> for AccessTokenRequestData {
 pub struct AcceptDisputeRequestData {
     pub dispute_id: String,
     pub connector_dispute_id: String,
+    pub dispute_status: storage_enums::DisputeStatus,
 }
 
 #[derive(Default, Debug, Clone)]
@@ -836,6 +863,7 @@ pub struct DefendDisputeRequestData {
 #[derive(Default, Debug, Clone)]
 pub struct SubmitEvidenceRequestData {
     pub dispute_id: String,
+    pub dispute_status: storage_enums::DisputeStatus,
     pub connector_dispute_id: String,
     pub access_activity_log: Option<String>,
     pub billing_address: Option<String>,
@@ -895,9 +923,17 @@ pub struct SubmitEvidenceRequestData {
     pub uncategorized_file_provider_file_id: Option<String>,
     pub uncategorized_text: Option<String>,
 }
+
+#[derive(Debug, Serialize, Clone)]
+pub struct FetchDisputesRequestData {
+    pub created_from: time::PrimitiveDateTime,
+    pub created_till: time::PrimitiveDateTime,
+}
+
 #[derive(Clone, Debug)]
 pub struct RetrieveFileRequestData {
     pub provider_file_id: String,
+    pub connector_dispute_id: Option<String>,
 }
 
 #[serde_as]
@@ -909,6 +945,8 @@ pub struct UploadFileRequestData {
     #[serde_as(as = "serde_with::DisplayFromStr")]
     pub file_type: mime::Mime,
     pub file_size: i32,
+    pub dispute_id: String,
+    pub connector_dispute_id: String,
 }
 
 #[cfg(feature = "payouts")]
@@ -937,6 +975,7 @@ pub struct CustomerDetails {
     pub email: Option<pii::Email>,
     pub phone: Option<Secret<String, masking::WithType>>,
     pub phone_country_code: Option<String>,
+    pub tax_registration_id: Option<Secret<String, masking::WithType>>,
 }
 
 #[derive(Debug, Clone)]
@@ -1023,4 +1062,10 @@ pub struct VaultRequestData {
     pub payment_method_vaulting_data: Option<PaymentMethodVaultingData>,
     pub connector_vault_id: Option<String>,
     pub connector_customer_id: Option<String>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct DisputeSyncData {
+    pub dispute_id: String,
+    pub connector_dispute_id: String,
 }

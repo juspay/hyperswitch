@@ -29,6 +29,7 @@ use crate::{
     consts,
     core::{
         connector_validation::ConnectorAuthTypeAndMetadataValidation,
+        disputes,
         encryption::transfer_encryption_key,
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
         payment_methods::{cards, transformers},
@@ -37,6 +38,7 @@ use crate::{
         routing, utils as core_utils,
     },
     db::{AccountsStorageInterface, StorageInterface},
+    logger,
     routes::{metrics, SessionState},
     services::{
         self,
@@ -675,7 +677,7 @@ impl CreateProfile {
             )
             .await
             .map_err(|profile_insert_error| {
-                crate::logger::warn!("Profile already exists {profile_insert_error:?}");
+                logger::warn!("Profile already exists {profile_insert_error:?}");
             })
             .map(|business_profile| business_profiles_vector.push(business_profile))
             .ok();
@@ -714,17 +716,8 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             .create_or_validate(db)
             .await?;
 
-        let merchant_account_type = match organization.get_organization_type() {
-            OrganizationType::Standard => MerchantAccountType::Standard,
-            // Blocking v2 merchant account create for platform
-            OrganizationType::Platform => {
-                return Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "Merchant account creation is not allowed for a platform organization"
-                        .to_string(),
-                }
-                .into())
-            }
-        };
+        // V2 currently supports creation of Standard merchant accounts only, irrespective of organization type
+        let merchant_account_type = MerchantAccountType::Standard;
 
         let key = key_store.key.into_inner();
         let id = identifier.to_owned();
@@ -920,7 +913,7 @@ pub async fn create_profile_from_business_labels(
         .await
         .map_err(|profile_insert_error| {
             // If there is any duplicate error, we need not take any action
-            crate::logger::warn!("Profile already exists {profile_insert_error:?}");
+            logger::warn!("Profile already exists {profile_insert_error:?}");
         });
 
         // If a profile is created, then unset the default profile
@@ -1240,7 +1233,7 @@ pub async fn merchant_account_delete(
                 .await
                 .transpose()
                 .map_err(|err| {
-                    crate::logger::error!("Failed to delete merchant in Decision Engine {err:?}");
+                    logger::error!("Failed to delete merchant in Decision Engine {err:?}");
                 })
                 .ok();
         }
@@ -1265,7 +1258,7 @@ pub async fn merchant_account_delete(
         Ok(_) => Ok::<_, errors::ApiErrorResponse>(()),
         Err(err) => {
             if err.current_context().is_db_not_found() {
-                crate::logger::error!("requires_cvv config not found in db: {err:?}");
+                logger::error!("requires_cvv config not found in db: {err:?}");
                 Ok(())
             } else {
                 Err(err
@@ -2604,6 +2597,9 @@ pub async fn create_connector(
         )?;
 
     #[cfg(feature = "v1")]
+    disputes::schedule_dispute_sync_task(&state, &business_profile, &mca).await?;
+
+    #[cfg(feature = "v1")]
     //update merchant default config
     let merchant_default_config_update = MerchantDefaultConfigUpdate {
         routable_connector: &routable_connector,
@@ -3498,6 +3494,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
                 .unwrap_or_default(),
             merchant_category_code: self.merchant_category_code,
             merchant_country_code: self.merchant_country_code,
+            dispute_polling_interval: self.dispute_polling_interval,
         }))
     }
 
@@ -3991,6 +3988,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 is_pre_network_tokenization_enabled: self.is_pre_network_tokenization_enabled,
                 merchant_category_code: self.merchant_category_code,
                 merchant_country_code: self.merchant_country_code,
+                dispute_polling_interval: self.dispute_polling_interval,
             },
         )))
     }
