@@ -557,6 +557,7 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsAuthorizeRouterData>> for Barclayca
                 | WalletData::SwishQr(_)
                 | WalletData::Paysera(_)
                 | WalletData::Skrill(_)
+                | WalletData::BluecodeRedirect {}
                 | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Barclaycard"),
                 )
