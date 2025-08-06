@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 
+use api_models::payments::QrCodeInformation;
 use common_enums::{AttemptStatus, AuthenticationType};
-use common_utils::request::Method;
+use common_utils::{ext_traits::Encode, request::Method};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceError;
+use hyperswitch_connectors::utils::QrImage;
 use hyperswitch_domain_models::{
     router_data::{ErrorResponse, RouterData},
     router_flow_types::payments::{Authorize, PSync, SetupMandate},
@@ -14,7 +16,9 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RedirectForm},
 };
 use masking::{ExposeInterface, PeekInterface};
+use router_env::tracing;
 use unified_connector_service_client::payments::{self as payments_grpc, Identifier};
+use url::Url;
 
 use crate::{
     core::unified_connector_service::build_unified_connector_service_payment_method,
@@ -364,12 +368,43 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse>
             })
         });
 
+        let (connector_metadata, redirection_data) = match response.redirection_data.clone() {
+            Some(redirection_data) => match redirection_data.form_type {
+                Some(ref form_type) => match form_type {
+                    payments_grpc::redirect_form::FormType::Uri(uri) => {
+                        let image_data = QrImage::new_from_data(uri.uri.clone())
+                            .change_context(UnifiedConnectorServiceError::ParsingFailed)?;
+                        let image_data_url = Url::parse(image_data.data.clone().as_str())
+                            .change_context(UnifiedConnectorServiceError::ParsingFailed)?;
+                        let qr_code_info = QrCodeInformation::QrDataUrl {
+                            image_data_url,
+                            display_to_timestamp: None,
+                        };
+                        (
+                            Some(qr_code_info.encode_to_value())
+                                .transpose()
+                                .change_context(UnifiedConnectorServiceError::ParsingFailed)?,
+                            None,
+                        )
+                    }
+                    _ => (
+                        None,
+                        Some(RedirectForm::foreign_try_from(redirection_data)).transpose()?,
+                    ),
+                },
+                None => (None, None),
+            },
+            None => (None, None),
+        };
+
+        let status_code = convert_connector_service_status_code(response.status_code)?;
+
         let response = if response.error_code.is_some() {
             Err(ErrorResponse {
                 code: response.error_code().to_owned(),
                 message: response.error_message().to_owned(),
                 reason: Some(response.error_message().to_owned()),
-                status_code: 500, //TODO: To be handled once UCS sends proper status codes
+                status_code,
                 attempt_status: Some(status),
                 connector_transaction_id: connector_response_reference_id,
                 network_decline_code: None,
@@ -383,14 +418,10 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse>
                     None => hyperswitch_domain_models::router_request_types::ResponseId::NoResponseId,
                 },
                 redirection_data: Box::new(
-                    response
-                        .redirection_data
-                        .clone()
-                        .map(RedirectForm::foreign_try_from)
-                        .transpose()?
+                    redirection_data
                 ),
                 mandate_reference: Box::new(None),
-                connector_metadata: None,
+                connector_metadata,
                 network_txn_id: response.network_txn_id.clone(),
                 connector_response_reference_id,
                 incremental_authorization_allowed: response.incremental_authorization_allowed,
@@ -426,12 +457,14 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceGetResponse>
                     })
             });
 
+        let status_code = convert_connector_service_status_code(response.status_code)?;
+
         let response = if response.error_code.is_some() {
             Err(ErrorResponse {
                 code: response.error_code().to_owned(),
                 message: response.error_message().to_owned(),
                 reason: Some(response.error_message().to_owned()),
-                status_code: 500, //TODO: To be handled once UCS sends proper status codes
+                status_code,
                 attempt_status: Some(status),
                 connector_transaction_id: connector_response_reference_id,
                 network_decline_code: None,
@@ -485,12 +518,14 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceRegisterResponse>
                     })
             });
 
+        let status_code = convert_connector_service_status_code(response.status_code)?;
+
         let response = if response.error_code.is_some() {
             Err(ErrorResponse {
                 code: response.error_code().to_owned(),
                 message: response.error_message().to_owned(),
                 reason: Some(response.error_message().to_owned()),
-                status_code: 500, //TODO: To be handled once UCS sends proper status codes
+                status_code,
                 attempt_status: Some(status),
                 connector_transaction_id: connector_response_reference_id,
                 network_decline_code: None,
@@ -574,12 +609,14 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingResponse>
             })
         });
 
+        let status_code = convert_connector_service_status_code(response.status_code)?;
+
         let response = if response.error_code.is_some() {
             Err(ErrorResponse {
                 code: response.error_code().to_owned(),
                 message: response.error_message().to_owned(),
                 reason: Some(response.error_message().to_owned()),
-                status_code: 500, //TODO: To be handled once UCS sends proper status codes
+                status_code,
                 attempt_status: Some(status),
                 connector_transaction_id: transaction_id,
                 network_decline_code: None,
@@ -907,6 +944,7 @@ impl ForeignTryFrom<payments_grpc::HttpMethod> for Method {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(value: payments_grpc::HttpMethod) -> Result<Self, Self::Error> {
+        tracing::debug!("Converting gRPC HttpMethod: {:?}", value);
         match value {
             payments_grpc::HttpMethod::Get => Ok(Self::Get),
             payments_grpc::HttpMethod::Post => Ok(Self::Post),
@@ -963,4 +1001,15 @@ impl ForeignTryFrom<common_types::payments::CustomerAcceptance>
             online_mandate_details,
         })
     }
+}
+
+pub fn convert_connector_service_status_code(
+    status_code: u32,
+) -> Result<u16, error_stack::Report<UnifiedConnectorServiceError>> {
+    u16::try_from(status_code).map_err(|err| {
+        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(format!(
+            "Failed to convert connector service status code to u16: {err}"
+        ))
+        .into()
+    })
 }
