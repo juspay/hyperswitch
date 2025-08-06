@@ -531,6 +531,7 @@ impl PaymentAttempt {
         if let Some(card_network) = card_network {
             filter = filter.filter(dsl::card_network.eq(card_network));
         }
+        router_env::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
 
         // TODO: Remove these logs after debugging the issue for delay in count query
         let start_time = std::time::Instant::now();
