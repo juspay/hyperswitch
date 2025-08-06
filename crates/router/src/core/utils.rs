@@ -926,6 +926,9 @@ pub fn validate_dispute_status(
             DisputeStatus::DisputeChallenged
                 | DisputeStatus::DisputeWon
                 | DisputeStatus::DisputeLost
+                | DisputeStatus::DisputeAccepted
+                | DisputeStatus::DisputeCancelled
+                | DisputeStatus::DisputeExpired 
         ),
         DisputeStatus::DisputeWon => matches!(dispute_status, DisputeStatus::DisputeWon),
         DisputeStatus::DisputeLost => matches!(dispute_status, DisputeStatus::DisputeLost),

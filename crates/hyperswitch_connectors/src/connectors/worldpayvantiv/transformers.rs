@@ -4002,7 +4002,6 @@ fn get_last_non_auxiliary_activity_type(activities: Vec<Activity>) -> Option<Str
         "Assign to Vantiv",
         "Assign To Merchant",
         "Merchant Auto Assign",
-        "Receive Network Transaction",
         "Issuer Recalled",
         "Network Decision",
         "Request Declined",
