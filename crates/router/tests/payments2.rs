@@ -228,6 +228,7 @@ async fn payments_create_core() {
         is_iframe_redirection_enabled: None,
         whole_connector_response: None,
         payment_channel: None,
+        network_transaction_id: None,
     };
 
     let expected_response =
@@ -515,6 +516,7 @@ async fn payments_create_core_adyen_no_redirect() {
             is_iframe_redirection_enabled: None,
             whole_connector_response: None,
             payment_channel: None,
+            network_transaction_id: None,
         },
         vec![],
     ));

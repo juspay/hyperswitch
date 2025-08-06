@@ -99,6 +99,8 @@ pub struct RouterData<Flow, Request, Response> {
 
     pub connector_mandate_request_reference_id: Option<String>,
 
+    pub l2_l3_data: Option<L2L3Data>,
+
     pub authentication_id: Option<id_type::AuthenticationId>,
     /// Contains the type of sca exemption required for the transaction
     pub psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
@@ -109,6 +111,26 @@ pub struct RouterData<Flow, Request, Response> {
     /// Indicates whether the payment ID was provided by the merchant (true),
     /// or generated internally by Hyperswitch (false)
     pub is_payment_id_from_merchant: Option<bool>,
+}
+
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+pub struct L2L3Data {
+    pub order_date: Option<time::PrimitiveDateTime>,
+    pub tax_status: Option<common_enums::TaxStatus>,
+    pub customer_tax_registration_id: Option<Secret<String>>,
+    pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+    pub discount_amount: Option<MinorUnit>,
+    pub shipping_cost: Option<MinorUnit>,
+    pub shipping_amount_tax: Option<MinorUnit>,
+    pub duty_amount: Option<MinorUnit>,
+    pub order_tax_amount: Option<MinorUnit>,
+    pub merchant_order_reference_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
+    pub shipping_origin_zip: Option<Secret<String>>,
+    pub shipping_state: Option<Secret<String>>,
+    pub shipping_country: Option<common_enums::CountryAlpha2>,
+    pub shipping_destination_zip: Option<Secret<String>>,
+    pub billing_address_city: Option<String>,
 }
 
 // Different patterns of authentication.
@@ -753,6 +775,7 @@ impl
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Conflicted
             | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             // For these statuses, update the capturable amount when it reaches terminal / capturable state
@@ -790,6 +813,7 @@ impl
             }
             // No amount is captured
             common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             // For these statuses, update the amount captured when it reaches terminal state
@@ -965,6 +989,7 @@ impl
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Conflicted
             | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             // For these statuses, update the capturable amount when it reaches terminal / capturable state
@@ -1005,6 +1030,7 @@ impl
             }
             // No amount is captured
             common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             common_enums::IntentStatus::RequiresCapture => {
@@ -1202,6 +1228,7 @@ impl
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Conflicted
             | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             // For these statuses, update the capturable amount when it reaches terminal / capturable state
@@ -1241,6 +1268,7 @@ impl
             }
             // No amount is captured
             common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             // For these statuses, update the amount captured when it reaches terminal state
@@ -1436,6 +1464,7 @@ impl
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Conflicted
             | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             // For these statuses, update the capturable amount when it reaches terminal / capturable state
@@ -1473,6 +1502,7 @@ impl
             }
             // No amount is captured
             common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             // For these statuses, update the amount captured when it reaches terminal state

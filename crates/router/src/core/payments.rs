@@ -81,9 +81,9 @@ use time;
 
 #[cfg(feature = "v1")]
 pub use self::operations::{
-    PaymentApprove, PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate,
-    PaymentIncrementalAuthorization, PaymentPostSessionTokens, PaymentReject, PaymentSession,
-    PaymentSessionUpdate, PaymentStatus, PaymentUpdate, PaymentUpdateMetadata,
+    PaymentApprove, PaymentCancel, PaymentCancelPostCapture, PaymentCapture, PaymentConfirm,
+    PaymentCreate, PaymentIncrementalAuthorization, PaymentPostSessionTokens, PaymentReject,
+    PaymentSession, PaymentSessionUpdate, PaymentStatus, PaymentUpdate, PaymentUpdateMetadata,
 };
 use self::{
     conditional_configs::perform_decision_management,
@@ -3153,6 +3153,7 @@ impl ValidateStatusForOperation for &PaymentRedirectSync {
             | common_enums::IntentStatus::Conflicted
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Processing
             | common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresMerchantAction
@@ -6948,6 +6949,12 @@ where
             storage_enums::IntentStatus::RequiresCapture
                 | storage_enums::IntentStatus::PartiallyCapturedAndCapturable
         ),
+        "PaymentCancelPostCapture" => matches!(
+            payment_data.get_payment_intent().status,
+            storage_enums::IntentStatus::Succeeded
+                | storage_enums::IntentStatus::PartiallyCaptured
+                | storage_enums::IntentStatus::PartiallyCapturedAndCapturable
+        ),
         "PaymentCapture" => {
             matches!(
                 payment_data.get_payment_intent().status,
@@ -9806,6 +9813,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
     fn get_merchant_connector_id_in_attempt(&self) -> Option<id_type::MerchantConnectorAccountId> {
         self.payment_attempt.merchant_connector_id.clone()
     }
+
     fn get_creds_identifier(&self) -> Option<&str> {
         self.creds_identifier.as_deref()
     }

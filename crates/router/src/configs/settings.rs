@@ -107,6 +107,7 @@ pub struct Settings<S: SecretState> {
     pub mandates: Mandates,
     pub zero_mandates: ZeroMandates,
     pub network_transaction_id_supported_connectors: NetworkTransactionIdSupportedConnectors,
+    pub list_dispute_supported_connectors: ListDiputeSupportedConnectors,
     pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
     pub webhook_source_verification_call: WebhookSourceVerificationCall,
@@ -117,6 +118,7 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "payouts")]
     pub payouts: Payouts,
     pub payout_method_filters: ConnectorFilters,
+    pub l2_l3_data_config: L2L3DataConfig,
     pub debit_routing_config: DebitRoutingConfig,
     pub applepay_decrypt_keys: SecretStateContainer<ApplePayDecryptConfig, S>,
     pub paze_decrypt_keys: Option<SecretStateContainer<PazeDecryptConfig, S>>,
@@ -319,6 +321,10 @@ impl TenantConfig {
         .into_iter()
         .collect()
     }
+}
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct L2L3DataConfig {
+    pub enabled: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -593,6 +599,13 @@ where
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct NetworkTransactionIdSupportedConnectors {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub connector_list: HashSet<enums::Connector>,
+}
+
+/// Connectors that support only dispute list API for syncing disputes with Hyperswitch
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct ListDiputeSupportedConnectors {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub connector_list: HashSet<enums::Connector>,
 }
