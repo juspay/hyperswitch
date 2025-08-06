@@ -7635,15 +7635,3 @@ pub async fn get_merchant_connector_account_v2(
         .attach_printable("merchant_connector_id is not provided"),
     }
 }
-
-pub fn should_add_dispute_sync_task_to_pt(
-    state: &SessionState,
-    connector_name: api_models::enums::Connector,
-) -> bool {
-    let list_dispute_supported_connectors = state
-        .conf
-        .list_dispute_supported_connectors
-        .connector_list
-        .clone();
-    list_dispute_supported_connectors.contains(&connector_name)
-}

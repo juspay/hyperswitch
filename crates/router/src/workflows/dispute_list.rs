@@ -80,8 +80,8 @@ impl ProcessTrackerWorkflow<SessionState> for DisputeListWorkflow {
             let m_tracking_data = tracking_data.clone();
             let dispute_polling_interval = business_profile
                 .dispute_polling_interval
-                .map(|dispute_polling_interval| *dispute_polling_interval.deref())
-                .unwrap_or(common_types::consts::MAX_DISPUTE_POLLING_INTERVAL_IN_HOURS);
+                .unwrap_or(common_types::primitive_wrappers::DisputePollingIntervalInHours::default())
+                .deref().clone();
 
             tokio::spawn(
                 async move {

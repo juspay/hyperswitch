@@ -1,11 +1,11 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr, ops::Deref};
 
 use api_models::{
     admin::MerchantConnectorInfo, disputes as dispute_models, files as files_api_models,
 };
 use common_utils::ext_traits::{Encode, ValueExt};
 use error_stack::ResultExt;
-use router_env::{instrument, tracing};
+use router_env::{instrument, tracing::{self, Instrument}, logger};
 use strum::IntoEnumIterator;
 pub mod transformers;
 
@@ -392,13 +392,8 @@ pub async fn submit_evidence(
         })?;
     core_utils::validate_profile_id_from_auth_layer(profile_id, &dispute)?;
     let dispute_id = dispute.dispute_id.clone();
-    common_utils::fp_utils::when(
-        dispute.dispute_stage == storage_enums::DisputeStage::DisputeReversal
-            || dispute.dispute_status == storage_enums::DisputeStatus::DisputeExpired
-            || dispute.dispute_status == storage_enums::DisputeStatus::DisputeCancelled
-            || dispute.dispute_status == storage_enums::DisputeStatus::DisputeWon
-            || dispute.dispute_status == storage_enums::DisputeStatus::DisputeLost,
-        || {
+    common_utils::fp_utils::when(!core_utils::should_proceed_with_submit_evidence(dispute.dispute_stage, dispute.dispute_status)
+        , || {
             metrics::EVIDENCE_SUBMISSION_DISPUTE_STATUS_VALIDATION_FAILURE_METRIC.add(1, &[]);
             Err(errors::ApiErrorResponse::DisputeStatusValidationFailed {
                 reason: format!(
@@ -994,5 +989,63 @@ pub async fn add_dispute_list_task_to_pt(
     )
     .map_err(errors::StorageError::from)?;
     db.insert_process(process_tracker_entry).await?;
+    Ok(())
+}
+
+
+#[cfg(feature = "v1")]
+pub async fn schedule_dispute_sync_task(
+    state: &SessionState,
+    business_profile: &domain::Profile,
+    mca: &domain::MerchantConnectorAccount,
+) -> common_utils::errors::CustomResult<(), errors::ApiErrorResponse> {
+    let connector = api::enums::Connector::from_str(&mca.connector_name).change_context(
+        errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "connector",
+        },
+    )?;
+
+    if core_utils::should_add_dispute_sync_task_to_pt(&state, connector) {
+        let offset_date_time = time::OffsetDateTime::now_utc();
+        let created_from =
+            time::PrimitiveDateTime::new(offset_date_time.date(), offset_date_time.time());
+        let dispute_polling_interval = business_profile
+            .dispute_polling_interval
+            .unwrap_or(common_types::primitive_wrappers::DisputePollingIntervalInHours::default())
+            .deref().clone();
+
+        let created_till = created_from
+            .checked_add(time::Duration::hours(i64::from(dispute_polling_interval)))
+            .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+
+        let m_db = state.clone().store;
+        let connector_name = mca.connector_name.clone();
+        let merchant_id = mca.merchant_id.clone();
+        let merchant_connector_id = mca.merchant_connector_id.clone();
+        let business_profile_id = business_profile.get_id().clone();
+
+        tokio::spawn(
+            async move {
+                add_dispute_list_task_to_pt(
+                    &*m_db,
+                    &connector_name,
+                    merchant_id.clone(),
+                    merchant_connector_id.clone(),
+                    business_profile_id,
+                    FetchDisputesRequestData {
+                        created_from,
+                        created_till,
+                    },
+                )
+                .await
+                .map_err(|error| {
+                    logger::error!(
+                        "Failed to add dispute list task to process tracker: {error}"
+                    )
+                })
+            }
+            .in_current_span(),
+        );
+    }
     Ok(())
 }
