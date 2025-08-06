@@ -11,7 +11,6 @@ use crate::payment_methods::{
     ListMethodsForPaymentMethodsRequest, PaymentMethodListResponseForSession,
 };
 #[cfg(feature = "v1")]
-use crate::payments::PaymentListConstraints;
 use crate::{
     payment_methods::{
         self, ListCountriesCurrenciesRequest, ListCountriesCurrenciesResponse,
