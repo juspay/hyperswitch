@@ -7,7 +7,7 @@ pub use api_models::payments::{
     PaymentsUpdateIntentRequest,
 };
 #[cfg(feature = "v2")]
-pub use api_models::payments::{PaymentListConstraintsGet, PaymentListConstraintsPost};
+pub use api_models::payments::{PaymentListConstraints, PaymentListConstraintsPost};
 #[cfg(feature = "v1")]
 pub use api_models::payments::{
     PaymentListFilterConstraints, PaymentListResponse, PaymentListResponseV2, PaymentRetrieveBody,

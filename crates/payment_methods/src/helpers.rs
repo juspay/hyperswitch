@@ -99,10 +99,12 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::Atome
                 | api_enums::PaymentMethodType::Walley
                 | api_enums::PaymentMethodType::Breadpay
+                | api_enums::PaymentMethodType::Flexiti
         ),
         api_enums::PaymentMethod::Wallet => matches!(
             payment_method_type,
             api_enums::PaymentMethodType::AmazonPay
+                | api_enums::PaymentMethodType::Bluecode
                 | api_enums::PaymentMethodType::Paysera
                 | api_enums::PaymentMethodType::Skrill
                 | api_enums::PaymentMethodType::ApplePay

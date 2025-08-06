@@ -47,6 +47,8 @@ pub struct Address {
     pub updated_by: String,
     #[encrypt]
     pub email: Option<Encryptable<Secret<String, pii::EmailStrategy>>>,
+    #[encrypt]
+    pub origin_zip: Option<Encryptable<Secret<String>>>,
 }
 
 /// Based on the flow, appropriate address has to be used
@@ -187,6 +189,7 @@ impl behaviour::Conversion for Address {
             email: self.email.map(Encryption::from),
             payment_id: None,
             customer_id: None,
+            origin_zip: self.origin_zip.map(Encryption::from),
         })
     }
 
@@ -211,6 +214,7 @@ impl behaviour::Conversion for Address {
                     last_name: other.last_name,
                     phone_number: other.phone_number,
                     email: other.email,
+                    origin_zip: other.origin_zip,
                 },
             )),
             identifier.clone(),
@@ -250,6 +254,7 @@ impl behaviour::Conversion for Address {
                 );
                 encryptable
             }),
+            origin_zip: encryptable_address.origin_zip,
         })
     }
 
@@ -275,6 +280,7 @@ impl behaviour::Conversion for Address {
             email: self.email.map(Encryption::from),
             customer_id: None,
             payment_id: None,
+            origin_zip: self.origin_zip.map(Encryption::from),
         })
     }
 }
@@ -295,6 +301,7 @@ pub enum AddressUpdate {
         country_code: Option<String>,
         updated_by: String,
         email: crypto::OptionalEncryptableEmail,
+        origin_zip: crypto::OptionalEncryptableSecretString,
     },
 }
 
@@ -315,6 +322,7 @@ impl From<AddressUpdate> for AddressUpdateInternal {
                 country_code,
                 updated_by,
                 email,
+                origin_zip,
             } => Self {
                 city,
                 country,
@@ -330,6 +338,7 @@ impl From<AddressUpdate> for AddressUpdateInternal {
                 modified_at: date_time::convert_to_pdt(OffsetDateTime::now_utc()),
                 updated_by,
                 email: email.map(Encryption::from),
+                origin_zip: origin_zip.map(Encryption::from),
             },
         }
     }

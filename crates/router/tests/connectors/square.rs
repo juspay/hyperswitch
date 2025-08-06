@@ -68,6 +68,10 @@ fn token_details() -> Option<types::PaymentMethodTokenizationData> {
         amount: None,
         currency: enums::Currency::USD,
         split_payments: None,
+        mandate_id: None,
+        setup_future_usage: None,
+        customer_acceptance: None,
+        setup_mandate_details: None,
     })
 }
 
@@ -442,6 +446,10 @@ async fn should_fail_payment_for_incorrect_cvc() {
                 amount: None,
                 currency: enums::Currency::USD,
                 split_payments: None,
+                mandate_id: None,
+                setup_future_usage: None,
+                customer_acceptance: None,
+                setup_mandate_details: None,
             }),
             get_default_payment_info(None),
         )
@@ -474,6 +482,10 @@ async fn should_fail_payment_for_invalid_exp_month() {
                 amount: None,
                 currency: enums::Currency::USD,
                 split_payments: None,
+                mandate_id: None,
+                setup_future_usage: None,
+                customer_acceptance: None,
+                setup_mandate_details: None,
             }),
             get_default_payment_info(None),
         )
@@ -506,6 +518,10 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
                 amount: None,
                 currency: enums::Currency::USD,
                 split_payments: None,
+                mandate_id: None,
+                setup_future_usage: None,
+                customer_acceptance: None,
+                setup_mandate_details: None,
             }),
             get_default_payment_info(None),
         )

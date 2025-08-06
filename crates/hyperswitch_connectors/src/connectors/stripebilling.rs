@@ -597,7 +597,7 @@ impl
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}v1/payment_intents/{}?expand[0]=latest_charge",
+            "{}v1/charges/{}",
             self.base_url(connectors),
             req.request.billing_connector_psync_id
         ))
@@ -630,10 +630,10 @@ impl
         recovery_router_data_types::BillingConnectorPaymentsSyncRouterData,
         errors::ConnectorError,
     > {
-        let response: stripebilling::StripebillingBillingConnectorPaymentSyncResponseData = res
+        let response: stripebilling::StripebillingRecoveryDetailsData = res
             .response
-            .parse_struct::<stripebilling::StripebillingBillingConnectorPaymentSyncResponseData>(
-                "StripebillingBillingConnectorPaymentSyncResponseData",
+            .parse_struct::<stripebilling::StripebillingRecoveryDetailsData>(
+                "StripebillingRecoveryDetailsData",
             )
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
@@ -805,9 +805,7 @@ impl webhooks::IncomingWebhook for Stripebilling {
             stripebilling::StripebillingWebhookBody::get_webhook_object_from_body(request.body)
                 .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
         Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            api_models::payments::PaymentIdType::ConnectorTransactionId(
-                webhook.data.object.payment_intent,
-            ),
+            api_models::payments::PaymentIdType::ConnectorTransactionId(webhook.data.object.charge),
         ))
     }
 

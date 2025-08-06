@@ -16,17 +16,18 @@ use crate::{
     payment_methods,
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct OpenRouterDecideGatewayRequest {
     pub payment_info: PaymentInfo,
+    #[schema(value_type = String)]
     pub merchant_id: id_type::ProfileId,
     pub eligible_gateway_list: Option<Vec<String>>,
     pub ranking_algorithm: Option<RankingAlgorithm>,
     pub elimination_enabled: Option<bool>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct DecideGatewayResponse {
     pub decided_gateway: Option<String>,
     pub gateway_priority_map: Option<serde_json::Value>,
@@ -43,7 +44,7 @@ pub struct DecideGatewayResponse {
     pub gateway_mga_id_map: Option<serde_json::Value>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct PriorityLogicOutput {
     pub is_enforcement: Option<bool>,
@@ -54,14 +55,14 @@ pub struct PriorityLogicOutput {
     pub fallback_logic: Option<PriorityLogicData>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct PriorityLogicData {
     pub name: Option<String>,
     pub status: Option<String>,
     pub failure_reason: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, ToSchema)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum RankingAlgorithm {
     SrBasedRouting,
@@ -69,9 +70,10 @@ pub enum RankingAlgorithm {
     NtwBasedRouting,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentInfo {
+    #[schema(value_type = String)]
     pub payment_id: id_type::PaymentId,
     pub amount: MinorUnit,
     pub currency: Currency,
@@ -189,21 +191,23 @@ pub struct UnifiedError {
     pub developer_message: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateScorePayload {
+    #[schema(value_type = String)]
     pub merchant_id: id_type::ProfileId,
     pub gateway: String,
     pub status: TxnStatus,
+    #[schema(value_type = String)]
     pub payment_id: id_type::PaymentId,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, ToSchema)]
 pub struct UpdateScoreResponse {
     pub message: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum TxnStatus {
     Started,

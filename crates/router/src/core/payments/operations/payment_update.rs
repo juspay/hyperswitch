@@ -451,6 +451,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .force_3ds_challenge
             .or(payment_intent.force_3ds_challenge);
 
+        payment_intent.payment_channel = request
+            .payment_channel
+            .clone()
+            .or(payment_intent.payment_channel);
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -943,6 +948,12 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         .payment_intent
                         .is_iframe_redirection_enabled,
                     is_confirm_operation: false, // this is not a confirm operation
+                    payment_channel: payment_data.payment_intent.payment_channel,
+                    tax_status: payment_data.payment_intent.tax_status,
+                    discount_amount: payment_data.payment_intent.discount_amount,
+                    order_date: payment_data.payment_intent.order_date,
+                    shipping_amount_tax: payment_data.payment_intent.shipping_amount_tax,
+                    duty_amount: payment_data.payment_intent.duty_amount,
                 })),
                 key_store,
                 storage_scheme,
@@ -971,6 +982,9 @@ impl ForeignTryFrom<domain::Customer> for CustomerData {
             email: value.email.map(Email::from),
             phone: value.phone.map(|ph| ph.into_inner()),
             phone_country_code: value.phone_country_code,
+            tax_registration_id: value
+                .tax_registration_id
+                .map(|tax_registration_id| tax_registration_id.into_inner()),
         })
     }
 }

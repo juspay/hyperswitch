@@ -302,6 +302,13 @@ impl From<Flow> for ApiIdentifier {
             | Flow::CreateTheme
             | Flow::UpdateTheme
             | Flow::DeleteTheme
+            | Flow::CreateUserTheme
+            | Flow::UpdateUserTheme
+            | Flow::DeleteUserTheme
+            | Flow::GetUserThemeUsingThemeId
+            | Flow::UploadFileToUserThemeStorage
+            | Flow::GetUserThemeUsingLineage
+            | Flow::ListAllThemesInLineage
             | Flow::CloneConnector => Self::User,
 
             Flow::GetDataFromHyperswitchAiFlow => Self::AiWorkflow,
@@ -357,6 +364,8 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::AuthenticationCreate
             | Flow::AuthenticationEligibility
+            | Flow::AuthenticationSync
+            | Flow::AuthenticationSyncPostUpdate
             | Flow::AuthenticationAuthenticate => Self::Authentication,
             Flow::Proxy => Self::Proxy,
 

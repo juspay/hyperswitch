@@ -7,7 +7,8 @@ use crate::connectors::payload::responses;
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(untagged)]
 pub enum PayloadPaymentsRequest {
-    PayloadCardsRequest(PayloadCardsRequestData),
+    PayloadCardsRequest(Box<PayloadCardsRequestData>),
+    PayloadMandateRequest(Box<PayloadMandateRequestData>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -51,6 +52,24 @@ pub struct PayloadCardsRequestData {
     // Billing address fields are for AVS validation
     #[serde(flatten)]
     pub billing_address: BillingAddress,
+    pub processing_id: Option<Secret<String>>,
+    /// Allows one-time payment by customer without saving their payment method
+    /// This is true by default
+    #[serde(rename = "payment_method[keep_active]")]
+    pub keep_active: bool,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct PayloadMandateRequestData {
+    pub amount: StringMajorUnit,
+    #[serde(rename = "type")]
+    pub transaction_types: TransactionTypes,
+    // Based on the connectors' response, we can do recurring payment either based on a default payment method id saved in the customer profile or a specific payment method id
+    // Connector by default, saves every payment method
+    pub payment_method_id: Secret<String>,
+    // For manual capture, set status to "authorized", otherwise omit
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<responses::PayloadPaymentStatus>,
 }
 
 #[derive(Default, Clone, Debug, Serialize, Eq, PartialEq)]

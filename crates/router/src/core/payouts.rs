@@ -629,9 +629,14 @@ pub async fn payouts_cancel_core(
             .attach_printable("Connector not found for payout cancellation")?,
         };
 
-        cancel_payout(&state, &merchant_context, &connector_data, &mut payout_data)
-            .await
-            .attach_printable("Payout cancellation failed for given Payout request")?;
+        Box::pin(cancel_payout(
+            &state,
+            &merchant_context,
+            &connector_data,
+            &mut payout_data,
+        ))
+        .await
+        .attach_printable("Payout cancellation failed for given Payout request")?;
     }
 
     Ok(services::ApplicationResponse::Json(
@@ -1088,7 +1093,13 @@ pub async fn call_connector_payout(
         );
     }
     // Eligibility flow
-    complete_payout_eligibility(state, merchant_context, connector_data, payout_data).await?;
+    Box::pin(complete_payout_eligibility(
+        state,
+        merchant_context,
+        connector_data,
+        payout_data,
+    ))
+    .await?;
     // Create customer flow
     Box::pin(complete_create_recipient(
         state,
@@ -1380,9 +1391,14 @@ pub async fn complete_payout_eligibility(
             .connector_name
             .supports_payout_eligibility(payout_data.payouts.payout_type)
     {
-        check_payout_eligibility(state, merchant_context, connector_data, payout_data)
-            .await
-            .attach_printable("Eligibility failed for given Payout request")?;
+        Box::pin(check_payout_eligibility(
+            state,
+            merchant_context,
+            connector_data,
+            payout_data,
+        ))
+        .await
+        .attach_printable("Eligibility failed for given Payout request")?;
     }
 
     utils::when(

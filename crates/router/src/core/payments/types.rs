@@ -390,6 +390,12 @@ impl
                 threeds_server_transaction_id,
                 message_version,
                 ds_trans_id: authentication.ds_trans_id.clone(),
+                authentication_type: authentication.authentication_type,
+                challenge_code: authentication.challenge_code.clone(),
+                challenge_cancel: authentication.challenge_cancel.clone(),
+                challenge_code_reason: authentication.challenge_code_reason.clone(),
+                message_extension: authentication.message_extension.clone(),
+                acs_trans_id: authentication.acs_trans_id.clone(),
             })
         } else {
             Err(errors::ApiErrorResponse::PaymentAuthenticationFailed { data: None }.into())

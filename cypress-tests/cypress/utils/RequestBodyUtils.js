@@ -76,6 +76,90 @@ export function validateEnv(baseUrl, keyIdType) {
 }
 
 /**
+ * Generates a random email address for testing purposes.
+ * @returns {string} A randomly generated email address (e.g., "alex.smith123@example.com").
+ */
+export function generateRandomEmail() {
+  const firstNames = [
+    "alex",
+    "jamie",
+    "taylor",
+    "morgan",
+    "casey",
+    "jordan",
+    "pat",
+    "sam",
+    "chris",
+    "dana",
+    "olivia",
+    "liam",
+    "emma",
+    "noah",
+    "ava",
+    "william",
+    "sophia",
+    "james",
+    "isabella",
+    "oliver",
+    "charlotte",
+    "benjamin",
+    "amelia",
+    "elijah",
+    "mia",
+    "lucas",
+    "harper",
+    "mason",
+    "evelyn",
+    "logan",
+    "abigail",
+  ];
+
+  const lastNames = [
+    "smith",
+    "jones",
+    "williams",
+    "brown",
+    "davis",
+    "miller",
+    "wilson",
+    "moore",
+    "taylor",
+    "lee",
+    "anderson",
+    "thomas",
+    "jackson",
+    "white",
+    "harris",
+    "martin",
+    "garcia",
+    "martinez",
+    "robinson",
+    "clark",
+    "rodriguez",
+  ];
+
+  const domains = [
+    "example.com",
+    "test.com",
+    "demo.org",
+    "sample.net",
+    "testing.io",
+    "cypress.test",
+    "automation.dev",
+    "qa.example",
+  ];
+
+  const randomFirstName =
+    firstNames[Math.floor(Math.random() * firstNames.length)];
+  const randomLastName =
+    lastNames[Math.floor(Math.random() * lastNames.length)];
+  const randomDomain = domains[Math.floor(Math.random() * domains.length)];
+  const randomNumber = Math.floor(Math.random() * 1000);
+
+  return `${randomFirstName}.${randomLastName}${randomNumber}@${randomDomain}`;
+}
+
+/**
  * Generates a random-ish card holder name from predefined lists.
  * @returns {string} A randomly generated full name (e.g., "Jane Smith").
  */

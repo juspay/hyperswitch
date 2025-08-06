@@ -436,6 +436,7 @@ pub fn get_payment_info() -> PaymentInfo {
                     state: None,
                     first_name: None,
                     last_name: None,
+                    origin_zip: None,
                 }),
                 email: None,
             }),

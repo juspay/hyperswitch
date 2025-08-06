@@ -117,6 +117,7 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "payouts")]
     pub payouts: Payouts,
     pub payout_method_filters: ConnectorFilters,
+    pub l2_l3_data_config: L2L3DataConfig,
     pub debit_routing_config: DebitRoutingConfig,
     pub applepay_decrypt_keys: SecretStateContainer<ApplePayDecryptConfig, S>,
     pub paze_decrypt_keys: Option<SecretStateContainer<PazeDecryptConfig, S>>,
@@ -162,6 +163,9 @@ pub struct Settings<S: SecretState> {
     pub merchant_id_auth: MerchantIdAuthSettings,
     #[serde(default)]
     pub infra_values: Option<HashMap<String, String>>,
+    #[serde(default)]
+    pub enhancement: Option<HashMap<String, String>>,
+    pub proxy_status_mapping: ProxyStatusMapping,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -316,6 +320,10 @@ impl TenantConfig {
         .into_iter()
         .collect()
     }
+}
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct L2L3DataConfig {
+    pub enabled: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -620,6 +628,13 @@ pub struct PaymentMethodTokenFilter {
     pub payment_method_type: Option<PaymentMethodTypeTokenFilter>,
     pub long_lived_token: bool,
     pub apple_pay_pre_decrypt_flow: Option<ApplePayPreDecryptFlow>,
+    pub flow: Option<PaymentFlow>,
+}
+
+#[derive(Debug, Deserialize, Clone, PartialEq)]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
+pub enum PaymentFlow {
+    Mandates,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -833,6 +848,12 @@ pub struct DrainerSettings {
 #[serde(default)]
 pub struct MerchantIdAuthSettings {
     pub merchant_id_auth_enabled: bool,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct ProxyStatusMapping {
+    pub proxy_connector_http_status_code: bool,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]

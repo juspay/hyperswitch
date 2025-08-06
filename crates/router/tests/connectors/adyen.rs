@@ -64,6 +64,7 @@ impl AdyenTest {
                         line3: None,
                         first_name: Some(Secret::new("John".to_string())),
                         last_name: Some(Secret::new("Dough".to_string())),
+                        origin_zip: None,
                     }),
                     phone: Some(PhoneDetails {
                         number: Some(Secret::new("9123456789".to_string())),

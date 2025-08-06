@@ -1,6 +1,6 @@
 const successfulNo3DSCardDetails = {
-  card_number: "4000000000002503",
-  card_exp_month: "08",
+  card_number: "4532111111111112",
+  card_exp_month: "10",
   card_exp_year: "50",
   card_holder_name: "joseph Doe",
   card_cvc: "999",
@@ -83,7 +83,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
           shipping_cost: 50,
           amount: 6000,
         },
@@ -149,7 +149,16 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
+        },
+      },
+    },
+    MITManualCapture: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
         },
       },
     },
@@ -160,9 +169,9 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
           amount: 6000,
-          amount_capturable: 6000,
+          amount_capturable: 0,
         },
       },
     },
@@ -173,9 +182,9 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "partially_captured",
           amount: 6000,
-          amount_capturable: 6000,
+          amount_capturable: 0,
         },
       },
     },
@@ -209,7 +218,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "pending",
+          status: "succeeded",
         },
       },
     },
@@ -220,7 +229,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "pending",
+          status: "succeeded",
         },
       },
     },
@@ -231,7 +240,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "pending",
+          status: "succeeded",
         },
       },
     },
@@ -242,7 +251,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "pending",
+          status: "succeeded",
         },
       },
     },
@@ -255,14 +264,18 @@ export const connectorDetails = {
       },
     },
     ZeroAuthMandate: {
+      Request: {
+        payment_type: "setup_mandate",
+        payment_method: "card",
+        setup_future_usage: "off_session",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+      },
       Response: {
-        status: 501,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Setup Mandate flow for Nmi is not implemented",
-            code: "IR_00",
-          },
+          status: "succeeded",
         },
       },
     },
@@ -284,18 +297,16 @@ export const connectorDetails = {
       Request: {
         payment_type: "setup_mandate",
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
       },
       Response: {
-        status: 501,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Setup Mandate flow for Nmi is not implemented",
-            code: "IR_00",
-          },
+          status: "succeeded",
+          setup_future_usage: "off_session",
         },
       },
     },
@@ -311,7 +322,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
         },
       },
     },
@@ -462,7 +473,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
         },
       },
     },
@@ -485,10 +496,36 @@ export const connectorDetails = {
         },
       },
     },
-    PaymentMethodIdMandateNo3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
+    PaymentIntentOffSession: {
+      Request: {
+        amount: 6000,
+        authentication_type: "no_three_ds",
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "off_session",
       },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    SaveCardConfirmAutoCaptureOffSession: {
+      Request: {
+        setup_future_usage: "off_session",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    PaymentMethodIdMandateNo3DSAutoCapture: {
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -505,10 +542,53 @@ export const connectorDetails = {
         },
       },
     },
-    PaymentMethodIdMandateNo3DSManualCapture: {
+    SaveCardUse3DSAutoCaptureOffSession: {
       Configs: {
-        TRIGGER_SKIP: true,
+        CONNECTOR_CREDENTIAL: {
+          specName: ["connectorAgnosticNTID"],
+          value: "connector_2",
+        },
       },
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    SaveCardConfirmManualCaptureOffSession: {
+      Request: {
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    SaveCardConfirmAutoCaptureOffSessionWithoutBilling: {
+      Request: {
+        setup_future_usage: "off_session",
+        billing: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    PaymentMethodIdMandateNo3DSManualCapture: {
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -526,15 +606,12 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandate3DSAutoCapture: {
-      Configs: {
-        // Skipping redirection here for mandate 3ds auto capture as it requires changes from the core
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
+        currency: "USD",
         mandate_data: null,
         authentication_type: "three_ds",
         customer_acceptance: customerAcceptance,
@@ -547,10 +624,8 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandate3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
+        payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },

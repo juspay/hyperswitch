@@ -27,6 +27,7 @@ pub struct AddressNew {
     pub modified_at: PrimitiveDateTime,
     pub updated_by: String,
     pub email: Option<Encryption>,
+    pub origin_zip: Option<Encryption>,
 }
 
 #[derive(Clone, Debug, Queryable, Identifiable, Selectable, Serialize, Deserialize)]
@@ -51,6 +52,7 @@ pub struct Address {
     pub payment_id: Option<common_utils::id_type::PaymentId>,
     pub updated_by: String,
     pub email: Option<Encryption>,
+    pub origin_zip: Option<Encryption>,
 }
 
 #[derive(Clone)]
@@ -65,6 +67,7 @@ pub struct EncryptableAddress {
     pub last_name: crypto::OptionalEncryptableSecretString,
     pub phone_number: crypto::OptionalEncryptableSecretString,
     pub email: crypto::OptionalEncryptableEmail,
+    pub origin_zip: crypto::OptionalEncryptableSecretString,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay, Serialize, Deserialize)]
@@ -84,6 +87,7 @@ pub struct AddressUpdateInternal {
     pub modified_at: PrimitiveDateTime,
     pub updated_by: String,
     pub email: Option<Encryption>,
+    pub origin_zip: Option<Encryption>,
 }
 
 impl AddressUpdateInternal {
@@ -102,6 +106,7 @@ impl AddressUpdateInternal {
             country_code: self.country_code,
             modified_at: self.modified_at,
             updated_by: self.updated_by,
+            origin_zip: self.origin_zip,
             ..source
         }
     }

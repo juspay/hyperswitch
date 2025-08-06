@@ -22,6 +22,7 @@ pub enum IncomingWebhookEvent {
     PaymentIntentAuthorizationFailure,
     PaymentIntentCaptureSuccess,
     PaymentIntentCaptureFailure,
+    PaymentIntentExpired,
     PaymentActionRequired,
     EventNotSupported,
     SourceChargeable,
@@ -199,7 +200,8 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             | IncomingWebhookEvent::PaymentIntentAuthorizationSuccess
             | IncomingWebhookEvent::PaymentIntentAuthorizationFailure
             | IncomingWebhookEvent::PaymentIntentCaptureSuccess
-            | IncomingWebhookEvent::PaymentIntentCaptureFailure => Self::Payment,
+            | IncomingWebhookEvent::PaymentIntentCaptureFailure
+            | IncomingWebhookEvent::PaymentIntentExpired => Self::Payment,
             IncomingWebhookEvent::EventNotSupported => Self::ReturnResponse,
             IncomingWebhookEvent::RefundSuccess | IncomingWebhookEvent::RefundFailure => {
                 Self::Refund

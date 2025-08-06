@@ -4,12 +4,13 @@ pub mod transformers;
 
 use common_enums::enums;
 use common_utils::{
+    crypto,
     errors::CustomResult,
-    ext_traits::BytesExt,
+    ext_traits::{ByteSliceExt, BytesExt, ValueExt},
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
@@ -30,8 +31,8 @@ use hyperswitch_domain_models::{
         SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
-        ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
-        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
+        ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
+        PaymentsCaptureRouterData, PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -46,18 +47,19 @@ use hyperswitch_interfaces::{
     webhooks,
 };
 use lazy_static::lazy_static;
-use masking::{Mask, PeekInterface};
+use masking::{ExposeInterface, Mask, PeekInterface};
 use requests::{
     FacilitapayAuthRequest, FacilitapayCustomerRequest, FacilitapayPaymentsRequest,
-    FacilitapayRefundRequest, FacilitapayRouterData,
+    FacilitapayRouterData,
 };
 use responses::{
     FacilitapayAuthResponse, FacilitapayCustomerResponse, FacilitapayPaymentsResponse,
-    FacilitapayRefundResponse,
+    FacilitapayRefundResponse, FacilitapayWebhookEventType,
 };
 use transformers::parse_facilitapay_error_response;
 
 use crate::{
+    connectors::facilitapay::responses::FacilitapayVoidResponse,
     constants::headers,
     types::{RefreshTokenRouterData, ResponseRouterData},
     utils::{self, RefundsRequestData},
@@ -581,7 +583,72 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     }
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Facilitapay {}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Facilitapay {
+    fn get_headers(
+        &self,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}/transactions/{}/refund",
+            self.base_url(connectors),
+            req.request.connector_transaction_id
+        ))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Get)
+            .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
+            .build();
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsCancelRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsCancelRouterData, errors::ConnectorError> {
+        let response: FacilitapayVoidResponse = res
+            .response
+            .parse_struct("FacilitapayCancelResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
 
 impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Facilitapay {
     fn get_headers(
@@ -608,35 +675,25 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Facilit
         ))
     }
 
-    fn get_request_body(
-        &self,
-        req: &RefundsRouterData<Execute>,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let refund_amount = utils::convert_amount(
-            self.amount_converter,
-            req.request.minor_refund_amount,
-            req.request.currency,
-        )?;
-
-        let connector_router_data = FacilitapayRouterData::from((refund_amount, req));
-        let connector_req = FacilitapayRefundRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
-    }
-
     fn build_request(
         &self,
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        // Validate that this is a full refund
+        if req.request.payment_amount != req.request.refund_amount {
+            return Err(errors::ConnectorError::NotSupported {
+                message: "Partial refund not supported by Facilitapay".to_string(),
+                connector: "Facilitapay",
+            }
+            .into());
+        }
+
         let request = RequestBuilder::new()
-            .method(Method::Post)
+            .method(Method::Get)
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
             .attach_default_headers()
             .headers(types::RefundExecuteType::get_headers(
-                self, req, connectors,
-            )?)
-            .set_body(types::RefundExecuteType::get_request_body(
                 self, req, connectors,
             )?)
             .build();
@@ -743,25 +800,117 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Facilitap
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Facilitapay {
+    async fn verify_webhook_source(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: crypto::Encryptable<masking::Secret<serde_json::Value>>,
+        _connector_name: &str,
+    ) -> CustomResult<bool, errors::ConnectorError> {
+        let webhook_body: responses::FacilitapayWebhookNotification = request
+            .body
+            .parse_struct("FacilitapayWebhookNotification")
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let connector_webhook_secrets = match connector_webhook_details {
+            Some(secret_value) => {
+                let secret = secret_value
+                    .parse_value::<api_models::admin::MerchantConnectorWebhookDetails>(
+                        "MerchantConnectorWebhookDetails",
+                    )
+                    .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+                secret.merchant_secret.expose()
+            }
+            None => "default_secret".to_string(),
+        };
+
+        // FacilitaPay uses a simple 4-digit secret for verification
+        Ok(webhook_body.notification.secret.peek() == &connector_webhook_secrets)
+    }
+
     fn get_webhook_object_reference_id(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook_body: responses::FacilitapayWebhookNotification = request
+            .body
+            .parse_struct("FacilitapayWebhookNotification")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+
+        // Extract transaction ID from the webhook data
+        let transaction_id = match &webhook_body.notification.data {
+            responses::FacilitapayWebhookData::Transaction { transaction_id }
+            | responses::FacilitapayWebhookData::CardPayment { transaction_id, .. } => {
+                transaction_id.clone()
+            }
+            responses::FacilitapayWebhookData::Exchange {
+                transaction_ids, ..
+            }
+            | responses::FacilitapayWebhookData::Wire {
+                transaction_ids, ..
+            }
+            | responses::FacilitapayWebhookData::WireError {
+                transaction_ids, ..
+            } => transaction_ids
+                .first()
+                .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?
+                .clone(),
+        };
+
+        // For refund webhooks, Facilitapay sends the original payment transaction ID
+        // not the refund transaction ID
+        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+            api_models::payments::PaymentIdType::ConnectorTransactionId(transaction_id),
+        ))
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook_body: responses::FacilitapayWebhookNotification = request
+            .body
+            .parse_struct("FacilitapayWebhookNotification")
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+
+        // Note: For "identified" events, we need additional logic to determine if it's cross-currency
+        // Since we don't have access to the payment data here, we'll default to Success for now
+        // The actual status determination happens in the webhook processing flow
+        let event = match webhook_body.notification.event_type {
+            FacilitapayWebhookEventType::ExchangeCreated => {
+                api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing
+            }
+            FacilitapayWebhookEventType::Identified
+            | FacilitapayWebhookEventType::PaymentApproved
+            | FacilitapayWebhookEventType::WireCreated => {
+                api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess
+            }
+            FacilitapayWebhookEventType::PaymentExpired
+            | FacilitapayWebhookEventType::PaymentFailed => {
+                api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure
+            }
+            FacilitapayWebhookEventType::PaymentRefunded => {
+                api_models::webhooks::IncomingWebhookEvent::RefundSuccess
+            }
+            FacilitapayWebhookEventType::WireWaitingCorrection => {
+                api_models::webhooks::IncomingWebhookEvent::PaymentActionRequired
+            }
+        };
+
+        Ok(event)
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook_body: responses::FacilitapayWebhookNotification = request
+            .body
+            .parse_struct("FacilitapayWebhookNotification")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        Ok(Box::new(webhook_body))
     }
 }
 
@@ -794,7 +943,9 @@ lazy_static! {
 
         facilitapay_supported_payment_methods
     };
-    static ref FACILITAPAY_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
+    static ref FACILITAPAY_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = vec![
+        enums::EventClass::Payments,
+    ];
 }
 
 impl ConnectorSpecifications for Facilitapay {

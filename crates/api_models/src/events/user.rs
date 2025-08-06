@@ -4,7 +4,8 @@ use common_utils::events::{ApiEventMetric, ApiEventsType};
 use crate::user::sample_data::SampleDataRequest;
 #[cfg(feature = "control_center_theme")]
 use crate::user::theme::{
-    CreateThemeRequest, GetThemeResponse, UpdateThemeRequest, UploadFileRequest,
+    CreateThemeRequest, CreateUserThemeRequest, GetThemeResponse, UpdateThemeRequest,
+    UploadFileRequest,
 };
 use crate::user::{
     dashboard_metadata::{
@@ -83,6 +84,7 @@ common_utils::impl_api_event_type!(
         GetThemeResponse,
         UploadFileRequest,
         CreateThemeRequest,
+        CreateUserThemeRequest,
         UpdateThemeRequest
     )
 );

@@ -1531,7 +1531,7 @@ pub async fn payments_list(
 pub async fn payments_list(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
-    payload: web::Query<payment_types::PaymentListConstraintsGet>,
+    payload: web::Query<payment_types::PaymentListConstraints>,
 ) -> impl Responder {
     let flow = Flow::PaymentsList;
     let payload = payload.into_inner();
@@ -3337,7 +3337,7 @@ pub async fn list_payment_methods(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
     path: web::Path<common_utils::id_type::GlobalPaymentId>,
-    query_payload: web::Query<api_models::payments::PaymentMethodsListRequest>,
+    query_payload: web::Query<api_models::payments::ListMethodsForPaymentsRequest>,
 ) -> impl Responder {
     use crate::db::domain::merchant_context;
 

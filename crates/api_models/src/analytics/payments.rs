@@ -274,7 +274,10 @@ impl Hash for PaymentMetricsBucketIdentifier {
         self.card_last_4.hash(state);
         self.card_issuer.hash(state);
         self.error_reason.hash(state);
-        self.routing_approach.map(|i| i.to_string()).hash(state);
+        self.routing_approach
+            .clone()
+            .map(|i| i.to_string())
+            .hash(state);
         self.time_bucket.hash(state);
     }
 }

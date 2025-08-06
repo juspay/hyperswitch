@@ -11,8 +11,11 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{BankTransferData, PaymentMethodData},
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
-    router_flow_types::refunds::{Execute, RSync},
-    router_request_types::ResponseId,
+    router_flow_types::{
+        payments::Void,
+        refunds::{Execute, RSync},
+    },
+    router_request_types::{PaymentsCancelData, ResponseId},
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types,
 };
@@ -27,12 +30,12 @@ use url::Url;
 use super::{
     requests::{
         DocumentType, FacilitapayAuthRequest, FacilitapayCredentials, FacilitapayCustomerRequest,
-        FacilitapayPaymentsRequest, FacilitapayPerson, FacilitapayRefundRequest,
-        FacilitapayRouterData, FacilitapayTransactionRequest, PixTransactionRequest,
+        FacilitapayPaymentsRequest, FacilitapayPerson, FacilitapayRouterData,
+        FacilitapayTransactionRequest, PixTransactionRequest,
     },
     responses::{
         FacilitapayAuthResponse, FacilitapayCustomerResponse, FacilitapayPaymentStatus,
-        FacilitapayPaymentsResponse, FacilitapayRefundResponse,
+        FacilitapayPaymentsResponse, FacilitapayRefundResponse, FacilitapayVoidResponse,
     },
 };
 use crate::{
@@ -509,17 +512,6 @@ fn get_qr_code_data(
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
 }
 
-impl<F> TryFrom<&FacilitapayRouterData<&types::RefundsRouterData<F>>> for FacilitapayRefundRequest {
-    type Error = Error;
-    fn try_from(
-        item: &FacilitapayRouterData<&types::RefundsRouterData<F>>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            amount: item.amount.clone(),
-        })
-    }
-}
-
 impl From<FacilitapayPaymentStatus> for enums::RefundStatus {
     fn from(item: FacilitapayPaymentStatus) -> Self {
         match item {
@@ -532,6 +524,56 @@ impl From<FacilitapayPaymentStatus> for enums::RefundStatus {
     }
 }
 
+// Void (cancel unprocessed payment) transformer
+impl
+    TryFrom<
+        ResponseRouterData<Void, FacilitapayVoidResponse, PaymentsCancelData, PaymentsResponseData>,
+    > for RouterData<Void, PaymentsCancelData, PaymentsResponseData>
+{
+    type Error = Error;
+    fn try_from(
+        item: ResponseRouterData<
+            Void,
+            FacilitapayVoidResponse,
+            PaymentsCancelData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let status = common_enums::AttemptStatus::from(item.response.data.status.clone());
+
+        Ok(Self {
+            status,
+            response: if is_payment_failure(status) {
+                Err(ErrorResponse {
+                    code: item.response.data.status.clone().to_string(),
+                    message: item.response.data.status.clone().to_string(),
+                    reason: item.response.data.reason,
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: Some(item.response.data.void_id.clone()),
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                })
+            } else {
+                Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(
+                        item.response.data.void_id.clone(),
+                    ),
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: Some(item.response.data.void_id),
+                    incremental_authorization_allowed: None,
+                    charges: None,
+                })
+            },
+            ..item.data
+        })
+    }
+}
+
 impl TryFrom<RefundsResponseRouterData<Execute, FacilitapayRefundResponse>>
     for types::RefundsRouterData<Execute>
 {
@@ -541,7 +583,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, FacilitapayRefundResponse>>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.data.refund_id.to_string(),
+                connector_refund_id: item.response.data.transaction_id.clone(),
                 refund_status: enums::RefundStatus::from(item.response.data.status),
             }),
             ..item.data
@@ -558,7 +600,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, FacilitapayRefundResponse>>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.data.refund_id.to_string(),
+                connector_refund_id: item.response.data.transaction_id.clone(),
                 refund_status: enums::RefundStatus::from(item.response.data.status),
             }),
             ..item.data

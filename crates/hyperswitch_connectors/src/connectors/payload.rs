@@ -126,7 +126,16 @@ impl ConnectorCommon for Payload {
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = payload::PayloadAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let encoded_api_key = BASE64_ENGINE.encode(format!("{}:", auth.api_key.expose()));
+        // The API key is the same for all currencies, so we can take any.
+        let api_key = auth
+            .auths
+            .values()
+            .next()
+            .ok_or(errors::ConnectorError::FailedToObtainAuthType)?
+            .api_key
+            .clone();
+
+        let encoded_api_key = BASE64_ENGINE.encode(format!("{}:", api_key.expose()));
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
             format!("Basic {encoded_api_key}").into_masked(),
@@ -166,32 +175,16 @@ impl ConnectorCommon for Payload {
 impl ConnectorValidation for Payload {
     fn validate_mandate_payment(
         &self,
-        _pm_type: Option<enums::PaymentMethodType>,
+        pm_type: Option<enums::PaymentMethodType>,
         pm_data: PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
-        match pm_data {
-            PaymentMethodData::Card(_) => Err(errors::ConnectorError::NotImplemented(
-                "validate_mandate_payment does not support cards".to_string(),
-            )
-            .into()),
-            _ => Ok(()),
-        }
-    }
-
-    fn validate_psync_reference_id(
-        &self,
-        _data: &PaymentsSyncData,
-        _is_three_ds: bool,
-        _status: enums::AttemptStatus,
-        _connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        Ok(())
+        let mandate_supported_pmd =
+            std::collections::HashSet::from([utils::PaymentMethodDataType::Card]);
+        utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 
-impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Payload {
-    //TODO: implement sessions flow
-}
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Payload {}
 
 impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Payload {}
 
@@ -822,7 +815,7 @@ static PAYLOAD_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = La
         enums::PaymentMethod::Card,
         enums::PaymentMethodType::Credit,
         PaymentMethodDetails {
-            mandates: enums::FeatureStatus::NotSupported,
+            mandates: enums::FeatureStatus::Supported,
             refunds: enums::FeatureStatus::Supported,
             supported_capture_methods: supported_capture_methods.clone(),
             specific_features: Some(
@@ -840,7 +833,7 @@ static PAYLOAD_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = La
         enums::PaymentMethod::Card,
         enums::PaymentMethodType::Debit,
         PaymentMethodDetails {
-            mandates: enums::FeatureStatus::NotSupported,
+            mandates: enums::FeatureStatus::Supported,
             refunds: enums::FeatureStatus::Supported,
             supported_capture_methods: supported_capture_methods.clone(),
             specific_features: Some(

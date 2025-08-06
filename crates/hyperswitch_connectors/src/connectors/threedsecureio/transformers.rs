@@ -184,6 +184,10 @@ impl
                     connector_metadata: None,
                     ds_trans_id: Some(response.ds_trans_id),
                     eci: None,
+                    challenge_code: None,
+                    challenge_cancel: None,
+                    challenge_code_reason: None,
+                    message_extension: None,
                 })
             }
             ThreedsecureioAuthenticationResponse::Error(err_response) => match *err_response {

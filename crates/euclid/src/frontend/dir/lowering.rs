@@ -28,6 +28,7 @@ impl From<enums::PayLaterType> for global_enums::PaymentMethodType {
             enums::PayLaterType::Affirm => Self::Affirm,
             enums::PayLaterType::AfterpayClearpay => Self::AfterpayClearpay,
             enums::PayLaterType::Alma => Self::Alma,
+            enums::PayLaterType::Flexiti => Self::Flexiti,
             enums::PayLaterType::Klarna => Self::Klarna,
             enums::PayLaterType::PayBright => Self::PayBright,
             enums::PayLaterType::Walley => Self::Walley,
@@ -40,6 +41,7 @@ impl From<enums::PayLaterType> for global_enums::PaymentMethodType {
 impl From<enums::WalletType> for global_enums::PaymentMethodType {
     fn from(value: enums::WalletType) -> Self {
         match value {
+            enums::WalletType::Bluecode => Self::Bluecode,
             enums::WalletType::GooglePay => Self::GooglePay,
             enums::WalletType::AmazonPay => Self::AmazonPay,
             enums::WalletType::Skrill => Self::Skrill,

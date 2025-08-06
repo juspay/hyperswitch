@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::CardData,
+    utils::{self, CardData},
 };
 
 //TODO: Fill the struct with respective fields
@@ -67,6 +67,7 @@ pub struct SilverflowPaymentsRequest {
     amount: Amount,
     #[serde(rename = "type")]
     payment_type: PaymentType,
+    clearing_mode: String,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -82,6 +83,17 @@ impl TryFrom<&SilverflowRouterData<&PaymentsAuthorizeRouterData>> for Silverflow
     fn try_from(
         item: &SilverflowRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
+        // Check if 3DS is being requested - Silverflow doesn't support 3DS
+        if matches!(
+            item.router_data.auth_type,
+            enums::AuthenticationType::ThreeDs
+        ) {
+            return Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("silverflow"),
+            )
+            .into());
+        }
+
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => {
                 // Extract merchant acceptor key from connector auth
@@ -93,6 +105,21 @@ impl TryFrom<&SilverflowRouterData<&PaymentsAuthorizeRouterData>> for Silverflow
                     expiry_year: req_card.card_exp_year.clone(),
                     cvc: req_card.card_cvc.clone(),
                     holder_name: req_card.get_cardholder_name().ok(),
+                };
+
+                // Determine clearing mode based on capture method
+                let clearing_mode = match item.router_data.request.capture_method {
+                    Some(enums::CaptureMethod::Manual) => "manual".to_string(),
+                    Some(enums::CaptureMethod::Automatic) | None => "auto".to_string(),
+                    Some(enums::CaptureMethod::ManualMultiple)
+                    | Some(enums::CaptureMethod::Scheduled)
+                    | Some(enums::CaptureMethod::SequentialAutomatic) => {
+                        return Err(errors::ConnectorError::NotSupported {
+                            message: "Capture method not supported by Silverflow".to_string(),
+                            connector: "Silverflow",
+                        }
+                        .into());
+                    }
                 };
 
                 Ok(Self {
@@ -109,9 +136,13 @@ impl TryFrom<&SilverflowRouterData<&PaymentsAuthorizeRouterData>> for Silverflow
                         card_entry: "e-commerce".to_string(),
                         order: "checkout".to_string(),
                     },
+                    clearing_mode,
                 })
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
+            _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("silverflow"),
+            )
+            .into()),
         }
     }
 }
@@ -636,7 +667,10 @@ impl TryFrom<&PaymentsAuthorizeRouterData> for SilverflowTokenizationRequest {
                     card_data,
                 })
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
+            _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("silverflow"),
+            )
+            .into()),
         }
     }
 }
@@ -677,7 +711,10 @@ impl
                     card_data,
                 })
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
+            _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("silverflow"),
+            )
+            .into()),
         }
     }
 }

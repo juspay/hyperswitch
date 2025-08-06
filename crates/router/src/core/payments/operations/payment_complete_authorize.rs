@@ -371,6 +371,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             email: request.email.clone(),
             phone: request.phone.clone(),
             phone_country_code: request.phone_country_code.clone(),
+            tax_registration_id: None,
         });
 
         let get_trackers_response = operations::GetTrackerResponse {

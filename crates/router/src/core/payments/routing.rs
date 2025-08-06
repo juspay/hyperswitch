@@ -522,7 +522,10 @@ pub async fn perform_static_routing_v1(
     };
 
     let (routable_connectors, routing_approach) = match cached_algorithm.as_ref() {
-        CachedAlgorithm::Single(conn) => (vec![(**conn).clone()], None),
+        CachedAlgorithm::Single(conn) => (
+            vec![(**conn).clone()],
+            Some(common_enums::RoutingApproach::StraightThroughRouting),
+        ),
         CachedAlgorithm::Priority(plist) => (plist.clone(), None),
         CachedAlgorithm::VolumeSplit(splits) => (
             perform_volume_split(splits.to_vec())
@@ -1390,7 +1393,10 @@ async fn perform_session_routing_for_pm_type(
         .await?;
 
         match cached_algorithm.as_ref() {
-            CachedAlgorithm::Single(conn) => (vec![(**conn).clone()], None),
+            CachedAlgorithm::Single(conn) => (
+                vec![(**conn).clone()],
+                Some(common_enums::RoutingApproach::StraightThroughRouting),
+            ),
             CachedAlgorithm::Priority(plist) => (plist.clone(), None),
             CachedAlgorithm::VolumeSplit(splits) => (
                 perform_volume_split(splits.to_vec())

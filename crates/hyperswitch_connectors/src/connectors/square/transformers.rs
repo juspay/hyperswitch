@@ -89,6 +89,7 @@ impl TryFrom<(&types::TokenizationRouterData, PayLaterData)> for SquareTokenRequ
             | PayLaterData::PayBrightRedirect { .. }
             | PayLaterData::WalleyRedirect { .. }
             | PayLaterData::AlmaRedirect { .. }
+            | PayLaterData::FlexitiRedirect { .. }
             | PayLaterData::AtomeRedirect { .. }
             | PayLaterData::BreadpayRedirect { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
@@ -106,6 +107,7 @@ impl TryFrom<(&types::TokenizationRouterData, WalletData)> for SquareTokenReques
         match wallet_data {
             WalletData::ApplePay(_)
             | WalletData::GooglePay(_)
+            | WalletData::BluecodeRedirect {}
             | WalletData::AliPayQr(_)
             | WalletData::AliPayRedirect(_)
             | WalletData::AliPayHkRedirect(_)

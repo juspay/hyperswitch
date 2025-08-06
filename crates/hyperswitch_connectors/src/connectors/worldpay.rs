@@ -798,7 +798,16 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
             .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
         let stage = match req.status {
             enums::AttemptStatus::DeviceDataCollectionPending => "3dsDeviceData".to_string(),
-            _ => "3dsChallenges".to_string(),
+            enums::AttemptStatus::AuthenticationPending => "3dsChallenges".to_string(),
+            _ => {
+                return Err(
+                    errors::ConnectorError::RequestEncodingFailedWithReason(format!(
+                        "Invalid payment status for complete authorize: {:?}",
+                        req.status
+                    ))
+                    .into(),
+                );
+            }
         };
         Ok(format!(
             "{}api/payments/{connector_payment_id}/{stage}",

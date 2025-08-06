@@ -29,6 +29,7 @@ pub struct MerchantDetails {
     pub three_ds_requestor_url: Option<String>,
     pub three_ds_requestor_id: Option<String>,
     pub three_ds_requestor_name: Option<String>,
+    pub notification_url: Option<url::Url>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
@@ -68,8 +69,9 @@ pub struct PaymentDetails {
     pub card_expiry_month: Secret<String>,
     pub card_expiry_year: Secret<String>,
     pub cardholder_name: Option<Secret<String>>,
-    pub card_token_number: Secret<String>,
+    pub card_token_number: Option<Secret<String>>,
     pub account_type: Option<common_enums::PaymentMethodType>,
+    pub card_cvc: Option<Secret<String>>,
 }
 
 #[derive(Clone, serde::Deserialize, Debug, serde::Serialize)]
@@ -126,6 +128,10 @@ pub struct AuthenticationDetails {
     pub connector_metadata: Option<serde_json::Value>,
     pub ds_trans_id: Option<String>,
     pub eci: Option<String>,
+    pub challenge_code: Option<String>,
+    pub challenge_cancel: Option<String>,
+    pub challenge_code_reason: Option<String>,
+    pub message_extension: Option<common_utils::pii::SecretSerdeValue>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
@@ -134,6 +140,8 @@ pub struct PostAuthenticationDetails {
     pub token_details: Option<TokenDetails>,
     pub dynamic_data_details: Option<DynamicData>,
     pub trans_status: Option<common_enums::TransactionStatus>,
+    pub challenge_cancel: Option<String>,
+    pub challenge_code_reason: Option<String>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]

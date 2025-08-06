@@ -160,6 +160,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
                         name: self.name.clone(),
                         email: self.email.clone().map(|a| a.expose().switch_strategy()),
                         phone: self.phone.clone(),
+                        tax_registration_id: self.tax_registration_id.clone(),
                     },
                 ),
             ),
@@ -215,6 +216,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             default_payment_method_id: None,
             updated_by: None,
             version: common_types::consts::API_VERSION,
+            tax_registration_id: encryptable_customer.tax_registration_id,
         })
     }
 
@@ -286,6 +288,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
                         name: Some(self.name.clone()),
                         email: Some(self.email.clone().expose().switch_strategy()),
                         phone: self.phone.clone(),
+                        tax_registration_id: self.tax_registration_id.clone(),
                     },
                 ),
             ),
@@ -344,6 +347,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             default_shipping_address: encrypted_customer_shipping_address.map(Into::into),
             version: common_types::consts::API_VERSION,
             status: common_enums::DeleteStatus::Active,
+            tax_registration_id: encryptable_customer.tax_registration_id,
         })
     }
 
@@ -750,6 +754,7 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
                 default_shipping_address: None,
                 default_payment_method_id: None,
                 status: Some(common_enums::DeleteStatus::Redacted),
+                tax_registration_id: Some(redacted_encrypted_value),
             }));
 
         db.update_customer_by_global_id(
@@ -955,6 +960,7 @@ impl CustomerDeleteBridge for id_type::CustomerId {
                 .storage_scheme
                 .to_string(),
             email: Some(redacted_encrypted_email),
+            origin_zip: Some(redacted_encrypted_value.clone()),
         };
 
         match db
@@ -996,9 +1002,10 @@ impl CustomerDeleteBridge for id_type::CustomerId {
             phone: Box::new(Some(redacted_encrypted_value.clone())),
             description: Some(Description::from_str_unchecked(REDACTED)),
             phone_country_code: Some(REDACTED.to_string()),
-            metadata: None,
+            metadata: Box::new(None),
             connector_customer: Box::new(None),
             address_id: None,
+            tax_registration_id: Some(redacted_encrypted_value.clone()),
         };
 
         db.update_customer_by_customer_id_merchant_id(
@@ -1287,6 +1294,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                             .as_ref()
                             .map(|a| a.clone().expose().switch_strategy()),
                         phone: self.phone.clone(),
+                        tax_registration_id: self.tax_registration_id.clone(),
                     },
                 ),
             ),
@@ -1323,8 +1331,9 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                         encryptable
                     }),
                     phone: Box::new(encryptable_customer.phone),
+                    tax_registration_id: encryptable_customer.tax_registration_id,
                     phone_country_code: self.phone_country_code.clone(),
-                    metadata: self.metadata.clone(),
+                    metadata: Box::new(self.metadata.clone()),
                     description: self.description.clone(),
                     connector_customer: Box::new(None),
                     address_id: address.clone().map(|addr| addr.address_id),
@@ -1409,6 +1418,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                             .as_ref()
                             .map(|a| a.clone().expose().switch_strategy()),
                         phone: self.phone.clone(),
+                        tax_registration_id: self.tax_registration_id.clone(),
                     },
                 ),
             ),
@@ -1444,6 +1454,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                         encryptable
                     })),
                     phone: Box::new(encryptable_customer.phone),
+                    tax_registration_id: encryptable_customer.tax_registration_id,
                     phone_country_code: self.phone_country_code.clone(),
                     metadata: self.metadata.clone(),
                     description: self.description.clone(),

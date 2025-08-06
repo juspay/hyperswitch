@@ -14,6 +14,7 @@ pub mod payment_link;
 pub mod payment_method;
 pub mod payments;
 pub mod payouts;
+pub mod platform;
 pub mod poll;
 pub mod profile;
 pub mod profile_acquirer;

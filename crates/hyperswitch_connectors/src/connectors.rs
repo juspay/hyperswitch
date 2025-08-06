@@ -14,6 +14,7 @@ pub mod barclaycard;
 pub mod billwerk;
 pub mod bitpay;
 pub mod blackhawknetwork;
+pub mod bluecode;
 pub mod bluesnap;
 pub mod boku;
 pub mod braintree;
@@ -57,6 +58,7 @@ pub mod inespay;
 pub mod itaubank;
 pub mod jpmorgan;
 pub mod juspaythreedsserver;
+pub mod katapult;
 pub mod klarna;
 pub mod mifinity;
 pub mod mollie;
@@ -81,7 +83,9 @@ pub mod payme;
 pub mod payone;
 pub mod paypal;
 pub mod paystack;
+pub mod paytm;
 pub mod payu;
+pub mod phonepe;
 pub mod placetopay;
 pub mod plaid;
 pub mod powertranz;
@@ -126,22 +130,23 @@ pub use self::{
     amazonpay::Amazonpay, archipel::Archipel, authipay::Authipay, authorizedotnet::Authorizedotnet,
     bambora::Bambora, bamboraapac::Bamboraapac, bankofamerica::Bankofamerica,
     barclaycard::Barclaycard, billwerk::Billwerk, bitpay::Bitpay,
-    blackhawknetwork::Blackhawknetwork, bluesnap::Bluesnap, boku::Boku, braintree::Braintree,
-    breadpay::Breadpay, cashtocode::Cashtocode, celero::Celero, chargebee::Chargebee,
-    checkbook::Checkbook, checkout::Checkout, coinbase::Coinbase, coingate::Coingate,
-    cryptopay::Cryptopay, ctp_mastercard::CtpMastercard, custombilling::Custombilling,
-    cybersource::Cybersource, datatrans::Datatrans, deutschebank::Deutschebank,
-    digitalvirgo::Digitalvirgo, dlocal::Dlocal, dwolla::Dwolla, ebanx::Ebanx, elavon::Elavon,
-    facilitapay::Facilitapay, fiserv::Fiserv, fiservemea::Fiservemea, fiuu::Fiuu, flexiti::Flexiti,
-    forte::Forte, getnet::Getnet, globalpay::Globalpay, globepay::Globepay, gocardless::Gocardless,
-    gpayments::Gpayments, helcim::Helcim, hipay::Hipay, hyperswitch_vault::HyperswitchVault,
-    iatapay::Iatapay, inespay::Inespay, itaubank::Itaubank, jpmorgan::Jpmorgan,
-    juspaythreedsserver::Juspaythreedsserver, klarna::Klarna, mifinity::Mifinity, mollie::Mollie,
-    moneris::Moneris, mpgs::Mpgs, multisafepay::Multisafepay, netcetera::Netcetera,
-    nexinets::Nexinets, nexixpay::Nexixpay, nmi::Nmi, nomupay::Nomupay, noon::Noon, nordea::Nordea,
-    novalnet::Novalnet, nuvei::Nuvei, opayo::Opayo, opennode::Opennode, paybox::Paybox,
-    payeezy::Payeezy, payload::Payload, payme::Payme, payone::Payone, paypal::Paypal,
-    paystack::Paystack, payu::Payu, placetopay::Placetopay, plaid::Plaid, powertranz::Powertranz,
+    blackhawknetwork::Blackhawknetwork, bluecode::Bluecode, bluesnap::Bluesnap, boku::Boku,
+    braintree::Braintree, breadpay::Breadpay, cashtocode::Cashtocode, celero::Celero,
+    chargebee::Chargebee, checkbook::Checkbook, checkout::Checkout, coinbase::Coinbase,
+    coingate::Coingate, cryptopay::Cryptopay, ctp_mastercard::CtpMastercard,
+    custombilling::Custombilling, cybersource::Cybersource, datatrans::Datatrans,
+    deutschebank::Deutschebank, digitalvirgo::Digitalvirgo, dlocal::Dlocal, dwolla::Dwolla,
+    ebanx::Ebanx, elavon::Elavon, facilitapay::Facilitapay, fiserv::Fiserv, fiservemea::Fiservemea,
+    fiuu::Fiuu, flexiti::Flexiti, forte::Forte, getnet::Getnet, globalpay::Globalpay,
+    globepay::Globepay, gocardless::Gocardless, gpayments::Gpayments, helcim::Helcim, hipay::Hipay,
+    hyperswitch_vault::HyperswitchVault, iatapay::Iatapay, inespay::Inespay, itaubank::Itaubank,
+    jpmorgan::Jpmorgan, juspaythreedsserver::Juspaythreedsserver, katapult::Katapult,
+    klarna::Klarna, mifinity::Mifinity, mollie::Mollie, moneris::Moneris, mpgs::Mpgs,
+    multisafepay::Multisafepay, netcetera::Netcetera, nexinets::Nexinets, nexixpay::Nexixpay,
+    nmi::Nmi, nomupay::Nomupay, noon::Noon, nordea::Nordea, novalnet::Novalnet, nuvei::Nuvei,
+    opayo::Opayo, opennode::Opennode, paybox::Paybox, payeezy::Payeezy, payload::Payload,
+    payme::Payme, payone::Payone, paypal::Paypal, paystack::Paystack, paytm::Paytm, payu::Payu,
+    phonepe::Phonepe, placetopay::Placetopay, plaid::Plaid, powertranz::Powertranz,
     prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay, recurly::Recurly, redsys::Redsys,
     riskified::Riskified, santander::Santander, shift4::Shift4, signifyd::Signifyd,
     silverflow::Silverflow, square::Square, stax::Stax, stripe::Stripe,

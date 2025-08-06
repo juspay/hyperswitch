@@ -116,6 +116,12 @@ pub struct PaymentIntent {
     pub force_3ds_challenge_trigger: Option<bool>,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_payment_id_from_merchant: Option<bool>,
+    pub payment_channel: Option<common_enums::PaymentChannel>,
+    pub tax_status: Option<storage_enums::TaxStatus>,
+    pub discount_amount: Option<MinorUnit>,
+    pub order_date: Option<PrimitiveDateTime>,
+    pub shipping_amount_tax: Option<MinorUnit>,
+    pub duty_amount: Option<MinorUnit>,
 }
 
 impl PaymentIntent {

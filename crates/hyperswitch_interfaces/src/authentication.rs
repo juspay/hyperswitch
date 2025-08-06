@@ -9,4 +9,8 @@ pub struct ExternalAuthenticationPayload {
     pub authentication_value: Option<masking::Secret<String>>,
     /// eci
     pub eci: Option<String>,
+    /// Indicates whether the challenge was canceled by the user or system.
+    pub challenge_cancel: Option<String>,
+    /// Reason for the challenge code, if applicable.
+    pub challenge_code_reason: Option<String>,
 }

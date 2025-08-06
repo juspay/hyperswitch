@@ -78,9 +78,25 @@ pub struct MandateNew {
     pub customer_user_agent_extended: Option<String>,
 }
 
+impl Mandate {
+    /// Returns customer_user_agent_extended with customer_user_agent as fallback
+    pub fn get_user_agent_extended(&self) -> Option<String> {
+        self.customer_user_agent_extended
+            .clone()
+            .or_else(|| self.customer_user_agent.clone())
+    }
+}
+
 impl MandateNew {
     pub fn update_storage_scheme(&mut self, storage_scheme: MerchantStorageScheme) {
         self.updated_by = Some(storage_scheme.to_string());
+    }
+
+    /// Returns customer_user_agent_extended with customer_user_agent as fallback
+    pub fn get_customer_user_agent_extended(&self) -> Option<String> {
+        self.customer_user_agent_extended
+            .clone()
+            .or_else(|| self.customer_user_agent.clone())
     }
 }
 
@@ -238,10 +254,7 @@ impl From<&MandateNew> for Mandate {
             merchant_connector_id: mandate_new.merchant_connector_id.clone(),
             updated_by: mandate_new.updated_by.clone(),
             // Using customer_user_agent as a fallback
-            customer_user_agent_extended: mandate_new
-                .customer_user_agent_extended
-                .clone()
-                .or_else(|| mandate_new.customer_user_agent.clone()),
+            customer_user_agent_extended: mandate_new.get_customer_user_agent_extended(),
         }
     }
 }

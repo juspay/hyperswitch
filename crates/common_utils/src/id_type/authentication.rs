@@ -17,6 +17,11 @@ impl AuthenticationId {
     pub fn generate_authentication_id(prefix: &'static str) -> Self {
         Self(crate::generate_ref_id_with_default_length(prefix))
     }
+
+    /// Get external authentication request poll id
+    pub fn get_external_authentication_request_poll_id(&self) -> String {
+        format!("external_authentication_{}", self.get_string_repr())
+    }
 }
 
 impl crate::events::ApiEventMetric for AuthenticationId {

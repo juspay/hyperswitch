@@ -543,6 +543,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentExperience::RedirectToUrl
                         | common_enums::PaymentExperience::CollectOtp,
                         common_enums::PaymentMethodType::Ach
+                        | common_enums::PaymentMethodType::Bluecode
                         | common_enums::PaymentMethodType::Affirm
                         | common_enums::PaymentMethodType::AfterpayClearpay
                         | common_enums::PaymentMethodType::Alfamart
@@ -644,6 +645,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::DuitNow
                         | common_enums::PaymentMethodType::PromptPay
                         | common_enums::PaymentMethodType::VietQr
+                        | common_enums::PaymentMethodType::Flexiti
                         | common_enums::PaymentMethodType::OpenBankingPIS
                         | common_enums::PaymentMethodType::RevolutPay
                         | common_enums::PaymentMethodType::IndonesianBankTransfer
@@ -663,6 +665,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentExperience::RedirectToUrl
                         | common_enums::PaymentExperience::CollectOtp,
                         common_enums::PaymentMethodType::Ach
+                        | common_enums::PaymentMethodType::Bluecode
                         | common_enums::PaymentMethodType::Affirm
                         | common_enums::PaymentMethodType::AfterpayClearpay
                         | common_enums::PaymentMethodType::Alfamart
@@ -765,6 +768,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::DuitNow
                         | common_enums::PaymentMethodType::PromptPay
                         | common_enums::PaymentMethodType::VietQr
+                        | common_enums::PaymentMethodType::Flexiti
                         | common_enums::PaymentMethodType::OpenBankingPIS
                         | common_enums::PaymentMethodType::Skrill
                         | common_enums::PaymentMethodType::IndonesianBankTransfer
@@ -793,6 +797,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentExperience::RedirectToUrl
                         | common_enums::PaymentExperience::CollectOtp,
                         common_enums::PaymentMethodType::Ach
+                        | common_enums::PaymentMethodType::Bluecode
                         | common_enums::PaymentMethodType::Affirm
                         | common_enums::PaymentMethodType::AfterpayClearpay
                         | common_enums::PaymentMethodType::Alfamart
@@ -894,6 +899,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::DuitNow
                         | common_enums::PaymentMethodType::PromptPay
                         | common_enums::PaymentMethodType::VietQr
+                        | common_enums::PaymentMethodType::Flexiti
                         | common_enums::PaymentMethodType::OpenBankingPIS
                         | common_enums::PaymentMethodType::IndonesianBankTransfer
                         | common_enums::PaymentMethodType::RevolutPay
@@ -913,6 +919,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentExperience::RedirectToUrl
                         | common_enums::PaymentExperience::CollectOtp,
                         common_enums::PaymentMethodType::Ach
+                        | common_enums::PaymentMethodType::Bluecode
                         | common_enums::PaymentMethodType::Affirm
                         | common_enums::PaymentMethodType::AfterpayClearpay
                         | common_enums::PaymentMethodType::Alfamart
@@ -1015,6 +1022,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::DuitNow
                         | common_enums::PaymentMethodType::PromptPay
                         | common_enums::PaymentMethodType::VietQr
+                        | common_enums::PaymentMethodType::Flexiti
                         | common_enums::PaymentMethodType::OpenBankingPIS
                         | common_enums::PaymentMethodType::RevolutPay
                         | common_enums::PaymentMethodType::Breadpay

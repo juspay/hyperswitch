@@ -121,15 +121,25 @@ impl TryFrom<&PayuRouterData<&types::PaymentsAuthorizeRouterData>> for PayuPayme
                         }
                     }),
                 }),
-                WalletData::ApplePay(data) => Ok(PayuPaymentMethod {
-                    pay_method: PayuPaymentMethodData::Wallet({
-                        PayuWallet {
-                            value: PayuWalletCode::Jp,
-                            wallet_type: WALLET_IDENTIFIER.to_string(),
-                            authorization_code: Secret::new(data.payment_data),
-                        }
-                    }),
-                }),
+                WalletData::ApplePay(apple_pay_data) => {
+                    let apple_pay_encrypted_data = apple_pay_data
+                        .payment_data
+                        .get_encrypted_apple_pay_payment_data_mandatory()
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "Apple pay encrypted data",
+                        })?;
+                    Ok(PayuPaymentMethod {
+                        pay_method: PayuPaymentMethodData::Wallet({
+                            PayuWallet {
+                                value: PayuWalletCode::Jp,
+                                wallet_type: WALLET_IDENTIFIER.to_string(),
+                                authorization_code: Secret::new(
+                                    apple_pay_encrypted_data.to_string(),
+                                ),
+                            }
+                        }),
+                    })
+                }
                 _ => Err(errors::ConnectorError::NotImplemented(
                     "Unknown Wallet in Payment Method".to_string(),
                 )),
