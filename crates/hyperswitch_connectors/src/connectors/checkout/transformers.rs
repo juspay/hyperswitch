@@ -31,7 +31,7 @@ use crate::{
     },
     unimplemented_payment_method,
     utils::{
-        self, ApplePayDecrypt, PaymentsCaptureRequestData, RouterData as OtherRouterData,
+        self, PaymentsCaptureRequestData, RouterData as OtherRouterData,
         WalletData as OtherWalletData,
     },
 };
@@ -215,7 +215,7 @@ pub enum PaymentSource {
 
 #[derive(Debug, Serialize)]
 pub struct ApplePayPredecrypt {
-    token: Secret<String>,
+    token: cards::CardNumber,
     #[serde(rename = "type")]
     decrypt_type: String,
     token_type: String,
@@ -341,8 +341,8 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                             }))
                         }
                         PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
-                            let exp_month = decrypt_data.get_expiry_month()?;
-                            let expiry_year_4_digit = decrypt_data.get_four_digit_expiry_year()?;
+                            let exp_month = decrypt_data.get_expiry_month();
+                            let expiry_year_4_digit = decrypt_data.get_four_digit_expiry_year();
                             Ok(PaymentSource::ApplePayPredecrypt(Box::new(
                                 ApplePayPredecrypt {
                                     token: decrypt_data.application_primary_account_number,

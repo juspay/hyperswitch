@@ -233,6 +233,10 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         )
         .await?
         {
+            logger::info!(
+                connector = connector_name,
+                "Using Unified Connector Service for webhook processing",
+            );
             process_ucs_webhook_transform(
                 &state,
                 &merchant_context,
@@ -1580,6 +1584,8 @@ async fn external_authentication_incoming_webhook_flow(
             ),
             trans_status,
             eci: authentication_details.eci,
+            challenge_cancel: authentication_details.challenge_cancel,
+            challenge_code_reason: authentication_details.challenge_code_reason,
         };
         let authentication =
             if let webhooks::ObjectReferenceId::ExternalAuthenticationID(authentication_id_type) =

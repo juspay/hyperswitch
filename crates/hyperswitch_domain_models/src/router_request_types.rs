@@ -713,6 +713,11 @@ pub struct AuthenticationData {
     pub message_version: Option<common_utils::types::SemanticVersion>,
     pub ds_trans_id: Option<String>,
     pub created_at: time::PrimitiveDateTime,
+    pub challenge_code: Option<String>,
+    pub challenge_cancel: Option<String>,
+    pub challenge_code_reason: Option<String>,
+    pub message_extension: Option<pii::SecretSerdeValue>,
+    pub acs_trans_id: Option<String>,
     pub authentication_type: Option<common_enums::DecoupledAuthenticationType>,
 }
 
@@ -948,6 +953,7 @@ pub struct CustomerDetails {
     pub email: Option<pii::Email>,
     pub phone: Option<Secret<String, masking::WithType>>,
     pub phone_country_code: Option<String>,
+    pub tax_registration_id: Option<Secret<String, masking::WithType>>,
 }
 
 #[derive(Debug, Clone)]

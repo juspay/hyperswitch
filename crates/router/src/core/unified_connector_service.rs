@@ -14,6 +14,7 @@ use hyperswitch_domain_models::{
     router_response_types::PaymentsResponseData,
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
+use router_env::logger;
 use unified_connector_service_client::payments::{
     self as payments_grpc, payment_method::PaymentMethod, CardDetails, CardPaymentMethodType,
     PaymentServiceAuthorizeResponse,
@@ -91,6 +92,10 @@ pub async fn should_call_unified_connector_service_for_webhooks(
     connector_name: &str,
 ) -> RouterResult<bool> {
     if state.grpc_client.unified_connector_service_client.is_none() {
+        logger::debug!(
+            connector = connector_name.to_string(),
+            "Unified Connector Service client is not available for webhooks"
+        );
         return Ok(false);
     }
 
@@ -278,163 +283,81 @@ pub fn build_unified_connector_service_auth_metadata(
 pub fn handle_unified_connector_service_response_for_payment_authorize(
     response: PaymentServiceAuthorizeResponse,
 ) -> CustomResult<
-    (AttemptStatus, Result<PaymentsResponseData, ErrorResponse>),
+    (
+        AttemptStatus,
+        Result<PaymentsResponseData, ErrorResponse>,
+        u16,
+    ),
     UnifiedConnectorServiceError,
 > {
     let status = AttemptStatus::foreign_try_from(response.status())?;
 
-    // <<<<<<< HEAD
-    //     let connector_response_reference_id =
-    //         response.response_ref_id.as_ref().and_then(|identifier| {
-    //             identifier
-    //                 .id_type
-    //                 .clone()
-    //                 .and_then(|id_type| match id_type {
-    //                     payments_grpc::identifier::IdType::Id(id) => Some(id),
-    //                     payments_grpc::identifier::IdType::EncodedData(encoded_data) => {
-    //                         Some(encoded_data)
-    //                     }
-    //                     payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
-    //                 })
-    //         });
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
-    //     let transaction_id = response.transaction_id.as_ref().and_then(|id| {
-    //         id.id_type.clone().and_then(|id_type| match id_type {
-    //             payments_grpc::identifier::IdType::Id(id) => Some(id),
-    //             payments_grpc::identifier::IdType::EncodedData(encoded_data) => Some(encoded_data),
-    //             payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
-    //         })
-    //     });
-
-    //     let (connector_metadata, redirection_data) = match response.redirection_data.clone() {
-    //         Some(redirection_data) => match redirection_data.form_type {
-    //             Some(ref form_type) => match form_type {
-    //                 payments_grpc::redirect_form::FormType::Uri(uri) => {
-    //                     let image_data = QrImage::new_from_data(uri.uri.clone())
-    //                         .change_context(UnifiedConnectorServiceError::ParsingFailed)?;
-    //                     let image_data_url = Url::parse(image_data.data.clone().as_str())
-    //                         .change_context(UnifiedConnectorServiceError::ParsingFailed)?;
-    //                     let qr_code_info = QrCodeInformation::QrDataUrl {
-    //                         image_data_url,
-    //                         display_to_timestamp: None,
-    //                     };
-    //                     (
-    //                         Some(qr_code_info.encode_to_value())
-    //                             .transpose()
-    //                             .change_context(UnifiedConnectorServiceError::ParsingFailed)?,
-    //                         None,
-    //                     )
-    //                 }
-    //                 _ => (
-    //                     None,
-    //                     Some(RedirectForm::foreign_try_from(redirection_data)).transpose()?,
-    //                 ),
-    //             },
-    //             None => (None, None),
-    //         },
-    //         None => (None, None),
-    //     };
-
-    //     let router_data_response = match status {
-    //         AttemptStatus::Charged |
-    //                 AttemptStatus::Authorized |
-    //                 AttemptStatus::AuthenticationPending |
-    //                 AttemptStatus::DeviceDataCollectionPending |
-    //                 AttemptStatus::Started |
-    //                 AttemptStatus::AuthenticationSuccessful |
-    //                 AttemptStatus::Authorizing |
-    //                 AttemptStatus::ConfirmationAwaited |
-    //                 AttemptStatus::Pending => Ok(PaymentsResponseData::TransactionResponse {
-    //                     resource_id: match transaction_id.as_ref() {
-    //                         Some(transaction_id) => hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(transaction_id.clone()),
-    //                         None => hyperswitch_domain_models::router_request_types::ResponseId::NoResponseId,
-    //                     },
-    //                     redirection_data: Box::new(
-    //                             redirection_data
-    //                     ),
-    //                     mandate_reference: Box::new(None),
-    //                     connector_metadata,
-    //                     network_txn_id: response.network_txn_id.clone(),
-    //                     connector_response_reference_id,
-    //                     incremental_authorization_allowed: response.incremental_authorization_allowed,
-    //                     charges: None,
-    //                 }),
-    //         AttemptStatus::AuthenticationFailed
-    //                 | AttemptStatus::AuthorizationFailed
-    //                 | AttemptStatus::Unresolved
-    //                 | AttemptStatus::Failure => Err(ErrorResponse {
-    //                     code: response.error_code().to_owned(),
-    //                     message: response.error_message().to_owned(),
-    //                     reason: Some(response.error_message().to_owned()),
-    //                     status_code: 500,
-    //                     attempt_status: Some(status),
-    //                     connector_transaction_id: connector_response_reference_id,
-    //                     network_decline_code: None,
-    //                     network_advice_code: None,
-    //                     network_error_message: None,
-    //                 }),
-    //         AttemptStatus::RouterDeclined |
-    //                     AttemptStatus::CodInitiated |
-    //                     AttemptStatus::Voided |
-    //                     AttemptStatus::VoidInitiated |
-    //                     AttemptStatus::CaptureInitiated |
-    //                     AttemptStatus::VoidFailed |
-    //                     AttemptStatus::AutoRefunded |
-    //                     AttemptStatus::PartialCharged |
-    //                     AttemptStatus::PartialChargedAndChargeable |
-    //                     AttemptStatus::PaymentMethodAwaited |
-    //                     AttemptStatus::CaptureFailed |
-    //                     AttemptStatus::IntegrityFailure => return Err(UnifiedConnectorServiceError::NotImplemented(format!(
-    //                         "AttemptStatus {status:?} is not implemented for Unified Connector Service"
-    //                     )).into()),
-    //                 };
-    // =======
     let router_data_response =
         Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
 
-    Ok((status, router_data_response))
+    Ok((status, router_data_response, status_code))
 }
 
 pub fn handle_unified_connector_service_response_for_payment_get(
     response: payments_grpc::PaymentServiceGetResponse,
 ) -> CustomResult<
-    (AttemptStatus, Result<PaymentsResponseData, ErrorResponse>),
+    (
+        AttemptStatus,
+        Result<PaymentsResponseData, ErrorResponse>,
+        u16,
+    ),
     UnifiedConnectorServiceError,
 > {
     let status = AttemptStatus::foreign_try_from(response.status())?;
 
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
+
     let router_data_response =
         Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
 
-    Ok((status, router_data_response))
+    Ok((status, router_data_response, status_code))
 }
 
 pub fn handle_unified_connector_service_response_for_payment_register(
     response: payments_grpc::PaymentServiceRegisterResponse,
 ) -> CustomResult<
-    (AttemptStatus, Result<PaymentsResponseData, ErrorResponse>),
+    (
+        AttemptStatus,
+        Result<PaymentsResponseData, ErrorResponse>,
+        u16,
+    ),
     UnifiedConnectorServiceError,
 > {
     let status = AttemptStatus::foreign_try_from(response.status())?;
 
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
+
     let router_data_response =
         Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
 
-    Ok((status, router_data_response))
+    Ok((status, router_data_response, status_code))
 }
 
 pub fn handle_unified_connector_service_response_for_payment_repeat(
     response: payments_grpc::PaymentServiceRepeatEverythingResponse,
 ) -> CustomResult<
-    (AttemptStatus, Result<PaymentsResponseData, ErrorResponse>),
+    (
+        AttemptStatus,
+        Result<PaymentsResponseData, ErrorResponse>,
+        u16,
+    ),
     UnifiedConnectorServiceError,
 > {
     let status = AttemptStatus::foreign_try_from(response.status())?;
 
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
+
     let router_data_response =
         Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
 
-    Ok((status, router_data_response))
+    Ok((status, router_data_response, status_code))
 }
 
 pub fn build_webhook_secrets_from_merchant_connector_account(
@@ -495,13 +418,14 @@ pub async fn transform_webhook_via_ucs(
     WebhookTransformData,
 )> {
     // Early check for UCS client availability
-    let is_ucs_client_available = state.grpc_client.unified_connector_service_client.is_some();
-
-    if !is_ucs_client_available {
-        return Err(ApiErrorResponse::WebhookProcessingFailure).attach_printable(
-            "UCS webhook processing is configured but UCS client is not available",
-        );
-    }
+    let ucs_client = state
+        .grpc_client
+        .unified_connector_service_client
+        .as_ref()
+        .ok_or_else(|| {
+            error_stack::report!(ApiErrorResponse::WebhookProcessingFailure)
+                .attach_printable("UCS client is not available for webhook processing")
+        })?;
 
     // Build webhook secrets from merchant connector account
     let webhook_secrets = merchant_connector_account.and_then(|mca| {
@@ -557,38 +481,28 @@ pub async fn transform_webhook_via_ucs(
         request_id: Some(utils::generate_id(consts::ID_LENGTH, "webhook_req")),
     };
 
-    // Make UCS call - client availability already verified
-    if let Some(ucs_client) = &state.grpc_client.unified_connector_service_client {
-        match ucs_client
-            .transform_incoming_webhook(transform_request, connector_auth_metadata, grpc_headers)
-            .await
-        {
-            Ok(response) => {
-                let transform_response = response.into_inner();
-                let transform_data =
-                    transformers::transform_ucs_webhook_response(transform_response)
-                        .change_context(ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to handle UCS webhook transform response")?;
+    match ucs_client
+        .transform_incoming_webhook(transform_request, connector_auth_metadata, grpc_headers)
+        .await
+    {
+        Ok(response) => {
+            let transform_response = response.into_inner();
+            let transform_data = transformers::transform_ucs_webhook_response(transform_response)
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to handle UCS webhook transform response")?;
 
-                // UCS handles everything internally - event type, source verification, decoding
-                Ok((
-                    transform_data.event_type,
-                    transform_data.source_verified,
-                    transform_data,
-                ))
-            }
-            Err(err) => {
-                // When UCS is configured, we don't fall back to direct connector processing
-                Err(ApiErrorResponse::WebhookProcessingFailure)
-                    .attach_printable(format!("UCS webhook processing failed: {err}"))
-            }
+            // UCS handles everything internally - event type, source verification, decoding
+            Ok((
+                transform_data.event_type,
+                transform_data.source_verified,
+                transform_data,
+            ))
         }
-    } else {
-        // UCS client not available but UCS is configured
-        // We don't fall back to direct connector processing when UCS is configured
-        Err(ApiErrorResponse::WebhookProcessingFailure).attach_printable(
-            "UCS webhook processing is configured but UCS client is not available",
-        )
+        Err(err) => {
+            // When UCS is configured, we don't fall back to direct connector processing
+            Err(ApiErrorResponse::WebhookProcessingFailure)
+                .attach_printable(format!("UCS webhook processing failed: {err}"))
+        }
     }
 }
 
@@ -608,14 +522,14 @@ pub async fn call_unified_connector_service_for_webhook(
     bool,
     WebhookTransformData,
 )> {
-    // Early check for UCS client availability
-    let is_ucs_client_available = state.grpc_client.unified_connector_service_client.is_some();
-
-    if !is_ucs_client_available {
-        return Err(ApiErrorResponse::WebhookProcessingFailure).attach_printable(
-            "UCS webhook processing is configured but UCS client is not available",
-        );
-    }
+    let ucs_client = state
+        .grpc_client
+        .unified_connector_service_client
+        .as_ref()
+        .ok_or_else(|| {
+            error_stack::report!(ApiErrorResponse::WebhookProcessingFailure)
+                .attach_printable("UCS client is not available for webhook processing")
+        })?;
 
     // Build webhook secrets from merchant connector account
     let webhook_secrets = merchant_connector_account.and_then(|mca| {
@@ -670,34 +584,26 @@ pub async fn call_unified_connector_service_for_webhook(
     };
 
     // Make UCS call - client availability already verified
-    if let Some(ucs_client) = &state.grpc_client.unified_connector_service_client {
-        match ucs_client
-            .transform_incoming_webhook(transform_request, connector_auth_metadata, grpc_headers)
-            .await
-        {
-            Ok(response) => {
-                let transform_response = response.into_inner();
-                let transform_data =
-                    transformers::transform_ucs_webhook_response(transform_response)?;
+    match ucs_client
+        .transform_incoming_webhook(transform_request, connector_auth_metadata, grpc_headers)
+        .await
+    {
+        Ok(response) => {
+            let transform_response = response.into_inner();
+            let transform_data = transformers::transform_ucs_webhook_response(transform_response)?;
 
-                // UCS handles everything internally - event type, source verification, decoding
-                Ok((
-                    transform_data.event_type,
-                    transform_data.source_verified,
-                    transform_data,
-                ))
-            }
-            Err(err) => {
-                // When UCS is configured, we don't fall back to direct connector processing
-                Err(ApiErrorResponse::WebhookProcessingFailure)
-                    .attach_printable(format!("UCS webhook processing failed: {err}"))
-            }
+            // UCS handles everything internally - event type, source verification, decoding
+            Ok((
+                transform_data.event_type,
+                transform_data.source_verified,
+                transform_data,
+            ))
         }
-    } else {
-        // UCS client not available but UCS is configured
-        Err(ApiErrorResponse::WebhookProcessingFailure).attach_printable(
-            "UCS webhook processing is configured but UCS client is not available",
-        )
+        Err(err) => {
+            // When UCS is configured, we don't fall back to direct connector processing
+            Err(ApiErrorResponse::WebhookProcessingFailure)
+                .attach_printable(format!("UCS webhook processing failed: {err}"))
+        }
     }
 }
 

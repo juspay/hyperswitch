@@ -50,7 +50,7 @@ use hyperswitch_domain_models::{
     network_tokenization::NetworkTokenNumber,
     payment_method_data::{self, Card, CardDetailsForNetworkTransactionId, PaymentMethodData},
     router_data::{
-        ApplePayPredecryptData, ErrorResponse, PaymentMethodToken, RecurringMandatePaymentData,
+        ErrorResponse, PaymentMethodToken, RecurringMandatePaymentData,
         RouterData as ConnectorRouterData,
     },
     router_request_types::{
@@ -1022,40 +1022,6 @@ impl AccessTokenRequestInfo for RefreshTokenRouterData {
             .id
             .clone()
             .ok_or_else(missing_field_err("request.id"))
-    }
-}
-pub trait ApplePayDecrypt {
-    fn get_expiry_month(&self) -> Result<Secret<String>, Error>;
-    fn get_two_digit_expiry_year(&self) -> Result<Secret<String>, Error>;
-    fn get_four_digit_expiry_year(&self) -> Result<Secret<String>, Error>;
-}
-
-impl ApplePayDecrypt for Box<ApplePayPredecryptData> {
-    fn get_two_digit_expiry_year(&self) -> Result<Secret<String>, Error> {
-        Ok(Secret::new(
-            self.application_expiration_date
-                .get(0..2)
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-                .to_string(),
-        ))
-    }
-
-    fn get_four_digit_expiry_year(&self) -> Result<Secret<String>, Error> {
-        Ok(Secret::new(format!(
-            "20{}",
-            self.application_expiration_date
-                .get(0..2)
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-        )))
-    }
-
-    fn get_expiry_month(&self) -> Result<Secret<String>, Error> {
-        Ok(Secret::new(
-            self.application_expiration_date
-                .get(2..4)
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-                .to_owned(),
-        ))
     }
 }
 
@@ -5791,12 +5757,20 @@ pub trait ApplePay {
 
 impl ApplePay for payment_method_data::ApplePayWalletData {
     fn get_applepay_decoded_payment_data(&self) -> Result<Secret<String>, Error> {
+        let apple_pay_encrypted_data = self
+            .payment_data
+            .get_encrypted_apple_pay_payment_data_mandatory()
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "Apple pay encrypted data",
+            })?;
         let token = Secret::new(
-            String::from_utf8(BASE64_ENGINE.decode(&self.payment_data).change_context(
-                errors::ConnectorError::InvalidWalletToken {
-                    wallet_name: "Apple Pay".to_string(),
-                },
-            )?)
+            String::from_utf8(
+                BASE64_ENGINE
+                    .decode(apple_pay_encrypted_data)
+                    .change_context(errors::ConnectorError::InvalidWalletToken {
+                        wallet_name: "Apple Pay".to_string(),
+                    })?,
+            )
             .change_context(errors::ConnectorError::InvalidWalletToken {
                 wallet_name: "Apple Pay".to_string(),
             })?,
@@ -6296,6 +6270,7 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         psd2_sca_exemption_type: data.psd2_sca_exemption_type,
         raw_connector_response: data.raw_connector_response.clone(),
         is_payment_id_from_merchant: data.is_payment_id_from_merchant,
+        l2_l3_data: data.l2_l3_data.clone(),
     }
 }
 

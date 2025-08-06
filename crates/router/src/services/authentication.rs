@@ -1,13 +1,13 @@
 use std::str::FromStr;
 
 use actix_web::http::header::HeaderMap;
-#[cfg(feature = "v1")]
-use api_models::payment_methods::PaymentMethodCreate;
 #[cfg(feature = "v2")]
 use api_models::payment_methods::PaymentMethodIntentConfirm;
+#[cfg(feature = "v1")]
+use api_models::payment_methods::{PaymentMethodCreate, PaymentMethodListRequest};
+use api_models::payments;
 #[cfg(feature = "payouts")]
 use api_models::payouts;
-use api_models::{payment_methods::PaymentMethodListRequest, payments};
 use async_trait::async_trait;
 use common_enums::TokenPurpose;
 use common_utils::{date_time, fp_utils, id_type};
@@ -4168,6 +4168,7 @@ impl ClientSecretFetch for payments::PaymentsRetrieveRequest {
     }
 }
 
+#[cfg(feature = "v1")]
 impl ClientSecretFetch for PaymentMethodListRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
