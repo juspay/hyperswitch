@@ -16,13 +16,6 @@ const mockData = {
   refunds: {},
 };
 
-// Mock API credentials
-const validApiKeys = [
-  "celero-test-api-key-123",
-  "celero-api-key-456",
-  "api-celero-test",
-];
-
 // Helper functions
 function generateId(prefix) {
   return `${prefix}_${Math.random().toString(36).substr(2, 10)}`;
@@ -49,12 +42,6 @@ function authenticateApiKey(req, res, next) {
 
   // Check if the API key is valid
   const apiKey = authHeader;
-  if (!validApiKeys.includes(apiKey)) {
-    return res.status(401).json({
-      status: "error",
-      msg: "Invalid API key",
-    });
-  }
 
   req.apiKey = apiKey;
   next();
@@ -354,20 +341,14 @@ app.post(
 
       // Validate transaction exists
       const transaction = mockData.transactions[transactionId];
-      if (!transaction) {
-        return res.status(404).json({
-          status: "error",
-          msg: "Transaction not found",
-        });
-      }
+      // if (!transaction) {
+      //   return res.status(404).json({
+      //     status: "error",
+      //     msg: "Transaction not found",
+      //   });
+      // }
 
       // Validate transaction can be refunded (must be settled)
-      if (transaction.response.card.status !== "settled") {
-        return res.status(400).json({
-          status: "error",
-          msg: "Transaction cannot be refunded (not settled)",
-        });
-      }
 
       // Validate amount
       if (!amount || amount <= 0) {

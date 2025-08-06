@@ -396,8 +396,27 @@ export const connectorDetails = {
       },
     },
 
-    // ===== UNSUPPORTED FEATURES (MARKED AS TRIGGER_SKIP) =====
     // Celero doesn't support 3DS, mandates, save card, etc.
+
+    "3DSManualCapture": getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true, // Skip - 3DS not implemented
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+          },
+        },
+      },
+    }),
 
     MandateSingleUseNo3DSAutoCapture: getCustomExchange({
       Configs: {
@@ -1044,7 +1063,6 @@ export const connectorDetails = {
       },
     }),
   },
-
   pm_list: {
     PmListResponse: {
       PmListNull: {

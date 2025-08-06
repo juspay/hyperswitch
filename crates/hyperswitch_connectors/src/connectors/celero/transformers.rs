@@ -185,10 +185,29 @@ impl TryFrom<&PaymentMethodData> for CeleroPaymentMethod {
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::MobilePayment(_) => {
-                Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
-            }
+            | PaymentMethodData::MobilePayment(_) => Err(errors::ConnectorError::NotImplemented(
+                "Selected payment method through celero".to_string(),
+            )
+            .into()),
         }
+    }
+}
+
+// Implementation for handling 3DS specifically
+impl TryFrom<(&PaymentMethodData, bool)> for CeleroPaymentMethod {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from((item, is_three_ds): (&PaymentMethodData, bool)) -> Result<Self, Self::Error> {
+        // If 3DS is requested, return an error
+        if is_three_ds {
+            return Err(errors::ConnectorError::NotSupported {
+                message: "Cards 3DS".to_string(),
+                connector: "celero",
+            }
+            .into());
+        }
+
+        // Otherwise, delegate to the standard implementation
+        Self::try_from(item)
     }
 }
 
@@ -214,14 +233,18 @@ impl TryFrom<&CeleroRouterData<&PaymentsAuthorizeRouterData>> for CeleroPayments
             .get_optional_shipping()
             .and_then(|address| address.try_into().ok());
 
+        // Check if 3DS is requested
+        let is_three_ds = item.router_data.is_three_ds();
+
         let request = Self {
             idempotency_key: item.router_data.connector_request_reference_id.clone(),
             transaction_type,
             amount: item.amount,
             currency: item.router_data.request.currency,
-            payment_method: CeleroPaymentMethod::try_from(
+            payment_method: CeleroPaymentMethod::try_from((
                 &item.router_data.request.payment_method_data,
-            )?,
+                is_three_ds,
+            ))?,
             billing_address,
             shipping_address,
             create_vault_record: Some(false),
