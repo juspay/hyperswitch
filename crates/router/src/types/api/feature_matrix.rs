@@ -59,6 +59,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Bluesnap => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Bluesnap::new())))
                 }
+                enums::Connector::Bluecode => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Bluecode::new())))
+                }
                 // enums::Connector::Bluecode => {
                 //     Ok(ConnectorEnum::Old(Box::new(connector::Bluecode::new())))
                 // }
@@ -234,8 +237,14 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Opennode => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Opennode)))
                 }
+                enums::Connector::Phonepe => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Phonepe::new())))
+                }
                 enums::Connector::Paybox => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Paybox::new())))
+                }
+                enums::Connector::Paytm => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Paytm::new())))
                 }
                 // "payeezy" => Ok(ConnectorIntegrationEnum::Old(Box::new(&connector::Payeezy)), As psync and rsync are not supported by this connector, it is added as template code for future usage
                 // enums::Connector::Payload => {
@@ -350,6 +359,9 @@ impl FeatureMatrixConnectorData {
                 }
                 enums::Connector::Signifyd => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Signifyd)))
+                }
+                enums::Connector::Silverflow => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Silverflow::new())))
                 }
                 enums::Connector::Riskified => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Riskified::new())))

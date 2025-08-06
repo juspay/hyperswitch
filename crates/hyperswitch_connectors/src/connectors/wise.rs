@@ -700,7 +700,7 @@ impl IncomingWebhook for Wise {
 
 static WISE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Wise",
-    description: "Wells Fargo Payouts streamlines secure domestic and international payments for businesses via online banking, supporting Bill Pay, Digital Wires, and Zelle",
+    description: "The Wise connector enables cross-border money transfers by integrating with Wise's API to initiate, track, and manage international payouts efficiently.",
     connector_type: common_enums::HyperswitchConnectorCategory::PayoutProcessor,
     integration_status: common_enums::ConnectorIntegrationStatus::Sandbox,
 };
