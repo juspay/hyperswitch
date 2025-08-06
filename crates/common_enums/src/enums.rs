@@ -2627,6 +2627,8 @@ pub enum DisputeStage {
     #[default]
     Dispute,
     PreArbitration,
+    Arbitration,
+    DisputeReversal,
 }
 
 /// Status of the dispute
@@ -3125,6 +3127,7 @@ pub enum FileUploadProvider {
     Router,
     Stripe,
     Checkout,
+    Worldpayvantiv,
 }
 
 #[derive(
@@ -8620,6 +8623,8 @@ pub enum ProcessTrackerRunner {
     AttachPayoutAccountWorkflow,
     PaymentMethodStatusUpdateWorkflow,
     PassiveRecoveryWorkflow,
+    ProcessDisputeWorkflow,
+    DisputeListWorkflow,
 }
 
 #[derive(Debug)]

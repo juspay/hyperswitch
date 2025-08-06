@@ -10404,7 +10404,9 @@
         "enum": [
           "pre_dispute",
           "dispute",
-          "pre_arbitration"
+          "pre_arbitration",
+          "arbitration",
+          "dispute_reversal"
         ]
       },
       "DisputeStatus": {
