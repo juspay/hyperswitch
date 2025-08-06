@@ -1,15 +1,11 @@
 use std::collections::HashMap;
-use async_trait::async_trait;
+
 use common_utils::{date_time, errors::CustomResult, id_type};
 use time::{Date, OffsetDateTime};
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 use serde::{Deserialize, Serialize};
-use storage_impl::{
-    kv_router_store::KVRouterStore,
-    redis::kv_store::RedisConnInterface,
-    DatabaseStore,
-};
+use storage_impl::redis::kv_store::RedisConnInterface;
 use crate::SessionState;
 use time::Duration;
 use redis_interface::SetnxReply;
@@ -20,10 +16,6 @@ use crate::db::errors;
 // Constants for retry window management
 const RETRY_WINDOW_DAYS: i64 = 30;
 const INITIAL_RETRY_COUNT: u64 = 0;
-
-// Redis key prefixes
-const CUSTOMER_STATUS_KEY_PREFIX: &str = "customer";
-const CUSTOMER_TOKENS_KEY_PREFIX: &str = "customer";
 
 /// Represents the status and retry history of a payment processor token 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -41,155 +33,54 @@ pub struct PaymentProcessorTokenStatus {
 }
 
 /// Customer tokens data structure
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CustomerTokensData {
     pub connector_customer_id: id_type::CustomerId,
-    pub payment_processor_token_info_list: HashMap<String, PaymentProcessorTokenStatus>,
+    pub payment_processor_token_info_map: HashMap<String, PaymentProcessorTokenStatus>,
 }
 
-/// Redis-based token management with customer locking
-#[async_trait]
-pub trait RedisTokenManager {
-    // Core Redis operations
-    async fn process_connector_customer_payment_processor_tokens(
-        &self,
-        connector_customer_id: &id_type::CustomerId,
-        payment_id: &id_type::GlobalPaymentId,
-        payment_intent_token_info: Vec<(String, String)>, // (token_id, error_code)
-    ) -> CustomResult<Option<CustomerTokensData>, errors::StorageError>;
-
-    /// Lock connector customer status 
-    async fn lock_connector_customer_status(
-        &self,
-        connector_customer_id: &id_type::CustomerId,
-        payment_id: &id_type::GlobalPaymentId,
-    ) -> CustomResult<bool, errors::StorageError>;
-
-    /// Unlock connector customer status
-    async fn unlock_connector_customer_status(
-        &self,
-        connector_customer_id: &id_type::CustomerId,
-    ) -> CustomResult<bool, errors::StorageError>;
-
-    /// Get all payment processor tokens for a connector customer
-    async fn get_connector_customer_payment_processor_tokens(
-        &self,
-        connector_customer_id: &id_type::CustomerId,
-    ) -> CustomResult<HashMap<String, PaymentProcessorTokenStatus>, errors::StorageError>;
-
-    /// Update connector customer payment processor tokens
-    async fn update_connector_customer_payment_processor_tokens(
-        &self,
-        connector_customer_id: &id_type::CustomerId,
-        payment_processor_token_info_list: HashMap<String, PaymentProcessorTokenStatus>,
-    ) -> CustomResult<(), errors::StorageError>;
-
-    /// Get current date in yyyy-mm-dd format
-    fn get_current_date(&self) -> String;
-
-    /// Normalize retry window to exactly 30 days (today to 29 days ago)
-    fn normalize_retry_window(&self, token: &mut PaymentProcessorTokenStatus, today: Date);
-
-    /// Select payment processor token with lowest retry count from valid tokens
-    fn select_payment_processor_token_with_lowest_retries(&self, payment_processor_token_info_list: HashMap<String, PaymentProcessorTokenStatus>) -> Option<(String, PaymentProcessorTokenStatus)>;
-
-    /// Check if payment processor token is within retry limits (both daily and 30-day)
-    fn is_payment_processor_token_threshold_exceeded(
-        &self,
-        state: &SessionState,
-        token: &PaymentProcessorTokenStatus,
-        today: Date,
-        network_type: NetworkType,
-    ) -> bool;
-
-    /// Filter out payment processor tokens that exceed daily or 30-day retry limits
-    fn filter_payment_processor_tokens_by_retry_limits(
-        &self,
-        state: &SessionState,
-        payment_processor_token_info_list: &HashMap<String, PaymentProcessorTokenStatus>,
-    ) -> HashMap<String, PaymentProcessorTokenStatus>;
-
-    /// Find the best payment processor token for a connector customer 
-    async fn select_best_payment_processor_token_for_connector_customer(
-        &self,
-        state: &SessionState,
-        connector_customer_id: &id_type::CustomerId,
-        payment_id: &id_type::GlobalPaymentId,
-        payment_intent_token_info: Vec<(String, String)>, // (token_id, error_code)
-    ) -> CustomResult<Option<(String, OffsetDateTime)>, errors::StorageError>;
-
-    /// Delete a specific payment processor token using token ID
-    async fn delete_payment_processor_token_using_token_id(
-        &self,
-        connector_customer_id: &id_type::CustomerId,
-        payment_processor_token_id: &str,
-    ) -> CustomResult<bool, errors::StorageError>;
-
-    /// Update error code for a specific payment processor token
-    async fn update_payment_processor_token_error_code(
-        &self,
-        connector_customer_id: &id_type::CustomerId,
-        payment_processor_token_id: &str,
-        error_code: String,
-    ) -> CustomResult<bool, errors::StorageError>;
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaymentProcessorTokenUnits {
+    pub units: HashMap<String, PaymentProcessorTokenUnit>,
 }
 
-#[async_trait]
-impl<T: DatabaseStore + Send + Sync> RedisTokenManager for KVRouterStore<T> {
-    #[instrument(skip_all)]
-    async fn process_connector_customer_payment_processor_tokens(
-        &self,
-        connector_customer_id: &id_type::CustomerId,
-        payment_id: &id_type::GlobalPaymentId,
-        payment_intent_token_info: Vec<(String, String)>, 
-    ) -> CustomResult<Option<CustomerTokensData>, errors::StorageError> {
-        // Try to lock connector customer status
-        if !self.lock_connector_customer_status(connector_customer_id, payment_id).await? {
-            tracing::info!(
-                connector_customer_id = connector_customer_id.get_string_repr(),
-                payment_id = payment_id.get_string_repr(),
-                "Customer is already locked by another invoice"
-            );
-            return Ok(None);
-        }
-    
-        // Fetch all existing payment processor tokens 
-        let mut existing_payment_processor_tokens = match self.get_connector_customer_payment_processor_tokens(connector_customer_id).await {
-            Ok(payment_processor_token_info_list) => payment_processor_token_info_list,
-            Err(redis_error) => {
-                let _ = self.unlock_connector_customer_status(connector_customer_id).await;
-                return Err(redis_error);
-            }
-        };
-    
-    
-        for (payment_processor_token_id, error_code) in &payment_intent_token_info {
-            if !existing_payment_processor_tokens.contains_key(payment_processor_token_id) {
-                let new_payment_processor_token = PaymentProcessorTokenStatus {
-                    id: payment_processor_token_id.clone(),
-                    network: NetworkType::Visa, // Default network, should be provided in token_list
-                    inserted_by_payment_id: payment_id.get_string_repr().to_string(),
-                    error_code: error_code.clone(),
-                    daily_retry_history: HashMap::new(),
-                };
-                existing_payment_processor_tokens.insert(payment_processor_token_id.clone(), new_payment_processor_token);
-            }
-        }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaymentProcessorTokenUnit {
+    pub error_code: Option<String>,
+    pub card_network: Option<NetworkType>,
+}
 
-    
-        Ok(Some(CustomerTokensData {
-            connector_customer_id: connector_customer_id.clone(),
-            payment_processor_token_info_list: existing_payment_processor_tokens,
-        }))
-    }
+/// Token retry availability information with detailed wait times
+#[derive(Debug, Clone)]
+pub struct TokenRetryInfo {
+    pub monthly_wait_hours: u64,   // Hours to wait for 30-day limit reset
+    pub daily_wait_hours: u64,     // Hours to wait for daily limit reset  
+    pub total_30_day_retries: u64, // Current total retry count in 30-day window
+}
 
+/// Complete token information with retry limits and wait times
+#[derive(Debug, Clone)]
+pub struct PaymentProcessorTokenWithRetryInfo {
+    /// The complete token status information
+    pub token_status: PaymentProcessorTokenStatus,
+    /// Hours to wait before next retry attempt (max of daily/monthly wait)
+    pub retry_wait_time_hours: u64,
+    /// Number of retries remaining in the 30-day rolling window
+    pub monthly_retry_remaining: u64,
+}
+
+/// Redis-based token management struct
+pub struct RedisTokenManager;
+
+impl RedisTokenManager {
+    /// Lock connector customer status using SETNX
     #[instrument(skip_all)]
-    async fn lock_connector_customer_status(
-        &self,
+    pub async fn lock_connector_customer_status(
+        state: &SessionState,
         connector_customer_id: &id_type::CustomerId,
         payment_id: &id_type::GlobalPaymentId,
     ) -> CustomResult<bool, errors::StorageError> {
-        let redis_conn = self
+        let redis_conn = state.store
             .get_redis_conn()
             .change_context(errors::StorageError::KVError)?;
 
@@ -216,12 +107,13 @@ impl<T: DatabaseStore + Send + Sync> RedisTokenManager for KVRouterStore<T> {
         Ok(result)
     }
 
+    /// Unlock connector customer status
     #[instrument(skip_all)]
-    async fn unlock_connector_customer_status(
-        &self,
+    pub async fn unlock_connector_customer_status(
+        state: &SessionState,
         connector_customer_id: &id_type::CustomerId,
     ) -> CustomResult<bool, errors::StorageError> {
-        let redis_conn = self.get_redis_conn()
+        let redis_conn = state.store.get_redis_conn()
             .change_context(errors::StorageError::KVError)?;
 
         let lock_key = format!("customer:{}:status", connector_customer_id.get_string_repr());
@@ -239,12 +131,13 @@ impl<T: DatabaseStore + Send + Sync> RedisTokenManager for KVRouterStore<T> {
         }
     }
 
+    /// Get all payment processor tokens for a connector customer
     #[instrument(skip_all)]
-    async fn get_connector_customer_payment_processor_tokens(
-        &self,
+    pub async fn get_connector_customer_payment_processor_tokens(
+        state: &SessionState,
         connector_customer_id: &id_type::CustomerId,
     ) -> CustomResult<HashMap<String, PaymentProcessorTokenStatus>, errors::StorageError> {
-        let redis_conn = self
+        let redis_conn = state.store
             .get_redis_conn()
             .change_context(errors::StorageError::KVError)?;
 
@@ -255,13 +148,12 @@ impl<T: DatabaseStore + Send + Sync> RedisTokenManager for KVRouterStore<T> {
             .await
             .change_context(errors::StorageError::KVError)?;
 
-
-        let mut payment_processor_token_info_list = HashMap::new();
+        let mut payment_processor_token_info_map = HashMap::new();
         
         for (token_id, payment_processor_token_data_str) in payment_processor_tokens {
             match serde_json::from_str::<PaymentProcessorTokenStatus>(&payment_processor_token_data_str) {
                 Ok(token_status) => {
-                    payment_processor_token_info_list.insert(token_id, token_status);
+                    payment_processor_token_info_map.insert(token_id, token_status);
                 }
                 Err(error) => {
                     tracing::warn!(
@@ -273,23 +165,17 @@ impl<T: DatabaseStore + Send + Sync> RedisTokenManager for KVRouterStore<T> {
                 }
             }
         }
-
-        tracing::debug!(
-            connector_customer_id = %connector_customer_id.get_string_repr(),
-            token_count = %payment_processor_token_info_list.len(),
-            "Retrieved customer payment_processor_token_info_list"
-        );
-
-        Ok(payment_processor_token_info_list)
+        Ok(payment_processor_token_info_map)
     }
 
+    /// Update connector customer payment processor tokens
     #[instrument(skip_all)]
-    async fn update_connector_customer_payment_processor_tokens(
-        &self,
+    pub async fn update_connector_customer_payment_processor_tokens(
+        state: &SessionState,
         connector_customer_id: &id_type::CustomerId,
-        payment_processor_token_info_list: HashMap<String, PaymentProcessorTokenStatus>,
+        payment_processor_token_info_map: HashMap<String, PaymentProcessorTokenStatus>,
     ) -> CustomResult<(), errors::StorageError> {
-        let redis_conn = self
+        let redis_conn = state.store
             .get_redis_conn()
             .change_context(errors::StorageError::KVError)?;
 
@@ -297,7 +183,7 @@ impl<T: DatabaseStore + Send + Sync> RedisTokenManager for KVRouterStore<T> {
         
         // Serialize all tokens
         let mut serialized_payment_processor_tokens = HashMap::new();
-        for (payment_processor_token_id, payment_processor_token_status) in payment_processor_token_info_list {
+        for (payment_processor_token_id, payment_processor_token_status) in payment_processor_token_info_map {
             let serialized = serde_json::to_string(&payment_processor_token_status)
                 .change_context(errors::StorageError::SerializationFailed)
                 .attach_printable("Failed to serialize token status")?;
@@ -306,7 +192,7 @@ impl<T: DatabaseStore + Send + Sync> RedisTokenManager for KVRouterStore<T> {
 
         // Update all tokens in a single HSET operation
         redis_conn
-            .set_hash_fields(&tokens_key.into(), serialized_payment_processor_tokens,None)
+            .set_hash_fields(&tokens_key.into(), serialized_payment_processor_tokens, None)
             .await
             .change_context(errors::StorageError::KVError)?;
 
@@ -318,12 +204,14 @@ impl<T: DatabaseStore + Send + Sync> RedisTokenManager for KVRouterStore<T> {
         Ok(())
     }
 
-    fn get_current_date(&self) -> String {
+    /// Get current date in yyyy-mm-dd format
+    pub fn get_current_date() -> String {
         let today = date_time::now().date();
         format!("{:04}-{:02}-{:02}", today.year(), today.month() as u8, today.day())
     }
 
-    fn normalize_retry_window(&self, payment_processor_token: &mut PaymentProcessorTokenStatus, today: Date) {
+    /// Normalize retry window to exactly 30 days (today to 29 days ago)
+    pub fn normalize_retry_window(payment_processor_token: &mut PaymentProcessorTokenStatus, today: Date) {
         let mut normalized_map_for_retry_count = HashMap::new();
         
         // Create exactly 30 entries (today to 29 days ago)
@@ -336,140 +224,117 @@ impl<T: DatabaseStore + Send + Sync> RedisTokenManager for KVRouterStore<T> {
         payment_processor_token.daily_retry_history = normalized_map_for_retry_count;
     }
 
-    fn select_payment_processor_token_with_lowest_retries(&self, payment_processor_token_info_list: HashMap<String, PaymentProcessorTokenStatus>) -> Option<(String, PaymentProcessorTokenStatus)> {
-        let mut best_token = None;
-        let mut lowest_retry_count = u64::MAX;
-        
-        for (token_id, token_status) in payment_processor_token_info_list {
-            let total_retries: u64 = token_status.daily_retry_history.values().sum();
-            
-            if total_retries < lowest_retry_count {
-                lowest_retry_count = total_retries;
-                best_token = Some((token_id, token_status));
-            }
+    /// Get all payment processor tokens with retry information and wait times
+    /// This function calculates wait times for all tokens without normalizing
+    pub fn filter_payment_processor_tokens_by_retry_limits(
+        state: &SessionState,
+        payment_processor_token_info_map: &HashMap<String, PaymentProcessorTokenStatus>,
+    ) -> HashMap<String, PaymentProcessorTokenWithRetryInfo> {
+        let today = OffsetDateTime::now_utc().date();
+        let mut result = HashMap::new();
+
+        for (payment_processor_token_id, payment_processor_token_status) in payment_processor_token_info_map.iter() {
+            // Calculate retry information (no normalization here)
+            let retry_info = Self::payment_processor_token_retry_info(
+                state, 
+                payment_processor_token_status, 
+                today, 
+                payment_processor_token_status.network.clone()
+            );
+
+            // Calculate wait time (max of monthly and daily wait)
+            let retry_wait_time_hours = retry_info.monthly_wait_hours.max(retry_info.daily_wait_hours);
+
+            // Calculate remaining retries in 30-day window
+            let card_network_config = RetryLimitsConfig::get_network_config(payment_processor_token_status.network.clone(), state);
+            let monthly_retry_remaining = card_network_config.retry_count_30_day.saturating_sub(retry_info.total_30_day_retries);
+
+            // Create the result struct with token info
+            let token_with_retry_info = PaymentProcessorTokenWithRetryInfo {
+                token_status: payment_processor_token_status.clone(),
+                retry_wait_time_hours,
+                monthly_retry_remaining,
+            };
+
+            result.insert(payment_processor_token_id.clone(), token_with_retry_info);
         }
-        
-        best_token
+
+        result
     }
 
-    
-    fn is_payment_processor_token_threshold_exceeded(
-        &self,
+    /// Check if payment processor token is within retry limits 
+    /// This function safely calculates retry counts for exactly the last 30 days
+    pub fn payment_processor_token_retry_info(
         state: &SessionState,
         token: &PaymentProcessorTokenStatus,
         today: Date,
         network_type: NetworkType,
-    ) -> bool {
+    ) -> TokenRetryInfo {
         let card_network_config = RetryLimitsConfig::get_network_config(network_type, state);
+        let now = OffsetDateTime::now_utc();
 
-        // Check daily limit
-        let today_retries = token.daily_retry_history.get(&today).copied().unwrap_or(INITIAL_RETRY_COUNT);
-        if today_retries >= card_network_config.max_daily_retry_count {
-            return false;
+        // SAFE calculation: Calculate total for exactly the last 30 days (rolling window)
+        let mut total_30_day_retries = 0;
+        for i in 0..RETRY_WINDOW_DAYS {
+            let date = today - Duration::days(i);
+            total_30_day_retries += token.daily_retry_history.get(&date).copied().unwrap_or(INITIAL_RETRY_COUNT);
         }
 
-        // Check 30-day limit
-        let total_retries: u64 = token.daily_retry_history.values().sum();
-        if total_retries >= card_network_config.retry_count_30_day {
-            return false;
-        }
-
-        true
-    }
-
-    fn filter_payment_processor_tokens_by_retry_limits(
-        &self,
-        state: &SessionState,
-        payment_processor_token_info_list: &HashMap<String, PaymentProcessorTokenStatus>,
-    ) -> HashMap<String, PaymentProcessorTokenStatus> {
-        let today = OffsetDateTime::now_utc().date();
-
-        payment_processor_token_info_list
-            .iter()
-            .filter_map(|(payment_processor_token_id, payment_processor_token_status)| {
-                let mut payment_processor_token_status = payment_processor_token_status.clone(); 
-                self.normalize_retry_window(&mut payment_processor_token_status, today);
-
-                if self.is_payment_processor_token_threshold_exceeded(state, &payment_processor_token_status, today, payment_processor_token_status.network.clone()) {
-                    Some((payment_processor_token_id.clone(), payment_processor_token_status))
-                } else {
-                    tracing::info!(
-                        payment_processor_token_id = %payment_processor_token_id,
-                        card_network = ?payment_processor_token_status.network,
-                        "Token filtered out due to retry limit exceeded"
-                    );
-                    None
+        // 1. Check 30-day limit FIRST (monthly check)
+        let monthly_wait_hours = if total_30_day_retries >= card_network_config.retry_count_30_day {
+            // Find the oldest retry date in the 30-day window and calculate when it expires
+            let mut oldest_date_with_retries = None;
+            for i in 0..RETRY_WINDOW_DAYS {
+                let date = today - Duration::days(i);
+                if token.daily_retry_history.get(&date).copied().unwrap_or(0) > 0 {
+                    oldest_date_with_retries = Some(date);
                 }
-            })
-            .collect()
-    }
-
-    #[instrument(skip_all)]
-    async fn select_best_payment_processor_token_for_connector_customer(
-        &self,
-        state: &SessionState,
-        connector_customer_id: &id_type::CustomerId,
-        payment_id: &id_type::GlobalPaymentId,
-        payment_intent_token_info: Vec<(String, String)>, // (token_id, error_code)
-    ) -> CustomResult<Option<(String, OffsetDateTime)>, errors::StorageError> {
-        // Process connector customer payment processor tokens with locking
-        let mut customer_data = match self.process_connector_customer_payment_processor_tokens(connector_customer_id, payment_id, payment_intent_token_info).await? {
-            Some(data) => data,
-            None => return Ok(None), 
+            }
+            
+            if let Some(oldest_date) = oldest_date_with_retries {
+                let expiry_time = (oldest_date + Duration::days(31)).midnight().assume_utc();
+                let hours_until_expiry = (expiry_time - now).whole_hours().max(0) as u64;
+                hours_until_expiry
+            } else {
+                0 // No retry history, so no wait needed
+            }
+        } else {
+            0 // Monthly limit not exceeded
         };
 
-        if customer_data.payment_processor_token_info_list.is_empty() {
-            return Ok(None);
+        // 2. Check daily limit SECOND
+        let today_retries = token.daily_retry_history.get(&today).copied().unwrap_or(INITIAL_RETRY_COUNT);
+        let daily_wait_hours = if today_retries >= card_network_config.max_daily_retry_count {
+            // Calculate hours until tomorrow (next day reset)
+            let tomorrow = today + Duration::days(1);
+            let tomorrow_midnight = tomorrow.midnight().assume_utc();
+            let hours_until_tomorrow = (tomorrow_midnight - now).whole_hours().max(0) as u64;
+            hours_until_tomorrow
+        } else {
+            0 // Daily limit not exceeded
+        };
+
+        TokenRetryInfo {
+            monthly_wait_hours,
+            daily_wait_hours,
+            total_30_day_retries,
         }
-
-        // Filter payment processor tokens by retry limits
-        let available_payment_processor_tokens = self.filter_payment_processor_tokens_by_retry_limits(state, &customer_data.payment_processor_token_info_list);
-
-        if available_payment_processor_tokens.is_empty() {
-            tracing::warn!(
-                connector_customer_id = %connector_customer_id.get_string_repr(),
-                "All tokens exceed retry limits"
-            );
-            let _ = self.unlock_connector_customer_status(connector_customer_id).await;
-            return Ok(None);
-        }
-
-        let mut selected_payment_processor_token_id: Option<String> = None;
-
-        // Select best payment processor token with lowest retry count
-        if let Some((best_token_id, status)) = self.select_payment_processor_token_with_lowest_retries(available_payment_processor_tokens) {
-            if let Some(payment_processor_token_status) = customer_data.payment_processor_token_info_list.get_mut(&best_token_id) {
-                *payment_processor_token_status = status.clone();
-                selected_payment_processor_token_id = Some(status.id.clone());
-            }
-        }
-
-        // Update Redis
-        if let Err(error) = self.update_connector_customer_payment_processor_tokens(connector_customer_id, customer_data.payment_processor_token_info_list.clone()).await {
-            let _ = self.unlock_connector_customer_status(connector_customer_id).await;
-            return Err(error);
-        }
-
-        // Return selected payment processor token and schedule time
-        if let Some(token_id) = selected_payment_processor_token_id {
-            let now = OffsetDateTime::now_utc();
-            return Ok(Some((token_id, now)));
-        }
-
-        Ok(None)
     }
 
+    
+
+    /// Delete a specific payment processor token using token ID
     #[instrument(skip_all)]
-    async fn delete_payment_processor_token_using_token_id(
-        &self,
+    pub async fn delete_payment_processor_token_using_token_id(
+        state: &SessionState,
         connector_customer_id: &id_type::CustomerId,
         payment_processor_token_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
         // Get all existing payment processor tokens
-        let mut payment_processor_token_info_list = self.get_connector_customer_payment_processor_tokens(connector_customer_id).await?;
+        let mut payment_processor_token_info_map = Self::get_connector_customer_payment_processor_tokens(state, connector_customer_id).await?;
         
         // Check if the token exists and remove it
-        if payment_processor_token_info_list.remove(payment_processor_token_id).is_none() {
+        if payment_processor_token_info_map.remove(payment_processor_token_id).is_none() {
             tracing::warn!(
                 connector_customer_id = %connector_customer_id.get_string_repr(),
                 payment_processor_token_id = %payment_processor_token_id,
@@ -478,7 +343,7 @@ impl<T: DatabaseStore + Send + Sync> RedisTokenManager for KVRouterStore<T> {
             return Ok(false);
         }
 
-        let redis_conn = self
+        let redis_conn = state.store
             .get_redis_conn()
             .change_context(errors::StorageError::KVError)?;
 
@@ -489,52 +354,95 @@ impl<T: DatabaseStore + Send + Sync> RedisTokenManager for KVRouterStore<T> {
             .change_context(errors::StorageError::KVError)?;
 
         // Recreate hash with remaining tokens (if any)
-        if !payment_processor_token_info_list.is_empty() {
-            self.update_connector_customer_payment_processor_tokens(connector_customer_id, payment_processor_token_info_list).await?;
+        if !payment_processor_token_info_map.is_empty() {
+            Self::update_connector_customer_payment_processor_tokens(state, connector_customer_id, payment_processor_token_info_map).await?;
         }
 
         tracing::info!(
-            connector_customer_id = %connector_customer_id.get_string_repr(),
-            payment_processor_token_id = %payment_processor_token_id,
             "Successfully deleted payment processor token"
         );
 
         Ok(true)
     }
 
+    /// Update error code and increment retry count for a specific payment processor token
     #[instrument(skip_all)]
-    async fn update_payment_processor_token_error_code(
-        &self,
+    pub async fn update_payment_processor_token_error_code_retry_count(
+        state: &SessionState,
         connector_customer_id: &id_type::CustomerId,
         payment_processor_token_id: &str,
         error_code: String,
     ) -> CustomResult<bool, errors::StorageError> {
         // Get all existing payment processor tokens
-        let mut payment_processor_token_info_list = self.get_connector_customer_payment_processor_tokens(connector_customer_id).await?;
+        let mut payment_processor_token_info_map = Self::get_connector_customer_payment_processor_tokens(state, connector_customer_id).await?;
         
         // Find and update the specific token
-        if let Some(payment_processor_token_status) = payment_processor_token_info_list.get_mut(payment_processor_token_id) {
-            // Update only the error code, keeping all other fields unchanged
+        if let Some(payment_processor_token_status) = payment_processor_token_info_map.get_mut(payment_processor_token_id) {
+            
+            let today = OffsetDateTime::now_utc().date();
+            
+            // Normalize retry window first (clean up old data and ensure 30-day window)
+            Self::normalize_retry_window(payment_processor_token_status, today);
+            
+            // Update the error code
             payment_processor_token_status.error_code = error_code.clone();
+            
+            // Increment today's retry count by +1
+            let current_retry_count = payment_processor_token_status.daily_retry_history.get(&today).copied().unwrap_or(INITIAL_RETRY_COUNT);
+            payment_processor_token_status.daily_retry_history.insert(today, current_retry_count + 1);
 
             // Update Redis with the modified token
-            self.update_connector_customer_payment_processor_tokens(connector_customer_id, payment_processor_token_info_list).await?;
+            Self::update_connector_customer_payment_processor_tokens(state, connector_customer_id, payment_processor_token_info_map).await?;
 
             tracing::info!(
-                connector_customer_id = %connector_customer_id.get_string_repr(),
-                payment_processor_token_id = %payment_processor_token_id,
-                new_error_code = %error_code,
-                "Successfully updated payment processor token error code"
+                "Successfully updated payment processor token error code and incremented retry count"
             );
 
             Ok(true)
         } else {
             tracing::warn!(
-                connector_customer_id = %connector_customer_id.get_string_repr(),
-                payment_processor_token_id = %payment_processor_token_id,
-                "Token not found for error code update"
+                "Token not found for error code and retry count update"
             );
             Ok(false)
         }
+    }
+
+    /// Add payment processor tokens for a connector customer only if they don't already exist
+    #[instrument(skip_all)]
+    pub async fn add_connector_customer_payment_processor_tokens_if_doesnot_exist(
+        state: &SessionState,
+        connector_customer_id: &id_type::CustomerId,
+        new_tokens: HashMap<String, PaymentProcessorTokenUnit>,
+        inserted_by_payment_id: &id_type::GlobalPaymentId,
+    ) -> CustomResult<(), errors::StorageError> {
+        // Get existing tokens to check what already exists
+        let existing_tokens = Self::get_connector_customer_payment_processor_tokens(state, connector_customer_id).await?;
+        
+        // Filter out tokens that already exist
+        let mut tokens_to_add = HashMap::new();
+        let mut newly_added_token_ids = Vec::new();
+        
+        for (token_id, token_unit) in new_tokens {
+            if !existing_tokens.contains_key(&token_id) {
+                
+                let new_payment_processor_token = PaymentProcessorTokenStatus {
+                    id: token_id.clone(),
+                    network: token_unit.card_network.unwrap_or(NetworkType::Visa), // fallback to Visa
+                    inserted_by_payment_id: inserted_by_payment_id.get_string_repr().to_string(),
+                    error_code: token_unit.error_code.unwrap_or_default(),
+                    daily_retry_history: HashMap::new(),
+                };
+                tokens_to_add.insert(token_id.clone(), new_payment_processor_token);
+                newly_added_token_ids.push(token_id);
+            }
+        }
+        if !tokens_to_add.is_empty() {
+            Self::update_connector_customer_payment_processor_tokens(state, connector_customer_id, tokens_to_add).await?;
+            tracing::info!(
+                "Successfully added new payment processor tokens"
+            );
+        }
+    
+        Ok(())
     }
 }

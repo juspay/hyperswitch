@@ -204,39 +204,91 @@ pub(crate) async fn get_schedule_time_to_retry_mit_payments(
     scheduler_utils::get_time_from_delta(time_delta)
 }
 
-// #[cfg(feature = "v2")]
-// pub async fn get_best_psp_token_available(
-//     state: &SessionState,
-//     customer_id: id_type::CustomerId,
-//     psp_token_list: Vec<String>,
-//     intent_id: &str,
-//     merchant_id: &id_type::MerchantId,
-//     payment_intent_id: String,
-// ) -> Result<Option<PspTokenStatus>, errors::ProcessTrackerError> {
-//     logger::info!(
-//         customer_id = %customer_id.get_string_repr(),
-//         intent_id = %intent_id,
-//         psp_token_count = %psp_token_list.len(),
-//         "Starting PSP token selection process"
-//     );
+#[cfg(feature = "v2")]
+pub async fn get_best_psp_token_available(
+    state: &SessionState,
+    connector_customer_id: id_type::CustomerId,
+    payment_id: &id_type::GlobalPaymentId,
+    psp_token_units: crate::types::storage::revenue_recovery_redis_operation::PaymentProcessorTokenUnits,
+) -> Result<Option<String>, errors::ProcessTrackerError> {
+    use crate::types::storage::revenue_recovery_redis_operation::RedisTokenManager;
 
-//     // TODO: Implement the full logic here
-//     // This function should:
-//     // 1. Insert/update PSP tokens in Redis
-//     // 2. Filter available (unlocked) tokens
-//     // 3. Check for success tokens first
-//     // 4. If no success tokens, call get_schedule_time_for_smart_retry for each token
-//     // 5. Select the best token and lock it
-    
-//     // For now, return None as placeholder
-//     // You can call get_schedule_time_for_smart_retry like this:
-//     // let _schedule_time = pcr::get_schedule_time_for_smart_retry(
-//     //     state,
-//     //     &payment_attempt,
-//     //     &payment_intent,
-//     //     retry_count,
-//     // ).await?;
-    
-//     logger::warn!("get_best_psp_token_available is not yet implemented");
-//     Ok(None)
-// }
+    logger::info!(
+        connector_customer_id = %connector_customer_id.get_string_repr(),
+        payment_id = %payment_id.get_string_repr(),
+        psp_token_count = %psp_token_units.units.len(),
+        "Starting PSP token selection process"
+    );
+
+    // Step 1: Get existing tokens from Redis
+    let existing_tokens = RedisTokenManager::get_connector_customer_payment_processor_tokens(
+        state, 
+        &connector_customer_id
+    )
+    .await?;
+
+    logger::debug!(
+        connector_customer_id = %connector_customer_id.get_string_repr(),
+        existing_token_count = %existing_tokens.len(),
+        "Retrieved existing payment processor tokens"
+    );
+
+    // Step 2: Insert into payment_intent_feature_metadata (DB operation)
+    // TODO: Implement DB insertion logic
+    // let _db_result = insert_payment_intent_feature_metadata(...).await?;
+    logger::debug!("Step 2: DB insertion for payment_intent_feature_metadata - TODO");
+
+    // Step 3: Lock using payment_id
+    let lock_acquired = RedisTokenManager::lock_connector_customer_status(
+        state,
+        &connector_customer_id,
+        payment_id,
+    )
+    .await?;
+
+    if !lock_acquired {
+        logger::info!(
+            "Customer is already locked by another process"
+        );
+        return Ok(None);
+    }
+
+    let result = RedisTokenManager::filter_payment_processor_tokens_by_retry_limits(
+        state,
+        &existing_tokens,
+    );
+
+    // Step 4: Call decider (not implemented yet)
+    // TODO: Implement decider logic
+    // let _decider_result = call_payment_processor_token_decider(...).await?;
+    logger::debug!("Step 4: Decider call - TODO");
+
+
+    // // Handle the result and ensure cleanup on error
+    // match result {
+    //     Ok(Some((token_id, _schedule_time))) => {
+    //         logger::info!(
+    //             connector_customer_id = %connector_customer_id.get_string_repr(),
+    //             payment_id = %payment_id.get_string_repr(),
+    //             selected_token_id = %token_id,
+    //             "Successfully selected best payment processor token"
+    //         );
+    //         Ok(Some(token_id))
+    //     }
+    //     Ok(None) => {
+    //         logger::warn!(
+    //             connector_customer_id = %connector_customer_id.get_string_repr(),
+    //             payment_id = %payment_id.get_string_repr(),
+    //             "No suitable payment processor token found"
+    //         );
+    //         Ok(None)
+    //     }
+    //     Err(e) => {
+    //         logger::error!(?e, "Failed to select best payment processor token");
+    //         // Ensure we unlock on error
+    //         let _ = RedisTokenManager::unlock_connector_customer_status(state, &connector_customer_id).await;
+    //         Err(e.into())
+    //     }
+    // }
+    Ok(None)
+}
