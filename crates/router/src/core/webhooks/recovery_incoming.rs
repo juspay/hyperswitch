@@ -271,7 +271,7 @@ pub struct RevenueRecoveryInvoice(revenue_recovery::RevenueRecoveryInvoiceData);
 pub struct RevenueRecoveryAttempt(revenue_recovery::RevenueRecoveryAttemptData);
 
 impl RevenueRecoveryInvoice {
-    pub async fn create_recovery_intent_from_api(
+    pub async fn load_custom_recovery_intent(
         data: api_models::payments::RecoveryPaymentsCreate,
         state: &SessionState,
         req_state: &ReqState,
@@ -284,8 +284,8 @@ impl RevenueRecoveryInvoice {
             merchant_reference_id: data.merchant_reference_id,
             billing_address: data.billing,
             retry_count: data.retry_count,
-            next_billing_at: data.next_billing_date,
             billing_started_at: data.billing_started_at,
+            next_billing_at:None ,
         });
         recovery_intent
             .get_payment_intent(&state, &req_state, &merchant_context, &profile)
@@ -435,7 +435,7 @@ impl RevenueRecoveryInvoice {
 }
 
 impl RevenueRecoveryAttempt {
-    pub async fn create_recovery_attempt_from_api(
+    pub async fn load_recovery_attempt_from_api(
         data: api_models::payments::RecoveryPaymentsCreate,
         state: &SessionState,
         req_state: &ReqState,
@@ -450,36 +450,8 @@ impl RevenueRecoveryAttempt {
         ),
         errors::RevenueRecoveryError,
     > {
-        let primary_token = &data.primary_processor_payment_method_token;
-        let (card_network, card_isin) = match data
-            .payment_method_units
-            .payment_method_data
-            .get(primary_token)
-        {
-            Some(api_payments::PaymentMethodDataResponse::Card(card_response_box)) => {
-                let card_response = card_response_box.as_ref();
-                let card_network = card_response.card_network.clone();
-                let card_iin = card_response.card_extended_bin.clone();
-
-                router_env::logger::info!(
-                    "Card network: {:?}, Card IIN: {:?}",
-                    card_network,
-                    card_iin
-                );
-                (card_network, card_iin)
-            }
-            Some(other) => {
-                router_env::logger::warn!("Unexpected payment method type: {:?}", other);
-                (None, None)
-            }
-            None => {
-                router_env::logger::warn!(
-                    "Primary payment method token {:?} not found in payment_method_data",
-                    primary_token
-                );
-                (None, None)
-            }
-        };
+        let primary_token = &data.primary_processor_payment_method_token.to_string();
+        let card_info = data.payment_method_units.units.get(primary_token);
         let recovery_attempt = Self(revenue_recovery::RevenueRecoveryAttemptData {
             amount: data.amount_details.order_amount().into(),
             currency: data.amount_details.currency(),
@@ -512,10 +484,10 @@ impl RevenueRecoveryAttempt {
                 .as_ref()
                 .and_then(|error| error.network_error_message.clone()),
             retry_count: data.retry_count,
-            invoice_next_billing_time: data.next_billing_date,
+            invoice_next_billing_time: None,
             invoice_billing_started_at_time: data.billing_started_at,
-            card_network: card_network,
-            card_isin: card_isin,
+            card_network: card_info.as_ref().and_then(|info|info.card_network.clone()),
+            card_isin: card_info.as_ref().and_then(|info|info.card_isin.clone()),
             charge_id: None,
         });
 
@@ -531,7 +503,7 @@ impl RevenueRecoveryAttempt {
                         merchant_context,
                         profile,
                         &payment_intent,
-                        &data.merchant_connector_id,
+                        &data.billing_merchant_connector_id,
                         Some(payment_merchant_connector_account),
                     )
                     .await
@@ -686,7 +658,7 @@ impl RevenueRecoveryAttempt {
         errors::RevenueRecoveryError,
     > {
         let payment_connector_id =   payment_connector_account.as_ref().map(|account: &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount| account.id.clone());
-        let request_payload = self
+        let request_payload: api_payments::PaymentsAttemptRecordRequest = self
             .create_payment_record_request(
                 state,
                 billing_connector_account_id,

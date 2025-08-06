@@ -124,28 +124,6 @@ pub async fn recovery_payments_create(
 ) -> impl Responder {
     let flow = Flow::RecoveryPaymentsCreate;
     let mut payload = json_payload.into_inner();
-    let billing_merchant_connector_id = payload.merchant_connector_id.clone();
-
-    let auth_type = if state.conf.merchant_id_auth.merchant_id_auth_enabled {
-        &auth::MerchantIdAuth
-    } else {
-        match env::which() {
-            env::Env::Production => &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
-            },
-            _ => auth::auth_type(
-                &auth::V2ApiKeyAuth {
-                    is_connected_allowed: false,
-                    is_platform_allowed: false,
-                },
-                &auth::JWTAuth {
-                    permission: Permission::ProfilePaymentWrite,
-                },
-                req.headers(),
-            ),
-        }
-    };
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -163,7 +141,10 @@ pub async fn recovery_payments_create(
                 req_payload,
             )
         },
-        auth_type,
+        &auth::V2ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await

@@ -1679,18 +1679,10 @@ pub struct RecoveryPaymentsResponse {
         example = "pay_mbabizu24mvu3mela5njyhpit4",
         value_type = String,
     )]
-    pub payment_id: id_type::GlobalPaymentId,
+    pub id: id_type::GlobalPaymentId,
 
     #[schema(value_type = IntentStatus, example = "failed", default = "requires_confirmation")]
     pub status: api_enums::IntentStatus,
-
-    /// The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
-    #[schema(value_type = i64, example = 6540)]
-    pub amount: MinorUnit,
-
-    /// Three-letter ISO currency code (e.g., USD, EUR) for the payment amount.
-    #[schema(value_type = Currency, example = "USD")]
-    pub currency: String,
 
     pub job_status: Option<common_enums::ProcessTrackerStatus>,
 }
@@ -4319,9 +4311,8 @@ pub struct PaymentMethodDataResponseWithBilling {
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, ToSchema, serde::Serialize)]
 pub struct CustomBillingPaymentMethodDataWithBilling {
-    /// The list processor payment method and their addtional payment method info
-    pub payment_method_data: HashMap<String, PaymentMethodDataResponse>,
-    pub billing: Option<Address>,
+    #[serde(flatten)]
+    pub units: HashMap<String, CardResponse>
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -9092,7 +9083,7 @@ pub struct RecoveryPaymentsCreate {
 
     /// Billing connector id to update the invoices.
     #[schema(value_type = String, example = "mca_1234567890")]
-    pub merchant_connector_id: id_type::MerchantConnectorAccountId,
+    pub billing_merchant_connector_id: id_type::MerchantConnectorAccountId,
 
     /// Payments connector id to update the invoices.
     #[schema(value_type = String, example = "mca_1234567890")]
@@ -9128,11 +9119,6 @@ pub struct RecoveryPaymentsCreate {
     /// customer id at payment connector for which mandate is attached.
     #[schema(value_type = String, example = "cust_12345")]
     pub connector_customer_id: String,
-
-    /// Next Billing time of the Invoice
-    #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub next_billing_date: Option<PrimitiveDateTime>,
 
     /// Invoice billing started at billing connector end.
     #[schema(example = "2022-09-10T10:11:12Z")]

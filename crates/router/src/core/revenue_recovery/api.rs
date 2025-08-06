@@ -242,35 +242,52 @@ pub async fn custom_revenue_recovery_core(
     profile: domain::Profile,
     request: api_models::payments::RecoveryPaymentsCreate,
 ) -> RouterResponse<payments_api::RecoveryPaymentsResponse> {
-    let recovery_intent =
-        recovery_incoming::RevenueRecoveryInvoice::create_recovery_intent_from_api(
-            request.clone(),
-            &state,
-            &req_state,
-            &merchant_context,
-            &profile,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
-            message: "get_revenue_recovery_intent was not constructed".to_string(),
-        })?;
-    let db = &*state.store;
-    let key_manager_state = &(&(state)).into();
+    let store = state.store.as_ref();
+    let key_manager_state = &(&state).into();
     let payment_merchant_connector_account_id = request.payment_merchant_connector_id.to_owned();
-    // Find the payment merchant connector ID at the top level to avoid multiple DB calls.
-    let payment_merchant_connector_account = db
+    // Find the payment & billing merchant connector id at the top level to avoid multiple DB calls.
+    let payment_merchant_connector_account = store
         .find_merchant_connector_account_by_id(
             key_manager_state,
             &payment_merchant_connector_account_id,
             merchant_context.get_merchant_key_store(),
         )
         .await
-        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
-            message: "get_revenue_recovery_intent was not constructed".to_string(),
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: payment_merchant_connector_account_id
+                .clone()
+                .get_string_repr()
+                .to_string(),
+        })?;
+    let billing_connector_account = store
+        .find_merchant_connector_account_by_id(
+            key_manager_state,
+            &request.billing_merchant_connector_id.clone(),
+            merchant_context.get_merchant_key_store(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: request
+                .billing_merchant_connector_id
+                .clone()
+                .get_string_repr()
+                .to_string(),
         })?;
 
-    let (revenue_recovery_attempt_data, recovery_intent_data) =
-        recovery_incoming::RevenueRecoveryAttempt::create_recovery_attempt_from_api(
+    let recovery_intent = recovery_incoming::RevenueRecoveryInvoice::load_custom_recovery_intent(
+        request.clone(),
+        &state,
+        &req_state,
+        &merchant_context,
+        &profile,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+        message: "Failed to load recovery intent".to_string(),
+    })?;
+
+    let (revenue_recovery_attempt_data, updated_recovery_intent) =
+        recovery_incoming::RevenueRecoveryAttempt::load_recovery_attempt_from_api(
             request.clone(),
             &state,
             &req_state,
@@ -281,32 +298,17 @@ pub async fn custom_revenue_recovery_core(
         )
         .await
         .change_context(errors::ApiErrorResponse::GenericNotFoundError {
-            message: "get_revenue_recovery_attempt was not constructed".to_string(),
-        })?;
-    let store = state.store.as_ref();
-    let key_manager_state = &(&state).into();
-    let billing_connector_account = store
-        .find_merchant_connector_account_by_id(
-            key_manager_state,
-            &request.merchant_connector_id.clone(),
-            merchant_context.get_merchant_key_store(),
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: request
-                .merchant_connector_id
-                .clone()
-                .get_string_repr()
-                .to_string(),
+            message: "Failed to load recovery attempt".to_string(),
         })?;
 
-    let intent_retry_count = recovery_intent_data
+    let intent_retry_count = updated_recovery_intent
         .feature_metadata
         .as_ref()
         .and_then(|metadata| metadata.get_retry_count())
         .ok_or(report!(errors::ApiErrorResponse::GenericNotFoundError {
-            message: "get_revenue_recovery_attempt was not constructed".to_string(),
+            message: "Failed to fetch retry count from intent feature metadata".to_string(),
         }))?;
+
     router_env::logger::info!("Intent retry count: {:?}", intent_retry_count);
     let recovery_action = recovery_incoming::RecoveryAction {
         action: request.action.to_owned(),
@@ -314,10 +316,11 @@ pub async fn custom_revenue_recovery_core(
     let mca_retry_threshold = billing_connector_account
         .get_retry_threshold()
         .ok_or(report!(errors::ApiErrorResponse::GenericNotFoundError {
-            message: "get_revenue_recovery_attempt was not constructed".to_string(),
+            message: "Failed to fetch retry threshold from billing merchant connector account"
+                .to_string(),
         }))?;
 
-    let x = recovery_action
+    let webhook_response: api_models::webhooks::WebhookResponseTracker = recovery_action
         .handle_action(
             &state,
             &profile,
@@ -325,13 +328,13 @@ pub async fn custom_revenue_recovery_core(
             &billing_connector_account,
             mca_retry_threshold,
             intent_retry_count,
-            &(Some(revenue_recovery_attempt_data), recovery_intent_data),
+            &(Some(revenue_recovery_attempt_data), updated_recovery_intent),
         )
         .await
         .change_context(errors::ApiErrorResponse::GenericNotFoundError {
-            message: "get_revenue_recovery_attempt was not constructed".to_string(),
+            message: "Unexpected response from recovery core".to_string(),
         })?;
-    let job_status = match x {
+    let job_status = match webhook_response {
         api_models::webhooks::WebhookResponseTracker::Recovery {
             job_status,
             payment_id,
@@ -339,13 +342,13 @@ pub async fn custom_revenue_recovery_core(
         } => job_status,
         _ => None,
     };
+
     let response = api_models::payments::RecoveryPaymentsResponse {
-        payment_id: recovery_intent.payment_id.to_owned(),
-        status: recovery_intent.status.to_owned(),
-        amount: recovery_intent.invoice_amount.to_owned(),
-        currency: recovery_intent.invoice_currency.to_string(),
+        id: updated_recovery_intent.payment_id.to_owned(),
+        status: updated_recovery_intent.status.to_owned(),
         job_status,
     };
+
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         response,
     ))

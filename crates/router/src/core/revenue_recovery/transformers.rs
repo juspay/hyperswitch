@@ -51,7 +51,7 @@ impl ForeignFrom<api_models::payments::RecoveryPaymentsCreate>
             merchant_reference_id: data.merchant_reference_id,
             billing_address: data.billing,
             retry_count: data.retry_count,
-            next_billing_at: data.next_billing_date,
+            next_billing_at: None,
             billing_started_at: data.billing_started_at,
         }
     }
