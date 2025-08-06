@@ -1337,7 +1337,7 @@ pub async fn construct_dispute_list_router_data<'a>(
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
-        l2_l3_data: None, 
+        l2_l3_data: None,
     })
 }
 
@@ -2590,11 +2590,7 @@ fn validate_plusgiro_number(number: &Secret<String>) -> RouterResult<()> {
     Ok(())
 }
 
-
-pub fn should_add_dispute_sync_task_to_pt(
-    state: &SessionState,
-    connector_name: Connector,
-) -> bool {
+pub fn should_add_dispute_sync_task_to_pt(state: &SessionState, connector_name: Connector) -> bool {
     let list_dispute_supported_connectors = state
         .conf
         .list_dispute_supported_connectors
@@ -2603,12 +2599,16 @@ pub fn should_add_dispute_sync_task_to_pt(
     list_dispute_supported_connectors.contains(&connector_name)
 }
 
-pub fn should_proceed_with_submit_evidence(dispute_stage: DisputeStage, dispute_status: DisputeStatus) -> bool {
-    matches!(dispute_stage, DisputeStage::DisputeReversal) || 
-    matches!(dispute_status ,
-        DisputeStatus::DisputeExpired
-            | DisputeStatus::DisputeCancelled
-            | DisputeStatus::DisputeWon
-            | DisputeStatus::DisputeLost,
-    )
+pub fn should_proceed_with_submit_evidence(
+    dispute_stage: DisputeStage,
+    dispute_status: DisputeStatus,
+) -> bool {
+    matches!(dispute_stage, DisputeStage::DisputeReversal)
+        || matches!(
+            dispute_status,
+            DisputeStatus::DisputeExpired
+                | DisputeStatus::DisputeCancelled
+                | DisputeStatus::DisputeWon
+                | DisputeStatus::DisputeLost,
+        )
 }

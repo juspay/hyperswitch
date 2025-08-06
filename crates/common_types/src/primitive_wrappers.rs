@@ -174,16 +174,14 @@ mod bool_wrappers {
 
 mod u32_wrappers {
     use std::ops::Deref;
-    use serde::de::Error;
 
-    use serde::{Deserialize, Serialize};
+    use serde::{de::Error, Deserialize, Serialize};
 
-    use crate::consts::MAX_DISPUTE_POLLING_INTERVAL_IN_HOURS;
-    use crate::consts::DEFAULT_DISPUTE_POLLING_INTERVAL_IN_HOURS;
+    use crate::consts::{
+        DEFAULT_DISPUTE_POLLING_INTERVAL_IN_HOURS, MAX_DISPUTE_POLLING_INTERVAL_IN_HOURS,
+    };
     /// Time interval in hours for polling disputes
-    #[derive(
-        Clone, Copy, Debug, Eq, PartialEq, Serialize, diesel::expression::AsExpression,
-    )]
+    #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, diesel::expression::AsExpression)]
     #[diesel(sql_type = diesel::sql_types::Integer)]
     pub struct DisputePollingIntervalInHours(i32);
 
@@ -198,13 +196,14 @@ mod u32_wrappers {
     impl<'de> Deserialize<'de> for DisputePollingIntervalInHours {
         fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
         where
-        D: serde::Deserializer<'de>,
+            D: serde::Deserializer<'de>,
         {
             let val = i32::deserialize(deserializer)?;
             if val < 0 {
                 Err("DisputePollingIntervalInHours cannot be negative").map_err(D::Error::custom)?
             } else if val > MAX_DISPUTE_POLLING_INTERVAL_IN_HOURS {
-                Err("DisputePollingIntervalInHours exceeds the maximum allowed value of 24").map_err(D::Error::custom)?
+                Err("DisputePollingIntervalInHours exceeds the maximum allowed value of 24")
+                    .map_err(D::Error::custom)?
             } else {
                 Ok(Self(val))
             }

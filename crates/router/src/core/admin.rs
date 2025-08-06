@@ -2597,10 +2597,7 @@ pub async fn create_connector(
         )?;
 
     #[cfg(feature = "v1")]
-    disputes::schedule_dispute_sync_task(
-        &state,
-        &business_profile,
-        &mca).await?;
+    disputes::schedule_dispute_sync_task(&state, &business_profile, &mca).await?;
 
     #[cfg(feature = "v1")]
     //update merchant default config
