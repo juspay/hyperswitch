@@ -85,7 +85,6 @@ impl Default for RecoveryTimestamp {
             initial_timestamp_in_hours: 1,
         }
     }
-    
 }
 
 #[derive(Debug, serde::Deserialize, Clone, Default)]
@@ -102,7 +101,10 @@ pub struct NetworkRetryConfig {
     pub retry_count_30_day: u64,
 }
 impl RetryLimitsConfig {
-    pub fn get_network_config(network: Option<CardNetwork>, state: &SessionState) -> &NetworkRetryConfig {
+    pub fn get_network_config(
+        network: Option<CardNetwork>,
+        state: &SessionState,
+    ) -> &NetworkRetryConfig {
         match network {
             Some(CardNetwork::Mastercard) => &state.conf.revenue_recovery.card_config.mastercard,
             Some(CardNetwork::Visa) => &state.conf.revenue_recovery.card_config.visa,

@@ -506,8 +506,8 @@ pub async fn get_best_psp_token_available(
     
     // Step 1: Get existing tokens from Redis
     let existing_tokens = RedisTokenManager::get_connector_customer_payment_processor_tokens(
-        state, 
-        &connector_customer_id
+        state,
+        &connector_customer_id,
     )
     .await?;
 
@@ -527,22 +527,16 @@ pub async fn get_best_psp_token_available(
     .await?;
 
     if !lock_acquired {
-        logger::info!(
-            "Customer is already locked by another process"
-        );
+        logger::info!("Customer is already locked by another process");
         return Ok(None);
     }
 
-    let result = RedisTokenManager::get_tokens_with_retry_metadata(
-        state,
-        &existing_tokens,
-    );
+    let result = RedisTokenManager::get_tokens_with_retry_metadata(state, &existing_tokens);
 
     // Step 4: Call decider (not implemented yet)
     // TODO: Implement decider logic
     // let _decider_result = call_payment_processor_token_decider(...).await?;
     logger::debug!("Step 4: Decider call - TODO");
-
 
     // // Handle the result and ensure cleanup on error
     // match result {
