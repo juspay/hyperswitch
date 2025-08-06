@@ -40,7 +40,7 @@ use crate::{
         self, api, domain,
         storage::enums as storage_enums,
         transformers::{ForeignFrom, ForeignTryFrom},
-        ApplePayPredecryptData, BrowserInformation, PaymentsCancelData, ResponseId,
+        BrowserInformation, PaymentsCancelData, ResponseId,
     },
     utils::{OptionExt, ValueExt},
 };
@@ -1696,10 +1696,16 @@ pub trait ApplePay {
 
 impl ApplePay for domain::ApplePayWalletData {
     fn get_applepay_decoded_payment_data(&self) -> Result<Secret<String>, Error> {
+        let apple_pay_encrypted_data = self
+            .payment_data
+            .get_encrypted_apple_pay_payment_data_mandatory()
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "Apple pay encrypted data",
+            })?;
         let token = Secret::new(
             String::from_utf8(
                 consts::BASE64_ENGINE
-                    .decode(&self.payment_data)
+                    .decode(apple_pay_encrypted_data)
                     .change_context(errors::ConnectorError::InvalidWalletToken {
                         wallet_name: "Apple Pay".to_string(),
                     })?,
@@ -1709,31 +1715,6 @@ impl ApplePay for domain::ApplePayWalletData {
             })?,
         );
         Ok(token)
-    }
-}
-
-pub trait ApplePayDecrypt {
-    fn get_expiry_month(&self) -> Result<Secret<String>, Error>;
-    fn get_four_digit_expiry_year(&self) -> Result<Secret<String>, Error>;
-}
-
-impl ApplePayDecrypt for Box<ApplePayPredecryptData> {
-    fn get_four_digit_expiry_year(&self) -> Result<Secret<String>, Error> {
-        Ok(Secret::new(format!(
-            "20{}",
-            self.application_expiration_date
-                .get(0..2)
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-        )))
-    }
-
-    fn get_expiry_month(&self) -> Result<Secret<String>, Error> {
-        Ok(Secret::new(
-            self.application_expiration_date
-                .get(2..4)
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-                .to_owned(),
-        ))
     }
 }
 
@@ -2203,6 +2184,7 @@ impl FrmTransactionRouterDataRequest for fraud_check::FrmTransactionRouterData {
             | storage_enums::AttemptStatus::RouterDeclined
             | storage_enums::AttemptStatus::AuthorizationFailed
             | storage_enums::AttemptStatus::Voided
+            | storage_enums::AttemptStatus::VoidedPostCharge
             | storage_enums::AttemptStatus::CaptureFailed
             | storage_enums::AttemptStatus::Failure
             | storage_enums::AttemptStatus::AutoRefunded
@@ -2248,6 +2230,7 @@ pub fn is_payment_failure(status: enums::AttemptStatus) -> bool {
         | common_enums::AttemptStatus::Authorizing
         | common_enums::AttemptStatus::CodInitiated
         | common_enums::AttemptStatus::Voided
+        | common_enums::AttemptStatus::VoidedPostCharge
         | common_enums::AttemptStatus::VoidInitiated
         | common_enums::AttemptStatus::CaptureInitiated
         | common_enums::AttemptStatus::AutoRefunded

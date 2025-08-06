@@ -1046,10 +1046,82 @@ options=["visa","masterCard","amex","discover"]
   payment_method_type = "CartesBancaires"
 [[barclaycard.debit]]
   payment_method_type = "UnionPay"
+[[barclaycard.wallet]]
+  payment_method_type = "google_pay"
 [barclaycard.connector_auth.SignatureKey]
 api_key="Key"
 key1="Merchant ID"
 api_secret="Shared Secret"
+
+[[barclaycard.metadata.google_pay]]
+name = "merchant_name"
+label = "Google Pay Merchant Name"
+placeholder = "Enter Google Pay Merchant Name"
+required = true
+type = "Text"
+[[barclaycard.metadata.google_pay]]
+name = "merchant_id"
+label = "Google Pay Merchant Id"
+placeholder = "Enter Google Pay Merchant Id"
+required = true
+type = "Text"
+[[barclaycard.metadata.google_pay]]
+name = "gateway_merchant_id"
+label = "Google Pay Merchant Key"
+placeholder = "Enter Google Pay Merchant Key"
+required = true
+type = "Text"
+[[barclaycard.metadata.google_pay]]
+name = "allowed_auth_methods"
+label = "Allowed Auth Methods"
+placeholder = "Enter Allowed Auth Methods"
+required = true
+type = "MultiSelect"
+options = ["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+[[barclaycard.connector_wallets_details.google_pay]]
+name = "merchant_name"
+label = "Google Pay Merchant Name"
+placeholder = "Enter Google Pay Merchant Name"
+required = true
+type = "Text"
+[[barclaycard.connector_wallets_details.google_pay]]
+name = "merchant_id"
+label = "Google Pay Merchant Id"
+placeholder = "Enter Google Pay Merchant Id"
+required = true
+type = "Text"
+[[barclaycard.connector_wallets_details.google_pay]]
+name = "gateway_merchant_id"
+label = "Google Pay Merchant Key"
+placeholder = "Enter Google Pay Merchant Key"
+required = true
+type = "Text"
+[[barclaycard.connector_wallets_details.google_pay]]
+name = "public_key"
+label = "Google Pay Public Key"
+placeholder = "Enter Google Pay Public Key"
+required = true
+type = "Text"
+[[barclaycard.connector_wallets_details.google_pay]]
+name = "private_key"
+label = "Google Pay Private Key"
+placeholder = "Enter Google Pay Private Key"
+required = true
+type = "Text"
+[[barclaycard.connector_wallets_details.google_pay]]
+name = "recipient_id"
+label = "Recipient Id"
+placeholder = "Enter Recipient Id"
+required = true
+type = "Text"
+[[barclaycard.connector_wallets_details.google_pay]]
+name = "allowed_auth_methods"
+label = "Allowed Auth Methods"
+placeholder = "Enter Allowed Auth Methods"
+required = true
+type = "MultiSelect"
+options = ["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 [bitpay]
 [[bitpay.crypto]]
@@ -2028,6 +2100,8 @@ api_key = "Integration Key"
   payment_method_type = "CartesBancaires"
 [[fiserv.debit]]
   payment_method_type = "UnionPay"
+[[fiserv.wallet]]
+  payment_method_type = "google_pay"
 [fiserv.connector_auth.SignatureKey]
 api_key="API Key"
 key1="Merchant ID"
@@ -6436,9 +6510,13 @@ type="Text"
 [[payload.debit]]
   payment_method_type = "Visa"
 
-[payload.connector_auth.HeaderKey]
-api_key="API Key"
-  
+[payload.connector_auth.CurrencyAuthKey.auth_key_map.USD]
+processing_account_id = "processing_account_id"
+api_key = "API Key"
+[payload.connector_auth.CurrencyAuthKey.auth_key_map.CAD]
+processing_account_id = "processing_account_id"
+api_key = "API Key"
+
 [silverflow]
 [[silverflow.credit]]
   payment_method_type = "Mastercard"

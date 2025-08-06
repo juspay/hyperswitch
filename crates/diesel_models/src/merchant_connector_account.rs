@@ -65,6 +65,9 @@ impl MerchantConnectorAccount {
 }
 
 #[cfg(feature = "v2")]
+use crate::RequiredFromNullable;
+
+#[cfg(feature = "v2")]
 #[derive(
     Clone,
     Debug,
@@ -91,6 +94,7 @@ pub struct MerchantConnectorAccount {
     pub connector_webhook_details: Option<pii::SecretSerdeValue>,
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub frm_config: Option<Vec<pii::SecretSerdeValue>>,
+    #[diesel(deserialize_as = RequiredFromNullable<id_type::ProfileId>)]
     pub profile_id: id_type::ProfileId,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,

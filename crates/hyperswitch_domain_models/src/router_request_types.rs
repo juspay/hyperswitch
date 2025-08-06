@@ -568,6 +568,16 @@ pub struct PaymentsCancelData {
 }
 
 #[derive(Debug, Default, Clone)]
+pub struct PaymentsCancelPostCaptureData {
+    pub currency: Option<storage_enums::Currency>,
+    pub connector_transaction_id: String,
+    pub cancellation_reason: Option<String>,
+    pub connector_meta: Option<serde_json::Value>,
+    // minor amount data for amount framework
+    pub minor_amount: Option<MinorUnit>,
+}
+
+#[derive(Debug, Default, Clone)]
 pub struct PaymentsRejectData {
     pub amount: Option<i64>,
     pub currency: Option<storage_enums::Currency>,
@@ -713,6 +723,11 @@ pub struct AuthenticationData {
     pub message_version: Option<common_utils::types::SemanticVersion>,
     pub ds_trans_id: Option<String>,
     pub created_at: time::PrimitiveDateTime,
+    pub challenge_code: Option<String>,
+    pub challenge_cancel: Option<String>,
+    pub challenge_code_reason: Option<String>,
+    pub message_extension: Option<pii::SecretSerdeValue>,
+    pub acs_trans_id: Option<String>,
     pub authentication_type: Option<common_enums::DecoupledAuthenticationType>,
 }
 
@@ -948,6 +963,7 @@ pub struct CustomerDetails {
     pub email: Option<pii::Email>,
     pub phone: Option<Secret<String, masking::WithType>>,
     pub phone_country_code: Option<String>,
+    pub tax_registration_id: Option<Secret<String, masking::WithType>>,
 }
 
 #[derive(Debug, Clone)]

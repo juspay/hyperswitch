@@ -45,7 +45,7 @@ use url::Url;
 
 use crate::{
     constants::headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT,
-    utils::{convert_uppercase, ApplePay, ApplePayDecrypt, RouterData as OtherRouterData},
+    utils::{convert_uppercase, ApplePay, RouterData as OtherRouterData},
 };
 #[cfg(feature = "payouts")]
 pub mod connect;
@@ -590,7 +590,7 @@ pub enum StripeWallet {
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeApplePayPredecrypt {
     #[serde(rename = "card[number]")]
-    number: Secret<String>,
+    number: cards::CardNumber,
     #[serde(rename = "card[exp_year]")]
     exp_year: Secret<String>,
     #[serde(rename = "card[exp_month]")]
@@ -1482,14 +1482,12 @@ impl TryFrom<(&WalletData, Option<PaymentMethodToken>)> for StripePaymentMethodD
                     if let Some(PaymentMethodToken::ApplePayDecrypt(decrypt_data)) =
                         payment_method_token
                     {
-                        let expiry_year_4_digit = decrypt_data.get_four_digit_expiry_year()?;
-                        let exp_month = decrypt_data.get_expiry_month()?;
-
+                        let expiry_year_4_digit = decrypt_data.get_four_digit_expiry_year();
                         Some(Self::Wallet(StripeWallet::ApplePayPredecryptToken(
                             Box::new(StripeApplePayPredecrypt {
                                 number: decrypt_data.clone().application_primary_account_number,
                                 exp_year: expiry_year_4_digit,
-                                exp_month,
+                                exp_month: decrypt_data.application_expiration_month,
                                 eci: decrypt_data.payment_data.eci_indicator,
                                 cryptogram: decrypt_data.payment_data.online_payment_cryptogram,
                                 tokenization_method: "apple_pay".to_string(),
