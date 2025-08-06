@@ -18,6 +18,8 @@ use masking::{PeekInterface, Secret};
 use router_env::{instrument, tracing};
 use services::kafka;
 
+use storage::business_status as business_status;
+
 use crate::{
     core::{
         admin,
@@ -363,8 +365,8 @@ async fn insert_calculate_pcr_task(
         .feature_metadata
         .as_ref()
         .and_then(|metadata| metadata.revenue_recovery.as_ref())
-        .and_then(|recovery| recovery.billing_connector_payment_details.as_ref())
-        .map(|details| details.psp_token_list.clone())
+        .and_then(|recovery| recovery.billing_connector_payment_details)
+        .map(|details| details.psp_token_list)  // will add the exact field once the core changes are implemented
         .unwrap_or_default();
 
     // Check if a process tracker entry already exists for this payment intent
@@ -375,7 +377,7 @@ async fn insert_calculate_pcr_task(
         .attach_printable("Failed to check for existing calculate workflow process tracker entry")?;
 
     match existing_entry {
-        Some(existing_process) => {
+        Some(existing_process) if existing_process.business_status ==  business_status::CALCULATE_WORKFLOW_QUEUED=> {
             // Entry exists - update the status to New and scheduled time to 1 hour from now
             router_env::logger::info!(
                 "Found existing CALCULATE_WORKFLOW task for payment_intent_id: {}, updating status to New and rescheduling for 1 hour from now",
@@ -386,8 +388,8 @@ async fn insert_calculate_pcr_task(
                 name: None,
                 retry_count: Some(intent_retry_count.into()),
                 schedule_time: Some(schedule_time),
-                tracking_data: None,
-                business_status: Some(storage::business_status::CALCULATE_WORKFLOW_QUEUED.to_string()),
+                tracking_data: Some(existing_process.tracking_data),
+                business_status: Some(business_status::CALCULATE_WORKFLOW_QUEUED.to_string()),
                 status: Some(diesel_models::enums::ProcessTrackerStatus::New),
                 updated_at: Some(common_utils::date_time::now()),
             };
@@ -401,6 +403,15 @@ async fn insert_calculate_pcr_task(
             router_env::logger::info!(
                 "Successfully updated existing CALCULATE_WORKFLOW task for payment_intent_id: {}",
                 payment_id.get_string_repr()
+            );
+        }
+        Some(existing_process) => {
+            // Entry exists but business status is not CALCULATE_WORKFLOW_QUEUED
+            router_env::logger::info!(
+                payment_id = %payment_id.get_string_repr(),
+                process_tracker_id = %process_tracker_id,
+                current_business_status = %existing_process.business_status,
+                "Found existing CALCULATE_WORKFLOW task but business status is not QUEUED, returning existing entry"
             );
         }
         None => {
