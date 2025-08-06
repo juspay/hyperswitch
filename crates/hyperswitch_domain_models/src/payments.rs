@@ -756,6 +756,7 @@ impl PaymentIntent {
             card_network: None,
             // No charge id is present here since it is an internal payment and we didn't call connector yet.
             charge_id: None,
+            card_info: Default::default(),
         })
     }
 

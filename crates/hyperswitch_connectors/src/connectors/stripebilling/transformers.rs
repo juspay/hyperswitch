@@ -566,6 +566,21 @@ impl
                     // Todo: Fetch Card issuer details. Generally in the other billing connector we are getting card_issuer using the card bin info. But stripe dosent provide any such details. We should find a way for stripe billing case
                     card_isin: None,
                     charge_id: Some(charge_details.charge_id.clone()),
+                    card_info: api_models::payments::AdditionalCardInfo {
+                        card_network: None,
+                        card_isin: None, 
+                        card_issuer: None, 
+                        card_type: None,
+                        card_issuing_country: None,
+                        bank_code: None,
+                        last4: None,
+                        card_extended_bin: None,
+                        card_exp_month: None,
+                        card_exp_year: None,
+                        card_holder_name: None,
+                        payment_checks: None,
+                        authentication_data: None,
+                    },
                 },
             ),
             ..item.data

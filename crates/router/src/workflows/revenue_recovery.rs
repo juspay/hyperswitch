@@ -497,19 +497,13 @@ impl From<InternalDeciderRequest> for external_grpc_client::DeciderRequest {
 #[cfg(feature = "v2")]
 pub async fn get_best_psp_token_available(
     state: &SessionState,
-    connector_customer_id: id_type::CustomerId,
+    connector_customer_id: &str,
     payment_id: &id_type::GlobalPaymentId,
     psp_token_units: crate::types::storage::revenue_recovery_redis_operation::PaymentProcessorTokenUnits,
 ) -> Result<Option<String>, errors::ProcessTrackerError> {
     use crate::types::storage::revenue_recovery_redis_operation::RedisTokenManager;
 
-    logger::info!(
-        connector_customer_id = %connector_customer_id.get_string_repr(),
-        payment_id = %payment_id.get_string_repr(),
-        psp_token_count = %psp_token_units.units.len(),
-        "Starting PSP token selection process"
-    );
-
+    
     // Step 1: Get existing tokens from Redis
     let existing_tokens = RedisTokenManager::get_connector_customer_payment_processor_tokens(
         state, 
@@ -517,11 +511,7 @@ pub async fn get_best_psp_token_available(
     )
     .await?;
 
-    logger::debug!(
-        connector_customer_id = %connector_customer_id.get_string_repr(),
-        existing_token_count = %existing_tokens.len(),
-        "Retrieved existing payment processor tokens"
-    );
+    
 
     // Step 2: Insert into payment_intent_feature_metadata (DB operation)
     // TODO: Implement DB insertion logic

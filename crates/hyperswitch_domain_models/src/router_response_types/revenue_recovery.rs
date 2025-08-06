@@ -34,6 +34,8 @@ pub struct BillingConnectorPaymentsSyncResponse {
     pub card_isin: Option<String>,
     /// stripe specific id used to validate duplicate attempts.
     pub charge_id: Option<String>,
+    /// consolidated card information
+    pub card_info: api_models::payments::AdditionalCardInfo,
 }
 
 #[derive(Debug, Clone)]

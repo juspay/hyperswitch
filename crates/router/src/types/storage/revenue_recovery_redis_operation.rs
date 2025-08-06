@@ -45,7 +45,7 @@ pub struct PaymentProcessorTokenStatus {
 /// Customer tokens data structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CustomerTokensData {
-    pub connector_customer_id: id_type::CustomerId,
+    pub connector_customer_id: String,
     pub payment_processor_token_info_map: HashMap<String, PaymentProcessorTokenStatus>,
 }
 
@@ -87,14 +87,14 @@ impl RedisTokenManager {
     #[instrument(skip_all)]
     pub async fn lock_connector_customer_status(
         state: &SessionState,
-        connector_customer_id: &id_type::CustomerId,
+        connector_customer_id: &str,
         payment_id: &id_type::GlobalPaymentId,
     ) -> CustomResult<bool, errors::StorageError> {
         let redis_conn = state.store
             .get_redis_conn()
             .change_context(errors::StorageError::KVError)?;
 
-        let lock_key = format!("customer:{}:status", connector_customer_id.get_string_repr());
+        let lock_key = format!("customer:{}:status", connector_customer_id);
         
         let result: bool = match redis_conn
         .set_key_if_not_exists_with_expiry(&lock_key.into(), payment_id.get_string_repr(), None)
@@ -108,7 +108,7 @@ impl RedisTokenManager {
         };
 
         tracing::debug!(
-            connector_customer_id = connector_customer_id.get_string_repr(),
+            connector_customer_id = connector_customer_id,
             payment_id = payment_id.get_string_repr(),
             lock_acquired = %result,
             "Connector customer lock attempt"
@@ -121,12 +121,12 @@ impl RedisTokenManager {
     #[instrument(skip_all)]
     pub async fn unlock_connector_customer_status(
         state: &SessionState,
-        connector_customer_id: &id_type::CustomerId,
+        connector_customer_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
         let redis_conn = state.store.get_redis_conn()
             .change_context(errors::StorageError::KVError)?;
 
-        let lock_key = format!("customer:{}:status", connector_customer_id.get_string_repr());
+        let lock_key = format!("customer:{}:status", connector_customer_id);
         
         match redis_conn.delete_key(&lock_key.into()).await {
             Ok(DelReply::KeyDeleted) => Ok(true),
@@ -145,13 +145,13 @@ impl RedisTokenManager {
     #[instrument(skip_all)]
     pub async fn get_connector_customer_payment_processor_tokens(
         state: &SessionState,
-        connector_customer_id: &id_type::CustomerId,
+        connector_customer_id: &str,
     ) -> CustomResult<HashMap<String, PaymentProcessorTokenStatus>, errors::StorageError> {
         let redis_conn = state.store
             .get_redis_conn()
             .change_context(errors::StorageError::KVError)?;
 
-        let tokens_key = format!("customer:{}:tokens", connector_customer_id.get_string_repr());
+        let tokens_key = format!("customer:{}:tokens", connector_customer_id);
         
         let payment_processor_tokens: HashMap<String, String> = redis_conn
             .get_hash_fields(&tokens_key.into())
@@ -167,7 +167,7 @@ impl RedisTokenManager {
                 }
                 Err(error) => {
                     tracing::warn!(
-                        connector_customer_id = %connector_customer_id.get_string_repr(),
+                        connector_customer_id = %connector_customer_id,
                         token_id = %token_id,
                         error = %error,
                         "Failed to deserialize token data, skipping"
@@ -182,14 +182,14 @@ impl RedisTokenManager {
     #[instrument(skip_all)]
     pub async fn update_connector_customer_payment_processor_tokens(
         state: &SessionState,
-        connector_customer_id: &id_type::CustomerId,
+        connector_customer_id: &str,
         payment_processor_token_info_map: HashMap<String, PaymentProcessorTokenStatus>,
     ) -> CustomResult<(), errors::StorageError> {
         let redis_conn = state.store
             .get_redis_conn()
             .change_context(errors::StorageError::KVError)?;
 
-        let tokens_key = format!("customer:{}:tokens", connector_customer_id.get_string_repr());
+        let tokens_key = format!("customer:{}:tokens", connector_customer_id);
         
         // Serialize all tokens
         let mut serialized_payment_processor_tokens = HashMap::new();
@@ -207,7 +207,7 @@ impl RedisTokenManager {
             .change_context(errors::StorageError::KVError)?;
 
         tracing::info!(
-            connector_customer_id = %connector_customer_id.get_string_repr(),
+            connector_customer_id = %connector_customer_id,
             "Successfully updated customer tokens"
         );
 
@@ -334,7 +334,7 @@ impl RedisTokenManager {
     #[instrument(skip_all)]
     pub async fn delete_payment_processor_token_using_token_id(
         state: &SessionState,
-        connector_customer_id: &id_type::CustomerId,
+        connector_customer_id: &str,
         payment_processor_token_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
         // Get all existing payment processor tokens
@@ -343,7 +343,7 @@ impl RedisTokenManager {
         // Check if the token exists and remove it
         if payment_processor_token_info_map.remove(payment_processor_token_id).is_none() {
             tracing::warn!(
-                connector_customer_id = %connector_customer_id.get_string_repr(),
+                connector_customer_id = %connector_customer_id,
                 payment_processor_token_id = %payment_processor_token_id,
                 "Token not found for deletion"
             );
@@ -354,7 +354,7 @@ impl RedisTokenManager {
             .get_redis_conn()
             .change_context(errors::StorageError::KVError)?;
 
-        let tokens_key = format!("customer:{}:tokens", connector_customer_id.get_string_repr());
+        let tokens_key = format!("customer:{}:tokens", connector_customer_id);
         
         // Delete entire Redis key
         redis_conn.delete_key(&tokens_key.into()).await
@@ -376,7 +376,7 @@ impl RedisTokenManager {
     #[instrument(skip_all)]
     pub async fn update_payment_processor_token_error_code_retry_count(
         state: &SessionState,
-        connector_customer_id: &id_type::CustomerId,
+        connector_customer_id: &str,
         payment_processor_token_id: &str,
         error_code: String,
     ) -> CustomResult<bool, errors::StorageError> {
@@ -418,7 +418,7 @@ impl RedisTokenManager {
     #[instrument(skip_all)]
     pub async fn add_connector_customer_payment_processor_tokens_if_doesnot_exist(
         state: &SessionState,
-        connector_customer_id: &id_type::CustomerId,
+        connector_customer_id: &str,
         new_tokens: HashMap<String, PaymentProcessorTokenUnit>,
         inserted_by_payment_id: &id_type::GlobalPaymentId,
     ) -> CustomResult<(), errors::StorageError> {
