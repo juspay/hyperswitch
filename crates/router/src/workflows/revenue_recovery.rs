@@ -388,7 +388,7 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
         retry_count_left: None,
         first_error_msg_time: None,
         wait_time: None,
-    };   
+    };
 
     if let Some(mut client) = state.grpc_client.recovery_decider_client.clone() {
         match client
