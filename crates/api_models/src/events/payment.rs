@@ -7,8 +7,19 @@ use super::{
     PaymentsIntentResponse, PaymentsRequest,
 };
 #[cfg(feature = "v2")]
-use crate::payment_methods::{
-    ListMethodsForPaymentMethodsRequest, PaymentMethodListResponseForSession,
+use crate::{
+    payment_methods::{
+        self, ListMethodsForPaymentMethodsRequest, PaymentMethodListResponseForSession,
+        PaymentMethodResponse, PaymentMethodMigrateResponse, PaymentMethodUpdate,
+        CustomerPaymentMethodsListResponse, ListCountriesCurrenciesRequest,
+        ListCountriesCurrenciesResponse, PaymentMethodCollectLinkRequest,
+        PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkResponse,
+    },
+    payments::{
+        self, PaymentsCaptureResponse, PaymentMethodListResponseForPayments,
+        PaymentListConstraints, PaymentsResponse, PaymentListFilters, PaymentListFiltersV2,
+        PaymentListResponse, PaymentsAggregateResponse, RedirectionResponse, PaymentsSessionResponse,
+    },
 };
 #[cfg(feature = "v1")]
 use crate::{
@@ -16,19 +27,12 @@ use crate::{
         self, ListCountriesCurrenciesRequest, ListCountriesCurrenciesResponse,
         PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest,
         PaymentMethodCollectLinkResponse, PaymentMethodMigrateResponse, PaymentMethodResponse,
-        PaymentMethodUpdate,
+        PaymentMethodUpdate, PaymentMethodListRequest, PaymentMethodListResponse,
     },
     payments::{
         self, PaymentListConstraints, PaymentListFilters, PaymentListFiltersV2,
         PaymentListResponse, PaymentsAggregateResponse, PaymentsSessionResponse,
-        RedirectionResponse,
-    },
-};
-#[cfg(feature = "v1")]
-use crate::{
-    payment_methods::{PaymentMethodListRequest, PaymentMethodListResponse},
-    payments::{
-        ExtendedCardInfoResponse, PaymentIdType, PaymentListFilterConstraints,
+        RedirectionResponse, ExtendedCardInfoResponse, PaymentIdType, PaymentListFilterConstraints,
         PaymentListResponseV2, PaymentsApproveRequest, PaymentsCancelRequest,
         PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
         PaymentsDynamicTaxCalculationRequest, PaymentsDynamicTaxCalculationResponse,
@@ -253,22 +257,23 @@ impl ApiEventMetric for PaymentMethodResponse {
 }
 
 impl ApiEventMetric for PaymentMethodMigrateResponse {
-    #[cfg(feature = "v1")]
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        Some(ApiEventsType::PaymentMethod {
-            payment_method_id: self.payment_method_response.payment_method_id.clone(),
-            payment_method: self.payment_method_response.payment_method,
-            payment_method_type: self.payment_method_response.payment_method_type,
-        })
-    }
-
-    #[cfg(feature = "v2")]
-    fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        Some(ApiEventsType::PaymentMethod {
-            payment_method_id: self.payment_method_response.id.clone(),
-            payment_method_type: self.payment_method_response.payment_method_type,
-            payment_method_subtype: self.payment_method_response.payment_method_subtype,
-        })
+        #[cfg(feature = "v1")]
+        {
+            Some(ApiEventsType::PaymentMethod {
+                payment_method_id: self.payment_method_response.payment_method_id.clone(),
+                payment_method: self.payment_method_response.payment_method,
+                payment_method_type: self.payment_method_response.payment_method_type,
+            })
+        }
+        #[cfg(feature = "v2")]
+        {
+            Some(ApiEventsType::PaymentMethod {
+                payment_method_id: self.payment_method_response.id.clone(),
+                payment_method_type: self.payment_method_response.payment_method_type,
+                payment_method_subtype: self.payment_method_response.payment_method_subtype,
+            })
+        }
     }
 }
 
