@@ -3858,13 +3858,13 @@ pub fn get_dispute_status(
     dispute_cycle: String,
     dispute_activities: Vec<Activity>,
 ) -> Result<common_enums::DisputeStatus, error_stack::Report<errors::ConnectorError>> {
-    if let Some(activity) = get_last_non_auxiliary_activity_type(dispute_activities) 
-    {
+    if let Some(activity) = get_last_non_auxiliary_activity_type(dispute_activities) {
         match activity.as_ref() {
-            "Merchant Accept" | "Issuer Accepted Pre-Arbitration" | "Vantiv Accept" | "Sent Credit" => {
-                Ok(common_enums::DisputeStatus::DisputeAccepted)
-            }
-    
+            "Merchant Accept"
+            | "Issuer Accepted Pre-Arbitration"
+            | "Vantiv Accept"
+            | "Sent Credit" => Ok(common_enums::DisputeStatus::DisputeAccepted),
+
             "Merchant Represent"
             | "Respond to Dispute"
             | "Respond to PreArb"
@@ -3886,55 +3886,57 @@ pub fn get_dispute_status(
             | "Request Response to Pre-Arbitration"
             | "Vantiv Represent"
             | "Vantiv Respond"
-            | "Auto Represent" 
+            | "Auto Represent"
             | "Arbitration Ruling" => Ok(common_enums::DisputeStatus::DisputeChallenged),
-    
+
             "Arbitration Lost" | "Unsuccessful Arbitration" | "Unsuccessful Pre-Arbitration" => {
                 Ok(common_enums::DisputeStatus::DisputeLost)
             }
-    
-            "Arbitration Won" | "Arbitration Split" | "Successful Arbitration"
+
+            "Arbitration Won"
+            | "Arbitration Split"
+            | "Successful Arbitration"
             | "Successful Pre-Arbitration" => Ok(common_enums::DisputeStatus::DisputeWon),
-    
+
             "Chargeback Reversal" => Ok(common_enums::DisputeStatus::DisputeCancelled),
-    
+
             "Receive Network Transaction" => Ok(common_enums::DisputeStatus::DisputeOpened),
-    
+
             "Unaccept" | "Unrepresent" => Ok(common_enums::DisputeStatus::DisputeOpened),
-    
+
             unexpected_activity => Err(errors::ConnectorError::UnexpectedResponseError(
                 bytes::Bytes::from(format!("Dispute Activity: {unexpected_activity})")),
             )
             .into()),
-        }    
+        }
     } else {
-    match connector_utils::normalize_string(dispute_cycle.clone())
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?
-        .as_str()
-    {
-        "arbitration"
-        | "arbitrationmastercard"
-        | "arbitrationsplit"
-        | "representment"
-        | "issuerarbitration"
-        | "prearbitration"
-        | "responsetoissuerarbitration"
-        | "arbitrationchargeback" => Ok(api_models::enums::DisputeStatus::DisputeChallenged),
-        "chargebackreversal" | "issueracceptedprearbitration" | "arbitrationwon" => {
-            Ok(api_models::enums::DisputeStatus::DisputeWon)
+        match connector_utils::normalize_string(dispute_cycle.clone())
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?
+            .as_str()
+        {
+            "arbitration"
+            | "arbitrationmastercard"
+            | "arbitrationsplit"
+            | "representment"
+            | "issuerarbitration"
+            | "prearbitration"
+            | "responsetoissuerarbitration"
+            | "arbitrationchargeback" => Ok(api_models::enums::DisputeStatus::DisputeChallenged),
+            "chargebackreversal" | "issueracceptedprearbitration" | "arbitrationwon" => {
+                Ok(api_models::enums::DisputeStatus::DisputeWon)
+            }
+            "arbitrationlost" | "issuerdeclinedprearbitration" => {
+                Ok(api_models::enums::DisputeStatus::DisputeLost)
+            }
+            "firstchargeback" | "retrievalrequest" | "rapiddisputeresolution" => {
+                Ok(api_models::enums::DisputeStatus::DisputeOpened)
+            }
+            dispute_cycle => Err(errors::ConnectorError::UnexpectedResponseError(
+                bytes::Bytes::from(format!("Dispute Stage: {dispute_cycle}")),
+            )
+            .into()),
         }
-        "arbitrationlost" | "issuerdeclinedprearbitration" => {
-            Ok(api_models::enums::DisputeStatus::DisputeLost)
-        }
-        "firstchargeback" | "retrievalrequest" | "rapiddisputeresolution" => {
-            Ok(api_models::enums::DisputeStatus::DisputeOpened)
-        }
-        dispute_cycle => Err(errors::ConnectorError::UnexpectedResponseError(
-            bytes::Bytes::from(format!("Dispute Stage: {dispute_cycle}")),
-        )
-        .into()),
     }
-}
 }
 
 fn convert_string_to_primitive_date(
@@ -4202,7 +4204,7 @@ impl
 
 fn get_last_non_auxiliary_activity_type(activities: Vec<Activity>) -> Option<String> {
     let auxiliary_activities: std::collections::HashSet<&'static str> = [
-        "Add Note",   
+        "Add Note",
         "Attach Document",
         "Attempted Attach Document",
         "Delete Document",
