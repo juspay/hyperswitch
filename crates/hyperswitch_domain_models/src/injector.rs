@@ -275,6 +275,14 @@ pub struct ConnectionConfig {
     pub http_method: HttpMethod,
     pub headers: HashMap<String, String>,
     pub proxy_url: Option<String>,
+    
+    // TLS/SSL Certificate Configuration
+    pub client_cert: Option<String>,
+    pub client_key: Option<String>,
+    pub ca_cert: Option<String>,
+    pub insecure: Option<bool>,
+    pub cert_password: Option<String>,
+    pub cert_format: Option<String>,
 }
 
 impl ApiModelToDieselModelConvertor<api_models::injector::ConnectionConfig> for ConnectionConfig {
@@ -285,6 +293,12 @@ impl ApiModelToDieselModelConvertor<api_models::injector::ConnectionConfig> for 
             http_method: HttpMethod::convert_from(from.http_method),
             headers: from.headers,
             proxy_url: from.proxy_url,
+            client_cert: from.client_cert,
+            client_key: from.client_key,
+            ca_cert: from.ca_cert,
+            insecure: from.insecure,
+            cert_password: from.cert_password,
+            cert_format: from.cert_format,
         }
     }
 
@@ -295,6 +309,12 @@ impl ApiModelToDieselModelConvertor<api_models::injector::ConnectionConfig> for 
             http_method: self.http_method.convert_back(),
             headers: self.headers,
             proxy_url: self.proxy_url,
+            client_cert: self.client_cert,
+            client_key: self.client_key,
+            ca_cert: self.ca_cert,
+            insecure: self.insecure,
+            cert_password: self.cert_password,
+            cert_format: self.cert_format,
         }
     }
 }
@@ -307,6 +327,12 @@ impl From<api_models::injector::ConnectionConfig> for ConnectionConfig {
             http_method: config.http_method.into(),
             headers: config.headers,
             proxy_url: config.proxy_url,
+            client_cert: config.client_cert,
+            client_key: config.client_key,
+            ca_cert: config.ca_cert,
+            insecure: config.insecure,
+            cert_password: config.cert_password,
+            cert_format: config.cert_format,
         }
     }
 }

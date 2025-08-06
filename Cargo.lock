@@ -4382,6 +4382,7 @@ dependencies = [
  "hyperswitch_interfaces",
  "masking",
  "nom 7.1.3",
+ "regex",
  "reqwest 0.11.27",
  "router_env",
  "serde",
