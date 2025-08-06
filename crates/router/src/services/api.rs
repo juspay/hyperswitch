@@ -701,7 +701,11 @@ where
         }
     };
 
-    let infra = state.infra_components.clone();
+    let infra = extract_mapped_fields(
+        &serialized_request,
+        state.enhancement.as_ref(),
+        state.infra_components.as_ref(),
+    );
 
     let api_event = ApiEvent::new(
         tenant_id,
@@ -894,8 +898,45 @@ where
                     None
                 }
             });
+            let proxy_connector_http_status_code = if state
+                .conf
+                .proxy_status_mapping
+                .proxy_connector_http_status_code
+            {
+                headers
+                    .iter()
+                    .find(|(key, _)| key == headers::X_CONNECTOR_HTTP_STATUS_CODE)
+                    .and_then(|(_, value)| {
+                        match value.clone().into_inner().parse::<u16>() {
+                            Ok(code) => match http::StatusCode::from_u16(code) {
+                                Ok(status_code) => Some(status_code),
+                                Err(err) => {
+                                    logger::error!(
+                                        "Invalid HTTP status code parsed from connector_http_status_code: {:?}",
+                                        err
+                                    );
+                                    None
+                                }
+                            },
+                            Err(err) => {
+                                logger::error!(
+                                    "Failed to parse connector_http_status_code from header: {:?}",
+                                    err
+                                );
+                                None
+                            }
+                        }
+                    })
+            } else {
+                None
+            };
             match serde_json::to_string(&response) {
-                Ok(res) => http_response_json_with_headers(res, headers, request_elapsed_time),
+                Ok(res) => http_response_json_with_headers(
+                    res,
+                    headers,
+                    request_elapsed_time,
+                    proxy_connector_http_status_code,
+                ),
                 Err(_) => http_response_err(
                     r#"{
                         "error": {
@@ -987,8 +1028,9 @@ pub fn http_response_json_with_headers<T: body::MessageBody + 'static>(
     response: T,
     headers: Vec<(String, Maskable<String>)>,
     request_duration: Option<Duration>,
+    status_code: Option<http::StatusCode>,
 ) -> HttpResponse {
-    let mut response_builder = HttpResponse::Ok();
+    let mut response_builder = HttpResponse::build(status_code.unwrap_or(http::StatusCode::OK));
     for (header_name, header_value) in headers {
         let is_sensitive_header = header_value.is_masked();
         let mut header_value = header_value.into_inner();
@@ -1104,6 +1146,7 @@ impl Authenticate for api_models::payments::PaymentsRequest {
     }
 }
 
+#[cfg(feature = "v1")]
 impl Authenticate for api_models::payment_methods::PaymentMethodListRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
@@ -1143,6 +1186,7 @@ impl Authenticate for api_models::payments::PaymentsRetrieveRequest {
     }
 }
 impl Authenticate for api_models::payments::PaymentsCancelRequest {}
+impl Authenticate for api_models::payments::PaymentsCancelPostCaptureRequest {}
 impl Authenticate for api_models::payments::PaymentsCaptureRequest {}
 impl Authenticate for api_models::payments::PaymentsIncrementalAuthorizationRequest {}
 impl Authenticate for api_models::payments::PaymentsStartRequest {}
@@ -1181,7 +1225,7 @@ pub fn build_redirection_form(
                     #loader1 {
                         width: 500px,
                     }
-                    @media max-width: 600px {
+                    @media (max-width: 600px) {
                         #loader1 {
                             width: 200px
                         }
@@ -1748,7 +1792,7 @@ pub fn build_redirection_form(
                                 #loader1 {
                                     width: 500px;
                                 }
-                                @media max-width: 600px {
+                                @media (max-width: 600px) {
                                     #loader1 {
                                         width: 200px;
                                     }
@@ -1777,7 +1821,21 @@ pub fn build_redirection_form(
                     script {
                         (PreEscaped(format!(
                             r#"
+                                var ddcProcessed = false;
+                                var timeoutHandle = null;
+                                
                                 function submitCollectionReference(collectionReference) {{
+                                    if (ddcProcessed) {{
+                                        console.log("DDC already processed, ignoring duplicate submission");
+                                        return;
+                                    }}
+                                    ddcProcessed = true;
+                                    
+                                    if (timeoutHandle) {{
+                                        clearTimeout(timeoutHandle);
+                                        timeoutHandle = null;
+                                    }}
+                                    
                                     var redirectPathname = window.location.pathname.replace(/payments\/redirect\/([^\/]+)\/([^\/]+)\/[^\/]+/, "payments/$1/$2/redirect/complete/worldpay");
                                     var redirectUrl = window.location.origin + redirectPathname;
                                     try {{
@@ -1796,12 +1854,17 @@ pub fn build_redirection_form(
                                             window.location.replace(redirectUrl);
                                         }}
                                     }} catch (error) {{
+                                        console.error("Error submitting DDC:", error);
                                         window.location.replace(redirectUrl);
                                     }}
                                 }}
                                 var allowedHost = "{}";
                                 var collectionField = "{}";
                                 window.addEventListener("message", function(event) {{
+                                    if (ddcProcessed) {{
+                                        console.log("DDC already processed, ignoring message event");
+                                        return;
+                                    }}
                                     if (event.origin === allowedHost) {{
                                         try {{
                                             var data = JSON.parse(event.data);
@@ -1821,8 +1884,13 @@ pub fn build_redirection_form(
                                     submitCollectionReference("");
                                 }});
 
-                                // Redirect within 8 seconds if no collection reference is received
-                                window.setTimeout(submitCollectionReference, 8000);
+                                // Timeout after 10 seconds and will submit empty collection reference
+                                timeoutHandle = window.setTimeout(function() {{
+                                    if (!ddcProcessed) {{
+                                        console.log("DDC timeout reached, submitting empty collection reference");
+                                        submitCollectionReference("");
+                                    }}
+                                }}, 10000);
                             "#,
                             endpoint.host_str().map_or(endpoint.as_ref().split('/').take(3).collect::<Vec<&str>>().join("/"), |host| format!("{}://{}", endpoint.scheme(), host)),
                             collection_id.clone().unwrap_or("".to_string())))
@@ -2063,6 +2131,64 @@ pub fn get_payment_link_status(
             Err(errors::ApiErrorResponse::InternalServerError)?
         }
     }
+}
+
+pub fn extract_mapped_fields(
+    value: &serde_json::Value,
+    mapping: Option<&HashMap<String, String>>,
+    existing_enhancement: Option<&serde_json::Value>,
+) -> Option<serde_json::Value> {
+    let mapping = mapping?;
+
+    if mapping.is_empty() {
+        return existing_enhancement.cloned();
+    }
+
+    let mut enhancement = match existing_enhancement {
+        Some(existing) if existing.is_object() => existing.clone(),
+        _ => serde_json::json!({}),
+    };
+
+    for (dot_path, output_key) in mapping {
+        if let Some(extracted_value) = extract_field_by_dot_path(value, dot_path) {
+            if let Some(obj) = enhancement.as_object_mut() {
+                obj.insert(output_key.clone(), extracted_value);
+            }
+        }
+    }
+
+    if enhancement.as_object().is_some_and(|obj| !obj.is_empty()) {
+        Some(enhancement)
+    } else {
+        None
+    }
+}
+
+pub fn extract_field_by_dot_path(
+    value: &serde_json::Value,
+    path: &str,
+) -> Option<serde_json::Value> {
+    let parts: Vec<&str> = path.split('.').collect();
+    let mut current = value;
+
+    for part in parts {
+        match current {
+            serde_json::Value::Object(obj) => {
+                current = obj.get(part)?;
+            }
+            serde_json::Value::Array(arr) => {
+                // Try to parse part as array index
+                if let Ok(index) = part.parse::<usize>() {
+                    current = arr.get(index)?;
+                } else {
+                    return None;
+                }
+            }
+            _ => return None,
+        }
+    }
+
+    Some(current.clone())
 }
 
 #[cfg(test)]

@@ -80,6 +80,7 @@ impl ValidateStatusForOperation for PaymentAttemptRecord {
             | common_enums::IntentStatus::Failed => Ok(()),
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Processing
             | common_enums::IntentStatus::Conflicted
             | common_enums::IntentStatus::RequiresCustomerAction
@@ -87,7 +88,8 @@ impl ValidateStatusForOperation for PaymentAttemptRecord {
             | common_enums::IntentStatus::RequiresCapture
             | common_enums::IntentStatus::PartiallyCaptured
             | common_enums::IntentStatus::RequiresConfirmation
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => {
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::Expired => {
                 Err(errors::ApiErrorResponse::PaymentUnexpectedState {
                     current_flow: format!("{self:?}"),
                     field_name: "status".to_string(),

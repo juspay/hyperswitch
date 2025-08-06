@@ -55,10 +55,19 @@ pub struct Authentication {
     pub return_url: Option<String>,
     pub amount: Option<common_utils::types::MinorUnit>,
     pub currency: Option<common_enums::Currency>,
-    #[encrypt]
-    pub billing_address: Option<Encryptable<Secret<Value>>>,
-    #[encrypt]
-    pub shipping_address: Option<Encryptable<Secret<Value>>>,
+    #[encrypt(ty = Value)]
+    pub billing_address: Option<Encryptable<crate::address::Address>>,
+    #[encrypt(ty = Value)]
+    pub shipping_address: Option<Encryptable<crate::address::Address>>,
     pub browser_info: Option<Value>,
     pub email: Option<Encryptable<Secret<String, pii::EmailStrategy>>>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct PgRedirectResponseForAuthentication {
+    pub authentication_id: common_utils::id_type::AuthenticationId,
+    pub status: common_enums::TransactionStatus,
+    pub gateway_id: String,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
+    pub amount: Option<common_utils::types::MinorUnit>,
 }

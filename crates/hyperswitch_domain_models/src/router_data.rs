@@ -1,6 +1,6 @@
 use std::{collections::HashMap, marker::PhantomData};
 
-use common_types::primitive_wrappers;
+use common_types::{payments as common_payment_types, primitive_wrappers};
 use common_utils::{
     errors::IntegrityCheckError,
     ext_traits::{OptionExt, ValueExt},
@@ -99,6 +99,8 @@ pub struct RouterData<Flow, Request, Response> {
 
     pub connector_mandate_request_reference_id: Option<String>,
 
+    pub l2_l3_data: Option<L2L3Data>,
+
     pub authentication_id: Option<id_type::AuthenticationId>,
     /// Contains the type of sca exemption required for the transaction
     pub psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
@@ -109,6 +111,26 @@ pub struct RouterData<Flow, Request, Response> {
     /// Indicates whether the payment ID was provided by the merchant (true),
     /// or generated internally by Hyperswitch (false)
     pub is_payment_id_from_merchant: Option<bool>,
+}
+
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+pub struct L2L3Data {
+    pub order_date: Option<time::PrimitiveDateTime>,
+    pub tax_status: Option<common_enums::TaxStatus>,
+    pub customer_tax_registration_id: Option<Secret<String>>,
+    pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+    pub discount_amount: Option<MinorUnit>,
+    pub shipping_cost: Option<MinorUnit>,
+    pub shipping_amount_tax: Option<MinorUnit>,
+    pub duty_amount: Option<MinorUnit>,
+    pub order_tax_amount: Option<MinorUnit>,
+    pub merchant_order_reference_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
+    pub shipping_origin_zip: Option<Secret<String>>,
+    pub shipping_state: Option<Secret<String>>,
+    pub shipping_country: Option<common_enums::CountryAlpha2>,
+    pub shipping_destination_zip: Option<Secret<String>>,
+    pub billing_address_city: Option<String>,
 }
 
 // Different patterns of authentication.
@@ -244,28 +266,79 @@ pub struct AccessToken {
 #[derive(Debug, Clone, serde::Deserialize)]
 pub enum PaymentMethodToken {
     Token(Secret<String>),
-    ApplePayDecrypt(Box<ApplePayPredecryptData>),
+    ApplePayDecrypt(Box<common_payment_types::ApplePayPredecryptData>),
     GooglePayDecrypt(Box<GooglePayDecryptedData>),
     PazeDecrypt(Box<PazeDecryptedData>),
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ApplePayPredecryptData {
-    pub application_primary_account_number: Secret<String>,
+pub struct ApplePayPredecryptDataInternal {
+    pub application_primary_account_number: cards::CardNumber,
     pub application_expiration_date: String,
     pub currency_code: String,
     pub transaction_amount: i64,
     pub device_manufacturer_identifier: Secret<String>,
     pub payment_data_type: Secret<String>,
-    pub payment_data: ApplePayCryptogramData,
+    pub payment_data: ApplePayCryptogramDataInternal,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ApplePayCryptogramData {
+pub struct ApplePayCryptogramDataInternal {
     pub online_payment_cryptogram: Secret<String>,
     pub eci_indicator: Option<String>,
+}
+
+impl TryFrom<ApplePayPredecryptDataInternal> for common_payment_types::ApplePayPredecryptData {
+    type Error = common_utils::errors::ValidationError;
+    fn try_from(data: ApplePayPredecryptDataInternal) -> Result<Self, Self::Error> {
+        let application_expiration_month = data.clone().get_expiry_month()?;
+        let application_expiration_year = data.clone().get_four_digit_expiry_year()?;
+
+        Ok(Self {
+            application_primary_account_number: data.application_primary_account_number.clone(),
+            application_expiration_month,
+            application_expiration_year,
+            payment_data: data.payment_data.into(),
+        })
+    }
+}
+
+impl From<ApplePayCryptogramDataInternal> for common_payment_types::ApplePayCryptogramData {
+    fn from(payment_data: ApplePayCryptogramDataInternal) -> Self {
+        Self {
+            online_payment_cryptogram: payment_data.online_payment_cryptogram,
+            eci_indicator: payment_data.eci_indicator,
+        }
+    }
+}
+
+impl ApplePayPredecryptDataInternal {
+    /// This logic being applied as apple pay provides application_expiration_date in the YYMMDD format
+    fn get_four_digit_expiry_year(
+        &self,
+    ) -> Result<Secret<String>, common_utils::errors::ValidationError> {
+        Ok(Secret::new(format!(
+            "20{}",
+            self.application_expiration_date.get(0..2).ok_or(
+                common_utils::errors::ValidationError::InvalidValue {
+                    message: "Invalid two-digit year".to_string(),
+                }
+            )?
+        )))
+    }
+
+    fn get_expiry_month(&self) -> Result<Secret<String>, common_utils::errors::ValidationError> {
+        Ok(Secret::new(
+            self.application_expiration_date
+                .get(2..4)
+                .ok_or(common_utils::errors::ValidationError::InvalidValue {
+                    message: "Invalid two-digit month".to_string(),
+                })?
+                .to_owned(),
+        ))
+    }
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -702,7 +775,9 @@ impl
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Cancelled
-            | common_enums::IntentStatus::Conflicted => Some(MinorUnit::zero()),
+            | common_enums::IntentStatus::CancelledPostCapture
+            | common_enums::IntentStatus::Conflicted
+            | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             // For these statuses, update the capturable amount when it reaches terminal / capturable state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
@@ -737,9 +812,10 @@ impl
                 Some(total_amount)
             }
             // No amount is captured
-            common_enums::IntentStatus::Cancelled | common_enums::IntentStatus::Failed => {
-                Some(MinorUnit::zero())
-            }
+            common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
+            | common_enums::IntentStatus::Failed
+            | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             // For these statuses, update the amount captured when it reaches terminal state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
@@ -913,7 +989,9 @@ impl
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Cancelled
-            | common_enums::IntentStatus::Conflicted => Some(MinorUnit::zero()),
+            | common_enums::IntentStatus::CancelledPostCapture
+            | common_enums::IntentStatus::Conflicted
+            | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             // For these statuses, update the capturable amount when it reaches terminal / capturable state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
@@ -951,9 +1029,10 @@ impl
                 Some(amount_captured)
             }
             // No amount is captured
-            common_enums::IntentStatus::Cancelled | common_enums::IntentStatus::Failed => {
-                Some(MinorUnit::zero())
-            }
+            common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
+            | common_enums::IntentStatus::Failed
+            | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             common_enums::IntentStatus::RequiresCapture => {
                 let total_amount = payment_data.payment_attempt.amount_details.get_net_amount();
                 Some(total_amount)
@@ -1149,7 +1228,9 @@ impl
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Cancelled
-            | common_enums::IntentStatus::Conflicted => Some(MinorUnit::zero()),
+            | common_enums::IntentStatus::CancelledPostCapture
+            | common_enums::IntentStatus::Conflicted
+            | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             // For these statuses, update the capturable amount when it reaches terminal / capturable state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
@@ -1186,9 +1267,10 @@ impl
                 Some(amount_captured)
             }
             // No amount is captured
-            common_enums::IntentStatus::Cancelled | common_enums::IntentStatus::Failed => {
-                Some(MinorUnit::zero())
-            }
+            common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
+            | common_enums::IntentStatus::Failed
+            | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             // For these statuses, update the amount captured when it reaches terminal state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
@@ -1382,7 +1464,9 @@ impl
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Cancelled
-            | common_enums::IntentStatus::Conflicted => Some(MinorUnit::zero()),
+            | common_enums::IntentStatus::CancelledPostCapture
+            | common_enums::IntentStatus::Conflicted
+            | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             // For these statuses, update the capturable amount when it reaches terminal / capturable state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
@@ -1417,9 +1501,10 @@ impl
                 Some(total_amount)
             }
             // No amount is captured
-            common_enums::IntentStatus::Cancelled | common_enums::IntentStatus::Failed => {
-                Some(MinorUnit::zero())
-            }
+            common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
+            | common_enums::IntentStatus::Failed
+            | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             // For these statuses, update the amount captured when it reaches terminal state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction

@@ -142,6 +142,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsConfirm
             | Flow::PaymentsCapture
             | Flow::PaymentsCancel
+            | Flow::PaymentsCancelPostCapture
             | Flow::PaymentsApprove
             | Flow::PaymentsReject
             | Flow::PaymentsSessionToken
@@ -302,6 +303,13 @@ impl From<Flow> for ApiIdentifier {
             | Flow::CreateTheme
             | Flow::UpdateTheme
             | Flow::DeleteTheme
+            | Flow::CreateUserTheme
+            | Flow::UpdateUserTheme
+            | Flow::DeleteUserTheme
+            | Flow::GetUserThemeUsingThemeId
+            | Flow::UploadFileToUserThemeStorage
+            | Flow::GetUserThemeUsingLineage
+            | Flow::ListAllThemesInLineage
             | Flow::CloneConnector => Self::User,
 
             Flow::GetDataFromHyperswitchAiFlow => Self::AiWorkflow,
@@ -355,7 +363,11 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::RevenueRecoveryRetrieve => Self::ProcessTracker,
 
-            Flow::AuthenticationCreate | Flow::AuthenticationEligibility => Self::Authentication,
+            Flow::AuthenticationCreate
+            | Flow::AuthenticationEligibility
+            | Flow::AuthenticationSync
+            | Flow::AuthenticationSyncPostUpdate
+            | Flow::AuthenticationAuthenticate => Self::Authentication,
             Flow::Proxy => Self::Proxy,
 
             Flow::ProfileAcquirerCreate | Flow::ProfileAcquirerUpdate => Self::ProfileAcquirer,

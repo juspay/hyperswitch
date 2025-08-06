@@ -29,6 +29,7 @@ pub struct ConnectorAuthentication {
     pub billwerk: Option<HeaderKey>,
     pub bitpay: Option<HeaderKey>,
     pub blackhawknetwork: Option<HeaderKey>,
+    pub bluecode: Option<HeaderKey>,
     pub bluesnap: Option<BodyKey>,
     pub boku: Option<BodyKey>,
     pub breadpay: Option<BodyKey>,
@@ -54,6 +55,7 @@ pub struct ConnectorAuthentication {
     pub fiserv: Option<SignatureKey>,
     pub fiservemea: Option<HeaderKey>,
     pub fiuu: Option<HeaderKey>,
+    pub flexiti: Option<HeaderKey>,
     pub forte: Option<MultiAuthKey>,
     pub getnet: Option<HeaderKey>,
     pub globalpay: Option<BodyKey>,
@@ -68,9 +70,11 @@ pub struct ConnectorAuthentication {
     pub itaubank: Option<MultiAuthKey>,
     pub jpmorgan: Option<BodyKey>,
     pub juspaythreedsserver: Option<HeaderKey>,
+    pub katapult: Option<HeaderKey>,
     pub mifinity: Option<HeaderKey>,
     pub mollie: Option<BodyKey>,
     pub moneris: Option<SignatureKey>,
+    pub mpgs: Option<HeaderKey>,
     pub multisafepay: Option<HeaderKey>,
     pub netcetera: Option<HeaderKey>,
     pub nexinets: Option<BodyKey>,
@@ -85,12 +89,14 @@ pub struct ConnectorAuthentication {
     pub opennode: Option<HeaderKey>,
     pub paybox: Option<HeaderKey>,
     pub payeezy: Option<SignatureKey>,
-    pub payload: Option<HeaderKey>,
+    pub payload: Option<CurrencyAuthKey>,
     pub payme: Option<BodyKey>,
     pub payone: Option<HeaderKey>,
     pub paypal: Option<BodyKey>,
     pub paystack: Option<HeaderKey>,
+    pub paytm: Option<HeaderKey>,
     pub payu: Option<BodyKey>,
+    pub phonepe: Option<HeaderKey>,
     pub placetopay: Option<BodyKey>,
     pub plaid: Option<BodyKey>,
     pub powertranz: Option<BodyKey>,
@@ -217,54 +223,78 @@ impl ConnectorAuthenticationMap {
             .into_iter()
             .map(|(connector_name, config)| {
                 let auth_type = match config {
-                    toml::Value::Table(table) => {
-                        match (
-                            table.get("api_key"),
-                            table.get("key1"),
-                            table.get("api_secret"),
-                            table.get("key2"),
-                        ) {
-                            (Some(api_key), None, None, None) => ConnectorAuthType::HeaderKey {
-                                api_key: Secret::new(
-                                    api_key.as_str().unwrap_or_default().to_string(),
-                                ),
-                            },
-                            (Some(api_key), Some(key1), None, None) => ConnectorAuthType::BodyKey {
-                                api_key: Secret::new(
-                                    api_key.as_str().unwrap_or_default().to_string(),
-                                ),
-                                key1: Secret::new(key1.as_str().unwrap_or_default().to_string()),
-                            },
-                            (Some(api_key), Some(key1), Some(api_secret), None) => {
-                                ConnectorAuthType::SignatureKey {
+                    toml::Value::Table(mut table) => {
+                        if let Some(auth_key_map_value) = table.remove("auth_key_map") {
+                            // This is a CurrencyAuthKey
+                            if let toml::Value::Table(auth_key_map_table) = auth_key_map_value {
+                                let mut parsed_auth_map = HashMap::new();
+                                for (currency, val) in auth_key_map_table {
+                                    if let Ok(currency_enum) =
+                                        currency.parse::<common_enums::Currency>()
+                                    {
+                                        parsed_auth_map
+                                            .insert(currency_enum, Secret::new(val.to_string()));
+                                    }
+                                }
+                                ConnectorAuthType::CurrencyAuthKey {
+                                    auth_key_map: parsed_auth_map,
+                                }
+                            } else {
+                                ConnectorAuthType::NoKey
+                            }
+                        } else {
+                            match (
+                                table.get("api_key"),
+                                table.get("key1"),
+                                table.get("api_secret"),
+                                table.get("key2"),
+                            ) {
+                                (Some(api_key), None, None, None) => ConnectorAuthType::HeaderKey {
                                     api_key: Secret::new(
                                         api_key.as_str().unwrap_or_default().to_string(),
                                     ),
-                                    key1: Secret::new(
-                                        key1.as_str().unwrap_or_default().to_string(),
-                                    ),
-                                    api_secret: Secret::new(
-                                        api_secret.as_str().unwrap_or_default().to_string(),
-                                    ),
+                                },
+                                (Some(api_key), Some(key1), None, None) => {
+                                    ConnectorAuthType::BodyKey {
+                                        api_key: Secret::new(
+                                            api_key.as_str().unwrap_or_default().to_string(),
+                                        ),
+                                        key1: Secret::new(
+                                            key1.as_str().unwrap_or_default().to_string(),
+                                        ),
+                                    }
                                 }
-                            }
-                            (Some(api_key), Some(key1), Some(api_secret), Some(key2)) => {
-                                ConnectorAuthType::MultiAuthKey {
-                                    api_key: Secret::new(
-                                        api_key.as_str().unwrap_or_default().to_string(),
-                                    ),
-                                    key1: Secret::new(
-                                        key1.as_str().unwrap_or_default().to_string(),
-                                    ),
-                                    api_secret: Secret::new(
-                                        api_secret.as_str().unwrap_or_default().to_string(),
-                                    ),
-                                    key2: Secret::new(
-                                        key2.as_str().unwrap_or_default().to_string(),
-                                    ),
+                                (Some(api_key), Some(key1), Some(api_secret), None) => {
+                                    ConnectorAuthType::SignatureKey {
+                                        api_key: Secret::new(
+                                            api_key.as_str().unwrap_or_default().to_string(),
+                                        ),
+                                        key1: Secret::new(
+                                            key1.as_str().unwrap_or_default().to_string(),
+                                        ),
+                                        api_secret: Secret::new(
+                                            api_secret.as_str().unwrap_or_default().to_string(),
+                                        ),
+                                    }
                                 }
+                                (Some(api_key), Some(key1), Some(api_secret), Some(key2)) => {
+                                    ConnectorAuthType::MultiAuthKey {
+                                        api_key: Secret::new(
+                                            api_key.as_str().unwrap_or_default().to_string(),
+                                        ),
+                                        key1: Secret::new(
+                                            key1.as_str().unwrap_or_default().to_string(),
+                                        ),
+                                        api_secret: Secret::new(
+                                            api_secret.as_str().unwrap_or_default().to_string(),
+                                        ),
+                                        key2: Secret::new(
+                                            key2.as_str().unwrap_or_default().to_string(),
+                                        ),
+                                    }
+                                }
+                                _ => ConnectorAuthType::NoKey,
                             }
-                            _ => ConnectorAuthType::NoKey,
                         }
                     }
                     _ => ConnectorAuthType::NoKey,
@@ -272,7 +302,6 @@ impl ConnectorAuthenticationMap {
                 (connector_name, auth_type)
             })
             .collect();
-
         Self(auth_map)
     }
 }
@@ -342,6 +371,25 @@ impl From<MultiAuthKey> for ConnectorAuthType {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct CurrencyAuthKey {
+    pub auth_key_map: HashMap<String, toml::Value>,
+}
+
+impl From<CurrencyAuthKey> for ConnectorAuthType {
+    fn from(key: CurrencyAuthKey) -> Self {
+        let mut auth_map = HashMap::new();
+        for (currency, auth_data) in key.auth_key_map {
+            if let Ok(currency_enum) = currency.parse::<common_enums::Currency>() {
+                auth_map.insert(currency_enum, Secret::new(auth_data.to_string()));
+            }
+        }
+        Self::CurrencyAuthKey {
+            auth_key_map: auth_map,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct NoKey {}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -392,6 +440,9 @@ pub enum ConnectorAuthType {
         key1: Secret<String>,
         api_secret: Secret<String>,
         key2: Secret<String>,
+    },
+    CurrencyAuthKey {
+        auth_key_map: HashMap<common_enums::Currency, Secret<String>>,
     },
     #[default]
     NoKey,

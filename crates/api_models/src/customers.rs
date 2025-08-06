@@ -39,6 +39,9 @@ pub struct CustomerRequest {
     /// object.
     #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
+    /// Customer's tax registration ID
+    #[schema(max_length = 255, value_type = Option<String>, example = "123456789")]
+    pub tax_registration_id: Option<Secret<String>>,
 }
 
 #[derive(Debug, Default, Clone, Deserialize, Serialize, ToSchema)]
@@ -102,6 +105,9 @@ pub struct CustomerRequest {
     /// object.
     #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
+    /// The customer's tax registration number.
+    #[schema(max_length = 255, value_type = Option<String>, example = "123456789")]
+    pub tax_registration_id: Option<Secret<String>>,
 }
 
 #[cfg(feature = "v2")]
@@ -159,6 +165,9 @@ pub struct CustomerResponse {
     /// The identifier for the default payment method.
     #[schema(max_length = 64, example = "pm_djh2837dwduh890123")]
     pub default_payment_method_id: Option<String>,
+    /// The customer's tax registration number.
+    #[schema(max_length = 255, value_type = Option<String>, example = "123456789")]
+    pub tax_registration_id: crypto::OptionalEncryptableSecretString,
 }
 
 #[cfg(feature = "v1")]
@@ -218,6 +227,9 @@ pub struct CustomerResponse {
     /// The identifier for the default payment method.
     #[schema(value_type = Option<String>, max_length = 64, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
     pub default_payment_method_id: Option<id_type::GlobalPaymentMethodId>,
+    /// The customer's tax registration number.
+    #[schema(max_length = 255, value_type = Option<String>, example = "123456789")]
+    pub tax_registration_id: crypto::OptionalEncryptableSecretString,
 }
 
 #[cfg(feature = "v2")]
@@ -300,6 +312,9 @@ pub struct CustomerUpdateRequest {
     /// object.
     #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
+    /// Customer's tax registration ID
+    #[schema(max_length = 255, value_type = Option<String>, example = "123456789")]
+    pub tax_registration_id: Option<Secret<String>>,
 }
 
 #[cfg(feature = "v1")]
@@ -342,6 +357,9 @@ pub struct CustomerUpdateRequest {
     /// The unique identifier of the payment method
     #[schema(value_type = Option<String>, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
     pub default_payment_method_id: Option<id_type::GlobalPaymentMethodId>,
+    /// The customer's tax registration number.
+    #[schema(max_length = 255, value_type = Option<String>, example = "123456789")]
+    pub tax_registration_id: Option<Secret<String>>,
 }
 
 #[cfg(feature = "v2")]

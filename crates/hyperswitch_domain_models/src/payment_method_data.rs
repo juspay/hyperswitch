@@ -96,6 +96,14 @@ impl PaymentMethodData {
         }
     }
 
+    pub fn get_card_data(&self) -> Option<&Card> {
+        if let Self::Card(card) = self {
+            Some(card)
+        } else {
+            None
+        }
+    }
+
     pub fn extract_debit_routing_saving_percentage(
         &self,
         network: &common_enums::CardNetwork,
@@ -232,6 +240,7 @@ pub enum PayLaterData {
     AfterpayClearpayRedirect {},
     PayBrightRedirect {},
     WalleyRedirect {},
+    FlexitiRedirect {},
     AlmaRedirect {},
     AtomeRedirect {},
     BreadpayRedirect {},
@@ -243,6 +252,7 @@ pub enum WalletData {
     AliPayRedirect(AliPayRedirection),
     AliPayHkRedirect(AliPayHkRedirection),
     AmazonPayRedirect(Box<AmazonPayRedirect>),
+    BluecodeRedirect {},
     Paysera(Box<PayseraData>),
     Skrill(Box<SkrillData>),
     MomoRedirect(MomoRedirection),
@@ -396,6 +406,9 @@ pub struct AliPayHkRedirection {}
 pub struct AmazonPayRedirect {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct BluecodeQrRedirect {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct PayseraData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -461,7 +474,7 @@ pub struct GpayTokenizationData {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct ApplePayWalletData {
     /// The payment data of Apple pay
-    pub payment_data: String,
+    pub payment_data: common_types::payments::ApplePayPaymentData,
     /// The payment method of Apple pay
     pub payment_method: ApplepayPaymentMethod,
     /// The unique identifier for the transaction
@@ -1085,6 +1098,7 @@ impl From<api_models::payments::WalletData> for WalletData {
                     language_preference: mifinity_data.language_preference,
                 })
             }
+            api_models::payments::WalletData::BluecodeRedirect {} => Self::BluecodeRedirect {},
             api_models::payments::WalletData::RevolutPay(_) => Self::RevolutPay(RevolutPayData {}),
         }
     }
@@ -1182,6 +1196,7 @@ impl From<api_models::payments::PayLaterData> for PayLaterData {
             api_models::payments::PayLaterData::KlarnaRedirect { .. } => Self::KlarnaRedirect {},
             api_models::payments::PayLaterData::KlarnaSdk { token } => Self::KlarnaSdk { token },
             api_models::payments::PayLaterData::AffirmRedirect {} => Self::AffirmRedirect {},
+            api_models::payments::PayLaterData::FlexitiRedirect {} => Self::FlexitiRedirect {},
             api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
                 Self::AfterpayClearpayRedirect {}
             }
@@ -1856,6 +1871,7 @@ impl GetPaymentMethodType for WalletData {
             Self::GooglePay(_) | Self::GooglePayRedirect(_) | Self::GooglePayThirdPartySdk(_) => {
                 api_enums::PaymentMethodType::GooglePay
             }
+            Self::BluecodeRedirect {} => api_enums::PaymentMethodType::Bluecode,
             Self::MbWayRedirect(_) => api_enums::PaymentMethodType::MbWay,
             Self::MobilePayRedirect(_) => api_enums::PaymentMethodType::MobilePay,
             Self::PaypalRedirect(_) | Self::PaypalSdk(_) => api_enums::PaymentMethodType::Paypal,
@@ -1880,6 +1896,7 @@ impl GetPaymentMethodType for PayLaterData {
         match self {
             Self::KlarnaRedirect { .. } => api_enums::PaymentMethodType::Klarna,
             Self::KlarnaSdk { .. } => api_enums::PaymentMethodType::Klarna,
+            Self::FlexitiRedirect { .. } => api_enums::PaymentMethodType::Flexiti,
             Self::AffirmRedirect {} => api_enums::PaymentMethodType::Affirm,
             Self::AfterpayClearpayRedirect { .. } => api_enums::PaymentMethodType::AfterpayClearpay,
             Self::PayBrightRedirect {} => api_enums::PaymentMethodType::PayBright,
