@@ -439,7 +439,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AmazonpayPaymentsResponse, T, PaymentsR
             }
             AmazonpayPaymentStatus::Declined => {
                 Ok(Self {
-                    status: common_enums::AttemptStatus::CaptureFailed,
+                    status: common_enums::AttemptStatus::Failure,
                     response: Err(ErrorResponse {
                         code: consts::NO_ERROR_CODE.to_owned(),
                         message: "The authorization or capture was declined".to_owned(),
