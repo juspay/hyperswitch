@@ -3525,7 +3525,7 @@ dependencies = [
 [[package]]
 name = "grpc-api-types"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=0409f6aa1014dd1b9827fabfa4fa424e16d07ebc#0409f6aa1014dd1b9827fabfa4fa424e16d07ebc"
+source = "git+https://github.com/juspay/connector-service?branch=mifinity-connector-integration#c7a7a643a954d6e82d853ef8fb72d418d702fff3"
 dependencies = [
  "axum 0.8.4",
  "error-stack 0.5.0",
@@ -6899,7 +6899,7 @@ dependencies = [
 [[package]]
 name = "rust-grpc-client"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=0409f6aa1014dd1b9827fabfa4fa424e16d07ebc#0409f6aa1014dd1b9827fabfa4fa424e16d07ebc"
+source = "git+https://github.com/juspay/connector-service?branch=mifinity-connector-integration#c7a7a643a954d6e82d853ef8fb72d418d702fff3"
 dependencies = [
  "grpc-api-types",
 ]
