@@ -58,15 +58,22 @@ pub struct RecoveryDeciderClientConfig {
 }
 
 impl RecoveryDeciderClientConfig {
+    /// Validate the configuration
+    pub fn validate(&self) -> Result<(), RecoveryDeciderError> {
+        use common_utils::fp_utils::when;
+        
+        when(self.base_url.is_empty(), || {
+            Err(RecoveryDeciderError::ConfigError(
+                "Recovery Decider base URL cannot be empty when configuration is provided".to_string()
+            ))
+        })
+    }
+
     /// create a connection
     pub fn get_recovery_decider_connection(
         &self,
         hyper_client: Client,
-    ) -> Result<Option<DeciderClient<Client>>, Report<RecoveryDeciderError>> {
-        if self.base_url.is_empty() {
-            return Ok(None);
-        }
-
+    ) -> Result<DeciderClient<Client>, Report<RecoveryDeciderError>> {
         let uri = self
             .base_url
             .parse::<tonic::transport::Uri>()
@@ -78,13 +85,12 @@ impl RecoveryDeciderClientConfig {
 
         let service_client = DeciderClient::with_origin(hyper_client, uri);
 
-        Ok(Some(service_client))
+        Ok(service_client)
     }
 }
 
 #[async_trait::async_trait]
 impl RecoveryDeciderClientInterface for DeciderClient<Client> {
-    /// collects the request from HS and sends it to recovery decider gRPC service
     async fn decide_on_retry(
         &mut self,
         request_payload: DeciderRequest,

@@ -814,7 +814,7 @@ billing_connectors_which_requires_invoice_sync_call = "recurly"
 
 
 [revenue_recovery]
-monitoring_threshold_in_seconds = 2592000
+monitoring_threshold_in_seconds = 60
 retry_algorithm_type = "cascading"
 
 [authentication_providers]

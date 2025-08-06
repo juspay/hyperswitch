@@ -1258,12 +1258,11 @@ ucs_only_connectors = [
 ]
 
 [revenue_recovery]
-monitoring_threshold_in_seconds = 2592000
+monitoring_threshold_in_seconds = 60
 retry_algorithm_type = "cascading"
 
 [revenue_recovery.recovery_timestamp]
 initial_timestamp_in_hours = 1
-final_timestamp_in_hours = 30
 
 [clone_connector_allowlist]
 merchant_ids = "merchant_123, merchant_234"     # Comma-separated list of allowed merchant IDs

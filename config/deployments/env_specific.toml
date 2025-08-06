@@ -387,7 +387,6 @@ connection_timeout = 10                 # Connection Timeout Duration in Seconds
 
 [revenue_recovery.recovery_timestamp] # Timestamp configuration for Revenue Recovery
 initial_timestamp_in_hours = 1        # number of hours added to start time for Decider service of Revenue Recovery
-final_timestamp_in_hours = 30          # number of days added to start time for ent time in Revenue Recovery
 
 [chat]
 enabled = false                                # Enable or disable chat features

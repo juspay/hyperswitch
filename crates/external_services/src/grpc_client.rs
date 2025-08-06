@@ -22,7 +22,6 @@ use health_check_client::HealthCheckClient;
 use hyper_util::client::legacy::connect::HttpConnector;
 #[cfg(any(feature = "dynamic_routing", feature = "revenue_recovery"))]
 use router_env::logger;
-use serde;
 #[cfg(any(feature = "dynamic_routing", feature = "revenue_recovery"))]
 use tonic::body::Body;
 
@@ -103,20 +102,26 @@ impl GrpcClientSettings {
 
         #[cfg(feature = "revenue_recovery")]
         let recovery_decider_client = {
-            let client_result = self
-                .recovery_decider_client
-                .as_ref()
-                .map(|config| config.get_recovery_decider_connection(client.clone()))
-                .transpose()
-                .expect("Failed to establish a connection with the Recovery Decider Server")
-                .flatten()
-                .map(|client| -> Box<dyn RecoveryDeciderClientInterface> { Box::new(client) });
-
-            if client_result.is_some() {
-                logger::info!("Recovery Decider gRPC client successfully initialized");
+            match &self.recovery_decider_client {
+                Some(config) => {
+                    // Validate the config first
+                    config.validate()
+                        .expect("Recovery Decider configuration validation failed");
+                    
+                    // Create the client
+                    let client = config.get_recovery_decider_connection(client.clone())
+                        .expect("Failed to establish a connection with the Recovery Decider Server");
+                    
+                    logger::info!("Recovery Decider gRPC client successfully initialized");
+                    // Some(Box::new(client) as Box<dyn RecoveryDeciderClientInterface>)
+                    let boxed_client: Box<dyn RecoveryDeciderClientInterface> = Box::new(client);
+                    Some(boxed_client)
+                }
+                None => {
+                    logger::debug!("Recovery Decider client configuration not provided, client will be disabled");
+                    None
+                }
             }
-
-            client_result
         };
 
         Arc::new(GrpcClients {

@@ -20,7 +20,7 @@ use hyperswitch_domain_models::{
     business_profile, merchant_connector_account,
     merchant_context::{Context, MerchantContext},
     payments::{
-        self as domain_payments, payment_attempt, PaymentConfirmData, PaymentIntent,
+        self as domain_payments, payment_attempt::PaymentAttempt, PaymentConfirmData, PaymentIntent,
         PaymentIntentData,
     },
     router_data_v2::{self, flow_common_types},
@@ -99,7 +99,7 @@ impl RevenueRecoveryPaymentsAttemptStatus {
         payment_intent: &PaymentIntent,
         process_tracker: storage::ProcessTracker,
         revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
-        payment_attempt: payment_attempt::PaymentAttempt,
+        payment_attempt: PaymentAttempt,
         revenue_recovery_metadata: &mut PaymentRevenueRecoveryMetadata,
     ) -> Result<(), errors::ProcessTrackerError> {
         let db = &*state.store;
@@ -299,10 +299,10 @@ impl Decision {
 
 #[derive(Debug, Clone)]
 pub enum Action {
-    SyncPayment(payment_attempt::PaymentAttempt),
+    SyncPayment(PaymentAttempt),
     RetryPayment(PrimitiveDateTime),
-    TerminalFailure(payment_attempt::PaymentAttempt),
-    SuccessfulPayment(payment_attempt::PaymentAttempt),
+    TerminalFailure(PaymentAttempt),
+    SuccessfulPayment(PaymentAttempt),
     ReviewPayment,
     ManualReviewAction,
 }
@@ -551,7 +551,7 @@ impl Action {
         revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
         payment_intent: &PaymentIntent,
         process: &storage::ProcessTracker,
-        payment_attempt: payment_attempt::PaymentAttempt,
+        payment_attempt: PaymentAttempt,
     ) -> RecoveryResult<Self> {
         let response = revenue_recovery_core::api::call_psync_api(
             state,
@@ -754,7 +754,7 @@ impl Action {
         merchant_id: &id_type::MerchantId,
         pt: storage::ProcessTracker,
         revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
-        payment_attempt: &payment_attempt::PaymentAttempt,
+        payment_attempt: &PaymentAttempt,
         payment_intent: &PaymentIntent,
     ) -> RecoveryResult<Self> {
         let next_retry_count = pt.retry_count + 1;
@@ -779,7 +779,7 @@ impl Action {
 // TODO: Move these to impl based functions
 async fn record_back_to_billing_connector(
     state: &SessionState,
-    payment_attempt: &payment_attempt::PaymentAttempt,
+    payment_attempt: &PaymentAttempt,
     payment_intent: &PaymentIntent,
     billing_mca: &merchant_connector_account::MerchantConnectorAccount,
 ) -> RecoveryResult<()> {
@@ -832,7 +832,7 @@ async fn record_back_to_billing_connector(
 pub fn construct_recovery_record_back_router_data(
     state: &SessionState,
     billing_mca: &merchant_connector_account::MerchantConnectorAccount,
-    payment_attempt: &payment_attempt::PaymentAttempt,
+    payment_attempt: &PaymentAttempt,
     payment_intent: &PaymentIntent,
 ) -> RecoveryResult<hyperswitch_domain_models::types::RevenueRecoveryRecordBackRouterData> {
     let auth_type: types::ConnectorAuthType =

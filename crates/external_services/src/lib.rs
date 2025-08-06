@@ -32,7 +32,6 @@ pub mod crm;
 /// date_time module
 pub mod date_time {
     use error_stack::ResultExt;
-    use prost_types::Timestamp;
 
     /// Errors in time conversion
     #[derive(Debug, thiserror::Error)]
@@ -43,9 +42,9 @@ pub mod date_time {
     }
 
     /// Converts a `time::PrimitiveDateTime` to a `prost_types::Timestamp`.
-    pub fn convert_to_prost_timestamp(dt: time::PrimitiveDateTime) -> Timestamp {
+    pub fn convert_to_prost_timestamp(dt: time::PrimitiveDateTime) -> prost_types::Timestamp {
         let odt = dt.assume_utc();
-        Timestamp {
+        prost_types::Timestamp {
             seconds: odt.unix_timestamp(),
             // This conversion is safe as nanoseconds (0..999_999_999) always fit within an i32.
             #[allow(clippy::as_conversions)]
@@ -55,7 +54,7 @@ pub mod date_time {
 
     /// Converts a `prost_types::Timestamp` to an `time::PrimitiveDateTime`.
     pub fn convert_from_prost_timestamp(
-        ts: &Timestamp,
+        ts: &prost_types::Timestamp,
     ) -> error_stack::Result<time::PrimitiveDateTime, DateTimeConversionError> {
         let timestamp_nanos = i128::from(ts.seconds) * 1_000_000_000 + i128::from(ts.nanos);
 
