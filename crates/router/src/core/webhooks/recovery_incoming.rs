@@ -35,7 +35,15 @@ use crate::{
         self,
         connector_integration_interface::{self, RouterDataConversion},
     },
-    types::{self, api, domain, storage::revenue_recovery as storage_churn_recovery},
+    types::{
+        self, api, domain,
+        storage::{
+            revenue_recovery as storage_churn_recovery,
+            revenue_recovery_redis_operation::{
+                PaymentProcessorTokenDetails, PaymentProcessorTokenUnit, RedisTokenManager,
+            },
+        },
+    },
     workflows::revenue_recovery as revenue_recovery_flow,
 };
 
@@ -852,6 +860,18 @@ impl RevenueRecoveryAttempt {
 
         let response = (recovery_attempt, updated_recovery_intent);
 
+        let redis_result = self.store_payment_processor_tokens_in_redis(state, &response.0, &response.1).await;
+        match redis_result {
+            Ok(_) => (), 
+            Err(e) => {
+                router_env::logger::error!(
+                    "Failed to store payment processor tokens in Redis: {:?}",
+                    e
+                );
+            }
+        }
+
+
         Ok(response)
     }
 
@@ -1103,6 +1123,54 @@ impl RevenueRecoveryAttempt {
             payment_id,
             status: payment_intent.status,
         })
+    }
+
+    /// Store payment processor tokens in Redis for retry management
+    async fn store_payment_processor_tokens_in_redis(
+        &self,
+        state: &SessionState,
+        recovery_attempt: &revenue_recovery::RecoveryPaymentAttempt,
+        recovery_intent: &revenue_recovery::RecoveryPaymentIntent,
+    ) -> CustomResult<(), errors::RevenueRecoveryError> {
+        let revenue_recovery_attempt_data = &self.0;
+        
+        // Extract required fields from the revenue recovery attempt data
+        let connector_customer_id = revenue_recovery_attempt_data.connector_customer_id.clone();
+
+        let payment_id = recovery_intent.payment_id.clone();
+
+        // Create PaymentProcessorTokenUnit from card_info and attempt data
+        let mut new_tokens = std::collections::HashMap::new();
+        
+        let token_unit = PaymentProcessorTokenUnit {
+            error_code: recovery_attempt.error_code.clone(),
+            payment_processor_token_details: PaymentProcessorTokenDetails {
+                payment_processor_token: revenue_recovery_attempt_data.processor_payment_method_token.clone(),
+                expiry_month: revenue_recovery_attempt_data.card_info.card_exp_month.clone().map(|s| s.peek().clone()),
+                expiry_year: revenue_recovery_attempt_data.card_info.card_exp_year.clone().map(|s| s.peek().clone()),
+                card_issuer: revenue_recovery_attempt_data.card_info.card_issuer.clone(),
+                last_four_digits: revenue_recovery_attempt_data.card_info.last4.clone(),
+                card_network: revenue_recovery_attempt_data.card_info.card_network.clone(),
+            },
+        };
+
+        new_tokens.insert(
+            revenue_recovery_attempt_data.processor_payment_method_token.clone(),
+            token_unit,
+        );
+
+        // Make the Redis call to store tokens
+        RedisTokenManager::add_connector_customer_payment_processor_tokens_if_doesnot_exist(
+            state,
+            &connector_customer_id,
+            new_tokens,
+            &payment_id,
+        )
+        .await
+        .change_context(errors::RevenueRecoveryError::PaymentAttemptFetchFailed)
+        .attach_printable("Failed to store payment processor tokens in Redis")?;
+
+        Ok(())
     }
 }
 

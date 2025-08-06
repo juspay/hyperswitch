@@ -61,8 +61,8 @@ pub struct RevenueRecoveryAttemptData {
     pub card_isin: Option<String>,
     /// stripe specific id used to validate duplicate attempts in revenue recovery flow
     pub charge_id: Option<String>,
-    // Additional card details 
-    // pub card_info: api_payments::AdditionalCardInfo,
+    /// Additional card details 
+    pub card_info: api_payments::AdditionalCardInfo,
 }
 
 /// This is unified struct for Revenue Recovery Invoice Data and it is constructed from billing connectors
@@ -328,6 +328,7 @@ impl
             card_isin: billing_connector_payment_details.card_isin.clone(),
             charge_id: billing_connector_payment_details.charge_id.clone(),
             invoice_billing_started_at_time: invoice_details.billing_started_at,
+            card_info: billing_connector_payment_details.card_info.clone(),
         }
     }
 }
