@@ -6,7 +6,8 @@ export const customerAcceptance = {
   accepted_at: "1963-05-03T04:07:52.723Z",
   online: {
     ip_address: "127.0.0.1",
-    user_agent: "amet irure esse",
+    user_agent:
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/22F76 [FBAN/FBIOS;FBAV/520.0.0.38.101;FBBV/756351453;FBDV/iPhone14,7;FBMD/iPhone;FBSN/iOS;FBSV/18.5;FBSS/3;FBID/phone;FBLC/fr_FR;FBOP/5;FBRV/760683563;IABMV/1]",
   },
 };
 
@@ -323,6 +324,14 @@ export const payment_methods_enabled = [
         recurring_enabled: true,
         installment_payment_enabled: true,
         payment_experience: "invoke_sdk_client",
+      },
+      {
+        payment_method_type: "skrill",
+        payment_experience: "redirect_to_url",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
       },
     ],
   },

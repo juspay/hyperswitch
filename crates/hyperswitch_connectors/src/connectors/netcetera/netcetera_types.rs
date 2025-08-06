@@ -1714,15 +1714,6 @@ pub struct SplitSdkType {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct MessageExtensionAttribute {
-    id: String,
-    name: String,
-    criticality_indicator: bool,
-    data: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ThreeDSReqAuthMethod {
     /// No 3DS Requestor authentication occurred (i.e. cardholder "logged in" as guest)
     #[serde(rename = "01")]

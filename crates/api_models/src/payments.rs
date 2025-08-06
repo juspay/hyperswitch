@@ -26,6 +26,8 @@ use common_utils::{
     pii::{self, Email},
     types::{MinorUnit, StringMajorUnit},
 };
+#[cfg(feature = "v2")]
+use deserialize_form_style_query_parameter::option_form_vec_deserialize;
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret, WithType};
 use router_derive::Setter;
@@ -103,6 +105,10 @@ pub struct CustomerDetails {
     /// The country code for the customer's phone number
     #[schema(max_length = 2, example = "+1")]
     pub phone_country_code: Option<String>,
+
+    /// The tax registration identifier of the customer.
+    #[schema(value_type=Option<String>,max_length = 255)]
+    pub tax_registration_id: Option<Secret<String>>,
 }
 
 #[cfg(feature = "v1")]
@@ -1186,6 +1192,28 @@ pub struct PaymentsRequest {
     #[serde(skip_deserializing)]
     #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
     pub is_payment_id_from_merchant: bool,
+
+    /// Indicates how the payment was initiated (e.g., ecommerce, mail, or telephone).
+    #[schema(value_type = Option<PaymentChannel>)]
+    pub payment_channel: Option<common_enums::PaymentChannel>,
+
+    /// Your tax status for this order or transaction.
+    #[schema(value_type = Option<TaxStatus>)]
+    pub tax_status: Option<api_enums::TaxStatus>,
+
+    /// Total amount of the discount you have applied to the order or transaction.
+    #[schema(value_type = Option<i64>, example = 6540)]
+    pub discount_amount: Option<MinorUnit>,
+
+    /// Tax amount applied to shipping charges.
+    pub shipping_amount_tax: Option<MinorUnit>,
+
+    /// Duty or customs fee amount for international transactions.
+    pub duty_amount: Option<MinorUnit>,
+
+    /// Date the payer placed the order.
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub order_date: Option<PrimitiveDateTime>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1257,6 +1285,7 @@ impl PaymentsRequest {
             email,
             phone,
             phone_country_code,
+            ..
         }) = self.customer.as_ref()
         {
             let invalid_fields = [
@@ -1371,6 +1400,7 @@ mod payments_request_test {
             email: None,
             phone: None,
             phone_country_code: None,
+            tax_registration_id: None,
         };
 
         let payments_request = PaymentsRequest {
@@ -1395,6 +1425,7 @@ mod payments_request_test {
             email: None,
             phone: None,
             phone_country_code: None,
+            tax_registration_id: None,
         };
 
         let payments_request = PaymentsRequest {
@@ -2192,6 +2223,8 @@ pub enum PayLaterData {
     },
     /// For PayBright Redirect as PayLater Option
     PayBrightRedirect {},
+    /// For Flexiti Redirect as PayLater long term finance Option
+    FlexitiRedirect {},
     /// For WalleyRedirect as PayLater Option
     WalleyRedirect {},
     /// For Alma Redirection as PayLater Option
@@ -2234,6 +2267,7 @@ impl GetAddressFromPaymentMethodData for PayLaterData {
                 })
             }
             Self::PayBrightRedirect {}
+            | Self::FlexitiRedirect {}
             | Self::WalleyRedirect {}
             | Self::AlmaRedirect {}
             | Self::KlarnaSdk { .. }
@@ -2663,6 +2697,7 @@ impl GetPaymentMethodType for MobilePaymentData {
 impl GetPaymentMethodType for WalletData {
     fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
         match self {
+            Self::BluecodeRedirect {} => api_enums::PaymentMethodType::Bluecode,
             Self::AliPayQr(_) | Self::AliPayRedirect(_) => api_enums::PaymentMethodType::AliPay,
             Self::AliPayHkRedirect(_) => api_enums::PaymentMethodType::AliPayHk,
             Self::AmazonPayRedirect(_) => api_enums::PaymentMethodType::AmazonPay,
@@ -2706,6 +2741,7 @@ impl GetPaymentMethodType for PayLaterData {
             Self::AffirmRedirect {} => api_enums::PaymentMethodType::Affirm,
             Self::AfterpayClearpayRedirect { .. } => api_enums::PaymentMethodType::AfterpayClearpay,
             Self::PayBrightRedirect {} => api_enums::PaymentMethodType::PayBright,
+            Self::FlexitiRedirect {} => api_enums::PaymentMethodType::Flexiti,
             Self::WalleyRedirect {} => api_enums::PaymentMethodType::Walley,
             Self::AlmaRedirect {} => api_enums::PaymentMethodType::Alma,
             Self::AtomeRedirect {} => api_enums::PaymentMethodType::Atome,
@@ -3599,6 +3635,8 @@ pub enum WalletData {
     AliPayHkRedirect(AliPayHkRedirection),
     /// The wallet data for Amazon Pay redirect
     AmazonPayRedirect(AmazonPayRedirectData),
+    /// The wallet data for Bluecode QR Code Redirect
+    BluecodeRedirect {},
     /// The wallet data for Skrill
     Skrill(SkrillData),
     /// The wallet data for Paysera
@@ -3708,7 +3746,8 @@ impl GetAddressFromPaymentMethodData for WalletData {
             | Self::WeChatPayQr(_)
             | Self::CashappQr(_)
             | Self::SwishQr(_)
-            | Self::RevolutPay(_) => None,
+            | Self::RevolutPay(_)
+            | Self::BluecodeRedirect {} => None,
         }
     }
 }
@@ -3896,6 +3935,9 @@ pub struct AliPayRedirection {}
 pub struct AliPayHkRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct BluecodeQrRedirect {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct MomoRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -3971,7 +4013,8 @@ pub struct GpayTokenizationData {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct ApplePayWalletData {
     /// The payment data of Apple pay
-    pub payment_data: String,
+    #[schema(value_type = ApplePayPaymentData)]
+    pub payment_data: common_types::payments::ApplePayPaymentData,
     /// The payment method of Apple pay
     pub payment_method: ApplepayPaymentMethod,
     /// The unique identifier for the transaction
@@ -4399,6 +4442,10 @@ pub struct AddressDetails {
     /// The last name for the address
     #[schema(value_type = Option<String>, max_length = 255, example = "Doe")]
     pub last_name: Option<Secret<String>>,
+
+    /// The zip/postal code of the origin
+    #[schema(value_type = Option<String>, max_length = 50, example = "08807")]
+    pub origin_zip: Option<Secret<String>>,
 }
 
 impl AddressDetails {
@@ -4436,6 +4483,7 @@ impl AddressDetails {
                 line3: self.line3.or(other.line3.clone()),
                 zip: self.zip.or(other.zip.clone()),
                 state: self.state.or(other.state.clone()),
+                origin_zip: self.origin_zip.or(other.origin_zip.clone()),
             }
         } else {
             self
@@ -5152,8 +5200,15 @@ pub struct PaymentsResponse {
     /// The browser information used for this payment
     pub browser_info: Option<serde_json::Value>,
 
+    /// Indicates how the payment was initiated (e.g., ecommerce, mail, or telephone).
+    #[schema(value_type = Option<PaymentChannel>)]
+    pub payment_channel: Option<common_enums::PaymentChannel>,
+
     /// A unique identifier for the payment method used in this payment. If the payment method was saved or tokenized, this ID can be used to reference it for future transactions or recurring payments.
     pub payment_method_id: Option<String>,
+
+    /// The network transaction ID is a unique identifier for the transaction as recognized by the payment network (e.g., Visa, Mastercard), this ID can be used to reference it for future transactions or recurring payments.
+    pub network_transaction_id: Option<String>,
 
     /// Payment Method Status, refers to the status of the payment method used for this payment.
     #[schema(value_type = Option<PaymentMethodStatus>)]
@@ -6590,6 +6645,22 @@ pub struct OrderDetailsWithAmount {
     pub product_type: Option<ProductType>,
     /// The tax code for the product
     pub product_tax_code: Option<String>,
+    /// Description for the item
+    pub description: Option<String>,
+    /// Stock Keeping Unit (SKU) or the item identifier for this item.
+    pub sku: Option<String>,
+    /// Universal Product Code for the item.
+    pub upc: Option<String>,
+    /// Code describing a commodity or a group of commodities pertaining to goods classification.
+    pub commodity_code: Option<String>,
+    /// Unit of measure used for the item quantity.
+    pub unit_of_measure: Option<String>,
+    /// Total amount for the item.
+    #[schema(value_type = Option<i64>)]
+    pub total_amount: Option<MinorUnit>, // total_amount,
+    /// Discount amount applied to this item.
+    #[schema(value_type = Option<i64>)]
+    pub unit_discount_amount: Option<MinorUnit>,
 }
 
 impl masking::SerializableSecret for OrderDetailsWithAmount {}
@@ -7618,6 +7689,16 @@ pub struct PaymentsCancelRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
+/// Request to cancel a payment when the payment is already captured
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentsCancelPostCaptureRequest {
+    /// The identifier for the payment
+    #[serde(skip)]
+    pub payment_id: id_type::PaymentId,
+    /// The reason for the payment cancel
+    pub cancellation_reason: Option<String>,
+}
+
 #[derive(Default, Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 pub struct PaymentsIncrementalAuthorizationRequest {
     /// The identifier for the payment
@@ -7749,7 +7830,38 @@ pub enum SdkType {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
-pub struct PaymentMethodsListRequest {}
+pub struct ListMethodsForPaymentsRequest {
+    /// This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK
+    #[schema(max_length = 30, min_length = 30, example = "secret_k2uj3he2893eiu2d")]
+    pub client_secret: Option<String>,
+
+    /// The two-letter ISO currency code
+    #[serde(deserialize_with = "option_form_vec_deserialize", default)]
+    #[schema(value_type = Option<Vec<CountryAlpha2>>, example = json!(["US", "UK", "IN"]))]
+    pub accepted_countries: Option<Vec<api_enums::CountryAlpha2>>,
+
+    /// Filter by amount
+    #[schema(example = 60)]
+    pub amount: Option<MinorUnit>,
+
+    /// The three-letter ISO currency code
+    #[serde(deserialize_with = "option_form_vec_deserialize", default)]
+    #[schema(value_type = Option<Vec<Currency>>,example = json!(["USD", "EUR"]))]
+    pub accepted_currencies: Option<Vec<api_enums::Currency>>,
+
+    /// Indicates whether the payment method supports recurring payments. Optional.
+    #[schema(example = true)]
+    pub recurring_enabled: Option<bool>,
+
+    /// Indicates whether the payment method is eligible for card networks
+    #[serde(deserialize_with = "option_form_vec_deserialize", default)]
+    #[schema(value_type = Option<Vec<CardNetwork>>, example = json!(["visa", "mastercard"]))]
+    pub card_networks: Option<Vec<api_enums::CardNetwork>>,
+
+    /// Indicates the limit of last used payment methods
+    #[schema(example = 1)]
+    pub limit: Option<i64>,
+}
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, ToSchema)]
@@ -7785,8 +7897,8 @@ pub struct ResponsePaymentMethodTypesForPayments {
 
     /// Required fields for the payment_method_type.
     /// This is the union of all the required fields for the payment method type enabled in all the connectors.
-    #[schema(value_type = Option<RequiredFieldInfo>)]
-    pub required_fields: Option<Vec<payment_methods::RequiredFieldInfo>>,
+    #[schema(value_type = RequiredFieldInfo)]
+    pub required_fields: Vec<payment_methods::RequiredFieldInfo>,
 
     /// surcharge details for this payment method type if exists
     #[schema(value_type = Option<SurchargeDetailsResponse>)]

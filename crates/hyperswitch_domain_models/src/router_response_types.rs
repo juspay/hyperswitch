@@ -3,8 +3,11 @@ pub mod fraud_check;
 pub mod revenue_recovery;
 use std::collections::HashMap;
 
-use common_utils::{request::Method, types::MinorUnit};
-pub use disputes::{AcceptDisputeResponse, DefendDisputeResponse, SubmitEvidenceResponse};
+use common_utils::{pii, request::Method, types::MinorUnit};
+pub use disputes::{
+    AcceptDisputeResponse, DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse,
+    SubmitEvidenceResponse,
+};
 
 use crate::{
     errors::api_error_response::ApiErrorResponse,
@@ -91,7 +94,7 @@ pub struct TaxCalculationResponseData {
 pub struct MandateReference {
     pub connector_mandate_id: Option<String>,
     pub payment_method_id: Option<String>,
-    pub mandate_metadata: Option<common_utils::pii::SecretSerdeValue>,
+    pub mandate_metadata: Option<pii::SecretSerdeValue>,
     pub connector_mandate_request_reference_id: Option<String>,
 }
 
@@ -546,18 +549,24 @@ pub enum AuthenticationResponseData {
         connector_metadata: Option<serde_json::Value>,
         ds_trans_id: Option<String>,
         eci: Option<String>,
+        challenge_code: Option<String>,
+        challenge_cancel: Option<String>,
+        challenge_code_reason: Option<String>,
+        message_extension: Option<pii::SecretSerdeValue>,
     },
     PostAuthNResponse {
         trans_status: common_enums::TransactionStatus,
         authentication_value: Option<masking::Secret<String>>,
         eci: Option<String>,
+        challenge_cancel: Option<String>,
+        challenge_code_reason: Option<String>,
     },
 }
 
 #[derive(Debug, Clone)]
 pub struct CompleteAuthorizeRedirectResponse {
     pub params: Option<masking::Secret<String>>,
-    pub payload: Option<common_utils::pii::SecretSerdeValue>,
+    pub payload: Option<pii::SecretSerdeValue>,
 }
 
 /// Represents details of a payment method.
