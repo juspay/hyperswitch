@@ -1083,6 +1083,7 @@ diesel::table! {
         shipping_amount_tax -> Nullable<Int8>,
         duty_amount -> Nullable<Int8>,
         order_date -> Nullable<Timestamp>,
+        enable_partial_authorization -> Nullable<Bool>,
     }
 }
 

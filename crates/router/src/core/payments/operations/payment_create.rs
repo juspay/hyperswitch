@@ -1628,6 +1628,7 @@ impl PaymentCreate {
             duty_amount: request.duty_amount,
             tax_status: request.tax_status,
             shipping_amount_tax: request.shipping_amount_tax,
+            enable_partial_authorization: request.enable_partial_authorization,
         })
     }
 
