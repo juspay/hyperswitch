@@ -200,9 +200,13 @@ mod u32_wrappers {
         {
             let val = i32::deserialize(deserializer)?;
             if val < 0 {
-                Err(D::Error::custom("DisputePollingIntervalInHours cannot be negative"))
+                Err(D::Error::custom(
+                    "DisputePollingIntervalInHours cannot be negative",
+                ))
             } else if val > MAX_DISPUTE_POLLING_INTERVAL_IN_HOURS {
-                Err(D::Error::custom("DisputePollingIntervalInHours exceeds the maximum allowed value of 24"))
+                Err(D::Error::custom(
+                    "DisputePollingIntervalInHours exceeds the maximum allowed value of 24",
+                ))
             } else {
                 Ok(Self(val))
             }
