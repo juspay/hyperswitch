@@ -841,7 +841,7 @@ billing_connectors_which_requires_invoice_sync_call = "recurly"
 click_to_pay = {connector_list = "adyen, cybersource, trustpay"}
 
 [revenue_recovery]
-monitoring_threshold_in_seconds = 2592000
+monitoring_threshold_in_seconds = 60
 retry_algorithm_type = "cascading"
 
 [list_dispute_supported_connectors]
