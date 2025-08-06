@@ -627,6 +627,7 @@ impl From<ChargebeeInvoiceBillingAddress> for api_models::payments::AddressDetai
             line3: item.line3,
             first_name: None,
             last_name: None,
+            origin_zip: None,
         }
     }
 }

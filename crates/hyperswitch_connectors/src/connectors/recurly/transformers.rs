@@ -442,6 +442,7 @@ impl
                                 .and_then(|address| address.postal_code),
                             first_name: None,
                             last_name: None,
+                            origin_zip: None,
                         }),
                         phone: None,
                         email: None,

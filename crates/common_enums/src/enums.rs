@@ -267,6 +267,46 @@ pub enum RevenueRecoveryAlgorithmType {
     Cascading,
 }
 
+#[derive(
+    Default,
+    Clone,
+    Copy,
+    Debug,
+    strum::Display,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum GsmDecision {
+    Retry,
+    #[default]
+    DoDefault,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    strum::Display,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[router_derive::diesel_enum(storage_type = "text")]
+pub enum GsmFeature {
+    Retry,
+}
+
 /// Specifies the type of cardholder authentication to be applied for a payment.
 ///
 /// - `ThreeDs`: Requests 3D Secure (3DS) authentication. If the card is enrolled, 3DS authentication will be activated, potentially shifting chargeback liability to the issuer.
@@ -1900,6 +1940,7 @@ pub enum PaymentMethodType {
     Benefit,
     Bizum,
     Blik,
+    Bluecode,
     Boleto,
     BcaBankTransfer,
     BniVa,
@@ -1921,6 +1962,7 @@ pub enum PaymentMethodType {
     Efecty,
     Eft,
     Eps,
+    Flexiti,
     Fps,
     Evoucher,
     Giropay,
@@ -2021,6 +2063,7 @@ impl PaymentMethodType {
             Self::Benefit => "Benefit",
             Self::Bizum => "Bizum",
             Self::Blik => "BLIK",
+            Self::Bluecode => "Bluecode",
             Self::Boleto => "Boleto Bancário",
             Self::BcaBankTransfer => "BCA Bank Transfer",
             Self::BniVa => "BNI Virtual Account",
@@ -2041,6 +2084,7 @@ impl PaymentMethodType {
             Self::Efecty => "Efecty",
             Self::Eft => "EFT",
             Self::Eps => "EPS",
+            Self::Flexiti => "Flexiti",
             Self::Fps => "FPS",
             Self::Evoucher => "Evoucher",
             Self::Giropay => "Giropay",
@@ -2206,6 +2250,37 @@ pub enum ScaExemptionType {
     #[default]
     LowValue,
     TransactionRiskAnalysis,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+/// Describes the channel through which the payment was initiated.
+pub enum PaymentChannel {
+    #[default]
+    Ecommerce,
+    MailOrder,
+    TelephoneOrder,
+    #[serde(untagged)]
+    #[strum(default)]
+    Other(String),
 }
 
 #[derive(
@@ -7190,6 +7265,26 @@ pub enum MerchantDecision {
     Rejected,
     AutoRefunded,
 }
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    strum::EnumIter,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum TaxStatus {
+    Taxable,
+    Exempt,
+}
 
 #[derive(
     Clone,
@@ -7504,6 +7599,15 @@ pub enum TransactionStatus {
     /// Informational Only; 3DS Requestor challenge preference acknowledged.
     #[serde(rename = "I")]
     InformationOnly,
+}
+
+impl TransactionStatus {
+    pub fn is_pending(self) -> bool {
+        matches!(
+            self,
+            Self::ChallengeRequired | Self::ChallengeRequiredDecoupledAuthentication
+        )
+    }
 }
 
 #[derive(
@@ -7989,6 +8093,7 @@ pub enum UIWidgetFormLayout {
     Clone,
     Copy,
     Debug,
+    Default,
     Eq,
     PartialEq,
     serde::Deserialize,
@@ -8001,6 +8106,7 @@ pub enum UIWidgetFormLayout {
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum DeleteStatus {
+    #[default]
     Active,
     Redacted,
 }

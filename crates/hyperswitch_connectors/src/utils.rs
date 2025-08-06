@@ -50,7 +50,7 @@ use hyperswitch_domain_models::{
     network_tokenization::NetworkTokenNumber,
     payment_method_data::{self, Card, CardDetailsForNetworkTransactionId, PaymentMethodData},
     router_data::{
-        ApplePayPredecryptData, ErrorResponse, PaymentMethodToken, RecurringMandatePaymentData,
+        ErrorResponse, PaymentMethodToken, RecurringMandatePaymentData,
         RouterData as ConnectorRouterData,
     },
     router_request_types::{
@@ -500,6 +500,7 @@ pub trait RouterData {
     fn get_optional_shipping(&self) -> Option<&Address>;
     fn get_optional_shipping_line1(&self) -> Option<Secret<String>>;
     fn get_optional_shipping_line2(&self) -> Option<Secret<String>>;
+    fn get_optional_shipping_line3(&self) -> Option<Secret<String>>;
     fn get_optional_shipping_city(&self) -> Option<String>;
     fn get_optional_shipping_country(&self) -> Option<enums::CountryAlpha2>;
     fn get_optional_shipping_zip(&self) -> Option<Secret<String>>;
@@ -598,6 +599,15 @@ impl<Flow, Request, Response> RouterData
                 .clone()
                 .address
                 .and_then(|shipping_details| shipping_details.line2)
+        })
+    }
+
+    fn get_optional_shipping_line3(&self) -> Option<Secret<String>> {
+        self.address.get_shipping().and_then(|shipping_address| {
+            shipping_address
+                .clone()
+                .address
+                .and_then(|shipping_details| shipping_details.line3)
         })
     }
 
@@ -1012,40 +1022,6 @@ impl AccessTokenRequestInfo for RefreshTokenRouterData {
             .id
             .clone()
             .ok_or_else(missing_field_err("request.id"))
-    }
-}
-pub trait ApplePayDecrypt {
-    fn get_expiry_month(&self) -> Result<Secret<String>, Error>;
-    fn get_two_digit_expiry_year(&self) -> Result<Secret<String>, Error>;
-    fn get_four_digit_expiry_year(&self) -> Result<Secret<String>, Error>;
-}
-
-impl ApplePayDecrypt for Box<ApplePayPredecryptData> {
-    fn get_two_digit_expiry_year(&self) -> Result<Secret<String>, Error> {
-        Ok(Secret::new(
-            self.application_expiration_date
-                .get(0..2)
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-                .to_string(),
-        ))
-    }
-
-    fn get_four_digit_expiry_year(&self) -> Result<Secret<String>, Error> {
-        Ok(Secret::new(format!(
-            "20{}",
-            self.application_expiration_date
-                .get(0..2)
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-        )))
-    }
-
-    fn get_expiry_month(&self) -> Result<Secret<String>, Error> {
-        Ok(Secret::new(
-            self.application_expiration_date
-                .get(2..4)
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-                .to_owned(),
-        ))
     }
 }
 
@@ -1677,13 +1653,21 @@ impl PayoutFulfillRequestData for hyperswitch_domain_models::router_request_type
 
 pub trait CustomerData {
     fn get_email(&self) -> Result<Email, Error>;
+    fn is_mandate_payment(&self) -> bool;
 }
 
 impl CustomerData for ConnectorCustomerData {
     fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
     }
+    fn is_mandate_payment(&self) -> bool {
+        // We only need to check if the customer acceptance or setup mandate details are present and if the setup future usage is OffSession.
+        // mandate_reference_id is not needed here as we do not need to check for existing mandates.
+        self.customer_acceptance.is_some()
+            && self.setup_future_usage == Some(FutureUsage::OffSession)
+    }
 }
+
 pub trait PaymentsAuthorizeRequestData {
     fn get_optional_language_from_browser_info(&self) -> Option<String>;
     fn is_auto_capture(&self) -> Result<bool, Error>;
@@ -2191,6 +2175,7 @@ impl PaymentsSetupMandateRequestData for SetupMandateRequestData {
 
 pub trait PaymentMethodTokenizationRequestData {
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+    fn is_mandate_payment(&self) -> bool;
 }
 
 impl PaymentMethodTokenizationRequestData for PaymentMethodTokenizationData {
@@ -2198,6 +2183,15 @@ impl PaymentMethodTokenizationRequestData for PaymentMethodTokenizationData {
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
+    }
+    fn is_mandate_payment(&self) -> bool {
+        ((self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
+            && (self.setup_future_usage == Some(FutureUsage::OffSession)))
+            || self
+                .mandate_id
+                .as_ref()
+                .and_then(|mandate_ids| mandate_ids.mandate_reference_id.as_ref())
+                .is_some()
     }
 }
 
@@ -5452,6 +5446,7 @@ pub enum PaymentMethodDataType {
     DanaRedirect,
     DuitNow,
     GooglePay,
+    Bluecode,
     GooglePayRedirect,
     GooglePayThirdPartySdk,
     MbWayRedirect,
@@ -5476,6 +5471,7 @@ pub enum PaymentMethodDataType {
     AlmaRedirect,
     AtomeRedirect,
     Breadpay,
+    FlexitiRedirect,
     BancontactCard,
     Bizum,
     Blik,
@@ -5581,6 +5577,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 }
                 payment_method_data::WalletData::DanaRedirect {} => Self::DanaRedirect,
                 payment_method_data::WalletData::GooglePay(_) => Self::GooglePay,
+                payment_method_data::WalletData::BluecodeRedirect {} => Self::Bluecode,
                 payment_method_data::WalletData::GooglePayRedirect(_) => Self::GooglePayRedirect,
                 payment_method_data::WalletData::GooglePayThirdPartySdk(_) => {
                     Self::GooglePayThirdPartySdk
@@ -5608,6 +5605,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::PayLaterData::AfterpayClearpayRedirect { .. } => {
                     Self::AfterpayClearpayRedirect
                 }
+                payment_method_data::PayLaterData::FlexitiRedirect { .. } => Self::FlexitiRedirect,
                 payment_method_data::PayLaterData::PayBrightRedirect {} => Self::PayBrightRedirect,
                 payment_method_data::PayLaterData::WalleyRedirect {} => Self::WalleyRedirect,
                 payment_method_data::PayLaterData::AlmaRedirect {} => Self::AlmaRedirect,
@@ -5759,12 +5757,20 @@ pub trait ApplePay {
 
 impl ApplePay for payment_method_data::ApplePayWalletData {
     fn get_applepay_decoded_payment_data(&self) -> Result<Secret<String>, Error> {
+        let apple_pay_encrypted_data = self
+            .payment_data
+            .get_encrypted_apple_pay_payment_data_mandatory()
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "Apple pay encrypted data",
+            })?;
         let token = Secret::new(
-            String::from_utf8(BASE64_ENGINE.decode(&self.payment_data).change_context(
-                errors::ConnectorError::InvalidWalletToken {
-                    wallet_name: "Apple Pay".to_string(),
-                },
-            )?)
+            String::from_utf8(
+                BASE64_ENGINE
+                    .decode(apple_pay_encrypted_data)
+                    .change_context(errors::ConnectorError::InvalidWalletToken {
+                        wallet_name: "Apple Pay".to_string(),
+                    })?,
+            )
             .change_context(errors::ConnectorError::InvalidWalletToken {
                 wallet_name: "Apple Pay".to_string(),
             })?,
@@ -6204,6 +6210,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         connector_testing_data: data.request.connector_testing_data.clone(),
         order_id: None,
         locale: None,
+        payment_channel: None,
     }
 }
 
@@ -6263,6 +6270,7 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         psd2_sca_exemption_type: data.psd2_sca_exemption_type,
         raw_connector_response: data.raw_connector_response.clone(),
         is_payment_id_from_merchant: data.is_payment_id_from_merchant,
+        l2_l3_data: data.l2_l3_data.clone(),
     }
 }
 

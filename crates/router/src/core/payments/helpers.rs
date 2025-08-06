@@ -149,6 +149,10 @@ pub async fn create_or_update_address_for_payment_by_request(
                                     .email
                                     .as_ref()
                                     .map(|a| a.clone().expose().switch_strategy()),
+                                origin_zip: address
+                                    .address
+                                    .as_ref()
+                                    .and_then(|a| a.origin_zip.clone()),
                             },
                         ),
                     ),
@@ -190,6 +194,7 @@ pub async fn create_or_update_address_for_payment_by_request(
                             );
                         encryptable
                     }),
+                    origin_zip: encryptable_address.origin_zip,
                 };
                 let address = db
                     .find_address_by_merchant_id_payment_id_address_id(
@@ -359,6 +364,7 @@ pub async fn get_domain_address(
                             .email
                             .as_ref()
                             .map(|a| a.clone().expose().switch_strategy()),
+                        origin_zip: address.address.as_ref().and_then(|a| a.origin_zip.clone()),
                     },
                 ),
             ),
@@ -395,6 +401,7 @@ pub async fn get_domain_address(
                     );
                 encryptable
             }),
+            origin_zip: encryptable_address.origin_zip,
         })
     }
     .await
@@ -1583,12 +1590,18 @@ pub fn get_customer_details_from_request(
         .and_then(|customer_details| customer_details.phone_country_code.clone())
         .or(request.phone_country_code.clone());
 
+    let tax_registration_id = request
+        .customer
+        .as_ref()
+        .and_then(|customer_details| customer_details.tax_registration_id.clone());
+
     CustomerDetails {
         customer_id,
         name: customer_name,
         email: customer_email,
         phone: customer_phone,
         phone_country_code: customer_phone_code,
+        tax_registration_id,
     }
 }
 
@@ -1659,12 +1672,14 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
         || request_customer_details.email.is_some()
         || request_customer_details.phone.is_some()
         || request_customer_details.phone_country_code.is_some()
+        || request_customer_details.tax_registration_id.is_some()
     {
         Some(CustomerData {
             name: request_customer_details.name.clone(),
             email: request_customer_details.email.clone(),
             phone: request_customer_details.phone.clone(),
             phone_country_code: request_customer_details.phone_country_code.clone(),
+            tax_registration_id: request_customer_details.tax_registration_id.clone(),
         })
     } else {
         None
@@ -1702,6 +1717,10 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                 .phone_country_code
                 .clone()
                 .or(parsed_customer_data.phone_country_code.clone()),
+            tax_registration_id: request_customer_details
+                .tax_registration_id
+                .clone()
+                .or(parsed_customer_data.tax_registration_id.clone()),
         })
         .or(temp_customer_data);
     let key_manager_state = state.into();
@@ -1744,6 +1763,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                                 .as_ref()
                                 .map(|e| e.clone().expose().switch_strategy()),
                             phone: request_customer_details.phone.clone(),
+                            tax_registration_id: None,
                         },
                     ),
                 ),
@@ -1765,6 +1785,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                         | request_customer_details.name.is_some()
                         | request_customer_details.phone.is_some()
                         | request_customer_details.phone_country_code.is_some()
+                        | request_customer_details.tax_registration_id.is_some()
                     {
                         let customer_update = Update {
                             name: encryptable_customer.name,
@@ -1781,8 +1802,9 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                             phone_country_code: request_customer_details.phone_country_code,
                             description: None,
                             connector_customer: Box::new(None),
-                            metadata: None,
+                            metadata: Box::new(None),
                             address_id: None,
+                            tax_registration_id: encryptable_customer.tax_registration_id,
                         };
 
                         db.update_customer_by_customer_id_merchant_id(
@@ -1824,6 +1846,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                         default_payment_method_id: None,
                         updated_by: None,
                         version: common_types::consts::API_VERSION,
+                        tax_registration_id: encryptable_customer.tax_registration_id,
                     };
                     metrics::CUSTOMER_CREATED.add(1, &[]);
                     db.insert_customer(new_customer, key_manager_state, key_store, storage_scheme)
@@ -3122,6 +3145,107 @@ pub fn get_handle_response_url(
 }
 
 #[cfg(feature = "v1")]
+pub fn get_handle_response_url_for_modular_authentication(
+    authentication_id: id_type::AuthenticationId,
+    business_profile: &domain::Profile,
+    response: &api_models::authentication::AuthenticationAuthenticateResponse,
+    connector: String,
+    return_url: Option<String>,
+    client_secret: Option<&masking::Secret<String>>,
+    amount: Option<MinorUnit>,
+) -> RouterResult<api::RedirectionResponse> {
+    let authentication_return_url = return_url;
+    let trans_status = response
+        .transaction_status
+        .clone()
+        .get_required_value("transaction_status")?;
+
+    let redirection_response = make_pg_redirect_response_for_authentication(
+        authentication_id,
+        connector,
+        amount,
+        trans_status,
+    );
+
+    let return_url = make_merchant_url_with_response_for_authentication(
+        business_profile,
+        redirection_response,
+        authentication_return_url.as_ref(),
+        client_secret,
+        None,
+    )
+    .attach_printable("Failed to make merchant url with response")?;
+
+    make_url_with_signature(&return_url, business_profile)
+}
+
+#[cfg(feature = "v1")]
+pub fn make_merchant_url_with_response_for_authentication(
+    business_profile: &domain::Profile,
+    redirection_response: hyperswitch_domain_models::authentication::PgRedirectResponseForAuthentication,
+    request_return_url: Option<&String>,
+    client_secret: Option<&masking::Secret<String>>,
+    manual_retry_allowed: Option<bool>,
+) -> RouterResult<String> {
+    // take return url if provided in the request else use merchant return url
+    let url = request_return_url
+        .or(business_profile.return_url.as_ref())
+        .get_required_value("return_url")?;
+
+    let status_check = redirection_response.status;
+
+    let authentication_client_secret = client_secret
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Expected client secret to be `Some`")?;
+
+    let authentication_id = redirection_response
+        .authentication_id
+        .get_string_repr()
+        .to_owned();
+    let merchant_url_with_response = if business_profile.redirect_to_merchant_with_http_post {
+        url::Url::parse_with_params(
+            url,
+            &[
+                ("status", status_check.to_string()),
+                ("authentication_id", authentication_id),
+                (
+                    "authentication_client_secret",
+                    authentication_client_secret.peek().to_string(),
+                ),
+                (
+                    "manual_retry_allowed",
+                    manual_retry_allowed.unwrap_or(false).to_string(),
+                ),
+            ],
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to parse the url with param")?
+    } else {
+        let amount = redirection_response.amount.get_required_value("amount")?;
+        url::Url::parse_with_params(
+            url,
+            &[
+                ("status", status_check.to_string()),
+                ("authentication_id", authentication_id),
+                (
+                    "authentication_client_secret",
+                    authentication_client_secret.peek().to_string(),
+                ),
+                ("amount", amount.to_string()),
+                (
+                    "manual_retry_allowed",
+                    manual_retry_allowed.unwrap_or(false).to_string(),
+                ),
+            ],
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to parse the url with param")?
+    };
+
+    Ok(merchant_url_with_response.to_string())
+}
+
+#[cfg(feature = "v1")]
 pub fn make_merchant_url_with_response(
     business_profile: &domain::Profile,
     redirection_response: api::PgRedirectResponse,
@@ -3326,6 +3450,22 @@ pub fn make_pg_redirect_response(
         gateway_id: connector,
         customer_id: response.customer_id.to_owned(),
         amount: Some(response.amount),
+    }
+}
+
+#[cfg(feature = "v1")]
+pub fn make_pg_redirect_response_for_authentication(
+    authentication_id: id_type::AuthenticationId,
+    connector: String,
+    amount: Option<MinorUnit>,
+    trans_status: common_enums::TransactionStatus,
+) -> hyperswitch_domain_models::authentication::PgRedirectResponseForAuthentication {
+    hyperswitch_domain_models::authentication::PgRedirectResponseForAuthentication {
+        authentication_id,
+        status: trans_status,
+        gateway_id: connector,
+        customer_id: None,
+        amount,
     }
 }
 
@@ -3751,6 +3891,12 @@ mod tests {
             force_3ds_challenge_trigger: None,
             is_iframe_redirection_enabled: None,
             is_payment_id_from_merchant: None,
+            payment_channel: None,
+            tax_status: None,
+            discount_amount: None,
+            order_date: None,
+            shipping_amount_tax: None,
+            duty_amount: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3828,6 +3974,12 @@ mod tests {
             force_3ds_challenge_trigger: None,
             is_iframe_redirection_enabled: None,
             is_payment_id_from_merchant: None,
+            payment_channel: None,
+            tax_status: None,
+            discount_amount: None,
+            order_date: None,
+            shipping_amount_tax: None,
+            duty_amount: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -3903,6 +4055,12 @@ mod tests {
             force_3ds_challenge_trigger: None,
             is_iframe_redirection_enabled: None,
             is_payment_id_from_merchant: None,
+            payment_channel: None,
+            tax_status: None,
+            discount_amount: None,
+            order_date: None,
+            shipping_amount_tax: None,
+            duty_amount: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -4238,6 +4396,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         psd2_sca_exemption_type: router_data.psd2_sca_exemption_type,
         raw_connector_response: router_data.raw_connector_response,
         is_payment_id_from_merchant: router_data.is_payment_id_from_merchant,
+        l2_l3_data: router_data.l2_l3_data,
     }
 }
 
@@ -6324,7 +6483,7 @@ pub async fn get_gsm_record(
     error_message: Option<String>,
     connector_name: String,
     flow: String,
-) -> Option<storage::gsm::GatewayStatusMap> {
+) -> Option<hyperswitch_domain_models::gsm::GatewayStatusMap> {
     let get_gsm = || async {
         state.store.find_gsm_rule(
                 connector_name.clone(),

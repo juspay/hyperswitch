@@ -4,12 +4,13 @@ use std::sync::LazyLock;
 
 use common_enums::enums;
 use common_utils::{
+    crypto,
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
@@ -24,7 +25,8 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
@@ -37,16 +39,19 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
-    errors,
+    consts, errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask};
+use masking::{ExposeInterface, Mask, Secret};
+use ring::hmac;
+use serde_json::Value;
 use transformers as bluecode;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
 
+const BLUECODE_API_VERSION: &str = "v1";
 #[derive(Clone)]
 pub struct Bluecode {
     amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
@@ -105,9 +110,6 @@ impl ConnectorCommon for Bluecode {
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
         api::CurrencyUnit::Base
-        //    TODO! Check connector documentation, on which unit they are processing the currency.
-        //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
-        //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -126,7 +128,7 @@ impl ConnectorCommon for Bluecode {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
+            format!("token {}", auth.api_key.expose()).into_masked(),
         )])
     }
 
@@ -145,9 +147,9 @@ impl ConnectorCommon for Bluecode {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: consts::NO_ERROR_CODE.to_string(),
+            message: response.message.clone(),
+            reason: Some(response.message),
             attempt_status: None,
             connector_transaction_id: None,
             network_advice_code: None,
@@ -183,9 +185,7 @@ impl ConnectorValidation for Bluecode {
     }
 }
 
-impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Bluecode {
-    //TODO: implement sessions flow
-}
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Bluecode {}
 
 impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Bluecode {}
 
@@ -210,9 +210,13 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     fn get_url(
         &self,
         _req: &PaymentsAuthorizeRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!(
+            "{}api/{}/order/payin/start",
+            self.base_url(connectors),
+            BLUECODE_API_VERSION
+        ))
     }
 
     fn get_request_body(
@@ -264,12 +268,27 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .parse_struct("Bluecode PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
+
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+
+        let response_integrity_object = utils::get_authorise_integrity_object(
+            self.amount_converter,
+            response.amount,
+            response.currency.to_string(),
+        )?;
+
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        })
+        });
+
+        new_router_data
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
+            .map(|mut router_data| {
+                router_data.request.integrity_object = Some(response_integrity_object);
+                router_data
+            })
     }
 
     fn get_error_response(
@@ -296,10 +315,21 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Blu
 
     fn get_url(
         &self,
-        _req: &PaymentsSyncRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let connector_transaction_id = req
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+
+        Ok(format!(
+            "{}api/{}/order/{}/status",
+            self.base_url(connectors),
+            BLUECODE_API_VERSION,
+            connector_transaction_id
+        ))
     }
 
     fn build_request(
@@ -323,17 +353,32 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Blu
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: bluecode::BluecodePaymentsResponse = res
+        let response: bluecode::BluecodeSyncResponse = res
             .response
             .parse_struct("bluecode PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+
+        let response_integrity_object = utils::get_sync_integrity_object(
+            self.amount_converter,
+            response.amount,
+            response.currency.to_string(),
+        )?;
+
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        })
+        });
+
+        new_router_data
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
+            .map(|mut router_data| {
+                router_data.request.integrity_object = Some(response_integrity_object);
+                router_data
+            })
     }
 
     fn get_error_response(
@@ -363,7 +408,11 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         _req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "Capture".to_string(),
+            connector: "Bluecode".to_string(),
+        }
+        .into())
     }
 
     fn get_request_body(
@@ -371,7 +420,11 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         _req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "Capture".to_string(),
+            connector: "Bluecode".to_string(),
+        }
+        .into())
     }
 
     fn build_request(
@@ -442,23 +495,23 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Bluecod
         _req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "Refund".to_string(),
+            connector: "Bluecode".to_string(),
+        }
+        .into())
     }
 
     fn get_request_body(
         &self,
-        req: &RefundsRouterData<Execute>,
+        _req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let refund_amount = utils::convert_amount(
-            self.amount_converter,
-            req.request.minor_refund_amount,
-            req.request.currency,
-        )?;
-
-        let connector_router_data = bluecode::BluecodeRouterData::from((refund_amount, req));
-        let connector_req = bluecode::BluecodeRefundRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "Refund".to_string(),
+            connector: "Bluecode".to_string(),
+        }
+        .into())
     }
 
     fn build_request(
@@ -526,25 +579,23 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Bluecode 
         _req: &RefundSyncRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "RSync".to_string(),
+            connector: "Bluecode".to_string(),
+        }
+        .into())
     }
 
     fn build_request(
         &self,
-        req: &RefundSyncRouterData,
-        connectors: &Connectors,
+        _req: &RefundSyncRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Ok(Some(
-            RequestBuilder::new()
-                .method(Method::Get)
-                .url(&types::RefundSyncType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .set_body(types::RefundSyncType::get_request_body(
-                    self, req, connectors,
-                )?)
-                .build(),
-        ))
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "RSync".to_string(),
+            connector: "Bluecode".to_string(),
+        }
+        .into())
     }
 
     fn handle_response(
@@ -577,38 +628,130 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Bluecode 
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Bluecode {
-    fn get_webhook_object_reference_id(
+    fn get_webhook_source_verification_algorithm(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
+        Ok(Box::new(crypto::HmacSha512))
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let security_header = request
+            .headers
+            .get("x-eorder-webhook-signature")
+            .map(|header_value| {
+                header_value
+                    .to_str()
+                    .map(String::from)
+                    .map_err(|_| errors::ConnectorError::WebhookSignatureNotFound)
+            })
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)??;
+        hex::decode(security_header)
+            .change_context(errors::ConnectorError::WebhookSignatureNotFound)
+    }
+
+    async fn verify_webhook_source(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        merchant_id: &common_utils::id_type::MerchantId,
+        connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: crypto::Encryptable<Secret<Value>>,
+        connector_name: &str,
+    ) -> CustomResult<bool, errors::ConnectorError> {
+        let connector_webhook_secrets = self
+            .get_webhook_source_verification_merchant_secret(
+                merchant_id,
+                connector_name,
+                connector_webhook_details,
+            )
+            .await?;
+
+        let signature = self
+            .get_webhook_source_verification_signature(request, &connector_webhook_secrets)
+            .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
+
+        let secret_bytes = connector_webhook_secrets.secret.as_ref();
+
+        let parsed: Value = serde_json::from_slice(request.body)
+            .map_err(|_| errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let sorted_payload = bluecode::sort_and_minify_json(&parsed)?;
+
+        let key = hmac::Key::new(hmac::HMAC_SHA512, secret_bytes);
+
+        let verify = hmac::verify(&key, sorted_payload.as_bytes(), &signature)
+            .map(|_| true)
+            .map_err(|_| errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        Ok(verify)
+    }
+
+    fn get_webhook_object_reference_id(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook_body = transformers::get_webhook_object_from_body(request.body)
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+
+        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+            api_models::payments::PaymentIdType::ConnectorTransactionId(webhook_body.order_id),
+        ))
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook_body = transformers::get_webhook_object_from_body(request.body)
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+
+        Ok(transformers::get_bluecode_webhook_event(
+            webhook_body.status,
+        ))
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook_body = transformers::get_webhook_object_from_body(request.body)
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+
+        Ok(Box::new(webhook_body))
     }
 }
 
 static BLUECODE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
-    LazyLock::new(SupportedPaymentMethods::new);
+    LazyLock::new(|| {
+        let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
+
+        let mut santander_supported_payment_methods = SupportedPaymentMethods::new();
+
+        santander_supported_payment_methods.add(
+            enums::PaymentMethod::Wallet,
+            enums::PaymentMethodType::Bluecode,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::NotSupported,
+                supported_capture_methods,
+                specific_features: None,
+            },
+        );
+
+        santander_supported_payment_methods
+    });
 
 static BLUECODE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Bluecode",
-    description: "Bluecode connector",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    description: "Bluecode is building a global payment network that combines Alipay+, Discover and EMPSA and enables seamless payments in 75 countries. With over 160 million acceptance points, payments are processed according to the highest European security and data protection standards to make Europe less dependent on international players.",
+    connector_type: enums::PaymentConnectorCategory::AlternativePaymentMethod,
 };
 
-static BLUECODE_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+static BLUECODE_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];
 
 impl ConnectorSpecifications for Bluecode {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
