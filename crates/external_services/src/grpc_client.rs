@@ -117,7 +117,6 @@ impl GrpcClientSettings {
                         );
 
                     logger::info!("Recovery Decider gRPC client successfully initialized");
-                    // Some(Box::new(client) as Box<dyn RecoveryDeciderClientInterface>)
                     let boxed_client: Box<dyn RecoveryDeciderClientInterface> = Box::new(client);
                     Some(boxed_client)
                 }

@@ -222,10 +222,17 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
     payment_intent: &PaymentIntent,
     retry_count: i32,
 ) -> Option<time::PrimitiveDateTime> {
-    let first_error_message = payment_attempt.error.as_ref().map_or(
-        hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string(),
-        |error| error.message.clone(),
-    );
+    let first_error_message = match payment_attempt.error.as_ref() {
+        Some(error) => error.message.clone(),
+        None => {
+            logger::error!(
+                payment_intent_id = ?payment_intent.get_id(),
+                attempt_id = ?payment_attempt.get_id(),
+                "Payment attempt error information not found - cannot proceed with smart retry"
+            );
+            return None;
+        }
+    };
 
     let billing_state = payment_intent
         .billing_address
@@ -322,7 +329,7 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
             .get_net_amount()
             .get_amount_as_i64(),
     );
-    let attempt_created_at = Some(date_time::convert_to_prost_timestamp(
+    let attempt_response_time = Some(date_time::convert_to_prost_timestamp(
         payment_attempt.created_at,
     ));
     let payment_method_type = Some(payment_attempt.payment_method_type.to_string());
@@ -375,10 +382,13 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
         first_pg_error_code,
         first_network_advice_code,
         first_network_error_code,
-        attempt_created_at,
+        attempt_response_time,
         payment_method_type,
         payment_gateway,
-    };
+        retry_count_left: None,
+        first_error_msg_time: None,
+        wait_time: None,
+    };   
 
     if let Some(mut client) = state.grpc_client.recovery_decider_client.clone() {
         match client
@@ -437,9 +447,12 @@ struct InternalDeciderRequest {
     first_pg_error_code: Option<String>,
     first_network_advice_code: Option<String>,
     first_network_error_code: Option<String>,
-    attempt_created_at: Option<prost_types::Timestamp>,
+    attempt_response_time: Option<prost_types::Timestamp>,
     payment_method_type: Option<String>,
     payment_gateway: Option<String>,
+    retry_count_left: Option<i64>,
+    first_error_msg_time: Option<prost_types::Timestamp>,
+    wait_time: Option<prost_types::Timestamp>,
 }
 
 #[cfg(feature = "v2")]
@@ -468,9 +481,12 @@ impl From<InternalDeciderRequest> for external_grpc_client::DeciderRequest {
             first_pg_error_code: internal_request.first_pg_error_code,
             first_network_advice_code: internal_request.first_network_advice_code,
             first_network_error_code: internal_request.first_network_error_code,
-            attempt_created_at: internal_request.attempt_created_at,
+            attempt_response_time: internal_request.attempt_response_time,
             payment_method_type: internal_request.payment_method_type,
             payment_gateway: internal_request.payment_gateway,
+            retry_count_left: internal_request.retry_count_left,
+            first_error_msg_time: internal_request.first_error_msg_time,
+            wait_time: internal_request.wait_time,
         }
     }
 }

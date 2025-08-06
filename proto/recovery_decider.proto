@@ -31,9 +31,12 @@ message DeciderRequest {
   optional string first_pg_error_code = 20;
   optional string first_network_advice_code = 21;
   optional string first_network_error_code = 22;
-  optional google.protobuf.Timestamp attempt_created_at = 23;
+  optional google.protobuf.Timestamp attempt_response_time = 23;
   optional string payment_method_type = 24;
   optional string payment_gateway = 25;
+  optional int64 retry_count_left = 26;
+  optional google.protobuf.Timestamp first_error_msg_time = 27;
+  optional google.protobuf.Timestamp wait_time = 28;
 }
 
 message DeciderResponse {

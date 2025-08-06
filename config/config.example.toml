@@ -1155,7 +1155,7 @@ base_url = "http://127.0.0.1:8080" #Base URL
 billing_connectors_which_requires_invoice_sync_call = "recurly" # List of billing connectors which has invoice sync api call
 
 [revenue_recovery]
-monitoring_threshold_in_seconds = 60  # 30*24*60*60 secs , threshold for monitoring the retry system
+monitoring_threshold_in_seconds = 60  # 60 secs , threshold for monitoring the retry system
 retry_algorithm_type = "cascading"  # type of retry algorithm
 
 [revenue_recovery.recovery_timestamp] # Timestamp configuration for Revenue Recovery
