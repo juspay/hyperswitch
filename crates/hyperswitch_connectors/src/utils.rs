@@ -6298,7 +6298,6 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         psd2_sca_exemption_type: data.psd2_sca_exemption_type,
         raw_connector_response: data.raw_connector_response.clone(),
         is_payment_id_from_merchant: data.is_payment_id_from_merchant,
-        amount_capturable: data.amount_capturable,
         minor_amount_capturable: data.minor_amount_capturable,
     }
 }

@@ -143,7 +143,7 @@ pub trait PaymentResponseRouterData {
         payment_data: &PaymentData<F>,
         amount_captured: Option<i64>,
         amount_capturable: Option<i64>,
-    ) -> enums::AttemptStatus
+    ) -> CustomResult<enums::AttemptStatus, ApiErrorResponse>
     where
         F: Clone;
 }
@@ -158,16 +158,16 @@ where
         payment_data: &PaymentData<F>,
         amount_captured: Option<i64>,
         amount_capturable: Option<i64>,
-    ) -> enums::AttemptStatus
+    ) -> CustomResult<enums::AttemptStatus, ApiErrorResponse>
     where
         F: Clone,
     {
         match self.status {
             enums::AttemptStatus::Voided => {
                 if payment_data.payment_intent.amount_captured > Some(MinorUnit::new(0)) {
-                    enums::AttemptStatus::PartialCharged
+                    Ok(enums::AttemptStatus::PartialCharged)
                 } else {
-                    self.status
+                    Ok(self.status)
                 }
             }
             enums::AttemptStatus::Charged => {
@@ -178,11 +178,11 @@ where
                 );
                 let total_capturable_amount = payment_data.payment_attempt.get_total_amount();
                 if Some(total_capturable_amount) == captured_amount.map(MinorUnit::new) {
-                    enums::AttemptStatus::Charged
+                    Ok(enums::AttemptStatus::Charged)
                 } else if captured_amount.is_some() {
-                    enums::AttemptStatus::PartialCharged
+                    Ok(enums::AttemptStatus::PartialCharged)
                 } else {
-                    self.status
+                    Ok(self.status)
                 }
             }
             enums::AttemptStatus::Authorized => {
@@ -195,14 +195,34 @@ where
                 if Some(payment_data.payment_attempt.get_total_amount())
                     == capturable_amount.map(MinorUnit::new)
                 {
-                    enums::AttemptStatus::Authorized
-                } else if capturable_amount.is_some() {
-                    enums::AttemptStatus::PartiallyAuthorized
+                    Ok(enums::AttemptStatus::Authorized)
+                } else if capturable_amount.is_some()
+                    && payment_data
+                        .payment_intent
+                        .enable_partial_authorization
+                        .is_some_and(|val| val)
+                {
+                    Ok(enums::AttemptStatus::PartiallyAuthorized)
+                } else if capturable_amount.is_some()
+                    && !payment_data
+                        .payment_intent
+                        .enable_partial_authorization
+                        .is_some_and(|val| val)
+                {
+                    Err(ApiErrorResponse::IntegrityCheckFailed {
+                        reason: "capturable_amount is less than the total attempt amount"
+                            .to_string(),
+                        field_names: "amount_capturable".to_string(),
+                        connector_transaction_id: payment_data
+                            .payment_attempt
+                            .connector_transaction_id
+                            .clone(),
+                    })?
                 } else {
-                    self.status
+                    Ok(self.status)
                 }
             }
-            _ => self.status,
+            _ => Ok(self.status),
         }
     }
 }

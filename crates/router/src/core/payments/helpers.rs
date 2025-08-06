@@ -4362,7 +4362,6 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         psd2_sca_exemption_type: router_data.psd2_sca_exemption_type,
         raw_connector_response: router_data.raw_connector_response,
         is_payment_id_from_merchant: router_data.is_payment_id_from_merchant,
-        amount_capturable: router_data.amount_capturable,
         minor_amount_capturable: router_data.minor_amount_capturable,
     }
 }

@@ -208,7 +208,6 @@ pub fn construct_router_data<F: Clone, Req, Res>(
         psd2_sca_exemption_type,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
-        amount_capturable: None,
         minor_amount_capturable: None,
     })
 }

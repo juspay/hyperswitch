@@ -1535,7 +1535,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                     .request
                                     .get_amount_capturable(
                                         &payment_data,
-                                        router_data.amount_capturable,
+                                        router_data
+                                            .minor_amount_capturable
+                                            .map(MinorUnit::get_amount_as_i64),
                                         status,
                                     )
                                     .map(MinorUnit::new),
@@ -1609,14 +1611,18 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             _ => router_data.get_attempt_status_for_db_update(
                                 &payment_data,
                                 router_data.amount_captured,
-                                router_data.amount_capturable,
-                            ),
+                                router_data
+                                    .minor_amount_capturable
+                                    .map(MinorUnit::get_amount_as_i64),
+                            )?,
                         },
                         _ => router_data.get_attempt_status_for_db_update(
                             &payment_data,
                             router_data.amount_captured,
-                            router_data.amount_capturable,
-                        ),
+                            router_data
+                                .minor_amount_capturable
+                                .map(MinorUnit::get_amount_as_i64),
+                        )?,
                     };
                     match payments_response {
                         types::PaymentsResponseData::PreProcessingResponse {
@@ -1852,7 +1858,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                             .request
                                             .get_amount_capturable(
                                                 &payment_data,
-                                                router_data.amount_capturable,
+                                                router_data
+                                                    .minor_amount_capturable
+                                                    .map(MinorUnit::get_amount_as_i64),
                                                 updated_attempt_status,
                                             )
                                             .map(MinorUnit::new),

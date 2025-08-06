@@ -175,7 +175,6 @@ where
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: payment_data.payment_intent.is_payment_id_from_merchant,
-        amount_capturable: None,
         minor_amount_capturable: None,
     };
     Ok(router_data)
@@ -1318,7 +1317,6 @@ where
         psd2_sca_exemption_type: payment_data.payment_intent.psd2_sca_exemption_type,
         raw_connector_response: None,
         is_payment_id_from_merchant: payment_data.payment_intent.is_payment_id_from_merchant,
-        amount_capturable: None,
         minor_amount_capturable: None,
     };
 
@@ -1513,7 +1511,6 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         psd2_sca_exemption_type: payment_data.payment_intent.psd2_sca_exemption_type,
         raw_connector_response: None,
         is_payment_id_from_merchant: payment_data.payment_intent.is_payment_id_from_merchant,
-        amount_capturable: None,
         minor_amount_capturable: None,
     };
 

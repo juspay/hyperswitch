@@ -332,7 +332,14 @@ impl Capturable for PaymentsAuthorizeData {
             // Scheduled capture is not supported as of now
             common_enums::CaptureMethod::Scheduled => None,
         };
-        amount_capturable.or(amount_capturable_from_intent_status)
+        amount_capturable
+            .or(amount_capturable_from_intent_status)
+            .or(Some(
+                payment_data
+                    .payment_attempt
+                    .get_total_amount()
+                    .get_amount_as_i64(),
+            ))
     }
 }
 
@@ -431,7 +438,14 @@ impl Capturable for CompleteAuthorizeData {
             // Scheduled capture is not supported as of now
             common_enums::CaptureMethod::Scheduled => None,
         };
-        amount_capturable.or(amount_capturable_from_intent_status)
+        amount_capturable
+            .or(amount_capturable_from_intent_status)
+            .or(Some(
+                payment_data
+                    .payment_attempt
+                    .get_total_amount()
+                    .get_amount_as_i64(),
+            ))
     }
 }
 
@@ -1226,7 +1240,6 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             psd2_sca_exemption_type: data.psd2_sca_exemption_type,
             raw_connector_response: data.raw_connector_response.clone(),
             is_payment_id_from_merchant: data.is_payment_id_from_merchant,
-            amount_capturable: data.amount_capturable,
             minor_amount_capturable: data.minor_amount_capturable,
         }
     }
@@ -1297,7 +1310,6 @@ impl<F1, F2>
             connector_mandate_request_reference_id: None,
             raw_connector_response: None,
             is_payment_id_from_merchant: data.is_payment_id_from_merchant,
-            amount_capturable: None,
             minor_amount_capturable: None,
         }
     }

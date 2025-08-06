@@ -237,7 +237,6 @@ pub async fn construct_payout_router_data<'a, F>(
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
-        amount_capturable: None,
         minor_amount_capturable: None,
     };
 
@@ -613,7 +612,6 @@ pub async fn construct_refund_router_data<'a, F>(
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
-        amount_capturable: None,
         minor_amount_capturable: None,
     };
 
@@ -1042,7 +1040,6 @@ pub async fn construct_accept_dispute_router_data<'a>(
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
-        amount_capturable: None,
         minor_amount_capturable: None,
     };
     Ok(router_data)
@@ -1145,7 +1142,6 @@ pub async fn construct_submit_evidence_router_data<'a>(
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
-        amount_capturable: None,
         minor_amount_capturable: None,
     };
     Ok(router_data)
@@ -1254,7 +1250,6 @@ pub async fn construct_upload_file_router_data<'a>(
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
-        amount_capturable: None,
         minor_amount_capturable: None,
     };
     Ok(router_data)
@@ -1382,7 +1377,6 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
-        amount_capturable: None,
         minor_amount_capturable: None,
     };
     Ok(router_data)
@@ -1488,7 +1482,6 @@ pub async fn construct_defend_dispute_router_data<'a>(
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
-        amount_capturable: None,
         minor_amount_capturable: None,
     };
     Ok(router_data)
@@ -1586,7 +1579,6 @@ pub async fn construct_retrieve_file_router_data<'a>(
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
-        amount_capturable: None,
         minor_amount_capturable: None,
     };
     Ok(router_data)

@@ -1849,7 +1849,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let order_details = payment_data.payment_intent.order_details.clone();
         let metadata = payment_data.payment_intent.metadata.clone();
         let frm_metadata = payment_data.payment_intent.frm_metadata.clone();
-        let authorized_amount = payment_data.payment_attempt.get_total_amount();
 
         let client_source = header_payload
             .client_source
@@ -1939,16 +1938,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         straight_through_algorithm: m_straight_through_algorithm,
                         error_code: m_error_code,
                         error_message: m_error_message,
-                        amount_capturable: if payment_data
-                            .payment_intent
-                            .enable_partial_authorization
-                            .is_some_and(|val| val)
-                        {
-                            // Setting this value to None, in case of partial authorization as we do not know the value yet
-                            None
-                        } else {
-                            Some(authorized_amount)
-                        },
                         updated_by: storage_scheme.to_string(),
                         merchant_connector_id,
                         external_three_ds_authentication_attempted,

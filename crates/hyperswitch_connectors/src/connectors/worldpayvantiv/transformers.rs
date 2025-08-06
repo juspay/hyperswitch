@@ -1264,8 +1264,8 @@ impl<F>
                         } else {
                             None
                         },
-                        amount_capturable: if payment_flow_type == WorldpayvantivPaymentFlow::Auth {
-                            auth_response.approved_amount.map(MinorUnit::get_amount_as_i64)
+                        minor_amount_capturable: if payment_flow_type == WorldpayvantivPaymentFlow::Auth {
+                            auth_response.approved_amount
                         } else {
                             None
                         },
