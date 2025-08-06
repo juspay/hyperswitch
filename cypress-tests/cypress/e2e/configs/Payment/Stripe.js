@@ -793,12 +793,8 @@ export const connectorDetails = {
     Ach: {
       Request: {
         amount: 333,
-        currency: "USD",
-        confirm: true,
-        capture_method: "automatic",
         payment_method: "bank_transfer",
         payment_method_type: "ach",
-        description: "hello world",
         billing: {
           address: {
             zip: "560095",
