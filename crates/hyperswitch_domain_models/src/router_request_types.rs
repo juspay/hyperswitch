@@ -851,6 +851,7 @@ impl TryFrom<router_data::ConnectorAuthType> for AccessTokenRequestData {
 pub struct AcceptDisputeRequestData {
     pub dispute_id: String,
     pub connector_dispute_id: String,
+    pub dispute_status: storage_enums::DisputeStatus,
 }
 
 #[derive(Default, Debug, Clone)]
@@ -862,6 +863,7 @@ pub struct DefendDisputeRequestData {
 #[derive(Default, Debug, Clone)]
 pub struct SubmitEvidenceRequestData {
     pub dispute_id: String,
+    pub dispute_status: storage_enums::DisputeStatus,
     pub connector_dispute_id: String,
     pub access_activity_log: Option<String>,
     pub billing_address: Option<String>,
@@ -921,9 +923,17 @@ pub struct SubmitEvidenceRequestData {
     pub uncategorized_file_provider_file_id: Option<String>,
     pub uncategorized_text: Option<String>,
 }
+
+#[derive(Debug, Serialize, Clone)]
+pub struct FetchDisputesRequestData {
+    pub created_from: time::PrimitiveDateTime,
+    pub created_till: time::PrimitiveDateTime,
+}
+
 #[derive(Clone, Debug)]
 pub struct RetrieveFileRequestData {
     pub provider_file_id: String,
+    pub connector_dispute_id: Option<String>,
 }
 
 #[serde_as]
@@ -935,6 +945,8 @@ pub struct UploadFileRequestData {
     #[serde_as(as = "serde_with::DisplayFromStr")]
     pub file_type: mime::Mime,
     pub file_size: i32,
+    pub dispute_id: String,
+    pub connector_dispute_id: String,
 }
 
 #[cfg(feature = "payouts")]
@@ -1050,4 +1062,10 @@ pub struct VaultRequestData {
     pub payment_method_vaulting_data: Option<PaymentMethodVaultingData>,
     pub connector_vault_id: Option<String>,
     pub connector_customer_id: Option<String>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct DisputeSyncData {
+    pub dispute_id: String,
+    pub connector_dispute_id: String,
 }

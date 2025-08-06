@@ -32,7 +32,7 @@ pub use hyperswitch_domain_models::router_data_v2::FrmFlowData;
 use hyperswitch_domain_models::router_flow_types::{
     self,
     access_token_auth::AccessTokenAuth,
-    dispute::{Accept, Defend, Evidence},
+    dispute::{Accept, Defend, Dsync, Evidence, Fetch},
     files::{Retrieve, Upload},
     mandate_revoke::MandateRevoke,
     payments::{
@@ -70,12 +70,13 @@ pub use hyperswitch_domain_models::{
         AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
         BrowserInformation, ChargeRefunds, ChargeRefundsOptions, CompleteAuthorizeData,
         CompleteAuthorizeRedirectResponse, ConnectorCustomerData, CreateOrderRequestData,
-        DefendDisputeRequestData, DestinationChargeRefund, DirectChargeRefund,
-        MandateRevokeRequestData, MultipleCaptureRequestData, PaymentMethodTokenizationData,
-        PaymentsApproveData, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
-        PaymentsRejectData, PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
+        DefendDisputeRequestData, DestinationChargeRefund, DirectChargeRefund, DisputeSyncData,
+        FetchDisputesRequestData, MandateRevokeRequestData, MultipleCaptureRequestData,
+        PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
+        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
+        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
         PaymentsUpdateMetadataData, RefundsData, ResponseId, RetrieveFileRequestData,
         SdkPaymentsSessionUpdateData, SetupMandateRequestData, SplitRefundsRequest,
         SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData, VaultRequestData,
@@ -86,9 +87,9 @@ pub use hyperswitch_domain_models::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
             RevenueRecoveryRecordBackResponse,
         },
-        AcceptDisputeResponse, CaptureSyncResponse, DefendDisputeResponse, MandateReference,
-        MandateRevokeResponseData, PaymentsResponseData, PreprocessingResponseId,
-        RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
+        AcceptDisputeResponse, CaptureSyncResponse, DefendDisputeResponse, DisputeSyncResponse,
+        FetchDisputesResponse, MandateReference, MandateRevokeResponseData, PaymentsResponseData,
+        PreprocessingResponseId, RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
         TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
         VerifyWebhookSourceResponseData, VerifyWebhookStatus,
     },
@@ -98,20 +99,23 @@ pub use hyperswitch_domain_models::{
     router_data_v2::PayoutFlowData, router_request_types::PayoutsData,
     router_response_types::PayoutsResponseData,
 };
-pub use hyperswitch_interfaces::types::{
-    AcceptDisputeType, ConnectorCustomerType, DefendDisputeType, IncrementalAuthorizationType,
-    MandateRevokeType, PaymentsAuthorizeType, PaymentsBalanceType, PaymentsCaptureType,
-    PaymentsCompleteAuthorizeType, PaymentsInitType, PaymentsPostCaptureVoidType,
-    PaymentsPostProcessingType, PaymentsPostSessionTokensType, PaymentsPreAuthorizeType,
-    PaymentsPreProcessingType, PaymentsSessionType, PaymentsSyncType, PaymentsUpdateMetadataType,
-    PaymentsVoidType, RefreshTokenType, RefundExecuteType, RefundSyncType, Response,
-    RetrieveFileType, SdkSessionUpdateType, SetupMandateType, SubmitEvidenceType, TokenizationType,
-    UploadFileType, VerifyWebhookSourceType,
-};
 #[cfg(feature = "payouts")]
 pub use hyperswitch_interfaces::types::{
     PayoutCancelType, PayoutCreateType, PayoutEligibilityType, PayoutFulfillType, PayoutQuoteType,
     PayoutRecipientAccountType, PayoutRecipientType, PayoutSyncType,
+};
+pub use hyperswitch_interfaces::{
+    disputes::DisputePayload,
+    types::{
+        AcceptDisputeType, ConnectorCustomerType, DefendDisputeType, FetchDisputesType,
+        IncrementalAuthorizationType, MandateRevokeType, PaymentsAuthorizeType,
+        PaymentsBalanceType, PaymentsCaptureType, PaymentsCompleteAuthorizeType, PaymentsInitType,
+        PaymentsPostCaptureVoidType, PaymentsPostProcessingType, PaymentsPostSessionTokensType,
+        PaymentsPreAuthorizeType, PaymentsPreProcessingType, PaymentsSessionType, PaymentsSyncType,
+        PaymentsUpdateMetadataType, PaymentsVoidType, RefreshTokenType, RefundExecuteType,
+        RefundSyncType, Response, RetrieveFileType, SdkSessionUpdateType, SetupMandateType,
+        SubmitEvidenceType, TokenizationType, UploadFileType, VerifyWebhookSourceType,
+    },
 };
 
 pub use crate::core::payments::CustomerDetails;
@@ -232,6 +236,11 @@ pub type RetrieveFileRouterData =
 
 pub type DefendDisputeRouterData =
     RouterData<Defend, DefendDisputeRequestData, DefendDisputeResponse>;
+
+pub type FetchDisputesRouterData =
+    RouterData<Fetch, FetchDisputesRequestData, FetchDisputesResponse>;
+
+pub type DisputeSyncRouterData = RouterData<Dsync, DisputeSyncData, DisputeSyncResponse>;
 
 pub type MandateRevokeRouterData =
     RouterData<MandateRevoke, MandateRevokeRequestData, MandateRevokeResponseData>;

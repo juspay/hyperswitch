@@ -1,4 +1,8 @@
-use common_utils::{ext_traits::Encode, id_type::CustomerId, types::MinorUnit};
+use common_utils::{
+    ext_traits::Encode,
+    id_type::CustomerId,
+    types::{MinorUnit, StringMinorUnitForConnector},
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
@@ -6,12 +10,19 @@ use hyperswitch_domain_models::{
         AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
         ErrorResponse, RouterData,
     },
-    router_flow_types::refunds::{Execute, RSync},
-    router_request_types::{
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsSyncData, ResponseId,
+    router_flow_types::{
+        refunds::{Execute, RSync},
+        Dsync, Fetch, Retrieve, Upload,
     },
-    router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
+    router_request_types::{
+        DisputeSyncData, FetchDisputesRequestData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsSyncData, ResponseId,
+        RetrieveFileRequestData, UploadFileRequestData,
+    },
+    router_response_types::{
+        DisputeSyncResponse, FetchDisputesResponse, MandateReference, PaymentsResponseData,
+        RefundsResponseData, RetrieveFileResponse, UploadFileResponse,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelPostCaptureRouterData, PaymentsCancelRouterData,
         PaymentsCaptureRouterData, RefundsRouterData,
@@ -22,7 +33,11 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
+    types::{
+        AcceptDisputeRouterData, DisputeSyncRouterData, FetchDisputeRouterData,
+        RefundsResponseRouterData, ResponseRouterData, RetrieveFileRouterData,
+        SubmitEvidenceRouterData,
+    },
     utils::{self as connector_utils, CardData, PaymentsAuthorizeRequestData, RouterData as _},
 };
 
@@ -32,6 +47,8 @@ pub mod worldpayvantiv_constants {
     pub const XML_ENCODING: &str = "UTF-8";
     pub const XMLNS: &str = "http://www.vantivcnp.com/schema";
     pub const MAX_ID_LENGTH: usize = 26;
+    pub const XML_STANDALONE: &str = "yes";
+    pub const XML_CHARGEBACK: &str = "http://www.vantivcnp.com/chargebacks";
 }
 
 pub struct WorldpayvantivRouterData<T> {
@@ -950,6 +967,19 @@ impl<F> TryFrom<&WorldpayvantivRouterData<&RefundsRouterData<F>>> for CnpOnlineR
 #[serde(rename_all = "camelCase")]
 pub struct VantivSyncErrorResponse {
     pub error_messages: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename = "errorResponse")]
+pub struct VantivDisputeErrorResponse {
+    #[serde(rename = "@xmlns")]
+    pub xmlns: String,
+    pub errors: Vec<VantivDisputeErrors>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct VantivDisputeErrors {
+    pub error: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -3464,4 +3494,448 @@ fn get_connector_response(payment_response: &FraudResult) -> ConnectorResponseDa
             domestic_network: None,
         },
     )
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename = "chargebackRetrievalResponse", rename_all = "camelCase")]
+pub struct ChargebackRetrievalResponse {
+    #[serde(rename = "@xmlns")]
+    pub xmlns: String,
+    pub transaction_id: String,
+    pub chargeback_case: Option<Vec<ChargebackCase>>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ChargebackCase {
+    pub case_id: String,
+    pub merchant_id: String,
+    pub day_issued_by_bank: Option<String>,
+    pub date_received_by_vantiv_cnp: Option<String>,
+    pub vantiv_cnp_txn_id: String,
+    pub cycle: String,
+    pub order_id: String,
+    pub card_number_last4: Option<String>,
+    pub card_type: Option<String>,
+    pub chargeback_amount: MinorUnit,
+    pub chargeback_currency_type: common_enums::enums::Currency,
+    pub original_txn_day: Option<String>,
+    pub chargeback_type: Option<String>,
+    pub reason_code: Option<String>,
+    pub reason_code_description: Option<String>,
+    pub current_queue: Option<String>,
+    pub acquirer_reference_number: Option<String>,
+    pub chargeback_reference_number: Option<String>,
+    pub bin: Option<String>,
+    pub payment_amount: Option<MinorUnit>,
+    pub reply_by_day: Option<String>,
+    pub pre_arbitration_amount: Option<MinorUnit>,
+    pub pre_arbitration_currency_type: Option<common_enums::enums::Currency>,
+    pub activity: Vec<Activity>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Activity {
+    pub activity_date: Option<String>,
+    pub activity_type: Option<String>,
+    pub from_queue: Option<String>,
+    pub to_queue: Option<String>,
+    pub notes: Option<String>,
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            Fetch,
+            ChargebackRetrievalResponse,
+            FetchDisputesRequestData,
+            FetchDisputesResponse,
+        >,
+    > for RouterData<Fetch, FetchDisputesRequestData, FetchDisputesResponse>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            Fetch,
+            ChargebackRetrievalResponse,
+            FetchDisputesRequestData,
+            FetchDisputesResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let dispute_list = item
+            .response
+            .chargeback_case
+            .unwrap_or_default()
+            .into_iter()
+            .map(DisputeSyncResponse::try_from)
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(FetchDisputeRouterData {
+            response: Ok(dispute_list),
+            ..item.data
+        })
+    }
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            Dsync,
+            ChargebackRetrievalResponse,
+            DisputeSyncData,
+            DisputeSyncResponse,
+        >,
+    > for RouterData<Dsync, DisputeSyncData, DisputeSyncResponse>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            Dsync,
+            ChargebackRetrievalResponse,
+            DisputeSyncData,
+            DisputeSyncResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let dispute_response = item
+            .response
+            .chargeback_case
+            .and_then(|chargeback_case| chargeback_case.first().cloned())
+            .ok_or(errors::ConnectorError::RequestEncodingFailedWithReason(
+                "Could not find chargeback case".to_string(),
+            ))?;
+
+        let dispute_sync_response = DisputeSyncResponse::try_from(dispute_response.clone())?;
+        Ok(DisputeSyncRouterData {
+            response: Ok(dispute_sync_response),
+            ..item.data
+        })
+    }
+}
+
+fn get_dispute_stage(
+    dispute_cycle: String,
+) -> Result<common_enums::enums::DisputeStage, error_stack::Report<errors::ConnectorError>> {
+    match connector_utils::normalize_string(dispute_cycle.clone())
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?
+        .as_str()
+    {
+        "arbitration"
+        | "arbitrationmastercard"
+        | "arbitrationchargeback"
+        | "arbitrationlost"
+        | "arbitrationsplit"
+        | "arbitrationwon" => Ok(common_enums::enums::DisputeStage::Arbitration),
+        "chargebackreversal" | "firstchargeback" | "rapiddisputeresolution" | "representment" => {
+            Ok(common_enums::enums::DisputeStage::Dispute)
+        }
+
+        "issueracceptedprearbitration"
+        | "issuerarbitration"
+        | "issuerdeclinedprearbitration"
+        | "prearbitration"
+        | "responsetoissuerarbitration" => Ok(common_enums::enums::DisputeStage::PreArbitration),
+
+        "retrievalrequest" => Ok(common_enums::enums::DisputeStage::PreDispute),
+        _ => Err(errors::ConnectorError::NotSupported {
+            message: format!("Dispute stage {dispute_cycle}",),
+            connector: "worldpayvantiv",
+        }
+        .into()),
+    }
+}
+
+pub fn get_dispute_status(
+    dispute_cycle: String,
+) -> Result<api_models::enums::DisputeStatus, error_stack::Report<errors::ConnectorError>> {
+    match connector_utils::normalize_string(dispute_cycle.clone())
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?
+        .as_str()
+    {
+        "arbitration"
+        | "arbitrationmastercard"
+        | "arbitrationsplit"
+        | "representment"
+        | "issuerarbitration"
+        | "prearbitration"
+        | "responsetoissuerarbitration"
+        | "arbitrationchargeback" => Ok(api_models::enums::DisputeStatus::DisputeChallenged),
+        "chargebackreversal" | "issueracceptedprearbitration" | "arbitrationwon" => {
+            Ok(api_models::enums::DisputeStatus::DisputeWon)
+        }
+        "arbitrationlost" | "issuerdeclinedprearbitration" => {
+            Ok(api_models::enums::DisputeStatus::DisputeLost)
+        }
+        "firstchargeback" | "retrievalrequest" | "rapiddisputeresolution" => {
+            Ok(api_models::enums::DisputeStatus::DisputeOpened)
+        }
+        _ => Err(errors::ConnectorError::NotSupported {
+            message: format!("Dispute status {dispute_cycle}"),
+            connector: "worldpayvantiv",
+        }
+        .into()),
+    }
+}
+
+fn convert_string_to_primitive_date(
+    item: Option<String>,
+) -> Result<Option<time::PrimitiveDateTime>, error_stack::Report<errors::ConnectorError>> {
+    item.map(|day| {
+        let full_datetime_str = format!("{day}T00:00:00");
+        let format =
+            time::macros::format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]");
+        time::PrimitiveDateTime::parse(&full_datetime_str, &format)
+    })
+    .transpose()
+    .change_context(errors::ConnectorError::ParsingFailed)
+}
+
+impl TryFrom<ChargebackCase> for DisputeSyncResponse {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: ChargebackCase) -> Result<Self, Self::Error> {
+        let amount = connector_utils::convert_amount(
+            &StringMinorUnitForConnector,
+            item.chargeback_amount,
+            item.chargeback_currency_type,
+        )?;
+        Ok(Self {
+            object_reference_id: api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(item.vantiv_cnp_txn_id),
+            ),
+            amount,
+            currency: item.chargeback_currency_type,
+            dispute_stage: get_dispute_stage(item.cycle.clone())?,
+            dispute_status: get_dispute_status(item.cycle.clone())?,
+            connector_status: item.cycle.clone(),
+            connector_dispute_id: item.case_id.clone(),
+            connector_reason: item.reason_code_description.clone(),
+            connector_reason_code: item.reason_code.clone(),
+            challenge_required_by: convert_string_to_primitive_date(item.reply_by_day.clone())?,
+            created_at: convert_string_to_primitive_date(item.date_received_by_vantiv_cnp.clone())?,
+            updated_at: None,
+        })
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ActivityType {
+    MerchantAcceptsLiability,
+    MerchantRepresent,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename = "chargebackUpdateRequest", rename_all = "camelCase")]
+pub struct ChargebackUpdateRequest {
+    #[serde(rename = "@xmlns")]
+    xmlns: String,
+    activity_type: ActivityType,
+}
+
+impl From<&SubmitEvidenceRouterData> for ChargebackUpdateRequest {
+    fn from(_item: &SubmitEvidenceRouterData) -> Self {
+        Self {
+            xmlns: worldpayvantiv_constants::XML_CHARGEBACK.to_string(),
+            activity_type: ActivityType::MerchantRepresent,
+        }
+    }
+}
+
+impl From<&AcceptDisputeRouterData> for ChargebackUpdateRequest {
+    fn from(_item: &AcceptDisputeRouterData) -> Self {
+        Self {
+            xmlns: worldpayvantiv_constants::XML_CHARGEBACK.to_string(),
+            activity_type: ActivityType::MerchantAcceptsLiability,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename = "chargebackDocumentUploadResponse", rename_all = "camelCase")]
+pub struct ChargebackDocumentUploadResponse {
+    #[serde(rename = "@xmlns")]
+    pub xmlns: String,
+    pub merchant_id: String,
+    pub case_id: String,
+    pub document_id: Option<String>,
+    pub response_code: WorldpayvantivFileUploadResponseCode,
+    pub response_message: String,
+}
+
+#[derive(Debug, strum::Display, Serialize, Deserialize, PartialEq, Clone, Copy)]
+pub enum WorldpayvantivFileUploadResponseCode {
+    #[serde(rename = "000")]
+    #[strum(serialize = "000")]
+    Success,
+
+    #[serde(rename = "001")]
+    #[strum(serialize = "001")]
+    InvalidMerchant,
+
+    #[serde(rename = "002")]
+    #[strum(serialize = "002")]
+    FutureUse002,
+
+    #[serde(rename = "003")]
+    #[strum(serialize = "003")]
+    CaseNotFound,
+
+    #[serde(rename = "004")]
+    #[strum(serialize = "004")]
+    CaseNotInMerchantQueue,
+
+    #[serde(rename = "005")]
+    #[strum(serialize = "005")]
+    DocumentAlreadyExists,
+
+    #[serde(rename = "006")]
+    #[strum(serialize = "006")]
+    InternalError,
+
+    #[serde(rename = "007")]
+    #[strum(serialize = "007")]
+    FutureUse007,
+
+    #[serde(rename = "008")]
+    #[strum(serialize = "008")]
+    MaxDocumentLimitReached,
+
+    #[serde(rename = "009")]
+    #[strum(serialize = "009")]
+    DocumentNotFound,
+
+    #[serde(rename = "010")]
+    #[strum(serialize = "010")]
+    CaseNotInValidCycle,
+
+    #[serde(rename = "011")]
+    #[strum(serialize = "011")]
+    ServerBusy,
+
+    #[serde(rename = "012")]
+    #[strum(serialize = "012")]
+    FileSizeExceedsLimit,
+
+    #[serde(rename = "013")]
+    #[strum(serialize = "013")]
+    InvalidFileContent,
+
+    #[serde(rename = "014")]
+    #[strum(serialize = "014")]
+    UnableToConvert,
+
+    #[serde(rename = "015")]
+    #[strum(serialize = "015")]
+    InvalidImageSize,
+
+    #[serde(rename = "016")]
+    #[strum(serialize = "016")]
+    MaxDocumentPageCountReached,
+}
+
+fn is_file_uploaded(vantiv_file_upload_status: WorldpayvantivFileUploadResponseCode) -> bool {
+    match vantiv_file_upload_status {
+        WorldpayvantivFileUploadResponseCode::Success
+        | WorldpayvantivFileUploadResponseCode::FutureUse002
+        | WorldpayvantivFileUploadResponseCode::FutureUse007 => true,
+        WorldpayvantivFileUploadResponseCode::InvalidMerchant
+        | WorldpayvantivFileUploadResponseCode::CaseNotFound
+        | WorldpayvantivFileUploadResponseCode::CaseNotInMerchantQueue
+        | WorldpayvantivFileUploadResponseCode::DocumentAlreadyExists
+        | WorldpayvantivFileUploadResponseCode::InternalError
+        | WorldpayvantivFileUploadResponseCode::MaxDocumentLimitReached
+        | WorldpayvantivFileUploadResponseCode::DocumentNotFound
+        | WorldpayvantivFileUploadResponseCode::CaseNotInValidCycle
+        | WorldpayvantivFileUploadResponseCode::ServerBusy
+        | WorldpayvantivFileUploadResponseCode::FileSizeExceedsLimit
+        | WorldpayvantivFileUploadResponseCode::InvalidFileContent
+        | WorldpayvantivFileUploadResponseCode::UnableToConvert
+        | WorldpayvantivFileUploadResponseCode::InvalidImageSize
+        | WorldpayvantivFileUploadResponseCode::MaxDocumentPageCountReached => false,
+    }
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            Upload,
+            ChargebackDocumentUploadResponse,
+            UploadFileRequestData,
+            UploadFileResponse,
+        >,
+    > for RouterData<Upload, UploadFileRequestData, UploadFileResponse>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<
+            Upload,
+            ChargebackDocumentUploadResponse,
+            UploadFileRequestData,
+            UploadFileResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let response = if is_file_uploaded(item.response.response_code) {
+            let provider_file_id = item
+                .response
+                .document_id
+                .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
+
+            Ok(UploadFileResponse { provider_file_id })
+        } else {
+            Err(ErrorResponse {
+                code: item.response.response_code.to_string(),
+                message: item.response.response_message.clone(),
+                reason: Some(item.response.response_message.clone()),
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+            })
+        };
+
+        Ok(Self {
+            response,
+            ..item.data
+        })
+    }
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            Retrieve,
+            ChargebackDocumentUploadResponse,
+            RetrieveFileRequestData,
+            RetrieveFileResponse,
+        >,
+    > for RouterData<Retrieve, RetrieveFileRequestData, RetrieveFileResponse>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<
+            Retrieve,
+            ChargebackDocumentUploadResponse,
+            RetrieveFileRequestData,
+            RetrieveFileResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(RetrieveFileRouterData {
+            response: Err(ErrorResponse {
+                code: item.response.response_code.to_string(),
+                message: item.response.response_message.clone(),
+                reason: Some(item.response.response_message.clone()),
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+            }),
+            ..item.data.clone()
+        })
+    }
 }
