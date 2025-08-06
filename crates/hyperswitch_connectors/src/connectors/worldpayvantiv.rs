@@ -27,8 +27,8 @@ use hyperswitch_domain_models::{
         AcceptDisputeRequestData, AccessTokenRequestData, DisputeSyncData,
         FetchDisputesRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsSessionData, PaymentsSyncData, RefundsData, RetrieveFileRequestData, SetupMandateRequestData, SubmitEvidenceRequestData,
-        UploadFileRequestData,
+        PaymentsSessionData, PaymentsSyncData, RefundsData, RetrieveFileRequestData,
+        SetupMandateRequestData, SubmitEvidenceRequestData, UploadFileRequestData,
     },
     router_response_types::{
         AcceptDisputeResponse, ConnectorInfo, DisputeSyncResponse, FetchDisputesResponse,

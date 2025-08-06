@@ -15,8 +15,9 @@ use hyperswitch_domain_models::{
         Dsync, Fetch, Retrieve, Upload,
     },
     router_request_types::{
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData, UploadFileRequestData,
-        PaymentsCaptureData, PaymentsSyncData, ResponseId, DisputeSyncData, FetchDisputesRequestData, RetrieveFileRequestData,
+        DisputeSyncData, FetchDisputesRequestData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsSyncData, ResponseId,
+        RetrieveFileRequestData, UploadFileRequestData,
     },
     router_response_types::{
         DisputeSyncResponse, FetchDisputesResponse, MandateReference, PaymentsResponseData,
