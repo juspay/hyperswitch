@@ -29,6 +29,7 @@ use hyperswitch_domain_models::{
 };
 use time::PrimitiveDateTime;
 
+use super::errors::StorageErrorExt;
 use crate::{
     core::{
         errors::{self, RouterResult},
@@ -45,8 +46,6 @@ use crate::{
     },
     workflows::{payment_sync, revenue_recovery::get_schedule_time_to_retry_mit_payments},
 };
-
-use super::errors::StorageErrorExt;
 
 type RecoveryResult<T> = error_stack::Result<T, errors::RecoveryError>;
 
@@ -185,7 +184,6 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                     revenue_recovery_payment_data,
                 )
                 .await?;
-
             }
             Self::Processing => {
                 // do a psync payment
@@ -215,7 +213,6 @@ impl RevenueRecoveryPaymentsAttemptStatus {
         }
         Ok(())
     }
-
 }
 pub enum Decision {
     Execute,
@@ -349,15 +346,17 @@ impl Action {
                     );
                 };
 
-                // Update CALCULATE_WORKFLOW to complete status on payment success
-                if let Err(e) = update_calculate_workflow_on_success(state, payment_intent).await {
-                    router_env::logger::error!(
-                        "Failed to update CALCULATE_WORKFLOW on payment success: {:?}",
-                        e
-                    );
-                };
+                    // Update CALCULATE_WORKFLOW to complete status on payment success
+                    if let Err(e) =
+                        update_calculate_workflow_on_success(state, payment_intent).await
+                    {
+                        router_env::logger::error!(
+                            "Failed to update CALCULATE_WORKFLOW on payment success: {:?}",
+                            e
+                        );
+                    };
 
-                // add the function to update the token status in redis
+                    // add the function to update the token status in redis
 
                     Ok(Self::SuccessfulPayment(
                         payment_data.payment_attempt.clone(),
@@ -405,7 +404,8 @@ impl Action {
                         db,
                         &payment_data.payment_intent.id,
                         business_status::CALCULATE_WORKFLOW_PROCESSING,
-                    ).await?;
+                    )
+                    .await?;
 
                     Ok(Self::SyncPayment(payment_data.payment_attempt.clone()))
                 }
@@ -581,34 +581,40 @@ impl Action {
                             &(state).into(),
                             &payment_attempt.payment_id,
                             &revenue_recovery_payment_data.key_store,
-                            revenue_recovery_payment_data.merchant_account.storage_scheme,
+                            revenue_recovery_payment_data
+                                .merchant_account
+                                .storage_scheme,
                         )
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
                         .change_context(errors::RecoveryError::PaymentCallFailed)
-                        .attach_printable("Failed to fetch payment intent for calculate workflow reopening")?;
+                        .attach_printable(
+                            "Failed to fetch payment intent for calculate workflow reopening",
+                        )?;
 
-                    update_calculate_workflow_on_success(state, &payment_intent)
-                    .await?;
+                    update_calculate_workflow_on_success(state, &payment_intent).await?;
 
                     Ok(Self::SuccessfulPayment(payment_attempt))
                 }
                 RevenueRecoveryPaymentsAttemptStatus::Failed => {
-
                     let payment_intent = db
                         .find_payment_intent_by_id(
                             &(state).into(),
                             &payment_attempt.payment_id,
                             &revenue_recovery_payment_data.key_store,
-                            revenue_recovery_payment_data.merchant_account.storage_scheme,
+                            revenue_recovery_payment_data
+                                .merchant_account
+                                .storage_scheme,
                         )
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
                         .change_context(errors::RecoveryError::PaymentCallFailed)
-                        .attach_printable("Failed to fetch payment intent for calculate workflow reopening")?;
+                        .attach_printable(
+                            "Failed to fetch payment intent for calculate workflow reopening",
+                        )?;
 
-                     // Reopen calculate workflow on payment failure
-                     reopen_calculate_workflow_on_payment_failure(
+                    // Reopen calculate workflow on payment failure
+                    reopen_calculate_workflow_on_payment_failure(
                         state,
                         process,
                         &payment_intent,
@@ -827,13 +833,8 @@ async fn update_calculate_workflow_psync_status(
 ) -> RecoveryResult<()> {
     let task = revenue_recovery_core::CALCULATE_WORKFLOW;
     let runner = storage::ProcessTrackerRunner::PassiveRecoveryWorkflow;
-    let process_tracker_id = format!(
-        "{}_{}_{}", 
-        runner, 
-        task, 
-        payment_id.get_string_repr()
-    );
-    
+    let process_tracker_id = format!("{}_{}_{}", runner, task, payment_id.get_string_repr());
+
     // Find the CALCULATE_WORKFLOW process tracker
     match db.find_process_by_id(&process_tracker_id).await {
         Ok(Some(process)) => {
@@ -841,7 +842,7 @@ async fn update_calculate_workflow_psync_status(
                 status: process.status,
                 business_status: Some(business_status.to_string()),
             };
-            
+
             match db.update_process(process, pt_update).await {
                 Ok(_) => {
                     logger::info!(
@@ -878,129 +879,121 @@ async fn update_calculate_workflow_psync_status(
             );
         }
     }
-    
+
     Ok(())
 }
 
+/// Reopen calculate workflow when payment fails
+pub async fn reopen_calculate_workflow_on_payment_failure(
+    state: &SessionState,
+    process: &storage::ProcessTracker,
+    payment_intent: &PaymentIntent,
+    revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
+) -> RecoveryResult<()> {
+    let db = &*state.store;
+    let id = payment_intent.id.clone();
+    let task = revenue_recovery_core::CALCULATE_WORKFLOW;
+    let runner = storage::ProcessTrackerRunner::PassiveRecoveryWorkflow;
 
+    // Construct the process tracker ID for CALCULATE_WORKFLOW
+    // Using the same pattern as execute workflow but with CALCULATE_WORKFLOW task
+    let process_tracker_id = format!("{}_{}_{}", runner, task, id.get_string_repr());
 
-    /// Reopen calculate workflow when payment fails
-    pub async fn reopen_calculate_workflow_on_payment_failure(
-        state: &SessionState,
-        process: &storage::ProcessTracker,
-        payment_intent: &PaymentIntent,
-        revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
-    ) -> RecoveryResult<()> {
-        let db = &*state.store;
-        let id = payment_intent.id.clone();
-        let task = revenue_recovery_core::CALCULATE_WORKFLOW;
-        let runner = storage::ProcessTrackerRunner::PassiveRecoveryWorkflow;
-        
-        // Construct the process tracker ID for CALCULATE_WORKFLOW
-        // Using the same pattern as execute workflow but with CALCULATE_WORKFLOW task
-        let process_tracker_id = format!(
-            "{}_{}_{}", 
-            runner, 
-            task, 
-            id.get_string_repr()
-        );
+    logger::info!(
+        payment_id = %id.get_string_repr(),
+        process_tracker_id = %process_tracker_id,
+        "Attempting to reopen CALCULATE_WORKFLOW on payment failure"
+    );
 
-        logger::info!(
-            payment_id = %id.get_string_repr(),
-            process_tracker_id = %process_tracker_id,
-            "Attempting to reopen CALCULATE_WORKFLOW on payment failure"
-        );
+    // Find the existing CALCULATE_WORKFLOW process tracker
+    let calculate_process = db
+        .find_process_by_id(&process_tracker_id)
+        .await
+        .change_context(errors::RecoveryError::ProcessTrackerFailure)
+        .attach_printable("Failed to find CALCULATE_WORKFLOW process tracker")?;
 
-        // Find the existing CALCULATE_WORKFLOW process tracker
-        let calculate_process = db
-            .find_process_by_id(&process_tracker_id)
-            .await
-            .change_context(errors::RecoveryError::ProcessTrackerFailure)
-            .attach_printable("Failed to find CALCULATE_WORKFLOW process tracker")?;
+    match calculate_process {
+        Some(process) => {
+            logger::info!(
+                payment_id = %id.get_string_repr(),
+                process_tracker_id = %process_tracker_id,
+                current_status = %process.business_status,
+                current_retry_count = process.retry_count,
+                "Found existing CALCULATE_WORKFLOW, updating status and retry count"
+            );
 
-        match calculate_process {
-            Some(process) => {
-                logger::info!(
-                    payment_id = %id.get_string_repr(),
-                    process_tracker_id = %process_tracker_id,
-                    current_status = %process.business_status,
-                    current_retry_count = process.retry_count,
-                    "Found existing CALCULATE_WORKFLOW, updating status and retry count"
-                );
+            // Update the process tracker to reopen the calculate workflow
+            // 1. Change status from "finish" to "new"
+            // 2. Increase retry count by 1
+            // 3. Set business status to QUEUED
+            // 4. Schedule for immediate execution
+            let new_retry_count = process.retry_count + 1;
+            let new_schedule_time = common_utils::date_time::now() + time::Duration::hours(1);
 
-                // Update the process tracker to reopen the calculate workflow
-                // 1. Change status from "finish" to "new" 
-                // 2. Increase retry count by 1
-                // 3. Set business status to QUEUED
-                // 4. Schedule for immediate execution
-                let new_retry_count = process.retry_count + 1;
-                let new_schedule_time = common_utils::date_time::now()+time::Duration::hours(1);
-    
-                let pt_update = storage::ProcessTrackerUpdate::Update {
-                    name: None,
-                    retry_count: Some(new_retry_count),
-                    schedule_time: Some(new_schedule_time),
-                    tracking_data: Some(process.tracking_data),
-                    business_status: Some(String::from(business_status::CALCULATE_WORKFLOW_QUEUED)),
-                    status: Some(common_enums::ProcessTrackerStatus::New),
-                    updated_at: Some(common_utils::date_time::now()),
-                };
+            let pt_update = storage::ProcessTrackerUpdate::Update {
+                name: None,
+                retry_count: Some(new_retry_count),
+                schedule_time: Some(new_schedule_time),
+                tracking_data: Some(process.tracking_data),
+                business_status: Some(String::from(business_status::CALCULATE_WORKFLOW_QUEUED)),
+                status: Some(common_enums::ProcessTrackerStatus::New),
+                updated_at: Some(common_utils::date_time::now()),
+            };
 
-                db.update_process(process.clone(), pt_update)
-                    .await
-                    .change_context(errors::RecoveryError::ProcessTrackerFailure)
-                    .attach_printable("Failed to update CALCULATE_WORKFLOW process tracker")?;
-
-                logger::info!(
-                    payment_id = %id.get_string_repr(),
-                    process_tracker_id = %process_tracker_id,
-                    new_retry_count = new_retry_count,
-                    new_schedule_time = %new_schedule_time,
-                    "Successfully reopened CALCULATE_WORKFLOW with increased retry count"
-                );
-            }
-            None => {
-                logger::info!(
-                    payment_id = %id.get_string_repr(),
-                    process_tracker_id = %process_tracker_id,
-                    "CALCULATE_WORKFLOW process tracker not found, creating new entry"
-                );
-                
-                // Create tracking data for the new CALCULATE_WORKFLOW
-                let tracking_data = create_calculate_workflow_tracking_data(
-                    payment_intent,
-                    revenue_recovery_payment_data,
-                )?;
-                
-                // // Create a minimal process tracker for perform_calculate_workflow
-                // let process = create_minimal_process_tracker(
-                //     &process_tracker_id,
-                //     &tracking_data,
-                // )?;
-                
-                // Call the existing perform_calculate_workflow function
-                perform_calculate_workflow(
-                    state,
-                    &process,
-                    &tracking_data,
-                    revenue_recovery_payment_data,
-                    payment_intent,
-                )
+            db.update_process(process.clone(), pt_update)
                 .await
                 .change_context(errors::RecoveryError::ProcessTrackerFailure)
-                .attach_printable("Failed to perform calculate workflow")?;
+                .attach_printable("Failed to update CALCULATE_WORKFLOW process tracker")?;
 
-                logger::info!(
-                    payment_id = %id.get_string_repr(),
-                    process_tracker_id = %process_tracker_id,
-                    "Successfully created new CALCULATE_WORKFLOW entry using perform_calculate_workflow"
-                );
-            }
+            logger::info!(
+                payment_id = %id.get_string_repr(),
+                process_tracker_id = %process_tracker_id,
+                new_retry_count = new_retry_count,
+                new_schedule_time = %new_schedule_time,
+                "Successfully reopened CALCULATE_WORKFLOW with increased retry count"
+            );
         }
+        None => {
+            logger::info!(
+                payment_id = %id.get_string_repr(),
+                process_tracker_id = %process_tracker_id,
+                "CALCULATE_WORKFLOW process tracker not found, creating new entry"
+            );
 
-        Ok(())
+            // Create tracking data for the new CALCULATE_WORKFLOW
+            let tracking_data = create_calculate_workflow_tracking_data(
+                payment_intent,
+                revenue_recovery_payment_data,
+            )?;
+
+            // // Create a minimal process tracker for perform_calculate_workflow
+            // let process = create_minimal_process_tracker(
+            //     &process_tracker_id,
+            //     &tracking_data,
+            // )?;
+
+            // Call the existing perform_calculate_workflow function
+            perform_calculate_workflow(
+                state,
+                &process,
+                &tracking_data,
+                revenue_recovery_payment_data,
+                payment_intent,
+            )
+            .await
+            .change_context(errors::RecoveryError::ProcessTrackerFailure)
+            .attach_printable("Failed to perform calculate workflow")?;
+
+            logger::info!(
+                payment_id = %id.get_string_repr(),
+                process_tracker_id = %process_tracker_id,
+                "Successfully created new CALCULATE_WORKFLOW entry using perform_calculate_workflow"
+            );
+        }
     }
 
+    Ok(())
+}
 
 /// Create tracking data for the CALCULATE_WORKFLOW
 fn create_calculate_workflow_tracking_data(
@@ -1020,14 +1013,17 @@ fn create_calculate_workflow_tracking_data(
         .unwrap_or_default();
 
     let tracking_data = storage::revenue_recovery::RevenueRecoveryWorkflowTrackingData {
-        merchant_id: revenue_recovery_payment_data.merchant_account.get_id().clone(),
+        merchant_id: revenue_recovery_payment_data
+            .merchant_account
+            .get_id()
+            .clone(),
         profile_id: revenue_recovery_payment_data.profile.get_id().clone(),
         global_payment_id: payment_intent.id.clone(),
         payment_attempt_id: payment_intent.active_attempt_id.clone(),
         billing_mca_id: revenue_recovery_payment_data.billing_mca.get_id().clone(),
         revenue_recovery_retry: revenue_recovery_payment_data.retry_algorithm,
         token_list,
-        active_token: None, // No active token for CALCULATE_WORKFLOW
+        active_token: None,           // No active token for CALCULATE_WORKFLOW
         invoice_scheduled_time: None, // Will be set by perform_calculate_workflow
     };
 
@@ -1041,7 +1037,7 @@ fn create_calculate_workflow_tracking_data(
 // ) -> RecoveryResult<storage::ProcessTracker> {
 //     let current_time = common_utils::date_time::now();
 //     let schedule_time = current_time + time::Duration::hours(1);
-    
+
 //     let process = storage::ProcessTracker {
 //         id: process_tracker_id.to_string(),
 //         name: Some(revenue_recovery_core::CALCULATE_WORKFLOW.to_string()),
@@ -1185,20 +1181,20 @@ async fn update_calculate_workflow_on_success(
     let db = &*state.store;
     let task = revenue_recovery_core::CALCULATE_WORKFLOW;
     let runner = storage::ProcessTrackerRunner::PassiveRecoveryWorkflow;
-    
+
     let process_tracker_id = format!(
-        "{}_{}_{}", 
-        runner, 
-        task, 
+        "{}_{}_{}",
+        runner,
+        task,
         payment_intent.id.get_string_repr()
     );
-    
+
     logger::info!(
         payment_id = %payment_intent.id.get_string_repr(),
         process_tracker_id = %process_tracker_id,
         "Attempting to update CALCULATE_WORKFLOW to complete status on payment success"
     );
-    
+
     // Find and update the CALCULATE_WORKFLOW
     match db.find_process_by_id(&process_tracker_id).await {
         Ok(Some(process)) => {
@@ -1208,12 +1204,12 @@ async fn update_calculate_workflow_on_success(
                 current_status = %process.business_status,
                 "Found CALCULATE_WORKFLOW, updating to complete status"
             );
-            
+
             let pt_update = storage::ProcessTrackerUpdate::StatusUpdate {
                 status: enums::ProcessTrackerStatus::Finish,
                 business_status: Some(business_status::CALCULATE_WORKFLOW_COMPLETE.to_string()),
             };
-            
+
             match db.update_process(process, pt_update).await {
                 Ok(_) => {
                     logger::info!(
@@ -1250,6 +1246,6 @@ async fn update_calculate_workflow_on_success(
             return Err(e).change_context(errors::RecoveryError::ProcessTrackerFailure);
         }
     }
-    
+
     Ok(())
 }
