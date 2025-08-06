@@ -285,7 +285,7 @@ impl RevenueRecoveryInvoice {
             billing_address: data.billing,
             retry_count: data.retry_count,
             billing_started_at: data.billing_started_at,
-            next_billing_at:None ,
+            next_billing_at: None,
         });
         recovery_intent
             .get_payment_intent(&state, &req_state, &merchant_context, &profile)
@@ -486,8 +486,10 @@ impl RevenueRecoveryAttempt {
             retry_count: data.retry_count,
             invoice_next_billing_time: None,
             invoice_billing_started_at_time: data.billing_started_at,
-            card_network: card_info.as_ref().and_then(|info|info.card_network.clone()),
-            card_isin: card_info.as_ref().and_then(|info|info.card_isin.clone()),
+            card_network: card_info
+                .as_ref()
+                .and_then(|info| info.card_network.clone()),
+            card_isin: card_info.as_ref().and_then(|info| info.card_isin.clone()),
             charge_id: None,
         });
 

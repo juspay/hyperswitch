@@ -4312,7 +4312,7 @@ pub struct PaymentMethodDataResponseWithBilling {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, ToSchema, serde::Serialize)]
 pub struct CustomBillingPaymentMethodDataWithBilling {
     #[serde(flatten)]
-    pub units: HashMap<String, CardResponse>
+    pub units: HashMap<String, CardResponse>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
