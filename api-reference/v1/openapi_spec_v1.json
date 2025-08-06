@@ -23590,6 +23590,11 @@
             "description": "A unique identifier for the payment method used in this payment. If the payment method was saved or tokenized, this ID can be used to reference it for future transactions or recurring payments.",
             "nullable": true
           },
+          "network_transaction_id": {
+            "type": "string",
+            "description": "The network transaction ID is a unique identifier for the transaction as recognized by the payment network (e.g., Visa, Mastercard), this ID can be used to reference it for future transactions or recurring payments.",
+            "nullable": true
+          },
           "payment_method_status": {
             "allOf": [
               {
@@ -24968,6 +24973,11 @@
           "payment_method_id": {
             "type": "string",
             "description": "A unique identifier for the payment method used in this payment. If the payment method was saved or tokenized, this ID can be used to reference it for future transactions or recurring payments.",
+            "nullable": true
+          },
+          "network_transaction_id": {
+            "type": "string",
+            "description": "The network transaction ID is a unique identifier for the transaction as recognized by the payment network (e.g., Visa, Mastercard), this ID can be used to reference it for future transactions or recurring payments.",
             "nullable": true
           },
           "payment_method_status": {

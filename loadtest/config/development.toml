@@ -628,7 +628,7 @@ billwerk = { long_lived_token = false, payment_method = "card" }
 globalpay = { long_lived_token = false, payment_method = "card", flow = "mandates" }
 
 [connector_customer]
-connector_list = "adyen,facilitapay,gocardless,hyperswitch_vault,stax,stripe"
+connector_list = "adyen,authorizedotnet,facilitapay,gocardless,hyperswitch_vault,stax,stripe"
 payout_connector_list = "nomupay,wise"
 
 [dummy_connector]

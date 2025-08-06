@@ -9806,6 +9806,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
     fn get_merchant_connector_id_in_attempt(&self) -> Option<id_type::MerchantConnectorAccountId> {
         self.payment_attempt.merchant_connector_id.clone()
     }
+
     fn get_creds_identifier(&self) -> Option<&str> {
         self.creds_identifier.as_deref()
     }

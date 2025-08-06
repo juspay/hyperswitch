@@ -3061,6 +3061,9 @@ where
             fingerprint: payment_intent.fingerprint_id,
             browser_info: payment_attempt.browser_info,
             payment_method_id: payment_attempt.payment_method_id,
+            network_transaction_id: payment_data
+                .get_payment_method_info()
+                .and_then(|info| info.network_transaction_id.clone()),
             payment_method_status: payment_data
                 .get_payment_method_info()
                 .map(|info| info.status),
@@ -3376,6 +3379,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             issuer_error_message: pa.issuer_error_message,
             is_iframe_redirection_enabled:pi.is_iframe_redirection_enabled,
             payment_channel: pi.payment_channel,
+            network_transaction_id: None,
         }
     }
 }
