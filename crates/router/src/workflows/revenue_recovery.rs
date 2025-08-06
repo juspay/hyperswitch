@@ -105,6 +105,16 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
                 .await?;
                 Ok(())
             }
+            Some("CALCULATE_WORKFLOW") => {
+                Box::pin(pcr::perform_calculate_workflow(
+                    state,
+                    &process,
+                    &tracking_data,
+                    &revenue_recovery_payment_data,
+                    &payment_data.payment_intent,
+                ))
+                .await
+            }
 
             _ => Err(errors::ProcessTrackerError::JobNotFound),
         }

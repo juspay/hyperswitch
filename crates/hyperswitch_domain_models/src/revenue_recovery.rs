@@ -1,6 +1,7 @@
 use api_models::{payments as api_payments, webhooks};
 use common_enums::enums as common_enums;
 use common_utils::{id_type, types as util_types};
+use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{
@@ -79,6 +80,26 @@ pub struct RevenueRecoveryInvoiceData {
     pub next_billing_at: Option<PrimitiveDateTime>,
     /// Invoice Starting Time
     pub billing_started_at: Option<PrimitiveDateTime>,
+}
+
+/// Billing connector payment details for CALCULATE_WORKFLOW
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BillingConnectorPaymentDetails {
+    /// Customer ID at the billing connector
+    pub customer_id: String,
+    /// List of PSP tokens available for this customer
+    pub psp_token_list: Vec<String>,
+}
+
+/// PSP Token status structure for Redis operations
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PspTokenStatus {
+    /// PSP token identifier
+    pub psp_token_id: String,
+    /// Intent ID that has locked this token (if any)
+    pub locked_by_intent_id: Option<String>,
+    /// Error code: "0" = success, anything else = failure
+    pub error_code: String,
 }
 
 /// type of action that needs to taken after consuming recovery payload
