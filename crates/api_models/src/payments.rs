@@ -8982,7 +8982,8 @@ impl PaymentRevenueRecoveryMetadata {
     }
     pub fn get_payment_token_for_api_request(
         &self,
-        active_token: String) -> mandates::ProcessorPaymentToken {
+        active_token: String,
+    ) -> mandates::ProcessorPaymentToken {
         mandates::ProcessorPaymentToken {
             processor_payment_token: active_token,
             merchant_connector_id: Some(self.active_attempt_payment_connector_id.clone()),

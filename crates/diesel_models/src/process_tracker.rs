@@ -296,5 +296,4 @@ pub mod business_status {
 
     /// This status indicates the workflow has completed successfully
     pub const CALCULATE_WORKFLOW_COMPLETE: &str = "CALCULATE_WORKFLOW_COMPLETE";
-
 }

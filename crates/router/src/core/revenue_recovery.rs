@@ -78,7 +78,9 @@ pub async fn perform_execute_payment(
                         execute_task_process,
                         revenue_recovery_payment_data,
                         &revenue_recovery_metadata,
-                        tracking_data.active_token.ok_or(errors::RecoveryError::ValueNotFound)?,
+                        tracking_data
+                            .active_token
+                            .ok_or(errors::RecoveryError::ValueNotFound)?,
                     ))
                     .await?;
                     Box::pin(action.execute_payment_task_response_handler(
@@ -298,16 +300,10 @@ pub async fn perform_calculate_workflow(
     payment_intent: &PaymentIntent,
 ) -> Result<(), sch_errors::ProcessTrackerError> {
     let db = &*state.store;
-    let merchant_id = revenue_recovery_payment_data
-        .merchant_account
-        .get_id();
-    let profile_id = revenue_recovery_payment_data
-        .profile
-        .get_id();
-    let billing_mca_id = revenue_recovery_payment_data
-        .billing_mca
-        .get_id();
-    
+    let merchant_id = revenue_recovery_payment_data.merchant_account.get_id();
+    let profile_id = revenue_recovery_payment_data.profile.get_id();
+    let billing_mca_id = revenue_recovery_payment_data.billing_mca.get_id();
+
     logger::info!(
         process_id = %process.id,
         payment_id = %tracking_data.global_payment_id.get_string_repr(),
@@ -317,13 +313,13 @@ pub async fn perform_calculate_workflow(
     // 1. Extract customer_id and token_list from tracking_data
     let customer_id = extract_customer_id_from_payment_intent(payment_intent)?;
     let token_list = tracking_data.token_list.clone(); // it will be passed in best_token() fn
-    
+
     // TODO:- call redis fn to insert of the tokens
 
     // 3. Get best available token
     // TODO:- call redis to get best_token() from available tokens and a scheduled time, it will be Optional
     // so from best_token() fn we will be getting Option<{some_token,invoice_scheduled_time_variable}>
-    let best_token= Some("some_token".to_string()); //here we will call that fn
+    let best_token = Some("some_token".to_string()); //here we will call that fn
 
     match best_token {
         Some(token) => {
@@ -336,7 +332,7 @@ pub async fn perform_calculate_workflow(
             // Mark CALCULATE_WORKFLOW as complete
 
             let invoice_scheduled_time = common_utils::date_time::now(); // TODO: Replace with actual scheduled time from best_token() function
-            
+
             let updated_tracking_data = pcr::RevenueRecoveryWorkflowTrackingData {
                 merchant_id: merchant_id.clone(),
                 profile_id: profile_id.clone(),
@@ -344,13 +340,13 @@ pub async fn perform_calculate_workflow(
                 payment_attempt_id: None,
                 billing_mca_id,
                 revenue_recovery_retry: common_enums::RevenueRecoveryAlgorithmType::Smart,
-                token_list: token_list, //  token list variable
-                active_token: best_token.clone(), //  active token variable  
+                token_list: token_list,           //  token list variable
+                active_token: best_token.clone(), //  active token variable
                 invoice_scheduled_time: Some(invoice_scheduled_time), //  scheduled time variable for best_token()
             };
 
-            let updated_tracking_data_json = serde_json::to_value(updated_tracking_data)
-                .map_err(|e| {
+            let updated_tracking_data_json =
+                serde_json::to_value(updated_tracking_data).map_err(|e| {
                     logger::error!("Failed to serialize tracking data: {:?}", e);
                     sch_errors::ProcessTrackerError::ProcessUpdateFailed
                 })?;
@@ -365,7 +361,9 @@ pub async fn perform_calculate_workflow(
                 updated_at: Some(common_utils::date_time::now()),
             };
 
-            db.as_scheduler().update_process(process.clone(), pt_update).await
+            db.as_scheduler()
+                .update_process(process.clone(), pt_update)
+                .await
                 .map_err(|e| {
                     logger::error!(
                         process_id = %process.id,
@@ -387,7 +385,8 @@ pub async fn perform_calculate_workflow(
                 tracking_data.revenue_recovery_retry,
                 common_utils::date_time::now(), // change this to the scheduled returned from the get_best_psp_token_available
                 token, // use the token given by the best_token() fn from redis for payment
-            ).await?;
+            )
+            .await?;
 
             logger::info!(
                 process_id = %process.id,
@@ -404,7 +403,7 @@ pub async fn perform_calculate_workflow(
 
             // 4b. If no token found: reschedule CALCULATE_WORKFLOW for 1 hour later
             let new_schedule_time = common_utils::date_time::now() + time::Duration::hours(1);
-           
+
             let pt_update = storage::ProcessTrackerUpdate::Update {
                 name: None,
                 retry_count: None,
@@ -414,7 +413,9 @@ pub async fn perform_calculate_workflow(
                 status: Some(common_enums::ProcessTrackerStatus::New),
                 updated_at: Some(common_utils::date_time::now()),
             };
-            db.as_scheduler().update_process(process.clone(), pt_update).await
+            db.as_scheduler()
+                .update_process(process.clone(), pt_update)
+                .await
                 .map_err(|e| {
                     logger::error!(
                         process_id = %process.id,
@@ -432,7 +433,7 @@ pub async fn perform_calculate_workflow(
             );
         }
     }
-    
+
     Ok(())
 }
 
@@ -473,9 +474,11 @@ async fn insert_execute_pcr_task_to_pt(
     let payment_id = payment_id.clone();
 
     let process_tracker_id = format!("{runner}_{task}_{}", payment_id.get_string_repr());
-    
+
     // Check if a process tracker entry already exists for this payment intent
-    let existing_entry = db.find_process_by_id(&process_tracker_id).await
+    let existing_entry = db
+        .find_process_by_id(&process_tracker_id)
+        .await
         .map_err(|e| {
             logger::error!(
                 payment_id = %payment_id.get_string_repr(),
@@ -487,7 +490,9 @@ async fn insert_execute_pcr_task_to_pt(
         })?;
 
     match existing_entry {
-        Some(existing_process) if existing_process.business_status == business_status::EXECUTE_WORKFLOW_FINISH => {
+        Some(existing_process)
+            if existing_process.business_status == business_status::EXECUTE_WORKFLOW_FINISH =>
+        {
             // Entry exists with EXECUTE_WORKFLOW_COMPLETE status - update it
             logger::info!(
                 payment_id = %payment_id.get_string_repr(),
@@ -506,7 +511,9 @@ async fn insert_execute_pcr_task_to_pt(
                 updated_at: Some(common_utils::date_time::now()),
             };
 
-            let updated_process = db.update_process(existing_process, pt_update).await
+            let updated_process = db
+                .update_process(existing_process, pt_update)
+                .await
                 .map_err(|e| {
                     logger::error!(
                         payment_id = %payment_id.get_string_repr(),
@@ -556,7 +563,7 @@ async fn insert_execute_pcr_task_to_pt(
                 active_token: Some(active_token),
                 invoice_scheduled_time: Some(schedule_time),
             };
-            
+
             let tag = ["PCR"];
             let process_tracker_entry = storage::ProcessTrackerNew::new(
                 process_tracker_id.clone(),
@@ -577,7 +584,9 @@ async fn insert_execute_pcr_task_to_pt(
                 sch_errors::ProcessTrackerError::ProcessUpdateFailed
             })?;
 
-            let response = db.insert_process(process_tracker_entry).await
+            let response = db
+                .insert_process(process_tracker_entry)
+                .await
                 .map_err(|e| {
                     logger::error!(
                         payment_id = %payment_id.get_string_repr(),
@@ -586,15 +595,18 @@ async fn insert_execute_pcr_task_to_pt(
                     );
                     sch_errors::ProcessTrackerError::ProcessUpdateFailed
                 })?;
-            
-            metrics::TASKS_ADDED_COUNT.add(1, router_env::metric_attributes!(("flow", "RevenueRecoveryExecute")));
-            
+
+            metrics::TASKS_ADDED_COUNT.add(
+                1,
+                router_env::metric_attributes!(("flow", "RevenueRecoveryExecute")),
+            );
+
             logger::info!(
                 payment_id = %payment_id.get_string_repr(),
                 process_tracker_id = %response.id,
                 "Successfully created new EXECUTE_WORKFLOW task"
             );
-            
+
             Ok(response)
         }
     }
