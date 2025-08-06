@@ -1444,7 +1444,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     external_vault_connector_details,
                     merchant_category_code,
                     merchant_country_code,
-                    revenue_recovery_retry_algorithm_type
+                    revenue_recovery_retry_algorithm_type,
                 } = *update;
                 Self {
                     profile_name,

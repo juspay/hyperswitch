@@ -2992,7 +2992,8 @@ pub struct ProfileUpdate {
 
     /// Inidcates the state of revenue recovery algorithm type
     #[schema(value_type = Option<RevenueRecoveryAlgorithmType>, example = "cascading")]
-    pub revenue_recovery_retry_algorithm_type : Option<common_enums::enums::RevenueRecoveryAlgorithmType>,
+    pub revenue_recovery_retry_algorithm_type:
+        Option<common_enums::enums::RevenueRecoveryAlgorithmType>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

@@ -4074,7 +4074,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
             }
         };
 
-        let revenue_recovery_retry_algorithm_type =  self.revenue_recovery_retry_algorithm_type;
+        let revenue_recovery_retry_algorithm_type = self.revenue_recovery_retry_algorithm_type;
 
         Ok(domain::ProfileUpdate::Update(Box::new(
             domain::ProfileGeneralUpdate {
@@ -4125,7 +4125,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .map(ForeignInto::foreign_into),
                 merchant_category_code: self.merchant_category_code,
                 merchant_country_code: self.merchant_country_code,
-                revenue_recovery_retry_algorithm_type
+                revenue_recovery_retry_algorithm_type,
             },
         )))
     }
