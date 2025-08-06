@@ -98,7 +98,7 @@ pub use hyperswitch_domain_models::{
     router_data_v2::PayoutFlowData, router_request_types::PayoutsData,
     router_response_types::PayoutsResponseData,
 };
-pub use hyperswitch_interfaces::types::{
+pub use hyperswitch_interfaces::{disputes::DisputePayload, types::{
     AcceptDisputeType, ConnectorCustomerType, DefendDisputeType, IncrementalAuthorizationType,
     MandateRevokeType, PaymentsAuthorizeType, PaymentsBalanceType, PaymentsCaptureType,
     PaymentsCompleteAuthorizeType, PaymentsInitType, PaymentsPostCaptureVoidType,
@@ -106,25 +106,12 @@ pub use hyperswitch_interfaces::types::{
     PaymentsPreProcessingType, PaymentsSessionType, PaymentsSyncType, PaymentsUpdateMetadataType,
     PaymentsVoidType, RefreshTokenType, RefundExecuteType, RefundSyncType, Response,
     RetrieveFileType, SdkSessionUpdateType, SetupMandateType, SubmitEvidenceType, TokenizationType,
-    UploadFileType, VerifyWebhookSourceType,
-};
+    UploadFileType, VerifyWebhookSourceType, FetchDisputesType,
+}};
 #[cfg(feature = "payouts")]
 pub use hyperswitch_interfaces::types::{
     PayoutCancelType, PayoutCreateType, PayoutEligibilityType, PayoutFulfillType, PayoutQuoteType,
     PayoutRecipientAccountType, PayoutRecipientType, PayoutSyncType,
-};
-pub use hyperswitch_interfaces::{
-    disputes::DisputePayload,
-    types::{
-        AcceptDisputeType, ConnectorCustomerType, DefendDisputeType, FetchDisputesType,
-        IncrementalAuthorizationType, MandateRevokeType, PaymentsAuthorizeType,
-        PaymentsBalanceType, PaymentsCaptureType, PaymentsCompleteAuthorizeType, PaymentsInitType,
-        PaymentsPostProcessingType, PaymentsPostSessionTokensType, PaymentsPreAuthorizeType,
-        PaymentsPreProcessingType, PaymentsSessionType, PaymentsSyncType,
-        PaymentsUpdateMetadataType, PaymentsVoidType, RefreshTokenType, RefundExecuteType,
-        RefundSyncType, Response, RetrieveFileType, SdkSessionUpdateType, SetupMandateType,
-        SubmitEvidenceType, TokenizationType, UploadFileType, VerifyWebhookSourceType,
-    },
 };
 
 pub use crate::core::payments::CustomerDetails;
