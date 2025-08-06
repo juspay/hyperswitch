@@ -78,13 +78,10 @@ impl ProcessTrackerWorkflow<SessionState> for DisputeListWorkflow {
         if process.retry_count == 0 {
             let m_db = state.clone().store;
             let m_tracking_data = tracking_data.clone();
-            let dispute_polling_interval = business_profile
+            let dispute_polling_interval = *business_profile
                 .dispute_polling_interval
-                .unwrap_or(
-                    common_types::primitive_wrappers::DisputePollingIntervalInHours::default(),
-                )
-                .deref()
-                .clone();
+                .unwrap_or_default()
+                .deref();
 
             tokio::spawn(
                 async move {

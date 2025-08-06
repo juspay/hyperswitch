@@ -1011,15 +1011,14 @@ pub async fn schedule_dispute_sync_task(
         },
     )?;
 
-    if core_utils::should_add_dispute_sync_task_to_pt(&state, connector) {
+    if core_utils::should_add_dispute_sync_task_to_pt(state, connector) {
         let offset_date_time = time::OffsetDateTime::now_utc();
         let created_from =
             time::PrimitiveDateTime::new(offset_date_time.date(), offset_date_time.time());
-        let dispute_polling_interval = business_profile
+        let dispute_polling_interval = *business_profile
             .dispute_polling_interval
-            .unwrap_or(common_types::primitive_wrappers::DisputePollingIntervalInHours::default())
-            .deref()
-            .clone();
+            .unwrap_or_default()
+            .deref();
 
         let created_till = created_from
             .checked_add(time::Duration::hours(i64::from(dispute_polling_interval)))
