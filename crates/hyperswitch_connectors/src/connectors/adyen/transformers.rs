@@ -1419,9 +1419,7 @@ impl FromStr for AdyenRefundRequestReason {
             "RETURN" => Ok(Self::RETURN),
             "DUPLICATE" => Ok(Self::DUPLICATE),
             "OTHER" => Ok(Self::OTHER),
-            _ => Err(report!(errors::ConnectorError::InvalidDataFormat {
-                field_name: "refund_reason",
-            })),
+            _ => Ok(Self::OTHER),
         }
     }
 }
