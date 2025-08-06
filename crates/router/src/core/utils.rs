@@ -2612,3 +2612,17 @@ pub fn should_proceed_with_submit_evidence(
                 | DisputeStatus::DisputeLost,
         )
 }
+
+
+pub fn should_proceed_with_accept_dispute(
+    dispute_stage: DisputeStage,
+    dispute_status: DisputeStatus,
+) -> bool {
+    matches!(dispute_stage, DisputeStage::PreDispute | DisputeStage::Dispute| DisputeStage::PreArbitration )
+        || matches!(
+            dispute_status,
+            DisputeStatus::DisputeChallenged
+                | DisputeStatus::DisputeOpened
+        )
+}
+

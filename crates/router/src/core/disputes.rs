@@ -276,8 +276,10 @@ pub async fn accept_dispute(
     core_utils::validate_profile_id_from_auth_layer(profile_id, &dispute)?;
     let dispute_id = dispute.dispute_id.clone();
     common_utils::fp_utils::when(
-        !(dispute.dispute_stage == storage_enums::DisputeStage::Dispute
-            && dispute.dispute_status == storage_enums::DisputeStatus::DisputeOpened),
+        !core_utils::should_proceed_with_accept_dispute(
+            dispute.dispute_stage,
+            dispute.dispute_status,
+        ),
         || {
             metrics::ACCEPT_DISPUTE_STATUS_VALIDATION_FAILURE_METRIC.add(1, &[]);
             Err(errors::ApiErrorResponse::DisputeStatusValidationFailed {
