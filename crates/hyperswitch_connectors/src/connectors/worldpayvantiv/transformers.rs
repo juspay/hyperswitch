@@ -4220,7 +4220,7 @@ fn get_last_non_auxiliary_activity_type(activities: Vec<Activity>) -> Option<Str
         "Successful PayPal",
     ]
     .iter()
-    .cloned()
+    .copied()
     .collect();
 
     let mut last_non_auxiliary_activity = None;
