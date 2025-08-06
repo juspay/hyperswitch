@@ -242,7 +242,8 @@ fn extract_gateway_system_from_payment_intent<F: Clone, D>(
 where
     D: OperationSessionGetters<F>,
 {
-    #[cfg(feature = "v1")]
+    // #[cfg(feature = "v1")] uncomment this and the v2 block if you want to support v1 and v2
+    // separately
     {
         // For v1, feature_metadata is stored as Option<Value>
         payment_data
@@ -265,10 +266,10 @@ where
             })
     }
 
-    #[cfg(feature = "v2")]
-    {
-        // To be implemented for v2 if needed
-    }
+    // #[cfg(feature = "v2")]
+    // {
+    //     // To be implemented for v2 if needed
+    // }
 }
 
 /// Updates the payment intent's feature metadata to track the gateway system being used
@@ -279,7 +280,8 @@ pub fn update_gateway_system_in_feature_metadata<F: Clone, D>(
 where
     D: OperationSessionGetters<F> + OperationSessionSetters<F>,
 {
-    #[cfg(feature = "v1")]
+    // #[cfg(feature = "v1")] uncomment this and the v2 block if you want to support v1 and v2
+    // separately
     {
         // For v1, we need to parse the existing metadata, update it, and serialize back to JSON
         let mut payment_intent = payment_data.get_payment_intent().clone();
@@ -300,10 +302,10 @@ where
         payment_data.set_payment_intent(payment_intent);
     }
 
-    #[cfg(feature = "v2")]
-    {
-        // To be implemented for v2 if needed
-    }
+    // #[cfg(feature = "v2")]
+    // {
+    //     // To be implemented for v2 if needed
+    // }
 
     Ok(())
 }

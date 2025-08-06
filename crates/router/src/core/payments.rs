@@ -4531,16 +4531,6 @@ where
         (None, false)
     };
 
-    // Update feature metadata before saving to database
-    if should_call_unified_connector_service {
-        update_gateway_system_in_feature_metadata(
-            payment_data,
-            GatewaySystem::UnifiedConnectorService,
-        )?;
-    } else {
-        update_gateway_system_in_feature_metadata(payment_data, GatewaySystem::Direct)?;
-    }
-
     (_, *payment_data) = operation
         .to_update_tracker()?
         .update_trackers(
@@ -4649,12 +4639,6 @@ where
                     .ok();
             }
 
-            // Update feature metadata to track UCS usage for stickiness
-            update_gateway_system_in_feature_metadata(
-                payment_data,
-                GatewaySystem::UnifiedConnectorService,
-            )?;
-
             (_, *payment_data) = operation
                 .to_update_tracker()?
                 .update_trackers(
@@ -4688,9 +4672,6 @@ where
                     .get_string_repr(),
                 payment_data.get_payment_attempt().attempt_id
             );
-
-            // Update feature metadata to track Direct routing usage for stickiness
-            update_gateway_system_in_feature_metadata(payment_data, GatewaySystem::Direct)?;
 
             call_connector_service(
                 state,
