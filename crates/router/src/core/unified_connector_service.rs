@@ -30,6 +30,7 @@ use crate::{
     },
     routes::SessionState,
     types::transformers::ForeignTryFrom,
+    utils,
 };
 
 pub mod transformers;
@@ -493,6 +494,15 @@ pub async fn transform_webhook_via_ucs(
     bool,
     WebhookTransformData,
 )> {
+    // Early check for UCS client availability
+    let is_ucs_client_available = state.grpc_client.unified_connector_service_client.is_some();
+
+    if !is_ucs_client_available {
+        return Err(ApiErrorResponse::WebhookProcessingFailure).attach_printable(
+            "UCS webhook processing is configured but UCS client is not available",
+        );
+    }
+
     // Build webhook secrets from merchant connector account
     let webhook_secrets = merchant_connector_account.and_then(|mca| {
         #[cfg(feature = "v1")]
@@ -544,10 +554,10 @@ pub async fn transform_webhook_via_ucs(
     // Build gRPC headers
     let grpc_headers = external_services::grpc_client::GrpcHeaders {
         tenant_id: state.tenant.tenant_id.get_string_repr().to_string(),
-        request_id: Some(crate::utils::generate_id(consts::ID_LENGTH, "webhook_req")),
+        request_id: Some(utils::generate_id(consts::ID_LENGTH, "webhook_req")),
     };
 
-    // Make UCS call
+    // Make UCS call - client availability already verified
     if let Some(ucs_client) = &state.grpc_client.unified_connector_service_client {
         match ucs_client
             .transform_incoming_webhook(transform_request, connector_auth_metadata, grpc_headers)
@@ -569,11 +579,6 @@ pub async fn transform_webhook_via_ucs(
             }
             Err(err) => {
                 // When UCS is configured, we don't fall back to direct connector processing
-                // since the goal is to remove direct connector code in the future
-                router_env::logger::error!(
-                    error = ?err,
-                    "UCS webhook transformation failed for UCS-enabled merchant/connector"
-                );
                 Err(ApiErrorResponse::WebhookProcessingFailure)
                     .attach_printable(format!("UCS webhook processing failed: {err}"))
             }
@@ -581,24 +586,10 @@ pub async fn transform_webhook_via_ucs(
     } else {
         // UCS client not available but UCS is configured
         // We don't fall back to direct connector processing when UCS is configured
-        router_env::logger::error!(
-            "UCS client not available but UCS is configured for this merchant/connector"
-        );
         Err(ApiErrorResponse::WebhookProcessingFailure).attach_printable(
             "UCS webhook processing is configured but UCS client is not available",
         )
     }
-}
-
-/// Decide whether to use UCS for webhook processing based on configuration
-/// This mirrors the pattern used in payment flows for UCS decision making
-pub async fn decide_webhook_ucs_processing(
-    state: &SessionState,
-    merchant_context: &MerchantContext,
-    connector_name: &str,
-) -> RouterResult<bool> {
-    should_call_unified_connector_service_for_webhooks(state, merchant_context, connector_name)
-        .await
 }
 
 /// High-level abstraction for calling UCS webhook transformation
@@ -617,6 +608,15 @@ pub async fn call_unified_connector_service_for_webhook(
     bool,
     WebhookTransformData,
 )> {
+    // Early check for UCS client availability
+    let is_ucs_client_available = state.grpc_client.unified_connector_service_client.is_some();
+
+    if !is_ucs_client_available {
+        return Err(ApiErrorResponse::WebhookProcessingFailure).attach_printable(
+            "UCS webhook processing is configured but UCS client is not available",
+        );
+    }
+
     // Build webhook secrets from merchant connector account
     let webhook_secrets = merchant_connector_account.and_then(|mca| {
         #[cfg(feature = "v1")]
@@ -666,10 +666,10 @@ pub async fn call_unified_connector_service_for_webhook(
     // Build gRPC headers
     let grpc_headers = external_services::grpc_client::GrpcHeaders {
         tenant_id: state.tenant.tenant_id.get_string_repr().to_string(),
-        request_id: Some(crate::utils::generate_id(consts::ID_LENGTH, "webhook_req")),
+        request_id: Some(utils::generate_id(consts::ID_LENGTH, "webhook_req")),
     };
 
-    // Make UCS call
+    // Make UCS call - client availability already verified
     if let Some(ucs_client) = &state.grpc_client.unified_connector_service_client {
         match ucs_client
             .transform_incoming_webhook(transform_request, connector_auth_metadata, grpc_headers)
@@ -689,19 +689,12 @@ pub async fn call_unified_connector_service_for_webhook(
             }
             Err(err) => {
                 // When UCS is configured, we don't fall back to direct connector processing
-                router_env::logger::error!(
-                    error = ?err,
-                    "UCS webhook transformation failed for UCS-enabled merchant/connector"
-                );
                 Err(ApiErrorResponse::WebhookProcessingFailure)
                     .attach_printable(format!("UCS webhook processing failed: {err}"))
             }
         }
     } else {
         // UCS client not available but UCS is configured
-        router_env::logger::error!(
-            "UCS client not available but UCS is configured for this merchant/connector"
-        );
         Err(ApiErrorResponse::WebhookProcessingFailure).attach_printable(
             "UCS webhook processing is configured but UCS client is not available",
         )

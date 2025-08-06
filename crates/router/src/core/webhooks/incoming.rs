@@ -225,123 +225,122 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             .await?;
 
     // Determine webhook processing path (UCS vs non-UCS) and handle event type extraction
-    let webhook_result = determine_webhook_processing_path(
-        &state,
-        &merchant_context,
-        &connector,
-        &connector_name,
-        &body,
-        &request_details,
-        merchant_connector_account.as_ref(),
-    )
-    .await?;
+    let webhook_processing_result =
+        if unified_connector_service::should_call_unified_connector_service_for_webhooks(
+            &state,
+            &merchant_context,
+            &connector_name,
+        )
+        .await?
+        {
+            process_ucs_webhook_transform(
+                &state,
+                &merchant_context,
+                &connector_name,
+                &body,
+                &request_details,
+                merchant_connector_account.as_ref(),
+            )
+            .await?
+        } else {
+            // NON-UCS PATH: Need to decode body first
+            let decoded_body = connector
+                .decode_webhook_body(
+                    &request_details,
+                    merchant_context.get_merchant_account().get_id(),
+                    merchant_connector_account
+                        .and_then(|mca| mca.connector_webhook_details.clone()),
+                    &connector_name,
+                )
+                .await
+                .switch()
+                .attach_printable("There was an error in incoming webhook body decoding")?;
 
-    let (event_type, source_verified_via_ucs, webhook_transform_data, final_request_body) =
-        match webhook_result {
-            WebhookProcessingResult::ProcessFurther {
-                event_type,
-                source_verified,
-                transform_data,
-                decoded_body,
-            } => (event_type, source_verified, transform_data, decoded_body),
-            WebhookProcessingResult::EarlyReturn {
-                response,
-                webhook_tracker,
-                serialized_request,
-            } => {
-                // Early return for unsupported event types
-                return Ok((*response, webhook_tracker, serialized_request));
-            }
+            process_non_ucs_webhook(
+                &state,
+                &merchant_context,
+                &connector,
+                &connector_name,
+                decoded_body.into(),
+                &request_details,
+            )
+            .await?
         };
 
     // Update request_details with the appropriate body (decoded for non-UCS, raw for UCS)
-    let final_request_details = if let Some(ref decoded_body) = final_request_body {
-        IncomingWebhookRequestDetails {
+    let final_request_details = match &webhook_processing_result.decoded_body {
+        Some(decoded_body) => IncomingWebhookRequestDetails {
             method: request_details.method.clone(),
             uri: request_details.uri.clone(),
             headers: request_details.headers,
             query_params: request_details.query_params.clone(),
             body: decoded_body,
-        }
-    } else {
-        request_details // UCS path uses raw body
+        },
+        None => request_details, // Use original request details for UCS
     };
 
-    logger::info!(event_type=?event_type);
+    logger::info!(event_type=?webhook_processing_result.event_type);
 
     // Check if webhook should be processed further
     let is_webhook_event_supported = !matches!(
-        event_type,
+        webhook_processing_result.event_type,
         webhooks::IncomingWebhookEvent::EventNotSupported
     );
     let is_webhook_event_enabled = !utils::is_webhook_event_disabled(
         &*state.clone().store,
         connector_name.as_str(),
         merchant_context.get_merchant_account().get_id(),
-        &event_type,
+        &webhook_processing_result.event_type,
     )
     .await;
-
-    let process_webhook_further = is_webhook_event_enabled && is_webhook_event_supported;
+    let flow_type: api::WebhookFlow = webhook_processing_result.event_type.into();
+    let process_webhook_further = is_webhook_event_enabled
+        && is_webhook_event_supported
+        && !matches!(flow_type, api::WebhookFlow::ReturnResponse);
     logger::info!(process_webhook=?process_webhook_further);
-
-    let flow_type: api::WebhookFlow = event_type.into();
     let mut event_object: Box<dyn masking::ErasedMaskSerialize> = Box::new(serde_json::Value::Null);
 
-    let webhook_effect =
-        if process_webhook_further && !matches!(flow_type, api::WebhookFlow::ReturnResponse) {
-            // Process main webhook business logic
-            match process_webhook_business_logic(
+    let webhook_effect = match process_webhook_further {
+        true => {
+            let business_logic_result = process_webhook_business_logic(
                 &state,
                 req_state,
                 &merchant_context,
                 &connector,
                 &connector_name,
-                event_type,
-                source_verified_via_ucs,
-                &webhook_transform_data,
+                webhook_processing_result.event_type,
+                webhook_processing_result.source_verified,
+                &webhook_processing_result.transform_data,
                 &final_request_details,
                 is_relay_webhook,
             )
-            .await
-            {
+            .await;
+
+            match business_logic_result {
                 Ok(response) => {
                     // Extract event object for serialization
-                    event_object = if let Some(transform_data) = webhook_transform_data {
-                        if let Some(webhook_content) = &transform_data.webhook_content {
-                            Box::new(
-                                serde_json::to_value(webhook_content)
-                                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                                    .attach_printable("Failed to serialize UCS webhook content")?,
-                            )
-                        } else {
-                            connector
-                                .get_webhook_resource_object(&final_request_details)
-                                .switch()
-                                .attach_printable(
-                                    "Could not find resource object in incoming webhook body",
-                                )?
-                        }
-                    } else {
-                        connector
-                            .get_webhook_resource_object(&final_request_details)
-                            .switch()
-                            .attach_printable(
-                                "Could not find resource object in incoming webhook body",
-                            )?
-                    };
+                    event_object = extract_webhook_event_object(
+                        &webhook_processing_result.transform_data,
+                        &connector,
+                        &final_request_details,
+                    )?;
                     response
                 }
                 Err(error) => {
-                    return handle_incoming_webhook_error(
+                    let error_result = handle_incoming_webhook_error(
                         error,
                         &connector,
                         connector_name.as_str(),
                         &final_request_details,
                     );
+                    match error_result {
+                        Ok((_, webhook_tracker, _)) => webhook_tracker,
+                        Err(e) => return Err(e),
+                    }
                 }
             }
-        } else {
+        }
+        false => {
             metrics::WEBHOOK_INCOMING_FILTERED_COUNT.add(
                 1,
                 router_env::metric_attributes!((
@@ -350,7 +349,8 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 )),
             );
             WebhookResponseTracker::NoEffect
-        };
+        }
+    };
 
     // Generate response
     let response = connector
@@ -374,11 +374,7 @@ async fn process_ucs_webhook_transform(
     body: &actix_web::web::Bytes,
     request_details: &IncomingWebhookRequestDetails<'_>,
     merchant_connector_account: Option<&domain::MerchantConnectorAccount>,
-) -> errors::RouterResult<(
-    webhooks::IncomingWebhookEvent,
-    bool,
-    Option<unified_connector_service::WebhookTransformData>,
-)> {
+) -> errors::RouterResult<WebhookProcessingResult> {
     // Use the new UCS abstraction which provides clean separation
     let (event_type, source_verified, transform_data) =
         unified_connector_service::call_unified_connector_service_for_webhook(
@@ -390,23 +386,19 @@ async fn process_ucs_webhook_transform(
             merchant_connector_account,
         )
         .await?;
-
-    Ok((event_type, source_verified, Some(transform_data)))
+    Ok(WebhookProcessingResult {
+        event_type,
+        source_verified,
+        transform_data: Some(Box::new(transform_data)),
+        decoded_body: None, // UCS path uses raw body
+    })
 }
-
 /// Result type for webhook processing path determination
-enum WebhookProcessingResult {
-    ProcessFurther {
-        event_type: webhooks::IncomingWebhookEvent,
-        source_verified: bool,
-        transform_data: Option<Box<unified_connector_service::WebhookTransformData>>,
-        decoded_body: Option<actix_web::web::Bytes>,
-    },
-    EarlyReturn {
-        response: Box<services::ApplicationResponse<serde_json::Value>>,
-        webhook_tracker: WebhookResponseTracker,
-        serialized_request: serde_json::Value,
-    },
+pub struct WebhookProcessingResult {
+    event_type: webhooks::IncomingWebhookEvent,
+    source_verified: bool,
+    transform_data: Option<Box<unified_connector_service::WebhookTransformData>>,
+    decoded_body: Option<actix_web::web::Bytes>,
 }
 
 /// Process non-UCS webhook using traditional connector processing
@@ -441,19 +433,13 @@ async fn process_non_ucs_webhook(
         .switch()
         .attach_printable("Could not find event type in incoming webhook body")?
     {
-        Some(event_type) => Ok(WebhookProcessingResult::ProcessFurther {
+        Some(event_type) => Ok(WebhookProcessingResult {
             event_type,
             source_verified: false,
             transform_data: None,
             decoded_body: Some(decoded_body),
         }),
-        // Early return allows us to acknowledge the webhooks that we do not support
         None => {
-            logger::error!(
-                webhook_payload =? updated_request_details.body,
-                "Failed while identifying the event type",
-            );
-
             metrics::WEBHOOK_EVENT_TYPE_IDENTIFICATION_FAILURE_COUNT.add(
                 1,
                 router_env::metric_attributes!(
@@ -464,79 +450,35 @@ async fn process_non_ucs_webhook(
                     ("connector", connector_name.to_string())
                 ),
             );
-
-            let response = connector
-                .get_webhook_api_response(&updated_request_details, None)
-                .switch()
-                .attach_printable("Failed while early return in case of event type parsing")?;
-
-            Ok(WebhookProcessingResult::EarlyReturn {
-                response: Box::new(response),
-                webhook_tracker: WebhookResponseTracker::NoEffect,
-                serialized_request: serde_json::Value::Null,
-            })
+            Err(errors::ApiErrorResponse::WebhookProcessingFailure)
+                .attach_printable("Failed to identify event type in incoming webhook body")
         }
     }
 }
 
-/// Determine webhook processing path and handle UCS vs non-UCS logic
-async fn determine_webhook_processing_path(
-    state: &SessionState,
-    merchant_context: &domain::MerchantContext,
+/// Extract webhook event object based on transform data availability
+fn extract_webhook_event_object(
+    transform_data: &Option<Box<unified_connector_service::WebhookTransformData>>,
     connector: &ConnectorEnum,
-    connector_name: &str,
-    body: &actix_web::web::Bytes,
     request_details: &IncomingWebhookRequestDetails<'_>,
-    merchant_connector_account: Option<&domain::MerchantConnectorAccount>,
-) -> errors::RouterResult<WebhookProcessingResult> {
-    // Check if UCS webhook transformation should be used BEFORE any connector-specific processing
-    let should_use_ucs = unified_connector_service::decide_webhook_ucs_processing(
-        state,
-        merchant_context,
-        connector_name,
-    )
-    .await?;
-
-    if should_use_ucs {
-        // UCS PATH: Use raw body, no decoding needed
-        let (event_type, source_verified, transform_data) = process_ucs_webhook_transform(
-            state,
-            merchant_context,
-            connector_name,
-            body,
-            request_details,
-            merchant_connector_account,
-        )
-        .await?;
-
-        Ok(WebhookProcessingResult::ProcessFurther {
-            event_type,
-            source_verified,
-            transform_data: transform_data.map(Box::new),
-            decoded_body: None, // UCS path uses raw body
-        })
-    } else {
-        // NON-UCS PATH: Need to decode body first
-        let decoded_body = connector
-            .decode_webhook_body(
-                request_details,
-                merchant_context.get_merchant_account().get_id(),
-                merchant_connector_account.and_then(|mca| mca.connector_webhook_details.clone()),
-                connector_name,
-            )
-            .await
+) -> errors::RouterResult<Box<dyn masking::ErasedMaskSerialize>> {
+    match transform_data {
+        Some(transform_data) => match &transform_data.webhook_content {
+            Some(webhook_content) => {
+                let serialized_value = serde_json::to_value(webhook_content)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to serialize UCS webhook content")?;
+                Ok(Box::new(serialized_value))
+            }
+            None => connector
+                .get_webhook_resource_object(request_details)
+                .switch()
+                .attach_printable("Could not find resource object in incoming webhook body"),
+        },
+        None => connector
+            .get_webhook_resource_object(request_details)
             .switch()
-            .attach_printable("There was an error in incoming webhook body decoding")?;
-
-        process_non_ucs_webhook(
-            state,
-            merchant_context,
-            connector,
-            connector_name,
-            decoded_body.into(),
-            request_details,
-        )
-        .await
+            .attach_printable("Could not find resource object in incoming webhook body"),
     }
 }
 
@@ -1589,7 +1531,7 @@ async fn get_or_update_dispute_object(
             let dispute_status = diesel_models::enums::DisputeStatus::foreign_try_from(event_type)
                 .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
                 .attach_printable("event type to dispute state conversion failure")?;
-            crate::core::utils::validate_dispute_stage_and_dispute_status(
+            core_utils::validate_dispute_stage_and_dispute_status(
                 dispute.dispute_stage,
                 dispute.dispute_status,
                 dispute_details.dispute_stage,

@@ -24,7 +24,7 @@ use unified_connector_service_client::payments::{
 use url::Url;
 
 use crate::{
-    core::unified_connector_service::build_unified_connector_service_payment_method,
+    core::{errors, unified_connector_service::build_unified_connector_service_payment_method},
     types::transformers::ForeignTryFrom,
 };
 impl ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
@@ -1025,7 +1025,7 @@ impl ForeignTryFrom<&hyperswitch_interfaces::webhooks::IncomingWebhookRequestDet
                     .headers
                     .get("x-forwarded-path")
                     .and_then(|h| h.to_str().ok())
-                    .unwrap_or("/webhook")
+                    .unwrap_or("/Unknown")
                     .to_string(),
             ),
             body: request_details.body.to_vec(),
@@ -1046,7 +1046,7 @@ pub struct WebhookTransformData {
 /// Transform UCS webhook response into webhook event data
 pub fn transform_ucs_webhook_response(
     response: PaymentServiceTransformResponse,
-) -> Result<WebhookTransformData, error_stack::Report<crate::core::errors::ApiErrorResponse>> {
+) -> Result<WebhookTransformData, error_stack::Report<errors::ApiErrorResponse>> {
     let event_type = match response.event_type {
         0 => api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess,
         1 => api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure,
@@ -1079,12 +1079,9 @@ pub fn build_webhook_transform_request(
     webhook_secrets: Option<payments_grpc::WebhookSecrets>,
     merchant_id: &str,
     connector_id: &str,
-) -> Result<
-    PaymentServiceTransformRequest,
-    error_stack::Report<crate::core::errors::ApiErrorResponse>,
-> {
+) -> Result<PaymentServiceTransformRequest, error_stack::Report<errors::ApiErrorResponse>> {
     let request_details_grpc = payments_grpc::RequestDetails::foreign_try_from(request_details)
-        .change_context(crate::core::errors::ApiErrorResponse::InternalServerError)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to transform webhook request details to gRPC format")?;
 
     Ok(PaymentServiceTransformRequest {
