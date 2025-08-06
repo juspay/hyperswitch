@@ -79,10 +79,10 @@ const payment_method_data_amex = {
 const payment_method_data_failed = {
   card: {
     last4: "0002",
-    card_type: "CREDIT",
-    card_network: "Visa",
-    card_issuer: "INTL HDQTRS-CENTER OWNED",
-    card_issuing_country: "UNITEDSTATES",
+    card_type: null,
+    card_network: null,
+    card_issuer: null,
+    card_issuing_country: null,
     card_isin: "400000",
     card_extended_bin: null,
     card_exp_month: "12",
@@ -205,8 +205,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_code: null,
-          error_message: null,
+          error_code: "TRANSACTION_FAILED",
+          error_message: "TRANSACTION_DECLINED",
           payment_method: "card",
           attempt_count: 1,
           payment_method_data: payment_method_data_failed,
