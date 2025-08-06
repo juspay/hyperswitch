@@ -105,13 +105,17 @@ impl GrpcClientSettings {
             match &self.recovery_decider_client {
                 Some(config) => {
                     // Validate the config first
-                    config.validate()
+                    config
+                        .validate()
                         .expect("Recovery Decider configuration validation failed");
-                    
+
                     // Create the client
-                    let client = config.get_recovery_decider_connection(client.clone())
-                        .expect("Failed to establish a connection with the Recovery Decider Server");
-                    
+                    let client = config
+                        .get_recovery_decider_connection(client.clone())
+                        .expect(
+                            "Failed to establish a connection with the Recovery Decider Server",
+                        );
+
                     logger::info!("Recovery Decider gRPC client successfully initialized");
                     // Some(Box::new(client) as Box<dyn RecoveryDeciderClientInterface>)
                     let boxed_client: Box<dyn RecoveryDeciderClientInterface> = Box::new(client);

@@ -292,16 +292,21 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
     let start_time_proto = date_time::convert_to_prost_timestamp(modified_start_time_primitive);
 
     let merchant_id = Some(payment_intent.merchant_id.get_string_repr().to_string());
-    let invoice_amount = Some(payment_intent.amount_details.order_amount.get_amount_as_i64());
+    let invoice_amount = Some(
+        payment_intent
+            .amount_details
+            .order_amount
+            .get_amount_as_i64(),
+    );
     let invoice_currency = Some(payment_intent.amount_details.currency.to_string());
-    
+
     let billing_country = payment_intent
         .billing_address
         .as_ref()
         .and_then(|addr_enc| addr_enc.get_inner().address.as_ref())
         .and_then(|details| details.country.as_ref())
         .map(|country| country.to_string());
-    
+
     let billing_city = payment_intent
         .billing_address
         .as_ref()
@@ -311,15 +316,31 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
 
     let attempt_currency = Some(payment_intent.amount_details.currency.to_string());
     let attempt_status = Some(payment_attempt.status.to_string());
-    let attempt_amount = Some(payment_attempt.amount_details.get_net_amount().get_amount_as_i64());
-    let attempt_created_at = Some(date_time::convert_to_prost_timestamp(payment_attempt.created_at));
+    let attempt_amount = Some(
+        payment_attempt
+            .amount_details
+            .get_net_amount()
+            .get_amount_as_i64(),
+    );
+    let attempt_created_at = Some(date_time::convert_to_prost_timestamp(
+        payment_attempt.created_at,
+    ));
     let payment_method_type = Some(payment_attempt.payment_method_type.to_string());
     let payment_gateway = payment_attempt.connector.clone();
 
-    let pg_error_code = payment_attempt.error.as_ref().map(|error| error.code.clone());
-    let network_advice_code = payment_attempt.error.as_ref().and_then(|error| error.network_advice_code.clone());
-    let network_error_code = payment_attempt.error.as_ref().and_then(|error| error.network_decline_code.clone());
-    
+    let pg_error_code = payment_attempt
+        .error
+        .as_ref()
+        .map(|error| error.code.clone());
+    let network_advice_code = payment_attempt
+        .error
+        .as_ref()
+        .and_then(|error| error.network_advice_code.clone());
+    let network_error_code = payment_attempt
+        .error
+        .as_ref()
+        .and_then(|error| error.network_decline_code.clone());
+
     let first_pg_error_code = revenue_recovery_metadata
         .and_then(|metadata| metadata.first_payment_attempt_pg_error_code.clone());
     let first_network_advice_code = revenue_recovery_metadata

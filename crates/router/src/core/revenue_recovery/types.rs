@@ -20,8 +20,8 @@ use hyperswitch_domain_models::{
     business_profile, merchant_connector_account,
     merchant_context::{Context, MerchantContext},
     payments::{
-        self as domain_payments, payment_attempt::PaymentAttempt, PaymentConfirmData, PaymentIntent,
-        PaymentIntentData,
+        self as domain_payments, payment_attempt::PaymentAttempt, PaymentConfirmData,
+        PaymentIntent, PaymentIntentData,
     },
     router_data_v2::{self, flow_common_types},
     router_flow_types,

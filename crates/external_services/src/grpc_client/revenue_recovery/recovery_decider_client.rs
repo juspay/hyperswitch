@@ -61,10 +61,11 @@ impl RecoveryDeciderClientConfig {
     /// Validate the configuration
     pub fn validate(&self) -> Result<(), RecoveryDeciderError> {
         use common_utils::fp_utils::when;
-        
+
         when(self.base_url.is_empty(), || {
             Err(RecoveryDeciderError::ConfigError(
-                "Recovery Decider base URL cannot be empty when configuration is provided".to_string()
+                "Recovery Decider base URL cannot be empty when configuration is provided"
+                    .to_string(),
             ))
         })
     }
