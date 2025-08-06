@@ -249,6 +249,8 @@ pub struct Authorization {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub original_network_transaction_id: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub allow_partial_auth: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cardholder_authentication: Option<CardholderAuthentication>,
 }
 
@@ -284,6 +286,8 @@ pub struct Sale {
     pub processing_type: Option<VantivProcessingType>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub original_network_transaction_id: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub allow_partial_auth: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -671,7 +675,6 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
         let processing_info = get_processing_info(&item.router_data.request)?;
         let enhanced_data = get_enhanced_data(item.router_data)?;
         let order_source = OrderSource::from(item);
-
         let (authorization, sale) =
             if item.router_data.request.is_auto_capture()? && item.amount != MinorUnit::zero() {
                 (
@@ -694,6 +697,13 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
                         processing_type: processing_info.processing_type,
                         original_network_transaction_id: processing_info.network_transaction_id,
                         enhanced_data,
+                        allow_partial_auth: item
+                            .router_data
+                            .request
+                            .enable_partial_authorization
+                            .and_then(|enable_partial_authorization| {
+                                enable_partial_authorization.then_some(true)
+                            }),
                     }),
                 )
             } else {
@@ -721,6 +731,13 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
                         original_network_transaction_id: processing_info.network_transaction_id,
                         cardholder_authentication,
                         enhanced_data,
+                        allow_partial_auth: item
+                            .router_data
+                            .request
+                            .enable_partial_authorization
+                            .and_then(|enable_partial_authorization| {
+                                enable_partial_authorization.then_some(true)
+                            }),
                     }),
                     None,
                 )
@@ -846,7 +863,7 @@ fn get_processing_info(
                             .ok_or(errors::ConnectorError::MissingConnectorMandateID)?
                             .into(),
                         exp_date: format!(
-                            "{}_{}",
+                            "{}{}",
                             card_mandate_data.card_exp_month.peek(),
                             card_mandate_data.card_exp_year.peek()
                         )
@@ -1093,6 +1110,7 @@ pub struct PaymentResponse {
     pub fraud_result: Option<FraudResult>,
     pub token_response: Option<TokenResponse>,
     pub network_transaction_id: Option<Secret<String>>,
+    pub approved_amount: Option<MinorUnit>,
     pub enhanced_auth_response: Option<EnhancedAuthResponse>,
 }
 
@@ -1713,6 +1731,7 @@ impl<F>
                             charges: None,
                         }),
                         connector_response,
+                        amount_captured: sale_response.approved_amount.map(MinorUnit::get_amount_as_i64),
                         ..item.data
                     })
                 }
@@ -1779,6 +1798,16 @@ impl<F>
                             charges: None,
                         }),
                         connector_response,
+                        amount_captured: if payment_flow_type == WorldpayvantivPaymentFlow::Sale {
+                            auth_response.approved_amount.map(MinorUnit::get_amount_as_i64)
+                        } else {
+                            None
+                        },
+                        minor_amount_capturable: if payment_flow_type == WorldpayvantivPaymentFlow::Auth {
+                            auth_response.approved_amount
+                        } else {
+                            None
+                        },
                         ..item.data
                     })
                 }
