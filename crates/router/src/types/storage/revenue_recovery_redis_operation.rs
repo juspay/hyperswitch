@@ -5,29 +5,39 @@ use time::{Date, OffsetDateTime};
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 use serde::{Deserialize, Serialize};
-use storage_impl::redis::kv_store::RedisConnInterface;
 use crate::SessionState;
 use time::Duration;
 use redis_interface::SetnxReply;
 use redis_interface::DelReply;
-use crate::types::storage::revenue_recovery::{RetryLimitsConfig, NetworkType};
+use crate::types::storage::revenue_recovery::RetryLimitsConfig;
+use common_enums::enums::CardNetwork;
 use crate::db::errors;
 
 // Constants for retry window management
 const RETRY_WINDOW_DAYS: i64 = 30;
 const INITIAL_RETRY_COUNT: u64 = 0;
 
+/// Payment processor token details including card information
+#[cfg(feature="v2")]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+pub struct PaymentProcessorTokenDetails {
+    pub payment_processor_token: String,
+    pub expiry_month: Option<String>,
+    pub expiry_year: Option<String>,
+    pub card_issuer: Option<String>,
+    pub last_four_digits: Option<String>,
+    pub card_network: Option<CardNetwork>,
+}
+
 /// Represents the status and retry history of a payment processor token 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaymentProcessorTokenStatus {
-    /// Unique identifier for the token
-    pub id: String,
-    /// Payment network type (Visa, Mastercard, etc.)
-    pub network: NetworkType,
+    /// Payment processor token details including card information and token ID
+    pub payment_processor_token_details: PaymentProcessorTokenDetails,
     /// Payment intent ID that originally inserted this token
     pub inserted_by_payment_id: String,
     /// Error code associated with the token failure
-    pub error_code: String,
+    pub error_code: Option<String>,
     /// Daily retry count history for the last 30 days (date -> retry_count)
     pub daily_retry_history: HashMap<Date, u64>, 
 }
@@ -47,7 +57,7 @@ pub struct PaymentProcessorTokenUnits {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaymentProcessorTokenUnit {
     pub error_code: Option<String>,
-    pub card_network: Option<NetworkType>,
+    pub payment_processor_token_details: PaymentProcessorTokenDetails,
 }
 
 /// Token retry availability information with detailed wait times
@@ -225,8 +235,7 @@ impl RedisTokenManager {
     }
 
     /// Get all payment processor tokens with retry information and wait times
-    /// This function calculates wait times for all tokens without normalizing
-    pub fn filter_payment_processor_tokens_by_retry_limits(
+    pub fn get_tokens_with_retry_metadata(
         state: &SessionState,
         payment_processor_token_info_map: &HashMap<String, PaymentProcessorTokenStatus>,
     ) -> HashMap<String, PaymentProcessorTokenWithRetryInfo> {
@@ -234,19 +243,19 @@ impl RedisTokenManager {
         let mut result = HashMap::new();
 
         for (payment_processor_token_id, payment_processor_token_status) in payment_processor_token_info_map.iter() {
-            // Calculate retry information (no normalization here)
+            // Calculate retry information 
             let retry_info = Self::payment_processor_token_retry_info(
                 state, 
                 payment_processor_token_status, 
                 today, 
-                payment_processor_token_status.network.clone()
+                payment_processor_token_status.payment_processor_token_details.card_network.clone()
             );
 
-            // Calculate wait time (max of monthly and daily wait)
+            // Calculate wait time 
             let retry_wait_time_hours = retry_info.monthly_wait_hours.max(retry_info.daily_wait_hours);
 
             // Calculate remaining retries in 30-day window
-            let card_network_config = RetryLimitsConfig::get_network_config(payment_processor_token_status.network.clone(), state);
+            let card_network_config = RetryLimitsConfig::get_network_config(payment_processor_token_status.payment_processor_token_details.card_network.clone(), state);
             let monthly_retry_remaining = card_network_config.retry_count_30_day.saturating_sub(retry_info.total_30_day_retries);
 
             // Create the result struct with token info
@@ -262,18 +271,17 @@ impl RedisTokenManager {
         result
     }
 
-    /// Check if payment processor token is within retry limits 
     /// This function safely calculates retry counts for exactly the last 30 days
     pub fn payment_processor_token_retry_info(
         state: &SessionState,
         token: &PaymentProcessorTokenStatus,
         today: Date,
-        network_type: NetworkType,
+        network_type: Option<CardNetwork>,
     ) -> TokenRetryInfo {
         let card_network_config = RetryLimitsConfig::get_network_config(network_type, state);
         let now = OffsetDateTime::now_utc();
 
-        // SAFE calculation: Calculate total for exactly the last 30 days (rolling window)
+        //  Calculate total for exactly the last 30 days (rolling window)
         let mut total_30_day_retries = 0;
         for i in 0..RETRY_WINDOW_DAYS {
             let date = today - Duration::days(i);
@@ -296,16 +304,15 @@ impl RedisTokenManager {
                 let hours_until_expiry = (expiry_time - now).whole_hours().max(0) as u64;
                 hours_until_expiry
             } else {
-                0 // No retry history, so no wait needed
+                0 // No retry history
             }
         } else {
             0 // Monthly limit not exceeded
         };
 
-        // 2. Check daily limit SECOND
         let today_retries = token.daily_retry_history.get(&today).copied().unwrap_or(INITIAL_RETRY_COUNT);
         let daily_wait_hours = if today_retries >= card_network_config.max_daily_retry_count {
-            // Calculate hours until tomorrow (next day reset)
+            
             let tomorrow = today + Duration::days(1);
             let tomorrow_midnight = tomorrow.midnight().assume_utc();
             let hours_until_tomorrow = (tomorrow_midnight - now).whole_hours().max(0) as u64;
@@ -385,7 +392,7 @@ impl RedisTokenManager {
             Self::normalize_retry_window(payment_processor_token_status, today);
             
             // Update the error code
-            payment_processor_token_status.error_code = error_code.clone();
+            payment_processor_token_status.error_code = Some(error_code.clone());
             
             // Increment today's retry count by +1
             let current_retry_count = payment_processor_token_status.daily_retry_history.get(&today).copied().unwrap_or(INITIAL_RETRY_COUNT);
@@ -426,10 +433,9 @@ impl RedisTokenManager {
             if !existing_tokens.contains_key(&token_id) {
                 
                 let new_payment_processor_token = PaymentProcessorTokenStatus {
-                    id: token_id.clone(),
-                    network: token_unit.card_network.unwrap_or(NetworkType::Visa), // fallback to Visa
+                    payment_processor_token_details: token_unit.payment_processor_token_details,
                     inserted_by_payment_id: inserted_by_payment_id.get_string_repr().to_string(),
-                    error_code: token_unit.error_code.unwrap_or_default(),
+                    error_code: token_unit.error_code,
                     daily_retry_history: HashMap::new(),
                 };
                 tokens_to_add.insert(token_id.clone(), new_payment_processor_token);
