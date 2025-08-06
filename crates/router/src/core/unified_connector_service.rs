@@ -27,7 +27,7 @@ use crate::{
             helpers::{
                 is_ucs_enabled, should_execute_based_on_rollout, MerchantConnectorAccountType,
             },
-            OperationSessionGetters, OperationSessionSetters, PaymentData,
+            OperationSessionGetters, OperationSessionSetters,
         },
         utils::get_flow_name,
     },
@@ -37,105 +37,9 @@ use crate::{
 
 mod transformers;
 
-pub async fn should_call_unified_connector_service<F: Clone, T>(
-    state: &SessionState,
-    merchant_context: &MerchantContext,
-    router_data: &RouterData<F, T, PaymentsResponseData>,
-    payment_data: Option<&PaymentData<F>>,
-) -> RouterResult<bool> {
-    // Check basic UCS availability first
-    if state.grpc_client.unified_connector_service_client.is_none() {
-        return Ok(false);
-    }
-
-    let ucs_config_key = consts::UCS_ENABLED;
-    if !is_ucs_enabled(state, ucs_config_key).await {
-        return Ok(false);
-    }
-
-    // Apply stickiness logic if payment_data is available
-    if let Some(payment_data) = payment_data {
-        let previous_gateway_system = extract_gateway_system_from_payment_intent(payment_data);
-
-        match previous_gateway_system {
-            Some(GatewaySystem::UnifiedConnectorService) => {
-                // Payment intent previously used UCS, maintain stickiness to UCS
-                router_env::logger::info!(
-                    "Payment routing decision: UCS (sticky) - payment intent previously used UCS"
-                );
-                return Ok(true);
-            }
-            Some(GatewaySystem::Direct) => {
-                // Payment intent previously used Direct, maintain stickiness to Direct (return false for UCS)
-                router_env::logger::info!(
-                    "Payment routing decision: Direct (sticky) - payment intent previously used Direct"
-                );
-                return Ok(false);
-            }
-            None => {
-                // No previous gateway system set, continue with normal routing logic
-                router_env::logger::debug!(
-                    "UCS stickiness: No previous gateway system set, applying normal routing logic"
-                );
-            }
-        }
-    }
-
-    // Continue with normal UCS routing logic
-    let merchant_id = merchant_context
-        .get_merchant_account()
-        .get_id()
-        .get_string_repr();
-
-    let connector_name = router_data.connector.clone();
-    let payment_method = router_data.payment_method.to_string();
-    let flow_name = get_flow_name::<F>()?;
-
-    let is_ucs_only_connector = state
-        .conf
-        .grpc_client
-        .unified_connector_service
-        .as_ref()
-        .is_some_and(|config| config.ucs_only_connectors.contains(&connector_name));
-
-    if is_ucs_only_connector {
-        router_env::logger::info!(
-            "Payment routing decision: UCS (forced) - merchant_id={}, connector={}, payment_method={}, flow={}",
-            merchant_id, connector_name, payment_method, flow_name
-        );
-        return Ok(true);
-    }
-
-    let config_key = format!(
-        "{}_{}_{}_{}_{}",
-        consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
-        merchant_id,
-        connector_name,
-        payment_method,
-        flow_name
-    );
-
-    let should_execute = should_execute_based_on_rollout(state, &config_key).await?;
-
-    // Log routing decision
-    if should_execute {
-        router_env::logger::info!(
-            "Payment routing gateway system: UCS - merchant_id={}, connector={}, payment_method={}, flow={}",
-            merchant_id, connector_name, payment_method, flow_name
-        );
-    } else {
-        router_env::logger::info!(
-            "Payment routing gateway system: Direct - merchant_id={}, connector={}, payment_method={}, flow={}",
-            merchant_id, connector_name, payment_method, flow_name
-        );
-    }
-
-    Ok(should_execute)
-}
-
 /// Generic version of should_call_unified_connector_service that works with any type
 /// implementing OperationSessionGetters trait
-pub async fn should_call_unified_connector_service_generic<F: Clone, T, D>(
+pub async fn should_call_unified_connector_service<F: Clone, T, D>(
     state: &SessionState,
     merchant_context: &MerchantContext,
     router_data: &RouterData<F, T, PaymentsResponseData>,
@@ -242,10 +146,8 @@ fn extract_gateway_system_from_payment_intent<F: Clone, D>(
 where
     D: OperationSessionGetters<F>,
 {
-    // #[cfg(feature = "v1")] uncomment this and the v2 block if you want to support v1 and v2
-    // separately
+    #[cfg(feature = "v1")]
     {
-        // For v1, feature_metadata is stored as Option<Value>
         payment_data
             .get_payment_intent()
             .feature_metadata
@@ -265,14 +167,14 @@ where
                 }
             })
     }
-
-    // #[cfg(feature = "v2")]
-    // {
-    //     // To be implemented for v2 if needed
-    // }
+    #[cfg(feature = "v2")]
+    {
+        None // V2 does not use feature metadata for gateway system tracking
+    }
 }
 
 /// Updates the payment intent's feature metadata to track the gateway system being used
+#[cfg(feature = "v1")]
 pub fn update_gateway_system_in_feature_metadata<F: Clone, D>(
     payment_data: &mut D,
     gateway_system: GatewaySystem,
@@ -280,32 +182,22 @@ pub fn update_gateway_system_in_feature_metadata<F: Clone, D>(
 where
     D: OperationSessionGetters<F> + OperationSessionSetters<F>,
 {
-    // #[cfg(feature = "v1")] uncomment this and the v2 block if you want to support v1 and v2
-    // separately
-    {
-        // For v1, we need to parse the existing metadata, update it, and serialize back to JSON
-        let mut payment_intent = payment_data.get_payment_intent().clone();
+    let mut payment_intent = payment_data.get_payment_intent().clone();
 
-        let existing_metadata = payment_intent.feature_metadata.as_ref();
+    let existing_metadata = payment_intent.feature_metadata.as_ref();
 
-        let mut feature_metadata = existing_metadata
-            .and_then(|metadata| serde_json::from_value::<FeatureMetadata>(metadata.clone()).ok())
-            .unwrap_or_default();
+    let mut feature_metadata = existing_metadata
+        .and_then(|metadata| serde_json::from_value::<FeatureMetadata>(metadata.clone()).ok())
+        .unwrap_or_default();
 
-        feature_metadata.gateway_system = Some(gateway_system);
+    feature_metadata.gateway_system = Some(gateway_system);
 
-        let updated_metadata = serde_json::to_value(feature_metadata)
-            .change_context(crate::core::errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to serialize feature metadata")?;
+    let updated_metadata = serde_json::to_value(feature_metadata)
+        .change_context(crate::core::errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to serialize feature metadata")?;
 
-        payment_intent.feature_metadata = Some(updated_metadata.clone());
-        payment_data.set_payment_intent(payment_intent);
-    }
-
-    // #[cfg(feature = "v2")]
-    // {
-    //     // To be implemented for v2 if needed
-    // }
+    payment_intent.feature_metadata = Some(updated_metadata.clone());
+    payment_data.set_payment_intent(payment_intent);
 
     Ok(())
 }

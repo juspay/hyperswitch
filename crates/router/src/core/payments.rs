@@ -91,13 +91,11 @@ use self::{
     operations::{BoxedOperation, Operation, PaymentResponse},
     routing::{self as self_routing, SessionFlowRoutingInput},
 };
+#[cfg(feature = "v1")]
+use super::unified_connector_service::update_gateway_system_in_feature_metadata;
 use super::{
-    errors::StorageErrorExt,
-    payment_methods::surcharge_decision_configs,
-    routing::TransactionData,
-    unified_connector_service::{
-        should_call_unified_connector_service_generic, update_gateway_system_in_feature_metadata,
-    },
+    errors::StorageErrorExt, payment_methods::surcharge_decision_configs, routing::TransactionData,
+    unified_connector_service::should_call_unified_connector_service,
 };
 #[cfg(feature = "v1")]
 use crate::core::debit_routing;
@@ -4047,7 +4045,7 @@ where
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
     record_time_taken_with(|| async {
-        if should_call_unified_connector_service_generic(
+        if should_call_unified_connector_service(
             state,
             merchant_context,
             &router_data,
@@ -4056,7 +4054,7 @@ where
         .await?
         {
             router_env::logger::info!(
-                "Executing payment through UCS - payment_id={}, attempt_id={}",
+                "Processing payment through UCS - payment_id={}, attempt_id={}",
                 payment_data
                     .get_payment_intent()
                     .payment_id
@@ -4477,7 +4475,7 @@ where
         .await?;
 
     // do order creation
-    let should_call_unified_connector_service = should_call_unified_connector_service_generic(
+    let should_call_unified_connector_service = should_call_unified_connector_service(
         state,
         merchant_context,
         &router_data,
@@ -4486,11 +4484,6 @@ where
     .await?;
 
     let (connector_request, should_continue_further) = if !should_call_unified_connector_service {
-        router_env::logger::info!(
-            "Creating order via Direct routing - payment_id={}, attempt_id={}",
-            payment_data.get_payment_intent().payment_id,
-            payment_data.get_payment_attempt().attempt_id
-        );
         let mut should_continue_further = true;
 
         let should_continue = match router_data
@@ -4549,9 +4542,9 @@ where
     record_time_taken_with(|| async {
         if should_call_unified_connector_service {
             router_env::logger::info!(
-                "Processing payment via UCS - payment_id={}, attempt_id={}",
-                payment_data.get_payment_intent().payment_id,
-                payment_data.get_payment_attempt().attempt_id
+                "Processing payment through UCS - payment_id={}, attempt_id={}",
+                payment_data.get_payment_intent().id.get_string_repr(),
+                payment_data.get_payment_attempt().id.get_string_repr()
             );
 
             router_data
@@ -4609,7 +4602,7 @@ where
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
     record_time_taken_with(|| async {
-        if should_call_unified_connector_service_generic(
+        if should_call_unified_connector_service(
             state,
             merchant_context,
             &router_data,
@@ -4619,11 +4612,8 @@ where
         {
             router_env::logger::info!(
                 "Executing payment through UCS - payment_id={}, attempt_id={}",
-                payment_data
-                    .get_payment_intent()
-                    .payment_id
-                    .get_string_repr(),
-                payment_data.get_payment_attempt().attempt_id
+                payment_data.get_payment_intent().id.get_string_repr(),
+                payment_data.get_payment_attempt().id.get_string_repr()
             );
             if should_add_task_to_process_tracker(payment_data) {
                 operation
@@ -4666,11 +4656,8 @@ where
         } else {
             router_env::logger::info!(
                 "Executing payment through Direct routing - payment_id={}, attempt_id={}",
-                payment_data
-                    .get_payment_intent()
-                    .payment_id
-                    .get_string_repr(),
-                payment_data.get_payment_attempt().attempt_id
+                payment_data.get_payment_intent().id.get_string_repr(),
+                payment_data.get_payment_attempt().id.get_string_repr()
             );
 
             call_connector_service(
