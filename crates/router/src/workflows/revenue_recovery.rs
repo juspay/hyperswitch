@@ -543,7 +543,7 @@ pub async fn get_best_psp_token_available(
         return Ok(None);
     }
 
-    let result = RedisTokenManager::filter_payment_processor_tokens_by_retry_limits(
+    let result = RedisTokenManager::get_tokens_with_retry_metadata(
         state,
         &existing_tokens,
     );

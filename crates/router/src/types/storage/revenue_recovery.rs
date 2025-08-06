@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use common_enums::enums;
+use common_enums::enums::{self, CardNetwork};
 use common_utils::{ext_traits::ValueExt, id_type};
 use external_services::grpc_client::{self as external_grpc_client, GrpcHeaders};
 use hyperswitch_domain_models::{
@@ -71,6 +71,7 @@ pub struct RevenueRecoverySettings {
     pub monitoring_threshold_in_seconds: i64,
     pub retry_algorithm_type: enums::RevenueRecoveryAlgorithmType,
     pub recovery_timestamp: RecoveryTimestamp,
+    pub card_config: RetryLimitsConfig,
 }
 
 #[derive(Debug, serde::Deserialize, Clone)]
@@ -84,8 +85,7 @@ impl Default for RecoveryTimestamp {
             initial_timestamp_in_hours: 1,
         }
     }
-    pub card_config: RetryLimitsConfig,
-
+    
 }
 
 #[derive(Debug, serde::Deserialize, Clone, Default)]
@@ -102,20 +102,14 @@ pub struct NetworkRetryConfig {
     pub retry_count_30_day: u64,
 }
 impl RetryLimitsConfig {
-    pub fn get_network_config(network: NetworkType, state: &SessionState) -> &NetworkRetryConfig {
+    pub fn get_network_config(network: Option<CardNetwork>, state: &SessionState) -> &NetworkRetryConfig {
         match network {
-            NetworkType::Mastercard => &state.conf.revenue_recovery.card_config.mastercard,
-            NetworkType::Visa => &state.conf.revenue_recovery.card_config.visa,
-            NetworkType::Amex => &state.conf.revenue_recovery.card_config.amex,
-            NetworkType::Discover => &state.conf.revenue_recovery.card_config.discover,
+            Some(CardNetwork::Mastercard) => &state.conf.revenue_recovery.card_config.mastercard,
+            Some(CardNetwork::Visa) => &state.conf.revenue_recovery.card_config.visa,
+            Some(CardNetwork::AmericanExpress) => &state.conf.revenue_recovery.card_config.amex,
+            Some(CardNetwork::Discover) => &state.conf.revenue_recovery.card_config.discover,
+            // All other networks (including None) default to Visa configuration
+            _ => &state.conf.revenue_recovery.card_config.visa,
         }
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub enum NetworkType {
-    Visa,
-    Mastercard,
-    Amex,
-    Discover,
 }
