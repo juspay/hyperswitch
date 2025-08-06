@@ -272,6 +272,7 @@ fn get_stripe_event_type(event_type: api_models::enums::EventType) -> &'static s
         api_models::enums::EventType::PaymentProcessing
         | api_models::enums::EventType::PaymentPartiallyAuthorized => "payment_intent.processing",
         api_models::enums::EventType::PaymentCancelled
+        | api_models::enums::EventType::PaymentCancelledPostCapture
         | api_models::enums::EventType::PaymentExpired => "payment_intent.canceled",
 
         // the below are not really stripe compatible because stripe doesn't provide this

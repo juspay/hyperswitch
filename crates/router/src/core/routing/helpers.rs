@@ -1704,6 +1704,7 @@ fn get_desired_payment_status_for_dynamic_routing_metrics(
         | common_enums::AttemptStatus::Authorizing
         | common_enums::AttemptStatus::CodInitiated
         | common_enums::AttemptStatus::Voided
+        | common_enums::AttemptStatus::VoidedPostCharge
         | common_enums::AttemptStatus::VoidInitiated
         | common_enums::AttemptStatus::CaptureInitiated
         | common_enums::AttemptStatus::VoidFailed
@@ -1736,6 +1737,7 @@ impl ForeignFrom<common_enums::AttemptStatus> for open_router::TxnStatus {
             common_enums::AttemptStatus::Voided | common_enums::AttemptStatus::Expired => {
                 Self::Voided
             }
+            common_enums::AttemptStatus::VoidedPostCharge => Self::VoidedPostCharge,
             common_enums::AttemptStatus::VoidInitiated => Self::VoidInitiated,
             common_enums::AttemptStatus::CaptureInitiated => Self::CaptureInitiated,
             common_enums::AttemptStatus::CaptureFailed => Self::CaptureFailed,

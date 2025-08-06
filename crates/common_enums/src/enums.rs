@@ -141,6 +141,7 @@ pub enum AttemptStatus {
     Authorizing,
     CodInitiated,
     Voided,
+    VoidedPostCharge,
     VoidInitiated,
     CaptureInitiated,
     CaptureFailed,
@@ -167,6 +168,7 @@ impl AttemptStatus {
             | Self::Charged
             | Self::AutoRefunded
             | Self::Voided
+            | Self::VoidedPostCharge
             | Self::VoidFailed
             | Self::CaptureFailed
             | Self::Failure
@@ -1503,6 +1505,7 @@ impl EventClass {
                 EventType::PaymentFailed,
                 EventType::PaymentProcessing,
                 EventType::PaymentCancelled,
+                EventType::PaymentCancelledPostCapture,
                 EventType::PaymentAuthorized,
                 EventType::PaymentCaptured,
                 EventType::PaymentExpired,
@@ -1557,6 +1560,7 @@ pub enum EventType {
     PaymentFailed,
     PaymentProcessing,
     PaymentCancelled,
+    PaymentCancelledPostCapture,
     PaymentAuthorized,
     PaymentPartiallyAuthorized,
     PaymentCaptured,
@@ -1662,6 +1666,8 @@ pub enum IntentStatus {
     Failed,
     /// This payment has been cancelled.
     Cancelled,
+    /// This payment has been cancelled post capture.
+    CancelledPostCapture,
     /// This payment is still being processed by the payment processor.
     /// The status update might happen through webhooks or polling with the connector.
     Processing,
@@ -1695,6 +1701,7 @@ impl IntentStatus {
             Self::Succeeded
             | Self::Failed
             | Self::Cancelled
+            | Self::CancelledPostCapture
             | Self::PartiallyCaptured
             | Self::Expired => true,
             Self::Processing
@@ -1719,6 +1726,7 @@ impl IntentStatus {
             | Self::Succeeded
             | Self::Failed
             | Self::Cancelled
+            | Self::CancelledPostCapture
             |  Self::PartiallyCaptured
             |  Self::RequiresCapture | Self::Conflicted | Self::Expired=> false,
             Self::Processing
@@ -1832,6 +1840,7 @@ impl From<AttemptStatus> for PaymentMethodStatus {
         match attempt_status {
             AttemptStatus::Failure
             | AttemptStatus::Voided
+            | AttemptStatus::VoidedPostCharge
             | AttemptStatus::Started
             | AttemptStatus::Pending
             | AttemptStatus::Unresolved
@@ -2625,6 +2634,8 @@ pub enum DisputeStage {
     #[default]
     Dispute,
     PreArbitration,
+    Arbitration,
+    DisputeReversal,
 }
 
 /// Status of the dispute
@@ -3123,6 +3134,7 @@ pub enum FileUploadProvider {
     Router,
     Stripe,
     Checkout,
+    Worldpayvantiv,
 }
 
 #[derive(
@@ -7272,6 +7284,26 @@ pub enum MerchantDecision {
     Rejected,
     AutoRefunded,
 }
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    strum::EnumIter,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum TaxStatus {
+    Taxable,
+    Exempt,
+}
 
 #[derive(
     Clone,
@@ -8080,6 +8112,7 @@ pub enum UIWidgetFormLayout {
     Clone,
     Copy,
     Debug,
+    Default,
     Eq,
     PartialEq,
     serde::Deserialize,
@@ -8092,6 +8125,7 @@ pub enum UIWidgetFormLayout {
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum DeleteStatus {
+    #[default]
     Active,
     Redacted,
 }
@@ -8596,6 +8630,8 @@ pub enum ProcessTrackerRunner {
     AttachPayoutAccountWorkflow,
     PaymentMethodStatusUpdateWorkflow,
     PassiveRecoveryWorkflow,
+    ProcessDisputeWorkflow,
+    DisputeListWorkflow,
 }
 
 #[derive(Debug)]

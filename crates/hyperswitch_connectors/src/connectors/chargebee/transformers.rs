@@ -627,6 +627,7 @@ impl From<ChargebeeInvoiceBillingAddress> for api_models::payments::AddressDetai
             line3: item.line3,
             first_name: None,
             last_name: None,
+            origin_zip: None,
         }
     }
 }
@@ -698,6 +699,7 @@ impl TryFrom<enums::AttemptStatus> for ChargebeeRecordStatus {
             | enums::AttemptStatus::Authorizing
             | enums::AttemptStatus::CodInitiated
             | enums::AttemptStatus::Voided
+            | enums::AttemptStatus::VoidedPostCharge
             | enums::AttemptStatus::VoidInitiated
             | enums::AttemptStatus::CaptureInitiated
             | enums::AttemptStatus::VoidFailed

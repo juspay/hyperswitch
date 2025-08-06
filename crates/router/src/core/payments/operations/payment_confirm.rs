@@ -2056,6 +2056,11 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .is_iframe_redirection_enabled,
                         is_confirm_operation: true, // Indicates that this is a confirm operation
                         payment_channel: payment_data.payment_intent.payment_channel,
+                        tax_status: payment_data.payment_intent.tax_status,
+                        discount_amount: payment_data.payment_intent.discount_amount,
+                        order_date: payment_data.payment_intent.order_date,
+                        shipping_amount_tax: payment_data.payment_intent.shipping_amount_tax,
+                        duty_amount: payment_data.payment_intent.duty_amount,
                         enable_partial_authorization: payment_data
                             .payment_intent
                             .enable_partial_authorization,

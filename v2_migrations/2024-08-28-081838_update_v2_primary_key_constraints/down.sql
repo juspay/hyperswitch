@@ -38,8 +38,6 @@ UPDATE merchant_connector_account
 SET merchant_connector_id = id
 WHERE merchant_connector_id IS NULL;
 
-DROP INDEX IF EXISTS merchant_connector_account_profile_id_index;
-
 ------------------------ Customers -----------------------
 -- Run this query only when V1 is deprecated
 ALTER TABLE customers DROP CONSTRAINT customers_pkey;
