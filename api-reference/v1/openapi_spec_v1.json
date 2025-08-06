@@ -1083,6 +1083,67 @@
         ]
       }
     },
+    "/payments/{payment_id}/cancel_post_capture": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Cancel Post Capture",
+        "description": "A Payment could can be cancelled when it is in one of these statuses: `succeeded`, `partially_captured`, `partially_captured_and_capturable`.",
+        "operationId": "Cancel a Payment Post Capture",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsCancelPostCaptureRequest"
+              },
+              "examples": {
+                "Cancel the payment post capture with cancellation reason": {
+                  "value": {
+                    "cancellation_reason": "requested_by_customer"
+                  }
+                },
+                "Cancel the payment post capture with minimal fields": {
+                  "value": {}
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payment canceled post capture"
+          },
+          "400": {
+            "description": "Missing mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/payments/list": {
       "get": {
         "tags": [
@@ -7904,6 +7965,7 @@
           "authorizing",
           "cod_initiated",
           "voided",
+          "voided_post_charge",
           "void_initiated",
           "capture_initiated",
           "capture_failed",
@@ -14746,6 +14808,7 @@
           "payment_failed",
           "payment_processing",
           "payment_cancelled",
+          "payment_cancelled_post_capture",
           "payment_authorized",
           "payment_captured",
           "payment_expired",
@@ -16593,6 +16656,7 @@
           "succeeded",
           "failed",
           "cancelled",
+          "cancelled_post_capture",
           "processing",
           "requires_customer_action",
           "requires_merchant_action",
@@ -22080,6 +22144,17 @@
           "setup_mandate",
           "recurring_mandate"
         ]
+      },
+      "PaymentsCancelPostCaptureRequest": {
+        "type": "object",
+        "description": "Request to cancel a payment when the payment is already captured",
+        "properties": {
+          "cancellation_reason": {
+            "type": "string",
+            "description": "The reason for the payment cancel",
+            "nullable": true
+          }
+        }
       },
       "PaymentsCancelRequest": {
         "type": "object",
@@ -31744,6 +31819,7 @@
           "AUTHORIZING",
           "C_O_D_INITIATED",
           "VOIDED",
+          "VOIDED_POST_CHARGE",
           "VOID_INITIATED",
           "NOP",
           "CAPTURE_INITIATED",
