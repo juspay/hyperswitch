@@ -92,10 +92,7 @@ impl RedisTokenManager {
             .get_redis_conn()
             .change_context(errors::StorageError::KVError)?;
 
-        let lock_key = format!(
-            "customer:{}:status",
-            connector_customer_id.get_string_repr()
-        );
+        let lock_key = format!("customer:{}:status", connector_customer_id);
 
         let result: bool = match redis_conn
             .set_key_if_not_exists_with_expiry(&lock_key.into(), payment_id.get_string_repr(), None)
@@ -129,10 +126,7 @@ impl RedisTokenManager {
             .get_redis_conn()
             .change_context(errors::StorageError::KVError)?;
 
-        let lock_key = format!(
-            "customer:{}:status",
-            connector_customer_id.get_string_repr()
-        );
+        let lock_key = format!("customer:{}:status", connector_customer_id);
 
         match redis_conn.delete_key(&lock_key.into()).await {
             Ok(DelReply::KeyDeleted) => Ok(true),
@@ -158,10 +152,7 @@ impl RedisTokenManager {
             .get_redis_conn()
             .change_context(errors::StorageError::KVError)?;
 
-        let tokens_key = format!(
-            "customer:{}:tokens",
-            connector_customer_id.get_string_repr()
-        );
+        let tokens_key = format!("customer:{}:tokens", connector_customer_id);
 
         let payment_processor_tokens: HashMap<String, String> = redis_conn
             .get_hash_fields(&tokens_key.into())
@@ -202,10 +193,7 @@ impl RedisTokenManager {
             .get_redis_conn()
             .change_context(errors::StorageError::KVError)?;
 
-        let tokens_key = format!(
-            "customer:{}:tokens",
-            connector_customer_id.get_string_repr()
-        );
+        let tokens_key = format!("customer:{}:tokens", connector_customer_id);
 
         // Serialize all tokens
         let mut serialized_payment_processor_tokens = HashMap::new();
@@ -414,10 +402,7 @@ impl RedisTokenManager {
             .get_redis_conn()
             .change_context(errors::StorageError::KVError)?;
 
-        let tokens_key = format!(
-            "customer:{}:tokens",
-            connector_customer_id.get_string_repr()
-        );
+        let tokens_key = format!("customer:{}:tokens", connector_customer_id);
 
         // Delete entire Redis key
         redis_conn

@@ -568,8 +568,8 @@ impl
                     charge_id: Some(charge_details.charge_id.clone()),
                     card_info: api_models::payments::AdditionalCardInfo {
                         card_network: None,
-                        card_isin: None, 
-                        card_issuer: None, 
+                        card_isin: None,
+                        card_issuer: None,
                         card_type: None,
                         card_issuing_country: None,
                         bank_code: None,
