@@ -310,7 +310,7 @@ async fn handle_schedule_failed_payment(
 ) -> CustomResult<webhooks::WebhookResponseTracker, errors::RevenueRecoveryError> {
     let (recovery_attempt_from_payment_attempt, recovery_intent_from_payment_attempt) =
         payment_attempt_with_recovery_intent;
-
+    
     // When intent_retry_count > threshold
     (intent_retry_count <= mca_retry_threshold)
         .then(|| {
@@ -322,11 +322,6 @@ async fn handle_schedule_failed_payment(
             Ok(webhooks::WebhookResponseTracker::NoEffect)
         })
         .async_unwrap_or_else(|| async {
-            // check retry count of each token if 0 then trigger immediately 
-
-            // checl if any token is available for retry if not then calculate flow
-            // check if there is any token with response 0 
-
             // Call calculate_job
             insert_calculate_pcr_task(
                 billing_connector_account,
@@ -361,13 +356,13 @@ async fn insert_calculate_pcr_task(
 
     let db = &*state.store;
     let payment_id = &recovery_intent_from_payment_intent.payment_id;
-
+    
     // Create process tracker ID in the format: CALCULATE_WORKFLOW_{payment_intent_id}
     let process_tracker_id = format!("CALCULATE_WORKFLOW_{}", payment_id.get_string_repr());
-
+    
     // Set scheduled time to 1 hour from now
     let schedule_time = common_utils::date_time::now() + time::Duration::hours(1);
-
+    
     let payment_attempt_id = payment_attempt_id
         .ok_or(report!(
             errors::RevenueRecoveryError::PaymentAttemptIdNotFound
@@ -376,29 +371,24 @@ async fn insert_calculate_pcr_task(
 
     // Extract customer ID and token list from payment intent feature metadata
     let customer_id = extract_customer_id_from_intent(recovery_intent_from_payment_intent)?;
-
+    
     let token_list = recovery_intent_from_payment_intent
         .feature_metadata
         .as_ref()
         .and_then(|metadata| metadata.revenue_recovery.as_ref())
-        .and_then(|recovery| recovery.billing_connector_payment_details)
-        .map(|details| details.psp_token_list) // will add the exact field once the core changes are implemented
+        .and_then(|recovery| recovery.billing_connector_payment_details.as_ref())
+        .map(|details| details.psp_token_list.clone())
         .unwrap_or_default();
 
     // Check if a process tracker entry already exists for this payment intent
-    let existing_entry = db
-        .get_scheduler_db()
+    let existing_entry = db.get_scheduler_db()
         .find_process_by_id(&process_tracker_id)
         .await
         .change_context(errors::RevenueRecoveryError::ProcessTrackerResponseError)
-        .attach_printable(
-            "Failed to check for existing calculate workflow process tracker entry",
-        )?;
+        .attach_printable("Failed to check for existing calculate workflow process tracker entry")?;
 
     match existing_entry {
-        Some(existing_process)
-            if existing_process.business_status == business_status::CALCULATE_WORKFLOW_QUEUED =>
-        {
+        Some(existing_process) => {
             // Entry exists - update the status to New and scheduled time to 1 hour from now
             router_env::logger::info!(
                 "Found existing CALCULATE_WORKFLOW task for payment_intent_id: {}, updating status to New and rescheduling for 1 hour from now",
@@ -409,8 +399,8 @@ async fn insert_calculate_pcr_task(
                 name: None,
                 retry_count: Some(intent_retry_count.into()),
                 schedule_time: Some(schedule_time),
-                tracking_data: Some(existing_process.tracking_data),
-                business_status: Some(business_status::CALCULATE_WORKFLOW_QUEUED.to_string()),
+                tracking_data: None,
+                business_status: Some(storage::business_status::CALCULATE_WORKFLOW_QUEUED.to_string()),
                 status: Some(diesel_models::enums::ProcessTrackerStatus::New),
                 updated_at: Some(common_utils::date_time::now()),
             };
@@ -419,22 +409,11 @@ async fn insert_calculate_pcr_task(
                 .update_process(existing_process, pt_update)
                 .await
                 .change_context(errors::RevenueRecoveryError::ProcessTrackerResponseError)
-                .attach_printable(
-                    "Failed to update existing calculate workflow process tracker entry",
-                )?;
+                .attach_printable("Failed to update existing calculate workflow process tracker entry")?;
 
             router_env::logger::info!(
                 "Successfully updated existing CALCULATE_WORKFLOW task for payment_intent_id: {}",
                 payment_id.get_string_repr()
-            );
-        }
-        Some(existing_process) => {
-            // Entry exists but business status is not CALCULATE_WORKFLOW_QUEUED
-            router_env::logger::info!(
-                payment_id = %payment_id.get_string_repr(),
-                process_tracker_id = %process_tracker_id,
-                current_business_status = %existing_process.business_status,
-                "Found existing CALCULATE_WORKFLOW task but business status is not QUEUED, returning existing entry"
             );
         }
         None => {
@@ -445,18 +424,17 @@ async fn insert_calculate_pcr_task(
             );
 
             // Create tracking data
-            let calculate_workflow_tracking_data =
-                storage_churn_recovery::RevenueRecoveryWorkflowTrackingData {
-                    billing_mca_id: billing_connector_account.get_id(),
-                    global_payment_id: payment_id.clone(),
-                    merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
-                    profile_id: business_profile.get_id().to_owned(),
-                    payment_attempt_id: Some(payment_attempt_id),
-                    revenue_recovery_retry,
-                    token_list,
-                    active_token: None,
-                    invoice_scheduled_time: None,
-                };
+            let calculate_workflow_tracking_data = storage_churn_recovery::RevenueRecoveryWorkflowTrackingData {
+                billing_mca_id: billing_connector_account.get_id(),
+                global_payment_id: payment_id.clone(),
+                merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
+                profile_id: business_profile.get_id().to_owned(),
+                payment_attempt_id: Some(payment_attempt_id),
+                revenue_recovery_retry,
+                token_list,
+                active_token: None,
+                invoice_scheduled_time: None,
+            };
 
             let tag = ["PCR"];
             let task = "CALCULATE_WORKFLOW";
@@ -480,19 +458,14 @@ async fn insert_calculate_pcr_task(
                 .insert_process(process_tracker_entry)
                 .await
                 .change_context(errors::RevenueRecoveryError::ProcessTrackerResponseError)
-                .attach_printable(
-                    "Failed to enter calculate workflow process_tracker_entry in DB",
-                )?;
+                .attach_printable("Failed to enter calculate workflow process_tracker_entry in DB")?;
 
             router_env::logger::info!(
                 "Successfully created new CALCULATE_WORKFLOW task for payment_intent_id: {}",
                 payment_id.get_string_repr()
             );
 
-            metrics::TASKS_ADDED_COUNT.add(
-                1,
-                router_env::metric_attributes!(("flow", "CalculateWorkflow")),
-            );
+            metrics::TASKS_ADDED_COUNT.add(1, router_env::metric_attributes!(("flow", "CalculateWorkflow")));
         }
     }
 
@@ -501,6 +474,7 @@ async fn insert_calculate_pcr_task(
         status: recovery_intent_from_payment_intent.status,
     })
 }
+
 
 #[derive(Debug)]
 pub struct RevenueRecoveryInvoice(revenue_recovery::RevenueRecoveryInvoiceData);
