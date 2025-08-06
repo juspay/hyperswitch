@@ -503,15 +503,12 @@ pub async fn get_best_psp_token_available(
 ) -> Result<Option<String>, errors::ProcessTrackerError> {
     use crate::types::storage::revenue_recovery_redis_operation::RedisTokenManager;
 
-    
     // Step 1: Get existing tokens from Redis
     let existing_tokens = RedisTokenManager::get_connector_customer_payment_processor_tokens(
         state,
         &connector_customer_id,
     )
     .await?;
-
-    
 
     // Step 2: Insert into payment_intent_feature_metadata (DB operation)
     // TODO: Implement DB insertion logic

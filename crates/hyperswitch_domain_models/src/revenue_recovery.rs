@@ -60,7 +60,7 @@ pub struct RevenueRecoveryAttemptData {
     pub card_isin: Option<String>,
     /// stripe specific id used to validate duplicate attempts in revenue recovery flow
     pub charge_id: Option<String>,
-    /// Additional card details 
+    /// Additional card details
     pub card_info: api_payments::AdditionalCardInfo,
 }
 
