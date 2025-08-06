@@ -49,6 +49,7 @@ pub mod worldpayvantiv_constants {
     pub const MAX_ID_LENGTH: usize = 26;
     pub const XML_STANDALONE: &str = "yes";
     pub const XML_CHARGEBACK: &str = "http://www.vantivcnp.com/chargebacks";
+    pub const MAC_FIELD_NUMBER: &str = "39";
 }
 
 pub struct WorldpayvantivRouterData<T> {
@@ -1216,7 +1217,9 @@ where
                         .and_then(|nr| {
                             nr.network_fields
                                 .iter()
-                                .find(|f| f.field_number == "39")
+                                .find(|f| {
+                                    f.field_number == *worldpayvantiv_constants::MAC_FIELD_NUMBER
+                                })
                                 .and_then(|f| f.field_value.clone())
                         });
 
@@ -1267,7 +1270,7 @@ where
                     .and_then(|nr| {
                         nr.network_fields
                             .iter()
-                            .find(|f| f.field_number == "39")
+                            .find(|f| f.field_number == *worldpayvantiv_constants::MAC_FIELD_NUMBER)
                             .and_then(|f| f.field_value.clone())
                     });
 
@@ -1317,7 +1320,9 @@ impl<F> TryFrom<ResponseRouterData<F, CnpOnlineResponse, PaymentsCancelData, Pay
                         .and_then(|nr| {
                             nr.network_fields
                                 .iter()
-                                .find(|f| f.field_number == "39")
+                                .find(|f| {
+                                    f.field_number == *worldpayvantiv_constants::MAC_FIELD_NUMBER
+                                })
                                 .and_then(|f| f.field_value.clone())
                         });
 
@@ -1368,7 +1373,7 @@ impl<F> TryFrom<ResponseRouterData<F, CnpOnlineResponse, PaymentsCancelData, Pay
                     .and_then(|nr| {
                         nr.network_fields
                             .iter()
-                            .find(|f| f.field_number == "39")
+                            .find(|f| f.field_number == *worldpayvantiv_constants::MAC_FIELD_NUMBER)
                             .and_then(|f| f.field_value.clone())
                     });
 
@@ -1492,7 +1497,9 @@ impl TryFrom<RefundsResponseRouterData<Execute, CnpOnlineResponse>> for RefundsR
                         .and_then(|nr| {
                             nr.network_fields
                                 .iter()
-                                .find(|f| f.field_number == "39")
+                                .find(|f| {
+                                    f.field_number == *worldpayvantiv_constants::MAC_FIELD_NUMBER
+                                })
                                 .and_then(|f| f.field_value.clone())
                         });
 
@@ -1533,7 +1540,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, CnpOnlineResponse>> for RefundsR
                     .and_then(|nr| {
                         nr.network_fields
                             .iter()
-                            .find(|f| f.field_number == "39")
+                            .find(|f| f.field_number == *worldpayvantiv_constants::MAC_FIELD_NUMBER)
                             .and_then(|f| f.field_value.clone())
                     });
 
@@ -1662,7 +1669,7 @@ impl<F>
                     .and_then(|nr| {
                         nr.network_fields
                             .iter()
-                            .find(|f| f.field_number == "39")
+                            .find(|f| f.field_number == *worldpayvantiv_constants::MAC_FIELD_NUMBER)
                             .and_then(|f| f.field_value.clone())
                     });
 
@@ -1728,7 +1735,7 @@ impl<F>
                     .and_then(|nr| {
                         nr.network_fields
                             .iter()
-                            .find(|f| f.field_number == "39")
+                            .find(|f| f.field_number == *worldpayvantiv_constants::MAC_FIELD_NUMBER)
                             .and_then(|f| f.field_value.clone())
                     });
 
