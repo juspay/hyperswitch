@@ -4,6 +4,8 @@ namespace com.hyperswitch
 
 use com.hyperswitch.smithy.types#PaymentsRequest
 use com.hyperswitch.smithy.types#PaymentsResponse
+use com.hyperswitch.smithy.types#RefundRequest
+use com.hyperswitch.smithy.types#RefundResponse
 
 use aws.protocols#restJson1
 
@@ -17,7 +19,28 @@ use aws.protocols#restJson1
 )
 service Hyperswitch {
     version: "2024-07-31",
-    operations: [PaymentsCreate]
+    operations: [PaymentsCreate, PaymentsRetrieve, RefundsCreate]
+}
+
+@documentation("Create a refund for a payment.")
+@http(method: "POST", uri: "/refunds")
+operation RefundsCreate {
+    input: RefundRequest,
+    output: RefundResponse,
+}
+
+@documentation("Retrieve a payment using the payment_id.")
+@http(method: "GET", uri: "/payments/{payment_id}")
+operation PaymentsRetrieve {
+    input: PaymentsRetrieveRequest,
+    output: PaymentsResponse,
+}
+
+structure PaymentsRetrieveRequest {
+    /// The unique identifier for the payment to retrieve
+    @required
+    @httpLabel
+    payment_id: smithy.api#String
 }
 
 @documentation("Create a payment with the specified details.")
