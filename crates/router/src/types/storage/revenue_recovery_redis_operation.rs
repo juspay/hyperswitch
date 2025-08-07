@@ -11,8 +11,8 @@ use time::{Date, Duration, OffsetDateTime};
 use crate::{db::errors, types::storage::revenue_recovery::RetryLimitsConfig, SessionState};
 
 // Constants for retry window management
-const RETRY_WINDOW_DAYS: i64 = 30;
-const INITIAL_RETRY_COUNT: u64 = 0;
+const RETRY_WINDOW_DAYS: i32 = 30;
+const INITIAL_RETRY_COUNT: i32 = 0;
 
 /// Payment processor token details including card information
 #[cfg(feature = "v2")]
@@ -36,7 +36,7 @@ pub struct PaymentProcessorTokenStatus {
     /// Error code associated with the token failure
     pub error_code: Option<String>,
     /// Daily retry count history for the last 30 days (date -> retry_count)
-    pub daily_retry_history: HashMap<Date, u64>,
+    pub daily_retry_history: HashMap<Date, i32>,
 }
 
 /// Customer tokens data structure
@@ -60,9 +60,9 @@ pub struct PaymentProcessorTokenUnit {
 /// Token retry availability information with detailed wait times
 #[derive(Debug, Clone)]
 pub struct TokenRetryInfo {
-    pub monthly_wait_hours: u64,   // Hours to wait for 30-day limit reset
-    pub daily_wait_hours: u64,     // Hours to wait for daily limit reset
-    pub total_30_day_retries: u64, // Current total retry count in 30-day window
+    pub monthly_wait_hours: i64,   // Hours to wait for 30-day limit reset
+    pub daily_wait_hours: i64,     // Hours to wait for daily limit reset
+    pub total_30_day_retries: i32, // Current total retry count in 30-day window
 }
 
 /// Complete token information with retry limits and wait times
@@ -71,9 +71,9 @@ pub struct PaymentProcessorTokenWithRetryInfo {
     /// The complete token status information
     pub token_status: PaymentProcessorTokenStatus,
     /// Hours to wait before next retry attempt (max of daily/monthly wait)
-    pub retry_wait_time_hours: u64,
+    pub retry_wait_time_hours: i64,
     /// Number of retries remaining in the 30-day rolling window
-    pub monthly_retry_remaining: u64,
+    pub monthly_retry_remaining: i32,
 }
 
 /// Redis-based token management struct
@@ -230,7 +230,7 @@ impl RedisTokenManager {
         format!(
             "{:04}-{:02}-{:02}",
             today.year(),
-            today.month() as u8,
+            today.month(),
             today.day()
         )
     }
@@ -244,7 +244,7 @@ impl RedisTokenManager {
 
         // Create exactly 30 entries (today to 29 days ago)
         for i in 0..RETRY_WINDOW_DAYS {
-            let date = today - Duration::days(i);
+            let date = today - Duration::days(i.into());
             let retry_count = payment_processor_token
                 .daily_retry_history
                 .get(&date)
@@ -319,9 +319,9 @@ impl RedisTokenManager {
         let now = OffsetDateTime::now_utc();
 
         //  Calculate total for exactly the last 30 days (rolling window)
-        let mut total_30_day_retries = 0;
+        let mut total_30_day_retries: i32 = 0;
         for i in 0..RETRY_WINDOW_DAYS {
-            let date = today - Duration::days(i);
+            let date = today - Duration::days(i.into());
             total_30_day_retries += token
                 .daily_retry_history
                 .get(&date)
@@ -334,7 +334,7 @@ impl RedisTokenManager {
             // Find the oldest retry date in the 30-day window and calculate when it expires
             let mut oldest_date_with_retries = None;
             for i in 0..RETRY_WINDOW_DAYS {
-                let date = today - Duration::days(i);
+                let date = today - Duration::days(i.into());
                 if token.daily_retry_history.get(&date).copied().unwrap_or(0) > 0 {
                     oldest_date_with_retries = Some(date);
                 }
@@ -342,8 +342,7 @@ impl RedisTokenManager {
 
             if let Some(oldest_date) = oldest_date_with_retries {
                 let expiry_time = (oldest_date + Duration::days(31)).midnight().assume_utc();
-                let hours_until_expiry = (expiry_time - now).whole_hours().max(0) as u64;
-                hours_until_expiry
+                (expiry_time - now).whole_hours().max(0)
             } else {
                 0 // No retry history
             }
@@ -359,8 +358,8 @@ impl RedisTokenManager {
         let daily_wait_hours = if today_retries >= card_network_config.max_daily_retry_count {
             let tomorrow = today + Duration::days(1);
             let tomorrow_midnight = tomorrow.midnight().assume_utc();
-            let hours_until_tomorrow = (tomorrow_midnight - now).whole_hours().max(0) as u64;
-            hours_until_tomorrow
+            (tomorrow_midnight - now).whole_hours().max(0)
+            
         } else {
             0 // Daily limit not exceeded
         };
