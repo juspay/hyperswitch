@@ -131,6 +131,8 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
     fn into_dir_value(self) -> Result<dir::DirValue, KgraphError> {
         match self.0 {
             api_enums::PaymentMethodType::AmazonPay => Ok(dirval!(WalletType = AmazonPay)),
+            api_enums::PaymentMethodType::Paysera => Ok(dirval!(WalletType = Paysera)),
+            api_enums::PaymentMethodType::Skrill => Ok(dirval!(WalletType = Skrill)),
             api_enums::PaymentMethodType::Credit => Ok(dirval!(CardType = Credit)),
             api_enums::PaymentMethodType::Debit => Ok(dirval!(CardType = Debit)),
             #[cfg(feature = "v2")]
@@ -146,6 +148,7 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
                 Ok(dirval!(PayLaterType = AfterpayClearpay))
             }
             api_enums::PaymentMethodType::GooglePay => Ok(dirval!(WalletType = GooglePay)),
+            api_enums::PaymentMethodType::Bluecode => Ok(dirval!(WalletType = Bluecode)),
             api_enums::PaymentMethodType::ApplePay => Ok(dirval!(WalletType = ApplePay)),
             api_enums::PaymentMethodType::Paypal => Ok(dirval!(WalletType = Paypal)),
             api_enums::PaymentMethodType::CryptoCurrency => {
@@ -223,12 +226,12 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
             api_enums::PaymentMethodType::Swish => Ok(dirval!(WalletType = Swish)),
             api_enums::PaymentMethodType::Trustly => Ok(dirval!(BankRedirectType = Trustly)),
             api_enums::PaymentMethodType::Bizum => Ok(dirval!(BankRedirectType = Bizum)),
-
             api_enums::PaymentMethodType::PayBright => Ok(dirval!(PayLaterType = PayBright)),
+            api_enums::PaymentMethodType::Flexiti => Ok(dirval!(PayLaterType = Flexiti)),
             api_enums::PaymentMethodType::Walley => Ok(dirval!(PayLaterType = Walley)),
+            api_enums::PaymentMethodType::Breadpay => Ok(dirval!(PayLaterType = Breadpay)),
             api_enums::PaymentMethodType::Przelewy24 => Ok(dirval!(BankRedirectType = Przelewy24)),
             api_enums::PaymentMethodType::WeChatPay => Ok(dirval!(WalletType = WeChatPay)),
-
             api_enums::PaymentMethodType::ClassicReward => Ok(dirval!(RewardType = ClassicReward)),
             api_enums::PaymentMethodType::Evoucher => Ok(dirval!(RewardType = Evoucher)),
             api_enums::PaymentMethodType::UpiCollect => Ok(dirval!(UpiType = UpiCollect)),
@@ -313,6 +316,9 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
             api_enums::PaymentMethodType::Paze => Ok(dirval!(WalletType = Paze)),
             api_enums::PaymentMethodType::DirectCarrierBilling => {
                 Ok(dirval!(MobilePaymentType = DirectCarrierBilling))
+            }
+            api_enums::PaymentMethodType::IndonesianBankTransfer => {
+                Ok(dirval!(BankTransferType = IndonesianBankTransfer))
             }
         }
     }

@@ -3,7 +3,9 @@ use std::collections::{HashMap, HashSet};
 use api_models::{
     open_router as or_types,
     routing::{
-        self as api_routing, ConnectorSelection, ConnectorVolumeSplit, RoutableConnectorChoice,
+        self as api_routing, ComparisonType, ConnectorSelection, ConnectorVolumeSplit,
+        DeRoutableConnectorChoice, MetadataValue, NumberComparison, RoutableConnectorChoice,
+        RoutingEvaluateRequest, RoutingEvaluateResponse, ValueType,
     },
 };
 use async_trait::async_trait;
@@ -298,12 +300,21 @@ pub async fn perform_decision_euclid_routing(
     input: BackendInput,
     created_by: String,
     events_wrapper: RoutingEventsWrapper<RoutingEvaluateRequest>,
+    fallback_output: Vec<RoutableConnectorChoice>,
 ) -> RoutingResult<Vec<RoutableConnectorChoice>> {
     logger::debug!("decision_engine_euclid: evaluate api call for euclid routing evaluation");
 
     let mut events_wrapper = events_wrapper;
+    let fallback_output = fallback_output
+        .into_iter()
+        .map(|c| DeRoutableConnectorChoice {
+            gateway_name: c.connector,
+            gateway_id: c.merchant_connector_id,
+        })
+        .collect::<Vec<_>>();
 
-    let routing_request = convert_backend_input_to_routing_eval(created_by, input)?;
+    let routing_request =
+        convert_backend_input_to_routing_eval(created_by, input, fallback_output)?;
     events_wrapper.set_request_body(routing_request.clone());
 
     let event_response = EuclidApiClient::send_decision_engine_request(
@@ -515,6 +526,7 @@ pub struct ListRountingAlgorithmsRequest {
 pub fn convert_backend_input_to_routing_eval(
     created_by: String,
     input: BackendInput,
+    fallback_output: Vec<DeRoutableConnectorChoice>,
 ) -> RoutingResult<RoutingEvaluateRequest> {
     let mut params: HashMap<String, Option<ValueType>> = HashMap::new();
 
@@ -631,6 +643,7 @@ pub fn convert_backend_input_to_routing_eval(
     Ok(RoutingEvaluateRequest {
         created_by,
         parameters: params,
+        fallback_output,
     })
 }
 
@@ -670,97 +683,6 @@ impl DecisionEngineErrorsInterface for or_types::ErrorResponse {
             self.error_message.clone()
         ))
     }
-}
-
-//TODO: temporary change will be refactored afterwards
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
-pub struct RoutingEvaluateRequest {
-    pub created_by: String,
-    pub parameters: HashMap<String, Option<ValueType>>,
-}
-
-#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
-pub struct RoutingEvaluateResponse {
-    pub status: String,
-    pub output: serde_json::Value,
-    #[serde(deserialize_with = "deserialize_connector_choices")]
-    pub evaluated_output: Vec<RoutableConnectorChoice>,
-    #[serde(deserialize_with = "deserialize_connector_choices")]
-    pub eligible_connectors: Vec<RoutableConnectorChoice>,
-}
-
-/// Routable Connector chosen for a payment
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct DeRoutableConnectorChoice {
-    pub gateway_name: common_enums::RoutableConnectors,
-    pub gateway_id: Option<id_type::MerchantConnectorAccountId>,
-}
-
-fn deserialize_connector_choices<'de, D>(
-    deserializer: D,
-) -> Result<Vec<RoutableConnectorChoice>, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    let infos = Vec::<DeRoutableConnectorChoice>::deserialize(deserializer)?;
-    Ok(infos
-        .into_iter()
-        .map(RoutableConnectorChoice::from)
-        .collect())
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct MetadataValue {
-    pub key: String,
-    pub value: String,
-}
-
-/// Represents a value in the DSL
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(tag = "type", content = "value", rename_all = "snake_case")]
-pub enum ValueType {
-    /// Represents a number literal
-    Number(u64),
-    /// Represents an enum variant
-    EnumVariant(String),
-    /// Represents a Metadata variant
-    MetadataVariant(MetadataValue),
-    /// Represents a arbitrary String value
-    StrValue(String),
-    /// Represents a global reference, which is a reference to a global variable
-    GlobalRef(String),
-    /// Represents an array of numbers. This is basically used for
-    /// "one of the given numbers" operations
-    /// eg: payment.method.amount = (1, 2, 3)
-    NumberArray(Vec<u64>),
-    /// Similar to NumberArray but for enum variants
-    /// eg: payment.method.cardtype = (debit, credit)
-    EnumVariantArray(Vec<String>),
-    /// Like a number array but can include comparisons. Useful for
-    /// conditions like "500 < amount < 1000"
-    /// eg: payment.amount = (> 500, < 1000)
-    NumberComparisonArray(Vec<NumberComparison>),
-}
-
-pub type Metadata = HashMap<String, serde_json::Value>;
-/// Represents a number comparison for "NumberComparisonArrayValue"
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct NumberComparison {
-    pub comparison_type: ComparisonType,
-    pub number: u64,
-}
-
-/// Conditional comparison type
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ComparisonType {
-    Equal,
-    NotEqual,
-    LessThan,
-    LessThanEqual,
-    GreaterThan,
-    GreaterThanEqual,
 }
 
 /// Represents a single comparison condition.
@@ -862,16 +784,6 @@ impl ConnectorInfo {
     }
 }
 
-impl From<DeRoutableConnectorChoice> for RoutableConnectorChoice {
-    fn from(choice: DeRoutableConnectorChoice) -> Self {
-        Self {
-            choice_kind: api_routing::RoutableChoiceKind::FullStruct,
-            connector: choice.gateway_name,
-            merchant_connector_id: choice.gateway_id,
-        }
-    }
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Output {
@@ -883,6 +795,7 @@ pub enum Output {
 
 pub type Globals = HashMap<String, HashSet<ValueType>>;
 
+pub type Metadata = HashMap<String, serde_json::Value>;
 /// The program, having a default connector selection and
 /// a bunch of rules. Also can hold arbitrary metadata.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -1219,7 +1132,7 @@ where
     String(String),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct RoutingEventsResponse<Res>
 where
     Res: Serialize + serde::de::DeserializeOwned + Clone,

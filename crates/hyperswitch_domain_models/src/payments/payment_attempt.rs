@@ -373,6 +373,19 @@ pub struct ErrorDetails {
     pub network_error_message: Option<String>,
 }
 
+#[cfg(feature = "v2")]
+impl From<ErrorDetails> for api_models::payments::RecordAttemptErrorDetails {
+    fn from(error_details: ErrorDetails) -> Self {
+        Self {
+            code: error_details.code,
+            message: error_details.message,
+            network_decline_code: error_details.network_decline_code,
+            network_advice_code: error_details.network_advice_code,
+            network_error_message: error_details.network_error_message,
+        }
+    }
+}
+
 /// Domain model for the payment attempt.
 /// Few fields which are related are grouped together for better readability and understandability.
 /// These fields will be flattened and stored in the database in individual columns
@@ -1238,7 +1251,6 @@ pub enum PaymentAttemptUpdate {
         straight_through_algorithm: Option<serde_json::Value>,
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
-        amount_capturable: Option<MinorUnit>,
         updated_by: String,
         merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
         external_three_ds_authentication_attempted: Option<bool>,
@@ -1450,7 +1462,14 @@ impl PaymentAttemptUpdate {
                 tax_amount,
                 updated_by,
                 merchant_connector_id,
-                routing_approach,
+                routing_approach: routing_approach.map(|approach| match approach {
+                    storage_enums::RoutingApproach::Other(_) => {
+                        // we need to make sure Other variant is not stored in DB, in the rare case
+                        // where we attempt to store an unknown value, we default to the default value
+                        storage_enums::RoutingApproach::default()
+                    }
+                    _ => approach,
+                }),
             },
             Self::AuthenticationTypeUpdate {
                 authentication_type,
@@ -1501,7 +1520,6 @@ impl PaymentAttemptUpdate {
                 straight_through_algorithm,
                 error_code,
                 error_message,
-                amount_capturable,
                 fingerprint_id,
                 updated_by,
                 merchant_connector_id: connector_id,
@@ -1534,7 +1552,6 @@ impl PaymentAttemptUpdate {
                 straight_through_algorithm,
                 error_code,
                 error_message,
-                amount_capturable,
                 surcharge_amount: net_amount.get_surcharge_amount(),
                 tax_amount: net_amount.get_tax_on_surcharge(),
                 fingerprint_id,
@@ -1552,7 +1569,14 @@ impl PaymentAttemptUpdate {
                 order_tax_amount: net_amount.get_order_tax_amount(),
                 connector_mandate_detail,
                 card_discovery,
-                routing_approach,
+                routing_approach: routing_approach.map(|approach| match approach {
+                    // we need to make sure Other variant is not stored in DB, in the rare case
+                    // where we attempt to store an unknown value, we default to the default value
+                    storage_enums::RoutingApproach::Other(_) => {
+                        storage_enums::RoutingApproach::default()
+                    }
+                    _ => approach,
+                }),
                 connector_request_reference_id,
             },
             Self::VoidUpdate {

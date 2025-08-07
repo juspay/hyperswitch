@@ -10,9 +10,9 @@ use crate::{disputes, enums as api_enums, mandates, payments, refunds};
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum IncomingWebhookEvent {
-    /// Authorization + Capture success
-    PaymentIntentFailure,
     /// Authorization + Capture failure
+    PaymentIntentFailure,
+    /// Authorization + Capture success
     PaymentIntentSuccess,
     PaymentIntentProcessing,
     PaymentIntentPartiallyFunded,
@@ -22,6 +22,7 @@ pub enum IncomingWebhookEvent {
     PaymentIntentAuthorizationFailure,
     PaymentIntentCaptureSuccess,
     PaymentIntentCaptureFailure,
+    PaymentIntentExpired,
     PaymentActionRequired,
     EventNotSupported,
     SourceChargeable,
@@ -199,7 +200,8 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             | IncomingWebhookEvent::PaymentIntentAuthorizationSuccess
             | IncomingWebhookEvent::PaymentIntentAuthorizationFailure
             | IncomingWebhookEvent::PaymentIntentCaptureSuccess
-            | IncomingWebhookEvent::PaymentIntentCaptureFailure => Self::Payment,
+            | IncomingWebhookEvent::PaymentIntentCaptureFailure
+            | IncomingWebhookEvent::PaymentIntentExpired => Self::Payment,
             IncomingWebhookEvent::EventNotSupported => Self::ReturnResponse,
             IncomingWebhookEvent::RefundSuccess | IncomingWebhookEvent::RefundFailure => {
                 Self::Refund
@@ -240,32 +242,32 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
 
 pub type MerchantWebhookConfig = std::collections::HashSet<IncomingWebhookEvent>;
 
-#[derive(Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub enum RefundIdType {
     RefundId(String),
     ConnectorRefundId(String),
 }
 
-#[derive(Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub enum MandateIdType {
     MandateId(String),
     ConnectorMandateId(String),
 }
 
-#[derive(Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub enum AuthenticationIdType {
     AuthenticationId(common_utils::id_type::AuthenticationId),
     ConnectorAuthenticationId(String),
 }
 
 #[cfg(feature = "payouts")]
-#[derive(Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub enum PayoutIdType {
     PayoutAttemptId(String),
     ConnectorPayoutId(String),
 }
 
-#[derive(Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub enum ObjectReferenceId {
     PaymentId(payments::PaymentIdType),
     RefundId(RefundIdType),
@@ -278,7 +280,7 @@ pub enum ObjectReferenceId {
 }
 
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
-#[derive(Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub enum InvoiceIdType {
     ConnectorInvoiceId(String),
 }

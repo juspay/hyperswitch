@@ -556,7 +556,7 @@
             ))
             )
         ),
-        (status = 400, description = "Missing Mandatory fields")
+        (status = 400, description = "Missing Mandatory fields", body = GenericErrorResponseOpenApi),
     ),
     tag = "Payments",
     operation_id = "Create a Payment",
@@ -636,7 +636,7 @@ pub fn payments_retrieve() {}
     ),
     responses(
         (status = 200, description = "Payment updated", body = PaymentsCreateResponseOpenApi),
-        (status = 400, description = "Missing mandatory fields")
+        (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
     ),
     tag = "Payments",
     operation_id = "Update a Payment",
@@ -691,7 +691,7 @@ pub fn payments_update() {}
     ),
     responses(
         (status = 200, description = "Payment confirmed", body = PaymentsCreateResponseOpenApi),
-        (status = 400, description = "Missing mandatory fields")
+        (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
     ),
     tag = "Payments",
     operation_id = "Confirm a Payment",
@@ -731,7 +731,7 @@ pub fn payments_confirm() {}
     ),
     responses(
         (status = 200, description = "Payment captured", body = PaymentsResponse),
-        (status = 400, description = "Missing mandatory fields")
+        (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
     ),
     tag = "Payments",
     operation_id = "Capture a Payment",
@@ -749,7 +749,7 @@ pub fn payments_capture() {}
   request_body=PaymentsSessionRequest,
   responses(
       (status = 200, description = "Payment session object created or session token was retrieved from wallets", body = PaymentsSessionResponse),
-      (status = 400, description = "Missing mandatory fields")
+      (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
   ),
   tag = "Payments",
   operation_id = "Create Session tokens for a Payment",
@@ -770,7 +770,7 @@ pub fn payments_connector_session() {}
     request_body=PaymentsSessionRequest,
     responses(
         (status = 200, description = "Payment session object created or session token was retrieved from wallets", body = PaymentsSessionResponse),
-        (status = 400, description = "Missing mandatory fields")
+        (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
     ),
     tag = "Payments",
     operation_id = "Create V2 Session tokens for a Payment",
@@ -804,13 +804,47 @@ pub fn payments_connector_session() {}
     ),
     responses(
         (status = 200, description = "Payment canceled"),
-        (status = 400, description = "Missing mandatory fields")
+        (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
     ),
     tag = "Payments",
     operation_id = "Cancel a Payment",
     security(("api_key" = []))
 )]
 pub fn payments_cancel() {}
+
+/// Payments - Cancel Post Capture
+///
+/// A Payment could can be cancelled when it is in one of these statuses: `succeeded`, `partially_captured`, `partially_captured_and_capturable`.
+#[utoipa::path(
+    post,
+    path = "/payments/{payment_id}/cancel_post_capture",
+    request_body (
+        content = PaymentsCancelPostCaptureRequest,
+        examples(
+            (
+                "Cancel the payment post capture with minimal fields" = (
+                    value = json!({})
+                )
+            ),
+            (
+                "Cancel the payment post capture with cancellation reason" = (
+                    value = json!({"cancellation_reason": "requested_by_customer"})
+                )
+            ),
+        )
+    ),
+    params(
+        ("payment_id" = String, Path, description = "The identifier for payment")
+    ),
+    responses(
+        (status = 200, description = "Payment canceled post capture"),
+        (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
+    ),
+    tag = "Payments",
+    operation_id = "Cancel a Payment Post Capture",
+    security(("api_key" = []))
+)]
+pub fn payments_cancel_post_capture() {}
 
 /// Payments - List
 ///
@@ -879,7 +913,7 @@ pub async fn profile_payments_list() {}
   ),
   responses(
       (status = 200, description = "Payment authorized amount incremented", body = PaymentsResponse),
-      (status = 400, description = "Missing mandatory fields")
+      (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
   ),
   tag = "Payments",
   operation_id = "Increment authorized amount for a Payment",
@@ -899,7 +933,7 @@ pub fn payments_incremental_authorization() {}
   ),
   responses(
       (status = 200, description = "Authentication created", body = PaymentsExternalAuthenticationResponse),
-      (status = 400, description = "Missing mandatory fields")
+      (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
   ),
   tag = "Payments",
   operation_id = "Initiate external authentication for a Payment",
@@ -917,7 +951,7 @@ pub fn payments_external_authentication() {}
   ),
  responses(
       (status = 200, description = "Payments Complete Authorize Success", body = PaymentsResponse),
-      (status = 400, description = "Missing mandatory fields")
+      (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
   ),
   tag = "Payments",
   operation_id = "Complete Authorize a Payment",
@@ -932,7 +966,7 @@ pub fn payments_complete_authorize() {}
     request_body=PaymentsDynamicTaxCalculationRequest,
     responses(
         (status = 200, description = "Tax Calculation is done", body = PaymentsDynamicTaxCalculationResponse),
-        (status = 400, description = "Missing mandatory fields")
+        (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
     ),
     tag = "Payments",
     operation_id = "Create Tax Calculation for a Payment",
@@ -951,7 +985,7 @@ pub fn payments_dynamic_tax_calculation() {}
     request_body=PaymentsPostSessionTokensRequest,
     responses(
         (status = 200, description = "Post Session Token is done", body = PaymentsPostSessionTokensResponse),
-        (status = 400, description = "Missing mandatory fields")
+        (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
     ),
     tag = "Payments",
     operation_id = "Create Post Session Tokens for a Payment",
@@ -970,7 +1004,7 @@ pub fn payments_post_session_tokens() {}
     request_body=PaymentsUpdateMetadataRequest,
     responses(
         (status = 200, description = "Metadata updated successfully", body = PaymentsUpdateMetadataResponse),
-        (status = 400, description = "Missing mandatory fields")
+        (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
     ),
     tag = "Payments",
     operation_id = "Update Metadata for a Payment",
@@ -998,7 +1032,7 @@ pub fn payments_update_metadata() {}
   ),
   responses(
       (status = 200, description = "Payment created", body = PaymentsIntentResponse),
-      (status = 400, description = "Missing Mandatory fields")
+      (status = 400, description = "Missing Mandatory fields", body = GenericErrorResponseOpenApi)
   ),
   tag = "Payments",
   operation_id = "Create a Payment Intent",
@@ -1102,7 +1136,7 @@ pub fn payments_update_intent() {}
   ),
   responses(
       (status = 200, description = "Payment created", body = PaymentsResponse),
-      (status = 400, description = "Missing Mandatory fields")
+      (status = 400, description = "Missing Mandatory fields", body = GenericErrorResponseOpenApi)
   ),
   tag = "Payments",
   operation_id = "Confirm Payment Intent",
@@ -1175,7 +1209,7 @@ pub fn payment_status() {}
   ),
   responses(
       (status = 200, description = "Payment created", body = PaymentsResponse),
-      (status = 400, description = "Missing Mandatory fields")
+      (status = 400, description = "Missing Mandatory fields", body = GenericErrorResponseOpenApi)
   ),
   tag = "Payments",
   operation_id = "Create and Confirm Payment Intent",

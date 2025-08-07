@@ -16,12 +16,11 @@ use masking::PeekInterface;
 use serde::de;
 use utoipa::{schema, ToSchema};
 
+#[cfg(feature = "v1")]
+use crate::payments::BankCodeResponse;
 #[cfg(feature = "payouts")]
 use crate::payouts;
-use crate::{
-    admin, enums as api_enums, open_router,
-    payments::{self, BankCodeResponse},
-};
+use crate::{admin, enums as api_enums, open_router, payments};
 
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -1053,6 +1052,35 @@ impl From<PaymentMethodDataWalletInfo> for payments::additional_info::WalletAddi
     }
 }
 
+impl From<payments::ApplepayPaymentMethod> for PaymentMethodDataWalletInfo {
+    fn from(item: payments::ApplepayPaymentMethod) -> Self {
+        Self {
+            last4: item
+                .display_name
+                .chars()
+                .rev()
+                .take(4)
+                .collect::<Vec<_>>()
+                .into_iter()
+                .rev()
+                .collect(),
+            card_network: item.network,
+            card_type: Some(item.pm_type),
+        }
+    }
+}
+
+impl TryFrom<PaymentMethodDataWalletInfo> for payments::ApplepayPaymentMethod {
+    type Error = error_stack::Report<errors::ValidationError>;
+    fn try_from(item: PaymentMethodDataWalletInfo) -> Result<Self, Self::Error> {
+        Ok(Self {
+            display_name: item.last4,
+            network: item.card_network,
+            pm_type: item.card_type.get_required_value("card_type")?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BankAccountTokenData {
     pub payment_method_type: api_enums::PaymentMethodType,
@@ -1442,7 +1470,10 @@ pub enum PaymentMethodSubtypeSpecificData {
         card_networks: Vec<CardNetworkTypes>,
     },
     #[schema(title = "bank")]
-    Bank { bank_names: Vec<BankCodeResponse> },
+    Bank {
+        #[schema(value_type = BankNames)]
+        bank_names: Vec<common_enums::BankNames>,
+    },
 }
 
 #[cfg(feature = "v2")]
@@ -1747,7 +1778,7 @@ impl<'de> serde::Deserialize<'de> for PaymentMethodListRequest {
 //List Payment Method
 #[derive(Debug, Clone, serde::Serialize, Default, ToSchema)]
 #[serde(deny_unknown_fields)]
-pub struct PaymentMethodListRequest {
+pub struct ListMethodsForPaymentMethodsRequest {
     /// This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK
     #[schema(max_length = 30, min_length = 30, example = "secret_k2uj3he2893eiu2d")]
     pub client_secret: Option<String>,
@@ -1778,7 +1809,7 @@ pub struct PaymentMethodListRequest {
 }
 
 #[cfg(feature = "v2")]
-impl<'de> serde::Deserialize<'de> for PaymentMethodListRequest {
+impl<'de> serde::Deserialize<'de> for ListMethodsForPaymentMethodsRequest {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -1786,7 +1817,7 @@ impl<'de> serde::Deserialize<'de> for PaymentMethodListRequest {
         struct FieldVisitor;
 
         impl<'de> de::Visitor<'de> for FieldVisitor {
-            type Value = PaymentMethodListRequest;
+            type Value = ListMethodsForPaymentMethodsRequest;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 formatter.write_str("Failed while deserializing as map")
@@ -1796,7 +1827,7 @@ impl<'de> serde::Deserialize<'de> for PaymentMethodListRequest {
             where
                 A: de::MapAccess<'de>,
             {
-                let mut output = PaymentMethodListRequest::default();
+                let mut output = ListMethodsForPaymentMethodsRequest::default();
 
                 while let Some(key) = map.next_key()? {
                     match key {
@@ -2591,6 +2622,7 @@ impl PaymentMethodRecord {
                 zip: self.billing_address_zip.clone(),
                 first_name: self.billing_address_first_name.clone(),
                 last_name: self.billing_address_last_name.clone(),
+                origin_zip: None,
             })
         } else {
             None

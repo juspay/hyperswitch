@@ -5,7 +5,7 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentConfirmData;
-use masking::ExposeInterface;
+use masking::{ExposeInterface, Secret};
 use unified_connector_service_client::payments as payments_grpc;
 
 // use router_env::tracing::Instrument;
@@ -20,6 +20,7 @@ use crate::{
         unified_connector_service::{
             build_unified_connector_service_auth_metadata,
             handle_unified_connector_service_response_for_payment_authorize,
+            handle_unified_connector_service_response_for_payment_repeat,
         },
     },
     logger,
@@ -431,7 +432,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         state: &SessionState,
         connector: &api::ConnectorData,
         should_continue_payment: bool,
-    ) -> RouterResult<types::CreateOrderResult> {
+    ) -> RouterResult<Option<types::CreateOrderResult>> {
         if connector
             .connector_name
             .requires_order_creation_before_payment(self.payment_method)
@@ -471,7 +472,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     if let types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id } =
                         res
                     {
-                        Ok(Some(order_id))
+                        Ok(order_id)
                     } else {
                         Err(error_stack::report!(ApiErrorResponse::InternalServerError)
                             .attach_printable(format!(
@@ -482,91 +483,56 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 Err(error) => Err(error),
             };
 
-            Ok(types::CreateOrderResult {
+            Ok(Some(types::CreateOrderResult {
                 create_order_result: create_order_resp,
-                is_create_order_performed: true,
-            })
+            }))
         } else {
-            Ok(types::CreateOrderResult {
-                create_order_result: Ok(None),
-                is_create_order_performed: false,
-            })
+            // If the connector does not require order creation, return None
+            Ok(None)
         }
     }
 
-    async fn update_router_data_with_create_order_result(
+    fn update_router_data_with_create_order_response(
         &mut self,
         create_order_result: types::CreateOrderResult,
-        should_continue_further: bool,
-    ) -> RouterResult<bool> {
-        if create_order_result.is_create_order_performed {
-            match create_order_result.create_order_result {
-                Ok(Some(order_id)) => {
-                    self.request.order_id = Some(order_id.clone());
-                    self.response =
-                        Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id });
-                    Ok(true)
-                }
-                Ok(None) => Err(error_stack::report!(ApiErrorResponse::InternalServerError)
-                    .attach_printable("Order Id not found."))?,
-                Err(err) => {
-                    self.response = Err(err.clone());
-                    Ok(false)
-                }
+    ) {
+        match create_order_result.create_order_result {
+            Ok(order_id) => {
+                self.request.order_id = Some(order_id.clone()); // ? why this is assigned here and ucs also wants this to populate data
+                self.response =
+                    Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id });
             }
-        } else {
-            Ok(should_continue_further)
+            Err(err) => {
+                self.response = Err(err.clone());
+            }
         }
     }
 
     async fn call_unified_connector_service<'a>(
         &mut self,
         state: &SessionState,
-        merchant_connector_account: helpers::MerchantConnectorAccountType,
+        #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
+        #[cfg(feature = "v2")]
+        merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         merchant_context: &domain::MerchantContext,
     ) -> RouterResult<()> {
-        let client = state
-            .grpc_client
-            .unified_connector_service_client
-            .clone()
-            .ok_or(ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to fetch Unified Connector Service client")?;
-
-        let payment_authorize_request =
-            payments_grpc::PaymentServiceAuthorizeRequest::foreign_try_from(self)
-                .change_context(ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to construct Payment Authorize Request")?;
-
-        let connector_auth_metadata = build_unified_connector_service_auth_metadata(
-            merchant_connector_account,
-            merchant_context,
-        )
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to construct request metadata")?;
-
-        let response = client
-            .payment_authorize(
-                payment_authorize_request,
-                connector_auth_metadata,
-                state.get_grpc_headers(),
+        if self.request.mandate_id.is_some() {
+            call_unified_connector_service_repeat_payment(
+                self,
+                state,
+                merchant_connector_account,
+                merchant_context,
             )
             .await
-            .change_context(ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to authorize payment")?;
-
-        let payment_authorize_response = response.into_inner();
-
-        let (status, router_data_response) =
-            handle_unified_connector_service_response_for_payment_authorize(
-                payment_authorize_response,
+        } else {
+            call_unified_connector_service_authorize(
+                self,
+                state,
+                merchant_connector_account,
+                merchant_context,
             )
-            .change_context(ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to deserialize UCS response")?;
-
-        self.status = status;
-        self.response = router_data_response;
-
-        Ok(())
+            .await
+        }
     }
 }
 
@@ -852,4 +818,118 @@ async fn process_capture_flow(
     router_data.status = updated_status;
     router_data.response = Ok(updated_response);
     Ok(router_data)
+}
+
+async fn call_unified_connector_service_authorize(
+    router_data: &mut types::RouterData<
+        api::Authorize,
+        types::PaymentsAuthorizeData,
+        types::PaymentsResponseData,
+    >,
+    state: &SessionState,
+    #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
+    #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
+    merchant_context: &domain::MerchantContext,
+) -> RouterResult<()> {
+    let client = state
+        .grpc_client
+        .unified_connector_service_client
+        .clone()
+        .ok_or(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch Unified Connector Service client")?;
+
+    let payment_authorize_request =
+        payments_grpc::PaymentServiceAuthorizeRequest::foreign_try_from(router_data)
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to construct Payment Authorize Request")?;
+
+    let connector_auth_metadata =
+        build_unified_connector_service_auth_metadata(merchant_connector_account, merchant_context)
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to construct request metadata")?;
+
+    let response = client
+        .payment_authorize(
+            payment_authorize_request,
+            connector_auth_metadata,
+            state.get_grpc_headers(),
+        )
+        .await
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to authorize payment")?;
+
+    let payment_authorize_response = response.into_inner();
+
+    let (status, router_data_response, status_code) =
+        handle_unified_connector_service_response_for_payment_authorize(
+            payment_authorize_response.clone(),
+        )
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to deserialize UCS response")?;
+
+    router_data.status = status;
+    router_data.response = router_data_response;
+    router_data.raw_connector_response = payment_authorize_response
+        .raw_connector_response
+        .map(Secret::new);
+    router_data.connector_http_status_code = Some(status_code);
+
+    Ok(())
+}
+
+async fn call_unified_connector_service_repeat_payment(
+    router_data: &mut types::RouterData<
+        api::Authorize,
+        types::PaymentsAuthorizeData,
+        types::PaymentsResponseData,
+    >,
+    state: &SessionState,
+    #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
+    #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
+    merchant_context: &domain::MerchantContext,
+) -> RouterResult<()> {
+    let client = state
+        .grpc_client
+        .unified_connector_service_client
+        .clone()
+        .ok_or(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch Unified Connector Service client")?;
+
+    let payment_repeat_request =
+        payments_grpc::PaymentServiceRepeatEverythingRequest::foreign_try_from(router_data)
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to construct Payment Authorize Request")?;
+
+    let connector_auth_metadata =
+        build_unified_connector_service_auth_metadata(merchant_connector_account, merchant_context)
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to construct request metadata")?;
+
+    let response = client
+        .payment_repeat(
+            payment_repeat_request,
+            connector_auth_metadata,
+            state.get_grpc_headers(),
+        )
+        .await
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to authorize payment")?;
+
+    let payment_repeat_response = response.into_inner();
+
+    let (status, router_data_response, status_code) =
+        handle_unified_connector_service_response_for_payment_repeat(
+            payment_repeat_response.clone(),
+        )
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to deserialize UCS response")?;
+
+    router_data.status = status;
+    router_data.response = router_data_response;
+    router_data.raw_connector_response = payment_repeat_response
+        .raw_connector_response
+        .map(Secret::new);
+    router_data.connector_http_status_code = Some(status_code);
+
+    Ok(())
 }
