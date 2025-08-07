@@ -60,6 +60,21 @@ export const connectorDetails = {
         },
       },
     },
+    MotoPaymentIntent: {
+      Request: {
+        currency: "USD",
+        amount: 5000,
+        customer_acceptance: null,
+        payment_channel: "moto_order",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+          payment_channel: "moto_order",
+        },
+      },
+    },
     PaymentIntentWithShippingCost: {
       Request: {
         currency: "USD",
