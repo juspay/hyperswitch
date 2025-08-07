@@ -1083,6 +1083,67 @@
         ]
       }
     },
+    "/payments/{payment_id}/cancel_post_capture": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Cancel Post Capture",
+        "description": "A Payment could can be cancelled when it is in one of these statuses: `succeeded`, `partially_captured`, `partially_captured_and_capturable`.",
+        "operationId": "Cancel a Payment Post Capture",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsCancelPostCaptureRequest"
+              },
+              "examples": {
+                "Cancel the payment post capture with cancellation reason": {
+                  "value": {
+                    "cancellation_reason": "requested_by_customer"
+                  }
+                },
+                "Cancel the payment post capture with minimal fields": {
+                  "value": {}
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payment canceled post capture"
+          },
+          "400": {
+            "description": "Missing mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/payments/list": {
       "get": {
         "tags": [
@@ -4078,6 +4139,16 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "force_sync",
+            "in": "query",
+            "description": "Decider to enable or disable the connector call for dispute retrieve request",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "nullable": true
             }
           }
         ],
@@ -7894,12 +7965,14 @@
           "authorizing",
           "cod_initiated",
           "voided",
+          "voided_post_charge",
           "void_initiated",
           "capture_initiated",
           "capture_failed",
           "void_failed",
           "auto_refunded",
           "partial_charged",
+          "partially_authorized",
           "partial_charged_and_chargeable",
           "unresolved",
           "pending",
@@ -14286,7 +14359,9 @@
         "enum": [
           "pre_dispute",
           "dispute",
-          "pre_arbitration"
+          "pre_arbitration",
+          "arbitration",
+          "dispute_reversal"
         ]
       },
       "DisputeStatus": {
@@ -14734,7 +14809,9 @@
           "payment_failed",
           "payment_processing",
           "payment_cancelled",
+          "payment_cancelled_post_capture",
           "payment_authorized",
+          "payment_partially_authorized",
           "payment_captured",
           "payment_expired",
           "action_required",
@@ -16581,6 +16658,7 @@
           "succeeded",
           "failed",
           "cancelled",
+          "cancelled_post_capture",
           "processing",
           "requires_customer_action",
           "requires_merchant_action",
@@ -16589,6 +16667,7 @@
           "requires_capture",
           "partially_captured",
           "partially_captured_and_capturable",
+          "partially_authorized_and_requires_capture",
           "conflicted",
           "expired"
         ]
@@ -22069,6 +22148,17 @@
           "recurring_mandate"
         ]
       },
+      "PaymentsCancelPostCaptureRequest": {
+        "type": "object",
+        "description": "Request to cancel a payment when the payment is already captured",
+        "properties": {
+          "cancellation_reason": {
+            "type": "string",
+            "description": "The reason for the payment cancel",
+            "nullable": true
+          }
+        }
+      },
       "PaymentsCancelRequest": {
         "type": "object",
         "properties": {
@@ -22610,6 +22700,11 @@
             "format": "date-time",
             "description": "Date the payer placed the order.",
             "nullable": true
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
+            "nullable": true
           }
         }
       },
@@ -23077,6 +23172,11 @@
             "type": "string",
             "format": "date-time",
             "description": "Date the payer placed the order.",
+            "nullable": true
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
             "nullable": true
           }
         }
@@ -23678,6 +23778,11 @@
           "whole_connector_response": {
             "type": "string",
             "description": "Contains whole connector response",
+            "nullable": true
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
             "nullable": true
           }
         }
@@ -24437,6 +24542,11 @@
             "format": "date-time",
             "description": "Date the payer placed the order.",
             "nullable": true
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -25064,6 +25174,11 @@
             "type": "string",
             "description": "Contains whole connector response",
             "nullable": true
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
+            "nullable": true
           }
         }
       },
@@ -25664,6 +25779,11 @@
             "type": "string",
             "format": "date-time",
             "description": "Date the payer placed the order.",
+            "nullable": true
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
             "nullable": true
           }
         }
@@ -28041,6 +28161,13 @@
               }
             ],
             "nullable": true
+          },
+          "dispute_polling_interval": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Time interval (in hours) for polling the connector to check dispute statuses",
+            "example": 2,
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -28359,6 +28486,13 @@
               }
             ],
             "nullable": true
+          },
+          "dispute_polling_interval": {
+            "type": "integer",
+            "format": "int32",
+            "example": 2,
+            "nullable": true,
+            "minimum": 0
           }
         }
       },
@@ -31718,6 +31852,7 @@
           "AUTHORIZING",
           "C_O_D_INITIATED",
           "VOIDED",
+          "VOIDED_POST_CHARGE",
           "VOID_INITIATED",
           "NOP",
           "CAPTURE_INITIATED",

@@ -436,6 +436,7 @@ pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
         | AttemptStatus::Authorizing
         | AttemptStatus::CodInitiated
         | AttemptStatus::Voided
+        | AttemptStatus::VoidedPostCharge
         | AttemptStatus::VoidInitiated
         | AttemptStatus::CaptureInitiated
         | AttemptStatus::AutoRefunded
@@ -446,7 +447,8 @@ pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
         | AttemptStatus::PaymentMethodAwaited
         | AttemptStatus::ConfirmationAwaited
         | AttemptStatus::DeviceDataCollectionPending
-        | AttemptStatus::IntegrityFailure => false,
+        | AttemptStatus::IntegrityFailure
+        | AttemptStatus::PartiallyAuthorized => false,
     }
 }
 
@@ -6211,6 +6213,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         order_id: None,
         locale: None,
         payment_channel: None,
+        enable_partial_authorization: data.request.enable_partial_authorization,
     }
 }
 
@@ -6271,6 +6274,7 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         raw_connector_response: data.raw_connector_response.clone(),
         is_payment_id_from_merchant: data.is_payment_id_from_merchant,
         l2_l3_data: data.l2_l3_data.clone(),
+        minor_amount_capturable: data.minor_amount_capturable,
     }
 }
 
@@ -6302,6 +6306,7 @@ impl FrmTransactionRouterDataRequest for FrmTransactionRouterData {
             | AttemptStatus::RouterDeclined
             | AttemptStatus::AuthorizationFailed
             | AttemptStatus::Voided
+            | AttemptStatus::VoidedPostCharge
             | AttemptStatus::CaptureFailed
             | AttemptStatus::Failure
             | AttemptStatus::AutoRefunded
@@ -6311,7 +6316,8 @@ impl FrmTransactionRouterDataRequest for FrmTransactionRouterData {
             | AttemptStatus::PartialChargedAndChargeable
             | AttemptStatus::Authorized
             | AttemptStatus::Charged
-            | AttemptStatus::IntegrityFailure => Some(true),
+            | AttemptStatus::IntegrityFailure
+            | AttemptStatus::PartiallyAuthorized => Some(true),
 
             AttemptStatus::Started
             | AttemptStatus::AuthenticationPending
