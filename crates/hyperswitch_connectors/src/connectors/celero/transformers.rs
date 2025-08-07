@@ -280,22 +280,15 @@ pub enum CeleroResponseStatus {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
 pub enum CeleroTransactionStatus {
-    #[serde(alias = "approved", alias = "Approved", alias = "APPROVED")]
     Approved,
-    #[serde(alias = "declined", alias = "Declined", alias = "DECLINED")]
     Declined,
-    #[serde(alias = "error", alias = "Error", alias = "ERROR")]
     Error,
-    #[serde(alias = "pending", alias = "Pending", alias = "PENDING")]
     Pending,
-    #[serde(alias = "pending_settlement", alias = "PENDING_SETTLEMENT")]
     PendingSettlement,
-    #[serde(alias = "settled", alias = "Settled", alias = "SETTLED")]
     Settled,
-    #[serde(alias = "voided", alias = "Voided", alias = "VOIDED")]
     Voided,
-    #[serde(alias = "reversed", alias = "Reversed", alias = "REVERSED")]
     Reversed,
 }
 
@@ -304,24 +297,20 @@ impl From<CeleroTransactionStatus> for common_enums::AttemptStatus {
         match item {
             CeleroTransactionStatus::Approved => Self::Authorized,
             CeleroTransactionStatus::Settled => Self::Charged,
-            CeleroTransactionStatus::Declined => Self::Failure,
-            CeleroTransactionStatus::Error => Self::Failure,
-            CeleroTransactionStatus::Pending => Self::Pending,
-            CeleroTransactionStatus::PendingSettlement => Self::Pending,
-            CeleroTransactionStatus::Voided => Self::Voided,
-            CeleroTransactionStatus::Reversed => Self::Voided,
+            CeleroTransactionStatus::Declined | CeleroTransactionStatus::Error => Self::Failure,
+            CeleroTransactionStatus::Pending | CeleroTransactionStatus::PendingSettlement => {
+                Self::Pending
+            }
+            CeleroTransactionStatus::Voided | CeleroTransactionStatus::Reversed => Self::Voided,
         }
     }
 }
-
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CeleroCardResponse {
     pub status: CeleroTransactionStatus,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub auth_code: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub processor_response_code: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub avs_response_code: Option<String>,
 }
 
@@ -338,16 +327,15 @@ pub enum TransactionType {
     Authorize,
 }
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
-pub struct CeleroTransactionData {
+#[serde_with::skip_serializing_none]
+pub struct CeleroTransactionResponseData {
     pub id: String,
     #[serde(rename = "type")]
     pub transaction_type: TransactionType,
     pub amount: i64,
     pub currency: String,
     pub response: CeleroPaymentMethodResponse,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub billing_address: Option<CeleroAddressResponse>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub shipping_address: Option<CeleroAddressResponse>,
 }
 
@@ -369,7 +357,7 @@ pub struct CeleroAddressResponse {
 pub struct CeleroPaymentsResponse {
     pub status: CeleroResponseStatus,
     pub msg: String,
-    pub data: Option<CeleroTransactionData>,
+    pub data: Option<CeleroTransactionResponseData>,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, CeleroPaymentsResponse, T, PaymentsResponseData>>
