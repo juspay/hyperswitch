@@ -1491,7 +1491,7 @@ impl RecoveryAction {
             }
         }
     }
-    
+
     #[allow(clippy::too_many_arguments)]
     pub async fn handle_action(
         &self,
