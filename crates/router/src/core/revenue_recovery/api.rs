@@ -274,17 +274,22 @@ pub async fn custom_revenue_recovery_core(
                 .to_string(),
         })?;
 
-    let recovery_intent = recovery_incoming::RevenueRecoveryInvoice::load_custom_recovery_intent(
-        request.clone(),
-        &state,
-        &req_state,
-        &merchant_context,
-        &profile,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::GenericNotFoundError {
-        message: "Failed to load recovery intent".to_string(),
-    })?;
+    let recovery_intent =
+        recovery_incoming::RevenueRecoveryInvoice::get_or_create_custom_recovery_intent(
+            request.clone(),
+            &state,
+            &req_state,
+            &merchant_context,
+            &profile,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+            message: format!(
+                "Failed to load recovery intent for merchant reference id : {:?}",
+                request.merchant_reference_id.to_owned()
+            )
+            .to_string(),
+        })?;
 
     let (revenue_recovery_attempt_data, updated_recovery_intent) =
         recovery_incoming::RevenueRecoveryAttempt::load_recovery_attempt_from_api(
@@ -298,7 +303,11 @@ pub async fn custom_revenue_recovery_core(
         )
         .await
         .change_context(errors::ApiErrorResponse::GenericNotFoundError {
-            message: "Failed to load recovery attempt".to_string(),
+            message: format!(
+                "Failed to load recovery attempt for merchant reference id : {:?}",
+                request.merchant_reference_id.to_owned()
+            )
+            .to_string(),
         })?;
 
     let intent_retry_count = updated_recovery_intent
@@ -341,6 +350,7 @@ pub async fn custom_revenue_recovery_core(
     let response = api_models::payments::RecoveryPaymentsResponse {
         id: updated_recovery_intent.payment_id.to_owned(),
         status: updated_recovery_intent.status.to_owned(),
+        merchant_reference_id: updated_recovery_intent.merchant_reference_id.to_owned(),
     };
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(

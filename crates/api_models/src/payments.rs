@@ -1699,8 +1699,7 @@ pub struct PaymentAttemptRecordResponse {
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
 pub struct RecoveryPaymentsResponse {
-    /// Unique identifier for the payment. This ensures idempotency for multiple payments
-    /// that have been done by a single merchant.
+    /// Unique identifier for the payment.
     #[schema(
         min_length = 30,
         max_length = 30,
@@ -1711,6 +1710,16 @@ pub struct RecoveryPaymentsResponse {
 
     #[schema(value_type = IntentStatus, example = "failed", default = "requires_confirmation")]
     pub status: api_enums::IntentStatus,
+
+    /// Unique identifier for the payment. This ensures idempotency for multiple payments
+    /// that have been done by a single merchant.
+    #[schema(
+        value_type = Option<String>,
+        min_length = 30,
+        max_length = 30,
+        example = "pay_mbabizu24mvu3mela5njyhpit4"
+    )]
+    pub merchant_reference_id: Option<id_type::PaymentReferenceId>,
 }
 
 #[cfg(feature = "v2")]
@@ -4336,7 +4345,7 @@ pub struct PaymentMethodDataResponseWithBilling {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, ToSchema, serde::Serialize)]
-pub struct CustomBillingPaymentMethodDataWithBilling {
+pub struct CustomRecoveryPaymentMethodData {
     #[serde(flatten)]
     pub units: HashMap<String, CardResponse>,
 }
@@ -9164,7 +9173,7 @@ pub struct RecoveryPaymentsCreate {
 
     /// primary payment method token at payment processor end.
     #[schema(value_type = String, example = "token_1234")]
-    pub primary_processor_payment_method_token: String,
+    pub primary_processor_payment_method_token: Secret<String>,
 
     /// The time at which payment attempt was created.
     #[schema(example = "2022-09-10T10:11:12Z")]
@@ -9177,7 +9186,7 @@ pub struct RecoveryPaymentsCreate {
 
     /// customer id at payment connector for which mandate is attached.
     #[schema(value_type = String, example = "cust_12345")]
-    pub connector_customer_id: String,
+    pub connector_customer_id: Secret<String>,
 
     /// Invoice billing started at billing connector end.
     #[schema(example = "2022-09-10T10:11:12Z")]
@@ -9185,10 +9194,10 @@ pub struct RecoveryPaymentsCreate {
     pub billing_started_at: Option<PrimitiveDateTime>,
 
     /// Transaction if reference at payment connector end.
-    pub connector_transaction_id: Option<String>,
+    pub connector_transaction_id: Option<Secret<String>>,
 
     /// payment method token units at payment processor end.
-    pub payment_method_units: CustomBillingPaymentMethodDataWithBilling,
+    pub payment_method_units: CustomRecoveryPaymentMethodData,
 
     /// Type of action that needs to be taken after consuming the recovery payload. For example: scheduling a failed payment or stopping the invoice.
     pub action: common_payments_types::RecoveryAction,
