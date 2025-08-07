@@ -677,7 +677,7 @@ impl RevenueRecoveryAttempt {
         let response = (recovery_attempt, updated_recovery_intent);
 
         let redis_result = self
-            .store_payment_processor_tokens_in_redis(state,&response.0)
+            .store_payment_processor_tokens_in_redis(state, &response.0)
             .await;
         match redis_result {
             Ok(_) => (),
@@ -950,7 +950,7 @@ impl RevenueRecoveryAttempt {
         // Extract required fields from the revenue recovery attempt data
         let connector_customer_id = revenue_recovery_attempt_data.connector_customer_id.clone();
 
-        let attempt_id=recovery_attempt.attempt_id.clone();
+        let attempt_id = recovery_attempt.attempt_id.clone();
 
         // Create PaymentProcessorTokenUnit from card_info and attempt data
         let mut new_tokens = std::collections::HashMap::new();
