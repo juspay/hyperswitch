@@ -950,7 +950,8 @@ impl RevenueRecoveryAttempt {
         // Extract required fields from the revenue recovery attempt data
         let connector_customer_id = revenue_recovery_attempt_data.connector_customer_id.clone();
 
-        let payment_id = recovery_intent.payment_id.clone();
+        // let payment_id = recovery_intent.payment_id.clone();
+        let attempt_id=recovery_attempt.attempt_id.clone();
 
         // Create PaymentProcessorTokenUnit from card_info and attempt data
         let mut new_tokens = std::collections::HashMap::new();
@@ -977,7 +978,7 @@ impl RevenueRecoveryAttempt {
             state,
             &connector_customer_id,
             new_tokens,
-            &payment_id,
+            &attempt_id,
         )
         .await
         .change_context(errors::RevenueRecoveryError::PaymentAttemptFetchFailed)

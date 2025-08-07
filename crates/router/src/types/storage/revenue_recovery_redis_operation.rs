@@ -32,7 +32,7 @@ pub struct PaymentProcessorTokenStatus {
     /// Payment processor token details including card information and token ID
     pub payment_processor_token_details: PaymentProcessorTokenDetails,
     /// Payment intent ID that originally inserted this token
-    pub inserted_by_payment_id: String,
+    pub inserted_by_attempt_id: String,
     /// Error code associated with the token failure
     pub error_code: Option<String>,
     /// Daily retry count history for the last 30 days (date -> retry_count)
@@ -485,7 +485,7 @@ impl RedisTokenManager {
         state: &SessionState,
         connector_customer_id: &str,
         new_tokens: HashMap<String, PaymentProcessorTokenUnit>,
-        inserted_by_payment_id: &id_type::GlobalPaymentId,
+        inserted_by_attempt_id: &id_type::GlobalAttemptId,
     ) -> CustomResult<(), errors::StorageError> {
         // Get existing tokens to check what already exists
         let existing_tokens =
@@ -500,7 +500,7 @@ impl RedisTokenManager {
             if !existing_tokens.contains_key(&token_id) {
                 let new_payment_processor_token = PaymentProcessorTokenStatus {
                     payment_processor_token_details: token_unit.payment_processor_token_details,
-                    inserted_by_payment_id: inserted_by_payment_id.get_string_repr().to_string(),
+                    inserted_by_attempt_id: inserted_by_attempt_id.get_string_repr().to_string(),
                     error_code: token_unit.error_code,
                     daily_retry_history: HashMap::new(),
                 };

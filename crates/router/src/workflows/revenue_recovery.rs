@@ -9,6 +9,14 @@ use common_utils::{
 use diesel_models::types::BillingConnectorPaymentMethodDetails;
 #[cfg(feature = "v2")]
 use error_stack::ResultExt;
+#[cfg(feature = "v2")]
+use common_enums::enums::CardNetwork;
+#[cfg(feature = "v2")]
+use time::Date;
+#[cfg(feature = "v2")]
+use std::collections::HashMap;
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptInterface;
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 use external_services::{
     date_time, grpc_client::revenue_recovery::recovery_decider_client as external_grpc_client,
@@ -44,7 +52,7 @@ use crate::{
         domain,
         storage::{
             revenue_recovery as pcr_storage_types,
-            revenue_recovery_redis_operation::RedisTokenManager,
+            revenue_recovery_redis_operation::PaymentProcessorTokenDetails,
         },
     },
 };
@@ -499,9 +507,13 @@ pub async fn get_best_psp_token_available(
     state: &SessionState,
     connector_customer_id: &str,
     payment_id: &id_type::GlobalPaymentId,
-    psp_token_units: crate::types::storage::revenue_recovery_redis_operation::PaymentProcessorTokenUnits,
-) -> Result<Option<String>, errors::ProcessTrackerError> {
+    merchant_context: domain::MerchantContext,
+) -> Result<Option<(PaymentProcessorTokenDetails, time::PrimitiveDateTime)>, errors::ProcessTrackerError> {
+
     use crate::types::storage::revenue_recovery_redis_operation::RedisTokenManager;
+    let db = &*state.store;
+    let key_manager_state = &(state).into();
+    let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
 
     
     // Step 1: Get existing tokens from Redis
@@ -510,6 +522,15 @@ pub async fn get_best_psp_token_available(
         &connector_customer_id,
     )
     .await?;
+
+    let payment_intent = db
+        .find_payment_intent_by_id(
+            key_manager_state,
+            &payment_id,
+            merchant_context.get_merchant_key_store(),
+            merchant_context.get_merchant_account().storage_scheme,
+        )
+        .await?;
 
     
 
@@ -531,38 +552,49 @@ pub async fn get_best_psp_token_available(
         return Ok(None);
     }
 
+
+
     let result = RedisTokenManager::get_tokens_with_retry_metadata(state, &existing_tokens);
 
-    // Step 4: Call decider (not implemented yet)
-    // TODO: Implement decider logic
-    // let _decider_result = call_payment_processor_token_decider(...).await?;
-    logger::debug!("Step 4: Decider call - TODO");
+    
+    let mut best_token_and_time: Option<(PaymentProcessorTokenDetails, time::PrimitiveDateTime)> = None;
 
-    // // Handle the result and ensure cleanup on error
-    // match result {
-    //     Ok(Some((token_id, _schedule_time))) => {
-    //         logger::info!(
-    //             connector_customer_id = %connector_customer_id.get_string_repr(),
-    //             payment_id = %payment_id.get_string_repr(),
-    //             selected_token_id = %token_id,
-    //             "Successfully selected best payment processor token"
-    //         );
-    //         Ok(Some(token_id))
-    //     }
-    //     Ok(None) => {
-    //         logger::warn!(
-    //             connector_customer_id = %connector_customer_id.get_string_repr(),
-    //             payment_id = %payment_id.get_string_repr(),
-    //             "No suitable payment processor token found"
-    //         );
-    //         Ok(None)
-    //     }
-    //     Err(e) => {
-    //         logger::error!(?e, "Failed to select best payment processor token");
-    //         // Ensure we unlock on error
-    //         let _ = RedisTokenManager::unlock_connector_customer_status(state, &connector_customer_id).await;
-    //         Err(e.into())
-    //     }
-    // }
-    Ok(None)
+    for (token_id, token_with_retry_info) in result.iter() {
+        let payment_processor_token_details = &token_with_retry_info.token_status.payment_processor_token_details;
+        let inserted_by_attempt_id = &token_with_retry_info.token_status.inserted_by_attempt_id;
+        let monthly_retry_remaining = token_with_retry_info.monthly_retry_remaining;
+
+        // Parse attempt_id
+        let attempt_id = id_type::GlobalAttemptId::try_from(std::borrow::Cow::Owned(inserted_by_attempt_id.to_owned()))?;
+
+        // Fetch PaymentAttempt
+        let payment_attempt = db
+            .find_payment_attempt_by_id(
+                key_manager_state,
+                merchant_context.get_merchant_key_store(),
+                &attempt_id,
+                storage_scheme,
+            )
+            .await?;
+
+        // Get schedule time
+        // if let Some(token_schedule_time) = get_schedule_time_for_smart_retry(
+        //     state,
+        //     &payment_attempt,
+        //     &payment_intent,
+        //     monthly_retry_remaining,
+        // ).await {
+        //     match best_token_and_time {
+        //         Some((_, existing_time)) if token_schedule_time < existing_time => {
+        //             best_token_and_time = Some((payment_processor_token_details.clone(), token_schedule_time));
+        //         }
+        //         None => {
+        //             best_token_and_time = Some((payment_processor_token_details.clone(), token_schedule_time));
+        //         }
+        //         _ => {} 
+        //     }
+        // }
+    }
+
+    Ok(best_token_and_time)
 }
