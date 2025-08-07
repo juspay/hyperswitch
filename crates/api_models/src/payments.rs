@@ -8980,12 +8980,12 @@ impl PaymentRevenueRecoveryMetadata {
     ) {
         self.payment_connector_transmission = Some(payment_connector_transmission);
     }
-    pub fn get_payment_token_for_api_request(
-        &self,
-        active_token: String,
-    ) -> mandates::ProcessorPaymentToken {
+    pub fn get_payment_token_for_api_request(&self) -> mandates::ProcessorPaymentToken {
         mandates::ProcessorPaymentToken {
-            processor_payment_token: active_token,
+            processor_payment_token: self
+                .billing_connector_payment_details
+                .payment_processor_token
+                .clone(),
             merchant_connector_id: Some(self.active_attempt_payment_connector_id.clone()),
         }
     }

@@ -19,14 +19,15 @@ use crate::{
     routes::{metrics, SessionState},
     services::ApplicationResponse,
     types::{
+        domain,
         storage::{self, revenue_recovery as pcr},
         transformers::ForeignInto,
     },
+    workflows,
 };
 
 pub const EXECUTE_WORKFLOW: &str = "EXECUTE_WORKFLOW";
 pub const PSYNC_WORKFLOW: &str = "PSYNC_WORKFLOW";
-pub const CALCULATE_WORKFLOW: &str = "CALCULATE_WORKFLOW";
 pub const CALCULATE_WORKFLOW: &str = "CALCULATE_WORKFLOW";
 
 pub async fn perform_execute_payment(
@@ -80,7 +81,8 @@ pub async fn perform_execute_payment(
                         &revenue_recovery_metadata,
                         tracking_data
                             .active_token
-                            .ok_or(errors::RecoveryError::ValueNotFound)?,
+                            .clone()
+                            .ok_or(sch_errors::ProcessTrackerError::MissingRequiredField)?,
                     ))
                     .await?;
                     Box::pin(action.execute_payment_task_response_handler(
@@ -223,7 +225,6 @@ async fn insert_psync_pcr_task_to_pt(
         profile_id,
         payment_attempt_id: Some(payment_attempt_id),
         revenue_recovery_retry,
-        token_list: Vec::new(), // Empty for psync workflow
         active_token: None,
         invoice_scheduled_time: Some(schedule_time),
     };
@@ -312,17 +313,26 @@ pub async fn perform_calculate_workflow(
 
     // 1. Extract customer_id and token_list from tracking_data
     let customer_id = extract_customer_id_from_payment_intent(payment_intent)?;
-    let token_list = tracking_data.token_list.clone(); // it will be passed in best_token() fn
 
-    // TODO:- call redis fn to insert of the tokens
+    let merchant_context_from_revenue_recovery_payment_data =
+        domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+            revenue_recovery_payment_data.merchant_account.clone(),
+            revenue_recovery_payment_data.key_store.clone(),
+        )));
 
     // 3. Get best available token
-    // TODO:- call redis to get best_token() from available tokens and a scheduled time, it will be Optional
-    // so from best_token() fn we will be getting Option<{some_token,invoice_scheduled_time_variable}>
-    let best_token = Some("some_token".to_string()); //here we will call that fn
+    let best_token_with_time = workflows::revenue_recovery::get_best_psp_token_available(
+        state,
+        &customer_id,
+        &payment_intent.id,
+        merchant_context_from_revenue_recovery_payment_data,
+    )
+    .await
+    .ok()
+    .flatten();
 
-    match best_token {
-        Some(token) => {
+    match best_token_with_time {
+        Some(token_with_time) => {
             logger::info!(
                 process_id = %process.id,
                 customer_id = %customer_id,
@@ -331,18 +341,17 @@ pub async fn perform_calculate_workflow(
 
             // Mark CALCULATE_WORKFLOW as complete
 
-            let invoice_scheduled_time = common_utils::date_time::now(); // TODO: Replace with actual scheduled time from best_token() function
+            let (best_token, scheduled_time) = token_with_time;
 
             let updated_tracking_data = pcr::RevenueRecoveryWorkflowTrackingData {
                 merchant_id: merchant_id.clone(),
                 profile_id: profile_id.clone(),
-                global_payment_id: payment_intent.id,
+                global_payment_id: payment_intent.clone().id,
                 payment_attempt_id: None,
                 billing_mca_id,
                 revenue_recovery_retry: common_enums::RevenueRecoveryAlgorithmType::Smart,
-                token_list: token_list,           //  token list variable
-                active_token: best_token.clone(), //  active token variable
-                invoice_scheduled_time: Some(invoice_scheduled_time), //  scheduled time variable for best_token()
+                active_token: Some(best_token.clone()),
+                invoice_scheduled_time: Some(scheduled_time),
             };
 
             let updated_tracking_data_json =
@@ -383,8 +392,8 @@ pub async fn perform_calculate_workflow(
                 &tracking_data.payment_attempt_id,
                 storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
                 tracking_data.revenue_recovery_retry,
-                common_utils::date_time::now(), // change this to the scheduled returned from the get_best_psp_token_available
-                token, // use the token given by the best_token() fn from redis for payment
+                scheduled_time,
+                best_token,
             )
             .await?;
 
@@ -437,8 +446,6 @@ pub async fn perform_calculate_workflow(
     Ok(())
 }
 
-// Helper functions for the new CALCULATE_WORKFLOW implementation
-
 /// Extract customer_id from payment intent feature metadata
 fn extract_customer_id_from_payment_intent(
     payment_intent: &PaymentIntent,
@@ -447,12 +454,14 @@ fn extract_customer_id_from_payment_intent(
         .feature_metadata
         .as_ref()
         .and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref())
-        .and_then(|recovery| recovery.billing_connector_payment_details.as_ref())
-        .map(|details| details.connector_customer_id.get_string_repr())
-        .ok_or_else(|| {
-            logger::error!("Customer ID not found in payment intent feature metadata");
-            sch_errors::ProcessTrackerError::MissingRequiredField
+        .map(|recovery| {
+            recovery
+                .billing_connector_payment_details
+                .connector_customer_id
+                .clone()
         })
+        .ok_or(sch_errors::ProcessTrackerError::MissingRequiredField)
+        .attach_printable("Customer ID not found in payment intent feature metadata")?;
 }
 
 /// Insert Execute PCR Task to Process Tracker
@@ -467,7 +476,7 @@ async fn insert_execute_pcr_task_to_pt(
     runner: storage::ProcessTrackerRunner,
     revenue_recovery_retry: diesel_enum::RevenueRecoveryAlgorithmType,
     schedule_time: time::PrimitiveDateTime,
-    active_token: String,
+    active_token: storage::revenue_recovery_redis_operation::PaymentProcessorTokenDetails,
 ) -> Result<storage::ProcessTracker, sch_errors::ProcessTrackerError> {
     let task = "EXECUTE_WORKFLOW";
 
@@ -559,7 +568,6 @@ async fn insert_execute_pcr_task_to_pt(
                 profile_id: profile_id.clone(),
                 payment_attempt_id: payment_attempt_id.clone(),
                 revenue_recovery_retry,
-                token_list: Vec::new(), // Empty for execute workflow
                 active_token: Some(active_token),
                 invoice_scheduled_time: Some(schedule_time),
             };
@@ -571,7 +579,7 @@ async fn insert_execute_pcr_task_to_pt(
                 runner,
                 tag,
                 execute_workflow_tracking_data,
-                None,
+                Some(1),
                 schedule_time,
                 common_types::consts::API_VERSION,
             )

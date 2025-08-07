@@ -258,9 +258,6 @@ pub mod business_status {
     /// This status indicates the completion of a execute task
     pub const EXECUTE_WORKFLOW_FINISH: &str = "FAILED_EXECUTE_TASK";
 
-    /// This status indicates the completion of a execute task
-    pub const EXECUTE_WORKFLOW_FINISH: &str = "FAILED_EXECUTE_TASK";
-
     /// This status indicates that the execute task was completed to trigger the psync task
     pub const EXECUTE_WORKFLOW_COMPLETE_FOR_PSYNC: &str = "COMPLETED_EXECUTE_TASK_TO_TRIGGER_PSYNC";
 

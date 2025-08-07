@@ -47,16 +47,20 @@ use crate::{
     workflows::revenue_recovery as revenue_recovery_flow,
 };
 
-// Helper function to extract customer ID from payment intent
-fn extract_customer_id_from_intent(
+// function to extract customer ID from payment intent
+pub fn extract_customer_id_from_intent(
     payment_intent: &revenue_recovery::RecoveryPaymentIntent,
 ) -> CustomResult<String, errors::RevenueRecoveryError> {
     payment_intent
         .feature_metadata
         .as_ref()
         .and_then(|metadata| metadata.revenue_recovery.as_ref())
-        .and_then(|recovery| recovery.billing_connector_payment_details.as_ref())
-        .map(|details| details.connector_customer_id.clone())
+        .map(|recovery| {
+            recovery
+                .billing_connector_payment_details
+                .connector_customer_id
+                .clone()
+        })
         .ok_or(report!(errors::RevenueRecoveryError::CustomerIdNotFound))
         .attach_printable("Customer ID not found in payment intent feature metadata")
 }
@@ -340,7 +344,6 @@ async fn handle_schedule_failed_payment(
         .await
 }
 
-// Simplified calculate_job() implementation
 #[allow(clippy::too_many_arguments)]
 async fn insert_calculate_pcr_task(
     billing_connector_account: &domain::MerchantConnectorAccount,
@@ -369,17 +372,6 @@ async fn insert_calculate_pcr_task(
         ))
         .attach_printable("payment attempt id is required for calculate workflow tracking")?;
 
-    // Extract customer ID and token list from payment intent feature metadata
-    let customer_id = extract_customer_id_from_intent(recovery_intent_from_payment_intent)?;
-
-    let token_list = recovery_intent_from_payment_intent
-        .feature_metadata
-        .as_ref()
-        .and_then(|metadata| metadata.revenue_recovery.as_ref())
-        .and_then(|recovery| recovery.billing_connector_payment_details)
-        .map(|details| details.psp_token_list) // will add the exact field once the core changes are implemented
-        .unwrap_or_default();
-
     // Check if a process tracker entry already exists for this payment intent
     let existing_entry = db
         .get_scheduler_db()
@@ -404,10 +396,8 @@ async fn insert_calculate_pcr_task(
                 name: None,
                 retry_count: Some(intent_retry_count.into()),
                 schedule_time: Some(schedule_time),
-                tracking_data: None,
-                business_status: Some(
-                    storage::business_status::CALCULATE_WORKFLOW_QUEUED.to_string(),
-                ),
+                tracking_data: Some(existing_process.clone().tracking_data),
+                business_status: Some(business_status::CALCULATE_WORKFLOW_QUEUED.to_string()),
                 status: Some(diesel_models::enums::ProcessTrackerStatus::New),
                 updated_at: Some(common_utils::date_time::now()),
             };
@@ -425,6 +415,13 @@ async fn insert_calculate_pcr_task(
                 payment_id.get_string_repr()
             );
         }
+        Some(existing_process) => {
+            router_env::logger::info!(
+                "Found existing CALCULATE_WORKFLOW task with  id: {}, but its business status is not in queued ",
+                existing_process.id
+            );
+            ()
+        }
         None => {
             // No entry exists - create a new one
             router_env::logger::info!(
@@ -441,7 +438,6 @@ async fn insert_calculate_pcr_task(
                     profile_id: business_profile.get_id().to_owned(),
                     payment_attempt_id: Some(payment_attempt_id),
                     revenue_recovery_retry,
-                    token_list,
                     active_token: None,
                     invoice_scheduled_time: None,
                 };
@@ -1082,7 +1078,6 @@ impl RevenueRecoveryAttempt {
                 profile_id,
                 payment_attempt_id: Some(payment_attempt_id),
                 revenue_recovery_retry,
-                token_list: Vec::new(), // Empty for execute workflow
                 active_token: None,
                 invoice_scheduled_time: Some(schedule_time),
             };

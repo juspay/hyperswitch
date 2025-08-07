@@ -486,6 +486,8 @@ pub enum RevenueRecoveryError {
     BillingConnectorPaymentsSyncFailed,
     #[error("Billing connector invoice sync call failed")]
     BillingConnectorInvoiceSyncFailed,
+    #[error("Failed to fetch connector customer ID")]
+    CustomerIdNotFound,
     #[error("Failed to get the retry count for payment intent")]
     RetryCountFetchFailed,
     #[error("Failed to get the billing threshold retry count")]
