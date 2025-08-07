@@ -246,7 +246,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
 
         let payment_register_response = response.into_inner();
 
-        let (status, router_data_response) =
+        let (status, router_data_response, status_code) =
             handle_unified_connector_service_response_for_payment_register(
                 payment_register_response.clone(),
             )
@@ -255,6 +255,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
 
         self.status = status;
         self.response = router_data_response;
+        self.connector_http_status_code = Some(status_code);
         // UCS does not return raw connector response for setup mandate right now
         // self.raw_connector_response = payment_register_response
         //     .raw_connector_response

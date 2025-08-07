@@ -265,10 +265,12 @@ impl TryFrom<enums::AttemptStatus> for RecurlyRecordStatus {
             | enums::AttemptStatus::AuthenticationPending
             | enums::AttemptStatus::AuthenticationSuccessful
             | enums::AttemptStatus::Authorized
+            | enums::AttemptStatus::PartiallyAuthorized
             | enums::AttemptStatus::AuthorizationFailed
             | enums::AttemptStatus::Authorizing
             | enums::AttemptStatus::CodInitiated
             | enums::AttemptStatus::Voided
+            | enums::AttemptStatus::VoidedPostCharge
             | enums::AttemptStatus::VoidInitiated
             | enums::AttemptStatus::CaptureInitiated
             | enums::AttemptStatus::VoidFailed
@@ -442,6 +444,7 @@ impl
                                 .and_then(|address| address.postal_code),
                             first_name: None,
                             last_name: None,
+                            origin_zip: None,
                         }),
                         phone: None,
                         email: None,
