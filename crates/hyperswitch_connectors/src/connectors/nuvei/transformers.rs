@@ -1115,7 +1115,8 @@ where
             capture_method: item.request.get_capture_method(),
             ..Default::default()
         })?;
-        let return_url = item.request.get_return_url_required()?;
+        // let return_url = item.request.get_return_url_required()?
+        let return_url = "https://google.com".to_string();
         let amount_details = match item.request.get_order_tax_amount()? {
             Some(tax) => Some(NuvieAmountDetails {
                 total_tax: Some(utils::to_currency_base_unit(tax, currency)?),
@@ -1622,7 +1623,7 @@ pub struct NuveiPaymentsResponse {
     pub merchant_advice_code: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum NuveiTransactionType {
     Auth,
     Sale,
@@ -1639,7 +1640,29 @@ pub struct FraudDetails {
     pub final_decision: String,
 }
 
-fn get_payment_status(response: &NuveiPaymentsResponse) -> enums::AttemptStatus {
+fn get_payment_status(
+    response: &NuveiPaymentsResponse,
+    amount: Option<i64>,
+) -> enums::AttemptStatus {
+    // ZERO dollar authorization
+    if amount == Some(0) && response.transaction_type.clone() == Some(NuveiTransactionType::Auth) {
+        return match response.transaction_status.clone() {
+            Some(NuveiTransactionStatus::Approved) => enums::AttemptStatus::Charged,
+            Some(NuveiTransactionStatus::Declined) | Some(NuveiTransactionStatus::Error) => {
+                enums::AttemptStatus::AuthorizationFailed
+            }
+            Some(NuveiTransactionStatus::Pending) | Some(NuveiTransactionStatus::Processing) => {
+                enums::AttemptStatus::Pending
+            }
+            Some(NuveiTransactionStatus::Redirect) => enums::AttemptStatus::AuthenticationPending,
+            None => match response.status {
+                NuveiPaymentStatus::Failed | NuveiPaymentStatus::Error => {
+                    enums::AttemptStatus::Failure
+                }
+                _ => enums::AttemptStatus::Pending,
+            },
+        };
+    }
     match response.transaction_status.clone() {
         Some(status) => match status {
             NuveiTransactionStatus::Approved => match response.transaction_type {
@@ -1717,90 +1740,173 @@ fn build_error_response<T>(
 
 pub trait NuveiPaymentsGenericResponse {}
 
-impl NuveiPaymentsGenericResponse for Authorize {}
 impl NuveiPaymentsGenericResponse for CompleteAuthorize {}
 impl NuveiPaymentsGenericResponse for Void {}
 impl NuveiPaymentsGenericResponse for PSync {}
 impl NuveiPaymentsGenericResponse for Capture {}
 impl NuveiPaymentsGenericResponse for PostCaptureVoid {}
 
+// Helper function to process Nuvei payment response
+
+fn process_nuvei_payment_response<F, T>(
+    item: &ResponseRouterData<F, NuveiPaymentsResponse, T, PaymentsResponseData>,
+    amount: Option<i64>,
+) -> Result<
+    (
+        enums::AttemptStatus,
+        Option<RedirectForm>,
+        Option<ConnectorResponseData>,
+    ),
+    error_stack::Report<errors::ConnectorError>,
+>
+where
+    F: std::fmt::Debug,
+    T: std::fmt::Debug,
+{
+    let redirection_data = match item.data.payment_method {
+        enums::PaymentMethod::Wallet | enums::PaymentMethod::BankRedirect => item
+            .response
+            .payment_option
+            .as_ref()
+            .and_then(|po| po.redirect_url.clone())
+            .map(|base_url| RedirectForm::from((base_url, Method::Get))),
+        _ => item
+            .response
+            .payment_option
+            .as_ref()
+            .and_then(|o| o.card.clone())
+            .and_then(|card| card.three_d)
+            .and_then(|three_ds| three_ds.acs_url.zip(three_ds.c_req))
+            .map(|(base_url, creq)| RedirectForm::Form {
+                endpoint: base_url,
+                method: Method::Post,
+                form_fields: std::collections::HashMap::from([("creq".to_string(), creq.expose())]),
+            }),
+    };
+
+    let connector_response_data =
+        convert_to_additional_payment_method_connector_response(&item.response)
+            .map(ConnectorResponseData::with_additional_payment_method_data);
+
+    let status = get_payment_status(&item.response, amount);
+
+    Ok((status, redirection_data, connector_response_data))
+}
+
+// Helper function to create transaction response
+fn create_transaction_response(
+    response: &NuveiPaymentsResponse,
+    redirection_data: Option<RedirectForm>,
+    http_code: u16,
+) -> Result<PaymentsResponseData, error_stack::Report<errors::ConnectorError>> {
+    if let Some(err) = build_error_response(response, http_code) {
+        return err;
+    }
+
+    Ok(PaymentsResponseData::TransactionResponse {
+        resource_id: response
+            .transaction_id
+            .clone()
+            .map_or(response.order_id.clone(), Some) // For paypal there will be no transaction_id, only order_id will be present
+            .map(ResponseId::ConnectorTransactionId)
+            .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?,
+        redirection_data: Box::new(redirection_data),
+        mandate_reference: Box::new(
+            response
+                .payment_option
+                .as_ref()
+                .and_then(|po| po.user_payment_option_id.clone())
+                .map(|id| MandateReference {
+                    connector_mandate_id: Some(id),
+                    payment_method_id: None,
+                    mandate_metadata: None,
+                    connector_mandate_request_reference_id: None,
+                }),
+        ),
+        // we don't need to save session token for capture, void flow so ignoring if it is not present
+        connector_metadata: if let Some(token) = response.session_token.clone() {
+            Some(
+                serde_json::to_value(NuveiMeta {
+                    session_token: token,
+                })
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
+            )
+        } else {
+            None
+        },
+        network_txn_id: None,
+        connector_response_reference_id: response.order_id.clone(),
+        incremental_authorization_allowed: None,
+        charges: None,
+    })
+}
+
+// Specialized implementation for Authorize
+impl
+    TryFrom<
+        ResponseRouterData<
+            Authorize,
+            NuveiPaymentsResponse,
+            types::PaymentsAuthorizeData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<Authorize, types::PaymentsAuthorizeData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            Authorize,
+            NuveiPaymentsResponse,
+            types::PaymentsAuthorizeData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        // Get amount directly from the authorize data
+        let amount = Some(item.data.request.amount);
+
+        let (status, redirection_data, connector_response_data) =
+            process_nuvei_payment_response(&item, amount)?;
+
+        Ok(Self {
+            status,
+            response: create_transaction_response(
+                &item.response,
+                redirection_data,
+                item.http_code,
+            )?,
+            connector_response: connector_response_data,
+            ..item.data
+        })
+    }
+}
+
+// Generic implementation for other flow types
 impl<F, T> TryFrom<ResponseRouterData<F, NuveiPaymentsResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 where
-    F: NuveiPaymentsGenericResponse,
+    F: NuveiPaymentsGenericResponse + std::fmt::Debug,
+    T: std::fmt::Debug,
+    F: std::any::Any,
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: ResponseRouterData<F, NuveiPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let redirection_data = match item.data.payment_method {
-            enums::PaymentMethod::Wallet | enums::PaymentMethod::BankRedirect => item
-                .response
-                .payment_option
-                .as_ref()
-                .and_then(|po| po.redirect_url.clone())
-                .map(|base_url| RedirectForm::from((base_url, Method::Get))),
-            _ => item
-                .response
-                .payment_option
-                .as_ref()
-                .and_then(|o| o.card.clone())
-                .and_then(|card| card.three_d)
-                .and_then(|three_ds| three_ds.acs_url.zip(three_ds.c_req))
-                .map(|(base_url, creq)| RedirectForm::Form {
-                    endpoint: base_url,
-                    method: Method::Post,
-                    form_fields: std::collections::HashMap::from([(
-                        "creq".to_string(),
-                        creq.expose(),
-                    )]),
-                }),
-        };
+        let amount = item
+            .data
+            .minor_amount_capturable
+            .map(|amount| amount.get_amount_as_i64());
 
-        let response = item.response;
-        let connector_response_data =
-            convert_to_additional_payment_method_connector_response(&response)
-                .map(ConnectorResponseData::with_additional_payment_method_data);
+        let (status, redirection_data, connector_response_data) =
+            process_nuvei_payment_response(&item, amount)?;
+
         Ok(Self {
-            status: get_payment_status(&response),
-            response: if let Some(err) = build_error_response(&response, item.http_code) {
-                err
-            } else {
-                Ok(PaymentsResponseData::TransactionResponse {
-                    resource_id: response
-                        .transaction_id
-                        .map_or(response.order_id.clone(), Some) // For paypal there will be no transaction_id, only order_id will be present
-                        .map(ResponseId::ConnectorTransactionId)
-                        .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?,
-                    redirection_data: Box::new(redirection_data),
-                    mandate_reference: Box::new(
-                        response
-                            .payment_option
-                            .and_then(|po| po.user_payment_option_id)
-                            .map(|id| MandateReference {
-                                connector_mandate_id: Some(id),
-                                payment_method_id: None,
-                                mandate_metadata: None,
-                                connector_mandate_request_reference_id: None,
-                            }),
-                    ),
-                    // we don't need to save session token for capture, void flow so ignoring if it is not present
-                    connector_metadata: if let Some(token) = response.session_token {
-                        Some(
-                            serde_json::to_value(NuveiMeta {
-                                session_token: token,
-                            })
-                            .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
-                        )
-                    } else {
-                        None
-                    },
-                    network_txn_id: None,
-                    connector_response_reference_id: response.order_id,
-                    incremental_authorization_allowed: None,
-                    charges: None,
-                })
-            },
+            status,
+            response: create_transaction_response(
+                &item.response,
+                redirection_data,
+                item.http_code,
+            )?,
             connector_response: connector_response_data,
             ..item.data
         })
@@ -1824,7 +1930,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<NuveiPaymentsResponse>>
             .map(to_boolean)
             .unwrap_or_default();
         Ok(Self {
-            status: get_payment_status(&response),
+            status: get_payment_status(&response, item.data.request.amount),
             response: Ok(PaymentsResponseData::ThreeDSEnrollmentResponse {
                 enrolled_v2: is_enrolled_for_3ds,
                 related_transaction_id: response.transaction_id,
