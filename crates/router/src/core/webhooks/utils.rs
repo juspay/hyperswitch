@@ -103,7 +103,6 @@ pub async fn construct_webhook_router_data(
             merchant_secret: connector_wh_secrets.to_owned(),
         },
         response: Err(types::ErrorResponse::default()),
-        authentication_token: None,
         access_token: None,
         session_token: None,
         reference_id: None,

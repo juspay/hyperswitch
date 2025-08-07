@@ -159,8 +159,7 @@ pub async fn add_access_token<
                     None
                 };
 
-                let mut cloned_router_data = router_data.clone();
-                cloned_router_data.authentication_token = authentication_token.clone();
+                let cloned_router_data = router_data.clone();
 
                 let refresh_token_request_data = types::AccessTokenRequestData::try_from((
                     router_data.connector_auth_type.clone(),

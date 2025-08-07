@@ -175,7 +175,6 @@ pub fn construct_router_data<F: Clone, Req, Res>(
         connector_wallets_details: merchant_connector_account.get_connector_wallets_details(),
         amount_captured: None,
         minor_amount_captured: None,
-        authentication_token: None,
         access_token: None,
         session_token: None,
         reference_id: None,

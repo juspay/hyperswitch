@@ -40,14 +40,17 @@ use hyperswitch_domain_models::{
     connector_endpoints::Connectors,
     errors::api_error_response::ApiErrorResponse,
     payment_method_data::PaymentMethodData,
-    router_data::{AccessToken, AccessTokenAuthenticationResponse, ConnectorAuthType, ErrorResponse, RouterData},
+    router_data::{
+        AccessToken, AccessTokenAuthenticationResponse, ConnectorAuthType, ErrorResponse,
+        RouterData,
+    },
     router_data_v2::{
         flow_common_types::{AuthenticationTokenFlowData, WebhookSourceVerifyData},
         AccessTokenFlowData, MandateRevokeFlowData, UasFlowData,
     },
     router_flow_types::{
-        mandate_revoke::MandateRevoke, AccessTokenAuth, Authenticate, AuthenticationConfirmation,
-        AccessTokenAuthentication, PostAuthenticate, PreAuthenticate, VerifyWebhookSource,
+        mandate_revoke::MandateRevoke, AccessTokenAuth, AccessTokenAuthentication, Authenticate,
+        AuthenticationConfirmation, PostAuthenticate, PreAuthenticate, VerifyWebhookSource,
     },
     router_request_types::{
         unified_authentication_service::{
@@ -55,7 +58,7 @@ use hyperswitch_domain_models::{
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
         },
-        AccessTokenRequestData, AccessTokenAuthenticationRequestData, MandateRevokeRequestData,
+        AccessTokenAuthenticationRequestData, AccessTokenRequestData, MandateRevokeRequestData,
         VerifyWebhookSourceRequestData,
     },
     router_response_types::{

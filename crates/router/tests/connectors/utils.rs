@@ -522,7 +522,6 @@ pub trait ConnectorActions: Connector {
             connector_wallets_details: None,
             amount_captured: None,
             minor_amount_captured: None,
-            authentication_token: None,
             access_token: info.clone().and_then(|a| a.access_token),
             session_token: None,
             reference_id: None,

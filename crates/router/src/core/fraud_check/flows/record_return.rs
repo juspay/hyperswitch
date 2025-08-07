@@ -100,7 +100,6 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
                 connector_metadata: None,
                 return_id: None,
             }),
-            authentication_token: None,
             access_token: None,
             session_token: None,
             reference_id: None,

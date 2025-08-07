@@ -115,7 +115,6 @@ pub async fn construct_relay_refund_router_data<F>(
         },
 
         response: Err(ErrorResponse::default()),
-        authentication_token: None,
         access_token: None,
         session_token: None,
         reference_id: None,

@@ -47,7 +47,7 @@ use hyperswitch_domain_models::router_flow_types::{
 pub use hyperswitch_domain_models::{
     payment_address::PaymentAddress,
     router_data::{
-        AccessToken, AdditionalPaymentMethodConnectorResponse, AccessTokenAuthenticationResponse,
+        AccessToken, AccessTokenAuthenticationResponse, AdditionalPaymentMethodConnectorResponse,
         ConnectorAuthType, ConnectorResponseData, ErrorResponse, GooglePayDecryptedData,
         GooglePayPaymentMethodDetails, L2L3Data, PaymentMethodBalance, PaymentMethodToken,
         RecurringMandatePaymentData, RouterData,
@@ -67,7 +67,7 @@ pub use hyperswitch_domain_models::{
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
         },
-        AcceptDisputeRequestData, AccessTokenRequestData, AccessTokenAuthenticationRequestData,
+        AcceptDisputeRequestData, AccessTokenAuthenticationRequestData, AccessTokenRequestData,
         AuthorizeSessionTokenData, BrowserInformation, ChargeRefunds, ChargeRefundsOptions,
         CompleteAuthorizeData, CompleteAuthorizeRedirectResponse, ConnectorCustomerData,
         CreateOrderRequestData, DefendDisputeRequestData, DestinationChargeRefund,
@@ -124,7 +124,7 @@ use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLO
 use crate::{
     consts,
     core::{
-        errors::{self},
+        errors,
         payments::{OperationSessionGetters, PaymentData},
     },
     services,
@@ -1237,7 +1237,6 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             connector_wallets_details: data.connector_wallets_details.clone(),
             amount_captured: data.amount_captured,
             minor_amount_captured: data.minor_amount_captured,
-            authentication_token: data.authentication_token.clone(),
             access_token: data.access_token.clone(),
             response: data.response.clone(),
             payment_id: data.payment_id.clone(),
@@ -1312,7 +1311,6 @@ impl<F1, F2>
             connector_wallets_details: data.connector_wallets_details.clone(),
             amount_captured: data.amount_captured,
             minor_amount_captured: data.minor_amount_captured,
-            authentication_token: data.authentication_token.clone(),
             access_token: data.access_token.clone(),
             response: data.response.clone(),
             payment_id: data.payment_id.clone(),

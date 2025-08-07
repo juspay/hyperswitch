@@ -126,6 +126,7 @@ impl TryFrom<&types::RefreshTokenRouterData> for NordeaOAuthExchangeRequest {
     type Error = Error;
     fn try_from(item: &types::RefreshTokenRouterData) -> Result<Self, Self::Error> {
         let code = item
+            .request
             .authentication_token
             .as_ref()
             .ok_or(errors::ConnectorError::MissingRequiredField {

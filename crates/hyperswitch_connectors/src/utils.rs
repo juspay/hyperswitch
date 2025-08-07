@@ -6250,7 +6250,6 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         connector_wallets_details: data.connector_wallets_details.clone(),
         amount_captured: data.amount_captured,
         minor_amount_captured: data.minor_amount_captured,
-        authentication_token: data.authentication_token.clone(),
         access_token: data.access_token.clone(),
         response: data.response.clone(),
         payment_id: data.payment_id.clone(),

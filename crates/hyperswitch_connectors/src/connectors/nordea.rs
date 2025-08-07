@@ -21,7 +21,7 @@ use hyperswitch_domain_models::{
         AccessTokenAuthentication, PreProcessing,
     },
     router_request_types::{
-        AccessTokenRequestData, AccessTokenAuthenticationRequestData,
+        AccessTokenAuthenticationRequestData, AccessTokenRequestData,
         PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
         PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,

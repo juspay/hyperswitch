@@ -93,7 +93,6 @@ impl VerifyConnectorData {
             tenant_id: state.tenant.tenant_id.clone(),
             merchant_id: common_utils::id_type::MerchantId::default(),
             reference_id: None,
-            authentication_token: None,
             access_token,
             session_token: None,
             payment_method: storage_enums::PaymentMethod::Card,

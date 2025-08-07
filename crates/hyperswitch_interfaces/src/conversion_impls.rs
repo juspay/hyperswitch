@@ -50,7 +50,6 @@ fn get_default_router_data<F, Req, Resp>(
         connector_meta_data: None,
         connector_wallets_details: None,
         amount_captured: None,
-        authentication_token: None,
         access_token: None,
         session_token: None,
         reference_id: None,

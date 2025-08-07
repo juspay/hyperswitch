@@ -815,36 +815,15 @@ pub struct DestinationChargeRefund {
 
 #[derive(Debug, Clone)]
 pub struct AccessTokenAuthenticationRequestData {
-    pub app_id: Secret<String>,
-    pub app_secret: Option<Secret<String>>,
-    // Add more keys based on the need
+    pub auth_creds: router_data::ConnectorAuthType,
 }
 
 impl TryFrom<router_data::ConnectorAuthType> for AccessTokenAuthenticationRequestData {
     type Error = ApiErrorResponse;
     fn try_from(connector_auth: router_data::ConnectorAuthType) -> Result<Self, Self::Error> {
-        match connector_auth {
-            router_data::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                app_id: api_key,
-                app_secret: None,
-            }),
-            router_data::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
-                app_id: api_key,
-                app_secret: Some(key1),
-            }),
-            router_data::ConnectorAuthType::SignatureKey { api_key, key1, .. } => Ok(Self {
-                app_id: api_key,
-                app_secret: Some(key1),
-            }),
-            router_data::ConnectorAuthType::MultiAuthKey { api_key, key1, .. } => Ok(Self {
-                app_id: api_key,
-                app_secret: Some(key1),
-            }),
-
-            _ => Err(ApiErrorResponse::InvalidDataValue {
-                field_name: "connector_account_details",
-            }),
-        }
+        Ok(Self {
+            auth_creds: connector_auth,
+        })
     }
 }
 
@@ -852,7 +831,7 @@ impl TryFrom<router_data::ConnectorAuthType> for AccessTokenAuthenticationReques
 pub struct AccessTokenRequestData {
     pub app_id: Secret<String>,
     pub id: Option<Secret<String>>,
-    pub authentication_token: Option<Secret<String>>,
+    pub authentication_token: Option<AccessTokenAuthenticationResponse>,
     // Add more keys if required
 }
 
@@ -871,24 +850,15 @@ impl TryFrom<router_data::ConnectorAuthType> for AccessTokenRequestData {
                 id: Some(key1),
                 authentication_token: None,
             }),
-            router_data::ConnectorAuthType::SignatureKey {
-                api_key,
-                key1,
-                api_secret,
-            } => Ok(Self {
+            router_data::ConnectorAuthType::SignatureKey { api_key, key1, .. } => Ok(Self {
                 app_id: api_key,
                 id: Some(key1),
-                authentication_token: Some(api_secret),
+                authentication_token: None,
             }),
-            router_data::ConnectorAuthType::MultiAuthKey {
-                api_key,
-                key1,
-                api_secret,
-                ..
-            } => Ok(Self {
+            router_data::ConnectorAuthType::MultiAuthKey { api_key, key1, .. } => Ok(Self {
                 app_id: api_key,
                 id: Some(key1),
-                authentication_token: Some(api_secret),
+                authentication_token: None,
             }),
 
             _ => Err(ApiErrorResponse::InvalidDataValue {
@@ -898,8 +868,11 @@ impl TryFrom<router_data::ConnectorAuthType> for AccessTokenRequestData {
     }
 }
 
-impl TryFrom<(router_data::ConnectorAuthType, Option<AccessTokenAuthenticationResponse>)>
-    for AccessTokenRequestData
+impl
+    TryFrom<(
+        router_data::ConnectorAuthType,
+        Option<AccessTokenAuthenticationResponse>,
+    )> for AccessTokenRequestData
 {
     type Error = ApiErrorResponse;
     fn try_from(
@@ -908,41 +881,9 @@ impl TryFrom<(router_data::ConnectorAuthType, Option<AccessTokenAuthenticationRe
             Option<AccessTokenAuthenticationResponse>,
         ),
     ) -> Result<Self, Self::Error> {
-        match connector_auth {
-            router_data::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                app_id: api_key,
-                id: None,
-                authentication_token: authentication_token.map(|token| token.code),
-            }),
-            router_data::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
-                app_id: api_key,
-                id: Some(key1),
-                authentication_token: authentication_token.map(|token| token.code),
-            }),
-            router_data::ConnectorAuthType::SignatureKey {
-                api_key,
-                key1,
-                api_secret,
-            } => Ok(Self {
-                app_id: api_key,
-                id: Some(key1),
-                authentication_token: Some(api_secret),
-            }),
-            router_data::ConnectorAuthType::MultiAuthKey {
-                api_key,
-                key1,
-                api_secret,
-                ..
-            } => Ok(Self {
-                app_id: api_key,
-                id: Some(key1),
-                authentication_token: Some(api_secret),
-            }),
-
-            _ => Err(ApiErrorResponse::InvalidDataValue {
-                field_name: "connector_account_details",
-            }),
-        }
+        let mut access_token_request_data = Self::try_from(connector_auth)?;
+        access_token_request_data.authentication_token = authentication_token;
+        Ok(access_token_request_data)
     }
 }
 

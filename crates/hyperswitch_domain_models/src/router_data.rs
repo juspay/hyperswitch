@@ -44,7 +44,6 @@ pub struct RouterData<Flow, Request, Response> {
     pub connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
     pub connector_wallets_details: Option<common_utils::pii::SecretSerdeValue>,
     pub amount_captured: Option<i64>,
-    pub authentication_token: Option<AccessTokenAuthenticationResponse>,
     pub access_token: Option<AccessToken>,
     pub session_token: Option<String>,
     pub reference_id: Option<String>,
