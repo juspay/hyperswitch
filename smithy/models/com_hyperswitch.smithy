@@ -19,7 +19,21 @@ use aws.protocols#restJson1
 )
 service Hyperswitch {
     version: "2024-07-31",
-    operations: [PaymentsCreate, PaymentsRetrieve, RefundsCreate]
+    operations: [PaymentsCreate, PaymentsRetrieve, RefundsCreate, RefundsRetrieve]
+}
+
+@documentation("Retrieve a refund using the refund_id.")
+@http(method: "GET", uri: "/refunds/{id}")
+operation RefundsRetrieve {
+    input: RefundsRetrieveRequest,
+    output: RefundResponse,
+}
+
+structure RefundsRetrieveRequest {
+    /// The unique identifier for the refund to retrieve
+    @required
+    @httpLabel
+    id: smithy.api#String
 }
 
 @documentation("Create a refund for a payment.")
