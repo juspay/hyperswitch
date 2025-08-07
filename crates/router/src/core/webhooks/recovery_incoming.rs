@@ -281,9 +281,9 @@ impl RevenueRecoveryInvoice {
         merchant_context: &domain::MerchantContext,
         profile: &domain::Profile,
     ) -> CustomResult<revenue_recovery::RecoveryPaymentIntent, errors::RevenueRecoveryError> {
-        let recovery_intent = RevenueRecoveryInvoice(
-            revenue_recovery::RevenueRecoveryInvoiceData::foreign_from(data),
-        );
+        let recovery_intent = Self(revenue_recovery::RevenueRecoveryInvoiceData::foreign_from(
+            data,
+        ));
         recovery_intent
             .get_payment_intent(state, req_state, merchant_context, profile)
             .await
@@ -447,9 +447,9 @@ impl RevenueRecoveryAttempt {
         ),
         errors::RevenueRecoveryError,
     > {
-        let recovery_attempt = RevenueRecoveryAttempt(
-            revenue_recovery::RevenueRecoveryAttemptData::foreign_from(&data),
-        );
+        let recovery_attempt = Self(revenue_recovery::RevenueRecoveryAttemptData::foreign_from(
+            &data,
+        ));
         recovery_attempt
             .get_payment_attempt(state, req_state, merchant_context, profile, &payment_intent)
             .await
