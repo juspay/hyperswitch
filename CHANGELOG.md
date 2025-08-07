@@ -4,31 +4,6 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
-## 2025.08.07.0
-
-### Features
-
-- **connector:**
-  - [Barclaycard] Add Google Pay Payment Method ([#8786](https://github.com/juspay/hyperswitch/pull/8786)) ([`434e7a7`](https://github.com/juspay/hyperswitch/commit/434e7a7a8b3ce40937f1f09c22bee2f5550db2be))
-  - [WORLDPAYVANTIV] Populate Network Decline Error Code & Message ([#8856](https://github.com/juspay/hyperswitch/pull/8856)) ([`e2bfce8`](https://github.com/juspay/hyperswitch/commit/e2bfce8974dec9348d5829c39ad1f9acd340b9e3))
-- **core:** Add support for Void after Capture ([#8839](https://github.com/juspay/hyperswitch/pull/8839)) ([`57e92c9`](https://github.com/juspay/hyperswitch/commit/57e92c9fdaec6e8717369074b44c45ab3ceb5162))
-- **gRPC:** Build gRPC client interface to initiate communication with recovery-decider service ([#8178](https://github.com/juspay/hyperswitch/pull/8178)) ([`654c15e`](https://github.com/juspay/hyperswitch/commit/654c15ee196034313ae14ab6ff8a4d6499458388))
-- **router:**
-  - [worldpayvantiv] add dispute list sync and implement dispute ([#8830](https://github.com/juspay/hyperswitch/pull/8830)) ([`640d055`](https://github.com/juspay/hyperswitch/commit/640d0552f96721d63c14fda4a07fc5987cea29a0))
-  - Add support for partial authorization ([#8833](https://github.com/juspay/hyperswitch/pull/8833)) ([`c354e62`](https://github.com/juspay/hyperswitch/commit/c354e62f9da7cff7996f44bdc9c2835c30d71de6))
-
-### Bug Fixes
-
-- **connector:** [CYBERSOURCE] fix response field for netcetera authentication response ([#8850](https://github.com/juspay/hyperswitch/pull/8850)) ([`30b4522`](https://github.com/juspay/hyperswitch/commit/30b4522685521d5c49923a5ae62e5cda36a2eb9d))
-- **wasm:** [FISERV] Added GooglePay Payment Method Type ([#8832](https://github.com/juspay/hyperswitch/pull/8832)) ([`0598782`](https://github.com/juspay/hyperswitch/commit/0598782048d70d49744cae5ec61d8f49565cd50a))
-
-### Miscellaneous Tasks
-
-- **events:** Making events nanosecond level precision ([#8759](https://github.com/juspay/hyperswitch/pull/8759)) ([`c6fcf29`](https://github.com/juspay/hyperswitch/commit/c6fcf29f692b873b227148f996769c1a493755bd))
-
-**Full Changelog:** [`2025.08.06.0...2025.08.07.0`](https://github.com/juspay/hyperswitch/compare/2025.08.06.0...2025.08.07.0)
-
-- - -
 
 ## 2025.08.06.0
 
