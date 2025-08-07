@@ -1678,12 +1678,27 @@ fn build_error_response<T>(
 ) -> Option<Result<T, ErrorResponse>> {
     match response.status {
         NuveiPaymentStatus::Error => Some(
-            get_error_response(response.err_code, &response.reason, http_code).map_err(|err| *err),
+            get_error_response(
+                response.err_code,
+                &response.reason,
+                http_code,
+                &response.merchant_advice_code,
+                &response.gw_error_code.map(|e| e.to_string()),
+                &response.gw_error_reason,
+            )
+            .map_err(|err| *err),
         ),
         _ => {
             let err = Some(
-                get_error_response(response.gw_error_code, &response.gw_error_reason, http_code)
-                    .map_err(|err| *err),
+                get_error_response(
+                    response.gw_error_code,
+                    &response.gw_error_reason,
+                    http_code,
+                    &response.merchant_advice_code,
+                    &response.gw_error_code.map(|e| e.to_string()),
+                    &response.gw_error_reason,
+                )
+                .map_err(|err| *err),
             );
             match response.transaction_status {
                 Some(NuveiTransactionStatus::Error) | Some(NuveiTransactionStatus::Declined) => err,
@@ -1928,13 +1943,23 @@ fn get_refund_response(
         .map(enums::RefundStatus::from)
         .unwrap_or(enums::RefundStatus::Failure);
     match response.status {
-        NuveiPaymentStatus::Error => {
-            get_error_response(response.err_code, &response.reason, http_code)
-        }
+        NuveiPaymentStatus::Error => get_error_response(
+            response.err_code,
+            &response.reason,
+            http_code,
+            &response.merchant_advice_code,
+            &response.gw_error_code.map(|e| e.to_string()),
+            &response.gw_error_reason,
+        ),
         _ => match response.transaction_status {
-            Some(NuveiTransactionStatus::Error) => {
-                get_error_response(response.gw_error_code, &response.gw_error_reason, http_code)
-            }
+            Some(NuveiTransactionStatus::Error) => get_error_response(
+                response.err_code,
+                &response.reason,
+                http_code,
+                &response.merchant_advice_code,
+                &response.gw_error_code.map(|e| e.to_string()),
+                &response.gw_error_reason,
+            ),
             _ => Ok(RefundsResponseData {
                 connector_refund_id: txn_id,
                 refund_status,
@@ -1947,6 +1972,9 @@ fn get_error_response<T>(
     error_code: Option<i64>,
     error_msg: &Option<String>,
     http_code: u16,
+    network_advice_code: &Option<String>,
+    network_decline_code: &Option<String>,
+    network_error_message: &Option<String>,
 ) -> Result<T, Box<ErrorResponse>> {
     Err(Box::new(ErrorResponse {
         code: error_code
@@ -1959,9 +1987,9 @@ fn get_error_response<T>(
         status_code: http_code,
         attempt_status: None,
         connector_transaction_id: None,
-        network_advice_code: None,
-        network_decline_code: None,
-        network_error_message: None,
+        network_advice_code: network_advice_code.clone(),
+        network_decline_code: network_decline_code.clone(),
+        network_error_message: network_error_message.clone(),
     }))
 }
 
