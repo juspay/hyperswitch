@@ -4,7 +4,6 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
-
 ## 2025.08.06.0
 
 ### Features
