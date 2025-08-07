@@ -59,14 +59,16 @@ impl ProxyRequestWrapper {
             }
             proxy_api_models::TokenType::TokenizationId => {
                 let token_id = id_type::GlobalTokenId::from_string(token.clone().as_str())
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Error while coneverting from string to GlobalTokenId type")?;
                 let db = state.store.as_ref();
                 let key_manager_state = &(state).into();
 
                 let tokenization_record = db
                     .get_entity_id_vault_id_by_token_id(&token_id, key_store, key_manager_state)
                     .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Error while fetching tokenization record from vault")?;
 
                 Ok(ProxyRecord::TokenizationRecord(Box::new(
                     tokenization_record,
