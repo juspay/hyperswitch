@@ -11,6 +11,8 @@ use crate::schema::payment_intent;
 use crate::schema_v2::payment_intent;
 #[cfg(feature = "v2")]
 use crate::types::{FeatureMetadata, OrderDetailsWithAmount};
+#[cfg(feature = "v2")]
+use crate::RequiredFromNullable;
 use crate::{business_profile::PaymentLinkBackgroundImageConfig, enums as storage_enums};
 
 #[cfg(feature = "v2")]
@@ -20,6 +22,7 @@ pub struct PaymentIntent {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub status: storage_enums::IntentStatus,
     pub amount: MinorUnit,
+    #[diesel(deserialize_as = RequiredFromNullable<storage_enums::Currency>)]
     pub currency: storage_enums::Currency,
     pub amount_captured: Option<MinorUnit>,
     pub customer_id: Option<common_utils::id_type::GlobalCustomerId>,
@@ -40,12 +43,14 @@ pub struct PaymentIntent {
     pub connector_metadata: Option<pii::SecretSerdeValue>,
     pub feature_metadata: Option<FeatureMetadata>,
     pub attempt_count: i16,
+    #[diesel(deserialize_as = RequiredFromNullable<common_utils::id_type::ProfileId>)]
     pub profile_id: common_utils::id_type::ProfileId,
     pub payment_link_id: Option<String>,
     pub updated_by: String,
     pub surcharge_applicable: Option<bool>,
     pub request_incremental_authorization: Option<RequestIncrementalAuthorization>,
     pub authorization_count: Option<i32>,
+    #[diesel(deserialize_as = RequiredFromNullable<PrimitiveDateTime>)]
     pub session_expiry: PrimitiveDateTime,
     pub request_external_three_ds_authentication: Option<bool>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
@@ -65,6 +70,12 @@ pub struct PaymentIntent {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_payment_id_from_merchant: Option<bool>,
     pub payment_channel: Option<common_enums::PaymentChannel>,
+    pub tax_status: Option<common_enums::TaxStatus>,
+    pub discount_amount: Option<MinorUnit>,
+    pub shipping_amount_tax: Option<MinorUnit>,
+    pub duty_amount: Option<MinorUnit>,
+    pub order_date: Option<PrimitiveDateTime>,
+    pub enable_partial_authorization: Option<bool>,
     pub merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
@@ -159,6 +170,12 @@ pub struct PaymentIntent {
     pub extended_return_url: Option<String>,
     pub is_payment_id_from_merchant: Option<bool>,
     pub payment_channel: Option<common_enums::PaymentChannel>,
+    pub tax_status: Option<common_enums::TaxStatus>,
+    pub discount_amount: Option<MinorUnit>,
+    pub shipping_amount_tax: Option<MinorUnit>,
+    pub duty_amount: Option<MinorUnit>,
+    pub order_date: Option<PrimitiveDateTime>,
+    pub enable_partial_authorization: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression, PartialEq)]
@@ -336,6 +353,7 @@ pub struct PaymentIntentNew {
     pub organization_id: common_utils::id_type::OrganizationId,
     pub tax_details: Option<TaxDetails>,
     pub skip_external_tax_calculation: Option<bool>,
+    pub enable_partial_authorization: Option<bool>,
     pub merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
@@ -358,6 +376,11 @@ pub struct PaymentIntentNew {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_payment_id_from_merchant: Option<bool>,
     pub payment_channel: Option<common_enums::PaymentChannel>,
+    pub tax_status: Option<common_enums::TaxStatus>,
+    pub discount_amount: Option<MinorUnit>,
+    pub shipping_amount_tax: Option<MinorUnit>,
+    pub duty_amount: Option<MinorUnit>,
+    pub order_date: Option<PrimitiveDateTime>,
 }
 
 #[cfg(feature = "v1")]
@@ -435,6 +458,12 @@ pub struct PaymentIntentNew {
     pub extended_return_url: Option<String>,
     pub is_payment_id_from_merchant: Option<bool>,
     pub payment_channel: Option<common_enums::PaymentChannel>,
+    pub tax_status: Option<common_enums::TaxStatus>,
+    pub discount_amount: Option<MinorUnit>,
+    pub order_date: Option<PrimitiveDateTime>,
+    pub shipping_amount_tax: Option<MinorUnit>,
+    pub duty_amount: Option<MinorUnit>,
+    pub enable_partial_authorization: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -596,6 +625,12 @@ pub struct PaymentIntentUpdateFields {
     pub force_3ds_challenge: Option<bool>,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub payment_channel: Option<common_enums::PaymentChannel>,
+    pub tax_status: Option<common_enums::TaxStatus>,
+    pub discount_amount: Option<MinorUnit>,
+    pub order_date: Option<PrimitiveDateTime>,
+    pub shipping_amount_tax: Option<MinorUnit>,
+    pub duty_amount: Option<MinorUnit>,
+    pub enable_partial_authorization: Option<bool>,
 }
 
 // TODO: uncomment fields as necessary
@@ -755,6 +790,12 @@ impl PaymentIntentUpdateInternal {
             id: source.id,
             is_payment_id_from_merchant: source.is_payment_id_from_merchant,
             payment_channel: source.payment_channel,
+            tax_status: source.tax_status,
+            discount_amount: source.discount_amount,
+            shipping_amount_tax: source.shipping_amount_tax,
+            duty_amount: source.duty_amount,
+            order_date: source.order_date,
+            enable_partial_authorization: None,
         }
     }
 }
@@ -804,6 +845,12 @@ pub struct PaymentIntentUpdateInternal {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub extended_return_url: Option<String>,
     pub payment_channel: Option<common_enums::PaymentChannel>,
+    pub tax_status: Option<common_enums::TaxStatus>,
+    pub discount_amount: Option<MinorUnit>,
+    pub order_date: Option<PrimitiveDateTime>,
+    pub shipping_amount_tax: Option<MinorUnit>,
+    pub duty_amount: Option<MinorUnit>,
+    pub enable_partial_authorization: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -850,6 +897,12 @@ impl PaymentIntentUpdate {
             is_iframe_redirection_enabled,
             extended_return_url,
             payment_channel,
+            tax_status,
+            discount_amount,
+            order_date,
+            shipping_amount_tax,
+            duty_amount,
+            enable_partial_authorization,
         } = self.into();
         PaymentIntent {
             amount: amount.unwrap_or(source.amount),
@@ -900,6 +953,13 @@ impl PaymentIntentUpdate {
                 .or(source.is_iframe_redirection_enabled),
             extended_return_url: extended_return_url.or(source.extended_return_url),
             payment_channel: payment_channel.or(source.payment_channel),
+            tax_status: tax_status.or(source.tax_status),
+            discount_amount: discount_amount.or(source.discount_amount),
+            order_date: order_date.or(source.order_date),
+            shipping_amount_tax: shipping_amount_tax.or(source.shipping_amount_tax),
+            duty_amount: duty_amount.or(source.duty_amount),
+            enable_partial_authorization: enable_partial_authorization
+                .or(source.enable_partial_authorization),
             ..source
         }
     }
@@ -953,6 +1013,12 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 extended_return_url: None,
                 payment_channel: None,
+                tax_status: None,
+                discount_amount: None,
+                order_date: None,
+                shipping_amount_tax: None,
+                duty_amount: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::Update(value) => Self {
                 amount: Some(value.amount),
@@ -996,6 +1062,12 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_iframe_redirection_enabled: value.is_iframe_redirection_enabled,
                 extended_return_url: value.return_url,
                 payment_channel: value.payment_channel,
+                tax_status: value.tax_status,
+                discount_amount: value.discount_amount,
+                order_date: value.order_date,
+                shipping_amount_tax: value.shipping_amount_tax,
+                duty_amount: value.duty_amount,
+                enable_partial_authorization: value.enable_partial_authorization,
             },
             PaymentIntentUpdate::PaymentCreateUpdate {
                 return_url,
@@ -1046,6 +1118,12 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 extended_return_url: return_url,
                 payment_channel: None,
+                tax_status: None,
+                discount_amount: None,
+                order_date: None,
+                shipping_amount_tax: None,
+                duty_amount: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::PGStatusUpdate {
                 status,
@@ -1092,6 +1170,12 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 extended_return_url: None,
                 payment_channel: None,
+                tax_status: None,
+                discount_amount: None,
+                order_date: None,
+                shipping_amount_tax: None,
+                duty_amount: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::MerchantStatusUpdate {
                 status,
@@ -1139,6 +1223,12 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 extended_return_url: None,
                 payment_channel: None,
+                tax_status: None,
+                discount_amount: None,
+                order_date: None,
+                shipping_amount_tax: None,
+                duty_amount: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::ResponseUpdate {
                 // amount,
@@ -1193,6 +1283,12 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 extended_return_url: None,
                 payment_channel: None,
+                tax_status: None,
+                discount_amount: None,
+                order_date: None,
+                shipping_amount_tax: None,
+                duty_amount: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id,
@@ -1239,6 +1335,12 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 extended_return_url: None,
                 payment_channel: None,
+                tax_status: None,
+                discount_amount: None,
+                order_date: None,
+                shipping_amount_tax: None,
+                duty_amount: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::StatusAndAttemptUpdate {
                 status,
@@ -1286,6 +1388,12 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 extended_return_url: None,
                 payment_channel: None,
+                tax_status: None,
+                discount_amount: None,
+                order_date: None,
+                shipping_amount_tax: None,
+                duty_amount: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::ApproveUpdate {
                 status,
@@ -1332,6 +1440,12 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 extended_return_url: None,
                 payment_channel: None,
+                tax_status: None,
+                discount_amount: None,
+                order_date: None,
+                shipping_amount_tax: None,
+                duty_amount: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::RejectUpdate {
                 status,
@@ -1378,6 +1492,12 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 extended_return_url: None,
                 payment_channel: None,
+                tax_status: None,
+                discount_amount: None,
+                order_date: None,
+                shipping_amount_tax: None,
+                duty_amount: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::SurchargeApplicableUpdate {
                 surcharge_applicable,
@@ -1423,6 +1543,12 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 extended_return_url: None,
                 payment_channel: None,
+                tax_status: None,
+                discount_amount: None,
+                order_date: None,
+                shipping_amount_tax: None,
+                duty_amount: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount } => Self {
                 amount: Some(amount),
@@ -1465,6 +1591,12 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 extended_return_url: None,
                 payment_channel: None,
+                tax_status: None,
+                discount_amount: None,
+                order_date: None,
+                shipping_amount_tax: None,
+                duty_amount: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::AuthorizationCountUpdate {
                 authorization_count,
@@ -1509,6 +1641,12 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 extended_return_url: None,
                 payment_channel: None,
+                tax_status: None,
+                discount_amount: None,
+                order_date: None,
+                shipping_amount_tax: None,
+                duty_amount: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::CompleteAuthorizeUpdate {
                 shipping_address_id,
@@ -1553,6 +1691,12 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 extended_return_url: None,
                 payment_channel: None,
+                tax_status: None,
+                discount_amount: None,
+                order_date: None,
+                shipping_amount_tax: None,
+                duty_amount: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::ManualUpdate { status, updated_by } => Self {
                 status,
@@ -1595,6 +1739,12 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 extended_return_url: None,
                 payment_channel: None,
+                tax_status: None,
+                discount_amount: None,
+                order_date: None,
+                shipping_amount_tax: None,
+                duty_amount: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::SessionResponseUpdate {
                 tax_details,
@@ -1642,6 +1792,12 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 extended_return_url: None,
                 payment_channel: None,
+                tax_status: None,
+                discount_amount: None,
+                order_date: None,
+                shipping_amount_tax: None,
+                duty_amount: None,
+                enable_partial_authorization: None,
             },
         }
     }
