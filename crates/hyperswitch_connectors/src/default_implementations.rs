@@ -1055,7 +1055,6 @@ default_imp_for_cancel_post_capture!(
     connectors::Nexixpay,
     connectors::Opayo,
     connectors::Opennode,
-    connectors::Nuvei,
     connectors::Nmi,
     connectors::Paybox,
     connectors::Payeezy,

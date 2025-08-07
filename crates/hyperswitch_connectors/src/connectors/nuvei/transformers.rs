@@ -1,4 +1,4 @@
-use common_enums::{enums, CaptureMethod};
+use common_enums::{enums, CaptureMethod, PaymentChannel};
 use common_utils::{
     crypto::{self, GenerateDigest},
     date_time,
@@ -21,7 +21,7 @@ use hyperswitch_domain_models::{
     },
     router_flow_types::{
         refunds::{Execute, RSync},
-        Authorize, Capture, CompleteAuthorize, PSync, Void,
+        Authorize, Capture, CompleteAuthorize, PSync, PostCaptureVoid, Void,
     },
     router_request_types::{
         authentication::MessageExtensionAttribute, BrowserInformation, PaymentsAuthorizeData,
@@ -67,6 +67,7 @@ trait NuveiAuthorizePreprocessingCommon {
     fn get_related_transaction_id(&self) -> Option<String>;
     fn get_setup_mandate_details(&self) -> Option<MandateData>;
     fn get_complete_authorize_url(&self) -> Option<String>;
+    fn get_is_moto(&self) -> Option<bool>;
     fn get_connector_mandate_id(&self) -> Option<String>;
     fn get_return_url_required(
         &self,
@@ -96,15 +97,19 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsAuthorizeData {
     fn get_related_transaction_id(&self) -> Option<String> {
         self.related_transaction_id.clone()
     }
+    fn get_is_moto(&self) -> Option<bool> {
+        match self.payment_channel {
+            Some(PaymentChannel::MailOrder) | Some(PaymentChannel::TelephoneOrder) => Some(true),
+            _ => None,
+        }
+    }
 
     fn get_customer_id_required(
         &self,
     ) -> Result<CustomerId, error_stack::Report<errors::ConnectorError>> {
-        // self.customer_id
-        //     .clone()
-        //     .ok_or(missing_field_err("customer_id").into())
-
-        Ok("hello".to_string())
+        self.customer_id
+            .clone()
+            .ok_or(missing_field_err("customer_id")())
     }
 
     fn get_setup_mandate_details(&self) -> Option<MandateData> {
@@ -161,6 +166,10 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsPreProcessingData {
 
     fn get_related_transaction_id(&self) -> Option<String> {
         self.related_transaction_id.clone()
+    }
+
+    fn get_is_moto(&self) -> Option<bool> {
+        None
     }
 
     fn get_customer_id_required(
@@ -940,7 +949,7 @@ where
         .get_billing()?
         .address
         .as_ref()
-        .ok_or_else(utils::missing_field_err("billing.address"))?;
+        .ok_or_else(missing_field_err("billing.address"))?;
     let first_name = address.get_first_name()?;
     let payment_method = payment_method_type;
     Ok(NuveiPaymentsRequest {
@@ -1115,7 +1124,7 @@ where
         };
         Ok(Self {
             is_rebilling: request_data.is_rebilling,
-            user_token_id: request_data.user_token_id,
+            user_token_id: item.customer_id.clone(),
             related_transaction_id: request_data.related_transaction_id,
             payment_option: request_data.payment_option,
             billing_address: request_data.billing_address,
@@ -1126,6 +1135,7 @@ where
                 pending_url: "https://google.com".to_string(),
             }),
             amount_details,
+
             ..request
         })
     }
@@ -1178,7 +1188,7 @@ where
                     }
                 };
                 let mandate_meta: NuveiMandateMeta = utils::to_connector_meta_from_secret(Some(
-                    details.get_metadata().ok_or_else(utils::missing_field_err(
+                    details.get_metadata().ok_or_else(missing_field_err(
                         "mandate_data.mandate_type.{multi_use|single_use}.metadata",
                     ))?,
                 ))?;
@@ -1189,7 +1199,7 @@ where
                             details
                                 .get_end_date(date_time::DateFormat::YYYYMMDD)
                                 .change_context(errors::ConnectorError::DateFormattingFailed)?
-                                .ok_or_else(utils::missing_field_err(
+                                .ok_or_else(missing_field_err(
                                     "mandate_data.mandate_type.{multi_use|single_use}.end_date",
                                 ))?,
                         ),
@@ -1232,7 +1242,7 @@ where
     } else {
         None
     };
-
+    let is_moto = item.request.get_is_moto();
     Ok(NuveiPaymentsRequest {
         related_transaction_id,
         is_rebilling,
@@ -1244,6 +1254,7 @@ where
             card_holder_name: item.get_optional_billing_full_name(),
         }),
         billing_address,
+        is_moto: is_moto,
         ..Default::default()
     })
 }
@@ -1451,6 +1462,57 @@ impl TryFrom<&types::PaymentsSyncRouterData> for NuveiPaymentSyncRequest {
     }
 }
 
+#[derive(Debug, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct NuveiVoidRequest {
+    pub merchant_id: Secret<String>,
+    pub merchant_site_id: Secret<String>,
+    pub client_unique_id: String,
+    pub related_transaction_id: String,
+    pub time_stamp: String,
+    pub checksum: Secret<String>,
+    pub client_request_id: String,
+}
+
+impl TryFrom<&types::PaymentsCancelPostCaptureRouterData> for NuveiVoidRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsCancelPostCaptureRouterData) -> Result<Self, Self::Error> {
+        let connector_meta: NuveiAuthType = NuveiAuthType::try_from(&item.connector_auth_type)?;
+        let merchant_id = connector_meta.merchant_id.clone();
+        let merchant_site_id = connector_meta.merchant_site_id.clone();
+        let merchant_secret = connector_meta.merchant_secret.clone();
+        let client_unique_id = item.connector_request_reference_id.clone();
+        let related_transaction_id = item.request.connector_transaction_id.clone();
+        let client_request_id = item.connector_request_reference_id.clone();
+        let time_stamp =
+            date_time::format_date(date_time::now(), date_time::DateFormat::YYYYMMDDHHmmss)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let checksum = Secret::new(encode_payload(&[
+            merchant_id.peek(),
+            merchant_site_id.peek(),
+            &client_request_id,
+            &client_unique_id,
+            "", // amount (empty for void)
+            "", // currency (empty for void)
+            &related_transaction_id,
+            "", // authCode (empty)
+            "", // comment (empty)
+            &time_stamp,
+            merchant_secret.peek(),
+        ])?);
+
+        Ok(Self {
+            merchant_id,
+            merchant_site_id,
+            client_unique_id,
+            related_transaction_id,
+            time_stamp,
+            checksum,
+            client_request_id,
+        })
+    }
+}
+
 impl TryFrom<&types::PaymentsCancelRouterData> for NuveiPaymentFlowRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
@@ -1645,6 +1707,7 @@ impl NuveiPaymentsGenericResponse for CompleteAuthorize {}
 impl NuveiPaymentsGenericResponse for Void {}
 impl NuveiPaymentsGenericResponse for PSync {}
 impl NuveiPaymentsGenericResponse for Capture {}
+impl NuveiPaymentsGenericResponse for PostCaptureVoid {}
 
 impl<F, T> TryFrom<ResponseRouterData<F, NuveiPaymentsResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
@@ -1751,6 +1814,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<NuveiPaymentsResponse>>
                 enrolled_v2: is_enrolled_for_3ds,
                 related_transaction_id: response.transaction_id,
             }),
+
             ..item.data
         })
     }
@@ -1846,7 +1910,7 @@ impl ForeignTryFrom<&Option<BrowserInformation>> for DeviceDetails {
     fn foreign_try_from(browser_info: &Option<BrowserInformation>) -> Result<Self, Self::Error> {
         let browser_info = browser_info
             .as_ref()
-            .ok_or_else(utils::missing_field_err("browser_info"))?;
+            .ok_or_else(missing_field_err("browser_info"))?;
         Ok(Self {
             ip_address: browser_info.get_ip_address()?,
         })
