@@ -131,7 +131,7 @@ export const connectorDetails = {
     PaymentIntentOffSession: {
       Configs: {
         CONNECTOR_CREDENTIAL: {
-          specName: ["connectorAgnosticNTID", "incrementalAuth"],
+          specName: ["connectorAgnosticNTID"],
           value: "connector_2",
         },
       },
@@ -302,6 +302,12 @@ export const connectorDetails = {
       },
     },
     Capture: getCustomExchange({
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          specName: ["incrementalAuth"],
+          value: "connector_1",
+        },
+      },
       Request: {
         amount_to_capture: 6000,
       },
@@ -631,6 +637,12 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSManualCapture: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          specName: ["incrementalAuth"],
+          value: "connector_1",
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -714,7 +726,7 @@ export const connectorDetails = {
       Configs: {
         CONNECTOR_CREDENTIAL: {
           specName: ["incrementalAuth"],
-          value: "connector_2",
+          value: "connector_1",
         },
       },
       Request: {
