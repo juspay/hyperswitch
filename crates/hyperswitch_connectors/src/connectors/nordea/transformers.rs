@@ -353,8 +353,8 @@ impl From<NordeaPaymentStatus> for common_enums::AttemptStatus {
             NordeaPaymentStatus::Confirmed | NordeaPaymentStatus::Paid => Self::Charged,
 
             NordeaPaymentStatus::PendingConfirmation
-            | NordeaPaymentStatus::PendingSecondConfirmation
-            | NordeaPaymentStatus::PendingUserApproval => Self::Pending,
+            | NordeaPaymentStatus::PendingSecondConfirmation => Self::ConfirmationAwaited,
+            NordeaPaymentStatus::PendingUserApproval => Self::AuthenticationPending,
 
             NordeaPaymentStatus::OnHold | NordeaPaymentStatus::Unknown => Self::Pending,
 
