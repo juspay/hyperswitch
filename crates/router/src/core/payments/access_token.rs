@@ -113,51 +113,8 @@ pub async fn add_access_token<
                     )),
                 );
 
-                let should_create_authentication_token = connector
-                    .connector
-                    .authentication_token_for_token_creation();
-
-                let authentication_token = if should_create_authentication_token {
-                    let cloned_router_data = router_data.clone();
-                    let authentication_token_request_data = types::AccessTokenAuthenticationRequestData::try_from(router_data.connector_auth_type.clone())
-                        .attach_printable(
-                "Could not create authentication token request, invalid connector account credentials",
-                        )?;
-
-                    let authentication_token_response_data: Result<
-                        types::AccessTokenAuthenticationResponse,
-                        types::ErrorResponse,
-                    > = Err(types::ErrorResponse::default());
-
-                    let auth_token_router_data = payments::helpers::router_data_type_conversion::<
-                        _,
-                        api_types::AccessTokenAuthentication,
-                        _,
-                        _,
-                        _,
-                        _,
-                    >(
-                        cloned_router_data,
-                        authentication_token_request_data,
-                        authentication_token_response_data,
-                    );
-
-                    let auth_token_result = execute_authentication_token(
-                        state,
-                        connector,
-                        merchant_context,
-                        &auth_token_router_data,
-                    )
-                    .await?;
-
-                    let authentication_token = auth_token_result
-                        .map_err(|_error| errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to get authentication token")?;
-
-                    Some(authentication_token)
-                } else {
-                    None
-                };
+                let authentication_token =
+                    execute_authentication_token(state, connector, router_data).await?;
 
                 let cloned_router_data = router_data.clone();
 
@@ -304,37 +261,66 @@ pub async fn refresh_connector_auth(
     Ok(access_token_router_data)
 }
 
-pub async fn execute_authentication_token(
+pub async fn execute_authentication_token<
+    F: Clone + 'static,
+    Req: Debug + Clone + 'static,
+    Res: Debug + Clone + 'static,
+>(
     state: &SessionState,
     connector: &api_types::ConnectorData,
-    _merchant_context: &domain::MerchantContext,
-    router_data: &types::RouterData<
-        api_types::AccessTokenAuthentication,
-        types::AccessTokenAuthenticationRequestData,
+    router_data: &types::RouterData<F, Req, Res>,
+) -> RouterResult<Option<types::AccessTokenAuthenticationResponse>> {
+    let should_create_authentication_token = connector
+        .connector
+        .authentication_token_for_token_creation();
+
+    if !should_create_authentication_token {
+        return Ok(None);
+    }
+
+    let authentication_token_request_data = types::AccessTokenAuthenticationRequestData::try_from(
+        router_data.connector_auth_type.clone(),
+    )
+    .attach_printable(
+        "Could not create authentication token request, invalid connector account credentials",
+    )?;
+
+    let authentication_token_response_data: Result<
         types::AccessTokenAuthenticationResponse,
-    >,
-) -> RouterResult<Result<types::AccessTokenAuthenticationResponse, types::ErrorResponse>> {
-    // Get the connector integration for authentication token
+        types::ErrorResponse,
+    > = Err(types::ErrorResponse::default());
+
+    let auth_token_router_data = payments::helpers::router_data_type_conversion::<
+        _,
+        api_types::AccessTokenAuthentication,
+        _,
+        _,
+        _,
+        _,
+    >(
+        router_data.clone(),
+        authentication_token_request_data,
+        authentication_token_response_data,
+    );
+
     let connector_integration: services::BoxedAuthenticationTokenConnectorIntegrationInterface<
         api_types::AccessTokenAuthentication,
         types::AccessTokenAuthenticationRequestData,
         types::AccessTokenAuthenticationResponse,
     > = connector.connector.get_connector_integration();
 
-    // Execute the connector processing step
     let auth_token_router_data_result = services::execute_connector_processing_step(
         state,
         connector_integration,
-        router_data,
+        &auth_token_router_data,
         payments::CallConnectorAction::Trigger,
         None,
         None,
     )
     .await;
 
-    // Handle the response
-    let auth_token_router_data = match auth_token_router_data_result {
-        Ok(router_data) => Ok(router_data.response),
+    let auth_token_result = match auth_token_router_data_result {
+        Ok(router_data) => router_data.response,
         Err(connector_error) => {
             // Handle timeout errors
             if connector_error.current_context().is_connector_timeout() {
@@ -349,14 +335,18 @@ pub async fn execute_authentication_token(
                     network_decline_code: None,
                     network_error_message: None,
                 };
-                Ok(Err(error_response))
+                Err(error_response)
             } else {
-                Err(connector_error
+                return Err(connector_error
                     .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Could not get authentication token"))
+                    .attach_printable("Could not get authentication token"));
             }
         }
-    }?;
+    };
 
-    Ok(auth_token_router_data)
+    let authentication_token = auth_token_result
+        .map_err(|_error| errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get authentication token")?;
+
+    Ok(Some(authentication_token))
 }
