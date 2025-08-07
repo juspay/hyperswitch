@@ -185,8 +185,7 @@ Cypress.Commands.add("ListConnectorsFeatureMatrixCall", (globalState) => {
       response.body.connectors.forEach((item) => {
         expect(item).to.have.property("description").and.not.empty;
         expect(item).to.have.property("category").and.not.empty;
-        expect(item).to.have.property("supported_payment_methods").and.not
-          .empty;
+        expect(item).to.have.property("integration_status").and.not.empty;
       });
     });
   });
