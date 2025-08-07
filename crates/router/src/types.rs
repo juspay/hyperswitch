@@ -1133,47 +1133,6 @@ pub struct ConnectorsList {
     pub connectors: Vec<String>,
 }
 
-impl ForeignTryFrom<ConnectorAuthType> for AccessTokenRequestData {
-    type Error = errors::ApiErrorResponse;
-    fn foreign_try_from(connector_auth: ConnectorAuthType) -> Result<Self, Self::Error> {
-        match connector_auth {
-            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                app_id: api_key,
-                id: None,
-                authentication_token: None,
-            }),
-            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
-                app_id: api_key,
-                id: Some(key1),
-                authentication_token: None,
-            }),
-            ConnectorAuthType::SignatureKey {
-                api_key,
-                key1,
-                api_secret,
-            } => Ok(Self {
-                app_id: api_key,
-                id: Some(key1),
-                authentication_token: Some(api_secret),
-            }),
-            ConnectorAuthType::MultiAuthKey {
-                api_key,
-                key1,
-                api_secret,
-                ..
-            } => Ok(Self {
-                app_id: api_key,
-                id: Some(key1),
-                authentication_token: Some(api_secret),
-            }),
-
-            _ => Err(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "connector_account_details",
-            }),
-        }
-    }
-}
-
 impl ForeignFrom<&PaymentsAuthorizeRouterData> for AuthorizeSessionTokenData {
     fn foreign_from(data: &PaymentsAuthorizeRouterData) -> Self {
         Self {
