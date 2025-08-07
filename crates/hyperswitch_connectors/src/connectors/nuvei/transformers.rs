@@ -1130,9 +1130,9 @@ where
             billing_address: request_data.billing_address,
             device_details: request_data.device_details,
             url_details: Some(UrlDetails {
-                success_url: "https://google.com".to_string(), // remove in pr
-                failure_url: "https://google.com".to_string(),
-                pending_url: "https://google.com".to_string(),
+                success_url: return_url.clone(),
+                failure_url: return_url.clone(),
+                pending_url: return_url.clone(),
             }),
             amount_details,
 

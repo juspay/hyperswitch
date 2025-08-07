@@ -176,11 +176,6 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let meta: nuvei::NuveiMeta = utils::to_connector_meta(req.request.connector_meta.clone())?;
         let connector_req = nuvei::NuveiPaymentsRequest::try_from((req, meta.session_token))?;
-        println!(
-            "NIT: PAYMENT Complete auth request {:?} ",
-            serde_json::to_string_pretty(&connector_req)
-        );
-
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
     fn build_request(
@@ -214,8 +209,6 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
             .response
             .parse_struct("NuveiPaymentsResponse")
             .switch()?;
-        println!("NIT: PAYMENT Complete auth response {:?} ", res.response);
-
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
@@ -296,7 +289,6 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Nu
             .response
             .parse_struct("NuveiPaymentsResponse")
             .switch()?;
-        println!("NIT: void response {:?} ", res.response);
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -382,7 +374,6 @@ impl ConnectorIntegration<PostCaptureVoid, PaymentsCancelPostCaptureData, Paymen
             .response
             .parse_struct("NuveiPaymentsResponse")
             .switch()?;
-        println!("NIT: void response {:?} ", res.response);
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -601,10 +592,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = nuvei::NuveiPaymentsRequest::try_from((req, req.get_session_token()?))?;
-        println!(
-            "NIT: PAYMENT  auth request {:?} ",
-            serde_json::to_string_pretty(&connector_req)
-        );
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -640,7 +627,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .response
             .parse_struct("NuveiPaymentsResponse")
             .switch()?;
-        println!("NIT: PAYMENT auth response {:?} ", res.response);
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
@@ -778,11 +764,6 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = nuvei::NuveiPaymentsRequest::try_from((req, req.get_session_token()?))?;
-        println!(
-            "NIT: INIT PAYMENT preprocessing request {:?} ",
-            serde_json::to_string_pretty(&connector_req)
-        );
-
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -818,10 +799,6 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
             .response
             .parse_struct("NuveiPaymentsResponse")
             .switch()?;
-        println!(
-            "NIT: INIT PAYMENT preprocessing RESPONSE {:?} ",
-            res.response
-        );
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
@@ -904,7 +881,6 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Nuvei {
             .response
             .parse_struct("NuveiPaymentsResponse")
             .switch()?;
-        println!("NIT: refund response {:?} ", res.response);
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
