@@ -2707,7 +2707,8 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaypalCaptureResponse>>
             | storage_enums::AttemptStatus::DeviceDataCollectionPending
             | storage_enums::AttemptStatus::Voided
             | storage_enums::AttemptStatus::VoidedPostCharge
-            | storage_enums::AttemptStatus::Expired => 0,
+            | storage_enums::AttemptStatus::Expired
+            | storage_enums::AttemptStatus::PartiallyAuthorized => 0,
             storage_enums::AttemptStatus::Charged
             | storage_enums::AttemptStatus::PartialCharged
             | storage_enums::AttemptStatus::PartialChargedAndChargeable

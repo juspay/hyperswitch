@@ -1403,6 +1403,7 @@ mod tests {
             whole_connector_response: None,
             payment_channel: None,
             network_transaction_id: None,
+            enable_partial_authorization: None,
         };
         let content =
             api_webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(expected_response));

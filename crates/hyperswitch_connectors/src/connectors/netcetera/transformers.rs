@@ -158,6 +158,13 @@ impl
                     }
                     Some(ACSChallengeMandatedIndicator::N) | None => AuthNFlowType::Frictionless,
                 };
+
+                let challenge_code = response
+                    .authentication_request
+                    .as_ref()
+                    .and_then(|req| req.three_ds_requestor_challenge_ind.as_ref())
+                    .and_then(|v| v.first().cloned());
+
                 Ok(AuthenticationResponseData::AuthNResponse {
                     authn_flow_type,
                     authentication_value: response.authentication_value,
@@ -165,7 +172,7 @@ impl
                     connector_metadata: None,
                     ds_trans_id: response.authentication_response.ds_trans_id,
                     eci: response.eci,
-                    challenge_code: response.three_ds_requestor_challenge_ind,
+                    challenge_code,
                     challenge_cancel: response.challenge_cancel,
                     challenge_code_reason: response.trans_status_reason,
                     message_extension: response.message_extension.and_then(|v| {
@@ -653,13 +660,12 @@ pub struct NetceteraAuthenticationSuccessResponse {
     pub authentication_value: Option<Secret<String>>,
     pub eci: Option<String>,
     pub acs_challenge_mandated: Option<ACSChallengeMandatedIndicator>,
+    pub authentication_request: Option<AuthenticationRequest>,
     pub authentication_response: AuthenticationResponse,
     #[serde(rename = "base64EncodedChallengeRequest")]
     pub encoded_challenge_request: Option<String>,
     pub challenge_cancel: Option<String>,
     pub trans_status_reason: Option<String>,
-    #[serde(rename = "threeDSRequestorChallengeInd")]
-    pub three_ds_requestor_challenge_ind: Option<String>,
     pub message_extension: Option<Vec<MessageExtensionAttribute>>,
 }
 
@@ -667,6 +673,13 @@ pub struct NetceteraAuthenticationSuccessResponse {
 #[serde(rename_all = "camelCase")]
 pub struct NetceteraAuthenticationFailureResponse {
     pub error_details: NetceteraErrorDetails,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthenticationRequest {
+    #[serde(rename = "threeDSRequestorChallengeInd")]
+    pub three_ds_requestor_challenge_ind: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

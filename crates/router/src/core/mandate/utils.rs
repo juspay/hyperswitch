@@ -89,6 +89,7 @@ pub async fn construct_mandate_revoke_router_data(
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
+        minor_amount_capturable: None,
     };
 
     Ok(router_data)

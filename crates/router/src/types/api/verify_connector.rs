@@ -67,6 +67,7 @@ impl VerifyConnectorData {
             order_id: None,
             locale: None,
             payment_channel: None,
+            enable_partial_authorization: None,
         }
     }
 
@@ -133,6 +134,7 @@ impl VerifyConnectorData {
             raw_connector_response: None,
             is_payment_id_from_merchant: None,
             l2_l3_data: None,
+            minor_amount_capturable: None,
         }
     }
 }
