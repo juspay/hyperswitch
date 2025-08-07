@@ -123,10 +123,7 @@ pub use crate::core::payments::CustomerDetails;
 use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLOW;
 use crate::{
     consts,
-    core::{
-        errors,
-        payments::{OperationSessionGetters, PaymentData},
-    },
+    core::payments::{OperationSessionGetters, PaymentData},
     services,
     types::transformers::{ForeignFrom, ForeignTryFrom},
 };
