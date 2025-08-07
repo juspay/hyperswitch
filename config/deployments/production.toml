@@ -155,6 +155,7 @@ worldline.base_url = "https://eu.api-ingenico.com/"
 worldpay.base_url = "https://access.worldpay.com/"
 worldpayvantiv.base_url = "https://transact.vantivcnp.com/vap/communicator/online"
 worldpayvantiv.secondary_base_url = "https://onlinessr.vantivcnp.com"
+worldpayvantiv.third_base_url = "https://services.vantivprelive.com" # pre-live environment
 worldpayxml.base_url = "https://secure.worldpay.com/jsp/merchant/xml/paymentService.jsp"
 xendit.base_url = "https://api.xendit.co"
 zen.base_url = "https://api.zen.com/"
@@ -835,5 +836,8 @@ click_to_pay = {connector_list = "adyen, cybersource, trustpay"}
 
 
 [revenue_recovery]
-monitoring_threshold_in_seconds = 2592000
+monitoring_threshold_in_seconds = 60
 retry_algorithm_type = "cascading"
+
+[list_dispute_supported_connectors]
+connector_list = "worldpayvantiv"

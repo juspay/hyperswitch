@@ -13,6 +13,8 @@ use common_utils::id_type;
 use external_services::email::{
     no_email::NoEmailClient, ses::AwsSes, smtp::SmtpServer, EmailClientConfigs, EmailService,
 };
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+use external_services::grpc_client::revenue_recovery::GrpcRecoveryHeaders;
 use external_services::{
     file_storage::FileStorageInterface,
     grpc_client::{GrpcClients, GrpcHeaders},
@@ -148,6 +150,12 @@ impl SessionState {
     pub fn get_grpc_headers(&self) -> GrpcHeaders {
         GrpcHeaders {
             tenant_id: self.tenant.tenant_id.get_string_repr().to_string(),
+            request_id: self.request_id.map(|req_id| (*req_id).to_string()),
+        }
+    }
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+    pub fn get_recovery_grpc_headers(&self) -> GrpcRecoveryHeaders {
+        GrpcRecoveryHeaders {
             request_id: self.request_id.map(|req_id| (*req_id).to_string()),
         }
     }
@@ -1970,6 +1978,10 @@ impl Disputes {
             )
             .service(
                 web::resource("/{dispute_id}").route(web::get().to(disputes::retrieve_dispute)),
+            )
+            .service(
+                web::resource("/{connector_id}/fetch")
+                    .route(web::get().to(disputes::fetch_disputes)),
             )
     }
 }

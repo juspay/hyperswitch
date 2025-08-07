@@ -8,6 +8,12 @@ pub const API_VERSION: common_enums::ApiVersion = common_enums::ApiVersion::V1;
 #[cfg(feature = "v2")]
 pub const API_VERSION: common_enums::ApiVersion = common_enums::ApiVersion::V2;
 
+/// Maximum Dispute Polling Interval In Hours
+pub const MAX_DISPUTE_POLLING_INTERVAL_IN_HOURS: i32 = 24;
+
+///Default Dispute Polling Interval In Hours
+pub const DEFAULT_DISPUTE_POLLING_INTERVAL_IN_HOURS: i32 = 24;
+
 /// Default payment intent statuses that trigger a webhook
 pub const DEFAULT_PAYMENT_WEBHOOK_TRIGGER_STATUSES: &[common_enums::IntentStatus] = &[
     common_enums::IntentStatus::Succeeded,

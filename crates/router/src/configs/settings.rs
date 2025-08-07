@@ -107,6 +107,7 @@ pub struct Settings<S: SecretState> {
     pub mandates: Mandates,
     pub zero_mandates: ZeroMandates,
     pub network_transaction_id_supported_connectors: NetworkTransactionIdSupportedConnectors,
+    pub list_dispute_supported_connectors: ListDiputeSupportedConnectors,
     pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
     pub webhook_source_verification_call: WebhookSourceVerificationCall,
@@ -598,6 +599,13 @@ where
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct NetworkTransactionIdSupportedConnectors {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub connector_list: HashSet<enums::Connector>,
+}
+
+/// Connectors that support only dispute list API for syncing disputes with Hyperswitch
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct ListDiputeSupportedConnectors {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub connector_list: HashSet<enums::Connector>,
 }
@@ -1112,6 +1120,15 @@ impl Settings<SecuredSecret> {
         self.platform.validate()?;
 
         self.open_router.validate()?;
+
+        // Validate gRPC client settings
+        #[cfg(feature = "revenue_recovery")]
+        self.grpc_client
+            .recovery_decider_client
+            .as_ref()
+            .map(|config| config.validate())
+            .transpose()
+            .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
 
         Ok(())
     }

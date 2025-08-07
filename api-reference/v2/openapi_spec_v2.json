@@ -4909,6 +4909,7 @@
           "void_failed",
           "auto_refunded",
           "partial_charged",
+          "partially_authorized",
           "partial_charged_and_chargeable",
           "unresolved",
           "pending",
@@ -10404,7 +10405,9 @@
         "enum": [
           "pre_dispute",
           "dispute",
-          "pre_arbitration"
+          "pre_arbitration",
+          "arbitration",
+          "dispute_reversal"
         ]
       },
       "DisputeStatus": {
@@ -10784,6 +10787,7 @@
           "payment_cancelled",
           "payment_cancelled_post_capture",
           "payment_authorized",
+          "payment_partially_authorized",
           "payment_captured",
           "payment_expired",
           "action_required",
@@ -12751,6 +12755,7 @@
           "requires_capture",
           "partially_captured",
           "partially_captured_and_capturable",
+          "partially_authorized_and_requires_capture",
           "conflicted",
           "expired"
         ]
