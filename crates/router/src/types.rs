@@ -118,6 +118,8 @@ pub use hyperswitch_interfaces::{
     },
 };
 
+#[cfg(feature = "v2")]
+use crate::core::errors;
 pub use crate::core::payments::CustomerDetails;
 #[cfg(feature = "payouts")]
 use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLOW;
