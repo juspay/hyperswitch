@@ -9,10 +9,9 @@ use hyperswitch_domain_models::payments::HeaderPayload;
 use masking::PeekInterface;
 use router_env::{env, instrument, logger, tracing, types, Flow};
 
+use super::app::ReqState;
 #[cfg(feature = "v2")]
 use crate::core::revenue_recovery::api as recovery;
-
-use super::app::ReqState;
 use crate::{
     self as app,
     core::{
