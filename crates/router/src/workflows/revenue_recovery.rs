@@ -1,5 +1,10 @@
 #[cfg(feature = "v2")]
+use std::collections::HashMap;
+
+#[cfg(feature = "v2")]
 use api_models::payments::PaymentsGetIntentRequest;
+#[cfg(feature = "v2")]
+use common_enums::enums::CardNetwork;
 #[cfg(feature = "v2")]
 use common_utils::{
     ext_traits::{StringExt, ValueExt},
@@ -9,18 +14,12 @@ use common_utils::{
 use diesel_models::types::BillingConnectorPaymentMethodDetails;
 #[cfg(feature = "v2")]
 use error_stack::ResultExt;
-#[cfg(feature = "v2")]
-use common_enums::enums::CardNetwork;
-#[cfg(feature = "v2")]
-use time::Date;
-#[cfg(feature = "v2")]
-use std::collections::HashMap;
-#[cfg(feature = "v2")]
-use hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptInterface;
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 use external_services::{
     date_time, grpc_client::revenue_recovery::recovery_decider_client as external_grpc_client,
 };
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptInterface;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
@@ -38,6 +37,8 @@ use scheduler::{consumer::workflows::ProcessTrackerWorkflow, errors};
 use scheduler::{types::process_data, utils as scheduler_utils};
 #[cfg(feature = "v2")]
 use storage_impl::errors as storage_errors;
+#[cfg(feature = "v2")]
+use time::Date;
 
 #[cfg(feature = "v2")]
 use crate::{
@@ -508,14 +509,15 @@ pub async fn get_best_psp_token_available(
     connector_customer_id: &str,
     payment_id: &id_type::GlobalPaymentId,
     merchant_context: domain::MerchantContext,
-) -> Result<Option<(PaymentProcessorTokenDetails, time::PrimitiveDateTime)>, errors::ProcessTrackerError> {
-
+) -> Result<
+    Option<(PaymentProcessorTokenDetails, time::PrimitiveDateTime)>,
+    errors::ProcessTrackerError,
+> {
     use crate::types::storage::revenue_recovery_redis_operation::RedisTokenManager;
     let db = &*state.store;
     let key_manager_state = &(state).into();
     let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
 
-    
     // Step 1: Get existing tokens from Redis
     let existing_tokens = RedisTokenManager::get_connector_customer_payment_processor_tokens(
         state,
@@ -531,8 +533,6 @@ pub async fn get_best_psp_token_available(
             merchant_context.get_merchant_account().storage_scheme,
         )
         .await?;
-
-    
 
     // Step 2: Insert into payment_intent_feature_metadata (DB operation)
     // TODO: Implement DB insertion logic
@@ -552,20 +552,22 @@ pub async fn get_best_psp_token_available(
         return Ok(None);
     }
 
-
-
     let result = RedisTokenManager::get_tokens_with_retry_metadata(state, &existing_tokens);
 
-    
-    let mut best_token_and_time: Option<(PaymentProcessorTokenDetails, time::PrimitiveDateTime)> = None;
+    let mut best_token_and_time: Option<(PaymentProcessorTokenDetails, time::PrimitiveDateTime)> =
+        None;
 
     for (token_id, token_with_retry_info) in result.iter() {
-        let payment_processor_token_details = &token_with_retry_info.token_status.payment_processor_token_details;
+        let payment_processor_token_details = &token_with_retry_info
+            .token_status
+            .payment_processor_token_details;
         let inserted_by_attempt_id = &token_with_retry_info.token_status.inserted_by_attempt_id;
         let monthly_retry_remaining = token_with_retry_info.monthly_retry_remaining;
 
         // Parse attempt_id
-        let attempt_id = id_type::GlobalAttemptId::try_from(std::borrow::Cow::Owned(inserted_by_attempt_id.to_owned()))?;
+        let attempt_id = id_type::GlobalAttemptId::try_from(std::borrow::Cow::Owned(
+            inserted_by_attempt_id.to_owned(),
+        ))?;
 
         // Fetch PaymentAttempt
         let payment_attempt = db
@@ -591,7 +593,7 @@ pub async fn get_best_psp_token_available(
         //         None => {
         //             best_token_and_time = Some((payment_processor_token_details.clone(), token_schedule_time));
         //         }
-        //         _ => {} 
+        //         _ => {}
         //     }
         // }
     }

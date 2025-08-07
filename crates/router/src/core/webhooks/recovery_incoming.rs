@@ -952,7 +952,7 @@ impl RevenueRecoveryAttempt {
         let connector_customer_id = revenue_recovery_attempt_data.connector_customer_id.clone();
 
         // let payment_id = recovery_intent.payment_id.clone();
-        let attempt_id=recovery_attempt.attempt_id.clone();
+        let attempt_id = recovery_attempt.attempt_id.clone();
 
         // Create PaymentProcessorTokenUnit from card_info and attempt data
         let mut new_tokens = std::collections::HashMap::new();
