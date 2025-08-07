@@ -405,7 +405,9 @@ async fn insert_calculate_pcr_task(
                 retry_count: Some(intent_retry_count.into()),
                 schedule_time: Some(schedule_time),
                 tracking_data: None,
-                business_status: Some(storage::business_status::CALCULATE_WORKFLOW_QUEUED.to_string()),
+                business_status: Some(
+                    storage::business_status::CALCULATE_WORKFLOW_QUEUED.to_string(),
+                ),
                 status: Some(diesel_models::enums::ProcessTrackerStatus::New),
                 updated_at: Some(common_utils::date_time::now()),
             };

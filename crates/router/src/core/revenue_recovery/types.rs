@@ -37,7 +37,6 @@ use crate::{
         errors::{self, RouterResult},
         payments::{self, helpers, operations::Operation},
         revenue_recovery::{self as revenue_recovery_core, perform_calculate_workflow},
-        revenue_recovery::{self as revenue_recovery_core, perform_calculate_workflow},
         webhooks::recovery_incoming as recovery_incoming_flow,
     },
     db::StorageInterface,
