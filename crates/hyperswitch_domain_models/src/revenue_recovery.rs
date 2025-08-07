@@ -1,7 +1,6 @@
 use api_models::{payments as api_payments, webhooks};
 use common_enums::enums as common_enums;
 use common_utils::{id_type, types as util_types};
-use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{
