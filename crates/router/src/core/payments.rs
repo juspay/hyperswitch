@@ -2892,7 +2892,6 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                 }),
                 search_tags: None,
                 apple_pay_recurring_details: None,
-                gateway_system: None,
             }),
             ..Default::default()
         };
@@ -3395,7 +3394,6 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     }),
                     search_tags: None,
                     apple_pay_recurring_details: None,
-                    gateway_system: None,
                 }),
                 ..Default::default()
             };
@@ -4054,7 +4052,7 @@ where
         .await?
         {
             router_env::logger::info!(
-                "Processing payment through UCS - payment_id={}, attempt_id={}",
+                "Processing payment through UCS gateway system - payment_id={}, attempt_id={}",
                 payment_data
                     .get_payment_intent()
                     .payment_id
@@ -4107,7 +4105,7 @@ where
             Ok((router_data, merchant_connector_account))
         } else {
             router_env::logger::info!(
-                "Executing payment through Direct routing - payment_id={}, attempt_id={}",
+                "Processing payment through Direct gateway system - payment_id={}, attempt_id={}",
                 payment_data
                     .get_payment_intent()
                     .payment_id
@@ -4542,7 +4540,7 @@ where
     record_time_taken_with(|| async {
         if should_call_unified_connector_service {
             router_env::logger::info!(
-                "Processing payment through UCS - payment_id={}, attempt_id={}",
+                "Processing payment through UCS gateway system- payment_id={}, attempt_id={}",
                 payment_data.get_payment_intent().id.get_string_repr(),
                 payment_data.get_payment_attempt().id.get_string_repr()
             );
@@ -4611,7 +4609,7 @@ where
         .await?
         {
             router_env::logger::info!(
-                "Executing payment through UCS - payment_id={}, attempt_id={}",
+                "Executing payment through UCS gateway system - payment_id={}, attempt_id={}",
                 payment_data.get_payment_intent().id.get_string_repr(),
                 payment_data.get_payment_attempt().id.get_string_repr()
             );
@@ -4655,7 +4653,7 @@ where
             Ok(router_data)
         } else {
             router_env::logger::info!(
-                "Executing payment through Direct routing - payment_id={}, attempt_id={}",
+                "Processing payment through Direct gateway system - payment_id={}, attempt_id={}",
                 payment_data.get_payment_intent().id.get_string_repr(),
                 payment_data.get_payment_attempt().id.get_string_repr()
             );

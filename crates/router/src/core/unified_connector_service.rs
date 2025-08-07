@@ -50,11 +50,17 @@ where
 {
     // Check basic UCS availability first
     if state.grpc_client.unified_connector_service_client.is_none() {
+        router_env::logger::debug!(
+            "Unified Connector Service client is not available, skipping UCS decision"
+        );
         return Ok(false);
     }
 
     let ucs_config_key = consts::UCS_ENABLED;
     if !is_ucs_enabled(state, ucs_config_key).await {
+        router_env::logger::debug!(
+            "Unified Connector Service is not enabled, skipping UCS decision"
+        );
         return Ok(false);
     }
 
