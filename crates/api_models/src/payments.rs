@@ -7944,9 +7944,6 @@ pub struct FeatureMetadata {
     pub search_tags: Option<Vec<HashedString<WithType>>>,
     /// Recurring payment details required for apple pay Merchant Token
     pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
-    /// The system that the gateway is integrated with, e.g., Direct(through hyperswitch), UnifiedConnectorService(through ucs), etc.
-    #[schema(value_type = Option<GatewaySystem>)]
-    pub gateway_system: Option<common_enums::GatewaySystem>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
