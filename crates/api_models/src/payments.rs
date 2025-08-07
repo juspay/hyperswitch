@@ -4570,25 +4570,32 @@ pub struct PhoneDetails {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug, Clone, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, SmithyModel, ToSchema)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PaymentsCaptureRequest {
     /// The unique identifier for the payment being captured. This is taken from the path parameter.
     #[serde(skip_deserializing)]
     pub payment_id: id_type::PaymentId,
     /// The unique identifier for the merchant. This is usually inferred from the API key.
     #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
     pub merchant_id: Option<id_type::MerchantId>,
     /// The amount to capture, in the lowest denomination of the currency. If omitted, the entire `amount_capturable` of the payment will be captured. Must be less than or equal to the current `amount_capturable`.
     #[schema(value_type = Option<i64>, example = 6540)]
+    #[smithy(value_type = "Option<i64>")]
     pub amount_to_capture: Option<MinorUnit>,
     /// Decider to refund the uncaptured amount. (Currently not fully supported or behavior may vary by connector).
+    #[smithy(value_type = "Option<bool>")]
     pub refund_uncaptured_amount: Option<bool>,
     /// A dynamic suffix that appears on your customer's credit card statement. This is concatenated with the (shortened) descriptor prefix set on your account to form the complete statement descriptor. The combined length should not exceed connector-specific limits (typically 22 characters).
+    #[smithy(value_type = "Option<String>")]
     pub statement_descriptor_suffix: Option<String>,
     /// An optional prefix for the statement descriptor that appears on your customer's credit card statement. This can override the default prefix set on your merchant account. The combined length of prefix and suffix should not exceed connector-specific limits (typically 22 characters).
+    #[smithy(value_type = "Option<String>")]
     pub statement_descriptor_prefix: Option<String>,
     /// Merchant connector details used to make payments. (Deprecated)
     #[schema(value_type = Option<MerchantConnectorDetailsWrap>, deprecated)]
+    #[smithy(value_type = "Option<MerchantConnectorDetailsWrap>")]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 

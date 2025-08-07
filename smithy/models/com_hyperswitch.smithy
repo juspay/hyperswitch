@@ -6,6 +6,7 @@ use com.hyperswitch.smithy.types#PaymentsRequest
 use com.hyperswitch.smithy.types#PaymentsResponse
 use com.hyperswitch.smithy.types#RefundRequest
 use com.hyperswitch.smithy.types#RefundResponse
+use com.hyperswitch.smithy.types#PaymentsCaptureRequest
 
 use aws.protocols#restJson1
 
@@ -19,7 +20,27 @@ use aws.protocols#restJson1
 )
 service Hyperswitch {
     version: "2024-07-31",
-    operations: [PaymentsCreate, PaymentsRetrieve, RefundsCreate, RefundsRetrieve]
+    operations: [PaymentsCreate, PaymentsRetrieve, RefundsCreate, RefundsRetrieve, PaymentsCapture]
+}
+
+/// Input structure for capturing a payment
+structure PaymentsCaptureRequestInput {
+    /// The unique identifier for the payment to capture
+    @required
+    @httpLabel
+    payment_id: smithy.api#String
+
+    /// The capture request details
+    @required
+    @httpPayload
+    payload: PaymentsCaptureRequest
+}
+
+@documentation("Capture a payment that has been previously authorized.")
+@http(method: "POST", uri: "/payments/{payment_id}/capture")
+operation PaymentsCapture {
+    input: PaymentsCaptureRequestInput,
+    output: PaymentsResponse,
 }
 
 @documentation("Retrieve a refund using the refund_id.")
@@ -36,10 +57,18 @@ structure RefundsRetrieveRequest {
     id: smithy.api#String
 }
 
+/// Structure for creating a refund
+structure RefundsCreateRequest {
+    /// The refund request details
+    @required
+    @httpPayload
+    payload: RefundRequest
+}
+
 @documentation("Create a refund for a payment.")
 @http(method: "POST", uri: "/refunds")
 operation RefundsCreate {
-    input: RefundRequest,
+    input: RefundsCreateRequest,
     output: RefundResponse,
 }
 
@@ -57,9 +86,17 @@ structure PaymentsRetrieveRequest {
     payment_id: smithy.api#String
 }
 
+/// Structure for creating a payment
+structure PaymentsCreateRequest {
+    /// The payment request details
+    @required
+    @httpPayload
+    payload: PaymentsRequest
+}
+
 @documentation("Create a payment with the specified details.")
 @http(method: "POST", uri: "/payments")
 operation PaymentsCreate {
-    input: PaymentsRequest,
+    input: PaymentsCreateRequest,
     output: PaymentsResponse,
 }
