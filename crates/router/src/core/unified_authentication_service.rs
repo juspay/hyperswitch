@@ -1412,29 +1412,6 @@ pub async fn authentication_sync_core(
             id: profile_id.get_string_repr().to_owned(),
         })?;
 
-    let (authentication_value, eci) = match auth_flow {
-        AuthFlow::Client => (None, None),
-        AuthFlow::Merchant => {
-            if let Some(common_enums::TransactionStatus::Success) = authentication.trans_status {
-                let tokenised_data = crate::core::payment_methods::vault::get_tokenized_data(
-                    &state,
-                    authentication_id.get_string_repr(),
-                    false,
-                    merchant_context.get_merchant_key_store().key.get_inner(),
-                )
-                .await
-                .inspect_err(|err| router_env::logger::error!(tokenized_data_result=?err))
-                .attach_printable("cavv not present after authentication status is success")?;
-                (
-                    Some(masking::Secret::new(tokenised_data.value1)),
-                    authentication.eci.clone(),
-                )
-            } else {
-                (None, None)
-            }
-        }
-    };
-
     let (authentication_connector, three_ds_connector_account) =
         auth_utils::get_authentication_connector_data(
             &state,
@@ -1474,6 +1451,31 @@ pub async fn authentication_sync_core(
         }
 
         _ => authentication,
+    };
+
+    let (authentication_value, eci) = match auth_flow {
+        AuthFlow::Client => (None, None),
+        AuthFlow::Merchant => {
+            if let Some(common_enums::TransactionStatus::Success) =
+                updated_authentication.trans_status
+            {
+                let tokenised_data = crate::core::payment_methods::vault::get_tokenized_data(
+                    &state,
+                    authentication_id.get_string_repr(),
+                    false,
+                    merchant_context.get_merchant_key_store().key.get_inner(),
+                )
+                .await
+                .inspect_err(|err| router_env::logger::error!(tokenized_data_result=?err))
+                .attach_printable("cavv not present after authentication status is success")?;
+                (
+                    Some(masking::Secret::new(tokenised_data.value1)),
+                    updated_authentication.eci.clone(),
+                )
+            } else {
+                (None, None)
+            }
+        }
     };
 
     let acquirer_details = Some(AcquirerDetails {
