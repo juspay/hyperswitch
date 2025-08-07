@@ -62,6 +62,7 @@ impl RevenueRecoveryPaymentData {
                     payment_attempt,
                     payment_intent,
                     retry_count,
+                    None,
                 )
                 .await
             }
@@ -100,8 +101,8 @@ pub struct RetryLimitsConfig {
 
 #[derive(Debug, serde::Deserialize, Clone, Default)]
 pub struct NetworkRetryConfig {
-    pub max_daily_retry_count: u64,
-    pub retry_count_30_day: u64,
+    pub max_daily_retry_count: i32,
+    pub retry_count_30_day: i32,
 }
 impl RetryLimitsConfig {
     pub fn get_network_config(

@@ -849,7 +849,7 @@ impl RevenueRecoveryAttempt {
         let response = (recovery_attempt, updated_recovery_intent);
 
         let redis_result = self
-            .store_payment_processor_tokens_in_redis(state, &response.0, &response.1)
+            .store_payment_processor_tokens_in_redis(state,&response.0)
             .await;
         match redis_result {
             Ok(_) => (),
@@ -1119,14 +1119,13 @@ impl RevenueRecoveryAttempt {
         &self,
         state: &SessionState,
         recovery_attempt: &revenue_recovery::RecoveryPaymentAttempt,
-        recovery_intent: &revenue_recovery::RecoveryPaymentIntent,
     ) -> CustomResult<(), errors::RevenueRecoveryError> {
         let revenue_recovery_attempt_data = &self.0;
 
         // Extract required fields from the revenue recovery attempt data
         let connector_customer_id = revenue_recovery_attempt_data.connector_customer_id.clone();
 
-        let payment_id = recovery_intent.payment_id.clone();
+        let attempt_id=recovery_attempt.attempt_id.clone();
 
         // Create PaymentProcessorTokenUnit from card_info and attempt data
         let mut new_tokens = std::collections::HashMap::new();
@@ -1165,7 +1164,7 @@ impl RevenueRecoveryAttempt {
             state,
             &connector_customer_id,
             new_tokens,
-            &payment_id,
+            &attempt_id,
         )
         .await
         .change_context(errors::RevenueRecoveryError::PaymentAttemptFetchFailed)
