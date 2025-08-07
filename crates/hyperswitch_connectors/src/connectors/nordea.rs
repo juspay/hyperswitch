@@ -13,15 +13,15 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    router_data::{AccessToken, AuthenticationToken, ErrorResponse, RouterData},
+    router_data::{AccessToken, AccessTokenAuthenticationResponse, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
-        AuthenticationTokenCreation, PreProcessing,
+        AccessTokenAuthentication, PreProcessing,
     },
     router_request_types::{
-        AccessTokenRequestData, AuthenticationTokenCreationRequestData,
+        AccessTokenRequestData, AccessTokenAuthenticationRequestData,
         PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
         PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
@@ -31,7 +31,7 @@ use hyperswitch_domain_models::{
         SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
-        AuthenticationTokenRouterData, PaymentsAuthorizeRouterData,
+        AccessTokenAuthenticationRouterData, PaymentsAuthorizeRouterData,
         PaymentsPreProcessingRouterData, PaymentsSyncRouterData, RefreshTokenRouterData,
         RefundsRouterData,
     },
@@ -421,14 +421,14 @@ impl ConnectorValidation for Nordea {}
 
 impl
     ConnectorIntegration<
-        AuthenticationTokenCreation,
-        AuthenticationTokenCreationRequestData,
-        AuthenticationToken,
+        AccessTokenAuthentication,
+        AccessTokenAuthenticationRequestData,
+        AccessTokenAuthenticationResponse,
     > for Nordea
 {
     fn get_url(
         &self,
-        _req: &AuthenticationTokenRouterData,
+        _req: &AccessTokenAuthenticationRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
@@ -443,7 +443,7 @@ impl
 
     fn get_request_body(
         &self,
-        req: &AuthenticationTokenRouterData,
+        req: &AccessTokenAuthenticationRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = NordeaOAuthRequest::try_from(req)?;
@@ -452,7 +452,7 @@ impl
 
     fn build_request(
         &self,
-        req: &AuthenticationTokenRouterData,
+        req: &AccessTokenAuthenticationRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         let auth = NordeaAuthType::try_from(&req.connector_auth_type)?;
@@ -535,10 +535,10 @@ impl
 
     fn handle_response(
         &self,
-        data: &AuthenticationTokenRouterData,
+        data: &AccessTokenAuthenticationRouterData,
         _event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<AuthenticationTokenRouterData, errors::ConnectorError> {
+    ) -> CustomResult<AccessTokenAuthenticationRouterData, errors::ConnectorError> {
         // Handle 302 redirect response
         if res.status_code == 302 {
             // Extract Location header
@@ -566,7 +566,7 @@ impl
 
             // Return auth code as "token" with short expiry
             Ok(RouterData {
-                response: Ok(AuthenticationToken {
+                response: Ok(AccessTokenAuthenticationResponse {
                     code: Secret::new(code),
                     expires: 60, // 60 seconds - auth code validity
                 }),

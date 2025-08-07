@@ -9,7 +9,7 @@ use hyperswitch_domain_models::{
     router_request_types::{PaymentsAuthorizeData, PaymentsPreProcessingData, ResponseId},
     router_response_types::{PaymentsResponseData, RedirectForm},
     types::{
-        self, AuthenticationTokenRouterData, PaymentsAuthorizeRouterData,
+        self, AccessTokenAuthenticationRouterData, PaymentsAuthorizeRouterData,
         PaymentsPreProcessingRouterData, PaymentsSyncRouterData,
     },
 };
@@ -91,9 +91,9 @@ impl TryFrom<&Option<pii::SecretSerdeValue>> for NordeaConnectorMetadataObject {
     }
 }
 
-impl TryFrom<&AuthenticationTokenRouterData> for NordeaOAuthRequest {
+impl TryFrom<&AccessTokenAuthenticationRouterData> for NordeaOAuthRequest {
     type Error = Error;
-    fn try_from(item: &AuthenticationTokenRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &AccessTokenAuthenticationRouterData) -> Result<Self, Self::Error> {
         let country = item.get_billing_country()?;
 
         // Set refresh_token maximum expiry duration to 180 days (259200 / 60 = 180)

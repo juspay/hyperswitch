@@ -1,5 +1,5 @@
 #[derive(Clone, Debug)]
-pub struct AuthenticationTokenCreation;
+pub struct AccessTokenAuthentication;
 
 #[derive(Clone, Debug)]
 pub struct AccessTokenAuth;

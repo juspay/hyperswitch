@@ -1,5 +1,5 @@
 use hyperswitch_domain_models::{
-    router_data::{AccessToken, AuthenticationToken},
+    router_data::{AccessToken, AccessTokenAuthenticationResponse},
     router_data_v2::{
         flow_common_types::{
             BillingConnectorInvoiceSyncFlowData, BillingConnectorPaymentsSyncFlowData,
@@ -27,7 +27,7 @@ use hyperswitch_domain_models::{
             BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, RecoveryRecordBack,
         },
         webhooks::VerifyWebhookSource,
-        AccessTokenAuth, AuthenticationTokenCreation, ExternalVaultCreateFlow,
+        AccessTokenAuth, AccessTokenAuthentication, ExternalVaultCreateFlow,
         ExternalVaultDeleteFlow, ExternalVaultInsertFlow, ExternalVaultRetrieveFlow,
     },
     router_request_types::{
@@ -36,7 +36,7 @@ use hyperswitch_domain_models::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             RevenueRecoveryRecordBackRequest,
         },
-        AcceptDisputeRequestData, AccessTokenRequestData, AuthenticationTokenCreationRequestData,
+        AcceptDisputeRequestData, AccessTokenRequestData, AccessTokenAuthenticationRequestData,
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
         CreateOrderRequestData, DefendDisputeRequestData, DisputeSyncData,
         FetchDisputesRequestData, MandateRevokeRequestData, PaymentMethodTokenizationData,
@@ -529,7 +529,7 @@ macro_rules! default_imp_for_new_connector_integration_connector_authentication_
         $(
             impl ConnectorAuthenticationTokenV2 for $path::$connector{}
             impl
-            ConnectorIntegrationV2<AuthenticationTokenCreation, AuthenticationTokenFlowData, AuthenticationTokenCreationRequestData, AuthenticationToken,>
+            ConnectorIntegrationV2<AccessTokenAuthentication, AuthenticationTokenFlowData, AccessTokenAuthenticationRequestData, AccessTokenAuthenticationResponse,>
             for $path::$connector{}
     )*
     };

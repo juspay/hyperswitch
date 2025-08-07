@@ -1,11 +1,11 @@
 pub use diesel_models::types::OrderDetailsWithAmount;
 
 use crate::{
-    router_data::{AccessToken, AuthenticationToken, RouterData},
+    router_data::{AccessToken, AccessTokenAuthenticationResponse, RouterData},
     router_data_v2::{self, RouterDataV2},
     router_flow_types::{
         mandate_revoke::MandateRevoke, revenue_recovery::RecoveryRecordBack, AccessTokenAuth,
-        Authenticate, AuthenticationConfirmation, AuthenticationTokenCreation, Authorize,
+        Authenticate, AuthenticationConfirmation, AccessTokenAuthentication, Authorize,
         AuthorizeSessionToken, BillingConnectorInvoiceSync, BillingConnectorPaymentsSync,
         CalculateTax, Capture, CompleteAuthorize, CreateConnectorCustomer, CreateOrder, Execute,
         IncrementalAuthorization, PSync, PaymentMethodToken, PostAuthenticate, PostCaptureVoid,
@@ -22,7 +22,7 @@ use crate::{
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
         },
-        AccessTokenRequestData, AuthenticationTokenCreationRequestData, AuthorizeSessionTokenData,
+        AccessTokenRequestData, AccessTokenAuthenticationRequestData, AuthorizeSessionTokenData,
         CompleteAuthorizeData, ConnectorCustomerData, CreateOrderRequestData,
         MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
@@ -68,10 +68,10 @@ pub type PaymentsCompleteAuthorizeRouterData =
     RouterData<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>;
 pub type PaymentsTaxCalculationRouterData =
     RouterData<CalculateTax, PaymentsTaxCalculationData, TaxCalculationResponseData>;
-pub type AuthenticationTokenRouterData = RouterData<
-    AuthenticationTokenCreation,
-    AuthenticationTokenCreationRequestData,
-    AuthenticationToken,
+pub type AccessTokenAuthenticationRouterData = RouterData<
+    AccessTokenAuthentication,
+    AccessTokenAuthenticationRequestData,
+    AccessTokenAuthenticationResponse,
 >;
 pub type RefreshTokenRouterData = RouterData<AccessTokenAuth, AccessTokenRequestData, AccessToken>;
 pub type PaymentsPostSessionTokensRouterData =

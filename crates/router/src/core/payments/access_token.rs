@@ -119,19 +119,19 @@ pub async fn add_access_token<
 
                 let authentication_token = if should_create_authentication_token {
                     let cloned_router_data = router_data.clone();
-                    let authentication_token_request_data = types::AuthenticationTokenCreationRequestData::try_from(router_data.connector_auth_type.clone())
+                    let authentication_token_request_data = types::AccessTokenAuthenticationRequestData::try_from(router_data.connector_auth_type.clone())
                         .attach_printable(
                 "Could not create authentication token request, invalid connector account credentials",
                         )?;
 
                     let authentication_token_response_data: Result<
-                        types::AuthenticationToken,
+                        types::AccessTokenAuthenticationResponse,
                         types::ErrorResponse,
                     > = Err(types::ErrorResponse::default());
 
                     let auth_token_router_data = payments::helpers::router_data_type_conversion::<
                         _,
-                        api_types::AuthenticationTokenCreation,
+                        api_types::AccessTokenAuthentication,
                         _,
                         _,
                         _,
@@ -310,16 +310,16 @@ pub async fn execute_authentication_token(
     connector: &api_types::ConnectorData,
     _merchant_context: &domain::MerchantContext,
     router_data: &types::RouterData<
-        api_types::AuthenticationTokenCreation,
-        types::AuthenticationTokenCreationRequestData,
-        types::AuthenticationToken,
+        api_types::AccessTokenAuthentication,
+        types::AccessTokenAuthenticationRequestData,
+        types::AccessTokenAuthenticationResponse,
     >,
-) -> RouterResult<Result<types::AuthenticationToken, types::ErrorResponse>> {
+) -> RouterResult<Result<types::AccessTokenAuthenticationResponse, types::ErrorResponse>> {
     // Get the connector integration for authentication token
     let connector_integration: services::BoxedAuthenticationTokenConnectorIntegrationInterface<
-        api_types::AuthenticationTokenCreation,
-        types::AuthenticationTokenCreationRequestData,
-        types::AuthenticationToken,
+        api_types::AccessTokenAuthentication,
+        types::AccessTokenAuthenticationRequestData,
+        types::AccessTokenAuthenticationResponse,
     > = connector.connector.get_connector_integration();
 
     // Execute the connector processing step

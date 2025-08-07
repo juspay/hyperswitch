@@ -16,7 +16,7 @@ use crate::{
     address,
     errors::api_error_response::ApiErrorResponse,
     mandates, payments,
-    router_data::{self, AuthenticationToken, RouterData},
+    router_data::{self, AccessTokenAuthenticationResponse, RouterData},
     router_flow_types as flows, router_response_types as response_types,
     vault::PaymentMethodVaultingData,
 };
@@ -814,13 +814,13 @@ pub struct DestinationChargeRefund {
 }
 
 #[derive(Debug, Clone)]
-pub struct AuthenticationTokenCreationRequestData {
+pub struct AccessTokenAuthenticationRequestData {
     pub app_id: Secret<String>,
     pub app_secret: Option<Secret<String>>,
     // Add more keys based on the need
 }
 
-impl TryFrom<router_data::ConnectorAuthType> for AuthenticationTokenCreationRequestData {
+impl TryFrom<router_data::ConnectorAuthType> for AccessTokenAuthenticationRequestData {
     type Error = ApiErrorResponse;
     fn try_from(connector_auth: router_data::ConnectorAuthType) -> Result<Self, Self::Error> {
         match connector_auth {
@@ -898,14 +898,14 @@ impl TryFrom<router_data::ConnectorAuthType> for AccessTokenRequestData {
     }
 }
 
-impl TryFrom<(router_data::ConnectorAuthType, Option<AuthenticationToken>)>
+impl TryFrom<(router_data::ConnectorAuthType, Option<AccessTokenAuthenticationResponse>)>
     for AccessTokenRequestData
 {
     type Error = ApiErrorResponse;
     fn try_from(
         (connector_auth, authentication_token): (
             router_data::ConnectorAuthType,
-            Option<AuthenticationToken>,
+            Option<AccessTokenAuthenticationResponse>,
         ),
     ) -> Result<Self, Self::Error> {
         match connector_auth {

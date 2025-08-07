@@ -25,7 +25,7 @@ use hyperswitch_domain_models::router_response_types::revenue_recovery::{
     RevenueRecoveryRecordBackResponse,
 };
 use hyperswitch_domain_models::{
-    router_data::AuthenticationToken,
+    router_data::AccessTokenAuthenticationResponse,
     router_flow_types::{
         authentication::{
             Authentication, PostAuthentication, PreAuthentication, PreAuthenticationVersionCall,
@@ -40,7 +40,7 @@ use hyperswitch_domain_models::{
             UpdateMetadata,
         },
         webhooks::VerifyWebhookSource,
-        Authenticate, AuthenticationConfirmation, AuthenticationTokenCreation,
+        Authenticate, AuthenticationConfirmation, AccessTokenAuthentication,
         ExternalVaultCreateFlow, ExternalVaultDeleteFlow, ExternalVaultInsertFlow,
         ExternalVaultRetrieveFlow, PostAuthenticate, PreAuthenticate,
     },
@@ -51,7 +51,7 @@ use hyperswitch_domain_models::{
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
         },
-        AcceptDisputeRequestData, AuthenticationTokenCreationRequestData,
+        AcceptDisputeRequestData, AccessTokenAuthenticationRequestData,
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
         CreateOrderRequestData, DefendDisputeRequestData, DisputeSyncData,
         FetchDisputesRequestData, MandateRevokeRequestData, PaymentsApproveData,
@@ -7455,9 +7455,9 @@ macro_rules! default_imp_for_connector_authentication_token {
             impl ConnectorAuthenticationToken for $path::$connector {}
             impl
             ConnectorIntegration<
-            AuthenticationTokenCreation,
-            AuthenticationTokenCreationRequestData,
-            AuthenticationToken,
+            AccessTokenAuthentication,
+            AccessTokenAuthenticationRequestData,
+            AccessTokenAuthenticationResponse,
         > for $path::$connector
         {}
     )*
@@ -8121,9 +8121,9 @@ impl<const T: u8> ConnectorAuthenticationToken for connectors::DummyConnector<T>
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     ConnectorIntegration<
-        AuthenticationTokenCreation,
-        AuthenticationTokenCreationRequestData,
-        AuthenticationToken,
+        AccessTokenAuthentication,
+        AccessTokenAuthenticationRequestData,
+        AccessTokenAuthenticationResponse,
     > for connectors::DummyConnector<T>
 {
 }

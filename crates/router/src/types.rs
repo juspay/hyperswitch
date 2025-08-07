@@ -47,7 +47,7 @@ use hyperswitch_domain_models::router_flow_types::{
 pub use hyperswitch_domain_models::{
     payment_address::PaymentAddress,
     router_data::{
-        AccessToken, AdditionalPaymentMethodConnectorResponse, AuthenticationToken,
+        AccessToken, AdditionalPaymentMethodConnectorResponse, AccessTokenAuthenticationResponse,
         ConnectorAuthType, ConnectorResponseData, ErrorResponse, GooglePayDecryptedData,
         GooglePayPaymentMethodDetails, L2L3Data, PaymentMethodBalance, PaymentMethodToken,
         RecurringMandatePaymentData, RouterData,
@@ -67,7 +67,7 @@ pub use hyperswitch_domain_models::{
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
         },
-        AcceptDisputeRequestData, AccessTokenRequestData, AuthenticationTokenCreationRequestData,
+        AcceptDisputeRequestData, AccessTokenRequestData, AccessTokenAuthenticationRequestData,
         AuthorizeSessionTokenData, BrowserInformation, ChargeRefunds, ChargeRefundsOptions,
         CompleteAuthorizeData, CompleteAuthorizeRedirectResponse, ConnectorCustomerData,
         CreateOrderRequestData, DefendDisputeRequestData, DestinationChargeRefund,

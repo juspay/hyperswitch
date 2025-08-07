@@ -40,14 +40,14 @@ use hyperswitch_domain_models::{
     connector_endpoints::Connectors,
     errors::api_error_response::ApiErrorResponse,
     payment_method_data::PaymentMethodData,
-    router_data::{AccessToken, AuthenticationToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_data::{AccessToken, AccessTokenAuthenticationResponse, ConnectorAuthType, ErrorResponse, RouterData},
     router_data_v2::{
         flow_common_types::{AuthenticationTokenFlowData, WebhookSourceVerifyData},
         AccessTokenFlowData, MandateRevokeFlowData, UasFlowData,
     },
     router_flow_types::{
         mandate_revoke::MandateRevoke, AccessTokenAuth, Authenticate, AuthenticationConfirmation,
-        AuthenticationTokenCreation, PostAuthenticate, PreAuthenticate, VerifyWebhookSource,
+        AccessTokenAuthentication, PostAuthenticate, PreAuthenticate, VerifyWebhookSource,
     },
     router_request_types::{
         unified_authentication_service::{
@@ -55,7 +55,7 @@ use hyperswitch_domain_models::{
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
         },
-        AccessTokenRequestData, AuthenticationTokenCreationRequestData, MandateRevokeRequestData,
+        AccessTokenRequestData, AccessTokenAuthenticationRequestData, MandateRevokeRequestData,
         VerifyWebhookSourceRequestData,
     },
     router_response_types::{
@@ -457,9 +457,9 @@ pub trait ConnectorMandateRevokeV2:
 /// trait ConnectorAuthenticationToken
 pub trait ConnectorAuthenticationToken:
     ConnectorIntegration<
-    AuthenticationTokenCreation,
-    AuthenticationTokenCreationRequestData,
-    AuthenticationToken,
+    AccessTokenAuthentication,
+    AccessTokenAuthenticationRequestData,
+    AccessTokenAuthenticationResponse,
 >
 {
 }
@@ -467,10 +467,10 @@ pub trait ConnectorAuthenticationToken:
 /// trait ConnectorAuthenticationTokenV2
 pub trait ConnectorAuthenticationTokenV2:
     ConnectorIntegrationV2<
-    AuthenticationTokenCreation,
+    AccessTokenAuthentication,
     AuthenticationTokenFlowData,
-    AuthenticationTokenCreationRequestData,
-    AuthenticationToken,
+    AccessTokenAuthenticationRequestData,
+    AccessTokenAuthenticationResponse,
 >
 {
 }

@@ -43,7 +43,7 @@ use api_models::routing::{self as api_routing, RoutableConnectorChoice};
 use common_enums::RoutableConnectors;
 use error_stack::ResultExt;
 pub use hyperswitch_domain_models::router_flow_types::{
-    access_token_auth::{AccessTokenAuth, AuthenticationTokenCreation},
+    access_token_auth::{AccessTokenAuth, AccessTokenAuthentication},
     mandate_revoke::MandateRevoke,
     webhooks::VerifyWebhookSource,
 };
