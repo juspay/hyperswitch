@@ -724,7 +724,6 @@ static CELERO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Laz
         enums::CaptureMethod::Manual,
         enums::CaptureMethod::SequentialAutomatic,
     ];
-
     let supported_card_network = vec![
         common_enums::CardNetwork::AmericanExpress,
         common_enums::CardNetwork::Discover,
