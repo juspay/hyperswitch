@@ -772,7 +772,6 @@ billing_connectors_which_requires_invoice_sync_call = "recurly"
 enabled = false
 hyperswitch_ai_host = "http://0.0.0.0:8000"
 
-
 [revenue_recovery.card_config.amex]
 max_daily_retry_count = 3
 retry_count_30_day = 20
@@ -788,3 +787,4 @@ retry_count_30_day = 30
 [revenue_recovery.card_config.discover]
 max_daily_retry_count = 2
 retry_count_30_day = 15
+

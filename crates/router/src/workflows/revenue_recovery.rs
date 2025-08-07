@@ -540,6 +540,7 @@ impl From<InternalDeciderRequest> for external_grpc_client::DeciderRequest {
 //     logger::warn!("get_best_psp_token_available is not yet implemented");
 //     Ok(None)
 // }
+
 #[cfg(feature = "v2")]
 pub async fn get_best_psp_token_available(
     state: &SessionState,
