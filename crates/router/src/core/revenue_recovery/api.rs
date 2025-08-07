@@ -337,19 +337,10 @@ pub async fn custom_revenue_recovery_core(
         .change_context(errors::ApiErrorResponse::GenericNotFoundError {
             message: "Unexpected response from recovery core".to_string(),
         })?;
-    let job_status = match webhook_response {
-        api_models::webhooks::WebhookResponseTracker::Recovery {
-            job_status,
-            payment_id,
-            status,
-        } => job_status,
-        _ => None,
-    };
 
     let response = api_models::payments::RecoveryPaymentsResponse {
         id: updated_recovery_intent.payment_id.to_owned(),
         status: updated_recovery_intent.status.to_owned(),
-        job_status,
     };
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(

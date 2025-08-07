@@ -973,10 +973,9 @@ impl RevenueRecoveryAttempt {
             .attach_printable("Failed to enter process_tracker_entry in DB")?;
         metrics::TASKS_ADDED_COUNT.add(1, router_env::metric_attributes!(("flow", "ExecutePCR")));
 
-        Ok(webhooks::WebhookResponseTracker::Recovery {
+        Ok(webhooks::WebhookResponseTracker::Payment {
             payment_id,
             status: payment_intent.status,
-            job_status: Some(tracker.status),
         })
     }
 }

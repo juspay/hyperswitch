@@ -1683,8 +1683,6 @@ pub struct RecoveryPaymentsResponse {
 
     #[schema(value_type = IntentStatus, example = "failed", default = "requires_confirmation")]
     pub status: api_enums::IntentStatus,
-
-    pub job_status: Option<common_enums::ProcessTrackerStatus>,
 }
 
 #[cfg(feature = "v2")]
