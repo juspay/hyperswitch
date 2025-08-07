@@ -283,7 +283,7 @@ impl RevenueRecoveryInvoice {
             currency: data.amount_details.currency(),
             merchant_reference_id: data.merchant_reference_id,
             billing_address: data.billing,
-            retry_count: data.retry_count,
+            retry_count: None,
             billing_started_at: data.billing_started_at,
             next_billing_at: None,
         });
@@ -483,7 +483,8 @@ impl RevenueRecoveryAttempt {
                 .error
                 .as_ref()
                 .and_then(|error| error.network_error_message.clone()),
-            retry_count: data.retry_count,
+            /// retry count will be updated whenever there is new attempt is created.
+            retry_count: None,
             invoice_next_billing_time: None,
             invoice_billing_started_at_time: data.billing_started_at,
             card_network: card_info

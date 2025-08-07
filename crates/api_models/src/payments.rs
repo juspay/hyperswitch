@@ -9093,10 +9093,6 @@ pub struct RecoveryPaymentsCreate {
     /// The billing details of the payment attempt. This address will be used for invoicing.
     pub billing: Option<Address>,
 
-    /// Number of attempts made for invoice
-    #[schema(value_type = Option<u16>, example = 1)]
-    pub retry_count: Option<u16>,
-
     /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
     #[schema(value_type = PaymentMethodType, example = "apple_pay")]
     pub payment_method_sub_type: api_enums::PaymentMethodType,
