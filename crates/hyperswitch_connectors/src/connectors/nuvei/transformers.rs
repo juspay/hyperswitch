@@ -1997,8 +1997,8 @@ fn get_error_response<T>(
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum NuveiWebhook {
-    Chargeback(ChargebackNotification),
     PaymentDmn(PaymentDmnNotification),
+    Chargeback(ChargebackNotification),
 }
 
 /// Represents the status of a chargeback event.
