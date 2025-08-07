@@ -30,6 +30,7 @@ pub struct CustomerNew {
     pub address_id: Option<String>,
     pub updated_by: Option<String>,
     pub version: ApiVersion,
+    pub tax_registration_id: Option<Encryption>,
 }
 
 #[cfg(feature = "v1")]
@@ -58,6 +59,7 @@ impl From<CustomerNew> for Customer {
             default_payment_method_id: None,
             updated_by: customer_new.updated_by,
             version: customer_new.version,
+            tax_registration_id: customer_new.tax_registration_id,
         }
     }
 }
@@ -81,6 +83,7 @@ pub struct CustomerNew {
     pub default_payment_method_id: Option<common_utils::id_type::GlobalPaymentMethodId>,
     pub updated_by: Option<String>,
     pub version: ApiVersion,
+    pub tax_registration_id: Option<Encryption>,
     pub merchant_reference_id: Option<common_utils::id_type::CustomerId>,
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
@@ -111,6 +114,7 @@ impl From<CustomerNew> for Customer {
             modified_at: customer_new.modified_at,
             default_payment_method_id: None,
             updated_by: customer_new.updated_by,
+            tax_registration_id: customer_new.tax_registration_id,
             merchant_reference_id: customer_new.merchant_reference_id,
             default_billing_address: customer_new.default_billing_address,
             default_shipping_address: customer_new.default_shipping_address,
@@ -142,6 +146,7 @@ pub struct Customer {
     pub default_payment_method_id: Option<String>,
     pub updated_by: Option<String>,
     pub version: ApiVersion,
+    pub tax_registration_id: Option<Encryption>,
 }
 
 #[cfg(feature = "v2")]
@@ -163,6 +168,7 @@ pub struct Customer {
     pub default_payment_method_id: Option<common_utils::id_type::GlobalPaymentMethodId>,
     pub updated_by: Option<String>,
     pub version: ApiVersion,
+    pub tax_registration_id: Option<Encryption>,
     pub merchant_reference_id: Option<common_utils::id_type::CustomerId>,
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
@@ -188,6 +194,7 @@ pub struct CustomerUpdateInternal {
     pub address_id: Option<String>,
     pub default_payment_method_id: Option<Option<String>>,
     pub updated_by: Option<String>,
+    pub tax_registration_id: Option<Encryption>,
 }
 
 #[cfg(feature = "v1")]
@@ -203,6 +210,7 @@ impl CustomerUpdateInternal {
             connector_customer,
             address_id,
             default_payment_method_id,
+            tax_registration_id,
             ..
         } = self;
 
@@ -219,6 +227,7 @@ impl CustomerUpdateInternal {
             default_payment_method_id: default_payment_method_id
                 .flatten()
                 .map_or(source.default_payment_method_id, Some),
+            tax_registration_id: tax_registration_id.map_or(source.tax_registration_id, Some),
             ..source
         }
     }
@@ -243,6 +252,7 @@ pub struct CustomerUpdateInternal {
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
     pub status: Option<DeleteStatus>,
+    pub tax_registration_id: Option<Encryption>,
 }
 
 #[cfg(feature = "v2")]
@@ -260,6 +270,7 @@ impl CustomerUpdateInternal {
             default_billing_address,
             default_shipping_address,
             status,
+            tax_registration_id,
             ..
         } = self;
 
@@ -280,6 +291,7 @@ impl CustomerUpdateInternal {
             default_shipping_address: default_shipping_address
                 .map_or(source.default_shipping_address, Some),
             status: status.unwrap_or(source.status),
+            tax_registration_id: tax_registration_id.map_or(source.tax_registration_id, Some),
             ..source
         }
     }

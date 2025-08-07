@@ -105,6 +105,10 @@ pub struct CustomerDetails {
     /// The country code for the customer's phone number
     #[schema(max_length = 2, example = "+1")]
     pub phone_country_code: Option<String>,
+
+    /// The tax registration identifier of the customer.
+    #[schema(value_type=Option<String>,max_length = 255)]
+    pub tax_registration_id: Option<Secret<String>>,
 }
 
 #[cfg(feature = "v1")]
@@ -1192,6 +1196,27 @@ pub struct PaymentsRequest {
     /// Indicates how the payment was initiated (e.g., ecommerce, mail, or telephone).
     #[schema(value_type = Option<PaymentChannel>)]
     pub payment_channel: Option<common_enums::PaymentChannel>,
+
+    /// Your tax status for this order or transaction.
+    #[schema(value_type = Option<TaxStatus>)]
+    pub tax_status: Option<api_enums::TaxStatus>,
+
+    /// Total amount of the discount you have applied to the order or transaction.
+    #[schema(value_type = Option<i64>, example = 6540)]
+    pub discount_amount: Option<MinorUnit>,
+
+    /// Tax amount applied to shipping charges.
+    pub shipping_amount_tax: Option<MinorUnit>,
+
+    /// Duty or customs fee amount for international transactions.
+    pub duty_amount: Option<MinorUnit>,
+
+    /// Date the payer placed the order.
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub order_date: Option<PrimitiveDateTime>,
+
+    /// Allow partial authorization for this payment
+    pub enable_partial_authorization: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1263,6 +1288,7 @@ impl PaymentsRequest {
             email,
             phone,
             phone_country_code,
+            ..
         }) = self.customer.as_ref()
         {
             let invalid_fields = [
@@ -1377,6 +1403,7 @@ mod payments_request_test {
             email: None,
             phone: None,
             phone_country_code: None,
+            tax_registration_id: None,
         };
 
         let payments_request = PaymentsRequest {
@@ -1401,6 +1428,7 @@ mod payments_request_test {
             email: None,
             phone: None,
             phone_country_code: None,
+            tax_registration_id: None,
         };
 
         let payments_request = PaymentsRequest {
@@ -4417,6 +4445,10 @@ pub struct AddressDetails {
     /// The last name for the address
     #[schema(value_type = Option<String>, max_length = 255, example = "Doe")]
     pub last_name: Option<Secret<String>>,
+
+    /// The zip/postal code of the origin
+    #[schema(value_type = Option<String>, max_length = 50, example = "08807")]
+    pub origin_zip: Option<Secret<String>>,
 }
 
 impl AddressDetails {
@@ -4454,6 +4486,7 @@ impl AddressDetails {
                 line3: self.line3.or(other.line3.clone()),
                 zip: self.zip.or(other.zip.clone()),
                 state: self.state.or(other.state.clone()),
+                origin_zip: self.origin_zip.or(other.origin_zip.clone()),
             }
         } else {
             self
@@ -5177,6 +5210,9 @@ pub struct PaymentsResponse {
     /// A unique identifier for the payment method used in this payment. If the payment method was saved or tokenized, this ID can be used to reference it for future transactions or recurring payments.
     pub payment_method_id: Option<String>,
 
+    /// The network transaction ID is a unique identifier for the transaction as recognized by the payment network (e.g., Visa, Mastercard), this ID can be used to reference it for future transactions or recurring payments.
+    pub network_transaction_id: Option<String>,
+
     /// Payment Method Status, refers to the status of the payment method used for this payment.
     #[schema(value_type = Option<PaymentMethodStatus>)]
     pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
@@ -5239,6 +5275,9 @@ pub struct PaymentsResponse {
     /// Contains whole connector response
     #[schema(value_type = Option<String>)]
     pub whole_connector_response: Option<Secret<String>>,
+
+    /// Allow partial authorization for this payment
+    pub enable_partial_authorization: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -6612,6 +6651,22 @@ pub struct OrderDetailsWithAmount {
     pub product_type: Option<ProductType>,
     /// The tax code for the product
     pub product_tax_code: Option<String>,
+    /// Description for the item
+    pub description: Option<String>,
+    /// Stock Keeping Unit (SKU) or the item identifier for this item.
+    pub sku: Option<String>,
+    /// Universal Product Code for the item.
+    pub upc: Option<String>,
+    /// Code describing a commodity or a group of commodities pertaining to goods classification.
+    pub commodity_code: Option<String>,
+    /// Unit of measure used for the item quantity.
+    pub unit_of_measure: Option<String>,
+    /// Total amount for the item.
+    #[schema(value_type = Option<i64>)]
+    pub total_amount: Option<MinorUnit>, // total_amount,
+    /// Discount amount applied to this item.
+    #[schema(value_type = Option<i64>)]
+    pub unit_discount_amount: Option<MinorUnit>,
 }
 
 impl masking::SerializableSecret for OrderDetailsWithAmount {}
@@ -7638,6 +7693,16 @@ pub struct PaymentsCancelRequest {
     /// Merchant connector details used to make payments.
     #[schema(value_type = Option<MerchantConnectorDetailsWrap>, deprecated)]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
+}
+
+/// Request to cancel a payment when the payment is already captured
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentsCancelPostCaptureRequest {
+    /// The identifier for the payment
+    #[serde(skip)]
+    pub payment_id: id_type::PaymentId,
+    /// The reason for the payment cancel
+    pub cancellation_reason: Option<String>,
 }
 
 #[derive(Default, Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]

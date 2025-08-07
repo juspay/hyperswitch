@@ -4070,6 +4070,13 @@
             "example": "Doe",
             "nullable": true,
             "maxLength": 255
+          },
+          "origin_zip": {
+            "type": "string",
+            "description": "The zip/postal code of the origin",
+            "example": "08807",
+            "nullable": true,
+            "maxLength": 50
           }
         },
         "additionalProperties": false
@@ -4895,12 +4902,14 @@
           "authorizing",
           "cod_initiated",
           "voided",
+          "voided_post_charge",
           "void_initiated",
           "capture_initiated",
           "capture_failed",
           "void_failed",
           "auto_refunded",
           "partial_charged",
+          "partially_authorized",
           "partial_charged_and_chargeable",
           "unresolved",
           "pending",
@@ -9664,6 +9673,12 @@
             "example": "+1",
             "nullable": true,
             "maxLength": 2
+          },
+          "tax_registration_id": {
+            "type": "string",
+            "description": "The tax registration identifier of the customer.",
+            "nullable": true,
+            "maxLength": 255
           }
         }
       },
@@ -9876,6 +9891,13 @@
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500\ncharacters long. Metadata is useful for storing additional, structured information on an\nobject.",
             "nullable": true
+          },
+          "tax_registration_id": {
+            "type": "string",
+            "description": "The customer's tax registration number.",
+            "example": "123456789",
+            "nullable": true,
+            "maxLength": 255
           }
         },
         "additionalProperties": false
@@ -9975,6 +9997,13 @@
             "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8",
             "nullable": true,
             "maxLength": 64
+          },
+          "tax_registration_id": {
+            "type": "string",
+            "description": "The customer's tax registration number.",
+            "example": "123456789",
+            "nullable": true,
+            "maxLength": 255
           }
         }
       },
@@ -10044,6 +10073,13 @@
             "description": "The unique identifier of the payment method",
             "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8",
             "nullable": true
+          },
+          "tax_registration_id": {
+            "type": "string",
+            "description": "The customer's tax registration number.",
+            "example": "123456789",
+            "nullable": true,
+            "maxLength": 255
           }
         },
         "additionalProperties": false
@@ -10369,7 +10405,9 @@
         "enum": [
           "pre_dispute",
           "dispute",
-          "pre_arbitration"
+          "pre_arbitration",
+          "arbitration",
+          "dispute_reversal"
         ]
       },
       "DisputeStatus": {
@@ -10747,7 +10785,9 @@
           "payment_failed",
           "payment_processing",
           "payment_cancelled",
+          "payment_cancelled_post_capture",
           "payment_authorized",
+          "payment_partially_authorized",
           "payment_captured",
           "payment_expired",
           "action_required",
@@ -12706,6 +12746,7 @@
           "succeeded",
           "failed",
           "cancelled",
+          "cancelled_post_capture",
           "processing",
           "requires_customer_action",
           "requires_merchant_action",
@@ -12714,6 +12755,7 @@
           "requires_capture",
           "partially_captured",
           "partially_captured_and_capturable",
+          "partially_authorized_and_requires_capture",
           "conflicted",
           "expired"
         ]
@@ -15222,6 +15264,43 @@
           "product_tax_code": {
             "type": "string",
             "description": "The tax code for the product",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "Description for the item",
+            "nullable": true
+          },
+          "sku": {
+            "type": "string",
+            "description": "Stock Keeping Unit (SKU) or the item identifier for this item.",
+            "nullable": true
+          },
+          "upc": {
+            "type": "string",
+            "description": "Universal Product Code for the item.",
+            "nullable": true
+          },
+          "commodity_code": {
+            "type": "string",
+            "description": "Code describing a commodity or a group of commodities pertaining to goods classification.",
+            "nullable": true
+          },
+          "unit_of_measure": {
+            "type": "string",
+            "description": "Unit of measure used for the item quantity.",
+            "nullable": true
+          },
+          "total_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total amount for the item.",
+            "nullable": true
+          },
+          "unit_discount_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Discount amount applied to this item.",
             "nullable": true
           }
         }
@@ -24732,6 +24811,13 @@
         "enum": [
           "skip",
           "calculate"
+        ]
+      },
+      "TaxStatus": {
+        "type": "string",
+        "enum": [
+          "taxable",
+          "exempt"
         ]
       },
       "ThirdPartySdkSessionResponse": {

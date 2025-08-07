@@ -467,6 +467,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 )
             })
             .unwrap_or(Ok(payment_intent.request_incremental_authorization))?;
+        payment_intent.enable_partial_authorization = request
+            .enable_partial_authorization
+            .or(payment_intent.enable_partial_authorization);
         payment_attempt.business_sub_label = request
             .business_sub_label
             .clone()
@@ -1846,7 +1849,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let order_details = payment_data.payment_intent.order_details.clone();
         let metadata = payment_data.payment_intent.metadata.clone();
         let frm_metadata = payment_data.payment_intent.frm_metadata.clone();
-        let authorized_amount = payment_data.payment_attempt.get_total_amount();
 
         let client_source = header_payload
             .client_source
@@ -1936,7 +1938,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         straight_through_algorithm: m_straight_through_algorithm,
                         error_code: m_error_code,
                         error_message: m_error_message,
-                        amount_capturable: Some(authorized_amount),
                         updated_by: storage_scheme.to_string(),
                         merchant_connector_id,
                         external_three_ds_authentication_attempted,
@@ -2056,6 +2057,14 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         is_confirm_operation: true, // Indicates that this is a confirm operation
                         payment_channel: payment_data.payment_intent.payment_channel,
                         feature_metadata: payment_data.payment_intent.feature_metadata.clone(),
+                        tax_status: payment_data.payment_intent.tax_status,
+                        discount_amount: payment_data.payment_intent.discount_amount,
+                        order_date: payment_data.payment_intent.order_date,
+                        shipping_amount_tax: payment_data.payment_intent.shipping_amount_tax,
+                        duty_amount: payment_data.payment_intent.duty_amount,
+                        enable_partial_authorization: payment_data
+                            .payment_intent
+                            .enable_partial_authorization,
                     })),
                     &m_key_store,
                     storage_scheme,
