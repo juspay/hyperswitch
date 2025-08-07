@@ -16,6 +16,14 @@ const mockData = {
   refunds: {},
 };
 
+// Valid API keys
+const validApiKeys = [
+  "celero-test-api-key-123",
+  "celero-api-key-456",
+  "api-celero-test",
+  "alpha-test-api-key-123",
+];
+
 // Helper functions
 function generateId(prefix) {
   return `${prefix}_${Math.random().toString(36).substr(2, 10)}`;
@@ -42,6 +50,13 @@ function authenticateApiKey(req, res, next) {
 
   // Check if the API key is valid
   const apiKey = authHeader;
+
+  if (!validApiKeys.includes(apiKey)) {
+    return res.status(401).json({
+      status: "error",
+      msg: "Invalid API key",
+    });
+  }
 
   req.apiKey = apiKey;
   next();
@@ -442,6 +457,7 @@ app.listen(PORT, () => {
   console.log("    - celero-test-api-key-123");
   console.log("    - celero-api-key-456");
   console.log("    - api-celero-test");
+  console.log("    - alpha-test-api-key-123");
   console.log(
     "\n💡 Note: Celero mock server is designed to work with the Hyperswitch Celero connector"
   );

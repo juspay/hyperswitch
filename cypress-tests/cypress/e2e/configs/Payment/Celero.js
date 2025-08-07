@@ -21,14 +21,6 @@ const successfulNo3DSCardDetails = {
   card_cvc: "123",
 };
 
-const successfulAmexCardDetails = {
-  card_number: "378282246310005", // American Express test card
-  card_exp_month: "12",
-  card_exp_year: "30",
-  card_holder_name: "Test User",
-  card_cvc: "1234",
-};
-
 const failedCardDetails = {
   card_number: "4000000000000002", // Generic declined card
   card_exp_month: "12",
@@ -378,7 +370,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulAmexCardDetails,
+          card: successfulNo3DSCardDetails,
         },
         billing: billingAddress,
         currency: "USD",
