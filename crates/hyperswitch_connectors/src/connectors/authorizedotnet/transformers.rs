@@ -615,12 +615,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetCustomerResponse, T, Pay
                     }),
                     ..item.data
                 }),
-                None => Err(errors::ConnectorError::UnexpectedResponseError(
-                    bytes::Bytes::from(
-                        "With Ok ResultCode customer_profile_id must be present in the response"
-                            .to_string(),
-                    ),
-                )),
+                None => Err(
+                    errors::ConnectorError::UnexpectedResponseError(bytes::Bytes::from(
+                        "Missing customer profile id from Authorizedotnet".to_string(),
+                    ))
+                    .into(),
+                ),
             },
             ResultCode::Error => {
                 let error_message = item.response.messages.message.first();
