@@ -2,7 +2,7 @@ use common_enums::enums;
 use common_utils::types::StringMinorUnit;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
-    router_data::{ConnectorAuthType, RouterData},
+    router_data::RouterData,
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RefundsResponseData},

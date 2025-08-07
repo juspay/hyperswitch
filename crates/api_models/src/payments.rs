@@ -9090,7 +9090,7 @@ pub struct RecoveryPaymentsCreate {
     #[schema(value_type = AttemptStatus, example = "charged")]
     pub status: enums::AttemptStatus,
 
-    /// The billing details of the payment attempt. This address will be used for invoicing.
+    /// The billing details of the payment attempt.
     pub billing: Option<Address>,
 
     /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
@@ -9125,7 +9125,7 @@ pub struct RecoveryPaymentsCreate {
     /// payment method token units at payment processor end.
     pub payment_method_units: CustomBillingPaymentMethodDataWithBilling,
 
-    /// recovery action
+    /// Type of action that needs to be taken after consuming the recovery payload. For example: scheduling a failed payment or stopping the invoice.
     pub action: common_payments_types::RecoveryAction,
 }
 

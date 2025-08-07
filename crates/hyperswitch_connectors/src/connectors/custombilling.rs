@@ -36,7 +36,6 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask};
 use transformers as custombilling;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
@@ -114,7 +113,7 @@ impl ConnectorCommon for Custombilling {
 
     fn get_auth_header(
         &self,
-        auth_type: &ConnectorAuthType,
+        _auth_type: &ConnectorAuthType,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![])
     }
