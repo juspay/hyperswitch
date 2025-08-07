@@ -296,6 +296,7 @@ pub async fn generate_sample_data(
             duty_amount: None,
             tax_status: None,
             shipping_amount_tax: None,
+            enable_partial_authorization: None,
         };
         let (connector_transaction_id, processor_transaction_data) =
             ConnectorTransactionId::form_id_and_data(attempt_id.clone());
