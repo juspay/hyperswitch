@@ -173,7 +173,6 @@ impl ConnectorValidation for Celero {
             capture_method,
             enums::CaptureMethod::Automatic
                 | enums::CaptureMethod::Manual
-                | enums::CaptureMethod::ManualMultiple
                 | enums::CaptureMethod::SequentialAutomatic
         );
 
@@ -723,7 +722,6 @@ static CELERO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Laz
     let supported_capture_methods = vec![
         enums::CaptureMethod::Automatic,
         enums::CaptureMethod::Manual,
-        enums::CaptureMethod::ManualMultiple,
         enums::CaptureMethod::SequentialAutomatic,
     ];
 
