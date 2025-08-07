@@ -328,7 +328,7 @@ pub async fn custom_revenue_recovery_core(
             &billing_connector_account,
             mca_retry_threshold,
             intent_retry_count,
-            &(Some(revenue_recovery_attempt_data), updated_recovery_intent),
+            &(Some(revenue_recovery_attempt_data), updated_recovery_intent.clone()),
         )
         .await
         .change_context(errors::ApiErrorResponse::GenericNotFoundError {
