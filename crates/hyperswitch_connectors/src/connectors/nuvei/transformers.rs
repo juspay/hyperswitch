@@ -1115,8 +1115,8 @@ where
             capture_method: item.request.get_capture_method(),
             ..Default::default()
         })?;
-        // let return_url = item.request.get_return_url_required()?
-        let return_url = "https://google.com".to_string();
+        let return_url = item.request.get_return_url_required()?;
+
         let amount_details = match item.request.get_order_tax_amount()? {
             Some(tax) => Some(NuvieAmountDetails {
                 total_tax: Some(utils::to_currency_base_unit(tax, currency)?),
@@ -1698,7 +1698,7 @@ fn get_payment_status(
 fn build_error_response<T>(
     response: &NuveiPaymentsResponse,
     http_code: u16,
-) -> Option<Result<T, ErrorResponse>> {
+) -> Option<Result<T, error_stack::Report<errors::ConnectorError>>> {
     match response.status {
         NuveiPaymentStatus::Error => Some(
             get_error_response(
@@ -1709,7 +1709,10 @@ fn build_error_response<T>(
                 &response.gw_error_code.map(|e| e.to_string()),
                 &response.gw_error_reason,
             )
-            .map_err(|err| *err),
+            .map_err(|err| {
+                error_stack::report!(errors::ConnectorError::ResponseHandlingFailed)
+                    .attach_printable(format!("{:?}", err))
+            }),
         ),
         _ => {
             let err = Some(
@@ -1721,7 +1724,10 @@ fn build_error_response<T>(
                     &response.gw_error_code.map(|e| e.to_string()),
                     &response.gw_error_reason,
                 )
-                .map_err(|err| *err),
+                .map_err(|err| {
+                    error_stack::report!(errors::ConnectorError::ResponseHandlingFailed)
+                        .attach_printable(format!("{:?}", err))
+                }),
             );
             match response.transaction_status {
                 Some(NuveiTransactionStatus::Error) | Some(NuveiTransactionStatus::Declined) => err,
@@ -1847,17 +1853,17 @@ impl
         ResponseRouterData<
             Authorize,
             NuveiPaymentsResponse,
-            types::PaymentsAuthorizeData,
+            PaymentsAuthorizeData,
             PaymentsResponseData,
         >,
-    > for RouterData<Authorize, types::PaymentsAuthorizeData, PaymentsResponseData>
+    > for RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: ResponseRouterData<
             Authorize,
             NuveiPaymentsResponse,
-            types::PaymentsAuthorizeData,
+            PaymentsAuthorizeData,
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
@@ -1869,11 +1875,11 @@ impl
 
         Ok(Self {
             status,
-            response: create_transaction_response(
+            response: Ok(create_transaction_response(
                 &item.response,
                 redirection_data,
                 item.http_code,
-            )?,
+            )?),
             connector_response: connector_response_data,
             ..item.data
         })
@@ -1902,11 +1908,11 @@ where
 
         Ok(Self {
             status,
-            response: create_transaction_response(
+            response: Ok(create_transaction_response(
                 &item.response,
                 redirection_data,
                 item.http_code,
-            )?,
+            )?),
             connector_response: connector_response_data,
             ..item.data
         })
@@ -1960,15 +1966,17 @@ impl TryFrom<RefundsResponseRouterData<Execute, NuveiPaymentsResponse>>
     fn try_from(
         item: RefundsResponseRouterData<Execute, NuveiPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
+        let transaction_id = item
+            .response
+            .transaction_id
+            .clone()
+            .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
+
+        let refund_response =
+            get_refund_response(item.response.clone(), item.http_code, transaction_id)?;
+
         Ok(Self {
-            response: get_refund_response(
-                item.response.clone(),
-                item.http_code,
-                item.response
-                    .transaction_id
-                    .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?,
-            )
-            .map_err(|err| *err),
+            response: Ok(refund_response),
             ..item.data
         })
     }
@@ -1981,15 +1989,17 @@ impl TryFrom<RefundsResponseRouterData<RSync, NuveiPaymentsResponse>>
     fn try_from(
         item: RefundsResponseRouterData<RSync, NuveiPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
+        let transaction_id = item
+            .response
+            .transaction_id
+            .clone()
+            .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
+
+        let refund_response =
+            get_refund_response(item.response.clone(), item.http_code, transaction_id)?;
+
         Ok(Self {
-            response: get_refund_response(
-                item.response.clone(),
-                item.http_code,
-                item.response
-                    .transaction_id
-                    .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?,
-            )
-            .map_err(|err| *err),
+            response: Ok(refund_response),
             ..item.data
         })
     }
@@ -2042,7 +2052,7 @@ fn get_refund_response(
     response: NuveiPaymentsResponse,
     http_code: u16,
     txn_id: String,
-) -> Result<RefundsResponseData, Box<ErrorResponse>> {
+) -> Result<RefundsResponseData, error_stack::Report<errors::ConnectorError>> {
     let refund_status = response
         .transaction_status
         .clone()
@@ -2056,7 +2066,11 @@ fn get_refund_response(
             &response.merchant_advice_code,
             &response.gw_error_code.map(|e| e.to_string()),
             &response.gw_error_reason,
-        ),
+        )
+        .map_err(|err| {
+            error_stack::report!(errors::ConnectorError::ResponseHandlingFailed)
+                .attach_printable(format!("{:?}", err))
+        }),
         _ => match response.transaction_status {
             Some(NuveiTransactionStatus::Error) => get_error_response(
                 response.err_code,
@@ -2065,7 +2079,11 @@ fn get_refund_response(
                 &response.merchant_advice_code,
                 &response.gw_error_code.map(|e| e.to_string()),
                 &response.gw_error_reason,
-            ),
+            )
+            .map_err(|err| {
+                error_stack::report!(errors::ConnectorError::ResponseHandlingFailed)
+                    .attach_printable(format!("{:?}", err))
+            }),
             _ => Ok(RefundsResponseData {
                 connector_refund_id: txn_id,
                 refund_status,
