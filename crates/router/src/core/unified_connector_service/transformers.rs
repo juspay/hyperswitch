@@ -680,6 +680,7 @@ impl ForeignTryFrom<common_enums::CardNetwork> for payments_grpc::CardNetwork {
             common_enums::CardNetwork::UnionPay => Ok(Self::Unionpay),
             common_enums::CardNetwork::RuPay => Ok(Self::Rupay),
             common_enums::CardNetwork::Maestro => Ok(Self::Maestro),
+            common_enums::CardNetwork::AmericanExpress => Ok(Self::Amex),
             _ => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "Card Network not supported".to_string(),
