@@ -359,7 +359,6 @@ impl RedisTokenManager {
             let tomorrow = today + Duration::days(1);
             let tomorrow_midnight = tomorrow.midnight().assume_utc();
             (tomorrow_midnight - now).whole_hours().max(0)
-            
         } else {
             0 // Daily limit not exceeded
         };
