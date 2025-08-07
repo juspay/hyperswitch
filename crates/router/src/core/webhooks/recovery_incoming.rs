@@ -676,9 +676,11 @@ impl RevenueRecoveryAttempt {
 
         let response = (recovery_attempt, updated_recovery_intent);
 
-        let redis_result = self.store_payment_processor_tokens_in_redis(state, &response.0, &response.1).await;
+        let redis_result = self
+            .store_payment_processor_tokens_in_redis(state, &response.0, &response.1)
+            .await;
         match redis_result {
-            Ok(_) => (), 
+            Ok(_) => (),
             Err(e) => {
                 router_env::logger::error!(
                     "Failed to store payment processor tokens in Redis: {:?}",
@@ -686,7 +688,6 @@ impl RevenueRecoveryAttempt {
                 );
             }
         }
-
 
         Ok(response)
     }
@@ -946,7 +947,7 @@ impl RevenueRecoveryAttempt {
         recovery_intent: &revenue_recovery::RecoveryPaymentIntent,
     ) -> CustomResult<(), errors::RevenueRecoveryError> {
         let revenue_recovery_attempt_data = &self.0;
-        
+
         // Extract required fields from the revenue recovery attempt data
         let connector_customer_id = revenue_recovery_attempt_data.connector_customer_id.clone();
 
@@ -955,13 +956,23 @@ impl RevenueRecoveryAttempt {
 
         // Create PaymentProcessorTokenUnit from card_info and attempt data
         let mut new_tokens = std::collections::HashMap::new();
-        
+
         let token_unit = PaymentProcessorTokenUnit {
             error_code: recovery_attempt.error_code.clone(),
             payment_processor_token_details: PaymentProcessorTokenDetails {
-                payment_processor_token: revenue_recovery_attempt_data.processor_payment_method_token.clone(),
-                expiry_month: revenue_recovery_attempt_data.card_info.card_exp_month.clone().map(|s| s.peek().clone()),
-                expiry_year: revenue_recovery_attempt_data.card_info.card_exp_year.clone().map(|s| s.peek().clone()),
+                payment_processor_token: revenue_recovery_attempt_data
+                    .processor_payment_method_token
+                    .clone(),
+                expiry_month: revenue_recovery_attempt_data
+                    .card_info
+                    .card_exp_month
+                    .clone()
+                    .map(|s| s.peek().clone()),
+                expiry_year: revenue_recovery_attempt_data
+                    .card_info
+                    .card_exp_year
+                    .clone()
+                    .map(|s| s.peek().clone()),
                 card_issuer: revenue_recovery_attempt_data.card_info.card_issuer.clone(),
                 last_four_digits: revenue_recovery_attempt_data.card_info.last4.clone(),
                 card_network: revenue_recovery_attempt_data.card_info.card_network.clone(),
@@ -969,7 +980,9 @@ impl RevenueRecoveryAttempt {
         };
 
         new_tokens.insert(
-            revenue_recovery_attempt_data.processor_payment_method_token.clone(),
+            revenue_recovery_attempt_data
+                .processor_payment_method_token
+                .clone(),
             token_unit,
         );
 
