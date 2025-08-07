@@ -929,6 +929,9 @@ pub fn validate_dispute_status(
             DisputeStatus::DisputeChallenged
                 | DisputeStatus::DisputeWon
                 | DisputeStatus::DisputeLost
+                | DisputeStatus::DisputeAccepted
+                | DisputeStatus::DisputeCancelled
+                | DisputeStatus::DisputeExpired
         ),
         DisputeStatus::DisputeWon => matches!(dispute_status, DisputeStatus::DisputeWon),
         DisputeStatus::DisputeLost => matches!(dispute_status, DisputeStatus::DisputeLost),
@@ -2614,12 +2617,27 @@ pub fn should_proceed_with_submit_evidence(
     dispute_stage: DisputeStage,
     dispute_status: DisputeStatus,
 ) -> bool {
-    matches!(dispute_stage, DisputeStage::DisputeReversal)
-        || matches!(
-            dispute_status,
-            DisputeStatus::DisputeExpired
-                | DisputeStatus::DisputeCancelled
-                | DisputeStatus::DisputeWon
-                | DisputeStatus::DisputeLost,
-        )
+    matches!(
+        dispute_stage,
+        DisputeStage::PreDispute
+            | DisputeStage::Dispute
+            | DisputeStage::PreArbitration
+            | DisputeStage::Arbitration
+    ) && matches!(
+        dispute_status,
+        DisputeStatus::DisputeOpened | DisputeStatus::DisputeChallenged
+    )
+}
+
+pub fn should_proceed_with_accept_dispute(
+    dispute_stage: DisputeStage,
+    dispute_status: DisputeStatus,
+) -> bool {
+    matches!(
+        dispute_stage,
+        DisputeStage::PreDispute | DisputeStage::Dispute | DisputeStage::PreArbitration
+    ) && matches!(
+        dispute_status,
+        DisputeStatus::DisputeChallenged | DisputeStatus::DisputeOpened
+    )
 }
