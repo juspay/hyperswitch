@@ -1731,3 +1731,124 @@ pub async fn authentication_post_sync_core(
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::JsonForRedirection(redirect_response))
 }
+
+
+#[cfg(feature = "v2")]
+pub async fn authentication_create_core(
+    state: SessionState,
+    merchant_context: domain::MerchantContext,
+    req: AuthenticationCreateRequest,
+    profile: hyperswitch_domain_models::business_profile::Profile,
+) -> RouterResponse<AuthenticationResponse> {
+    let db = &*state.store;
+    let merchant_account = merchant_context.get_merchant_account();
+    let merchant_id = merchant_account.get_id();
+    let key_manager_state = (&state).into();
+    let profile_id = profile.get_id();
+
+    let business_profile = db
+        .find_business_profile_by_profile_id(
+            &key_manager_state,
+            merchant_context.get_merchant_key_store(),
+            &profile_id,
+        )
+        .await
+        .to_not_found_response(ApiErrorResponse::ProfileNotFound {
+            id: profile_id.get_string_repr().to_owned(),
+        })?;
+    let organization_id = merchant_account.organization_id.clone();
+    let authentication_id = common_utils::id_type::AuthenticationId::generate_authentication_id(
+        consts::AUTHENTICATION_ID_PREFIX,
+    );
+
+    let force_3ds_challenge = Some(
+        req.force_3ds_challenge
+            .unwrap_or(business_profile.force_3ds_challenge),
+    );
+
+    // Priority logic: First check req.acquirer_details, then fallback to profile_acquirer_id lookup
+    let (acquirer_bin, acquirer_merchant_id, acquirer_country_code) =
+        if let Some(acquirer_details) = &req.acquirer_details {
+            // Priority 1: Use acquirer_details from request if present
+            (
+                acquirer_details.acquirer_bin.clone(),
+                acquirer_details.acquirer_merchant_id.clone(),
+                acquirer_details.merchant_country_code.clone(),
+            )
+        } else {
+            // Priority 2: Fallback to profile_acquirer_id lookup
+            let acquirer_details = req.profile_acquirer_id.clone().and_then(|acquirer_id| {
+                business_profile
+                    .acquirer_config_map
+                    .and_then(|acquirer_config_map| {
+                        acquirer_config_map.0.get(&acquirer_id).cloned()
+                    })
+            });
+
+            acquirer_details
+                .as_ref()
+                .map(|details| {
+                    (
+                        Some(details.acquirer_bin.clone()),
+                        Some(details.acquirer_assigned_merchant_id.clone()),
+                        business_profile
+                            .merchant_country_code
+                            .map(|code| code.get_country_code().to_owned()),
+                    )
+                })
+                .unwrap_or((None, None, None))
+        };
+
+    let new_authentication = create_new_authentication(
+        &state,
+        merchant_id.clone(),
+        req.authentication_connector
+            .map(|connector| connector.to_string()),
+        profile_id.clone(),
+        None,
+        None,
+        &authentication_id,
+        None,
+        common_enums::AuthenticationStatus::Started,
+        None,
+        organization_id,
+        force_3ds_challenge,
+        req.psd2_sca_exemption_type,
+        acquirer_bin,
+        acquirer_merchant_id,
+        acquirer_country_code,
+        Some(req.amount),
+        Some(req.currency),
+        req.return_url,
+        req.profile_acquirer_id.clone(),
+    )
+    .await?;
+
+    let acquirer_details = Some(AcquirerDetails {
+        acquirer_bin: new_authentication.acquirer_bin.clone(),
+        acquirer_merchant_id: new_authentication.acquirer_merchant_id.clone(),
+        merchant_country_code: new_authentication.acquirer_country_code.clone(),
+    });
+
+    let amount = new_authentication
+        .amount
+        .ok_or(ApiErrorResponse::InternalServerError)
+        .attach_printable("amount failed to get amount from authentication table")?;
+    let currency = new_authentication
+        .currency
+        .ok_or(ApiErrorResponse::InternalServerError)
+        .attach_printable("currency failed to get currency from authentication table")?;
+
+    let response = AuthenticationResponse::foreign_try_from((
+        new_authentication.clone(),
+        amount,
+        currency,
+        profile_id,
+        acquirer_details,
+        new_authentication.profile_acquirer_id,
+    ))?;
+
+    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+        response,
+    ))
+}
