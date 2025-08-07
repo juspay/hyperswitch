@@ -15,6 +15,7 @@ use euclid::frontend::{
 };
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
+use smithy::SmithyModel;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
@@ -177,18 +178,23 @@ impl_to_sql_from_sql_json!(ConditionalConfigs);
     Clone,
     AsExpression,
     ToSchema,
+    SmithyModel
 )]
 #[serde(deny_unknown_fields)]
 #[diesel(sql_type = Jsonb)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct CustomerAcceptance {
     /// Type of acceptance provided by the
     #[schema(example = "online")]
+    #[smithy(value_type = "AcceptanceType")]
     pub acceptance_type: AcceptanceType,
     /// Specifying when the customer acceptance was provided
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    #[smithy(value_type = "Option<PrimitiveDateTime>")]
     pub accepted_at: Option<PrimitiveDateTime>,
     /// Information required for online mandate generation
+    #[smithy(value_type = "Option<OnlineMandate>")]
     pub online: Option<OnlineMandate>,
 }
 
@@ -216,9 +222,10 @@ impl CustomerAcceptance {
 impl masking::SerializableSecret for CustomerAcceptance {}
 
 #[derive(
-    Default, Debug, serde::Deserialize, serde::Serialize, PartialEq, Eq, Clone, Copy, ToSchema,
+    Default, Debug, serde::Deserialize, serde::Serialize, PartialEq, Eq, Clone, Copy, ToSchema, SmithyModel
 )]
 #[serde(rename_all = "lowercase")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 /// This is used to indicate if the mandate was accepted online or offline
 pub enum AcceptanceType {
     /// Online
@@ -238,15 +245,19 @@ pub enum AcceptanceType {
     AsExpression,
     Clone,
     ToSchema,
+    SmithyModel
 )]
 #[serde(deny_unknown_fields)]
 /// Details of online mandate
 #[diesel(sql_type = Jsonb)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct OnlineMandate {
     /// Ip address of the customer machine from which the mandate was created
     #[schema(value_type = String, example = "123.32.25.123")]
+    #[smithy(value_type = "String")]
     pub ip_address: Option<Secret<String, pii::IpAddress>>,
     /// The user-agent of the customer's browser
+    #[smithy(value_type = "String")]
     pub user_agent: String,
 }
 

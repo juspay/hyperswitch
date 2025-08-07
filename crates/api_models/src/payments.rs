@@ -115,27 +115,33 @@ pub struct CustomerDetails {
 #[cfg(feature = "v1")]
 /// Details of customer attached to this payment
 #[derive(
-    Debug, Default, serde::Serialize, serde::Deserialize, Clone, ToSchema, PartialEq, Setter,
+    Debug, Default, serde::Serialize, serde::Deserialize, Clone, ToSchema, PartialEq, Setter, SmithyModel
 )]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct CustomerDetailsResponse {
     /// The identifier for the customer.
     #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    #[smithy(value_type = "Option<String>")]
     pub id: Option<id_type::CustomerId>,
 
     /// The customer's name
     #[schema(max_length = 255, value_type = Option<String>, example = "John Doe")]
+    #[smithy(value_type = "Option<String>")]
     pub name: Option<Secret<String>>,
 
     /// The customer's email address
     #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
+    #[smithy(value_type = "Option<String>")]
     pub email: Option<Email>,
 
     /// The customer's phone number
     #[schema(value_type = Option<String>, max_length = 10, example = "9123456789")]
+    #[smithy(value_type = "Option<String>")]
     pub phone: Option<Secret<String>>,
 
     /// The country code for the customer's phone number
     #[schema(max_length = 2, example = "+1")]
+    #[smithy(value_type = "Option<String>")]
     pub phone_country_code: Option<String>,
 }
 
@@ -1066,10 +1072,12 @@ pub struct PaymentsRequest {
     pub client_secret: Option<String>,
 
     /// Passing this object during payments creates a mandate. The mandate_type sub object is passed by the server.
+    #[smithy(value_type = "Option<MandateData>")]
     pub mandate_data: Option<MandateData>,
 
     /// This "CustomerAcceptance" object is passed during Payments-Confirm request, it enlists the type, time, and mode of acceptance properties related to an acceptance done by the customer. The customer_acceptance sub object is usually passed by the SDK or client.
     #[schema(value_type = Option<CustomerAcceptance>)]
+    #[smithy(value_type = "Option<CustomerAcceptance>")]
     pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
 
     /// A unique identifier to link the payment to a mandate. To do Recurring payments after a mandate has been created, pass the mandate_id instead of payment_method_data
@@ -1095,10 +1103,12 @@ pub struct PaymentsRequest {
 
     /// To indicate the type of payment experience that the payment method would go through
     #[schema(value_type = Option<PaymentExperience>, example = "redirect_to_url")]
+    #[smithy(value_type = "Option<PaymentExperience>")]
     pub payment_experience: Option<api_enums::PaymentExperience>,
 
     /// Can be used to specify the Payment Method Type
     #[schema(value_type = Option<PaymentMethodType>, example = "google_pay")]
+    #[smithy(value_type = "Option<PaymentMethodType>")]
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
 
     /// Business country of the merchant for this payment.
@@ -1932,15 +1942,19 @@ impl MandateIds {
 /// Passing this object during payments creates a mandate. The mandate_type sub object is passed by the server.
 // The fields on this struct are optional, as we want to allow the merchant to provide partial
 // information about creating mandates
-#[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, SmithyModel)]
 #[serde(deny_unknown_fields)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct MandateData {
     /// A way to update the mandate's payment method details
+    #[smithy(value_type = "Option<String>")]
     pub update_mandate_id: Option<String>,
     /// A consent from the customer to store the payment method
     #[schema(value_type = Option<CustomerAcceptance>)]
+    #[smithy(value_type = "Option<CustomerAcceptance>")]
     pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
     /// A way to select the type of mandate used
+    #[smithy(value_type = "Option<MandateType>")]
     pub mandate_type: Option<MandateType>,
 }
 
@@ -1950,35 +1964,44 @@ pub struct SingleUseMandate {
     pub currency: api_enums::Currency,
 }
 
-#[derive(Clone, Eq, PartialEq, Debug, Default, ToSchema, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Eq, PartialEq, Debug, Default, ToSchema, serde::Serialize, serde::Deserialize, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct MandateAmountData {
     /// The maximum amount to be debited for the mandate transaction
     #[schema(value_type = i64, example = 6540)]
+    #[smithy(value_type = "Option<i64>")]
     pub amount: MinorUnit,
     /// The currency for the transaction
     #[schema(value_type = Currency, example = "USD")]
+    #[smithy(value_type = "Currency")]
     pub currency: api_enums::Currency,
     /// Specifying start date of the mandate
     #[schema(example = "2022-09-10T00:00:00Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    #[smithy(value_type = "Option<PrimitiveDateTime>")]
     pub start_date: Option<PrimitiveDateTime>,
     /// Specifying end date of the mandate
     #[schema(example = "2023-09-10T23:59:59Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    #[smithy(value_type = "Option<PrimitiveDateTime>")]
     pub end_date: Option<PrimitiveDateTime>,
     /// Additional details required by mandate
     #[schema(value_type = Option<Object>, example = r#"{
         "frequency": "DAILY"
     }"#)]
+    #[smithy(value_type = "Option<Object>")]
     pub metadata: Option<pii::SecretSerdeValue>,
 }
 
-#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, SmithyModel)]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum MandateType {
     /// If the mandate should only be valid for 1 off-session use
+    #[smithy(value_type = "MandateAmountData")]
     SingleUse(MandateAmountData),
     /// If the mandate should be valid for multiple debits
+    #[smithy(value_type = "Option<MandateAmountData>")]
     MultiUse(Option<MandateAmountData>),
 }
 
@@ -4989,10 +5012,12 @@ pub struct PaymentsResponse {
     /// Timestamp indicating when this payment intent was created, in ISO 8601 format.
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    #[smithy(value_type = "Option<PrimitiveDateTime>")]
     pub created: Option<PrimitiveDateTime>,
 
     /// Three-letter ISO currency code (e.g., USD, EUR) for the payment amount.
     #[schema(value_type = Currency, example = "USD")]
+    #[smithy(value_type = "Currency")]
     pub currency: String,
 
     /// The identifier for the customer object. If not provided the customer ID will be autogenerated.
@@ -5004,12 +5029,15 @@ pub struct PaymentsResponse {
         deprecated,
         value_type = Option<String>,
     )]
+    #[smithy(value_type = "Option<String>")]
     pub customer_id: Option<id_type::CustomerId>,
 
+    #[smithy(value_type = "Option<CustomerDetailsResponse>")]
     pub customer: Option<CustomerDetailsResponse>,
 
     /// An arbitrary string providing a description for the payment, often useful for display or internal record-keeping.
     #[schema(example = "It's my first payment request")]
+    #[smithy(value_type = "Option<String>")]
     pub description: Option<String>,
 
     /// An array of refund objects associated with this payment. Empty or null if no refunds have been processed.
@@ -5032,17 +5060,21 @@ pub struct PaymentsResponse {
 
     /// A unique identifier to link the payment to a mandate, can be used instead of payment_method_data, in case of setting up recurring payments
     #[schema(max_length = 255, example = "mandate_iwer89rnjef349dni3")]
+    #[smithy(value_type = "Option<String>")]
     pub mandate_id: Option<String>,
 
     /// Provided mandate information for creating a mandate
+    #[smithy(value_type = "Option<MandateData>")]
     pub mandate_data: Option<MandateData>,
 
     /// Indicates that you intend to make future payments with this Payment’s payment method. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.
     #[schema(value_type = Option<FutureUsage>, example = "off_session")]
+    #[smithy(value_type = "Option<FutureUsage>")]
     pub setup_future_usage: Option<api_enums::FutureUsage>,
 
     /// Set to true to indicate that the customer is not in your checkout flow during this payment, and therefore is unable to authenticate. This parameter is intended for scenarios where you collect card details and charge them later. This parameter can only be used with confirm=true.
     #[schema(example = true)]
+    #[smithy(value_type = "Option<bool>")]
     pub off_session: Option<bool>,
 
     /// A timestamp (ISO 8601 code) that determines when the payment should be captured.
@@ -5050,14 +5082,17 @@ pub struct PaymentsResponse {
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     #[remove_in(PaymentsCreateResponseOpenApi)]
+    #[smithy(value_type = "Option<PrimitiveDateTime>")]
     pub capture_on: Option<PrimitiveDateTime>,
 
     /// This is the instruction for capture/ debit the money from the users' card. On the other hand authorization refers to blocking the amount on the users' payment method.
     #[schema(value_type = Option<CaptureMethod>, example = "automatic")]
+    #[smithy(value_type = "Option<CaptureMethod>")]
     pub capture_method: Option<api_enums::CaptureMethod>,
 
     /// The payment method that is to be used
     #[schema(value_type = PaymentMethod, example = "bank_transfer")]
+    #[smithy(value_type = "Option<PaymentMethod>")]
     pub payment_method: Option<api_enums::PaymentMethod>,
 
     /// The payment method information provided for making a payment

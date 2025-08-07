@@ -144,8 +144,9 @@ pub fn resolve_type_and_generate_shapes(
         "f32" => "smithy.api#Float".to_string(),
         "f64" => "smithy.api#Double".to_string(),
         "bool" => "smithy.api#Boolean".to_string(),
+        "PrimitiveDateTime" | "time::PrimitiveDateTime" => "smithy.api#Timestamp".to_string(),
         "Amount" | "MinorUnit" => "smithy.api#Long".to_string(),
-        "serde_json::Value" | "Value" => "smithy.api#Document".to_string(),
+        "serde_json::Value" | "Value" | "Object" => "smithy.api#Document".to_string(),
 
         vt if vt.starts_with("Option<") && vt.ends_with('>') => {
             let inner_type = extract_generic_inner_type(vt, "Option")
