@@ -288,12 +288,12 @@ impl RevenueRecoveryInvoice {
             next_billing_at: None,
         });
         recovery_intent
-            .get_payment_intent(&state, &req_state, &merchant_context, &profile)
+            .get_payment_intent(state, req_state, merchant_context, profile)
             .await
             .transpose()
             .async_unwrap_or_else(|| async {
                 recovery_intent
-                    .create_payment_intent(&state, &req_state, &merchant_context, &profile)
+                    .create_payment_intent(state, req_state, merchant_context, profile)
                     .await
             })
             .await
@@ -1491,7 +1491,8 @@ impl RecoveryAction {
             }
         }
     }
-
+    
+    #[allow(clippy::too_many_arguments)]
     pub async fn handle_action(
         &self,
         state: &SessionState,
