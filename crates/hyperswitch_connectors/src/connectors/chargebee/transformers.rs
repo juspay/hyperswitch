@@ -694,6 +694,7 @@ impl TryFrom<enums::AttemptStatus> for ChargebeeRecordStatus {
             | enums::AttemptStatus::AuthenticationPending
             | enums::AttemptStatus::AuthenticationSuccessful
             | enums::AttemptStatus::Authorized
+            | enums::AttemptStatus::PartiallyAuthorized
             | enums::AttemptStatus::AuthorizationFailed
             | enums::AttemptStatus::Authorizing
             | enums::AttemptStatus::CodInitiated

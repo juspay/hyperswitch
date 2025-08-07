@@ -1228,6 +1228,9 @@ host = "localhost"
 port = 8000
 service = "dynamo"
 
+[grpc_client.recovery_decider_client] # Revenue recovery client base url
+base_url = "http://127.0.0.1:8080" #Base URL
+
 [theme.storage]
 file_storage_backend = "file_system" # Theme storage backend to be used
 
@@ -1264,8 +1267,11 @@ ucs_only_connectors = [
 ]
 
 [revenue_recovery]
-monitoring_threshold_in_seconds = 2592000
+monitoring_threshold_in_seconds = 60
 retry_algorithm_type = "cascading"
+
+[revenue_recovery.recovery_timestamp]
+initial_timestamp_in_hours = 1
 
 [clone_connector_allowlist]
 merchant_ids = "merchant_123, merchant_234"     # Comma-separated list of allowed merchant IDs
