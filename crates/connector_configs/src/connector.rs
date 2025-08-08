@@ -287,6 +287,7 @@ pub struct ConnectorConfig {
     pub redsys: Option<ConnectorTomlConfig>,
     pub santander: Option<ConnectorTomlConfig>,
     pub shift4: Option<ConnectorTomlConfig>,
+    pub sift: Option<ConnectorTomlConfig>,
     pub silverflow: Option<ConnectorTomlConfig>,
     pub stripe: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
@@ -416,6 +417,7 @@ impl ConnectorConfig {
             Connector::Cashtocode => Ok(connector_data.cashtocode),
             Connector::Celero => Ok(connector_data.celero),
             Connector::Chargebee => Ok(connector_data.chargebee),
+            Connector::Checkbook => Ok(connector_data.checkbook),
             Connector::Checkout => Ok(connector_data.checkout),
             Connector::Coinbase => Ok(connector_data.coinbase),
             Connector::Coingate => Ok(connector_data.coingate),

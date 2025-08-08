@@ -75,6 +75,7 @@ pub struct PaymentIntent {
     pub shipping_amount_tax: Option<MinorUnit>,
     pub duty_amount: Option<MinorUnit>,
     pub order_date: Option<PrimitiveDateTime>,
+    pub enable_partial_authorization: Option<bool>,
     pub merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
@@ -174,6 +175,7 @@ pub struct PaymentIntent {
     pub shipping_amount_tax: Option<MinorUnit>,
     pub duty_amount: Option<MinorUnit>,
     pub order_date: Option<PrimitiveDateTime>,
+    pub enable_partial_authorization: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression, PartialEq)]
@@ -351,6 +353,7 @@ pub struct PaymentIntentNew {
     pub organization_id: common_utils::id_type::OrganizationId,
     pub tax_details: Option<TaxDetails>,
     pub skip_external_tax_calculation: Option<bool>,
+    pub enable_partial_authorization: Option<bool>,
     pub merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
@@ -460,6 +463,7 @@ pub struct PaymentIntentNew {
     pub order_date: Option<PrimitiveDateTime>,
     pub shipping_amount_tax: Option<MinorUnit>,
     pub duty_amount: Option<MinorUnit>,
+    pub enable_partial_authorization: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -626,6 +630,7 @@ pub struct PaymentIntentUpdateFields {
     pub order_date: Option<PrimitiveDateTime>,
     pub shipping_amount_tax: Option<MinorUnit>,
     pub duty_amount: Option<MinorUnit>,
+    pub enable_partial_authorization: Option<bool>,
 }
 
 // TODO: uncomment fields as necessary
@@ -790,6 +795,7 @@ impl PaymentIntentUpdateInternal {
             shipping_amount_tax: source.shipping_amount_tax,
             duty_amount: source.duty_amount,
             order_date: source.order_date,
+            enable_partial_authorization: None,
         }
     }
 }
@@ -844,6 +850,7 @@ pub struct PaymentIntentUpdateInternal {
     pub order_date: Option<PrimitiveDateTime>,
     pub shipping_amount_tax: Option<MinorUnit>,
     pub duty_amount: Option<MinorUnit>,
+    pub enable_partial_authorization: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -895,6 +902,7 @@ impl PaymentIntentUpdate {
             order_date,
             shipping_amount_tax,
             duty_amount,
+            enable_partial_authorization,
         } = self.into();
         PaymentIntent {
             amount: amount.unwrap_or(source.amount),
@@ -950,6 +958,8 @@ impl PaymentIntentUpdate {
             order_date: order_date.or(source.order_date),
             shipping_amount_tax: shipping_amount_tax.or(source.shipping_amount_tax),
             duty_amount: duty_amount.or(source.duty_amount),
+            enable_partial_authorization: enable_partial_authorization
+                .or(source.enable_partial_authorization),
             ..source
         }
     }
@@ -1008,6 +1018,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 order_date: None,
                 shipping_amount_tax: None,
                 duty_amount: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::Update(value) => Self {
                 amount: Some(value.amount),
@@ -1056,6 +1067,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 order_date: value.order_date,
                 shipping_amount_tax: value.shipping_amount_tax,
                 duty_amount: value.duty_amount,
+                enable_partial_authorization: value.enable_partial_authorization,
             },
             PaymentIntentUpdate::PaymentCreateUpdate {
                 return_url,
@@ -1111,6 +1123,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 order_date: None,
                 shipping_amount_tax: None,
                 duty_amount: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::PGStatusUpdate {
                 status,
@@ -1162,6 +1175,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 order_date: None,
                 shipping_amount_tax: None,
                 duty_amount: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::MerchantStatusUpdate {
                 status,
@@ -1214,6 +1228,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 order_date: None,
                 shipping_amount_tax: None,
                 duty_amount: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::ResponseUpdate {
                 // amount,
@@ -1273,6 +1288,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 order_date: None,
                 shipping_amount_tax: None,
                 duty_amount: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id,
@@ -1324,6 +1340,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 order_date: None,
                 shipping_amount_tax: None,
                 duty_amount: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::StatusAndAttemptUpdate {
                 status,
@@ -1376,6 +1393,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 order_date: None,
                 shipping_amount_tax: None,
                 duty_amount: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::ApproveUpdate {
                 status,
@@ -1427,6 +1445,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 order_date: None,
                 shipping_amount_tax: None,
                 duty_amount: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::RejectUpdate {
                 status,
@@ -1478,6 +1497,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 order_date: None,
                 shipping_amount_tax: None,
                 duty_amount: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::SurchargeApplicableUpdate {
                 surcharge_applicable,
@@ -1528,6 +1548,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 order_date: None,
                 shipping_amount_tax: None,
                 duty_amount: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount } => Self {
                 amount: Some(amount),
@@ -1575,6 +1596,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 order_date: None,
                 shipping_amount_tax: None,
                 duty_amount: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::AuthorizationCountUpdate {
                 authorization_count,
@@ -1624,6 +1646,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 order_date: None,
                 shipping_amount_tax: None,
                 duty_amount: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::CompleteAuthorizeUpdate {
                 shipping_address_id,
@@ -1673,6 +1696,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 order_date: None,
                 shipping_amount_tax: None,
                 duty_amount: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::ManualUpdate { status, updated_by } => Self {
                 status,
@@ -1720,6 +1744,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 order_date: None,
                 shipping_amount_tax: None,
                 duty_amount: None,
+                enable_partial_authorization: None,
             },
             PaymentIntentUpdate::SessionResponseUpdate {
                 tax_details,
@@ -1772,6 +1797,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 order_date: None,
                 shipping_amount_tax: None,
                 duty_amount: None,
+                enable_partial_authorization: None,
             },
         }
     }

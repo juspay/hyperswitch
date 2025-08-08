@@ -1288,6 +1288,7 @@ mod tests {
             is_iframe_redirection_enabled: None,
             is_pre_network_tokenization_enabled: false,
             merchant_category_code: None,
+            dispute_polling_interval: None,
         });
 
         let business_profile = state
@@ -1402,6 +1403,7 @@ mod tests {
             whole_connector_response: None,
             payment_channel: None,
             network_transaction_id: None,
+            enable_partial_authorization: None,
         };
         let content =
             api_webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(expected_response));

@@ -359,7 +359,7 @@ pub struct GooglePayWalletData {
     /// The information of the payment method
     pub info: GooglePayPaymentMethodInfo,
     /// The tokenization data of Google pay
-    pub tokenization_data: GpayTokenizationData,
+    pub tokenization_data: common_types::payments::GpayTokenizationData,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -463,14 +463,6 @@ pub struct TouchNGoRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct SwishQrData {}
-
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
-pub struct GpayTokenizationData {
-    /// The type of the token
-    pub token_type: String,
-    /// Token generated for the wallet
-    pub token: String,
-}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct ApplePayWalletData {
@@ -1128,10 +1120,7 @@ impl From<api_models::payments::GooglePayWalletData> for GooglePayWalletData {
                     }
                 }),
             },
-            tokenization_data: GpayTokenizationData {
-                token_type: value.tokenization_data.token_type,
-                token: value.tokenization_data.token,
-            },
+            tokenization_data: value.tokenization_data,
         }
     }
 }

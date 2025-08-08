@@ -288,7 +288,10 @@ impl TryFrom<&NoonRouterData<&PaymentsAuthorizeRouterData>> for NoonPaymentsRequ
                             Ok(NoonPaymentData::GooglePay(NoonGooglePay {
                                 api_version_minor: GOOGLEPAY_API_VERSION_MINOR,
                                 api_version: GOOGLEPAY_API_VERSION,
-                                payment_method_data: GooglePayWalletData::from(google_pay_data),
+                                payment_method_data: GooglePayWalletData::try_from(google_pay_data)
+                                    .change_context(errors::ConnectorError::InvalidDataFormat {
+                                        field_name: "google_pay_data",
+                                    })?,
                             }))
                         }
                         WalletData::ApplePay(apple_pay_data) => {

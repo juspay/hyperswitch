@@ -1,4 +1,8 @@
-use common_utils::{ext_traits::Encode, id_type::CustomerId, types::MinorUnit};
+use common_utils::{
+    ext_traits::Encode,
+    id_type::CustomerId,
+    types::{MinorUnit, StringMinorUnitForConnector},
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
@@ -6,12 +10,19 @@ use hyperswitch_domain_models::{
         AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
         ErrorResponse, RouterData,
     },
-    router_flow_types::refunds::{Execute, RSync},
-    router_request_types::{
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsSyncData, ResponseId,
+    router_flow_types::{
+        refunds::{Execute, RSync},
+        Dsync, Fetch, Retrieve, Upload,
     },
-    router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
+    router_request_types::{
+        DisputeSyncData, FetchDisputesRequestData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsSyncData, ResponseId,
+        RetrieveFileRequestData, UploadFileRequestData,
+    },
+    router_response_types::{
+        DisputeSyncResponse, FetchDisputesResponse, MandateReference, PaymentsResponseData,
+        RefundsResponseData, RetrieveFileResponse, UploadFileResponse,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelPostCaptureRouterData, PaymentsCancelRouterData,
         PaymentsCaptureRouterData, RefundsRouterData,
@@ -22,7 +33,11 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
+    types::{
+        AcceptDisputeRouterData, DisputeSyncRouterData, FetchDisputeRouterData,
+        RefundsResponseRouterData, ResponseRouterData, RetrieveFileRouterData,
+        SubmitEvidenceRouterData,
+    },
     utils::{self as connector_utils, CardData, PaymentsAuthorizeRequestData, RouterData as _},
 };
 
@@ -32,6 +47,9 @@ pub mod worldpayvantiv_constants {
     pub const XML_ENCODING: &str = "UTF-8";
     pub const XMLNS: &str = "http://www.vantivcnp.com/schema";
     pub const MAX_ID_LENGTH: usize = 26;
+    pub const XML_STANDALONE: &str = "yes";
+    pub const XML_CHARGEBACK: &str = "http://www.vantivcnp.com/chargebacks";
+    pub const MAC_FIELD_NUMBER: &str = "39";
 }
 
 pub struct WorldpayvantivRouterData<T> {
@@ -231,6 +249,8 @@ pub struct Authorization {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub original_network_transaction_id: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub allow_partial_auth: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cardholder_authentication: Option<CardholderAuthentication>,
 }
 
@@ -266,6 +286,8 @@ pub struct Sale {
     pub processing_type: Option<VantivProcessingType>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub original_network_transaction_id: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub allow_partial_auth: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -353,6 +375,7 @@ pub enum OrderSource {
     ApplePay,
     MailOrder,
     Telephone,
+    AndroidPay,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -424,6 +447,32 @@ impl From<WorldPayVativApplePayNetwork> for WorldpayvativCardType {
     }
 }
 
+#[derive(Debug, Clone, Serialize, strum::EnumString)]
+#[serde(rename_all = "UPPERCASE")]
+#[strum(ascii_case_insensitive)]
+pub enum WorldPayVativGooglePayNetwork {
+    Visa,
+    Mastercard,
+    Amex,
+    Discover,
+    Dinersclub,
+    Jcb,
+    Unionpay,
+}
+
+impl From<WorldPayVativGooglePayNetwork> for WorldpayvativCardType {
+    fn from(network: WorldPayVativGooglePayNetwork) -> Self {
+        match network {
+            WorldPayVativGooglePayNetwork::Visa => Self::Visa,
+            WorldPayVativGooglePayNetwork::Mastercard => Self::MasterCard,
+            WorldPayVativGooglePayNetwork::Amex => Self::AmericanExpress,
+            WorldPayVativGooglePayNetwork::Discover => Self::Discover,
+            WorldPayVativGooglePayNetwork::Dinersclub => Self::DinersClub,
+            WorldPayVativGooglePayNetwork::Jcb => Self::JCB,
+            WorldPayVativGooglePayNetwork::Unionpay => Self::UnionPay,
+        }
+    }
+}
 impl TryFrom<common_enums::CardNetwork> for WorldpayvativCardType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(card_network: common_enums::CardNetwork) -> Result<Self, Self::Error> {
@@ -608,12 +657,17 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
     fn try_from(
         item: &WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        if item.router_data.is_three_ds() {
+        if item.router_data.is_three_ds()
+            && !matches!(
+                item.router_data.request.payment_method_data,
+                PaymentMethodData::Wallet(_)
+            )
+        {
             Err(errors::ConnectorError::NotSupported {
                 message: "Card 3DS".to_string(),
                 connector: "Worldpayvantiv",
             })?
-        };
+        }
         let worldpayvantiv_metadata =
             WorldpayvantivMetadataObject::try_from(&item.router_data.connector_meta_data)?;
         if worldpayvantiv_metadata.merchant_config_currency != item.router_data.request.currency {
@@ -653,7 +707,6 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
         let processing_info = get_processing_info(&item.router_data.request)?;
         let enhanced_data = get_enhanced_data(item.router_data)?;
         let order_source = OrderSource::from(item);
-
         let (authorization, sale) =
             if item.router_data.request.is_auto_capture()? && item.amount != MinorUnit::zero() {
                 (
@@ -676,6 +729,13 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
                         processing_type: processing_info.processing_type,
                         original_network_transaction_id: processing_info.network_transaction_id,
                         enhanced_data,
+                        allow_partial_auth: item
+                            .router_data
+                            .request
+                            .enable_partial_authorization
+                            .and_then(|enable_partial_authorization| {
+                                enable_partial_authorization.then_some(true)
+                            }),
                     }),
                 )
             } else {
@@ -703,6 +763,13 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
                         original_network_transaction_id: processing_info.network_transaction_id,
                         cardholder_authentication,
                         enhanced_data,
+                        allow_partial_auth: item
+                            .router_data
+                            .request
+                            .enable_partial_authorization
+                            .and_then(|enable_partial_authorization| {
+                                enable_partial_authorization.then_some(true)
+                            }),
                     }),
                     None,
                 )
@@ -730,6 +797,12 @@ impl From<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for OrderSour
         ) = &item.router_data.request.payment_method_data
         {
             return Self::ApplePay;
+        }
+        if let PaymentMethodData::Wallet(
+            hyperswitch_domain_models::payment_method_data::WalletData::GooglePay(_),
+        ) = &item.router_data.request.payment_method_data
+        {
+            return Self::AndroidPay;
         }
 
         match item.router_data.request.payment_channel {
@@ -828,7 +901,7 @@ fn get_processing_info(
                             .ok_or(errors::ConnectorError::MissingConnectorMandateID)?
                             .into(),
                         exp_date: format!(
-                            "{}_{}",
+                            "{}{}",
                             card_mandate_data.card_exp_month.peek(),
                             card_mandate_data.card_exp_year.peek()
                         )
@@ -953,6 +1026,19 @@ pub struct VantivSyncErrorResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename = "errorResponse")]
+pub struct VantivDisputeErrorResponse {
+    #[serde(rename = "@xmlns")]
+    pub xmlns: String,
+    pub errors: Vec<VantivDisputeErrors>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct VantivDisputeErrors {
+    pub error: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename = "cnpOnlineResponse", rename_all = "camelCase")]
 pub struct CnpOnlineResponse {
     #[serde(rename = "@version")]
@@ -1062,6 +1148,45 @@ pub struct PaymentResponse {
     pub fraud_result: Option<FraudResult>,
     pub token_response: Option<TokenResponse>,
     pub network_transaction_id: Option<Secret<String>>,
+    pub approved_amount: Option<MinorUnit>,
+    pub enhanced_auth_response: Option<EnhancedAuthResponse>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct EnhancedAuthResponse {
+    pub network_response: Option<NetworkResponse>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct NetworkResponse {
+    pub endpoint: Option<String>,
+    #[serde(default)]
+    #[serde(rename = "networkField")]
+    pub network_fields: Vec<NetworkField>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct NetworkField {
+    #[serde(rename = "@fieldNumber")]
+    pub field_number: String,
+    #[serde(rename = "@fieldName", skip_serializing_if = "Option::is_none")]
+    pub field_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub field_value: Option<String>,
+    #[serde(default)]
+    #[serde(rename = "networkSubField")]
+    pub network_sub_fields: Vec<NetworkSubField>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct NetworkSubField {
+    #[serde(rename = "@fieldNumber")]
+    pub field_number: String,
+    pub field_value: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -1139,6 +1264,24 @@ where
                     capture_response.response,
                 )?;
                 if connector_utils::is_payment_failure(status) {
+                    let network_decline_code = item
+                        .response
+                        .sale_response
+                        .as_ref()
+                        .and_then(|pr| pr.enhanced_auth_response.as_ref())
+                        .and_then(|ea| ea.network_response.as_ref())
+                        .and_then(|nr| {
+                            nr.network_fields
+                                .iter()
+                                .find(|f| {
+                                    f.field_number == *worldpayvantiv_constants::MAC_FIELD_NUMBER
+                                })
+                                .and_then(|f| f.field_value.clone())
+                        });
+
+                    let network_error_message = network_decline_code
+                        .as_ref()
+                        .map(|_| capture_response.message.clone());
                     Ok(Self {
                         status,
                         response: Err(ErrorResponse {
@@ -1149,8 +1292,8 @@ where
                             attempt_status: None,
                             connector_transaction_id: Some(capture_response.cnp_txn_id),
                             network_advice_code: None,
-                            network_decline_code: None,
-                            network_error_message: None,
+                            network_decline_code,
+                            network_error_message,
                         }),
                         ..item.data
                     })
@@ -1173,21 +1316,39 @@ where
                     })
                 }
             }
-            None => Ok(Self {
-                status: common_enums::AttemptStatus::CaptureFailed,
-                response: Err(ErrorResponse {
-                    code: item.response.response_code,
-                    message: item.response.message.clone(),
-                    reason: Some(item.response.message.clone()),
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                    network_advice_code: None,
-                    network_decline_code: None,
-                    network_error_message: None,
-                }),
-                ..item.data
-            }),
+            None => {
+                let network_decline_code = item
+                    .response
+                    .sale_response
+                    .as_ref()
+                    .and_then(|pr| pr.enhanced_auth_response.as_ref())
+                    .and_then(|ea| ea.network_response.as_ref())
+                    .and_then(|nr| {
+                        nr.network_fields
+                            .iter()
+                            .find(|f| f.field_number == *worldpayvantiv_constants::MAC_FIELD_NUMBER)
+                            .and_then(|f| f.field_value.clone())
+                    });
+
+                let network_error_message = network_decline_code
+                    .as_ref()
+                    .map(|_| item.response.message.clone());
+                Ok(Self {
+                    status: common_enums::AttemptStatus::CaptureFailed,
+                    response: Err(ErrorResponse {
+                        code: item.response.response_code,
+                        message: item.response.message.clone(),
+                        reason: Some(item.response.message.clone()),
+                        status_code: item.http_code,
+                        attempt_status: None,
+                        connector_transaction_id: None,
+                        network_advice_code: None,
+                        network_decline_code,
+                        network_error_message,
+                    }),
+                    ..item.data
+                })
+            }
         }
     }
 }
@@ -1206,6 +1367,24 @@ impl<F> TryFrom<ResponseRouterData<F, CnpOnlineResponse, PaymentsCancelData, Pay
                     auth_reversal_response.response,
                 )?;
                 if connector_utils::is_payment_failure(status) {
+                    let network_decline_code = item
+                        .response
+                        .sale_response
+                        .as_ref()
+                        .and_then(|pr| pr.enhanced_auth_response.as_ref())
+                        .and_then(|ea| ea.network_response.as_ref())
+                        .and_then(|nr| {
+                            nr.network_fields
+                                .iter()
+                                .find(|f| {
+                                    f.field_number == *worldpayvantiv_constants::MAC_FIELD_NUMBER
+                                })
+                                .and_then(|f| f.field_value.clone())
+                        });
+
+                    let network_error_message = network_decline_code
+                        .as_ref()
+                        .map(|_| auth_reversal_response.message.clone());
                     Ok(Self {
                         status,
                         response: Err(ErrorResponse {
@@ -1216,8 +1395,8 @@ impl<F> TryFrom<ResponseRouterData<F, CnpOnlineResponse, PaymentsCancelData, Pay
                             attempt_status: None,
                             connector_transaction_id: Some(auth_reversal_response.cnp_txn_id),
                             network_advice_code: None,
-                            network_decline_code: None,
-                            network_error_message: None,
+                            network_decline_code,
+                            network_error_message,
                         }),
                         ..item.data
                     })
@@ -1240,22 +1419,40 @@ impl<F> TryFrom<ResponseRouterData<F, CnpOnlineResponse, PaymentsCancelData, Pay
                     })
                 }
             }
-            None => Ok(Self {
-                // Incase of API failure
-                status: common_enums::AttemptStatus::VoidFailed,
-                response: Err(ErrorResponse {
-                    code: item.response.response_code,
-                    message: item.response.message.clone(),
-                    reason: Some(item.response.message.clone()),
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                    network_advice_code: None,
-                    network_decline_code: None,
-                    network_error_message: None,
-                }),
-                ..item.data
-            }),
+            None => {
+                let network_decline_code = item
+                    .response
+                    .sale_response
+                    .as_ref()
+                    .and_then(|pr| pr.enhanced_auth_response.as_ref())
+                    .and_then(|ea| ea.network_response.as_ref())
+                    .and_then(|nr| {
+                        nr.network_fields
+                            .iter()
+                            .find(|f| f.field_number == *worldpayvantiv_constants::MAC_FIELD_NUMBER)
+                            .and_then(|f| f.field_value.clone())
+                    });
+
+                let network_error_message = network_decline_code
+                    .as_ref()
+                    .map(|_| item.response.message.clone());
+                Ok(Self {
+                    // Incase of API failure
+                    status: common_enums::AttemptStatus::VoidFailed,
+                    response: Err(ErrorResponse {
+                        code: item.response.response_code,
+                        message: item.response.message.clone(),
+                        reason: Some(item.response.message.clone()),
+                        status_code: item.http_code,
+                        attempt_status: None,
+                        connector_transaction_id: None,
+                        network_advice_code: None,
+                        network_decline_code,
+                        network_error_message,
+                    }),
+                    ..item.data
+                })
+            }
         }
     }
 }
@@ -1347,6 +1544,24 @@ impl TryFrom<RefundsResponseRouterData<Execute, CnpOnlineResponse>> for RefundsR
             Some(credit_response) => {
                 let refund_status = get_refund_status(credit_response.response)?;
                 if connector_utils::is_refund_failure(refund_status) {
+                    let network_decline_code = item
+                        .response
+                        .sale_response
+                        .as_ref()
+                        .and_then(|pr| pr.enhanced_auth_response.as_ref())
+                        .and_then(|ea| ea.network_response.as_ref())
+                        .and_then(|nr| {
+                            nr.network_fields
+                                .iter()
+                                .find(|f| {
+                                    f.field_number == *worldpayvantiv_constants::MAC_FIELD_NUMBER
+                                })
+                                .and_then(|f| f.field_value.clone())
+                        });
+
+                    let network_error_message = network_decline_code
+                        .as_ref()
+                        .map(|_| credit_response.message.clone());
                     Ok(Self {
                         response: Err(ErrorResponse {
                             code: credit_response.response.to_string(),
@@ -1356,8 +1571,8 @@ impl TryFrom<RefundsResponseRouterData<Execute, CnpOnlineResponse>> for RefundsR
                             attempt_status: None,
                             connector_transaction_id: None,
                             network_advice_code: None,
-                            network_decline_code: None,
-                            network_error_message: None,
+                            network_decline_code,
+                            network_error_message,
                         }),
                         ..item.data
                     })
@@ -1371,20 +1586,38 @@ impl TryFrom<RefundsResponseRouterData<Execute, CnpOnlineResponse>> for RefundsR
                     })
                 }
             }
-            None => Ok(Self {
-                response: Err(ErrorResponse {
-                    code: item.response.response_code,
-                    message: item.response.message.clone(),
-                    reason: Some(item.response.message.clone()),
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                    network_advice_code: None,
-                    network_decline_code: None,
-                    network_error_message: None,
-                }),
-                ..item.data
-            }),
+            None => {
+                let network_decline_code = item
+                    .response
+                    .sale_response
+                    .as_ref()
+                    .and_then(|pr| pr.enhanced_auth_response.as_ref())
+                    .and_then(|ea| ea.network_response.as_ref())
+                    .and_then(|nr| {
+                        nr.network_fields
+                            .iter()
+                            .find(|f| f.field_number == *worldpayvantiv_constants::MAC_FIELD_NUMBER)
+                            .and_then(|f| f.field_value.clone())
+                    });
+
+                let network_error_message = network_decline_code
+                    .as_ref()
+                    .map(|_| item.response.message.clone());
+                Ok(Self {
+                    response: Err(ErrorResponse {
+                        code: item.response.response_code,
+                        message: item.response.message.clone(),
+                        reason: Some(item.response.message.clone()),
+                        status_code: item.http_code,
+                        attempt_status: None,
+                        connector_transaction_id: None,
+                        network_advice_code: None,
+                        network_decline_code,
+                        network_error_message,
+                    }),
+                    ..item.data
+                })
+            }
         }
     }
 }
@@ -1479,10 +1712,26 @@ impl<F>
     fn try_from(
         item: ResponseRouterData<F, CnpOnlineResponse, PaymentsAuthorizeData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        match (item.response.sale_response, item.response.authorization_response) {
+        match (item.response.sale_response.as_ref(), item.response.authorization_response.as_ref()) {
             (Some(sale_response), None) => {
                 let status = get_attempt_status(WorldpayvantivPaymentFlow::Sale, sale_response.response)?;
                 if connector_utils::is_payment_failure(status) {
+                    let network_decline_code = item
+                    .response
+                    .sale_response
+                    .as_ref()
+                    .and_then(|pr| pr.enhanced_auth_response.as_ref())
+                    .and_then(|ea| ea.network_response.as_ref())
+                    .and_then(|nr| {
+                        nr.network_fields
+                            .iter()
+                            .find(|f| f.field_number == *worldpayvantiv_constants::MAC_FIELD_NUMBER)
+                            .and_then(|f| f.field_value.clone())
+                    });
+
+                let network_error_message = network_decline_code
+                    .as_ref()
+                    .map(|_| sale_response.message.clone());
                     Ok(Self {
                         status,
                         response: Err(ErrorResponse {
@@ -1491,10 +1740,10 @@ impl<F>
                             reason: Some(sale_response.message.clone()),
                             status_code: item.http_code,
                             attempt_status: None,
-                            connector_transaction_id: Some(sale_response.order_id),
+                            connector_transaction_id: Some(sale_response.order_id.clone()),
                             network_advice_code: None,
-                            network_decline_code: None,
-                            network_error_message: None,
+                            network_decline_code,
+                            network_error_message,
                         }),
                         ..item.data
                     })
@@ -1504,22 +1753,23 @@ impl<F>
                     };
                     let connector_metadata =   Some(report_group.encode_to_value()
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?);
-                let mandate_reference_data = sale_response.token_response.map(MandateReference::from);
+                let mandate_reference_data = sale_response.token_response.clone().map(MandateReference::from);
                 let connector_response = sale_response.fraud_result.as_ref().map(get_connector_response);
 
                     Ok(Self {
                         status,
                         response: Ok(PaymentsResponseData::TransactionResponse {
-                            resource_id: ResponseId::ConnectorTransactionId(sale_response.cnp_txn_id),
+                            resource_id: ResponseId::ConnectorTransactionId(sale_response.cnp_txn_id.clone()),
                             redirection_data: Box::new(None),
                             mandate_reference: Box::new(mandate_reference_data),
                             connector_metadata,
                             network_txn_id: None,
-                            connector_response_reference_id: Some(sale_response.order_id),
+                            connector_response_reference_id: Some(sale_response.order_id.clone()),
                             incremental_authorization_allowed: None,
                             charges: None,
                         }),
                         connector_response,
+                        amount_captured: sale_response.approved_amount.map(MinorUnit::get_amount_as_i64),
                         ..item.data
                     })
                 }
@@ -1533,6 +1783,22 @@ impl<F>
 
                 let status = get_attempt_status(payment_flow_type, auth_response.response)?;
                 if connector_utils::is_payment_failure(status) {
+                    let network_decline_code = item
+                    .response
+                    .authorization_response
+                    .as_ref()
+                    .and_then(|pr| pr.enhanced_auth_response.as_ref())
+                    .and_then(|ea| ea.network_response.as_ref())
+                    .and_then(|nr| {
+                        nr.network_fields
+                            .iter()
+                            .find(|f| f.field_number == *worldpayvantiv_constants::MAC_FIELD_NUMBER)
+                            .and_then(|f| f.field_value.clone())
+                    });
+
+                let network_error_message = network_decline_code
+                    .as_ref()
+                    .map(|_| auth_response.message.clone());
                     Ok(Self {
                         status,
                         response: Err(ErrorResponse {
@@ -1541,10 +1807,10 @@ impl<F>
                             reason: Some(auth_response.message.clone()),
                             status_code: item.http_code,
                             attempt_status: None,
-                            connector_transaction_id: Some(auth_response.order_id),
+                            connector_transaction_id: Some(auth_response.order_id.clone()),
                             network_advice_code: None,
-                            network_decline_code: None,
-                            network_error_message: None,
+                            network_decline_code,
+                            network_error_message,
                         }),
                         ..item.data
                     })
@@ -1554,27 +1820,38 @@ impl<F>
                     };
                     let connector_metadata =   Some(report_group.encode_to_value()
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?);
-                    let mandate_reference_data = auth_response.token_response.map(MandateReference::from);
+                    let mandate_reference_data = auth_response.token_response.clone().map(MandateReference::from);
                     let connector_response = auth_response.fraud_result.as_ref().map(get_connector_response);
 
                     Ok(Self {
                         status,
                         response: Ok(PaymentsResponseData::TransactionResponse {
-                            resource_id: ResponseId::ConnectorTransactionId(auth_response.cnp_txn_id),
+                            resource_id: ResponseId::ConnectorTransactionId(auth_response.cnp_txn_id.clone()),
                             redirection_data: Box::new(None),
                             mandate_reference: Box::new(mandate_reference_data),
                             connector_metadata,
                             network_txn_id: None,
-                            connector_response_reference_id: Some(auth_response.order_id),
+                            connector_response_reference_id: Some(auth_response.order_id.clone()),
                             incremental_authorization_allowed: None,
                             charges: None,
                         }),
                         connector_response,
+                        amount_captured: if payment_flow_type == WorldpayvantivPaymentFlow::Sale {
+                            auth_response.approved_amount.map(MinorUnit::get_amount_as_i64)
+                        } else {
+                            None
+                        },
+                        minor_amount_capturable: if payment_flow_type == WorldpayvantivPaymentFlow::Auth {
+                            auth_response.approved_amount
+                        } else {
+                            None
+                        },
                         ..item.data
                     })
                 }
             },
-            (None, None) => { Ok(Self {
+            (None, None) => {
+                Ok(Self {
                 status: common_enums::AttemptStatus::Failure,
                 response: Err(ErrorResponse {
                     code: item.response.response_code.clone(),
@@ -3414,16 +3691,18 @@ fn get_vantiv_card_data(
                     };
 
                     let apple_pay_network = apple_pay_data
-                        .payment_method
-                        .network
-                        .parse::<WorldPayVativApplePayNetwork>()
-                        .change_context(errors::ConnectorError::ParsingFailed)
-                        .attach_printable_lazy(|| {
-                            format!(
-                                "Failed to parse Apple Pay network: {}",
-                                apple_pay_data.payment_method.network
-                            )
-                        })?;
+    .payment_method
+    .network
+    .parse::<WorldPayVativApplePayNetwork>()
+    .map_err(|_| {
+        error_stack::Report::new(errors::ConnectorError::NotSupported {
+            message: format!(
+                "Invalid Apple Pay network '{}'. Supported networks: Visa,MasterCard,AmEx,Discover,DinersClub,JCB,UnionPay",
+                apple_pay_data.payment_method.network
+            ),
+            connector: "worldpay_vativ"
+        })
+    })?;
 
                     Ok((
                         (Some(WorldpayvantivCardData {
@@ -3440,9 +3719,60 @@ fn get_vantiv_card_data(
                         .into(),
                 ),
             },
-            _ => Err(
-                errors::ConnectorError::NotImplemented("Payment method type".to_string()).into(),
+            hyperswitch_domain_models::payment_method_data::WalletData::GooglePay(
+                google_pay_data,
+            ) => match item.router_data.payment_method_token.clone() {
+                Some(
+                    hyperswitch_domain_models::router_data::PaymentMethodToken::GooglePayDecrypt(
+                        google_pay_decrypted_data,
+                    ),
+                ) => {
+                    let number = google_pay_decrypted_data
+                        .application_primary_account_number
+                        .clone();
+                    let exp_date = google_pay_decrypted_data
+                        .get_expiry_date_as_mmyy()
+                        .change_context(errors::ConnectorError::InvalidDataFormat {
+                            field_name: "payment_method_data.card.card_exp_month",
+                        })?;
+
+                    let cardholder_authentication = CardholderAuthentication {
+                        authentication_value: google_pay_decrypted_data
+                            .cryptogram
+                            .clone()
+                            .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                                field_name: "cryptogram",
+                            })?,
+                    };
+                    let google_pay_network = google_pay_data
+    .info
+    .card_network
+    .parse::<WorldPayVativGooglePayNetwork>()
+    .map_err(|_| {
+        error_stack::Report::new(errors::ConnectorError::NotSupported {
+            message: format!(
+                "Invalid Google Pay card network '{}'. Supported networks: VISA, MASTERCARD, AMEX, DISCOVER, JCB, UNIONPAY",
+                google_pay_data.info.card_network
             ),
+            connector: "worldpay_vativ"
+        })
+    })?;
+
+                    Ok((
+                        (Some(WorldpayvantivCardData {
+                            card_type: google_pay_network.into(),
+                            number,
+                            exp_date,
+                            card_validation_num: None,
+                        })),
+                        Some(cardholder_authentication),
+                    ))
+                }
+                _ => {
+                    Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
+                }
+            },
+            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         },
         _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
     }
@@ -3464,4 +3794,538 @@ fn get_connector_response(payment_response: &FraudResult) -> ConnectorResponseDa
             domestic_network: None,
         },
     )
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename = "chargebackRetrievalResponse", rename_all = "camelCase")]
+pub struct ChargebackRetrievalResponse {
+    #[serde(rename = "@xmlns")]
+    pub xmlns: String,
+    pub transaction_id: String,
+    pub chargeback_case: Option<Vec<ChargebackCase>>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ChargebackCase {
+    pub case_id: String,
+    pub merchant_id: String,
+    pub day_issued_by_bank: Option<String>,
+    pub date_received_by_vantiv_cnp: Option<String>,
+    pub vantiv_cnp_txn_id: String,
+    pub cycle: String,
+    pub order_id: String,
+    pub card_number_last4: Option<String>,
+    pub card_type: Option<String>,
+    pub chargeback_amount: MinorUnit,
+    pub chargeback_currency_type: common_enums::enums::Currency,
+    pub original_txn_day: Option<String>,
+    pub chargeback_type: Option<String>,
+    pub reason_code: Option<String>,
+    pub reason_code_description: Option<String>,
+    pub current_queue: Option<String>,
+    pub acquirer_reference_number: Option<String>,
+    pub chargeback_reference_number: Option<String>,
+    pub bin: Option<String>,
+    pub payment_amount: Option<MinorUnit>,
+    pub reply_by_day: Option<String>,
+    pub pre_arbitration_amount: Option<MinorUnit>,
+    pub pre_arbitration_currency_type: Option<common_enums::enums::Currency>,
+    pub activity: Vec<Activity>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Activity {
+    pub activity_date: Option<String>,
+    pub activity_type: Option<String>,
+    pub from_queue: Option<String>,
+    pub to_queue: Option<String>,
+    pub notes: Option<String>,
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            Fetch,
+            ChargebackRetrievalResponse,
+            FetchDisputesRequestData,
+            FetchDisputesResponse,
+        >,
+    > for RouterData<Fetch, FetchDisputesRequestData, FetchDisputesResponse>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            Fetch,
+            ChargebackRetrievalResponse,
+            FetchDisputesRequestData,
+            FetchDisputesResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let dispute_list = item
+            .response
+            .chargeback_case
+            .unwrap_or_default()
+            .into_iter()
+            .map(DisputeSyncResponse::try_from)
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(FetchDisputeRouterData {
+            response: Ok(dispute_list),
+            ..item.data
+        })
+    }
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            Dsync,
+            ChargebackRetrievalResponse,
+            DisputeSyncData,
+            DisputeSyncResponse,
+        >,
+    > for RouterData<Dsync, DisputeSyncData, DisputeSyncResponse>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            Dsync,
+            ChargebackRetrievalResponse,
+            DisputeSyncData,
+            DisputeSyncResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let dispute_response = item
+            .response
+            .chargeback_case
+            .and_then(|chargeback_case| chargeback_case.first().cloned())
+            .ok_or(errors::ConnectorError::RequestEncodingFailedWithReason(
+                "Could not find chargeback case".to_string(),
+            ))?;
+
+        let dispute_sync_response = DisputeSyncResponse::try_from(dispute_response.clone())?;
+        Ok(DisputeSyncRouterData {
+            response: Ok(dispute_sync_response),
+            ..item.data
+        })
+    }
+}
+
+fn get_dispute_stage(
+    dispute_cycle: String,
+) -> Result<common_enums::enums::DisputeStage, error_stack::Report<errors::ConnectorError>> {
+    match connector_utils::normalize_string(dispute_cycle.clone())
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?
+        .as_str()
+    {
+        "arbitration"
+        | "arbitrationmastercard"
+        | "arbitrationchargeback"
+        | "arbitrationlost"
+        | "arbitrationsplit"
+        | "arbitrationwon" => Ok(common_enums::enums::DisputeStage::Arbitration),
+        "chargebackreversal" | "firstchargeback" | "rapiddisputeresolution" | "representment" => {
+            Ok(common_enums::enums::DisputeStage::Dispute)
+        }
+
+        "issueracceptedprearbitration"
+        | "issuerarbitration"
+        | "issuerdeclinedprearbitration"
+        | "prearbitration"
+        | "responsetoissuerarbitration" => Ok(common_enums::enums::DisputeStage::PreArbitration),
+
+        "retrievalrequest" => Ok(common_enums::enums::DisputeStage::PreDispute),
+        _ => Err(errors::ConnectorError::NotSupported {
+            message: format!("Dispute stage {dispute_cycle}",),
+            connector: "worldpayvantiv",
+        }
+        .into()),
+    }
+}
+
+pub fn get_dispute_status(
+    dispute_cycle: String,
+    dispute_activities: Vec<Activity>,
+) -> Result<common_enums::DisputeStatus, error_stack::Report<errors::ConnectorError>> {
+    if let Some(activity) = get_last_non_auxiliary_activity_type(dispute_activities) {
+        match activity.as_ref() {
+            "Merchant Accept"
+            | "Issuer Accepted Pre-Arbitration"
+            | "Vantiv Accept"
+            | "Sent Credit" => Ok(common_enums::DisputeStatus::DisputeAccepted),
+
+            "Merchant Represent"
+            | "Respond to Dispute"
+            | "Respond to PreArb"
+            | "Request Arbitration"
+            | "Request Pre-Arbitration"
+            | "Create Arbitration"
+            | "Record Arbitration"
+            | "Create Pre-Arbitration"
+            | "File Arbitration"
+            | "File Pre-Arbitration"
+            | "File Visa Pre-Arbitration"
+            | "Send Representment"
+            | "Send Response"
+            | "Arbitration"
+            | "Arbitration (Mastercard)"
+            | "Arbitration Chargeback"
+            | "Issuer Declined Pre-Arbitration"
+            | "Issuer Arbitration"
+            | "Request Response to Pre-Arbitration"
+            | "Vantiv Represent"
+            | "Vantiv Respond"
+            | "Auto Represent"
+            | "Arbitration Ruling" => Ok(common_enums::DisputeStatus::DisputeChallenged),
+
+            "Arbitration Lost" | "Unsuccessful Arbitration" | "Unsuccessful Pre-Arbitration" => {
+                Ok(common_enums::DisputeStatus::DisputeLost)
+            }
+
+            "Arbitration Won"
+            | "Arbitration Split"
+            | "Successful Arbitration"
+            | "Successful Pre-Arbitration" => Ok(common_enums::DisputeStatus::DisputeWon),
+
+            "Chargeback Reversal" => Ok(common_enums::DisputeStatus::DisputeCancelled),
+
+            "Receive Network Transaction" => Ok(common_enums::DisputeStatus::DisputeOpened),
+
+            "Unaccept" | "Unrepresent" => Ok(common_enums::DisputeStatus::DisputeOpened),
+
+            unexpected_activity => Err(errors::ConnectorError::UnexpectedResponseError(
+                bytes::Bytes::from(format!("Dispute Activity: {unexpected_activity})")),
+            )
+            .into()),
+        }
+    } else {
+        match connector_utils::normalize_string(dispute_cycle.clone())
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?
+            .as_str()
+        {
+            "arbitration"
+            | "arbitrationmastercard"
+            | "arbitrationsplit"
+            | "representment"
+            | "issuerarbitration"
+            | "prearbitration"
+            | "responsetoissuerarbitration"
+            | "arbitrationchargeback" => Ok(api_models::enums::DisputeStatus::DisputeChallenged),
+            "chargebackreversal" | "issueracceptedprearbitration" | "arbitrationwon" => {
+                Ok(api_models::enums::DisputeStatus::DisputeWon)
+            }
+            "arbitrationlost" | "issuerdeclinedprearbitration" => {
+                Ok(api_models::enums::DisputeStatus::DisputeLost)
+            }
+            "firstchargeback" | "retrievalrequest" | "rapiddisputeresolution" => {
+                Ok(api_models::enums::DisputeStatus::DisputeOpened)
+            }
+            dispute_cycle => Err(errors::ConnectorError::UnexpectedResponseError(
+                bytes::Bytes::from(format!("Dispute Stage: {dispute_cycle}")),
+            )
+            .into()),
+        }
+    }
+}
+
+fn convert_string_to_primitive_date(
+    item: Option<String>,
+) -> Result<Option<time::PrimitiveDateTime>, error_stack::Report<errors::ConnectorError>> {
+    item.map(|day| {
+        let full_datetime_str = format!("{day}T00:00:00");
+        let format =
+            time::macros::format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]");
+        time::PrimitiveDateTime::parse(&full_datetime_str, &format)
+    })
+    .transpose()
+    .change_context(errors::ConnectorError::ParsingFailed)
+}
+
+impl TryFrom<ChargebackCase> for DisputeSyncResponse {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: ChargebackCase) -> Result<Self, Self::Error> {
+        let amount = connector_utils::convert_amount(
+            &StringMinorUnitForConnector,
+            item.chargeback_amount,
+            item.chargeback_currency_type,
+        )?;
+        Ok(Self {
+            object_reference_id: api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(item.vantiv_cnp_txn_id),
+            ),
+            amount,
+            currency: item.chargeback_currency_type,
+            dispute_stage: get_dispute_stage(item.cycle.clone())?,
+            dispute_status: get_dispute_status(item.cycle.clone(), item.activity)?,
+            connector_status: item.cycle.clone(),
+            connector_dispute_id: item.case_id.clone(),
+            connector_reason: item.reason_code_description.clone(),
+            connector_reason_code: item.reason_code.clone(),
+            challenge_required_by: convert_string_to_primitive_date(item.reply_by_day.clone())?,
+            created_at: convert_string_to_primitive_date(item.date_received_by_vantiv_cnp.clone())?,
+            updated_at: None,
+        })
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ActivityType {
+    MerchantAcceptsLiability,
+    MerchantRepresent,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename = "chargebackUpdateRequest", rename_all = "camelCase")]
+pub struct ChargebackUpdateRequest {
+    #[serde(rename = "@xmlns")]
+    xmlns: String,
+    activity_type: ActivityType,
+}
+
+impl From<&SubmitEvidenceRouterData> for ChargebackUpdateRequest {
+    fn from(_item: &SubmitEvidenceRouterData) -> Self {
+        Self {
+            xmlns: worldpayvantiv_constants::XML_CHARGEBACK.to_string(),
+            activity_type: ActivityType::MerchantRepresent,
+        }
+    }
+}
+
+impl From<&AcceptDisputeRouterData> for ChargebackUpdateRequest {
+    fn from(_item: &AcceptDisputeRouterData) -> Self {
+        Self {
+            xmlns: worldpayvantiv_constants::XML_CHARGEBACK.to_string(),
+            activity_type: ActivityType::MerchantAcceptsLiability,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename = "chargebackDocumentUploadResponse", rename_all = "camelCase")]
+pub struct ChargebackDocumentUploadResponse {
+    #[serde(rename = "@xmlns")]
+    pub xmlns: String,
+    pub merchant_id: String,
+    pub case_id: String,
+    pub document_id: Option<String>,
+    pub response_code: WorldpayvantivFileUploadResponseCode,
+    pub response_message: String,
+}
+
+#[derive(Debug, strum::Display, Serialize, Deserialize, PartialEq, Clone, Copy)]
+pub enum WorldpayvantivFileUploadResponseCode {
+    #[serde(rename = "000")]
+    #[strum(serialize = "000")]
+    Success,
+
+    #[serde(rename = "001")]
+    #[strum(serialize = "001")]
+    InvalidMerchant,
+
+    #[serde(rename = "002")]
+    #[strum(serialize = "002")]
+    FutureUse002,
+
+    #[serde(rename = "003")]
+    #[strum(serialize = "003")]
+    CaseNotFound,
+
+    #[serde(rename = "004")]
+    #[strum(serialize = "004")]
+    CaseNotInMerchantQueue,
+
+    #[serde(rename = "005")]
+    #[strum(serialize = "005")]
+    DocumentAlreadyExists,
+
+    #[serde(rename = "006")]
+    #[strum(serialize = "006")]
+    InternalError,
+
+    #[serde(rename = "007")]
+    #[strum(serialize = "007")]
+    FutureUse007,
+
+    #[serde(rename = "008")]
+    #[strum(serialize = "008")]
+    MaxDocumentLimitReached,
+
+    #[serde(rename = "009")]
+    #[strum(serialize = "009")]
+    DocumentNotFound,
+
+    #[serde(rename = "010")]
+    #[strum(serialize = "010")]
+    CaseNotInValidCycle,
+
+    #[serde(rename = "011")]
+    #[strum(serialize = "011")]
+    ServerBusy,
+
+    #[serde(rename = "012")]
+    #[strum(serialize = "012")]
+    FileSizeExceedsLimit,
+
+    #[serde(rename = "013")]
+    #[strum(serialize = "013")]
+    InvalidFileContent,
+
+    #[serde(rename = "014")]
+    #[strum(serialize = "014")]
+    UnableToConvert,
+
+    #[serde(rename = "015")]
+    #[strum(serialize = "015")]
+    InvalidImageSize,
+
+    #[serde(rename = "016")]
+    #[strum(serialize = "016")]
+    MaxDocumentPageCountReached,
+}
+
+fn is_file_uploaded(vantiv_file_upload_status: WorldpayvantivFileUploadResponseCode) -> bool {
+    match vantiv_file_upload_status {
+        WorldpayvantivFileUploadResponseCode::Success
+        | WorldpayvantivFileUploadResponseCode::FutureUse002
+        | WorldpayvantivFileUploadResponseCode::FutureUse007 => true,
+        WorldpayvantivFileUploadResponseCode::InvalidMerchant
+        | WorldpayvantivFileUploadResponseCode::CaseNotFound
+        | WorldpayvantivFileUploadResponseCode::CaseNotInMerchantQueue
+        | WorldpayvantivFileUploadResponseCode::DocumentAlreadyExists
+        | WorldpayvantivFileUploadResponseCode::InternalError
+        | WorldpayvantivFileUploadResponseCode::MaxDocumentLimitReached
+        | WorldpayvantivFileUploadResponseCode::DocumentNotFound
+        | WorldpayvantivFileUploadResponseCode::CaseNotInValidCycle
+        | WorldpayvantivFileUploadResponseCode::ServerBusy
+        | WorldpayvantivFileUploadResponseCode::FileSizeExceedsLimit
+        | WorldpayvantivFileUploadResponseCode::InvalidFileContent
+        | WorldpayvantivFileUploadResponseCode::UnableToConvert
+        | WorldpayvantivFileUploadResponseCode::InvalidImageSize
+        | WorldpayvantivFileUploadResponseCode::MaxDocumentPageCountReached => false,
+    }
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            Upload,
+            ChargebackDocumentUploadResponse,
+            UploadFileRequestData,
+            UploadFileResponse,
+        >,
+    > for RouterData<Upload, UploadFileRequestData, UploadFileResponse>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<
+            Upload,
+            ChargebackDocumentUploadResponse,
+            UploadFileRequestData,
+            UploadFileResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let response = if is_file_uploaded(item.response.response_code) {
+            let provider_file_id = item
+                .response
+                .document_id
+                .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
+
+            Ok(UploadFileResponse { provider_file_id })
+        } else {
+            Err(ErrorResponse {
+                code: item.response.response_code.to_string(),
+                message: item.response.response_message.clone(),
+                reason: Some(item.response.response_message.clone()),
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+            })
+        };
+
+        Ok(Self {
+            response,
+            ..item.data
+        })
+    }
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            Retrieve,
+            ChargebackDocumentUploadResponse,
+            RetrieveFileRequestData,
+            RetrieveFileResponse,
+        >,
+    > for RouterData<Retrieve, RetrieveFileRequestData, RetrieveFileResponse>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<
+            Retrieve,
+            ChargebackDocumentUploadResponse,
+            RetrieveFileRequestData,
+            RetrieveFileResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(RetrieveFileRouterData {
+            response: Err(ErrorResponse {
+                code: item.response.response_code.to_string(),
+                message: item.response.response_message.clone(),
+                reason: Some(item.response.response_message.clone()),
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+            }),
+            ..item.data.clone()
+        })
+    }
+}
+
+fn get_last_non_auxiliary_activity_type(activities: Vec<Activity>) -> Option<String> {
+    let auxiliary_activities: std::collections::HashSet<&'static str> = [
+        "Add Note",
+        "Attach Document",
+        "Attempted Attach Document",
+        "Delete Document",
+        "Update Document",
+        "Move To Error Queue",
+        "Assign to Vantiv",
+        "Assign To Merchant",
+        "Merchant Auto Assign",
+        "Issuer Recalled",
+        "Network Decision",
+        "Request Declined",
+        "Sent Gift",
+        "Successful PayPal",
+    ]
+    .iter()
+    .copied()
+    .collect();
+
+    let mut last_non_auxiliary_activity = None;
+
+    for activity in activities {
+        let auxiliary_activity = activity
+            .activity_type
+            .as_deref()
+            .map(|activity_type| auxiliary_activities.contains(activity_type))
+            .unwrap_or(false);
+
+        if !auxiliary_activity {
+            last_non_auxiliary_activity = activity.activity_type.clone()
+        }
+    }
+    last_non_auxiliary_activity
 }

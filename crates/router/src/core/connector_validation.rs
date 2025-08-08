@@ -159,10 +159,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 celero::transformers::CeleroAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
-            // api_enums::Connector::Checkbook => {
-            //     checkbook::transformers::CheckbookAuthType::try_from(self.auth_type)?;
-            //     Ok(())
-            // },
+            api_enums::Connector::Checkbook => {
+                checkbook::transformers::CheckbookAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Checkout => {
                 checkout::transformers::CheckoutAuthType::try_from(self.auth_type)?;
                 Ok(())

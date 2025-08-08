@@ -1665,7 +1665,10 @@ impl TryFrom<&GooglePayWalletData> for StripePaymentMethodData {
             token: Secret::new(
                 gpay_data
                     .tokenization_data
-                    .token
+                    .get_encrypted_google_pay_token()
+                    .change_context(ConnectorError::MissingRequiredField {
+                        field_name: "gpay wallet_token",
+                    })?
                     .as_bytes()
                     .parse_struct::<StripeGpayToken>("StripeGpayToken")
                     .change_context(ConnectorError::InvalidWalletToken {

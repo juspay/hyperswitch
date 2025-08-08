@@ -584,7 +584,10 @@ impl TryFrom<GooglePayWalletData> for NuveiPaymentsRequest {
                     external_token: Some(ExternalToken {
                         external_token_provider: ExternalTokenProvider::GooglePay,
                         mobile_token: Secret::new(
-                            utils::GooglePayWalletData::from(gpay_data)
+                            utils::GooglePayWalletData::try_from(gpay_data)
+                                .change_context(errors::ConnectorError::InvalidDataFormat {
+                                    field_name: "google_pay_data",
+                                })?
                                 .encode_to_string_of_json()
                                 .change_context(errors::ConnectorError::RequestEncodingFailed)?,
                         ),

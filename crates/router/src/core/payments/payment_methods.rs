@@ -745,6 +745,7 @@ fn validate_payment_status_for_payment_method_list(
         | common_enums::IntentStatus::RequiresCustomerAction
         | common_enums::IntentStatus::RequiresMerchantAction
         | common_enums::IntentStatus::RequiresCapture
+        | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
         | common_enums::IntentStatus::PartiallyCaptured
         | common_enums::IntentStatus::RequiresConfirmation
         | common_enums::IntentStatus::PartiallyCapturedAndCapturable

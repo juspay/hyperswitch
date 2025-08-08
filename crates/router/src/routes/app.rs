@@ -13,6 +13,8 @@ use common_utils::id_type;
 use external_services::email::{
     no_email::NoEmailClient, ses::AwsSes, smtp::SmtpServer, EmailClientConfigs, EmailService,
 };
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+use external_services::grpc_client::revenue_recovery::GrpcRecoveryHeaders;
 use external_services::{
     file_storage::FileStorageInterface,
     grpc_client::{GrpcClients, GrpcHeaders},
@@ -148,6 +150,12 @@ impl SessionState {
     pub fn get_grpc_headers(&self) -> GrpcHeaders {
         GrpcHeaders {
             tenant_id: self.tenant.tenant_id.get_string_repr().to_string(),
+            request_id: self.request_id.map(|req_id| (*req_id).to_string()),
+        }
+    }
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+    pub fn get_recovery_grpc_headers(&self) -> GrpcRecoveryHeaders {
+        GrpcRecoveryHeaders {
             request_id: self.request_id.map(|req_id| (*req_id).to_string()),
         }
     }
@@ -557,9 +565,20 @@ impl AppState {
 
 pub struct Health;
 
+#[cfg(feature = "v1")]
 impl Health {
     pub fn server(state: AppState) -> Scope {
         web::scope("health")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::get().to(health)))
+            .service(web::resource("/ready").route(web::get().to(deep_health_check)))
+    }
+}
+
+#[cfg(feature = "v2")]
+impl Health {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/v2/health")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::get().to(health)))
             .service(web::resource("/ready").route(web::get().to(deep_health_check)))
@@ -644,6 +663,10 @@ impl Payments {
             .service(web::resource("/list").route(web::get().to(payments::payments_list)))
             .service(
                 web::resource("/aggregate").route(web::get().to(payments::get_payments_aggregates)),
+            )
+            .service(
+                web::resource("/recovery")
+                    .route(web::post().to(payments::recovery_payments_create)),
             )
             .service(
                 web::resource("/profile/aggregate")
@@ -731,7 +754,7 @@ pub struct Proxy;
 #[cfg(all(feature = "oltp", feature = "v2"))]
 impl Proxy {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/proxy")
+        web::scope("/v2/proxy")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(proxy::proxy)))
     }
@@ -1855,10 +1878,25 @@ impl Webhooks {
 
 pub struct Configs;
 
-#[cfg(any(feature = "olap", feature = "oltp"))]
+#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
 impl Configs {
     pub fn server(config: AppState) -> Scope {
         web::scope("/configs")
+            .app_data(web::Data::new(config))
+            .service(web::resource("/").route(web::post().to(config_key_create)))
+            .service(
+                web::resource("/{key}")
+                    .route(web::get().to(config_key_retrieve))
+                    .route(web::post().to(config_key_update))
+                    .route(web::delete().to(config_key_delete)),
+            )
+    }
+}
+
+#[cfg(all(feature = "v2", any(feature = "olap", feature = "oltp")))]
+impl Configs {
+    pub fn server(config: AppState) -> Scope {
+        web::scope("/v2/configs")
             .app_data(web::Data::new(config))
             .service(web::resource("/").route(web::post().to(config_key_create)))
             .service(
@@ -1970,6 +2008,10 @@ impl Disputes {
             )
             .service(
                 web::resource("/{dispute_id}").route(web::get().to(disputes::retrieve_dispute)),
+            )
+            .service(
+                web::resource("/{connector_id}/fetch")
+                    .route(web::get().to(disputes::fetch_disputes)),
             )
     }
 }

@@ -2187,6 +2187,10 @@ pub struct ProfileCreate {
     /// It is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior.
     #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+
+    /// Time interval (in hours) for polling the connector to check dispute statuses
+    #[schema(value_type = Option<i32>, example = 2)]
+    pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
 }
 
 #[nutype::nutype(
@@ -2522,6 +2526,9 @@ pub struct ProfileResponse {
     /// It is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior.
     #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+
+    #[schema(value_type = Option<u32>, example = 2)]
+    pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
 }
 
 #[cfg(feature = "v2")]
@@ -2850,6 +2857,9 @@ pub struct ProfileUpdate {
     /// It is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior.
     #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+
+    #[schema(value_type = Option<u32>, example = 2)]
+    pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
 }
 
 #[cfg(feature = "v2")]
@@ -2993,6 +3003,11 @@ pub struct ProfileUpdate {
     /// It is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior.
     #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+
+    /// Inidcates the state of revenue recovery algorithm type
+    #[schema(value_type = Option<RevenueRecoveryAlgorithmType>, example = "cascading")]
+    pub revenue_recovery_retry_algorithm_type:
+        Option<common_enums::enums::RevenueRecoveryAlgorithmType>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

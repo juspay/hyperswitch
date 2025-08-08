@@ -148,6 +148,7 @@ pub enum AttemptStatus {
     VoidFailed,
     AutoRefunded,
     PartialCharged,
+    PartiallyAuthorized,
     PartialChargedAndChargeable,
     Unresolved,
     #[default]
@@ -178,6 +179,7 @@ impl AttemptStatus {
             | Self::AuthenticationPending
             | Self::AuthenticationSuccessful
             | Self::Authorized
+            | Self::PartiallyAuthorized
             | Self::AuthorizationFailed
             | Self::Authorizing
             | Self::CodInitiated
@@ -1560,6 +1562,7 @@ pub enum EventType {
     PaymentCancelled,
     PaymentCancelledPostCapture,
     PaymentAuthorized,
+    PaymentPartiallyAuthorized,
     PaymentCaptured,
     PaymentExpired,
     ActionRequired,
@@ -1683,6 +1686,8 @@ pub enum IntentStatus {
     PartiallyCaptured,
     /// The payment has been captured partially and the remaining amount is capturable
     PartiallyCapturedAndCapturable,
+    /// The payment has been authorized for a partial amount and requires capture
+    PartiallyAuthorizedAndRequiresCapture,
     /// There has been a discrepancy between the amount/currency sent in the request and the amount/currency received by the processor
     Conflicted,
     /// The payment expired before it could be captured.
@@ -1706,6 +1711,7 @@ impl IntentStatus {
             | Self::RequiresConfirmation
             | Self::RequiresCapture
             | Self::PartiallyCapturedAndCapturable
+            | Self::PartiallyAuthorizedAndRequiresCapture
             | Self::Conflicted => false,
         }
     }
@@ -1727,7 +1733,7 @@ impl IntentStatus {
             | Self::RequiresCustomerAction
             | Self::RequiresMerchantAction
             | Self::PartiallyCapturedAndCapturable
-            => true,
+            | Self::PartiallyAuthorizedAndRequiresCapture => true,
         }
     }
 }
@@ -1853,6 +1859,7 @@ impl From<AttemptStatus> for PaymentMethodStatus {
             | AttemptStatus::AutoRefunded
             | AttemptStatus::PartialCharged
             | AttemptStatus::PartialChargedAndChargeable
+            | AttemptStatus::PartiallyAuthorized
             | AttemptStatus::ConfirmationAwaited
             | AttemptStatus::DeviceDataCollectionPending
             | AttemptStatus::IntegrityFailure
@@ -2627,6 +2634,8 @@ pub enum DisputeStage {
     #[default]
     Dispute,
     PreArbitration,
+    Arbitration,
+    DisputeReversal,
 }
 
 /// Status of the dispute
@@ -3125,6 +3134,7 @@ pub enum FileUploadProvider {
     Router,
     Stripe,
     Checkout,
+    Worldpayvantiv,
 }
 
 #[derive(
@@ -8483,7 +8493,7 @@ pub enum NetworkTokenizationToggle {
     Skip,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, ToSchema)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum GooglePayAuthMethod {
     /// Contain pan data only
@@ -8620,6 +8630,8 @@ pub enum ProcessTrackerRunner {
     AttachPayoutAccountWorkflow,
     PaymentMethodStatusUpdateWorkflow,
     PassiveRecoveryWorkflow,
+    ProcessDisputeWorkflow,
+    DisputeListWorkflow,
 }
 
 #[derive(Debug)]

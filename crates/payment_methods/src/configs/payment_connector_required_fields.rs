@@ -198,6 +198,7 @@ enum RequiredField {
     DcbMsisdn,
     DcbClientUid,
     OrderDetailsProductName,
+    Description,
 }
 
 impl RequiredField {
@@ -853,6 +854,15 @@ impl RequiredField {
                     required_field: "order_details.0.product_name".to_string(),
                     display_name: "product_name".to_string(),
                     field_type: FieldType::OrderDetailsProductName,
+                    value: None,
+                },
+            ),
+            Self::Description => (
+                "description".to_string(),
+                RequiredFieldInfo {
+                    required_field: "description".to_string(),
+                    display_name: "description".to_string(),
+                    field_type: FieldType::Text,
                     value: None,
                 },
             ),
@@ -3343,8 +3353,17 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
         (
             enums::PaymentMethodType::Ach,
             connectors(vec![(
-                Connector::Stripe,
-                fields(vec![], vec![], vec![RequiredField::BillingEmail]),
+                Connector::Checkbook,
+                fields(
+                    vec![],
+                    vec![],
+                    vec![
+                        RequiredField::BillingUserFirstName,
+                        RequiredField::BillingUserLastName,
+                        RequiredField::BillingEmail,
+                        RequiredField::Description,
+                    ],
+                ),
             )]),
         ),
         (

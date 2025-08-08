@@ -1576,7 +1576,13 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 error_reason: Some(err.reason),
                                 amount_capturable: router_data
                                     .request
-                                    .get_amount_capturable(&payment_data, status)
+                                    .get_amount_capturable(
+                                        &payment_data,
+                                        router_data
+                                            .minor_amount_capturable
+                                            .map(MinorUnit::get_amount_as_i64),
+                                        status,
+                                    )
                                     .map(MinorUnit::new),
                                 updated_by: storage_scheme.to_string(),
                                 unified_code: Some(Some(unified_code)),
@@ -1645,9 +1651,21 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         ) => match frm_message.frm_status {
                             enums::FraudCheckStatus::Fraud
                             | enums::FraudCheckStatus::ManualReview => attempt_status,
-                            _ => router_data.get_attempt_status_for_db_update(&payment_data),
+                            _ => router_data.get_attempt_status_for_db_update(
+                                &payment_data,
+                                router_data.amount_captured,
+                                router_data
+                                    .minor_amount_capturable
+                                    .map(MinorUnit::get_amount_as_i64),
+                            )?,
                         },
-                        _ => router_data.get_attempt_status_for_db_update(&payment_data),
+                        _ => router_data.get_attempt_status_for_db_update(
+                            &payment_data,
+                            router_data.amount_captured,
+                            router_data
+                                .minor_amount_capturable
+                                .map(MinorUnit::get_amount_as_i64),
+                        )?,
                     };
                     match payments_response {
                         types::PaymentsResponseData::PreProcessingResponse {
@@ -1736,7 +1754,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             // update connector_mandate_details in case of Authorized/Charged Payment Status
                             if matches!(
                                 router_data.status,
-                                enums::AttemptStatus::Charged | enums::AttemptStatus::Authorized
+                                enums::AttemptStatus::Charged
+                                    | enums::AttemptStatus::Authorized
+                                    | enums::AttemptStatus::PartiallyAuthorized
                             ) {
                                 payment_data
                                     .payment_intent
@@ -1881,6 +1901,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                             .request
                                             .get_amount_capturable(
                                                 &payment_data,
+                                                router_data
+                                                    .minor_amount_capturable
+                                                    .map(MinorUnit::get_amount_as_i64),
                                                 updated_attempt_status,
                                             )
                                             .map(MinorUnit::new),
@@ -2616,6 +2639,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
                 | common_enums::AttemptStatus::AuthenticationPending
                 | common_enums::AttemptStatus::AuthenticationSuccessful
                 | common_enums::AttemptStatus::Authorized
+                | common_enums::AttemptStatus::PartiallyAuthorized
                 | common_enums::AttemptStatus::Charged
                 | common_enums::AttemptStatus::Authorizing
                 | common_enums::AttemptStatus::CodInitiated
@@ -3033,7 +3057,10 @@ fn get_total_amount_captured<F: Clone, T: types::Capturable>(
         None => {
             //Non multiple capture
             let amount = request
-                .get_captured_amount(payment_data)
+                .get_captured_amount(
+                    amount_captured.map(MinorUnit::get_amount_as_i64),
+                    payment_data,
+                )
                 .map(MinorUnit::new);
             amount_captured.or_else(|| {
                 if router_data_status == enums::AttemptStatus::Charged {

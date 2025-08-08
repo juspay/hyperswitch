@@ -77,6 +77,7 @@ pub struct Profile {
     pub acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+    pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
 }
 
 #[cfg(feature = "v1")]
@@ -134,6 +135,7 @@ pub struct ProfileNew {
     pub is_pre_network_tokenization_enabled: Option<bool>,
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+    pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
 }
 
 #[cfg(feature = "v1")]
@@ -191,6 +193,7 @@ pub struct ProfileUpdateInternal {
     pub acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+    pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
 }
 
 #[cfg(feature = "v1")]
@@ -245,6 +248,7 @@ impl ProfileUpdateInternal {
             acquirer_config_map,
             merchant_category_code,
             merchant_country_code,
+            dispute_polling_interval,
         } = self;
         Profile {
             profile_id: source.profile_id,
@@ -330,6 +334,7 @@ impl ProfileUpdateInternal {
             acquirer_config_map: acquirer_config_map.or(source.acquirer_config_map),
             merchant_category_code: merchant_category_code.or(source.merchant_category_code),
             merchant_country_code: merchant_country_code.or(source.merchant_country_code),
+            dispute_polling_interval: dispute_polling_interval.or(source.dispute_polling_interval),
         }
     }
 }
@@ -393,6 +398,7 @@ pub struct Profile {
     pub acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+    pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
@@ -691,6 +697,7 @@ impl ProfileUpdateInternal {
             acquirer_config_map: None,
             merchant_category_code: merchant_category_code.or(source.merchant_category_code),
             merchant_country_code: merchant_country_code.or(source.merchant_country_code),
+            dispute_polling_interval: None,
         }
     }
 }
