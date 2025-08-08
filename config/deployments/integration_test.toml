@@ -831,17 +831,17 @@ connector_list = "worldpayvantiv"
 
 
 [revenue_recovery.card_config.amex]
-max_retries_per_day = 3
+max_retries_per_day = 20
 max_retries_last_30_days = 20
 
 [revenue_recovery.card_config.mastercard]
-max_retries_per_day = 4
-max_retries_last_30_days = 25
+max_retries_per_day = 10
+max_retries_last_30_days = 35
 
 [revenue_recovery.card_config.visa]
-max_retries_per_day = 5
-max_retries_last_30_days = 30
+max_retries_per_day = 20
+max_retries_last_30_days = 20
 
 [revenue_recovery.card_config.discover]
-max_retries_per_day = 2
-max_retries_last_30_days = 15
+max_retries_per_day = 20
+max_retries_last_30_days = 20
