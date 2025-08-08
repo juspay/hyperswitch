@@ -358,7 +358,8 @@ impl Action {
         )
         .await;
 
-        let connector_customer_id = payment_intent.extract_connector_customer_id_from_payment_intent()
+        let connector_customer_id = payment_intent
+            .extract_connector_customer_id_from_payment_intent()
             .change_context(errors::RecoveryError::ValueNotFound)
             .attach_printable("Failed to extract customer ID from payment intent")?;
 
@@ -405,7 +406,6 @@ impl Action {
                             e
                         );
                     };
-
 
                     storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_retry_count(
                         state,
@@ -661,7 +661,8 @@ impl Action {
                             "Failed to fetch payment intent for calculate workflow reopening",
                         )?;
 
-                    let connector_customer_id = payment_intent.extract_connector_customer_id_from_payment_intent()
+                    let connector_customer_id = payment_intent
+                        .extract_connector_customer_id_from_payment_intent()
                         .change_context(errors::RecoveryError::ValueNotFound)
                         .attach_printable("Failed to extract customer ID from payment intent")?;
 
@@ -710,7 +711,8 @@ impl Action {
                             "Failed to fetch payment intent for calculate workflow reopening",
                         )?;
 
-                    let connector_customer_id = payment_intent.extract_connector_customer_id_from_payment_intent()
+                    let connector_customer_id = payment_intent
+                        .extract_connector_customer_id_from_payment_intent()
                         .change_context(errors::RecoveryError::ValueNotFound)
                         .attach_printable("Failed to extract customer ID from payment intent")?;
 
@@ -1106,7 +1108,9 @@ fn create_calculate_workflow_tracking_data(
             .clone(),
         profile_id: revenue_recovery_payment_data.profile.get_id().clone(),
         global_payment_id: payment_intent.id.clone(),
-        payment_attempt_id: payment_intent.active_attempt_id.clone()
+        payment_attempt_id: payment_intent
+            .active_attempt_id
+            .clone()
             .ok_or(storage_impl::errors::RecoveryError::ValueNotFound)?,
         billing_mca_id: revenue_recovery_payment_data.billing_mca.get_id().clone(),
         revenue_recovery_retry: revenue_recovery_payment_data.retry_algorithm,

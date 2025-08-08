@@ -15,6 +15,7 @@ use hyperswitch_domain_models::{
     ApiModelToDieselModelConvertor,
 };
 use scheduler::errors as sch_errors;
+
 use crate::{
     core::errors::{self, RouterResponse, RouterResult, StorageErrorExt},
     db::StorageInterface,
@@ -458,7 +459,8 @@ pub async fn perform_calculate_workflow(
     );
 
     // 1. Extract customer_id and token_list from tracking_data
-    let customer_id = payment_intent.extract_connector_customer_id_from_payment_intent()
+    let customer_id = payment_intent
+        .extract_connector_customer_id_from_payment_intent()
         .map_err(|_| sch_errors::ProcessTrackerError::MissingRequiredField)?;
 
     let merchant_context_from_revenue_recovery_payment_data =
@@ -614,12 +616,17 @@ async fn insert_execute_pcr_task_to_pt(
             );
             sch_errors::ProcessTrackerError::ProcessUpdateFailed
         })?;
-    
-    let connector_customer_id = payment_intent.extract_connector_customer_id_from_payment_intent()
-        .map_err(|_|sch_errors::ProcessTrackerError::MissingRequiredField)?;
-    
-    storage::revenue_recovery_redis_operation::RedisTokenManager::lock_connector_customer_status(state, &connector_customer_id, &payment_id)
-        .await?;
+
+    let connector_customer_id = payment_intent
+        .extract_connector_customer_id_from_payment_intent()
+        .map_err(|_| sch_errors::ProcessTrackerError::MissingRequiredField)?;
+
+    storage::revenue_recovery_redis_operation::RedisTokenManager::lock_connector_customer_status(
+        state,
+        &connector_customer_id,
+        &payment_id,
+    )
+    .await?;
 
     match existing_entry {
         Some(existing_process)

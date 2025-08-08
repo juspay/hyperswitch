@@ -330,25 +330,26 @@ impl RedisTokenManager {
         }
 
         // 1. Check 30-day limit FIRST (monthly check)
-        let monthly_wait_hours = if total_30_day_retries >= card_network_config.max_retry_count_for_thirty_day {
-            // Find the oldest retry date in the 30-day window and calculate when it expires
-            let mut oldest_date_with_retries = None;
-            for i in 0..RETRY_WINDOW_DAYS {
-                let date = today - Duration::days(i.into());
-                if token.daily_retry_history.get(&date).copied().unwrap_or(0) > 0 {
-                    oldest_date_with_retries = Some(date);
+        let monthly_wait_hours =
+            if total_30_day_retries >= card_network_config.max_retry_count_for_thirty_day {
+                // Find the oldest retry date in the 30-day window and calculate when it expires
+                let mut oldest_date_with_retries = None;
+                for i in 0..RETRY_WINDOW_DAYS {
+                    let date = today - Duration::days(i.into());
+                    if token.daily_retry_history.get(&date).copied().unwrap_or(0) > 0 {
+                        oldest_date_with_retries = Some(date);
+                    }
                 }
-            }
 
-            if let Some(oldest_date) = oldest_date_with_retries {
-                let expiry_time = (oldest_date + Duration::days(31)).midnight().assume_utc();
-                (expiry_time - now).whole_hours().max(0)
+                if let Some(oldest_date) = oldest_date_with_retries {
+                    let expiry_time = (oldest_date + Duration::days(31)).midnight().assume_utc();
+                    (expiry_time - now).whole_hours().max(0)
+                } else {
+                    0 // No retry history
+                }
             } else {
-                0 // No retry history
-            }
-        } else {
-            0 // Monthly limit not exceeded
-        };
+                0 // Monthly limit not exceeded
+            };
 
         let today_retries = token
             .daily_retry_history
