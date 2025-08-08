@@ -2191,6 +2191,7 @@ pub async fn default_specific_dynamic_routing_setup(
             business_profile.get_id(),
             dynamic_routing_type,
             &mut dynamic_routing_algo_ref,
+            None,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2246,7 +2247,7 @@ pub async fn create_specific_dynamic_routing_setup(
 
     let algo = match dynamic_routing_type {
         routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
-            let success_config = match payload {
+            let success_config = match &payload {
                 routing_types::DynamicRoutingPayload::SuccessBasedRoutingPayload(config) => config,
                 _ => {
                     return Err((errors::ApiErrorResponse::InvalidRequestData {
@@ -2271,7 +2272,7 @@ pub async fn create_specific_dynamic_routing_setup(
             }
         }
         routing_types::DynamicRoutingType::EliminationRouting => {
-            let elimination_config = match payload {
+            let elimination_config = match &payload {
                 routing_types::DynamicRoutingPayload::EliminationRoutingPayload(config) => config,
                 _ => {
                     return Err((errors::ApiErrorResponse::InvalidRequestData {
@@ -2310,6 +2311,7 @@ pub async fn create_specific_dynamic_routing_setup(
             business_profile.get_id(),
             dynamic_routing_type,
             &mut dynamic_routing_algo_ref,
+            Some(payload),
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2422,20 +2424,25 @@ pub async fn enable_decision_engine_dynamic_routing_setup(
     profile_id: &id_type::ProfileId,
     dynamic_routing_type: routing_types::DynamicRoutingType,
     dynamic_routing_algo_ref: &mut routing_types::DynamicRoutingAlgorithmRef,
+    payload: Option<routing_types::DynamicRoutingPayload>,
 ) -> RouterResult<()> {
     logger::debug!(
         "performing call with open_router for profile {}",
         profile_id.get_string_repr()
     );
 
-    let default_engine_config_request = match dynamic_routing_type {
+    let decision_engine_config_request = match dynamic_routing_type {
         routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
-            let default_success_based_routing_config =
-                routing_types::SuccessBasedRoutingConfig::open_router_config_default();
+            let success_based_routing_config = match payload {
+                Some(routing_types::DynamicRoutingPayload::SuccessBasedRoutingPayload(config)) => {
+                    config
+                }
+                _ => routing_types::SuccessBasedRoutingConfig::open_router_config_default(),
+            };
             open_router::DecisionEngineConfigSetupRequest {
                 merchant_id: profile_id.get_string_repr().to_string(),
                 config: open_router::DecisionEngineConfigVariant::SuccessRate(
-                    default_success_based_routing_config
+                    success_based_routing_config
                         .get_decision_engine_configs()
                         .change_context(errors::ApiErrorResponse::GenericNotFoundError {
                             message: "Decision engine config not found".to_string(),
@@ -2445,12 +2452,17 @@ pub async fn enable_decision_engine_dynamic_routing_setup(
             }
         }
         routing_types::DynamicRoutingType::EliminationRouting => {
-            let default_elimination_based_routing_config =
-                routing_types::EliminationRoutingConfig::open_router_config_default();
+            let elimination_based_routing_config = match payload {
+                Some(routing_types::DynamicRoutingPayload::EliminationRoutingPayload(config)) => {
+                    config
+                }
+                _ => routing_types::EliminationRoutingConfig::open_router_config_default(),
+            };
+
             open_router::DecisionEngineConfigSetupRequest {
                 merchant_id: profile_id.get_string_repr().to_string(),
                 config: open_router::DecisionEngineConfigVariant::Elimination(
-                    default_elimination_based_routing_config
+                    elimination_based_routing_config
                         .get_decision_engine_configs()
                         .change_context(errors::ApiErrorResponse::GenericNotFoundError {
                             message: "Decision engine config not found".to_string(),
@@ -2475,7 +2487,7 @@ pub async fn enable_decision_engine_dynamic_routing_setup(
         state,
         services::Method::Post,
         DECISION_ENGINE_RULE_CREATE_ENDPOINT,
-        Some(default_engine_config_request),
+        Some(decision_engine_config_request),
         None,
         None,
     )
