@@ -19,6 +19,7 @@ const successfulThreeDSCardDetails = {
 // Payment method data objects for responses
 const payment_method_data_no3ds = {
   card: {
+    authentication_data: {},
     last4: "1111",
     card_type: "CREDIT",
     card_network: "Visa",
@@ -29,8 +30,14 @@ const payment_method_data_no3ds = {
     card_exp_month: "08",
     card_exp_year: "30",
     card_holder_name: "joseph Doe",
-    payment_checks: null,
-    authentication_data: null,
+    payment_checks: {
+      avs_description: null,
+      avs_result_code: "",
+      cvv_2_reply_code: "",
+      cvv_2_description: null,
+      merchant_advice_code: "",
+      merchant_advice_code_description: null,
+    },
   },
   billing: null,
 };
@@ -47,8 +54,15 @@ const payment_method_data_3ds = {
     card_exp_month: "10",
     card_exp_year: "25",
     card_holder_name: "CL-BRW1",
-    payment_checks: null,
-    authentication_data: null,
+    payment_checks: {
+      avs_description: null,
+      avs_result_code: "",
+      cvv_2_reply_code: "",
+      cvv_2_description: null,
+      merchant_advice_code: "",
+      merchant_advice_code_description: null,
+    },
+    authentication_data: {},
   },
   billing: null,
 };
