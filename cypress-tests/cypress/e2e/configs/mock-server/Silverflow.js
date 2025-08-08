@@ -1,14 +1,7 @@
 /* eslint-disable no-console */
 import express from "express";
-import cors from "cors";
 
-const app = express();
-const PORT = process.env.PORT || 3010;
-
-// Middleware
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+const router = express.Router();
 
 // Mock data storage
 const mockData = {
@@ -78,7 +71,7 @@ function authenticateBasic(req, res, next) {
 }
 
 // Logging middleware
-app.use((req, res, next) => {
+router.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
   console.log("Headers:", JSON.stringify(req.headers, null, 2));
   if (req.body && Object.keys(req.body).length > 0) {
@@ -88,12 +81,12 @@ app.use((req, res, next) => {
 });
 
 // Health check endpoint
-app.get("/health", (req, res) => {
+router.get("/health", (req, res) => {
   res.json({ status: "OK", timestamp: getCurrentTimestamp() });
 });
 
 // 1. POST /charges - Create payment authorization
-app.post("/charges", authenticateBasic, (req, res) => {
+router.post("/charges", authenticateBasic, (req, res) => {
   try {
     const { merchantAcceptorResolver, card, amount, type, clearingMode } =
       req.body;
@@ -244,7 +237,7 @@ app.post("/charges", authenticateBasic, (req, res) => {
 });
 
 // 2. POST /charges/:chargeKey/clear - Manually clear charge
-app.post("/charges/:chargeKey/clear", authenticateBasic, (req, res) => {
+router.post("/charges/:chargeKey/clear", authenticateBasic, (req, res) => {
   try {
     const { chargeKey } = req.params;
     const { amount, closeCharge, clearAfter, reference } = req.body;
@@ -333,7 +326,7 @@ app.post("/charges/:chargeKey/clear", authenticateBasic, (req, res) => {
 });
 
 // 3. POST /charges/:chargeKey/refund - Process refunds
-app.post("/charges/:chargeKey/refund", authenticateBasic, (req, res) => {
+router.post("/charges/:chargeKey/refund", authenticateBasic, (req, res) => {
   try {
     const { chargeKey } = req.params;
     const { refundAmount, reference, clearAfter, dynamicDescriptor } = req.body;
@@ -410,7 +403,7 @@ app.post("/charges/:chargeKey/refund", authenticateBasic, (req, res) => {
 });
 
 // 4. POST /charges/:chargeKey/reverse - Reverse charge (void)
-app.post("/charges/:chargeKey/reverse", authenticateBasic, (req, res) => {
+router.post("/charges/:chargeKey/reverse", authenticateBasic, (req, res) => {
   try {
     const { chargeKey } = req.params;
     const { replacementAmount = 0, reference } = req.body;
@@ -492,7 +485,7 @@ app.post("/charges/:chargeKey/reverse", authenticateBasic, (req, res) => {
 });
 
 // 5. GET /charges/:chargeKey - Get charge status (sync)
-app.get("/charges/:chargeKey", authenticateBasic, (req, res) => {
+router.get("/charges/:chargeKey", authenticateBasic, (req, res) => {
   try {
     const { chargeKey } = req.params;
 
@@ -518,7 +511,7 @@ app.get("/charges/:chargeKey", authenticateBasic, (req, res) => {
 });
 
 // 5a. GET /charges/:chargeKey/actions/:actionKey - Get action status (refund sync)
-app.get(
+router.get(
   "/charges/:chargeKey/actions/:actionKey",
   authenticateBasic,
   (req, res) => {
@@ -558,7 +551,7 @@ app.get(
 );
 
 // 6. POST /processorTokens - Create processor tokens for vaulting
-app.post("/processorTokens", authenticateBasic, (req, res) => {
+router.post("/processorTokens", authenticateBasic, (req, res) => {
   try {
     const { reference, cardData } = req.body;
 
@@ -615,7 +608,7 @@ app.post("/processorTokens", authenticateBasic, (req, res) => {
 
 // Error handling middleware
 // eslint-disable-next-line no-unused-vars
-app.use((err, req, res, next) => {
+router.use((err, req, res, next) => {
   console.error("Error:", err);
   res.status(500).json({
     error: {
@@ -626,7 +619,7 @@ app.use((err, req, res, next) => {
 });
 
 // 404 handler
-app.use((req, res) => {
+router.use((req, res) => {
   res.status(404).json({
     error: {
       code: "NOT_FOUND",
@@ -635,31 +628,26 @@ app.use((req, res) => {
   });
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Silverflow Mock Server running on port ${PORT}`);
-  console.log(`📍 Server URL: http://localhost:${PORT}`);
-  console.log("\n📋 Available Endpoints:");
-  console.log("  GET  /health - Health check");
-  console.log("  POST /charges - Create payment authorization");
-  console.log("  POST /charges/{chargeKey}/clear - Manually clear charges");
-  console.log("  POST /charges/{chargeKey}/refund - Process refunds");
-  console.log("  POST /charges/{chargeKey}/reverse - Reverse charge (void)");
-  console.log("  GET  /charges/{chargeKey} - Get charge status");
-  console.log(
-    "  GET  /charges/{chargeKey}/actions/{actionKey} - Get action status"
-  );
-  console.log("  POST /processorTokens - Create processor tokens");
-  console.log("\n🔐 Authentication (SignatureKey format):");
-  console.log("  auth_type: SignatureKey");
-  console.log("  api_key: apk-testkey123");
-  console.log("  key1: testsecret456 (merchant_acceptor_key)");
-  console.log("  api_secret: testsecret456");
-  console.log("\n📖 Use Basic Auth with base64 encoded api_key:api_secret");
-  console.log(
-    "  Example: Authorization: Basic <base64(apk-testkey123:testsecret456)>"
-  );
-  console.log("\n💡 Note: Silverflow depends on mockserver");
-});
+// Log available endpoints for debugging purposes
+console.log("\n📋 Silverflow Mock API Endpoints:");
+console.log("  GET  /health - Health check");
+console.log("  POST /charges - Create payment authorization");
+console.log("  POST /charges/{chargeKey}/clear - Manually clear charges");
+console.log("  POST /charges/{chargeKey}/refund - Process refunds");
+console.log("  POST /charges/{chargeKey}/reverse - Reverse charge (void)");
+console.log("  GET  /charges/{chargeKey} - Get charge status");
+console.log(
+  "  GET  /charges/{chargeKey}/actions/{actionKey} - Get action status"
+);
+console.log("  POST /processorTokens - Create processor tokens");
+console.log("\n🔐 Authentication (SignatureKey format):");
+console.log("  auth_type: SignatureKey");
+console.log("  api_key: apk-testkey123");
+console.log("  key1: testsecret456 (merchant_acceptor_key)");
+console.log("  api_secret: testsecret456");
+console.log("\n📖 Use Basic Auth with base64 encoded api_key:api_secret");
+console.log(
+  "  Example: Authorization: Basic <base64(apk-testkey123:testsecret456)>"
+);
 
-export default app;
+export default router;
