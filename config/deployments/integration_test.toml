@@ -501,6 +501,7 @@ paze = { currency = "USD,SEK" }
 credit = { currency = "USD,GBP,EUR,PLN,SEK" }
 debit = { currency = "USD,GBP,EUR,PLN,SEK" }
 google_pay = { currency = "ARS, AUD, CAD, CLP, COP, EUR, HKD, INR, KWD, MYR, MXN, NZD, PEN, QAR, SAR, SGD, ZAR, UAH, AED, GBP, USD, PLN, SEK" }
+apple_pay = { currency = "ARS, CAD, CLP, COP, CNY, EUR, HKD, KWD, MYR, MXN, NZD, PEN, QAR, SAR, SGD, ZAR, UAH, GBP, AED, USD, PLN, SEK" }
 
 [pm_filters.itaubank]
 pix = { country = "BR", currency = "BRL" }
