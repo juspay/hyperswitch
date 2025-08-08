@@ -1446,6 +1446,17 @@ merchant_id_evoucher="MerchantId Evoucher"
 [cashtocode.connector_webhook_details]
 merchant_secret="Source verification key"
 
+[checkbook]
+[[checkbook.bank_transfer]]
+payment_method_type = "ach"
+
+[checkbook.connector_auth.BodyKey]
+key1 = "Checkbook Publishable key"
+api_key = "Checkbook API Secret key"
+
+[checkbook.connector_webhook_details]
+merchant_secret="Source verification key"
+
 [checkout]
 [[checkout.credit]]
   payment_method_type = "Mastercard"
@@ -6602,6 +6613,10 @@ merchant_secret="Source verification key"
 
 [katapult]
 [katapult.connector_auth.HeaderKey]
+api_key = "API Key"
+
+[sift]
+[sift.connector_auth.HeaderKey]
 api_key = "API Key"
 
 [flexiti]
