@@ -919,7 +919,7 @@ pub struct PaymentsRequest {
         example = "pay_mbabizu24mvu3mela5njyhpit4"
     )]
     #[serde(default, deserialize_with = "payment_id_type::deserialize_option")]
-    #[smithy(value_type = "Option<String>")]
+    #[smithy(value_type = "Option<String>", length = "30..=30")]
     pub payment_id: Option<PaymentIdType>,
 
     /// This is an identifier for the merchant account. This is inferred from the API key
@@ -1126,10 +1126,12 @@ pub struct PaymentsRequest {
     pub business_label: Option<String>,
 
     #[schema(value_type = Option<MerchantConnectorDetailsWrap>)]
+    #[smithy(value_type = "Option<MerchantConnectorDetailsWrap>")]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 
     /// Use this parameter to restrict the Payment Method Types to show for a given PaymentIntent
     #[schema(value_type = Option<Vec<PaymentMethodType>>)]
+    #[smithy(value_type = "Option<Vec<PaymentMethodType>>")]
     pub allowed_payment_method_types: Option<Vec<api_enums::PaymentMethodType>>,
 
     /// Business sub label for the payment
@@ -1144,6 +1146,7 @@ pub struct PaymentsRequest {
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
+    #[smithy(value_type = "Option<Object>")]
     pub metadata: Option<serde_json::Value>,
 
     /// Some connectors like Apple pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
@@ -1191,6 +1194,7 @@ pub struct PaymentsRequest {
 
     /// Additional data related to some frm(Fraud Risk Management) connectors
     #[schema(value_type = Option<Object>, example = r#"{ "coverage_request" : "fraud", "fulfillment_method" : "delivery" }"#)]
+    #[smithy(value_type = "Option<Object>")]
     pub frm_metadata: Option<pii::SecretSerdeValue>,
 
     /// Whether to perform external authentication (if applicable)
@@ -1209,6 +1213,7 @@ pub struct PaymentsRequest {
     ///
     /// capture method must be manual or manual_multiple
     #[schema(value_type = Option<bool>, default = false)]
+    #[smithy(value_type = "Option<bool>")]
     pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
 
     /// Your unique identifier for this payment or order. This ID helps you reconcile payments on your system. If provided, it is passed to the connector if supported.
