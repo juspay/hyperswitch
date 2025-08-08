@@ -400,12 +400,12 @@ pub async fn connect_account(
             logger::info!(?welcome_email_result);
         }
 
-        return Ok(ApplicationResponse::Json(
+        Ok(ApplicationResponse::Json(
             user_api::ConnectAccountResponse {
                 is_email_sent: magic_link_result.is_ok(),
                 user_id: user_from_db.get_user_id().to_string(),
             },
-        ));
+        ))
     } else {
         Err(find_user
             .err()

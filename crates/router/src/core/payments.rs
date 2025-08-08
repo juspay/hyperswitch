@@ -783,7 +783,7 @@ where
                 ConnectorCallType::PreDetermined(ref connector) => {
                     #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                     let routable_connectors =
-                        convert_connector_data_to_routable_connectors(&[connector.clone()])
+                        convert_connector_data_to_routable_connectors(std::slice::from_ref(connector))
                             .map_err(|e| logger::error!(routable_connector_error=?e))
                             .unwrap_or_default();
                     let schedule_time = if should_add_task_to_process_tracker {
