@@ -16,6 +16,7 @@
     "report:generate": "node scripts/report-generator.js",
     "report:open": "open dashboard/index.html || start dashboard/index.html || xdg-open dashboard/index.html",
     "dashboard:serve": "node scripts/serve-dashboard.js",
+    "mockserver": "node cypress/e2e/configs/mock-server/mockserver.js",
     "dashboard": "npm run dashboard:serve",
     "cypress:ci:report": "npm run cypress:ci && npm run report:generate",
     "build": "node scripts/build.js",
