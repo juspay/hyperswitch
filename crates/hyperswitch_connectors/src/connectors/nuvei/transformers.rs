@@ -74,9 +74,7 @@ trait NuveiAuthorizePreprocessingCommon {
     ) -> Result<String, error_stack::Report<errors::ConnectorError>>;
     fn get_capture_method(&self) -> Option<CaptureMethod>;
     fn get_amount_required(&self) -> Result<i64, error_stack::Report<errors::ConnectorError>>;
-    fn get_customer_id_required(
-        &self,
-    ) -> Result<CustomerId, error_stack::Report<errors::ConnectorError>>;
+    fn get_customer_id_required(&self) -> Option<CustomerId>;
     fn get_email_required(&self) -> Result<Email, error_stack::Report<errors::ConnectorError>>;
     fn get_currency_required(
         &self,
@@ -104,12 +102,8 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsAuthorizeData {
         }
     }
 
-    fn get_customer_id_required(
-        &self,
-    ) -> Result<CustomerId, error_stack::Report<errors::ConnectorError>> {
-        self.customer_id
-            .clone()
-            .ok_or(missing_field_err("customer_id")())
+    fn get_customer_id_required(&self) -> Option<CustomerId> {
+        self.customer_id.clone()
     }
 
     fn get_setup_mandate_details(&self) -> Option<MandateData> {
@@ -172,16 +166,8 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsPreProcessingData {
         None
     }
 
-    fn get_customer_id_required(
-        &self,
-    ) -> Result<CustomerId, error_stack::Report<errors::ConnectorError>> {
-        // self.customer_id
-        //     .clone()
-        //     .ok_or(errors::ConnectorError::MissingRequiredField {
-        //         field_name: "customer_id",
-        //     })?
-        //     .into()
-        todo!()
+    fn get_customer_id_required(&self) -> Option<CustomerId> {
+        None
     }
     fn get_email_required(&self) -> Result<Email, error_stack::Report<errors::ConnectorError>> {
         self.get_email()
@@ -589,7 +575,9 @@ pub enum LiabilityShift {
     Failed,
 }
 
-fn encode_payload(payload: &[&str]) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+pub fn encode_payload(
+    payload: &[&str],
+) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     let data = payload.join("");
     let digest = crypto::Sha256
         .generate_digest(data.as_bytes())
@@ -1207,7 +1195,7 @@ where
                         rebill_frequency: Some(mandate_meta.frequency),
                         challenge_window_size: None,
                     }),
-                    Some(item.request.get_customer_id_required()?),
+                    item.request.get_customer_id_required(),
                 )
             }
             _ => (None, None, None),
@@ -2014,6 +2002,10 @@ where
         {
             let item = data;
             let connector_mandate_id = &item.request.get_connector_mandate_id();
+            let customer_id = item
+                .request
+                .get_customer_id_required()
+                .ok_or(missing_field_err("customer_id")())?;
             let related_transaction_id = if item.is_three_ds() {
                 item.request.get_related_transaction_id().clone()
             } else {
@@ -2025,7 +2017,7 @@ where
                     &item.request.get_browser_info().clone(),
                 )?,
                 is_rebilling: Some("1".to_string()), // In case of second installment, rebilling should be 1
-                user_token_id: Some(item.request.get_customer_id_required()?),
+                user_token_id: Some(customer_id),
                 payment_option: PaymentOption {
                     user_payment_option_id: connector_mandate_id.clone(),
                     ..Default::default()
@@ -2369,6 +2361,12 @@ fn get_merchant_advice_code_description(code: &str) -> Option<&str> {
         "43" => Some("Card is a consumer multi-use virtual card number"),
         _ => None,
     }
+}
+
+/// Concatenates a vector of strings without any separator
+/// This is useful for creating verification messages for webhooks
+pub fn concat_strings(strings: &[String]) -> String {
+    strings.join("")
 }
 
 fn convert_to_additional_payment_method_connector_response(

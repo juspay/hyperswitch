@@ -944,16 +944,15 @@ impl IncomingWebhook for Nuvei {
                     .map(|s| format!("{:?}", s).to_uppercase())
                     .unwrap_or_else(|| "UNKNOWN".to_string());
 
-                let to_sign = format!(
-                    "{}{}{}{}{}{}{}",
-                    secret_str,
+                let to_sign = transformers::concat_strings(&[
+                    secret_str.to_string(),
                     notification.total_amount.unwrap_or_default(),
                     notification.currency.unwrap_or_default(),
                     notification.response_time_stamp.unwrap_or_default(),
                     notification.ppp_transaction_id.unwrap_or_default(),
                     status,
-                    notification.product_id.unwrap_or_default()
-                );
+                    notification.product_id.unwrap_or_default(),
+                ]);
                 Ok(to_sign.into_bytes())
             }
             nuvei::NuveiWebhook::Chargeback(notification) => {
@@ -965,14 +964,13 @@ impl IncomingWebhook for Nuvei {
                     .map(|s| format!("{:?}", s).to_uppercase())
                     .unwrap_or_else(|| "UNKNOWN".to_string());
 
-                let to_sign = format!(
-                    "{}{}{}{}{}",
-                    secret_str,
+                let to_sign = transformers::concat_strings(&[
+                    secret_str.to_string(),
                     notification.chargeback_amount.unwrap_or_default(),
                     notification.chargeback_currency.unwrap_or_default(),
                     notification.ppp_transaction_id.unwrap_or_default(),
-                    status
-                );
+                    status,
+                ]);
                 Ok(to_sign.into_bytes())
             }
         }
