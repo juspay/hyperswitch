@@ -3210,6 +3210,19 @@ fn get_bank_debit_required_fields() -> HashMap<enums::PaymentMethodType, Connect
                     Connector::Inespay,
                     fields(vec![], vec![], vec![RequiredField::SepaBankDebitIban]),
                 ),
+                (
+                    Connector::Nordea,
+                    RequiredFieldFinal {
+                        mandate: HashMap::new(),
+
+                        non_mandate: HashMap::new(),
+
+                        common: HashMap::from([
+                            RequiredField::BillingAddressCountries(vec!["DK,FI,NO,SE"]).to_tuple(),
+                            RequiredField::SepaBankDebitIban.to_tuple(),
+                        ]),
+                    },
+                ),
             ]),
         ),
         (

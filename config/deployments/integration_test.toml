@@ -637,6 +637,9 @@ red_pagos = { country = "UY", currency = "UYU" }
 [pm_filters.zsl]
 local_bank_transfer = { country = "CN", currency = "CNY" }
 
+[pm_filters.nordea]
+sepa = { country = "DK,FI,NO,SE", currency = "DKK,EUR,NOK,SEK" }
+
 [pm_filters.fiuu]
 duit_now = { country = "MY", currency = "MYR" }
 apple_pay = { country = "MY", currency = "MYR" }

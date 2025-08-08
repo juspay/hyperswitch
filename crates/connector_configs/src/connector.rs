@@ -460,6 +460,7 @@ impl ConnectorConfig {
             Connector::Nexixpay => Ok(connector_data.nexixpay),
             Connector::Prophetpay => Ok(connector_data.prophetpay),
             Connector::Nmi => Ok(connector_data.nmi),
+            Connector::Nordea => Ok(connector_data.nordea),
             Connector::Nomupay => Err("Use get_payout_connector_config".to_string()),
             Connector::Novalnet => Ok(connector_data.novalnet),
             Connector::Noon => Ok(connector_data.noon),

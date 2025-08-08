@@ -4923,6 +4923,33 @@ placeholder = "Enter Acquirer Merchant ID"
 required = false
 type = "Text"
 
+[nordea]
+[[nordea.bank_debit]]
+  payment_method_type = "sepa"
+[nordea.connector_auth.SignatureKey]
+  api_key="Client Secret"
+  key1="Client ID"
+  api_secret="eIDAS Private Key"
+[nordea.metadata.creditor_account_type]
+  name="creditor_account_type"
+  label="Creditor Account Type"
+  placeholder="Enter Beneficiary Account Type e.g. IBAN"
+  required=true
+  type="Text"
+[nordea.metadata.creditor_account_value]
+  name="creditor_account_value"
+  label="Creditor Account Type"
+  placeholder="Enter Beneficiary Account Number"
+  required=true
+  type="Text"
+[nordea.metadata.creditor_beneficiary_name]
+  name="creditor_beneficiary_name"
+  label="Creditor Account Beneficiary Name"
+  placeholder="Enter Beneficiary Name"
+  required=true
+  type="Text"
+
+
 [worldpayxml]
 [[worldpayxml.credit]]
 payment_method_type = "Mastercard"

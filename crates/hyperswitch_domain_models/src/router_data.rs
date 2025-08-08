@@ -259,6 +259,12 @@ impl ConnectorAuthType {
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
+pub struct AccessTokenAuthenticationResponse {
+    pub code: Secret<String>,
+    pub expires: i64,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
 pub struct AccessToken {
     pub token: Secret<String>,
     pub expires: i64,

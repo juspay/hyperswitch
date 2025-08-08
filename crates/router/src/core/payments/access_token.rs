@@ -2,6 +2,7 @@ use std::fmt::Debug;
 
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
+use hyperswitch_interfaces::api::ConnectorSpecifications;
 
 use crate::{
     consts,
@@ -112,10 +113,15 @@ pub async fn add_access_token<
                     )),
                 );
 
+                let authentication_token =
+                    execute_authentication_token(state, connector, router_data).await?;
+
                 let cloned_router_data = router_data.clone();
-                let refresh_token_request_data = types::AccessTokenRequestData::try_from(
+
+                let refresh_token_request_data = types::AccessTokenRequestData::try_from((
                     router_data.connector_auth_type.clone(),
-                )
+                    authentication_token,
+                ))
                 .attach_printable(
                     "Could not create access token request, invalid connector account credentials",
                 )?;
@@ -253,4 +259,94 @@ pub async fn refresh_connector_auth(
         router_env::metric_attributes!(("connector", connector.connector_name.to_string())),
     );
     Ok(access_token_router_data)
+}
+
+pub async fn execute_authentication_token<
+    F: Clone + 'static,
+    Req: Debug + Clone + 'static,
+    Res: Debug + Clone + 'static,
+>(
+    state: &SessionState,
+    connector: &api_types::ConnectorData,
+    router_data: &types::RouterData<F, Req, Res>,
+) -> RouterResult<Option<types::AccessTokenAuthenticationResponse>> {
+    let should_create_authentication_token = connector
+        .connector
+        .authentication_token_for_token_creation();
+
+    if !should_create_authentication_token {
+        return Ok(None);
+    }
+
+    let authentication_token_request_data = types::AccessTokenAuthenticationRequestData::try_from(
+        router_data.connector_auth_type.clone(),
+    )
+    .attach_printable(
+        "Could not create authentication token request, invalid connector account credentials",
+    )?;
+
+    let authentication_token_response_data: Result<
+        types::AccessTokenAuthenticationResponse,
+        types::ErrorResponse,
+    > = Err(types::ErrorResponse::default());
+
+    let auth_token_router_data = payments::helpers::router_data_type_conversion::<
+        _,
+        api_types::AccessTokenAuthentication,
+        _,
+        _,
+        _,
+        _,
+    >(
+        router_data.clone(),
+        authentication_token_request_data,
+        authentication_token_response_data,
+    );
+
+    let connector_integration: services::BoxedAuthenticationTokenConnectorIntegrationInterface<
+        api_types::AccessTokenAuthentication,
+        types::AccessTokenAuthenticationRequestData,
+        types::AccessTokenAuthenticationResponse,
+    > = connector.connector.get_connector_integration();
+
+    let auth_token_router_data_result = services::execute_connector_processing_step(
+        state,
+        connector_integration,
+        &auth_token_router_data,
+        payments::CallConnectorAction::Trigger,
+        None,
+        None,
+    )
+    .await;
+
+    let auth_token_result = match auth_token_router_data_result {
+        Ok(router_data) => router_data.response,
+        Err(connector_error) => {
+            // Handle timeout errors
+            if connector_error.current_context().is_connector_timeout() {
+                let error_response = types::ErrorResponse {
+                    code: consts::REQUEST_TIMEOUT_ERROR_CODE.to_string(),
+                    message: consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string(),
+                    reason: Some(consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string()),
+                    status_code: 504,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                };
+                Err(error_response)
+            } else {
+                return Err(connector_error
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Could not get authentication token"));
+            }
+        }
+    };
+
+    let authentication_token = auth_token_result
+        .map_err(|_error| errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get authentication token")?;
+
+    Ok(Some(authentication_token))
 }

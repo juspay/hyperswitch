@@ -24,6 +24,51 @@ use hyperswitch_domain_models::router_response_types::revenue_recovery::{
     BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
     RevenueRecoveryRecordBackResponse,
 };
+use hyperswitch_domain_models::{
+    router_data::AccessTokenAuthenticationResponse,
+    router_flow_types::{
+        authentication::{
+            Authentication, PostAuthentication, PreAuthentication, PreAuthenticationVersionCall,
+        },
+        dispute::{Accept, Defend, Dsync, Evidence, Fetch},
+        files::{Retrieve, Upload},
+        mandate_revoke::MandateRevoke,
+        payments::{
+            Approve, AuthorizeSessionToken, CalculateTax, CompleteAuthorize,
+            CreateConnectorCustomer, CreateOrder, IncrementalAuthorization, PostCaptureVoid,
+            PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate,
+            UpdateMetadata,
+        },
+        webhooks::VerifyWebhookSource,
+        AccessTokenAuthentication, Authenticate, AuthenticationConfirmation,
+        ExternalVaultCreateFlow, ExternalVaultDeleteFlow, ExternalVaultInsertFlow,
+        ExternalVaultRetrieveFlow, PostAuthenticate, PreAuthenticate,
+    },
+    router_request_types::{
+        authentication,
+        unified_authentication_service::{
+            UasAuthenticationRequestData, UasAuthenticationResponseData,
+            UasConfirmationRequestData, UasPostAuthenticationRequestData,
+            UasPreAuthenticationRequestData,
+        },
+        AcceptDisputeRequestData, AccessTokenAuthenticationRequestData, AuthorizeSessionTokenData,
+        CompleteAuthorizeData, ConnectorCustomerData, CreateOrderRequestData,
+        DefendDisputeRequestData, DisputeSyncData, FetchDisputesRequestData,
+        MandateRevokeRequestData, PaymentsApproveData, PaymentsCancelPostCaptureData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
+        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
+        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RetrieveFileRequestData,
+        SdkPaymentsSessionUpdateData, SubmitEvidenceRequestData, UploadFileRequestData,
+        VaultRequestData, VerifyWebhookSourceRequestData,
+    },
+    router_response_types::{
+        AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
+        DisputeSyncResponse, FetchDisputesResponse, MandateRevokeResponseData,
+        PaymentsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
+        TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
+        VerifyWebhookSourceResponseData,
+    },
+};
 #[cfg(feature = "frm")]
 use hyperswitch_domain_models::{
     router_flow_types::fraud_check::{Checkout, Fulfillment, RecordReturn, Sale, Transaction},
@@ -41,48 +86,6 @@ use hyperswitch_domain_models::{
     },
     router_request_types::PayoutsData,
     router_response_types::PayoutsResponseData,
-};
-use hyperswitch_domain_models::{
-    router_flow_types::{
-        authentication::{
-            Authentication, PostAuthentication, PreAuthentication, PreAuthenticationVersionCall,
-        },
-        dispute::{Accept, Defend, Dsync, Evidence, Fetch},
-        files::{Retrieve, Upload},
-        mandate_revoke::MandateRevoke,
-        payments::{
-            Approve, AuthorizeSessionToken, CalculateTax, CompleteAuthorize,
-            CreateConnectorCustomer, CreateOrder, IncrementalAuthorization, PostCaptureVoid,
-            PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate,
-            UpdateMetadata,
-        },
-        webhooks::VerifyWebhookSource,
-        Authenticate, AuthenticationConfirmation, ExternalVaultCreateFlow, ExternalVaultDeleteFlow,
-        ExternalVaultInsertFlow, ExternalVaultRetrieveFlow, PostAuthenticate, PreAuthenticate,
-    },
-    router_request_types::{
-        authentication,
-        unified_authentication_service::{
-            UasAuthenticationRequestData, UasAuthenticationResponseData,
-            UasConfirmationRequestData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData,
-        },
-        AcceptDisputeRequestData, AuthorizeSessionTokenData, CompleteAuthorizeData,
-        ConnectorCustomerData, CreateOrderRequestData, DefendDisputeRequestData, DisputeSyncData,
-        FetchDisputesRequestData, MandateRevokeRequestData, PaymentsApproveData,
-        PaymentsCancelPostCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
-        PaymentsRejectData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData,
-        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SubmitEvidenceRequestData,
-        UploadFileRequestData, VaultRequestData, VerifyWebhookSourceRequestData,
-    },
-    router_response_types::{
-        AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
-        DisputeSyncResponse, FetchDisputesResponse, MandateRevokeResponseData,
-        PaymentsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
-        TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
-        VerifyWebhookSourceResponseData,
-    },
 };
 #[cfg(feature = "frm")]
 use hyperswitch_interfaces::api::fraud_check::{
@@ -124,9 +127,10 @@ use hyperswitch_interfaces::{
             ExternalVault, ExternalVaultCreate, ExternalVaultDelete, ExternalVaultInsert,
             ExternalVaultRetrieve,
         },
-        ConnectorIntegration, ConnectorMandateRevoke, ConnectorRedirectResponse,
-        ConnectorTransactionId, UasAuthentication, UasAuthenticationConfirmation,
-        UasPostAuthentication, UasPreAuthentication, UnifiedAuthenticationService,
+        ConnectorAuthenticationToken, ConnectorIntegration, ConnectorMandateRevoke,
+        ConnectorRedirectResponse, ConnectorTransactionId, UasAuthentication,
+        UasAuthenticationConfirmation, UasPostAuthentication, UasPreAuthentication,
+        UnifiedAuthenticationService,
     },
     errors::ConnectorError,
 };
@@ -1703,7 +1707,6 @@ default_imp_for_pre_processing_steps!(
     connectors::Netcetera,
     connectors::Nomupay,
     connectors::Noon,
-    connectors::Nordea,
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Opayo,
@@ -7499,6 +7502,146 @@ default_imp_for_external_vault_create!(
     connectors::Zsl
 );
 
+macro_rules! default_imp_for_connector_authentication_token {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl ConnectorAuthenticationToken for $path::$connector {}
+            impl
+            ConnectorIntegration<
+            AccessTokenAuthentication,
+            AccessTokenAuthenticationRequestData,
+            AccessTokenAuthenticationResponse,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+default_imp_for_connector_authentication_token!(
+    connectors::Aci,
+    connectors::Adyen,
+    connectors::Adyenplatform,
+    connectors::Affirm,
+    connectors::Airwallex,
+    connectors::Amazonpay,
+    connectors::Archipel,
+    connectors::Authipay,
+    connectors::Authorizedotnet,
+    connectors::Barclaycard,
+    connectors::Bambora,
+    connectors::Bamboraapac,
+    connectors::Bankofamerica,
+    connectors::Billwerk,
+    connectors::Bitpay,
+    connectors::Bluecode,
+    connectors::Bluesnap,
+    connectors::Blackhawknetwork,
+    connectors::Boku,
+    connectors::Braintree,
+    connectors::Breadpay,
+    connectors::Cashtocode,
+    connectors::Celero,
+    connectors::Chargebee,
+    connectors::Checkbook,
+    connectors::Checkout,
+    connectors::Coinbase,
+    connectors::Coingate,
+    connectors::Cryptopay,
+    connectors::CtpMastercard,
+    connectors::Custombilling,
+    connectors::Cybersource,
+    connectors::Datatrans,
+    connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
+    connectors::Dwolla,
+    connectors::Ebanx,
+    connectors::Elavon,
+    connectors::Facilitapay,
+    connectors::Fiserv,
+    connectors::Fiservemea,
+    connectors::Fiuu,
+    connectors::Flexiti,
+    connectors::Forte,
+    connectors::Getnet,
+    connectors::Globalpay,
+    connectors::Globepay,
+    connectors::Gocardless,
+    connectors::Gpayments,
+    connectors::Helcim,
+    connectors::Hipay,
+    connectors::HyperswitchVault,
+    connectors::Iatapay,
+    connectors::Inespay,
+    connectors::Itaubank,
+    connectors::Juspaythreedsserver,
+    connectors::Jpmorgan,
+    connectors::Katapult,
+    connectors::Klarna,
+    connectors::Mpgs,
+    connectors::Netcetera,
+    connectors::Nomupay,
+    connectors::Nmi,
+    connectors::Noon,
+    connectors::Novalnet,
+    connectors::Nexinets,
+    connectors::Nexixpay,
+    connectors::Nuvei,
+    connectors::Opayo,
+    connectors::Opennode,
+    connectors::Payeezy,
+    connectors::Payload,
+    connectors::Paystack,
+    connectors::Paytm,
+    connectors::Payu,
+    connectors::Phonepe,
+    connectors::Paypal,
+    connectors::Plaid,
+    connectors::Powertranz,
+    connectors::Prophetpay,
+    connectors::Mifinity,
+    connectors::Mollie,
+    connectors::Moneris,
+    connectors::Multisafepay,
+    connectors::Paybox,
+    connectors::Payme,
+    connectors::Payone,
+    connectors::Placetopay,
+    connectors::Rapyd,
+    connectors::Razorpay,
+    connectors::Recurly,
+    connectors::Redsys,
+    connectors::Riskified,
+    connectors::Santander,
+    connectors::Sift,
+    connectors::Signifyd,
+    connectors::Shift4,
+    connectors::Silverflow,
+    connectors::Stax,
+    connectors::Stripe,
+    connectors::Stripebilling,
+    connectors::Square,
+    connectors::Taxjar,
+    connectors::Threedsecureio,
+    connectors::Thunes,
+    connectors::Tokenio,
+    connectors::Trustpay,
+    connectors::Trustpayments,
+    connectors::Tsys,
+    connectors::UnifiedAuthenticationService,
+    connectors::Wise,
+    connectors::Worldline,
+    connectors::Worldpay,
+    connectors::Worldpayvantiv,
+    connectors::Worldpayxml,
+    connectors::Wellsfargo,
+    connectors::Vgs,
+    connectors::Volt,
+    connectors::Xendit,
+    connectors::Zen,
+    connectors::Zsl
+);
+
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> PaymentsCompleteAuthorize for connectors::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
@@ -8024,5 +8167,17 @@ impl<const T: u8> ExternalVaultCreate for connectors::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> ConnectorIntegration<ExternalVaultCreateFlow, VaultRequestData, VaultResponseData>
     for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorAuthenticationToken for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        AccessTokenAuthentication,
+        AccessTokenAuthenticationRequestData,
+        AccessTokenAuthenticationResponse,
+    > for connectors::DummyConnector<T>
 {
 }
