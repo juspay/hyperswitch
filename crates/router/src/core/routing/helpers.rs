@@ -1691,9 +1691,8 @@ fn get_desired_payment_status_for_dynamic_routing_metrics(
         common_enums::AttemptStatus::Charged
         | common_enums::AttemptStatus::Authorized
         | common_enums::AttemptStatus::PartialCharged
-        | common_enums::AttemptStatus::PartialChargedAndChargeable => {
-            common_enums::AttemptStatus::Charged
-        }
+        | common_enums::AttemptStatus::PartialChargedAndChargeable
+        | common_enums::AttemptStatus::PartiallyAuthorized => common_enums::AttemptStatus::Charged,
         common_enums::AttemptStatus::Failure
         | common_enums::AttemptStatus::AuthorizationFailed
         | common_enums::AttemptStatus::AuthenticationFailed
@@ -1705,6 +1704,7 @@ fn get_desired_payment_status_for_dynamic_routing_metrics(
         | common_enums::AttemptStatus::Authorizing
         | common_enums::AttemptStatus::CodInitiated
         | common_enums::AttemptStatus::Voided
+        | common_enums::AttemptStatus::VoidedPostCharge
         | common_enums::AttemptStatus::VoidInitiated
         | common_enums::AttemptStatus::CaptureInitiated
         | common_enums::AttemptStatus::VoidFailed
@@ -1728,7 +1728,8 @@ impl ForeignFrom<common_enums::AttemptStatus> for open_router::TxnStatus {
             common_enums::AttemptStatus::RouterDeclined => Self::JuspayDeclined,
             common_enums::AttemptStatus::AuthenticationPending => Self::PendingVbv,
             common_enums::AttemptStatus::AuthenticationSuccessful => Self::VBVSuccessful,
-            common_enums::AttemptStatus::Authorized => Self::Authorized,
+            common_enums::AttemptStatus::Authorized
+            | common_enums::AttemptStatus::PartiallyAuthorized => Self::Authorized,
             common_enums::AttemptStatus::AuthorizationFailed => Self::AuthorizationFailed,
             common_enums::AttemptStatus::Charged => Self::Charged,
             common_enums::AttemptStatus::Authorizing => Self::Authorizing,
@@ -1736,6 +1737,7 @@ impl ForeignFrom<common_enums::AttemptStatus> for open_router::TxnStatus {
             common_enums::AttemptStatus::Voided | common_enums::AttemptStatus::Expired => {
                 Self::Voided
             }
+            common_enums::AttemptStatus::VoidedPostCharge => Self::VoidedPostCharge,
             common_enums::AttemptStatus::VoidInitiated => Self::VoidInitiated,
             common_enums::AttemptStatus::CaptureInitiated => Self::CaptureInitiated,
             common_enums::AttemptStatus::CaptureFailed => Self::CaptureFailed,

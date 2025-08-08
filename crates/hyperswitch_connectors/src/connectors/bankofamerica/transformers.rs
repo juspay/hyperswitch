@@ -1,5 +1,6 @@
 use base64::Engine;
 use common_enums::{enums, FutureUsage};
+use common_types::payments::ApplePayPredecryptData;
 use common_utils::{consts, ext_traits::OptionExt, pii};
 use hyperswitch_domain_models::{
     payment_method_data::{
@@ -7,8 +8,8 @@ use hyperswitch_domain_models::{
         WalletData,
     },
     router_data::{
-        AdditionalPaymentMethodConnectorResponse, ApplePayPredecryptData, ConnectorAuthType,
-        ConnectorResponseData, ErrorResponse, PaymentMethodToken, RouterData,
+        AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
+        ErrorResponse, PaymentMethodToken, RouterData,
     },
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{
@@ -31,7 +32,7 @@ use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     unimplemented_payment_method,
     utils::{
-        self, AddressDetailsData, ApplePayDecrypt, CardData, PaymentsAuthorizeRequestData,
+        self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData,
         PaymentsSetupMandateRequestData, PaymentsSyncRequestData, RecurringMandateData,
         RouterData as OtherRouterData,
     },
@@ -247,7 +248,7 @@ pub struct Card {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TokenizedCard {
-    number: Secret<String>,
+    number: cards::CardNumber,
     expiration_month: Secret<String>,
     expiration_year: Secret<String>,
     cryptogram: Secret<String>,
@@ -307,6 +308,7 @@ impl TryFrom<&SetupMandateRouterData> for BankOfAmericaPaymentsRequest {
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::Paysera(_)
                 | WalletData::Skrill(_)
+                | WalletData::BluecodeRedirect {}
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -1044,7 +1046,7 @@ impl TryFrom<&BankOfAmericaRouterData<&PaymentsAuthorizeRouterData>>
                                     let client_reference_information =
                                         ClientReferenceInformation::from(item);
                                     let payment_information =
-                                        PaymentInformation::from(&apple_pay_data);
+                                        PaymentInformation::try_from(&apple_pay_data)?;
                                     let merchant_defined_information = item
                                         .router_data
                                         .request
@@ -1093,6 +1095,7 @@ impl TryFrom<&BankOfAmericaRouterData<&PaymentsAuthorizeRouterData>>
                         | WalletData::AmazonPayRedirect(_)
                         | WalletData::Paysera(_)
                         | WalletData::Skrill(_)
+                        | WalletData::BluecodeRedirect {}
                         | WalletData::MomoRedirect(_)
                         | WalletData::KakaoPayRedirect(_)
                         | WalletData::GoPayRedirect(_)
@@ -2478,7 +2481,7 @@ impl TryFrom<(&SetupMandateRouterData, ApplePayWalletData)> for BankOfAmericaPay
                     "Bank Of America"
                 ))?,
             },
-            None => PaymentInformation::from(&apple_pay_data),
+            None => PaymentInformation::try_from(&apple_pay_data)?,
         };
         let processing_information = ProcessingInformation::try_from((
             Some(PaymentSolution::ApplePay),
@@ -2604,8 +2607,8 @@ impl TryFrom<&Box<ApplePayPredecryptData>> for PaymentInformation {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(apple_pay_data: &Box<ApplePayPredecryptData>) -> Result<Self, Self::Error> {
-        let expiration_month = apple_pay_data.get_expiry_month()?;
-        let expiration_year = apple_pay_data.get_four_digit_expiry_year()?;
+        let expiration_month = apple_pay_data.get_expiry_month();
+        let expiration_year = apple_pay_data.get_four_digit_expiry_year();
 
         Ok(Self::ApplePay(Box::new(ApplePayPaymentInformation {
             tokenized_card: TokenizedCard {
@@ -2622,17 +2625,28 @@ impl TryFrom<&Box<ApplePayPredecryptData>> for PaymentInformation {
     }
 }
 
-impl From<&ApplePayWalletData> for PaymentInformation {
-    fn from(apple_pay_data: &ApplePayWalletData) -> Self {
-        Self::ApplePayToken(Box::new(ApplePayTokenPaymentInformation {
-            fluid_data: FluidData {
-                value: Secret::from(apple_pay_data.payment_data.clone()),
-                descriptor: None,
+impl TryFrom<&ApplePayWalletData> for PaymentInformation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(apple_pay_data: &ApplePayWalletData) -> Result<Self, Self::Error> {
+        let apple_pay_encrypted_data = apple_pay_data
+            .payment_data
+            .get_encrypted_apple_pay_payment_data_mandatory()
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "Apple pay encrypted data",
+            })?;
+
+        Ok(Self::ApplePayToken(Box::new(
+            ApplePayTokenPaymentInformation {
+                fluid_data: FluidData {
+                    value: Secret::from(apple_pay_encrypted_data.clone()),
+                    descriptor: None,
+                },
+                tokenized_card: ApplePayTokenizedCard {
+                    transaction_type: TransactionType::ApplePay,
+                },
             },
-            tokenized_card: ApplePayTokenizedCard {
-                transaction_type: TransactionType::ApplePay,
-            },
-        }))
+        )))
     }
 }
 

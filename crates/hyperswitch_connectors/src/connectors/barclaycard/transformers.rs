@@ -1,7 +1,8 @@
+use base64::Engine;
 use common_enums::enums;
-use common_utils::pii;
+use common_utils::{consts, pii};
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
+    payment_method_data::{GooglePayWalletData, PaymentMethodData, WalletData},
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
         ErrorResponse, RouterData,
@@ -99,6 +100,7 @@ pub struct BarclaycardPaymentsRequest {
 pub struct ProcessingInformation {
     commerce_indicator: String,
     capture: Option<bool>,
+    payment_solution: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -126,9 +128,16 @@ pub struct CardPaymentInformation {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GooglePayPaymentInformation {
+    fluid_data: FluidData,
+}
+
+#[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum PaymentInformation {
     Cards(Box<CardPaymentInformation>),
+    GooglePay(Box<GooglePayPaymentInformation>),
 }
 
 #[derive(Debug, Serialize)]
@@ -140,6 +149,12 @@ pub struct Card {
     security_code: Secret<String>,
     #[serde(rename = "type")]
     card_type: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FluidData {
+    value: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -159,55 +174,48 @@ pub struct Amount {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BillTo {
-    first_name: Option<Secret<String>>,
-    last_name: Option<Secret<String>>,
-    address1: Option<Secret<String>>,
-    locality: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    administrative_area: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    postal_code: Option<Secret<String>>,
-    country: Option<enums::CountryAlpha2>,
+    first_name: Secret<String>,
+    last_name: Secret<String>,
+    address1: Secret<String>,
+    locality: String,
+    administrative_area: Secret<String>,
+    postal_code: Secret<String>,
+    country: enums::CountryAlpha2,
     email: pii::Email,
 }
 
+fn truncate_string(state: &Secret<String>, max_len: usize) -> Secret<String> {
+    let exposed = state.clone().expose();
+    let truncated = exposed.get(..max_len).unwrap_or(&exposed);
+    Secret::new(truncated.to_string())
+}
+
 fn build_bill_to(
-    address_details: Option<&hyperswitch_domain_models::address::Address>,
+    address_details: &hyperswitch_domain_models::address::AddressDetails,
     email: pii::Email,
 ) -> Result<BillTo, error_stack::Report<errors::ConnectorError>> {
-    let default_address = BillTo {
-        first_name: None,
-        last_name: None,
-        address1: None,
-        locality: None,
-        administrative_area: None,
-        postal_code: None,
-        country: None,
-        email: email.clone(),
-    };
-
-    Ok(address_details
-        .and_then(|addr| {
-            addr.address.as_ref().map(|addr| {
-                let administrative_area = addr.to_state_code_as_optional().unwrap_or_else(|_| {
-                    addr.state
-                        .clone()
-                        .map(|state| Secret::new(format!("{:.20}", state.expose())))
-                });
-
-                BillTo {
-                    first_name: addr.first_name.clone(),
-                    last_name: addr.last_name.clone(),
-                    address1: addr.line1.clone(),
-                    locality: addr.city.clone(),
-                    administrative_area,
-                    postal_code: addr.zip.clone(),
-                    country: addr.country,
-                    email,
-                }
-            })
+    let administrative_area = address_details
+        .to_state_code_as_optional()
+        .unwrap_or_else(|_| {
+            address_details
+                .get_state()
+                .ok()
+                .map(|state| truncate_string(state, 20))
         })
-        .unwrap_or(default_address))
+        .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+            field_name: "billing_address.state",
+        })?;
+
+    Ok(BillTo {
+        first_name: address_details.get_first_name()?.clone(),
+        last_name: address_details.get_last_name()?.clone(),
+        address1: address_details.get_line1()?.clone(),
+        locality: address_details.get_city()?.clone(),
+        administrative_area,
+        postal_code: address_details.get_zip()?.clone(),
+        country: address_details.get_country()?.to_owned(),
+        email,
+    })
 }
 
 fn get_barclaycard_card_type(card_network: common_enums::CardNetwork) -> Option<&'static str> {
@@ -228,6 +236,20 @@ fn get_barclaycard_card_type(card_network: common_enums::CardNetwork) -> Option<
         | common_enums::CardNetwork::Accel
         | common_enums::CardNetwork::Pulse
         | common_enums::CardNetwork::Nyce => None,
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub enum PaymentSolution {
+    GooglePay,
+}
+
+impl From<PaymentSolution> for String {
+    fn from(solution: PaymentSolution) -> Self {
+        let payment_solution = match solution {
+            PaymentSolution::GooglePay => "012",
+        };
+        payment_solution.to_string()
     }
 }
 
@@ -256,14 +278,16 @@ impl
 impl
     TryFrom<(
         &BarclaycardRouterData<&PaymentsAuthorizeRouterData>,
+        Option<PaymentSolution>,
         Option<String>,
     )> for ProcessingInformation
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        (item, network): (
+        (item, solution, network): (
             &BarclaycardRouterData<&PaymentsAuthorizeRouterData>,
+            Option<PaymentSolution>,
             Option<String>,
         ),
     ) -> Result<Self, Self::Error> {
@@ -274,6 +298,7 @@ impl
                 item.router_data.request.capture_method,
                 Some(enums::CaptureMethod::Automatic) | None
             )),
+            payment_solution: solution.map(String::from),
             commerce_indicator,
         })
     }
@@ -432,10 +457,48 @@ impl
         };
 
         let email = item.router_data.request.get_email()?;
-        let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
+        let bill_to = build_bill_to(item.router_data.get_billing_address()?, email)?;
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
         let payment_information = PaymentInformation::try_from(&ccard)?;
-        let processing_information = ProcessingInformation::try_from((item, None))?;
+        let processing_information = ProcessingInformation::try_from((item, None, None))?;
+        let client_reference_information = ClientReferenceInformation::from(item);
+        let merchant_defined_information = item
+            .router_data
+            .request
+            .metadata
+            .clone()
+            .map(convert_metadata_to_merchant_defined_info);
+
+        Ok(Self {
+            processing_information,
+            payment_information,
+            order_information,
+            client_reference_information,
+            merchant_defined_information,
+            consumer_authentication_information: None,
+        })
+    }
+}
+
+impl
+    TryFrom<(
+        &BarclaycardRouterData<&PaymentsAuthorizeRouterData>,
+        GooglePayWalletData,
+    )> for BarclaycardPaymentsRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (item, google_pay_data): (
+            &BarclaycardRouterData<&PaymentsAuthorizeRouterData>,
+            GooglePayWalletData,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let email = item.router_data.request.get_email()?;
+        let bill_to = build_bill_to(item.router_data.get_billing_address()?, email)?;
+        let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
+        let payment_information = PaymentInformation::from(&google_pay_data);
+        let processing_information =
+            ProcessingInformation::try_from((item, Some(PaymentSolution::GooglePay), None))?;
         let client_reference_information = ClientReferenceInformation::from(item);
         let merchant_defined_information = item
             .router_data
@@ -462,8 +525,45 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsAuthorizeRouterData>> for Barclayca
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(ccard) => Self::try_from((item, ccard)),
-            PaymentMethodData::Wallet(_)
-            | PaymentMethodData::MandatePayment
+            PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                WalletData::GooglePay(google_pay_data) => Self::try_from((item, google_pay_data)),
+                WalletData::AliPayQr(_)
+                | WalletData::AliPayRedirect(_)
+                | WalletData::AliPayHkRedirect(_)
+                | WalletData::AmazonPayRedirect(_)
+                | WalletData::ApplePay(_)
+                | WalletData::MomoRedirect(_)
+                | WalletData::KakaoPayRedirect(_)
+                | WalletData::GoPayRedirect(_)
+                | WalletData::GcashRedirect(_)
+                | WalletData::ApplePayRedirect(_)
+                | WalletData::ApplePayThirdPartySdk(_)
+                | WalletData::DanaRedirect {}
+                | WalletData::GooglePayRedirect(_)
+                | WalletData::GooglePayThirdPartySdk(_)
+                | WalletData::MbWayRedirect(_)
+                | WalletData::MobilePayRedirect(_)
+                | WalletData::PaypalRedirect(_)
+                | WalletData::PaypalSdk(_)
+                | WalletData::Paze(_)
+                | WalletData::RevolutPay(_)
+                | WalletData::SamsungPay(_)
+                | WalletData::TwintRedirect {}
+                | WalletData::VippsRedirect {}
+                | WalletData::TouchNGoRedirect(_)
+                | WalletData::WeChatPayRedirect(_)
+                | WalletData::WeChatPayQr(_)
+                | WalletData::CashappQr(_)
+                | WalletData::SwishQr(_)
+                | WalletData::Paysera(_)
+                | WalletData::Skrill(_)
+                | WalletData::BluecodeRedirect {}
+                | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Barclaycard"),
+                )
+                .into()),
+            },
+            PaymentMethodData::MandatePayment
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::PayLater(_)
             | PaymentMethodData::BankRedirect(_)
@@ -1574,6 +1674,18 @@ impl TryFrom<&hyperswitch_domain_models::payment_method_data::Card> for PaymentI
                 card_type,
             },
         })))
+    }
+}
+
+impl From<&GooglePayWalletData> for PaymentInformation {
+    fn from(google_pay_data: &GooglePayWalletData) -> Self {
+        Self::GooglePay(Box::new(GooglePayPaymentInformation {
+            fluid_data: FluidData {
+                value: Secret::from(
+                    consts::BASE64_ENGINE.encode(google_pay_data.tokenization_data.token.clone()),
+                ),
+            },
+        }))
     }
 }
 

@@ -147,10 +147,18 @@ impl TryFrom<&RapydRouterData<&types::PaymentsAuthorizeRouterData>> for RapydPay
                         payment_type: "google_pay".to_string(),
                         token: Some(Secret::new(data.tokenization_data.token.to_owned())),
                     }),
-                    WalletData::ApplePay(data) => Some(RapydWallet {
-                        payment_type: "apple_pay".to_string(),
-                        token: Some(Secret::new(data.payment_data.to_string())),
-                    }),
+                    WalletData::ApplePay(data) => {
+                        let apple_pay_encrypted_data = data
+                            .payment_data
+                            .get_encrypted_apple_pay_payment_data_mandatory()
+                            .change_context(errors::ConnectorError::MissingRequiredField {
+                                field_name: "Apple pay encrypted data",
+                            })?;
+                        Some(RapydWallet {
+                            payment_type: "apple_pay".to_string(),
+                            token: Some(Secret::new(apple_pay_encrypted_data.to_string())),
+                        })
+                    }
                     _ => None,
                 };
                 Some(PaymentMethod {

@@ -22,9 +22,9 @@ use hyperswitch_domain_models::{
         MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
     },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsCompleteAuthorizeRouterData, PaymentsSyncRouterData, RefundsRouterData,
-        SetupMandateRouterData,
+        ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
+        PaymentsCaptureRouterData, PaymentsCompleteAuthorizeRouterData, PaymentsSyncRouterData,
+        RefundsRouterData, SetupMandateRouterData,
     },
 };
 use hyperswitch_interfaces::{api, errors};
@@ -298,15 +298,29 @@ pub struct AuthorizedotnetPaymentCancelOrCaptureRequest {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 // The connector enforces field ordering, it expects fields to be in the same order as in their API documentation
-pub struct CreateCustomerProfileRequest {
-    create_customer_profile_request: AuthorizedotnetZeroMandateRequest,
+pub struct CustomerRequest {
+    create_customer_profile_request: CreateCustomerRequest,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AuthorizedotnetZeroMandateRequest {
+pub struct CreateCustomerRequest {
     merchant_authentication: AuthorizedotnetAuthType,
     profile: Profile,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateCustomerPaymentProfileRequest {
+    create_customer_payment_profile_request: AuthorizedotnetPaymentProfileRequest,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorizedotnetPaymentProfileRequest {
+    merchant_authentication: AuthorizedotnetAuthType,
+    customer_profile_id: Secret<String>,
+    payment_profile: PaymentProfile,
     validation_mode: ValidationMode,
 }
 
@@ -334,10 +348,14 @@ pub struct ShipToList {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct Profile {
+    #[serde(skip_serializing_if = "Option::is_none")]
     merchant_customer_id: Option<CustomerId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     email: Option<Email>,
-    payment_profiles: PaymentProfiles,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    payment_profiles: Option<PaymentProfiles>,
     #[serde(skip_serializing_if = "Option::is_none")]
     ship_to_list: Option<Vec<ShipToList>>,
 }
@@ -346,6 +364,16 @@ struct Profile {
 #[serde(rename_all = "camelCase")]
 struct PaymentProfiles {
     customer_type: CustomerType,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    bill_to: Option<BillTo>,
+    payment: PaymentDetails,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PaymentProfile {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    bill_to: Option<BillTo>,
     payment: PaymentDetails,
 }
 
@@ -384,179 +412,110 @@ impl ForeignTryFrom<Value> for Vec<UserField> {
     }
 }
 
-impl TryFrom<&SetupMandateRouterData> for CreateCustomerProfileRequest {
+impl TryFrom<&ConnectorCustomerRouterData> for CustomerRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &ConnectorCustomerRouterData) -> Result<Self, Self::Error> {
+        let merchant_authentication = AuthorizedotnetAuthType::try_from(&item.connector_auth_type)?;
+        let ship_to_list = item.get_optional_shipping().and_then(|shipping| {
+            shipping.address.as_ref().map(|address| {
+                vec![ShipToList {
+                    first_name: address.first_name.clone(),
+                    last_name: address.last_name.clone(),
+                    address: address.line1.clone(),
+                    city: address.city.clone(),
+                    state: address.state.clone(),
+                    zip: address.zip.clone(),
+                    country: address.country,
+                    phone_number: shipping
+                        .phone
+                        .as_ref()
+                        .and_then(|phone| phone.number.as_ref().map(|number| number.to_owned())),
+                }]
+            })
+        });
+
+        let merchant_customer_id = match item.customer_id.as_ref() {
+            Some(cid) if cid.get_string_repr().len() <= MAX_ID_LENGTH => Some(cid.clone()),
+            _ => None,
+        };
+
+        Ok(Self {
+            create_customer_profile_request: CreateCustomerRequest {
+                merchant_authentication,
+                profile: Profile {
+                    merchant_customer_id,
+                    description: None,
+                    email: item.request.email.clone(),
+                    payment_profiles: None,
+                    ship_to_list,
+                },
+            },
+        })
+    }
+}
+
+impl TryFrom<&SetupMandateRouterData> for CreateCustomerPaymentProfileRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &SetupMandateRouterData) -> Result<Self, Self::Error> {
-        match item.request.payment_method_data.clone() {
-            PaymentMethodData::Card(ccard) => {
-                let merchant_authentication =
-                    AuthorizedotnetAuthType::try_from(&item.connector_auth_type)?;
-                let validation_mode = match item.test_mode {
-                    Some(true) | None => ValidationMode::TestMode,
-                    Some(false) => ValidationMode::LiveMode,
-                };
-                let ship_to_list = item.get_optional_shipping().and_then(|shipping| {
-                    shipping.address.as_ref().map(|address| {
-                        vec![ShipToList {
-                            first_name: address.first_name.clone(),
-                            last_name: address.last_name.clone(),
-                            address: address.line1.clone(),
-                            city: address.city.clone(),
-                            state: address.state.clone(),
-                            zip: address.zip.clone(),
-                            country: address.country,
-                            phone_number: shipping.phone.as_ref().and_then(|phone| {
-                                phone.number.as_ref().map(|number| number.to_owned())
-                            }),
-                        }]
-                    })
-                });
+        let merchant_authentication = AuthorizedotnetAuthType::try_from(&item.connector_auth_type)?;
+        let validation_mode = match item.test_mode {
+            Some(true) | None => ValidationMode::TestMode,
+            Some(false) => ValidationMode::LiveMode,
+        };
+        let customer_profile_id = item.get_connector_customer_id()?.into();
 
-                let merchant_customer_id = match &item.request.customer_id {
-                    Some(customer_id)
-                        if customer_id.clone().get_string_repr().len() <= MAX_ID_LENGTH =>
-                    {
-                        Some(customer_id.clone())
-                    }
-                    _ => None,
-                };
-
-                Ok(Self {
-                    create_customer_profile_request: AuthorizedotnetZeroMandateRequest {
-                        merchant_authentication,
-                        profile: Profile {
-                            merchant_customer_id,
-                            // The payment ID is included in the description because the connector requires unique description when creating a mandate.
-                            description: None,
-                            email: item.request.email.clone(),
-                            payment_profiles: PaymentProfiles {
-                                customer_type: CustomerType::Individual,
-                                payment: PaymentDetails::CreditCard(CreditCardDetails {
-                                    card_number: (*ccard.card_number).clone(),
-                                    expiration_date: ccard.get_expiry_date_as_yyyymm("-"),
-                                    card_code: Some(ccard.card_cvc.clone()),
-                                }),
-                            },
-                            ship_to_list,
-                        },
-                        validation_mode,
-                    },
-                })
-            }
+        let bill_to = item
+            .get_optional_billing()
+            .and_then(|billing_address| billing_address.address.as_ref())
+            .map(|address| BillTo {
+                first_name: address.first_name.clone(),
+                last_name: address.last_name.clone(),
+                address: address.line1.clone(),
+                city: address.city.clone(),
+                state: address.state.clone(),
+                zip: address.zip.clone(),
+                country: address.country,
+            });
+        let payment_profile = match item.request.payment_method_data.clone() {
+            PaymentMethodData::Card(ccard) => Ok(PaymentProfile {
+                bill_to,
+                payment: PaymentDetails::CreditCard(CreditCardDetails {
+                    card_number: (*ccard.card_number).clone(),
+                    expiration_date: ccard.get_expiry_date_as_yyyymm("-"),
+                    card_code: Some(ccard.card_cvc.clone()),
+                }),
+            }),
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                WalletData::GooglePay(_) => {
-                    let merchant_authentication =
-                        AuthorizedotnetAuthType::try_from(&item.connector_auth_type)?;
-                    let validation_mode = match item.test_mode {
-                        Some(true) | None => ValidationMode::TestMode,
-                        Some(false) => ValidationMode::LiveMode,
-                    };
-                    let ship_to_list = item.get_optional_shipping().and_then(|shipping| {
-                        shipping.address.as_ref().map(|address| {
-                            vec![ShipToList {
-                                first_name: address.first_name.clone(),
-                                last_name: address.last_name.clone(),
-                                address: address.line1.clone(),
-                                city: address.city.clone(),
-                                state: address.state.clone(),
-                                zip: address.zip.clone(),
-                                country: address.country,
-                                phone_number: shipping.phone.as_ref().and_then(|phone| {
-                                    phone.number.as_ref().map(|number| number.to_owned())
-                                }),
-                            }]
-                        })
-                    });
-                    let merchant_customer_id = match &item.request.customer_id {
-                        Some(customer_id)
-                            if customer_id.clone().get_string_repr().len() <= MAX_ID_LENGTH =>
-                        {
-                            Some(customer_id.clone())
-                        }
-                        _ => None,
-                    };
-                    Ok(Self {
-                        create_customer_profile_request: AuthorizedotnetZeroMandateRequest {
-                            merchant_authentication,
-                            profile: Profile {
-                                merchant_customer_id,
-                                // The payment ID is included in the description because the connector requires unique description when creating a mandate.
-                                description: None,
-                                email: item.request.email.clone(),
-                                payment_profiles: PaymentProfiles {
-                                    customer_type: CustomerType::Individual,
-                                    payment: PaymentDetails::OpaqueData(WalletDetails {
-                                        data_descriptor: WalletMethod::Googlepay,
-                                        data_value: Secret::new(
-                                            wallet_data.get_encoded_wallet_token()?,
-                                        ),
-                                    }),
-                                },
-                                ship_to_list,
-                            },
-                            validation_mode,
-                        },
-                    })
-                }
+                WalletData::GooglePay(_) => Ok(PaymentProfile {
+                    bill_to,
+                    payment: PaymentDetails::OpaqueData(WalletDetails {
+                        data_descriptor: WalletMethod::Googlepay,
+                        data_value: Secret::new(wallet_data.get_encoded_wallet_token()?),
+                    }),
+                }),
                 WalletData::ApplePay(applepay_token) => {
-                    let merchant_authentication =
-                        AuthorizedotnetAuthType::try_from(&item.connector_auth_type)?;
-                    let validation_mode = match item.test_mode {
-                        Some(true) | None => ValidationMode::TestMode,
-                        Some(false) => ValidationMode::LiveMode,
-                    };
-                    let ship_to_list = item.get_optional_shipping().and_then(|shipping| {
-                        shipping.address.as_ref().map(|address| {
-                            vec![ShipToList {
-                                first_name: address.first_name.clone(),
-                                last_name: address.last_name.clone(),
-                                address: address.line1.clone(),
-                                city: address.city.clone(),
-                                state: address.state.clone(),
-                                zip: address.zip.clone(),
-                                country: address.country,
-                                phone_number: shipping.phone.as_ref().and_then(|phone| {
-                                    phone.number.as_ref().map(|number| number.to_owned())
-                                }),
-                            }]
-                        })
-                    });
-                    let merchant_customer_id = match &item.request.customer_id {
-                        Some(customer_id)
-                            if customer_id.clone().get_string_repr().len() <= MAX_ID_LENGTH =>
-                        {
-                            Some(customer_id.clone())
-                        }
-                        _ => None,
-                    };
-                    Ok(Self {
-                        create_customer_profile_request: AuthorizedotnetZeroMandateRequest {
-                            merchant_authentication,
-                            profile: Profile {
-                                merchant_customer_id,
-                                // The payment ID is included in the description because the connector requires unique description when creating a mandate.
-                                description: None,
-                                email: item.request.email.clone(),
-                                payment_profiles: PaymentProfiles {
-                                    customer_type: CustomerType::Individual,
-                                    payment: PaymentDetails::OpaqueData(WalletDetails {
-                                        data_descriptor: WalletMethod::Applepay,
-                                        data_value: Secret::new(
-                                            applepay_token.payment_data.clone(),
-                                        ),
-                                    }),
-                                },
-                                ship_to_list,
-                            },
-                            validation_mode,
-                        },
+                    let apple_pay_encrypted_data = applepay_token
+                        .payment_data
+                        .get_encrypted_apple_pay_payment_data_mandatory()
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "Apple pay encrypted data",
+                        })?;
+
+                    Ok(PaymentProfile {
+                        bill_to,
+                        payment: PaymentDetails::OpaqueData(WalletDetails {
+                            data_descriptor: WalletMethod::Applepay,
+                            data_value: Secret::new(apple_pay_encrypted_data.clone()),
+                        }),
                     })
                 }
+
                 WalletData::AliPayQr(_)
                 | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::Paysera(_)
+                | WalletData::BluecodeRedirect {}
                 | WalletData::Skrill(_)
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
@@ -583,7 +542,7 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerProfileRequest {
                 | WalletData::Mifinity(_)
                 | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
-                ))?,
+                )),
             },
             PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::PayLater(_)
@@ -604,19 +563,98 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerProfileRequest {
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
-                ))?
+                ))
             }
-        }
+        }?;
+        Ok(Self {
+            create_customer_payment_profile_request: AuthorizedotnetPaymentProfileRequest {
+                merchant_authentication,
+                customer_profile_id,
+                payment_profile,
+                validation_mode,
+            },
+        })
     }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthorizedotnetSetupMandateResponse {
-    customer_profile_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     customer_payment_profile_id_list: Vec<String>,
+    customer_profile_id: Option<String>,
+    #[serde(rename = "customerPaymentProfileId")]
+    customer_payment_profile_id: Option<String>,
     validation_direct_response_list: Option<Vec<Secret<String>>>,
     pub messages: ResponseMessages,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorizedotnetCustomerResponse {
+    customer_profile_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    customer_payment_profile_id_list: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    customer_shipping_address_id_list: Vec<String>,
+    pub messages: ResponseMessages,
+}
+
+impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetCustomerResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, AuthorizedotnetCustomerResponse, T, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        match item.response.messages.result_code {
+            ResultCode::Ok => match item.response.customer_profile_id.clone() {
+                Some(connector_customer_id) => Ok(Self {
+                    response: Ok(PaymentsResponseData::ConnectorCustomerResponse {
+                        connector_customer_id,
+                    }),
+                    ..item.data
+                }),
+                None => Err(
+                    errors::ConnectorError::UnexpectedResponseError(bytes::Bytes::from(
+                        "Missing customer profile id from Authorizedotnet".to_string(),
+                    ))
+                    .into(),
+                ),
+            },
+            ResultCode::Error => {
+                let error_message = item.response.messages.message.first();
+                let error_code = error_message.map(|error| error.code.clone());
+                let error_code = error_code
+                    .unwrap_or_else(|| hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string());
+                let error_reason = item
+                    .response
+                    .messages
+                    .message
+                    .iter()
+                    .map(|error: &ResponseMessage| error.text.clone())
+                    .collect::<Vec<String>>()
+                    .join(" ");
+                let response = Err(ErrorResponse {
+                    code: error_code,
+                    message: item.response.messages.result_code.to_string(),
+                    reason: Some(error_reason),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                });
+                Ok(Self {
+                    response,
+                    status: enums::AttemptStatus::Failure,
+                    ..item.data
+                })
+            }
+        }
+    }
 }
 
 // zero dollar response
@@ -628,25 +666,26 @@ impl<F, T>
     fn try_from(
         item: ResponseRouterData<F, AuthorizedotnetSetupMandateResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        let connector_customer_id = item.data.get_connector_customer_id()?;
         match item.response.messages.result_code {
             ResultCode::Ok => Ok(Self {
                 status: enums::AttemptStatus::Charged,
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::NoResponseId,
                     redirection_data: Box::new(None),
-                    mandate_reference: Box::new(item.response.customer_profile_id.map(
-                        |customer_profile_id| MandateReference {
-                            connector_mandate_id:
-                                item.response.customer_payment_profile_id_list.first().map(
-                                    |payment_profile_id| {
-                                        format!("{customer_profile_id}-{payment_profile_id}")
-                                    },
-                                ),
-                            payment_method_id: None,
-                            mandate_metadata: None,
-                            connector_mandate_request_reference_id: None,
-                        },
-                    )),
+                    mandate_reference: Box::new(Some(MandateReference {
+                        connector_mandate_id: item
+                            .response
+                            .customer_payment_profile_id_list
+                            .first()
+                            .or(item.response.customer_payment_profile_id.as_ref())
+                            .map(|payment_profile_id| {
+                                format!("{connector_customer_id}-{payment_profile_id}")
+                            }),
+                        payment_method_id: None,
+                        mandate_metadata: None,
+                        connector_mandate_request_reference_id: None,
+                    })),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
@@ -656,10 +695,10 @@ impl<F, T>
                 ..item.data
             }),
             ResultCode::Error => {
-                let error_code = match item.response.messages.message.first() {
-                    Some(first_error_message) => first_error_message.code.clone(),
-                    None => hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string(),
-                };
+                let error_message = item.response.messages.message.first();
+                let error_code = error_message.map(|error| error.code.clone());
+                let error_code = error_code
+                    .unwrap_or_else(|| hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string());
                 let error_reason = item
                     .response
                     .messages
@@ -1930,7 +1969,7 @@ impl<F, Req> TryFrom<ResponseRouterData<F, AuthorizedotnetSyncResponse, Req, Pay
     }
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct ErrorDetails {
     pub code: Option<String>,
     #[serde(rename = "type")]
@@ -1939,7 +1978,7 @@ pub struct ErrorDetails {
     pub param: Option<String>,
 }
 
-#[derive(Default, Debug, Deserialize)]
+#[derive(Default, Debug, Deserialize, Serialize)]
 pub struct AuthorizedotnetErrorResponse {
     pub error: ErrorDetails,
 }
@@ -2113,10 +2152,18 @@ fn get_wallet_data(
             data_descriptor: WalletMethod::Googlepay,
             data_value: Secret::new(wallet_data.get_encoded_wallet_token()?),
         })),
-        WalletData::ApplePay(applepay_token) => Ok(PaymentDetails::OpaqueData(WalletDetails {
-            data_descriptor: WalletMethod::Applepay,
-            data_value: Secret::new(applepay_token.payment_data.clone()),
-        })),
+        WalletData::ApplePay(applepay_token) => {
+            let apple_pay_encrypted_data = applepay_token
+                .payment_data
+                .get_encrypted_apple_pay_payment_data_mandatory()
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "Apple pay encrypted data",
+                })?;
+            Ok(PaymentDetails::OpaqueData(WalletDetails {
+                data_descriptor: WalletMethod::Applepay,
+                data_value: Secret::new(apple_pay_encrypted_data.clone()),
+            }))
+        }
         WalletData::PaypalRedirect(_) => Ok(PaymentDetails::PayPal(PayPalDetails {
             success_url: return_url.to_owned(),
             cancel_url: return_url.to_owned(),
@@ -2127,6 +2174,7 @@ fn get_wallet_data(
         | WalletData::AmazonPayRedirect(_)
         | WalletData::Paysera(_)
         | WalletData::Skrill(_)
+        | WalletData::BluecodeRedirect {}
         | WalletData::MomoRedirect(_)
         | WalletData::KakaoPayRedirect(_)
         | WalletData::GoPayRedirect(_)

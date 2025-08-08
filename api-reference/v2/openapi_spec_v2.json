@@ -4070,6 +4070,13 @@
             "example": "Doe",
             "nullable": true,
             "maxLength": 255
+          },
+          "origin_zip": {
+            "type": "string",
+            "description": "The zip/postal code of the origin",
+            "example": "08807",
+            "nullable": true,
+            "maxLength": 50
           }
         },
         "additionalProperties": false
@@ -4467,6 +4474,38 @@
           "$ref": "#/components/schemas/ApplePayAddressParameters"
         }
       },
+      "ApplePayCryptogramData": {
+        "type": "object",
+        "description": "This struct represents the cryptogram data for Apple Pay transactions",
+        "required": [
+          "online_payment_cryptogram",
+          "eci_indicator"
+        ],
+        "properties": {
+          "online_payment_cryptogram": {
+            "type": "string",
+            "description": "The online payment cryptogram",
+            "example": "A1B2C3D4E5F6G7H8"
+          },
+          "eci_indicator": {
+            "type": "string",
+            "description": "The ECI (Electronic Commerce Indicator) value",
+            "example": "05"
+          }
+        }
+      },
+      "ApplePayPaymentData": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ApplePayPredecryptData"
+          },
+          {
+            "type": "string",
+            "description": "This variant contains the encrypted Apple Pay payment data as a string."
+          }
+        ],
+        "description": "This enum is used to represent the Apple Pay payment data, which can either be encrypted or decrypted."
+      },
       "ApplePayPaymentRequest": {
         "type": "object",
         "required": [
@@ -4536,6 +4575,36 @@
           "immediate",
           "recurring"
         ]
+      },
+      "ApplePayPredecryptData": {
+        "type": "object",
+        "description": "This struct represents the decrypted Apple Pay payment data",
+        "required": [
+          "application_primary_account_number",
+          "application_expiration_month",
+          "application_expiration_year",
+          "payment_data"
+        ],
+        "properties": {
+          "application_primary_account_number": {
+            "type": "string",
+            "description": "The primary account number",
+            "example": "4242424242424242"
+          },
+          "application_expiration_month": {
+            "type": "string",
+            "description": "The application expiration date (PAN expiry month)",
+            "example": "12"
+          },
+          "application_expiration_year": {
+            "type": "string",
+            "description": "The application expiration date (PAN expiry year)",
+            "example": "24"
+          },
+          "payment_data": {
+            "$ref": "#/components/schemas/ApplePayCryptogramData"
+          }
+        }
       },
       "ApplePayRecurringDetails": {
         "type": "object",
@@ -4713,8 +4782,7 @@
         ],
         "properties": {
           "payment_data": {
-            "type": "string",
-            "description": "The payment data of Apple pay"
+            "$ref": "#/components/schemas/ApplePayPaymentData"
           },
           "payment_method": {
             "$ref": "#/components/schemas/ApplepayPaymentMethod"
@@ -4834,12 +4902,14 @@
           "authorizing",
           "cod_initiated",
           "voided",
+          "voided_post_charge",
           "void_initiated",
           "capture_initiated",
           "capture_failed",
           "void_failed",
           "auto_refunded",
           "partial_charged",
+          "partially_authorized",
           "partial_charged_and_chargeable",
           "unresolved",
           "pending",
@@ -8237,6 +8307,7 @@
           "billwerk",
           "bitpay",
           "bluesnap",
+          "bluecode",
           "boku",
           "braintree",
           "breadpay",
@@ -8297,7 +8368,9 @@
           "payone",
           "paypal",
           "paystack",
+          "paytm",
           "payu",
+          "phonepe",
           "placetopay",
           "powertranz",
           "prophetpay",
@@ -8307,6 +8380,7 @@
           "redsys",
           "santander",
           "shift4",
+          "silverflow",
           "square",
           "stax",
           "stripe",
@@ -9600,6 +9674,12 @@
             "example": "+1",
             "nullable": true,
             "maxLength": 2
+          },
+          "tax_registration_id": {
+            "type": "string",
+            "description": "The tax registration identifier of the customer.",
+            "nullable": true,
+            "maxLength": 255
           }
         }
       },
@@ -9812,6 +9892,13 @@
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500\ncharacters long. Metadata is useful for storing additional, structured information on an\nobject.",
             "nullable": true
+          },
+          "tax_registration_id": {
+            "type": "string",
+            "description": "The customer's tax registration number.",
+            "example": "123456789",
+            "nullable": true,
+            "maxLength": 255
           }
         },
         "additionalProperties": false
@@ -9911,6 +9998,13 @@
             "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8",
             "nullable": true,
             "maxLength": 64
+          },
+          "tax_registration_id": {
+            "type": "string",
+            "description": "The customer's tax registration number.",
+            "example": "123456789",
+            "nullable": true,
+            "maxLength": 255
           }
         }
       },
@@ -9980,6 +10074,13 @@
             "description": "The unique identifier of the payment method",
             "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8",
             "nullable": true
+          },
+          "tax_registration_id": {
+            "type": "string",
+            "description": "The customer's tax registration number.",
+            "example": "123456789",
+            "nullable": true,
+            "maxLength": 255
           }
         },
         "additionalProperties": false
@@ -10305,7 +10406,9 @@
         "enum": [
           "pre_dispute",
           "dispute",
-          "pre_arbitration"
+          "pre_arbitration",
+          "arbitration",
+          "dispute_reversal"
         ]
       },
       "DisputeStatus": {
@@ -10683,7 +10786,9 @@
           "payment_failed",
           "payment_processing",
           "payment_cancelled",
+          "payment_cancelled_post_capture",
           "payment_authorized",
+          "payment_partially_authorized",
           "payment_captured",
           "payment_expired",
           "action_required",
@@ -12161,7 +12266,8 @@
           },
           "step_up_possible": {
             "type": "boolean",
-            "description": "indicates if step_up retry is possible"
+            "description": "indicates if step_up retry is possible\n**Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.",
+            "deprecated": true
           },
           "unified_code": {
             "type": "string",
@@ -12183,7 +12289,24 @@
           },
           "clear_pan_possible": {
             "type": "boolean",
-            "description": "indicates if retry with pan is possible"
+            "description": "indicates if retry with pan is possible\n**Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.",
+            "deprecated": true
+          },
+          "feature": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GsmFeature"
+              }
+            ],
+            "nullable": true
+          },
+          "feature_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GsmFeatureData"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -12191,7 +12314,6 @@
         "type": "string",
         "enum": [
           "retry",
-          "requeue",
           "do_default"
         ]
       },
@@ -12258,6 +12380,28 @@
           }
         }
       },
+      "GsmFeature": {
+        "type": "string",
+        "enum": [
+          "retry"
+        ]
+      },
+      "GsmFeatureData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "retry"
+            ],
+            "properties": {
+              "retry": {
+                "$ref": "#/components/schemas/RetryFeatureData"
+              }
+            }
+          }
+        ],
+        "description": "Contains the data relevant to the specified GSM feature, if applicable.\nFor example, if the `feature` is `Retry`, this will include configuration\ndetails specific to the retry behavior."
+      },
       "GsmResponse": {
         "type": "object",
         "required": [
@@ -12269,7 +12413,9 @@
           "status",
           "decision",
           "step_up_possible",
-          "clear_pan_possible"
+          "clear_pan_possible",
+          "feature",
+          "feature_data"
         ],
         "properties": {
           "connector": {
@@ -12302,12 +12448,12 @@
             "nullable": true
           },
           "decision": {
-            "type": "string",
-            "description": "decision to be taken for auto retries flow"
+            "$ref": "#/components/schemas/GsmDecision"
           },
           "step_up_possible": {
             "type": "boolean",
-            "description": "indicates if step_up retry is possible"
+            "description": "indicates if step_up retry is possible\n**Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.",
+            "deprecated": true
           },
           "unified_code": {
             "type": "string",
@@ -12329,7 +12475,14 @@
           },
           "clear_pan_possible": {
             "type": "boolean",
-            "description": "indicates if retry with pan is possible"
+            "description": "indicates if retry with pan is possible\n**Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.",
+            "deprecated": true
+          },
+          "feature": {
+            "$ref": "#/components/schemas/GsmFeature"
+          },
+          "feature_data": {
+            "$ref": "#/components/schemas/GsmFeatureData"
           }
         }
       },
@@ -12414,7 +12567,8 @@
           },
           "step_up_possible": {
             "type": "boolean",
-            "description": "indicates if step_up retry is possible",
+            "description": "indicates if step_up retry is possible\n**Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.",
+            "deprecated": true,
             "nullable": true
           },
           "unified_code": {
@@ -12437,7 +12591,24 @@
           },
           "clear_pan_possible": {
             "type": "boolean",
-            "description": "indicates if retry with pan is possible",
+            "description": "indicates if retry with pan is possible\n**Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.",
+            "deprecated": true,
+            "nullable": true
+          },
+          "feature": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GsmFeature"
+              }
+            ],
+            "nullable": true
+          },
+          "feature_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GsmFeatureData"
+              }
+            ],
             "nullable": true
           }
         }
@@ -12604,6 +12775,7 @@
           "succeeded",
           "failed",
           "cancelled",
+          "cancelled_post_capture",
           "processing",
           "requires_customer_action",
           "requires_merchant_action",
@@ -12612,6 +12784,7 @@
           "requires_capture",
           "partially_captured",
           "partially_captured_and_capturable",
+          "partially_authorized_and_requires_capture",
           "conflicted",
           "expired"
         ]
@@ -12734,6 +12907,78 @@
             "minimum": 0
           }
         }
+      },
+      "ListMethodsForPaymentMethodsRequest": {
+        "type": "object",
+        "properties": {
+          "client_secret": {
+            "type": "string",
+            "description": "This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK",
+            "example": "secret_k2uj3he2893eiu2d",
+            "nullable": true,
+            "maxLength": 30,
+            "minLength": 30
+          },
+          "accepted_countries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CountryAlpha2"
+            },
+            "description": "The two-letter ISO currency code",
+            "example": [
+              "US",
+              "UK",
+              "IN"
+            ],
+            "nullable": true
+          },
+          "amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "accepted_currencies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Currency"
+            },
+            "description": "The three-letter ISO currency code",
+            "example": [
+              "USD",
+              "EUR"
+            ],
+            "nullable": true
+          },
+          "recurring_enabled": {
+            "type": "boolean",
+            "description": "Indicates whether the payment method supports recurring payments. Optional.",
+            "example": true,
+            "nullable": true
+          },
+          "card_networks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CardNetwork"
+            },
+            "description": "Indicates whether the payment method is eligible for card netwotks",
+            "example": [
+              "visa",
+              "mastercard"
+            ],
+            "nullable": true
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Indicates the limit of last used payment methods",
+            "example": 1,
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
       },
       "LocalBankTransferAdditionalData": {
         "type": "object",
@@ -15049,6 +15294,43 @@
             "type": "string",
             "description": "The tax code for the product",
             "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "Description for the item",
+            "nullable": true
+          },
+          "sku": {
+            "type": "string",
+            "description": "Stock Keeping Unit (SKU) or the item identifier for this item.",
+            "nullable": true
+          },
+          "upc": {
+            "type": "string",
+            "description": "Universal Product Code for the item.",
+            "nullable": true
+          },
+          "commodity_code": {
+            "type": "string",
+            "description": "Code describing a commodity or a group of commodities pertaining to goods classification.",
+            "nullable": true
+          },
+          "unit_of_measure": {
+            "type": "string",
+            "description": "Unit of measure used for the item quantity.",
+            "nullable": true
+          },
+          "total_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total amount for the item.",
+            "nullable": true
+          },
+          "unit_discount_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Discount amount applied to this item.",
+            "nullable": true
           }
         }
       },
@@ -17300,78 +17582,6 @@
           }
         ]
       },
-      "PaymentMethodListRequest": {
-        "type": "object",
-        "properties": {
-          "client_secret": {
-            "type": "string",
-            "description": "This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK",
-            "example": "secret_k2uj3he2893eiu2d",
-            "nullable": true,
-            "maxLength": 30,
-            "minLength": 30
-          },
-          "accepted_countries": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/CountryAlpha2"
-            },
-            "description": "The two-letter ISO currency code",
-            "example": [
-              "US",
-              "UK",
-              "IN"
-            ],
-            "nullable": true
-          },
-          "amount": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MinorUnit"
-              }
-            ],
-            "nullable": true
-          },
-          "accepted_currencies": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Currency"
-            },
-            "description": "The three-letter ISO currency code",
-            "example": [
-              "USD",
-              "EUR"
-            ],
-            "nullable": true
-          },
-          "recurring_enabled": {
-            "type": "boolean",
-            "description": "Indicates whether the payment method supports recurring payments. Optional.",
-            "example": true,
-            "nullable": true
-          },
-          "card_networks": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/CardNetwork"
-            },
-            "description": "Indicates whether the payment method is eligible for card netwotks",
-            "example": [
-              "visa",
-              "mastercard"
-            ],
-            "nullable": true
-          },
-          "limit": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Indicates the limit of last used payment methods",
-            "example": 1,
-            "nullable": true
-          }
-        },
-        "additionalProperties": false
-      },
       "PaymentMethodListResponseForPayments": {
         "type": "object",
         "required": [
@@ -17887,6 +18097,7 @@
           "benefit",
           "bizum",
           "blik",
+          "bluecode",
           "boleto",
           "bca_bank_transfer",
           "bni_va",
@@ -22635,7 +22846,8 @@
             "type": "object",
             "required": [
               "payment_method_type",
-              "payment_method_subtype"
+              "payment_method_subtype",
+              "required_fields"
             ],
             "properties": {
               "payment_method_type": {
@@ -22653,12 +22865,7 @@
                 "nullable": true
               },
               "required_fields": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/RequiredFieldInfo"
-                  }
-                ],
-                "nullable": true
+                "$ref": "#/components/schemas/RequiredFieldInfo"
               },
               "surcharge_details": {
                 "allOf": [
@@ -22825,6 +23032,33 @@
           "requeue"
         ]
       },
+      "RetryFeatureData": {
+        "type": "object",
+        "description": "Represents the data associated with a retry feature in GSM.",
+        "required": [
+          "step_up_possible",
+          "clear_pan_possible",
+          "alternate_network_possible",
+          "decision"
+        ],
+        "properties": {
+          "step_up_possible": {
+            "type": "boolean",
+            "description": "indicates if step_up retry is possible"
+          },
+          "clear_pan_possible": {
+            "type": "boolean",
+            "description": "indicates if retry with pan is possible"
+          },
+          "alternate_network_possible": {
+            "type": "boolean",
+            "description": "indicates if retry with alternate network possible"
+          },
+          "decision": {
+            "$ref": "#/components/schemas/GsmDecision"
+          }
+        }
+      },
       "RevenueRecoveryMetadata": {
         "type": "object",
         "description": "Revenue recovery metadata for merchant connector account",
@@ -22982,6 +23216,7 @@
           "bambora",
           "bamboraapac",
           "bluesnap",
+          "bluecode",
           "boku",
           "braintree",
           "breadpay",
@@ -23036,7 +23271,9 @@
           "payone",
           "paypal",
           "paystack",
+          "paytm",
           "payu",
+          "phonepe",
           "placetopay",
           "powertranz",
           "prophetpay",
@@ -23048,6 +23285,7 @@
           "santander",
           "shift4",
           "signifyd",
+          "silverflow",
           "square",
           "stax",
           "stripe",
@@ -24605,6 +24843,13 @@
           "calculate"
         ]
       },
+      "TaxStatus": {
+        "type": "string",
+        "enum": [
+          "taxable",
+          "exempt"
+        ]
+      },
       "ThirdPartySdkSessionResponse": {
         "type": "object",
         "required": [
@@ -25626,6 +25871,18 @@
             "properties": {
               "amazon_pay_redirect": {
                 "$ref": "#/components/schemas/AmazonPayRedirectData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bluecode_redirect"
+            ],
+            "properties": {
+              "bluecode_redirect": {
+                "type": "object",
+                "description": "The wallet data for Bluecode QR Code Redirect"
               }
             }
           },
