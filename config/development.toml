@@ -1275,19 +1275,19 @@ initial_timestamp_in_hours = 1
 
 [revenue_recovery.card_config.amex]
 max_daily_retry_count = 3
-retry_count_30_day = 20
+max_retry_count_for_thirty_day = 20
 
 [revenue_recovery.card_config.mastercard]
 max_daily_retry_count = 4
-retry_count_30_day = 25
+max_retry_count_for_thirty_day = 25
 
 [revenue_recovery.card_config.visa]
 max_daily_retry_count = 5
-retry_count_30_day = 30
+max_retry_count_for_thirty_day = 30
 
 [revenue_recovery.card_config.discover]
 max_daily_retry_count = 2
-retry_count_30_day = 15
+max_retry_count_for_thirty_day = 15
 
 [clone_connector_allowlist]
 merchant_ids = "merchant_123, merchant_234"     # Comma-separated list of allowed merchant IDs

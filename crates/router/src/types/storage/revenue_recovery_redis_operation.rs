@@ -292,7 +292,7 @@ impl RedisTokenManager {
                 state,
             );
             let monthly_retry_remaining = card_network_config
-                .retry_count_30_day
+                .max_retry_count_for_thirty_day
                 .saturating_sub(retry_info.total_30_day_retries);
 
             // Create the result struct with token info
@@ -330,7 +330,7 @@ impl RedisTokenManager {
         }
 
         // 1. Check 30-day limit FIRST (monthly check)
-        let monthly_wait_hours = if total_30_day_retries >= card_network_config.retry_count_30_day {
+        let monthly_wait_hours = if total_30_day_retries >= card_network_config.max_retry_count_for_thirty_day {
             // Find the oldest retry date in the 30-day window and calculate when it expires
             let mut oldest_date_with_retries = None;
             for i in 0..RETRY_WINDOW_DAYS {

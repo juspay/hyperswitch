@@ -18,7 +18,7 @@ pub struct RevenueRecoveryWorkflowTrackingData {
     pub merchant_id: id_type::MerchantId,
     pub profile_id: id_type::ProfileId,
     pub global_payment_id: id_type::GlobalPaymentId,
-    pub payment_attempt_id: Option<id_type::GlobalAttemptId>,
+    pub payment_attempt_id: id_type::GlobalAttemptId,
     pub billing_mca_id: id_type::MerchantConnectorAccountId,
     pub revenue_recovery_retry: enums::RevenueRecoveryAlgorithmType,
     pub active_token:
@@ -102,7 +102,7 @@ pub struct RetryLimitsConfig {
 #[derive(Debug, serde::Deserialize, Clone, Default)]
 pub struct NetworkRetryConfig {
     pub max_daily_retry_count: i32,
-    pub retry_count_30_day: i32,
+    pub max_retry_count_for_thirty_day: i32,
 }
 impl RetryLimitsConfig {
     pub fn get_network_config(

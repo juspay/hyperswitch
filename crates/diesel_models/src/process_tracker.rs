@@ -255,8 +255,8 @@ pub mod business_status {
     /// This status indicates the completion of a execute task
     pub const EXECUTE_WORKFLOW_COMPLETE: &str = "COMPLETED_EXECUTE_TASK";
 
-    /// This status indicates the completion of a execute task
-    pub const EXECUTE_WORKFLOW_FINISH: &str = "FAILED_EXECUTE_TASK";
+    /// This status indicates the failure of a execute task
+    pub const EXECUTE_WORKFLOW_FAILURE: &str = "FAILED_EXECUTE_TASK";
 
     /// This status indicates that the execute task was completed to trigger the psync task
     pub const EXECUTE_WORKFLOW_COMPLETE_FOR_PSYNC: &str = "COMPLETED_EXECUTE_TASK_TO_TRIGGER_PSYNC";
@@ -282,15 +282,15 @@ pub mod business_status {
 
     /// For the CALCULATE_WORKFLOW
     ///
-    /// This status indicates tokens are queued
+    /// This status indicates an invoice is queued
     pub const CALCULATE_WORKFLOW_QUEUED: &str = "CALCULATE_WORKFLOW_QUEUED";
 
-    /// This status indicates that the invoice is scheduled with a token
+    /// This status indicates that the invoice is scheduled with the best available token
     pub const CALCULATE_WORKFLOW_SCHEDULED: &str = "CALCULATE_WORKFLOW_SCHEDULED";
 
-    /// This status indicates the invoice is in psyn
+    /// This status indicates the invoice is in payment sync state
     pub const CALCULATE_WORKFLOW_PROCESSING: &str = "CALCULATE_WORKFLOW_PROCESSING";
 
-    /// This status indicates the workflow has completed successfully
+    /// This status indicates the workflow has completed successfully when the invoice is paid
     pub const CALCULATE_WORKFLOW_COMPLETE: &str = "CALCULATE_WORKFLOW_COMPLETE";
 }

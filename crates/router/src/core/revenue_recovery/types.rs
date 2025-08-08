@@ -358,18 +358,9 @@ impl Action {
         )
         .await;
 
-        let customer_id = payment_intent
-            .feature_metadata
-            .as_ref()
-            .and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref())
-            .map(|recovery| {
-                recovery
-                    .billing_connector_payment_details
-                    .connector_customer_id
-                    .clone()
-            })
-            .ok_or(errors::RecoveryError::ValueNotFound)
-            .attach_printable("Customer ID not found in payment intent feature metadata")?;
+        let connector_customer_id = payment_intent.extract_connector_customer_id_from_payment_intent()
+            .change_context(errors::RecoveryError::ValueNotFound)
+            .attach_printable("Failed to extract customer ID from payment intent")?;
 
         let token_id = active_token.clone().payment_processor_token;
 
@@ -415,12 +406,20 @@ impl Action {
                         );
                     };
 
+
                     storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_retry_count(
                         state,
-                        &customer_id,
+                        &connector_customer_id,
                         &token_id,
                         "-1".to_string()
                     );
+
+                    // unlocking the token
+                    storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
+                        state,
+                        &connector_customer_id, 
+                    )
+                    .await;
 
                     Ok(Self::SuccessfulPayment(
                         payment_data.payment_attempt.clone(),
@@ -449,6 +448,13 @@ impl Action {
                             e
                         );
                     };
+
+                    // unlocking the token
+                    storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
+                        state,
+                        &connector_customer_id, 
+                    )
+                    .await;
 
                     // Reopen calculate workflow on payment failure
                     reopen_calculate_workflow_on_payment_failure(
@@ -566,7 +572,7 @@ impl Action {
                 db.as_scheduler()
                     .finish_process_with_business_status(
                         execute_task_process.clone(),
-                        business_status::EXECUTE_WORKFLOW_FINISH,
+                        business_status::EXECUTE_WORKFLOW_FAILURE,
                     )
                     .await
                     .change_context(errors::RecoveryError::ProcessTrackerFailure)
@@ -655,20 +661,9 @@ impl Action {
                             "Failed to fetch payment intent for calculate workflow reopening",
                         )?;
 
-                    let customer_id = payment_intent
-                        .feature_metadata
-                        .as_ref()
-                        .and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref())
-                        .map(|recovery| {
-                            recovery
-                                .billing_connector_payment_details
-                                .connector_customer_id
-                                .clone()
-                        })
-                        .ok_or(errors::RecoveryError::ValueNotFound)
-                        .attach_printable(
-                            "Customer ID not found in payment intent feature metadata",
-                        )?;
+                    let connector_customer_id = payment_intent.extract_connector_customer_id_from_payment_intent()
+                        .change_context(errors::RecoveryError::ValueNotFound)
+                        .attach_printable("Failed to extract customer ID from payment intent")?;
 
                     let payment_processor_token = process
                         .tracking_data
@@ -682,10 +677,17 @@ impl Action {
 
                     storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_retry_count(
                         state,
-                        &customer_id,
+                        &connector_customer_id,
                         &payment_processor_token,
                         "-1".to_string()
                     );
+
+                    // unlocking the token
+                    storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
+                        state,
+                        &connector_customer_id, 
+                    )
+                    .await;
 
                     update_calculate_workflow_on_success(state, &payment_intent).await?;
 
@@ -707,6 +709,17 @@ impl Action {
                         .attach_printable(
                             "Failed to fetch payment intent for calculate workflow reopening",
                         )?;
+
+                    let connector_customer_id = payment_intent.extract_connector_customer_id_from_payment_intent()
+                        .change_context(errors::RecoveryError::ValueNotFound)
+                        .attach_printable("Failed to extract customer ID from payment intent")?;
+
+                    // unlocking the token
+                    storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
+                        state,
+                        &connector_customer_id, 
+                    )
+                    .await;
 
                     // Reopen calculate workflow on payment failure
                     reopen_calculate_workflow_on_payment_failure(
@@ -989,7 +1002,6 @@ pub async fn reopen_calculate_workflow_on_payment_failure(
     let runner = storage::ProcessTrackerRunner::PassiveRecoveryWorkflow;
 
     // Construct the process tracker ID for CALCULATE_WORKFLOW
-    // Using the same pattern as execute workflow but with CALCULATE_WORKFLOW task
     let process_tracker_id = format!("{}_{}_{}", runner, task, id.get_string_repr());
 
     logger::info!(
@@ -1024,7 +1036,7 @@ pub async fn reopen_calculate_workflow_on_payment_failure(
             let new_schedule_time = common_utils::date_time::now() + time::Duration::hours(1);
 
             let pt_update = storage::ProcessTrackerUpdate::Update {
-                name: None,
+                name: Some(task.to_string()),
                 retry_count: Some(new_retry_count),
                 schedule_time: Some(new_schedule_time),
                 tracking_data: Some(process.clone().tracking_data),
@@ -1062,7 +1074,7 @@ pub async fn reopen_calculate_workflow_on_payment_failure(
             // Call the existing perform_calculate_workflow function
             perform_calculate_workflow(
                 state,
-                &process,
+                process,
                 &tracking_data,
                 revenue_recovery_payment_data,
                 payment_intent,
@@ -1094,7 +1106,8 @@ fn create_calculate_workflow_tracking_data(
             .clone(),
         profile_id: revenue_recovery_payment_data.profile.get_id().clone(),
         global_payment_id: payment_intent.id.clone(),
-        payment_attempt_id: payment_intent.active_attempt_id.clone(),
+        payment_attempt_id: payment_intent.active_attempt_id.clone()
+            .ok_or(storage_impl::errors::RecoveryError::ValueNotFound)?,
         billing_mca_id: revenue_recovery_payment_data.billing_mca.get_id().clone(),
         revenue_recovery_retry: revenue_recovery_payment_data.retry_algorithm,
         active_token: None,           // will be set by perform_calculate_workflow
