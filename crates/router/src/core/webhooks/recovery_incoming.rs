@@ -704,18 +704,15 @@ impl RevenueRecoveryAttempt {
 
         let response = (recovery_attempt, updated_recovery_intent);
 
-        let redis_result = self
-            .store_payment_processor_tokens_in_redis(state, &response.0)
-            .await;
-        match redis_result {
-            Ok(_) => (),
-            Err(e) => {
+        self.store_payment_processor_tokens_in_redis(state, &response.0)
+            .await
+            .map_err(|e| {
                 router_env::logger::error!(
                     "Failed to store payment processor tokens in Redis: {:?}",
                     e
                 );
-            }
-        }
+                errors::RevenueRecoveryError::RevenueRecoveryRedisInsertFailed
+            })?;
 
         Ok(response)
     }
@@ -741,6 +738,7 @@ impl RevenueRecoveryAttempt {
         };
 
         let card_info = revenue_recovery_attempt_data
+            .card_info
             .card_isin
             .clone()
             .async_and_then(|isin| async move {
@@ -787,7 +785,7 @@ impl RevenueRecoveryAttempt {
             invoice_billing_started_at_time: revenue_recovery_attempt_data
                 .invoice_billing_started_at_time,
             triggered_by,
-            card_network: revenue_recovery_attempt_data.card_network.clone(),
+            card_network: revenue_recovery_attempt_data.card_info.card_network.clone(),
             card_issuer,
         })
     }
@@ -994,13 +992,11 @@ impl RevenueRecoveryAttempt {
                 expiry_month: revenue_recovery_attempt_data
                     .card_info
                     .card_exp_month
-                    .clone()
-                    .map(|s| s.peek().clone()),
+                    .clone(),
                 expiry_year: revenue_recovery_attempt_data
                     .card_info
                     .card_exp_year
-                    .clone()
-                    .map(|s| s.peek().clone()),
+                    .clone(),
                 card_issuer: revenue_recovery_attempt_data.card_info.card_issuer.clone(),
                 last_four_digits: revenue_recovery_attempt_data.card_info.last4.clone(),
                 card_network: revenue_recovery_attempt_data.card_info.card_network.clone(),

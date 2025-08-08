@@ -787,4 +787,3 @@ max_retry_count_for_thirty_day = 30
 [revenue_recovery.card_config.discover]
 max_daily_retry_count = 2
 max_retry_count_for_thirty_day = 15
-

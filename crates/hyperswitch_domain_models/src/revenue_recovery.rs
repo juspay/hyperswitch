@@ -54,10 +54,6 @@ pub struct RevenueRecoveryAttemptData {
     pub invoice_next_billing_time: Option<PrimitiveDateTime>,
     /// Time at which the invoice created
     pub invoice_billing_started_at_time: Option<PrimitiveDateTime>,
-    /// card network type
-    pub card_network: Option<common_enums::CardNetwork>,
-    /// card isin
-    pub card_isin: Option<String>,
     /// stripe specific id used to validate duplicate attempts in revenue recovery flow
     pub charge_id: Option<String>,
     /// Additional card details
@@ -303,8 +299,8 @@ impl
             network_error_message: None,
             retry_count: invoice_details.retry_count,
             invoice_next_billing_time: invoice_details.next_billing_at,
-            card_network: billing_connector_payment_details.card_network.clone(),
-            card_isin: billing_connector_payment_details.card_isin.clone(),
+            // card_network: billing_connector_payment_details.card_network.clone(),
+            // card_isin: billing_connector_payment_details.card_isin.clone(),
             charge_id: billing_connector_payment_details.charge_id.clone(),
             invoice_billing_started_at_time: invoice_details.billing_started_at,
             card_info: billing_connector_payment_details.card_info.clone(),

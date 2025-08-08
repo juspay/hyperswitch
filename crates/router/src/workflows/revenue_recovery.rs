@@ -528,8 +528,17 @@ pub async fn get_best_psp_token_available(
     let db = &*state.store;
     let key_manager_state = &(state).into();
     let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
+    //  Lock using payment_id
+    let lock_acquired =
+        RedisTokenManager::lock_connector_customer_status(state, connector_customer_id, payment_id)
+            .await?;
 
-    // Step 1: Get existing tokens from Redis
+    if !lock_acquired {
+        logger::info!("Customer is already locked by another process");
+        return Ok(None);
+    }
+
+    //  Get existing tokens from Redis
     let existing_tokens = RedisTokenManager::get_connector_customer_payment_processor_tokens(
         state,
         connector_customer_id,
@@ -545,20 +554,8 @@ pub async fn get_best_psp_token_available(
         )
         .await?;
 
-    // Step 2: Insert into payment_intent_feature_metadata (DB operation)
+    //  Insert into payment_intent_feature_metadata (DB operation)
     // TODO: Implement DB insertion logic
-    // let _db_result = insert_payment_intent_feature_metadata(...).await?;
-    logger::debug!("Step 2: DB insertion for payment_intent_feature_metadata - TODO");
-
-    // Step 3: Lock using payment_id
-    let lock_acquired =
-        RedisTokenManager::lock_connector_customer_status(state, connector_customer_id, payment_id)
-            .await?;
-
-    if !lock_acquired {
-        logger::info!("Customer is already locked by another process");
-        return Ok(None);
-    }
 
     let result = RedisTokenManager::get_tokens_with_retry_metadata(state, &existing_tokens);
 
@@ -573,17 +570,13 @@ pub async fn get_best_psp_token_available(
         let monthly_retry_remaining = token_with_retry_info.monthly_retry_remaining;
         let wait_hours = token_with_retry_info.retry_wait_time_hours;
         let current_time = time::OffsetDateTime::now_utc();
-        let error_code = token_with_retry_info
-            .token_status
-            .error_code
-            .clone()
-            .unwrap_or_default();
+        let error_code = token_with_retry_info.token_status.error_code.clone();
 
-        // If error code is empty, don't call the decider just return that token with a schedule time of after 5 mins
-        if error_code.trim().is_empty() {
-            let future_time = (time::OffsetDateTime::now_utc() + time::Duration::minutes(5));
+        // If error code is None, don't call the decider just return that token with a schedule time of after 5 mins
+        if error_code.is_none() {
+            let utc_schedule_time = time::OffsetDateTime::now_utc() + time::Duration::minutes(5);
             let schedule_time =
-                time::PrimitiveDateTime::new(future_time.date(), future_time.time());
+                time::PrimitiveDateTime::new(utc_schedule_time.date(), utc_schedule_time.time());
 
             return Ok(Some((
                 payment_processor_token_details.clone(),
@@ -598,17 +591,12 @@ pub async fn get_best_psp_token_available(
             nanos: 0,
         });
 
-        // Parse attempt_id
-        let attempt_id = id_type::GlobalAttemptId::try_from(std::borrow::Cow::Owned(
-            inserted_by_attempt_id.to_owned(),
-        ))?;
-
         // Fetch PaymentAttempt
         let payment_attempt = db
             .find_payment_attempt_by_id(
                 key_manager_state,
                 merchant_context.get_merchant_key_store(),
-                &attempt_id,
+                inserted_by_attempt_id,
                 storage_scheme,
             )
             .await?;

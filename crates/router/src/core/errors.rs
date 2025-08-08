@@ -498,4 +498,6 @@ pub enum RevenueRecoveryError {
     RetryAlgorithmUpdationFailed,
     #[error("Failed to create the revenue recovery attempt data")]
     RevenueRecoveryAttemptDataCreateFailed,
+    #[error("Failed to insert the revenue recovery payment method data in redis")]
+    RevenueRecoveryRedisInsertFailed,
 }
