@@ -1030,6 +1030,8 @@ payment_method_type = "CartesBancaires"
 payment_method_type = "UnionPay"
 [[barclaycard.wallet]]
   payment_method_type = "google_pay"
+[[barclaycard.wallet]]
+  payment_method_type = "apple_pay"
 [barclaycard.connector_auth.SignatureKey]
 api_key = "Key"
 key1 = "Merchant ID"
