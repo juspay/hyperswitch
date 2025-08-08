@@ -267,9 +267,8 @@ impl<'a> TryFrom<&DwollaRouterData<'a, &PaymentsAuthorizeRouterData>> for Dwolla
                 return Err(report!(errors::ConnectorError::MissingRequiredField {
                     field_name: "payment_method_token",
                 }))
-            },
+            }
         };
-
 
         let metadata = utils::to_connector_meta_from_secret::<DwollaMetaData>(
             item.router_data.connector_meta_data.clone(),

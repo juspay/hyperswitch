@@ -1227,7 +1227,10 @@ pub fn handle_tokenization_response<F, Req>(
     if let Err(err) = response {
         if let Some(secret_metadata) = &err.connector_metadata {
             let metadata = secret_metadata.clone().expose();
-            if let Some(token) = metadata.get("payment_method_token").and_then(|t| t.as_str()) {
+            if let Some(token) = metadata
+                .get("payment_method_token")
+                .and_then(|t| t.as_str())
+            {
                 resp.response = Ok(types::PaymentsResponseData::TokenizationResponse {
                     token: token.to_string(),
                 });
