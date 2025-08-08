@@ -7613,6 +7613,7 @@ default_imp_for_connector_authentication_token!(
     connectors::Redsys,
     connectors::Riskified,
     connectors::Santander,
+    connectors::Sift,
     connectors::Signifyd,
     connectors::Shift4,
     connectors::Silverflow,

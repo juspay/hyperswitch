@@ -629,6 +629,7 @@ default_imp_for_new_connector_integration_connector_authentication_token!(
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
+    connectors::Sift,
     connectors::Silverflow,
     connectors::Signifyd,
     connectors::Stax,
