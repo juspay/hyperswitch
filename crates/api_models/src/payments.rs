@@ -1709,7 +1709,7 @@ pub struct RecoveryPaymentsResponse {
     pub id: id_type::GlobalPaymentId,
 
     #[schema(value_type = IntentStatus, example = "failed", default = "requires_confirmation")]
-    pub status: api_enums::IntentStatus,
+    pub intent_status: api_enums::IntentStatus,
 
     /// Unique identifier for the payment. This ensures idempotency for multiple payments
     /// that have been done by a single merchant.
@@ -4347,7 +4347,7 @@ pub struct PaymentMethodDataResponseWithBilling {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, ToSchema, serde::Serialize)]
 pub struct CustomRecoveryPaymentMethodData {
     #[serde(flatten)]
-    pub units: HashMap<String, CardResponse>,
+    pub units: HashMap<String, AdditionalCardInfo>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -9162,7 +9162,7 @@ pub struct RecoveryPaymentsCreate {
     pub payment_merchant_connector_id: id_type::MerchantConnectorAccountId,
 
     #[schema(value_type = AttemptStatus, example = "charged")]
-    pub status: enums::AttemptStatus,
+    pub attempt_status: enums::AttemptStatus,
 
     /// The billing details of the payment attempt.
     pub billing: Option<Address>,

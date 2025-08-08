@@ -329,7 +329,7 @@ pub async fn custom_revenue_recovery_core(
                 .to_string(),
         }))?;
 
-    let webhook_response: api_models::webhooks::WebhookResponseTracker = recovery_action
+    recovery_action
         .handle_action(
             &state,
             &profile,
@@ -349,7 +349,7 @@ pub async fn custom_revenue_recovery_core(
 
     let response = api_models::payments::RecoveryPaymentsResponse {
         id: updated_recovery_intent.payment_id.to_owned(),
-        status: updated_recovery_intent.status.to_owned(),
+        intent_status: updated_recovery_intent.status.to_owned(),
         merchant_reference_id: updated_recovery_intent.merchant_reference_id.to_owned(),
     };
 
