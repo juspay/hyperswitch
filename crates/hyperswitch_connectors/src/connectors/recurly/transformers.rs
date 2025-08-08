@@ -204,13 +204,11 @@ impl
                     payment_method_type: common_enums::PaymentMethod::from(
                         item.response.payment_method.object,
                     ),
-                    card_network: Some(item.response.payment_method.card_type),
-                    card_isin: Some(item.response.payment_method.first_six),
                     // This none because this field is specific to stripebilling.
                     charge_id: None,
                     card_info: api_models::payments::AdditionalCardInfo {
-                        card_network: None,
-                        card_isin: None,
+                        card_network: Some(item.response.payment_method.card_type),
+                        card_isin: Some(item.response.payment_method.first_six),
                         card_issuer: None,
                         card_type: None,
                         card_issuing_country: None,

@@ -709,7 +709,7 @@ impl RevenueRecoveryAttempt {
             }),
         };
 
-        let card_info = revenue_recovery_attempt_data
+        let card_info = revenue_recovery_attempt_data.card_info
             .card_isin
             .clone()
             .async_and_then(|isin| async move {
@@ -756,7 +756,7 @@ impl RevenueRecoveryAttempt {
             invoice_billing_started_at_time: revenue_recovery_attempt_data
                 .invoice_billing_started_at_time,
             triggered_by,
-            card_network: revenue_recovery_attempt_data.card_network.clone(),
+            card_network: revenue_recovery_attempt_data.card_info.card_network.clone(),
             card_issuer,
         })
     }

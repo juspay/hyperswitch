@@ -752,8 +752,6 @@ impl PaymentIntent {
             retry_count: None,
             invoice_next_billing_time: None,
             invoice_billing_started_at_time: None,
-            card_isin: None,
-            card_network: None,
             // No charge id is present here since it is an internal payment and we didn't call connector yet.
             charge_id: None,
             card_info: Default::default(),
