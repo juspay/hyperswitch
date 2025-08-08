@@ -22680,8 +22680,7 @@
         "type": "string",
         "enum": [
           "true",
-          "false",
-          "default"
+          "false"
         ]
       },
       "RequestPaymentMethodTypes": {
