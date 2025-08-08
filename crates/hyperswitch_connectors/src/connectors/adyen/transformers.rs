@@ -2207,7 +2207,14 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod
         match wallet_data {
             WalletData::GooglePay(data) => {
                 let gpay_data = AdyenGPay {
-                    google_pay_token: Secret::new(data.tokenization_data.token.to_owned()),
+                    google_pay_token: Secret::new(
+                        data.tokenization_data
+                            .get_encrypted_google_pay_token()
+                            .change_context(errors::ConnectorError::MissingRequiredField {
+                                field_name: "gpay wallet_token",
+                            })?
+                            .to_owned(),
+                    ),
                 };
                 Ok(AdyenPaymentMethod::Gpay(Box::new(gpay_data)))
             }
@@ -2216,7 +2223,11 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod
                     item.payment_method_token.clone()
                 {
                     let expiry_year_4_digit = apple_pay_decrypte.get_four_digit_expiry_year();
-                    let exp_month = apple_pay_decrypte.get_expiry_month();
+                    let exp_month = apple_pay_decrypte.get_expiry_month().change_context(
+                        errors::ConnectorError::InvalidDataFormat {
+                            field_name: "expiration_month",
+                        },
+                    )?;
                     let apple_pay_decrypted_data = AdyenApplePayDecryptData {
                         number: apple_pay_decrypte.application_primary_account_number,
                         expiry_month: exp_month,

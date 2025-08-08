@@ -291,15 +291,20 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
             )),
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 WalletData::GooglePay(payment_method_data) => {
-                    let gpay_object = BluesnapGooglePayObject {
-                        payment_method_data: utils::GooglePayWalletData::from(payment_method_data),
+                    let gpay_ecrypted_object = BluesnapGooglePayObject {
+                        payment_method_data: utils::GooglePayWalletData::try_from(
+                            payment_method_data,
+                        )
+                        .change_context(errors::ConnectorError::RequestEncodingFailed)?,
                     }
                     .encode_to_string_of_json()
                     .change_context(errors::ConnectorError::RequestEncodingFailed)?;
                     Ok((
                         PaymentMethodDetails::Wallet(BluesnapWallet {
                             wallet_type: BluesnapWalletTypes::GooglePay,
-                            encoded_payment_token: Secret::new(BASE64_ENGINE.encode(gpay_object)),
+                            encoded_payment_token: Secret::new(
+                                BASE64_ENGINE.encode(gpay_ecrypted_object),
+                            ),
                         }),
                         None,
                     ))

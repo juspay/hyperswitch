@@ -377,7 +377,13 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
             }
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 WalletData::GooglePay(data) => {
-                    let token_string = data.tokenization_data.token.to_owned();
+                    let token_string = data
+                        .tokenization_data
+                        .get_encrypted_google_pay_token()
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "gpay wallet_token",
+                        })?
+                        .to_owned();
 
                     let parsed = parse_googlepay_token_safely(&token_string);
 

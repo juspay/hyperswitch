@@ -3911,7 +3911,8 @@ pub struct GooglePayWalletData {
     /// The information of the payment method
     pub info: GooglePayPaymentMethodInfo,
     /// The tokenization data of Google pay
-    pub tokenization_data: GpayTokenizationData,
+    #[schema(value_type = GpayTokenizationData)]
+    pub tokenization_data: common_types::payments::GpayTokenizationData,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -4028,15 +4029,6 @@ pub struct MifinityData {
     #[schema(value_type = Date)]
     pub date_of_birth: Secret<Date>,
     pub language_preference: Option<String>,
-}
-
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct GpayTokenizationData {
-    /// The type of the token
-    #[serde(rename = "type")]
-    pub token_type: String,
-    /// Token generated for the wallet
-    pub token: String,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

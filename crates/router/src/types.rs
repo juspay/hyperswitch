@@ -48,8 +48,8 @@ pub use hyperswitch_domain_models::{
     payment_address::PaymentAddress,
     router_data::{
         AccessToken, AdditionalPaymentMethodConnectorResponse, ConnectorAuthType,
-        ConnectorResponseData, ErrorResponse, GooglePayDecryptedData,
-        GooglePayPaymentMethodDetails, L2L3Data, PaymentMethodBalance, PaymentMethodToken,
+        ConnectorResponseData, ErrorResponse, GooglePayPaymentMethodDetails,
+        GooglePayPredecryptDataInternal, L2L3Data, PaymentMethodBalance, PaymentMethodToken,
         RecurringMandatePaymentData, RouterData,
     },
     router_data_v2::{
