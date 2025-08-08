@@ -171,6 +171,7 @@ impl ConnectorCommon for Worldpayvantiv {
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 })
             }
             Err(error_msg) => {
@@ -1434,6 +1435,7 @@ fn handle_vantiv_json_error_response(
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         }
         Err(error_msg) => {
@@ -1474,6 +1476,7 @@ fn handle_vantiv_dispute_error_response(
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         }
         Err(error_msg) => {
