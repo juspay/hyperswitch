@@ -1,12 +1,16 @@
 pub mod transformers;
 
+use std::sync::LazyLock;
+
+use api_models::{enums, payments::PaymentIdType};
 use common_utils::{
+    crypto,
     errors::CustomResult,
-    ext_traits::BytesExt,
+    ext_traits::{ByteSliceExt, BytesExt},
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
@@ -19,9 +23,12 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsSyncRouterData,
         RefundSyncRouterData, RefundsRouterData,
     },
 };
@@ -39,7 +46,7 @@ use hyperswitch_interfaces::{
 use masking::{ExposeInterface, Mask};
 use transformers as checkbook;
 
-use crate::{constants::headers, types::ResponseRouterData, utils};
+use crate::{constants::headers, types::ResponseRouterData};
 
 #[derive(Clone)]
 pub struct Checkbook {
@@ -115,9 +122,14 @@ impl ConnectorCommon for Checkbook {
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = checkbook::CheckbookAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let auth_key = format!(
+            "{}:{}",
+            auth.publishable_key.expose(),
+            auth.secret_key.expose()
+        );
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
+            auth_key.into_masked(),
         )])
     }
 
@@ -148,9 +160,7 @@ impl ConnectorCommon for Checkbook {
     }
 }
 
-impl ConnectorValidation for Checkbook {
-    //TODO: implement functions when support enabled
-}
+impl ConnectorValidation for Checkbook {}
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Checkbook {
     //TODO: implement sessions flow
@@ -179,9 +189,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     fn get_url(
         &self,
         _req: &PaymentsAuthorizeRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!("{}/v3/invoice", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -189,14 +199,11 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = utils::convert_amount(
-            self.amount_converter,
-            req.request.minor_amount,
-            req.request.currency,
-        )?;
-
-        let connector_router_data = checkbook::CheckbookRouterData::from((amount, req));
-        let connector_req = checkbook::CheckbookPaymentsRequest::try_from(&connector_router_data)?;
+        let amount = self
+            .amount_converter
+            .convert(req.request.minor_amount, req.request.currency)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_req = checkbook::CheckbookPaymentsRequest::try_from((amount, req))?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -265,10 +272,19 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Che
 
     fn get_url(
         &self,
-        _req: &PaymentsSyncRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let connector_txn_id = req
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        Ok(format!(
+            "{}/v3/invoice/{}",
+            self.base_url(connectors),
+            connector_txn_id
+        ))
     }
 
     fn build_request(
@@ -314,64 +330,53 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Che
     }
 }
 
-impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Checkbook {
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Checkbook {}
+
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Checkbook {
     fn get_headers(
         &self,
-        req: &PaymentsCaptureRouterData,
+        req: &PaymentsCancelRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
     fn get_url(
         &self,
-        _req: &PaymentsCaptureRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
-    }
-
-    fn get_request_body(
-        &self,
-        _req: &PaymentsCaptureRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
+        Ok(format!(
+            "{}v3/invoice/{}",
+            self.base_url(connectors),
+            req.request.connector_transaction_id
+        ))
     }
 
     fn build_request(
         &self,
-        req: &PaymentsCaptureRouterData,
+        req: &PaymentsCancelRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
-                .method(Method::Post)
-                .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
+                .method(Method::Delete)
+                .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::PaymentsCaptureType::get_headers(
-                    self, req, connectors,
-                )?)
-                .set_body(types::PaymentsCaptureType::get_request_body(
-                    self, req, connectors,
-                )?)
+                .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
                 .build(),
         ))
     }
 
     fn handle_response(
         &self,
-        data: &PaymentsCaptureRouterData,
+        data: &PaymentsCancelRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsCancelRouterData, errors::ConnectorError> {
         let response: checkbook::CheckbookPaymentsResponse = res
             .response
-            .parse_struct("Checkbook PaymentsCaptureResponse")
+            .parse_struct("Checkbook PaymentsCancelResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -391,8 +396,6 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     }
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Checkbook {}
-
 impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Checkbook {
     fn get_headers(
         &self,
@@ -411,23 +414,23 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Checkbo
         _req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Err(errors::ConnectorError::NotSupported {
+            message: "Refunds are not supported".to_string(),
+            connector: "checkbook",
+        }
+        .into())
     }
 
     fn get_request_body(
         &self,
-        req: &RefundsRouterData<Execute>,
+        _req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let refund_amount = utils::convert_amount(
-            self.amount_converter,
-            req.request.minor_refund_amount,
-            req.request.currency,
-        )?;
-
-        let connector_router_data = checkbook::CheckbookRouterData::from((refund_amount, req));
-        let connector_req = checkbook::CheckbookRefundRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        Err(errors::ConnectorError::NotSupported {
+            message: "Refunds are not supported".to_string(),
+            connector: "checkbook",
+        }
+        .into())
     }
 
     fn build_request(
@@ -451,21 +454,11 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Checkbo
 
     fn handle_response(
         &self,
-        data: &RefundsRouterData<Execute>,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
+        _data: &RefundsRouterData<Execute>,
+        _event_builder: Option<&mut ConnectorEvent>,
+        _res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: checkbook::RefundResponse = res
-            .response
-            .parse_struct("checkbook RefundResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        Err(errors::ConnectorError::NotImplemented("Refunds are not supported".to_string()).into())
     }
 
     fn get_error_response(
@@ -518,21 +511,11 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Checkbook
 
     fn handle_response(
         &self,
-        data: &RefundSyncRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
+        _data: &RefundSyncRouterData,
+        _event_builder: Option<&mut ConnectorEvent>,
+        _res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: checkbook::RefundResponse = res
-            .response
-            .parse_struct("checkbook RefundSyncResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        Err(errors::ConnectorError::NotImplemented("Refunds are not supported".to_string()).into())
     }
 
     fn get_error_response(
@@ -548,24 +531,128 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Checkbook
 impl webhooks::IncomingWebhook for Checkbook {
     fn get_webhook_object_reference_id(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let details: checkbook::CheckbookPaymentsResponse = request
+            .body
+            .parse_struct("CheckbookWebhookResponse")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+            PaymentIdType::ConnectorTransactionId(details.id),
+        ))
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let details: checkbook::CheckbookPaymentsResponse = request
+            .body
+            .parse_struct("CheckbookWebhookResponse")
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        Ok(api_models::webhooks::IncomingWebhookEvent::from(
+            details.status,
+        ))
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let details: checkbook::CheckbookPaymentsResponse = request
+            .body
+            .parse_struct("CheckbookWebhookResponse")
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+        Ok(Box::new(details))
+    }
+
+    fn get_webhook_source_verification_algorithm(
+        &self,
+        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
+        Ok(Box::new(crypto::HmacSha256))
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let header_value = request
+            .headers
+            .get("signature")
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)
+            .attach_printable("Failed to get signature for checkbook")?
+            .to_str()
+            .map_err(|_| errors::ConnectorError::WebhookSignatureNotFound)
+            .attach_printable("Failed to get signature for checkbook")?;
+        let signature = header_value
+            .split(',')
+            .find_map(|s| s.strip_prefix("signature="))
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
+        hex::decode(signature)
+            .change_context(errors::ConnectorError::WebhookSignatureNotFound)
+            .attach_printable("Failed to decrypt checkbook webhook payload for verification")
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let header_value = request
+            .headers
+            .get("signature")
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?
+            .to_str()
+            .map_err(|_| errors::ConnectorError::WebhookSignatureNotFound)?;
+        let nonce = header_value
+            .split(',')
+            .find_map(|s| s.strip_prefix("nonce="))
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
+        let message = format!("{}{}", String::from_utf8_lossy(request.body), nonce);
+        Ok(message.into_bytes())
     }
 }
 
-impl ConnectorSpecifications for Checkbook {}
+static CHECKBOOK_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
+        let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
+
+        let mut checkbook_supported_payment_methods = SupportedPaymentMethods::new();
+
+        checkbook_supported_payment_methods.add(
+            enums::PaymentMethod::BankTransfer,
+            enums::PaymentMethodType::Ach,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::NotSupported,
+                supported_capture_methods,
+                specific_features: None,
+            },
+        );
+        checkbook_supported_payment_methods
+    });
+
+static CHECKBOOK_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Checkbook",
+    description:
+        "Checkbook is a payment platform that allows users to send and receive digital checks.",
+    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+};
+
+static CHECKBOOK_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];
+
+impl ConnectorSpecifications for Checkbook {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&CHECKBOOK_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*CHECKBOOK_SUPPORTED_PAYMENT_METHODS)
+    }
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&CHECKBOOK_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}
