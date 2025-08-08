@@ -662,9 +662,13 @@ The method performs these key operations:
 - Logs the response - Records the connector response for debugging via `event_builder` and `router_env::logger::info!`
 
 - Transforms error format - Maps Billwerk's error fields to Hyperswitch's standardized `ErrorResponse` structure with appropriate fallbacks:
-- - Uses `response.code` or falls back to `NO_ERROR_CODE`
- - - Uses `response.message` or falls back to `NO_ERROR_MESSAGE`
+- - Uses `response.code` maps to `code` (with `NO_ERROR_CODE fallback`)
+- - Uses `response.message` maps to `message` (with `NO_ERROR_MESSAGE fallback`)
 - -  Maps `response.error` to the `reason` field
+
+> [!NOTE]
+> When the connector provides only a single error message field, populate both the `message` and `reason` fields in the `ErrorResponse` with the same value. The `message` field is used for smart retries logic, while the `reason` field is displayed on the Hyperswitch dashboard.
+
 
 ### Automatic Error Routing
 
@@ -921,7 +925,32 @@ Extends the `api::ConnectorIntegration` trait with types for creating a refund.
 ### `RefundSync`  
 Extends the `api::ConnectorIntegration` trait with types for retrieving or synchronizing a refund.  
 - **Flow type defined in:** [`crates/router/src/types.rs:44`](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L44)  
-- **Example implementation:** [`crates/hyperswitch_connectors/src/connectors/novalnet.rs:80`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/novalnet.rs#L80)  
+- **Example implementation:** [`crates/hyperswitch_connectors/src/connectors/novalnet.rs:80`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/novalnet.rs#L80) 
+
+## Connector Required Fields Configuration
+
+The file [`crates/payment_methods/src/configs/payment_connector_required_fields.rs`](https://github.com/juspay/hyperswitch/blob/main/crates/payment_methods/src/configs/payment_connector_required_fields.rs) is the central configuration file that defines required fields for each connector and payment-method combination.
+
+### Example: Billwerk Required Fields
+
+Based on the required-fields configuration, Billwerk requires only basic card details for card payments (see [`payment_connector_required_fields.rs:1263`](https://github.com/juspay/hyperswitch/blob/main/crates/payment_methods/src/configs/payment_connector_required_fields.rs#L1263)).
+
+Specifically, Billwerk requires:
+- Card number  
+- Card expiry month  
+- Card expiry year  
+- Card CVC  
+
+This is defined using the `card_basic()` helper (see [`payment_connector_required_fields.rs:865–872`](https://github.com/juspay/hyperswitch/blob/main/crates/payment_methods/src/configs/payment_connector_required_fields.rs#L865-L872)), which specifies these four essential card fields as `RequiredField` enum variants.
+
+### Comparison with Other Connectors
+
+Billwerk has relatively minimal requirements compared to other connectors. For example:
+
+- **Bank of America** requires card details plus email, full name, and complete billing address (see [`payment_connector_required_fields.rs:1247–1254`](https://github.com/juspay/hyperswitch/blob/main/crates/payment_methods/src/configs/payment_connector_required_fields.rs#L1247-L1254)).  
+- **Cybersource** requires card details, billing email, full name, and billing address (see [`payment_connector_required_fields.rs:1280–1285`](https://github.com/juspay/hyperswitch/blob/main/crates/payment_methods/src/configs/payment_connector_required_fields.rs#L1280-L1285)).
+
+Please review the file for your specific connector requirements.
 
 ## Derive Traits
 
