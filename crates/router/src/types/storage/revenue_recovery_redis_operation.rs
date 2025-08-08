@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use common_enums::enums::CardNetwork;
 use common_utils::{date_time, errors::CustomResult, id_type};
 use error_stack::ResultExt;
+use masking::Secret;
 use redis_interface::{DelReply, SetnxReply};
 use router_env::{instrument, tracing};
 use serde::{Deserialize, Serialize};
@@ -15,12 +16,11 @@ const RETRY_WINDOW_DAYS: i32 = 30;
 const INITIAL_RETRY_COUNT: i32 = 0;
 
 /// Payment processor token details including card information
-#[cfg(feature = "v2")]
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct PaymentProcessorTokenDetails {
     pub payment_processor_token: String,
-    pub expiry_month: Option<String>,
-    pub expiry_year: Option<String>,
+    pub expiry_month: Option<Secret<String>>,
+    pub expiry_year: Option<Secret<String>>,
     pub card_issuer: Option<String>,
     pub last_four_digits: Option<String>,
     pub card_network: Option<CardNetwork>,
@@ -32,7 +32,7 @@ pub struct PaymentProcessorTokenStatus {
     /// Payment processor token details including card information and token ID
     pub payment_processor_token_details: PaymentProcessorTokenDetails,
     /// Payment intent ID that originally inserted this token
-    pub inserted_by_attempt_id: String,
+    pub inserted_by_attempt_id: id_type::GlobalAttemptId,
     /// Error code associated with the token failure
     pub error_code: Option<String>,
     /// Daily retry count history for the last 30 days (date -> retry_count)
@@ -90,7 +90,9 @@ impl RedisTokenManager {
         let redis_conn = state
             .store
             .get_redis_conn()
-            .change_context(errors::StorageError::KVError)?;
+            .change_context(errors::StorageError::RedisError(
+                errors::RedisError::RedisConnectionError.into(),
+            ))?;
 
         let lock_key = format!("customer:{}:status", connector_customer_id);
 
@@ -124,14 +126,16 @@ impl RedisTokenManager {
         let redis_conn = state
             .store
             .get_redis_conn()
-            .change_context(errors::StorageError::KVError)?;
+            .change_context(errors::StorageError::RedisError(
+                errors::RedisError::RedisConnectionError.into(),
+            ))?;
 
         let lock_key = format!("customer:{}:status", connector_customer_id);
 
         match redis_conn.delete_key(&lock_key.into()).await {
             Ok(DelReply::KeyDeleted) => Ok(true),
             Ok(DelReply::KeyNotDeleted) => {
-                tracing::error!("Tried to unlock a stream which is already unlocked");
+                tracing::debug!("Tried to unlock a stream which is already unlocked");
                 Ok(false)
             }
             Err(err) => {
@@ -150,14 +154,18 @@ impl RedisTokenManager {
         let redis_conn = state
             .store
             .get_redis_conn()
-            .change_context(errors::StorageError::KVError)?;
+            .change_context(errors::StorageError::RedisError(
+                errors::RedisError::RedisConnectionError.into(),
+            ))?;
 
         let tokens_key = format!("customer:{}:tokens", connector_customer_id);
 
         let payment_processor_tokens: HashMap<String, String> = redis_conn
             .get_hash_fields(&tokens_key.into())
             .await
-            .change_context(errors::StorageError::KVError)?;
+            .change_context(errors::StorageError::RedisError(
+                errors::RedisError::GetHashFieldFailed.into()
+            ))?;
 
         let mut payment_processor_token_info_map = HashMap::new();
 
@@ -191,7 +199,9 @@ impl RedisTokenManager {
         let redis_conn = state
             .store
             .get_redis_conn()
-            .change_context(errors::StorageError::KVError)?;
+            .change_context(errors::StorageError::RedisError(
+                errors::RedisError::RedisConnectionError.into(),
+            ))?;
 
         let tokens_key = format!("customer:{}:tokens", connector_customer_id);
 
@@ -214,7 +224,8 @@ impl RedisTokenManager {
                 None,
             )
             .await
-            .change_context(errors::StorageError::KVError)?;
+            .change_context(errors::StorageError::RedisError(
+                errors::RedisError::SetHashFieldFailed.into(),))?;
 
         tracing::info!(
             connector_customer_id = %connector_customer_id,
@@ -292,7 +303,7 @@ impl RedisTokenManager {
                 state,
             );
             let monthly_retry_remaining = card_network_config
-                .retry_count_30_day
+                .max_retries_last_30_days
                 .saturating_sub(retry_info.total_30_day_retries);
 
             // Create the result struct with token info
@@ -329,33 +340,33 @@ impl RedisTokenManager {
                 .unwrap_or(INITIAL_RETRY_COUNT);
         }
 
-        // 1. Check 30-day limit FIRST (monthly check)
-        let monthly_wait_hours = if total_30_day_retries >= card_network_config.retry_count_30_day {
-            // Find the oldest retry date in the 30-day window and calculate when it expires
-            let mut oldest_date_with_retries = None;
-            for i in 0..RETRY_WINDOW_DAYS {
-                let date = today - Duration::days(i.into());
-                if token.daily_retry_history.get(&date).copied().unwrap_or(0) > 0 {
-                    oldest_date_with_retries = Some(date);
-                }
-            }
+        // Check 30-day limit FIRST (monthly check)
+        let monthly_limit_exceeded = total_30_day_retries >= card_network_config.max_retries_last_30_days;
 
-            if let Some(oldest_date) = oldest_date_with_retries {
-                let expiry_time = (oldest_date + Duration::days(31)).midnight().assume_utc();
-                (expiry_time - now).whole_hours().max(0)
-            } else {
-                0 // No retry history
-            }
+        let monthly_wait_hours = if monthly_limit_exceeded {
+            // Find the most recent oldest retry date within the 30-day window
+            let oldest_retry_date = (0..RETRY_WINDOW_DAYS)
+                .map(|i| today - Duration::days(i.into()))
+                .find(|date| token.daily_retry_history.get(date).copied().unwrap_or(0) > 0);
+
+            oldest_retry_date
+                .map(|date| {
+                    let expiry_time = (date + Duration::days(31)).midnight().assume_utc();
+                    (expiry_time - now).whole_hours().max(0)
+                })
+                .unwrap_or(0) // No retry history found
         } else {
             0 // Monthly limit not exceeded
         };
+
 
         let today_retries = token
             .daily_retry_history
             .get(&today)
             .copied()
             .unwrap_or(INITIAL_RETRY_COUNT);
-        let daily_wait_hours = if today_retries >= card_network_config.max_daily_retry_count {
+
+        let daily_wait_hours = if today_retries >= card_network_config.max_retries_per_day {
             let tomorrow = today + Duration::days(1);
             let tomorrow_midnight = tomorrow.midnight().assume_utc();
             (tomorrow_midnight - now).whole_hours().max(0)
@@ -399,7 +410,10 @@ impl RedisTokenManager {
         let redis_conn = state
             .store
             .get_redis_conn()
-            .change_context(errors::StorageError::KVError)?;
+            .change_context(errors::StorageError::RedisError(
+                errors::RedisError::RedisConnectionError.into(),
+            ))?;
+            
 
         let tokens_key = format!("customer:{}:tokens", connector_customer_id);
 
@@ -407,7 +421,8 @@ impl RedisTokenManager {
         redis_conn
             .delete_key(&tokens_key.into())
             .await
-            .change_context(errors::StorageError::KVError)?;
+            .change_context(errors::StorageError::RedisError(
+                errors::RedisError::DeleteFailed.into(),))?;
 
         // Recreate hash with remaining tokens (if any)
         if !payment_processor_token_info_map.is_empty() {
@@ -430,7 +445,7 @@ impl RedisTokenManager {
         state: &SessionState,
         connector_customer_id: &str,
         payment_processor_token_id: &str,
-        error_code: String,
+        error_code: Option<String>,
     ) -> CustomResult<bool, errors::StorageError> {
         // Get all existing payment processor tokens
         let mut payment_processor_token_info_map =
@@ -447,7 +462,7 @@ impl RedisTokenManager {
             Self::normalize_retry_window(payment_processor_token_status, today);
 
             // Update the error code
-            payment_processor_token_status.error_code = Some(error_code.clone());
+            payment_processor_token_status.error_code = error_code.clone();
 
             // Increment today's retry count by +1
             let current_retry_count = payment_processor_token_status
@@ -499,7 +514,7 @@ impl RedisTokenManager {
             if !existing_tokens.contains_key(&token_id) {
                 let new_payment_processor_token = PaymentProcessorTokenStatus {
                     payment_processor_token_details: token_unit.payment_processor_token_details,
-                    inserted_by_attempt_id: inserted_by_attempt_id.get_string_repr().to_string(),
+                    inserted_by_attempt_id: inserted_by_attempt_id.clone(),
                     error_code: token_unit.error_code,
                     daily_retry_history: HashMap::new(),
                 };
