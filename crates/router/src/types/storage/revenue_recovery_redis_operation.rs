@@ -95,7 +95,7 @@ impl RedisTokenManager {
                     errors::RedisError::RedisConnectionError.into(),
                 ))?;
 
-        let lock_key = format!("customer:{}:status", connector_customer_id);
+        let lock_key = format!("customer:{connector_customer_id}:status");
 
         let result: bool = match redis_conn
             .set_key_if_not_exists_with_expiry(&lock_key.into(), payment_id.get_string_repr(), None)
@@ -132,7 +132,7 @@ impl RedisTokenManager {
                     errors::RedisError::RedisConnectionError.into(),
                 ))?;
 
-        let lock_key = format!("customer:{}:status", connector_customer_id);
+        let lock_key = format!("customer:{connector_customer_id}:status");
 
         match redis_conn.delete_key(&lock_key.into()).await {
             Ok(DelReply::KeyDeleted) => Ok(true),
@@ -161,7 +161,7 @@ impl RedisTokenManager {
                     errors::RedisError::RedisConnectionError.into(),
                 ))?;
 
-        let tokens_key = format!("customer:{}:tokens", connector_customer_id);
+        let tokens_key = format!("customer:{connector_customer_id}:tokens");
 
         let payment_processor_tokens: HashMap<String, String> = redis_conn
             .get_hash_fields(&tokens_key.into())
@@ -207,7 +207,7 @@ impl RedisTokenManager {
                     errors::RedisError::RedisConnectionError.into(),
                 ))?;
 
-        let tokens_key = format!("customer:{}:tokens", connector_customer_id);
+        let tokens_key = format!("customer:{connector_customer_id}:tokens");
 
         // Serialize all tokens
         let mut serialized_payment_processor_tokens = HashMap::new();
@@ -419,7 +419,7 @@ impl RedisTokenManager {
                     errors::RedisError::RedisConnectionError.into(),
                 ))?;
 
-        let tokens_key = format!("customer:{}:tokens", connector_customer_id);
+        let tokens_key = format!("customer:{connector_customer_id}:tokens");
 
         // Delete entire Redis key
         redis_conn
