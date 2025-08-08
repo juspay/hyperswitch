@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use common_enums::{enums, AttemptStatus};
-use common_utils::request::Method;
+use common_utils::{request::Method, types::MinorUnit};
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
@@ -9,7 +9,7 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types::{PaymentsAuthorizeRouterData, RefundsRouterData},
 };
-use hyperswitch_interfaces::{api::CurrencyUnit, errors};
+use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -20,16 +20,14 @@ use crate::{
 
 #[derive(Debug, Serialize)]
 pub struct OpennodeRouterData<T> {
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&CurrencyUnit, enums::Currency, i64, T)> for OpennodeRouterData<T> {
+impl<T> TryFrom<(MinorUnit, T)> for OpennodeRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(
-        (_currency_unit, _currency, amount, router_data): (&CurrencyUnit, enums::Currency, i64, T),
-    ) -> Result<Self, Self::Error> {
+    fn try_from((amount, router_data): (MinorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data,
@@ -40,7 +38,7 @@ impl<T> TryFrom<(&CurrencyUnit, enums::Currency, i64, T)> for OpennodeRouterData
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct OpennodePaymentsRequest {
-    amount: i64,
+    amount: MinorUnit,
     currency: String,
     description: String,
     auto_settle: bool,
