@@ -1,6 +1,6 @@
 use base64::Engine;
 use common_enums::enums;
-use common_utils::{consts, pii};
+use common_utils::{consts, pii, types::StringMajorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{GooglePayWalletData, PaymentMethodData, WalletData},
@@ -19,7 +19,7 @@ use hyperswitch_domain_models::{
         RefundsRouterData,
     },
 };
-use hyperswitch_interfaces::{api, errors};
+use hyperswitch_interfaces::errors;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -59,23 +59,13 @@ impl TryFrom<&ConnectorAuthType> for BarclaycardAuthType {
 }
 
 pub struct BarclaycardRouterData<T> {
-    pub amount: String,
+    pub amount: StringMajorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, api_models::enums::Currency, i64, T)>
-    for BarclaycardRouterData<T>
-{
+impl<T> TryFrom<(StringMajorUnit, T)> for BarclaycardRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (currency_unit, currency, amount, item): (
-            &api::CurrencyUnit,
-            api_models::enums::Currency,
-            i64,
-            T,
-        ),
-    ) -> Result<Self, Self::Error> {
-        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
+    fn try_from((amount, item): (StringMajorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data: item,
@@ -168,7 +158,7 @@ pub struct OrderInformationWithBill {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Amount {
-    total_amount: String,
+    total_amount: StringMajorUnit,
     currency: api_models::enums::Currency,
 }
 
