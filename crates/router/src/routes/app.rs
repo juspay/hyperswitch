@@ -754,7 +754,7 @@ pub struct Proxy;
 #[cfg(all(feature = "oltp", feature = "v2"))]
 impl Proxy {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/proxy")
+        web::scope("/v2/proxy")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(proxy::proxy)))
     }
