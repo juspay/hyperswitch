@@ -576,6 +576,7 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
                     | WalletData::MbWayRedirect(_)
                     | WalletData::MobilePayRedirect(_)
                     | WalletData::PaypalRedirect(_)
+                    | WalletData::AmazonPay(_)
                     | WalletData::PaypalSdk(_)
                     | WalletData::Paze(_)
                     | WalletData::SamsungPay(_)
