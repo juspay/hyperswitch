@@ -53,25 +53,14 @@ pub fn extract_token_from_body(body: &[u8]) -> CustomResult<String, errors::Conn
     let parsed: serde_json::Value = serde_json::from_slice(body)
         .map_err(|_| report!(errors::ConnectorError::ResponseDeserializationFailed))?;
 
-    if let Some(code) = parsed.get("code").and_then(|v| v.as_str()) {
-        if code == "DuplicateResource" {
-            return parsed
-                .get("_links")
-                .and_then(|links| links.get("about"))
-                .and_then(|about| about.get("href"))
-                .and_then(|href| href.as_str())
-                .and_then(|url| url.rsplit('/').next())
-                .map(|id| id.to_string())
-                .ok_or_else(|| report!(errors::ConnectorError::ResponseHandlingFailed));
-        }
-    }
-
     parsed
-        .get("TokenizationResponse")
-        .and_then(|v| v.get("token"))
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string())
-        .ok_or_else(|| report!(errors::ConnectorError::ResponseDeserializationFailed))
+        .get("_links")
+        .and_then(|links| links.get("about"))
+        .and_then(|about| about.get("href"))
+        .and_then(|href| href.as_str())
+        .and_then(|url| url.rsplit('/').next())
+        .map(|id| id.to_string())
+        .ok_or_else(|| report!(errors::ConnectorError::ResponseHandlingFailed))
 }
 
 fn map_topic_to_status(topic: &str) -> DwollaPaymentStatus {
@@ -272,27 +261,15 @@ impl<'a> TryFrom<&DwollaRouterData<'a, &PaymentsAuthorizeRouterData>> for Dwolla
     fn try_from(
         item: &DwollaRouterData<'a, &PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        let fallback_token = match &item.router_data.response {
-            Err(err) => err
-                .connector_metadata
-                .as_ref()
-                .and_then(|meta| meta.get("payment_token"))
-                .and_then(|v| v.as_str().map(|s| Secret::new(s.to_string()))),
-            Ok(_) => None,
+        let source_funding = match item.router_data.get_payment_method_token().ok() {
+            Some(PaymentMethodToken::Token(pm_token)) => pm_token,
+            _ => {
+                return Err(report!(errors::ConnectorError::MissingRequiredField {
+                    field_name: "payment_method_token",
+                }))
+            },
         };
 
-        let source_funding = item
-            .router_data
-            .get_payment_method_token()
-            .ok()
-            .and_then(|token| match token {
-                PaymentMethodToken::Token(pm_token) => Some(pm_token),
-                _ => None,
-            })
-            .or(fallback_token.clone())
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "payment_method_token",
-            })?;
 
         let metadata = utils::to_connector_meta_from_secret::<DwollaMetaData>(
             item.router_data.connector_meta_data.clone(),

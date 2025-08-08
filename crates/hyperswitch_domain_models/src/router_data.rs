@@ -428,7 +428,7 @@ pub struct ErrorResponse {
     pub network_decline_code: Option<String>,
     pub network_advice_code: Option<String>,
     pub network_error_message: Option<String>,
-    pub connector_metadata: Option<serde_json::Value>,
+    pub connector_metadata: Option<Secret<serde_json::Value>>,
 }
 
 impl Default for ErrorResponse {
