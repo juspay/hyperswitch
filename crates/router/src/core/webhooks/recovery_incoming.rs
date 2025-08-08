@@ -16,6 +16,7 @@ use hyperswitch_interfaces::webhooks as interface_webhooks;
 use masking::{PeekInterface, Secret};
 use router_env::{instrument, tracing};
 use services::kafka;
+use std::collections::HashMap;
 
 use crate::{
     core::{
@@ -34,7 +35,7 @@ use crate::{
         storage::{
             revenue_recovery as storage_churn_recovery,
             revenue_recovery_redis_operation::{
-                PaymentProcessorTokenDetails, PaymentProcessorTokenUnit, RedisTokenManager,
+                PaymentProcessorTokenDetails, PaymentProcessorTokenStatus, RedisTokenManager,
             },
         },
     },
@@ -949,12 +950,12 @@ impl RevenueRecoveryAttempt {
         let connector_customer_id = revenue_recovery_attempt_data.connector_customer_id.clone();
 
         let attempt_id = recovery_attempt.attempt_id.clone();
-
-        // Create PaymentProcessorTokenUnit from card_info and attempt data
-        let mut new_tokens = std::collections::HashMap::new();
-
-        let token_unit = PaymentProcessorTokenUnit {
+        let today = time::OffsetDateTime::now_utc().date();
+        let token_unit = PaymentProcessorTokenStatus {
             error_code: recovery_attempt.error_code.clone(),
+            inserted_by_attempt_id: attempt_id.clone(),
+            daily_retry_history: HashMap::from([(recovery_attempt.created_at.date(), 1)]),
+            scheduled_at: None,
             payment_processor_token_details: PaymentProcessorTokenDetails {
                 payment_processor_token: revenue_recovery_attempt_data
                     .processor_payment_method_token
@@ -970,22 +971,17 @@ impl RevenueRecoveryAttempt {
                 card_issuer: revenue_recovery_attempt_data.card_info.card_issuer.clone(),
                 last_four_digits: revenue_recovery_attempt_data.card_info.last4.clone(),
                 card_network: revenue_recovery_attempt_data.card_info.card_network.clone(),
+                card_type: revenue_recovery_attempt_data.card_info.card_type.clone(),
             },
         };
 
-        new_tokens.insert(
-            revenue_recovery_attempt_data
-                .processor_payment_method_token
-                .clone(),
-            token_unit,
-        );
+        
 
         // Make the Redis call to store tokens
-        RedisTokenManager::add_connector_customer_payment_processor_tokens_if_doesnot_exist(
+        RedisTokenManager::upsert_payment_processor_token(
             state,
             &connector_customer_id,
-            new_tokens,
-            &attempt_id,
+            token_unit,
         )
         .await
         .change_context(errors::RevenueRecoveryError::PaymentAttemptFetchFailed)

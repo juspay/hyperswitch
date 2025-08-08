@@ -7,7 +7,7 @@ use masking::Secret;
 use redis_interface::{DelReply, SetnxReply};
 use router_env::{instrument, tracing};
 use serde::{Deserialize, Serialize};
-use time::{Date, Duration, OffsetDateTime};
+use time::{Date, Duration, OffsetDateTime, PrimitiveDateTime};
 
 use crate::{db::errors, types::storage::revenue_recovery::RetryLimitsConfig, SessionState};
 
@@ -24,6 +24,7 @@ pub struct PaymentProcessorTokenDetails {
     pub card_issuer: Option<String>,
     pub last_four_digits: Option<String>,
     pub card_network: Option<CardNetwork>,
+    pub card_type: Option<String>,
 }
 
 /// Represents the status and retry history of a payment processor token
@@ -37,25 +38,12 @@ pub struct PaymentProcessorTokenStatus {
     pub error_code: Option<String>,
     /// Daily retry count history for the last 30 days (date -> retry_count)
     pub daily_retry_history: HashMap<Date, i32>,
+    /// Scheduled time for the next retry attempt
+    pub scheduled_at: Option<PrimitiveDateTime>,
+    
 }
 
-/// Customer tokens data structure
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CustomerTokensData {
-    pub connector_customer_id: String,
-    pub payment_processor_token_info_map: HashMap<String, PaymentProcessorTokenStatus>,
-}
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PaymentProcessorTokenUnits {
-    pub units: HashMap<String, PaymentProcessorTokenUnit>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PaymentProcessorTokenUnit {
-    pub error_code: Option<String>,
-    pub payment_processor_token_details: PaymentProcessorTokenDetails,
-}
 
 /// Token retry availability information with detailed wait times
 #[derive(Debug, Clone)]
@@ -405,7 +393,6 @@ impl RedisTokenManager {
         {
             tracing::warn!(
                 connector_customer_id = %connector_customer_id,
-                payment_processor_token_id = %payment_processor_token_id,
                 "Token not found for deletion"
             );
             return Ok(false);
@@ -444,99 +431,61 @@ impl RedisTokenManager {
         Ok(true)
     }
 
-    /// Update error code and increment retry count for a specific payment processor token
+
+    /// Upsert a payment processor token - insert if doesn't exist, update existing fields if it does
     #[instrument(skip_all)]
-    pub async fn update_payment_processor_token_error_code_retry_count(
+    pub async fn upsert_payment_processor_token(
         state: &SessionState,
         connector_customer_id: &str,
-        payment_processor_token_id: &str,
-        error_code: Option<String>,
+        token_data: PaymentProcessorTokenStatus,
     ) -> CustomResult<bool, errors::StorageError> {
-        // Get all existing payment processor tokens
+        // Get existing tokens from Redis
         let mut payment_processor_token_info_map =
             Self::get_connector_customer_payment_processor_tokens(state, connector_customer_id)
                 .await?;
 
-        // Find and update the specific token
-        if let Some(payment_processor_token_status) =
-            payment_processor_token_info_map.get_mut(payment_processor_token_id)
-        {
-            let today = OffsetDateTime::now_utc().date();
+        let payment_processor_token_id = token_data.payment_processor_token_details.payment_processor_token.clone();
 
-            // Normalize retry window first (clean up old data and ensure 30-day window)
-            Self::normalize_retry_window(payment_processor_token_status, today);
+        let was_existing = payment_processor_token_info_map.contains_key(&payment_processor_token_id);
 
-            // Update the error code
-            payment_processor_token_status.error_code = error_code.clone();
+        if was_existing {
+            // Update existing token - merge the provided data with existing data
+            if let Some(existing_token) = payment_processor_token_info_map.get_mut(&payment_processor_token_id) {
+                // Update error code if provided
+                if token_data.error_code.is_some() {
+                    existing_token.error_code = token_data.error_code;
+                }
+                existing_token.scheduled_at = token_data.scheduled_at;
+                
+                // Merge daily retry history - keep existing history and add new entries
+                let today = OffsetDateTime::now_utc().date();
 
-            // Increment today's retry count by +1
-            let current_retry_count = payment_processor_token_status
-                .daily_retry_history
-                .get(&today)
-                .copied()
-                .unwrap_or(INITIAL_RETRY_COUNT);
-            payment_processor_token_status
-                .daily_retry_history
-                .insert(today, current_retry_count + 1);
-
-            // Update Redis with the modified token
-            Self::update_connector_customer_payment_processor_tokens(
-                state,
-                connector_customer_id,
-                payment_processor_token_info_map,
-            )
-            .await?;
-
-            tracing::info!(
-                "Successfully updated payment processor token error code and incremented retry count"
-            );
-
-            Ok(true)
-        } else {
-            tracing::warn!("Token not found for error code and retry count update");
-            Ok(false)
-        }
-    }
-
-    /// Add payment processor tokens for a connector customer only if they don't already exist
-    #[instrument(skip_all)]
-    pub async fn add_connector_customer_payment_processor_tokens_if_doesnot_exist(
-        state: &SessionState,
-        connector_customer_id: &str,
-        new_tokens: HashMap<String, PaymentProcessorTokenUnit>,
-        inserted_by_attempt_id: &id_type::GlobalAttemptId,
-    ) -> CustomResult<(), errors::StorageError> {
-        // Get existing tokens to check what already exists
-        let existing_tokens =
-            Self::get_connector_customer_payment_processor_tokens(state, connector_customer_id)
-                .await?;
-
-        // Filter out tokens that already exist
-        let mut tokens_to_add = HashMap::new();
-        let mut newly_added_token_ids = Vec::new();
-
-        for (token_id, token_unit) in new_tokens {
-            if !existing_tokens.contains_key(&token_id) {
-                let new_payment_processor_token = PaymentProcessorTokenStatus {
-                    payment_processor_token_details: token_unit.payment_processor_token_details,
-                    inserted_by_attempt_id: inserted_by_attempt_id.clone(),
-                    error_code: token_unit.error_code,
-                    daily_retry_history: HashMap::new(),
-                };
-                tokens_to_add.insert(token_id.clone(), new_payment_processor_token);
-                newly_added_token_ids.push(token_id);
+                // Normalize retry window first (clean up old data and ensure 30-day window)
+                Self::normalize_retry_window(existing_token, today);
+                let current_retry_count = existing_token
+                    .daily_retry_history
+                    .get(&today)
+                    .copied()
+                    .unwrap_or(INITIAL_RETRY_COUNT);
+                    existing_token
+                    .daily_retry_history
+                    .insert(today, current_retry_count + 1);
             }
-        }
-        if !tokens_to_add.is_empty() {
-            Self::update_connector_customer_payment_processor_tokens(
-                state,
-                connector_customer_id,
-                tokens_to_add,
-            )
-            .await?;
-            tracing::info!("Successfully added new payment processor tokens");
+        } else {
+            // Insert new token
+            payment_processor_token_info_map.insert(payment_processor_token_id.to_string(), token_data);
         }
 
-        Ok(())
+        // Save the updated tokens back to Redis
+        Self::update_connector_customer_payment_processor_tokens(
+            state,
+            connector_customer_id,
+            payment_processor_token_info_map,
+        )
+        .await?;
+
+
+        Ok(!was_existing) 
     }
+    
 }
