@@ -294,6 +294,7 @@ pub struct AdyenPaymentRequest<'a> {
     device_fingerprint: Option<Secret<String>>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     session_validity: Option<PrimitiveDateTime>,
+    metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -2974,6 +2975,7 @@ impl
             splits,
             device_fingerprint,
             session_validity: None,
+            metadata: item.router_data.request.metadata.clone(),
         })
     }
 }
@@ -3058,6 +3060,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
             splits,
             device_fingerprint,
             session_validity: None,
+            metadata: item.router_data.request.metadata.clone(),
         })
     }
 }
@@ -3146,6 +3149,7 @@ impl
             splits,
             device_fingerprint,
             session_validity: None,
+            metadata: item.router_data.request.metadata.clone(),
         };
         Ok(request)
     }
@@ -3222,6 +3226,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &VoucherData)>
             splits,
             device_fingerprint,
             session_validity: None,
+            metadata: item.router_data.request.metadata.clone(),
         };
         Ok(request)
     }
@@ -3340,6 +3345,7 @@ impl
             splits,
             device_fingerprint,
             session_validity,
+            metadata: item.router_data.request.metadata.clone(),
         };
         Ok(request)
     }
@@ -3417,6 +3423,7 @@ impl
             splits,
             device_fingerprint,
             session_validity: None,
+            metadata: item.router_data.request.metadata.clone(),
         };
         Ok(request)
     }
@@ -3498,6 +3505,7 @@ impl
             splits,
             device_fingerprint,
             session_validity: None,
+            metadata: item.router_data.request.metadata.clone(),
         })
     }
 }
@@ -3629,6 +3637,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &WalletData)>
             splits,
             device_fingerprint,
             session_validity: None,
+            metadata: item.router_data.request.metadata.clone(),
         })
     }
 }
@@ -3719,6 +3728,7 @@ impl
             splits,
             device_fingerprint,
             session_validity: None,
+            metadata: item.router_data.request.metadata.clone(),
         })
     }
 }
@@ -3801,6 +3811,7 @@ impl
             splits,
             device_fingerprint,
             session_validity: None,
+            metadata: item.router_data.request.metadata.clone(),
         })
     }
 }
@@ -6062,6 +6073,7 @@ impl
             splits,
             device_fingerprint,
             session_validity: None,
+            metadata: item.router_data.request.metadata.clone(),
         })
     }
 }
