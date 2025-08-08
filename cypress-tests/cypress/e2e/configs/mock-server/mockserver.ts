@@ -1,23 +1,31 @@
 /* eslint-disable no-console */
-import express from "express";
+import * as express from "express";
 import cors from "cors";
-import router from "./router.js";
+import { Server } from "http";
+import router from "./router.ts";
+
+// Type declarations
+type Express = express.Express;
+// @ts-ignore - Ignore the missing type declaration for router
 
 // Create the Express application
-const app = express();
-const MOCKSERVER_PORT = process.env.MOCKSERVER_PORT || 3010;
+const app: Express = express.default();
+const MOCKSERVER_PORT: number = parseInt(
+  process.env.MOCKSERVER_PORT || "3010",
+  10
+);
 
 // Apply middleware
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.default.json());
+app.use(express.default.urlencoded({ extended: true }));
 
 // Use the router for all routes
 app.use(router);
 
 // Function to start the server
-function startServer() {
-  const server = app.listen(MOCKSERVER_PORT, () => {
+function startServer(): Server {
+  const server: Server = app.listen(MOCKSERVER_PORT, () => {
     console.log(`🚀 Mock Server running on port ${MOCKSERVER_PORT}`);
     console.log(`📍 Server URL: http://localhost:${MOCKSERVER_PORT}`);
     console.log("\n📋 Available Routes:");
@@ -25,7 +33,7 @@ function startServer() {
   });
 
   // Handle port already in use error
-  server.on("error", (error) => {
+  server.on("error", (error: NodeJS.ErrnoException) => {
     if (error.code === "EADDRINUSE") {
       console.error(`❌ ERROR: Port ${MOCKSERVER_PORT} is already in use!`);
       console.error(

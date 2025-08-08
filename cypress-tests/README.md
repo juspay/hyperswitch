@@ -393,13 +393,15 @@ Each connector exports an Express router that is imported by the main router. Th
 To start the mock server:
 
 ```bash
-npm run mockserver
+npm run mockserver       # JavaScript version
+npm run mockserver:ts    # TypeScript version
 ```
 
 By default, the server runs on port 3010. You can change this by setting the `MOCKSERVER_PORT` environment variable:
 
 ```bash
-MOCKSERVER_PORT=4000 npm run mockserver
+MOCKSERVER_PORT=4000 npm run mockserver       # JavaScript version
+MOCKSERVER_PORT=4000 npm run mockserver:ts    # TypeScript version
 ```
 
 ### Testing with cURL
@@ -418,7 +420,7 @@ curl -X POST "http://localhost:3010/silverflow/charges" \
 To use the mock server with Hyperswitch, you need to redirect the base URL for the Silverflow connector to the mock server. Run Hyperswitch with the following environment variable:
 
 ```bash
-ROUTER__CONNECTORS__SILVERFLOW__BASE_URL=http://localhost:3010/silverflow cargo r
+ROUTER__CONNECTORS__SILVERFLOW__BASE_URL=http://localhost:3010 cargo r
 ```
 
 This will redirect all Silverflow API calls from Hyperswitch to your local mock server instead of the actual Silverflow API.

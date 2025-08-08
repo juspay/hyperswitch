@@ -1,21 +1,36 @@
 /* eslint-disable no-console */
-import express from "express";
-import silverflowApp from "./Silverflow.js";
+import * as express from "express";
+import type {
+  Request,
+  Response,
+  NextFunction,
+  Router,
+  RequestHandler,
+} from "express";
+// Import from TypeScript version
+import silverflowApp from "./Silverflow.ts";
+// TODO: Update to import from TypeScript version once fully tested
+// import silverflowApp from "./Silverflow";
 
-const mockRouters = {
+interface MockRouters {
+  [key: string]: RequestHandler;
+}
+
+const mockRouters: MockRouters = {
   silverflow: silverflowApp,
 };
+
 // Create a router
-const router = express.Router();
+const router: Router = express.default.Router();
 
 // Log requests to the router
-function logRequest(req, res, next) {
+function logRequest(req: Request, res: Response, next: NextFunction): void {
   console.log(`Router: ${req.method} ${req.path}`);
   next();
 }
 
 // Health check function
-function healthCheck(req, res) {
+function healthCheck(req: Request, res: Response): void {
   res.json({
     status: "OK",
     service: "Router",
@@ -25,8 +40,12 @@ function healthCheck(req, res) {
 }
 
 // Error handling function
-// eslint-disable-next-line no-unused-vars
-function handleErrors(err, req, res, next) {
+function handleErrors(
+  err: Error,
+  req: Request,
+  res: Response,
+  _next: NextFunction
+): void {
   console.error("Router Error:", err);
   res.status(500).json({
     error: {
@@ -48,7 +67,7 @@ for (const routerName of Object.keys(mockRouters)) {
   const name = routerName;
   const routerApp = mockRouters[routerName];
   console.log(`CONNECTOR /${name}`);
-  router.use(`/${name}`, (req, res, next) => {
+  router.use(`/${name}`, (req: Request, res: Response, next: NextFunction) => {
     // Modify the path to remove the router name prefix
     const originalUrl = req.url;
     req.url = originalUrl.replace(new RegExp(`^\\/${name}`), "");
