@@ -684,10 +684,9 @@ impl RevenueRecoveryAttempt {
                     e
                 );
                 errors::RevenueRecoveryError::RevenueRecoveryRedisInsertFailed
-            })?; 
+            })?;
 
         Ok(response)
-    
     }
 
     pub async fn create_payment_record_request(

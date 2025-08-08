@@ -519,12 +519,9 @@ pub async fn get_best_psp_token_available(
     let key_manager_state = &(state).into();
     let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
     //  Lock using payment_id
-    let lock_acquired = RedisTokenManager::lock_connector_customer_status(
-        state,
-        connector_customer_id,
-        payment_id,
-    )
-    .await?;
+    let lock_acquired =
+        RedisTokenManager::lock_connector_customer_status(state, connector_customer_id, payment_id)
+            .await?;
 
     if !lock_acquired {
         logger::info!("Customer is already locked by another process");
@@ -550,9 +547,6 @@ pub async fn get_best_psp_token_available(
     //  Insert into payment_intent_feature_metadata (DB operation)
     // TODO: Implement DB insertion logic
 
-    
-    
-
     let result = RedisTokenManager::get_tokens_with_retry_metadata(state, &existing_tokens);
 
     let mut best_token_and_time: Option<(PaymentProcessorTokenDetails, time::PrimitiveDateTime)> =
@@ -571,13 +565,13 @@ pub async fn get_best_psp_token_available(
         // If error code is None, don't call the decider just return that token with a schedule time of after 5 mins
         if error_code.is_none() {
             let utc_schedule_time = time::OffsetDateTime::now_utc() + time::Duration::minutes(5);
-            let schedule_time = time::PrimitiveDateTime::new(utc_schedule_time.date(), utc_schedule_time.time());
-            
+            let schedule_time =
+                time::PrimitiveDateTime::new(utc_schedule_time.date(), utc_schedule_time.time());
 
-            
-            return Ok(Some((payment_processor_token_details.clone(), schedule_time)));
-           
-
+            return Ok(Some((
+                payment_processor_token_details.clone(),
+                schedule_time,
+            )));
         }
 
         let future_time = current_time + time::Duration::hours(wait_hours);
@@ -586,7 +580,6 @@ pub async fn get_best_psp_token_available(
             seconds: future_time.unix_timestamp(),
             nanos: 0,
         });
-
 
         // Fetch PaymentAttempt
         let payment_attempt = db
