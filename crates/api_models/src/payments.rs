@@ -4051,15 +4051,6 @@ pub struct MifinityData {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct GpayTokenizationData {
-    /// The type of the token
-    #[serde(rename = "type")]
-    pub token_type: String,
-    /// Token generated for the wallet
-    pub token: String,
-}
-
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct AmazonPayWalletData {
     /// Checkout Session identifier
     pub checkout_session_id: String,
