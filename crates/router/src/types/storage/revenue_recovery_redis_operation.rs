@@ -87,12 +87,13 @@ impl RedisTokenManager {
         connector_customer_id: &str,
         payment_id: &id_type::GlobalPaymentId,
     ) -> CustomResult<bool, errors::StorageError> {
-        let redis_conn = state
-            .store
-            .get_redis_conn()
-            .change_context(errors::StorageError::RedisError(
-                errors::RedisError::RedisConnectionError.into(),
-            ))?;
+        let redis_conn =
+            state
+                .store
+                .get_redis_conn()
+                .change_context(errors::StorageError::RedisError(
+                    errors::RedisError::RedisConnectionError.into(),
+                ))?;
 
         let lock_key = format!("customer:{}:status", connector_customer_id);
 
@@ -123,12 +124,13 @@ impl RedisTokenManager {
         state: &SessionState,
         connector_customer_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
-        let redis_conn = state
-            .store
-            .get_redis_conn()
-            .change_context(errors::StorageError::RedisError(
-                errors::RedisError::RedisConnectionError.into(),
-            ))?;
+        let redis_conn =
+            state
+                .store
+                .get_redis_conn()
+                .change_context(errors::StorageError::RedisError(
+                    errors::RedisError::RedisConnectionError.into(),
+                ))?;
 
         let lock_key = format!("customer:{}:status", connector_customer_id);
 
@@ -151,12 +153,13 @@ impl RedisTokenManager {
         state: &SessionState,
         connector_customer_id: &str,
     ) -> CustomResult<HashMap<String, PaymentProcessorTokenStatus>, errors::StorageError> {
-        let redis_conn = state
-            .store
-            .get_redis_conn()
-            .change_context(errors::StorageError::RedisError(
-                errors::RedisError::RedisConnectionError.into(),
-            ))?;
+        let redis_conn =
+            state
+                .store
+                .get_redis_conn()
+                .change_context(errors::StorageError::RedisError(
+                    errors::RedisError::RedisConnectionError.into(),
+                ))?;
 
         let tokens_key = format!("customer:{}:tokens", connector_customer_id);
 
@@ -164,7 +167,7 @@ impl RedisTokenManager {
             .get_hash_fields(&tokens_key.into())
             .await
             .change_context(errors::StorageError::RedisError(
-                errors::RedisError::GetHashFieldFailed.into()
+                errors::RedisError::GetHashFieldFailed.into(),
             ))?;
 
         let mut payment_processor_token_info_map = HashMap::new();
@@ -196,12 +199,13 @@ impl RedisTokenManager {
         connector_customer_id: &str,
         payment_processor_token_info_map: HashMap<String, PaymentProcessorTokenStatus>,
     ) -> CustomResult<(), errors::StorageError> {
-        let redis_conn = state
-            .store
-            .get_redis_conn()
-            .change_context(errors::StorageError::RedisError(
-                errors::RedisError::RedisConnectionError.into(),
-            ))?;
+        let redis_conn =
+            state
+                .store
+                .get_redis_conn()
+                .change_context(errors::StorageError::RedisError(
+                    errors::RedisError::RedisConnectionError.into(),
+                ))?;
 
         let tokens_key = format!("customer:{}:tokens", connector_customer_id);
 
@@ -225,7 +229,8 @@ impl RedisTokenManager {
             )
             .await
             .change_context(errors::StorageError::RedisError(
-                errors::RedisError::SetHashFieldFailed.into(),))?;
+                errors::RedisError::SetHashFieldFailed.into(),
+            ))?;
 
         tracing::info!(
             connector_customer_id = %connector_customer_id,
@@ -341,7 +346,8 @@ impl RedisTokenManager {
         }
 
         // Check 30-day limit FIRST (monthly check)
-        let monthly_limit_exceeded = total_30_day_retries >= card_network_config.max_retries_last_30_days;
+        let monthly_limit_exceeded =
+            total_30_day_retries >= card_network_config.max_retries_last_30_days;
 
         let monthly_wait_hours = if monthly_limit_exceeded {
             // Find the most recent oldest retry date within the 30-day window
@@ -358,7 +364,6 @@ impl RedisTokenManager {
         } else {
             0 // Monthly limit not exceeded
         };
-
 
         let today_retries = token
             .daily_retry_history
@@ -406,13 +411,13 @@ impl RedisTokenManager {
             return Ok(false);
         }
 
-        let redis_conn = state
-            .store
-            .get_redis_conn()
-            .change_context(errors::StorageError::RedisError(
-                errors::RedisError::RedisConnectionError.into(),
-            ))?;
-            
+        let redis_conn =
+            state
+                .store
+                .get_redis_conn()
+                .change_context(errors::StorageError::RedisError(
+                    errors::RedisError::RedisConnectionError.into(),
+                ))?;
 
         let tokens_key = format!("customer:{}:tokens", connector_customer_id);
 
@@ -421,7 +426,8 @@ impl RedisTokenManager {
             .delete_key(&tokens_key.into())
             .await
             .change_context(errors::StorageError::RedisError(
-                errors::RedisError::DeleteFailed.into(),))?;
+                errors::RedisError::DeleteFailed.into(),
+            ))?;
 
         // Recreate hash with remaining tokens (if any)
         if !payment_processor_token_info_map.is_empty() {
