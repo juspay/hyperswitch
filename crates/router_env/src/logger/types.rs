@@ -640,6 +640,8 @@ pub enum Flow {
     DecisionEngineDecideGatewayCall,
     /// Decision Engine Gateway Feedback Call
     DecisionEngineGatewayFeedbackCall,
+    /// Tokenization delete flow
+    TokenizationDelete,
 }
 
 /// Trait for providing generic behaviour to flow metric
