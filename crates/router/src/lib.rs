@@ -175,13 +175,13 @@ pub fn mk_app(
             server_app = server_app
                 .service(routes::Refunds::server(state.clone()))
                 .service(routes::Mandates::server(state.clone()))
-                .service(routes::Authentication::server(state.clone()));
         }
     }
 
     #[cfg(all(feature = "oltp", any(feature = "v1", feature = "v2"),))]
     {
         server_app = server_app.service(routes::EphemeralKey::server(state.clone()))
+                                .service(routes::Authentication::server(state.clone()));
     }
     #[cfg(all(feature = "oltp", feature = "v1"))]
     {

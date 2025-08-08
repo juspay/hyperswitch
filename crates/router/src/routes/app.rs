@@ -2847,7 +2847,7 @@ impl Authentication {
 #[cfg(feature = "v2")]
 impl Authentication {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/authentication/v2")
+        web::scope("/v2/authentication")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(authentication::authentication_create)))
     }
