@@ -2999,6 +2999,11 @@ pub struct ProfileUpdate {
     /// It is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior.
     #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+
+    /// Inidcates the state of revenue recovery algorithm type
+    #[schema(value_type = Option<RevenueRecoveryAlgorithmType>, example = "cascading")]
+    pub revenue_recovery_retry_algorithm_type:
+        Option<common_enums::enums::RevenueRecoveryAlgorithmType>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

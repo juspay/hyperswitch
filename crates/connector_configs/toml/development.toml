@@ -2082,6 +2082,8 @@ api_key = "Integration Key"
   payment_method_type = "UnionPay"
 [[fiserv.wallet]]
   payment_method_type = "google_pay"
+[[fiserv.wallet]]
+  payment_method_type = "paypal"
 [fiserv.connector_auth.SignatureKey]
 api_key="API Key"
 key1="Merchant ID"
