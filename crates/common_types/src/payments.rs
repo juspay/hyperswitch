@@ -525,3 +525,21 @@ impl ApplePayPredecryptData {
         Ok(Secret::new(format!("{month}{year}")))
     }
 }
+
+/// type of action that needs to taken after consuming recovery payload
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RecoveryAction {
+    /// Stops the process tracker and update the payment intent.
+    CancelInvoice,
+    /// Records the external transaction against payment intent.
+    ScheduleFailedPayment,
+    /// Records the external payment and stops the internal process tracker.
+    SuccessPaymentExternal,
+    /// Pending payments from billing processor.
+    PendingPayment,
+    /// No action required.
+    NoAction,
+    /// Invalid event has been received.
+    InvalidAction,
+}

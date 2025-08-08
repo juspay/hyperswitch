@@ -654,6 +654,10 @@ impl Payments {
                 web::resource("/aggregate").route(web::get().to(payments::get_payments_aggregates)),
             )
             .service(
+                web::resource("/recovery")
+                    .route(web::post().to(payments::recovery_payments_create)),
+            )
+            .service(
                 web::resource("/profile/aggregate")
                     .route(web::get().to(payments::get_payments_aggregates_profile)),
             );
