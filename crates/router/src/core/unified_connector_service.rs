@@ -22,7 +22,7 @@ use unified_connector_service_client::payments::{
 use crate::{
     consts,
     core::{
-        errors::RouterResult,
+        errors::{self, RouterResult},
         payments::{
             helpers::{
                 is_ucs_enabled, should_execute_based_on_rollout, MerchantConnectorAccountType,
@@ -199,7 +199,7 @@ where
     feature_metadata.gateway_system = Some(gateway_system);
 
     let updated_metadata = serde_json::to_value(feature_metadata)
-        .change_context(crate::core::errors::ApiErrorResponse::InternalServerError)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to serialize feature metadata")?;
 
     payment_intent.feature_metadata = Some(updated_metadata.clone());
