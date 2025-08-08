@@ -9193,7 +9193,8 @@ pub struct RecoveryPaymentsCreate {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub billing_started_at: Option<PrimitiveDateTime>,
 
-    /// Transaction if reference at payment connector end.
+     /// A unique identifier for a payment provided by the payment connector
+    #[schema(value_type = Option<String>, example = "993672945374576J")]
     pub connector_transaction_id: Option<Secret<String>>,
 
     /// payment method token units at payment processor end.

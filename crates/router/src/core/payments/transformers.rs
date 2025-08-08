@@ -267,14 +267,6 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         .and_then(|customer| customer.email.clone())
         .map(pii::Email::from);
 
-    let additional_payment_method_data: Option<api_models::payments::AdditionalPaymentData> =
-            payment_data.payment_attempt
-                .payment_method_data
-                .as_ref().map(|data| data.clone().parse_value("AdditionalPaymentData"))
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to parse AdditionalPaymentData from payment_data.payment_attempt.payment_method_data")?;
-
     let browser_info = payment_data
         .payment_attempt
         .browser_info
