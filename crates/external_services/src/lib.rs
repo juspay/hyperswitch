@@ -28,6 +28,9 @@ pub mod managers;
 /// crm module
 pub mod crm;
 
+/// deserializers module_path
+pub mod utils;
+
 #[cfg(feature = "revenue_recovery")]
 /// date_time module
 pub mod date_time {

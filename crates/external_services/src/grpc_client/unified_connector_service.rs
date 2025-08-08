@@ -1,7 +1,9 @@
+use common_enums::connector_enums::Connector;
 use common_utils::{consts as common_utils_consts, errors::CustomResult, types::Url};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use router_env::logger;
+use std::collections::HashSet;
 use tokio::time::{timeout, Duration};
 use tonic::{
     metadata::{MetadataMap, MetadataValue},
@@ -15,6 +17,7 @@ use unified_connector_service_client::payments::{
 use crate::{
     consts,
     grpc_client::{GrpcClientSettings, GrpcHeaders},
+    utils::deserialize_hashset,
 };
 
 /// Unified Connector Service error variants
@@ -116,9 +119,9 @@ pub struct UnifiedConnectorServiceClientConfig {
     /// Contains the connection timeout duration in seconds
     pub connection_timeout: u64,
 
-    /// List of connectors to use with the unified connector service
-    #[serde(default)]
-    pub ucs_only_connectors: Vec<String>,
+    /// Set of external services/connectors available for the unified connector service
+    #[serde(default, deserialize_with = "deserialize_hashset")]
+    pub ucs_only_connectors: HashSet<Connector>,
 }
 
 /// Contains the Connector Auth Type and related authentication data.

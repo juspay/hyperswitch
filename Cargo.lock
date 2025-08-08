@@ -3041,6 +3041,7 @@ dependencies = [
  "aws-sdk-sts",
  "aws-smithy-runtime",
  "base64 0.22.1",
+ "common_enums",
  "common_utils",
  "dyn-clone",
  "error-stack 0.4.1",

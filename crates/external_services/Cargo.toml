@@ -69,6 +69,7 @@ unified-connector-service-client = { git = "https://github.com/juspay/connector-
 
 
 # First party crates
+common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
 hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces", default-features = false }
 masking = { version = "0.1.0", path = "../masking" }

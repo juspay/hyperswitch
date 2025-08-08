@@ -1,4 +1,4 @@
-use common_enums::{AttemptStatus, PaymentMethodType};
+use common_enums::{connector_enums::Connector, AttemptStatus, PaymentMethodType};
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use error_stack::ResultExt;
 use external_services::grpc_client::unified_connector_service::{
@@ -13,6 +13,7 @@ use hyperswitch_domain_models::{
     router_response_types::PaymentsResponseData,
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
+use std::str::FromStr;
 use unified_connector_service_client::payments::{
     self as payments_grpc, payment_method::PaymentMethod, CardDetails, CardPaymentMethodType,
     PaymentServiceAuthorizeResponse,
@@ -30,6 +31,8 @@ use crate::{
     routes::SessionState,
     types::transformers::ForeignTryFrom,
 };
+
+use super::errors;
 
 mod transformers;
 
@@ -54,6 +57,9 @@ pub async fn should_call_unified_connector_service<F: Clone, T>(
         .get_string_repr();
 
     let connector_name = router_data.connector.clone();
+    let connector_enum = Connector::from_str(&connector_name)
+        .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)?;
+
     let payment_method = router_data.payment_method.to_string();
     let flow_name = get_flow_name::<F>()?;
 
@@ -62,7 +68,7 @@ pub async fn should_call_unified_connector_service<F: Clone, T>(
         .grpc_client
         .unified_connector_service
         .as_ref()
-        .is_some_and(|config| config.ucs_only_connectors.contains(&connector_name));
+        .is_some_and(|config| config.ucs_only_connectors.contains(&connector_enum));
 
     if is_ucs_only_connector {
         return Ok(true);
