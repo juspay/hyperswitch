@@ -684,7 +684,7 @@ impl RevenueRecoveryAttempt {
                     e
                 );
                 errors::RevenueRecoveryError::RevenueRecoveryRedisInsertFailed
-            })?; // This now returns the right error type
+            })?; 
 
         Ok(response)
     
@@ -948,7 +948,7 @@ impl RevenueRecoveryAttempt {
         // Extract required fields from the revenue recovery attempt data
         let connector_customer_id = revenue_recovery_attempt_data.connector_customer_id.clone();
 
-        let attempt_id=recovery_attempt.attempt_id.clone();
+        let attempt_id = recovery_attempt.attempt_id.clone();
 
         // Create PaymentProcessorTokenUnit from card_info and attempt data
         let mut new_tokens = std::collections::HashMap::new();

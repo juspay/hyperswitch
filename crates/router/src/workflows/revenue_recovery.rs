@@ -400,7 +400,7 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
         payment_gateway,
         retry_count_left: None,
         first_error_msg_time: None,
-        wait_time:retry_after_time,
+        wait_time: retry_after_time,
     };
 
     if let Some(mut client) = state.grpc_client.recovery_decider_client.clone() {
@@ -559,7 +559,9 @@ pub async fn get_best_psp_token_available(
         None;
 
     for (_token_id, token_with_retry_info) in result.iter() {
-        let payment_processor_token_details = &token_with_retry_info.token_status.payment_processor_token_details;
+        let payment_processor_token_details = &token_with_retry_info
+            .token_status
+            .payment_processor_token_details;
         let inserted_by_attempt_id = &token_with_retry_info.token_status.inserted_by_attempt_id;
         let monthly_retry_remaining = token_with_retry_info.monthly_retry_remaining;
         let wait_hours = token_with_retry_info.retry_wait_time_hours;
@@ -603,16 +605,19 @@ pub async fn get_best_psp_token_available(
             &payment_intent,
             monthly_retry_remaining,
             future_prost_timestamp,
-            
-        ).await {
+        )
+        .await
+        {
             match best_token_and_time {
                 Some((_, existing_time)) if token_schedule_time < existing_time => {
-                    best_token_and_time = Some((payment_processor_token_details.clone(), token_schedule_time));
+                    best_token_and_time =
+                        Some((payment_processor_token_details.clone(), token_schedule_time));
                 }
                 None => {
-                    best_token_and_time = Some((payment_processor_token_details.clone(), token_schedule_time));
+                    best_token_and_time =
+                        Some((payment_processor_token_details.clone(), token_schedule_time));
                 }
-                _ => {} 
+                _ => {}
             }
         }
     }
