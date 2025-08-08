@@ -2059,6 +2059,8 @@ payment_method_type = "CartesBancaires"
 [[fiserv.debit]]
 payment_method_type = "UnionPay"
 [[fiserv.wallet]]
+payment_method_type = "paypal"
+[[fiserv.wallet]]
   payment_method_type = "google_pay"
 [fiserv.connector_auth.SignatureKey]
 api_key = "API Key"
@@ -6419,6 +6421,10 @@ payment_method_type = "JCB"
 payment_method_type = "DinersClub"
 [[worldpayvantiv.debit]]
 payment_method_type = "Discover"
+[[worldpayvantiv.wallet]]
+  payment_method_type = "apple_pay"
+[[worldpayvantiv.wallet]]
+  payment_method_type = "google_pay"
 
 [worldpayvantiv.connector_auth.SignatureKey]
 api_key = "Username"

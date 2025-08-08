@@ -5133,6 +5133,32 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + Send + Sync + Clone,
 {
+    fn check_predecrypted_token(
+        &self,
+        payment_data: &D,
+    ) -> CustomResult<Option<PaymentMethodToken>, errors::ApiErrorResponse> {
+        let google_pay_wallet_data = payment_data
+            .get_payment_method_data()
+            .and_then(|payment_method_data| payment_method_data.get_wallet_data())
+            .and_then(|wallet_data| wallet_data.get_google_pay_wallet_data())
+            .get_required_value("GooglePay wallet token")
+            .attach_printable(
+                "GooglePay wallet data not found in the payment method data during the Apple Pay predecryption flow",
+            )?;
+
+        match &google_pay_wallet_data.tokenization_data {
+            common_payments_types::GpayTokenizationData::Encrypted(_) => Ok(None),
+            common_payments_types::GpayTokenizationData::Decrypted(google_pay_predecrypt_data) => {
+                helpers::validate_card_expiry(
+                    &google_pay_predecrypt_data.card_exp_month,
+                    &google_pay_predecrypt_data.card_exp_year,
+                )?;
+                Ok(Some(PaymentMethodToken::GooglePayDecrypt(Box::new(
+                    google_pay_predecrypt_data.clone(),
+                ))))
+            }
+        }
+    }
     fn decide_wallet_flow(
         &self,
         state: &SessionState,
@@ -5180,14 +5206,19 @@ where
         .attach_printable("failed to create google pay token decryptor")?;
 
         // should_verify_token is set to false to disable verification of token
-        let google_pay_data = decryptor
+        let google_pay_data_internal = decryptor
             .decrypt_token(
-                google_pay_wallet_data.tokenization_data.token.clone(),
+                google_pay_wallet_data
+                    .tokenization_data
+                    .get_encrypted_google_pay_token()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?
+                    .clone(),
                 false,
             )
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("failed to decrypt google pay token")?;
-
+        let google_pay_data =
+            common_types::payments::GPayPredecryptData::from(google_pay_data_internal);
         Ok(PaymentMethodToken::GooglePayDecrypt(Box::new(
             google_pay_data,
         )))
