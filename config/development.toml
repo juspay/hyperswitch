@@ -1259,12 +1259,7 @@ enabled = "true"
 [grpc_client.unified_connector_service]
 base_url = "http://localhost:8000"
 connection_timeout = 10
-ucs_only_connectors = [
-  "razorpay",
-  "phonepe",
-  "paytm",
-  "cashfree",
-]
+ucs_only_connectors = "paytm, phonepe"    # Comma-separated list of connectors that use UCS only
 
 [revenue_recovery]
 monitoring_threshold_in_seconds = 60
