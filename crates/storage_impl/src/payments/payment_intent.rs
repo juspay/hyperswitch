@@ -1019,14 +1019,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     Some(status) => query.filter(pi_dsl::status.eq_any(status.clone())),
                     None => query,
                 };
-
-                if let Some(currency) = &params.currency {
-                    query = query.filter(pi_dsl::currency.eq_any(currency.clone()));
-                }
-
-                if let Some(status) = &params.status {
-                    query = query.filter(pi_dsl::status.eq_any(status.clone()));
-                }
             }
         }
 
@@ -1364,7 +1356,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             PaymentIntentFetchConstraints::Single { payment_intent_id } => {
                 query.filter(pi_dsl::id.eq(payment_intent_id.to_owned()))
             }
-            PaymentIntentFetchConstraints::List(params) => {
+            PaymentIntentFetchConstraints::ListGet(params) => {
                 query = match params.order {
                     Order {
                         on: SortOn::Amount,
@@ -1462,7 +1454,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 };
 
                 query = match &params.connector {
-                    Some(connector) => query.filter(pa_dsl::connector.eq(*connector)),
+                    Some(connector) => {
+                        let connector_str = connector.to_string();
+                        query.filter(pa_dsl::connector.eq(connector_str))
+                    }
                     None => query,
                 };
 
@@ -1500,6 +1495,148 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
 
                 if let Some(card_network) = &params.card_network {
                     query = query.filter(pa_dsl::card_network.eq(card_network.clone()));
+                }
+                query
+            }
+            PaymentIntentFetchConstraints::ListPost(params) => {
+                query = match params.order {
+                    Order {
+                        on: SortOn::Amount,
+                        by: SortBy::Asc,
+                    } => query.order(pi_dsl::amount.asc()),
+                    Order {
+                        on: SortOn::Amount,
+                        by: SortBy::Desc,
+                    } => query.order(pi_dsl::amount.desc()),
+                    Order {
+                        on: SortOn::Created,
+                        by: SortBy::Asc,
+                    } => query.order(pi_dsl::created_at.asc()),
+                    Order {
+                        on: SortOn::Created,
+                        by: SortBy::Desc,
+                    } => query.order(pi_dsl::created_at.desc()),
+                };
+
+                if let Some(limit) = params.limit {
+                    query = query.limit(limit.into());
+                }
+
+                if let Some(customer_id) = &params.customer_id {
+                    query = query.filter(pi_dsl::customer_id.eq(customer_id.clone()));
+                }
+
+                if let Some(merchant_order_reference_id) = &params.merchant_order_reference_id {
+                    query = query.filter(
+                        pi_dsl::merchant_reference_id.eq(merchant_order_reference_id.clone()),
+                    )
+                }
+
+                if let Some(profile_id) = &params.profile_id {
+                    query = query.filter(pi_dsl::profile_id.eq_any(profile_id.clone()));
+                }
+
+                query = match (params.starting_at, &params.starting_after_id) {
+                    (Some(starting_at), _) => query.filter(pi_dsl::created_at.ge(starting_at)),
+                    (None, Some(starting_after_id)) => {
+                        // TODO: Fetch partial columns for this query since we only need some columns
+                        let starting_at = self
+                            .find_payment_intent_by_id(
+                                state,
+                                starting_after_id,
+                                merchant_key_store,
+                                storage_scheme,
+                            )
+                            .await?
+                            .created_at;
+                        query.filter(pi_dsl::created_at.ge(starting_at))
+                    }
+                    (None, None) => query,
+                };
+
+                query = match (params.ending_at, &params.ending_before_id) {
+                    (Some(ending_at), _) => query.filter(pi_dsl::created_at.le(ending_at)),
+                    (None, Some(ending_before_id)) => {
+                        // TODO: Fetch partial columns for this query since we only need some columns
+                        let ending_at = self
+                            .find_payment_intent_by_id(
+                                state,
+                                ending_before_id,
+                                merchant_key_store,
+                                storage_scheme,
+                            )
+                            .await?
+                            .created_at;
+                        query.filter(pi_dsl::created_at.le(ending_at))
+                    }
+                    (None, None) => query,
+                };
+
+                query = query.offset(params.offset.into());
+
+                query = match params.amount_filter {
+                    Some(AmountFilter {
+                        start_amount: Some(start),
+                        end_amount: Some(end),
+                    }) => query.filter(pi_dsl::amount.between(start, end)),
+                    Some(AmountFilter {
+                        start_amount: Some(start),
+                        end_amount: None,
+                    }) => query.filter(pi_dsl::amount.ge(start)),
+                    Some(AmountFilter {
+                        start_amount: None,
+                        end_amount: Some(end),
+                    }) => query.filter(pi_dsl::amount.le(end)),
+                    _ => query,
+                };
+
+                query = match &params.currency {
+                    Some(currency) => query.filter(pi_dsl::currency.eq_any(currency.clone())),
+                    None => query,
+                };
+
+                query = match &params.connector {
+                    Some(connector) => {
+                        let connectors: Vec<String> =
+                            connector.iter().map(|c| c.to_string()).collect();
+                        query.filter(pa_dsl::connector.eq_any(connectors))
+                    }
+                    None => query,
+                };
+
+                query = match &params.status {
+                    Some(status) => query.filter(pi_dsl::status.eq_any(status.clone())),
+                    None => query,
+                };
+
+                query = match &params.payment_method_type {
+                    Some(payment_method_type) => query
+                        .filter(pa_dsl::payment_method_type_v2.eq_any(payment_method_type.clone())),
+                    None => query,
+                };
+
+                query = match &params.payment_method_subtype {
+                    Some(payment_method_subtype) => query.filter(
+                        pa_dsl::payment_method_subtype.eq_any(payment_method_subtype.clone()),
+                    ),
+                    None => query,
+                };
+
+                query = match &params.authentication_type {
+                    Some(authentication_type) => query
+                        .filter(pa_dsl::authentication_type.eq_any(authentication_type.clone())),
+                    None => query,
+                };
+
+                query = match &params.merchant_connector_id {
+                    Some(merchant_connector_id) => query.filter(
+                        pa_dsl::merchant_connector_id.eq_any(merchant_connector_id.clone()),
+                    ),
+                    None => query,
+                };
+
+                if let Some(card_network) = &params.card_network {
+                    query = query.filter(pa_dsl::card_network.eq_any(card_network.clone()));
                 }
                 query
             }
@@ -1564,7 +1701,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             PaymentIntentFetchConstraints::Single { payment_intent_id } => {
                 query.filter(pi_dsl::id.eq(payment_intent_id.to_owned()))
             }
-            PaymentIntentFetchConstraints::List(params) => {
+            PaymentIntentFetchConstraints::ListGet(params) => {
                 if let Some(customer_id) = &params.customer_id {
                     query = query.filter(pi_dsl::customer_id.eq(customer_id.clone()));
                 }
@@ -1610,6 +1747,57 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
 
                 query = match &params.status {
                     Some(status) => query.filter(pi_dsl::status.eq(*status)),
+                    None => query,
+                };
+
+                query
+            }
+            PaymentIntentFetchConstraints::ListPost(params) => {
+                if let Some(customer_id) = &params.customer_id {
+                    query = query.filter(pi_dsl::customer_id.eq(customer_id.clone()));
+                }
+                if let Some(merchant_order_reference_id) = &params.merchant_order_reference_id {
+                    query = query.filter(
+                        pi_dsl::merchant_reference_id.eq(merchant_order_reference_id.clone()),
+                    )
+                }
+                if let Some(profile_id) = &params.profile_id {
+                    query = query.filter(pi_dsl::profile_id.eq_any(profile_id.clone()));
+                }
+
+                query = match params.starting_at {
+                    Some(starting_at) => query.filter(pi_dsl::created_at.ge(starting_at)),
+                    None => query,
+                };
+
+                query = match params.ending_at {
+                    Some(ending_at) => query.filter(pi_dsl::created_at.le(ending_at)),
+                    None => query,
+                };
+
+                query = match params.amount_filter {
+                    Some(AmountFilter {
+                        start_amount: Some(start),
+                        end_amount: Some(end),
+                    }) => query.filter(pi_dsl::amount.between(start, end)),
+                    Some(AmountFilter {
+                        start_amount: Some(start),
+                        end_amount: None,
+                    }) => query.filter(pi_dsl::amount.ge(start)),
+                    Some(AmountFilter {
+                        start_amount: None,
+                        end_amount: Some(end),
+                    }) => query.filter(pi_dsl::amount.le(end)),
+                    _ => query,
+                };
+
+                query = match &params.currency {
+                    Some(currency) => query.filter(pi_dsl::currency.eq_any(currency.clone())),
+                    None => query,
+                };
+
+                query = match &params.status {
+                    Some(status) => query.filter(pi_dsl::status.eq_any(status.clone())),
                     None => query,
                 };
 

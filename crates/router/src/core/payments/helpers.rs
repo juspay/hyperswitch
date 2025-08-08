@@ -3092,7 +3092,7 @@ pub(super) async fn filter_by_constraints(
     Ok(result)
 }
 
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v1"))]
 pub(super) fn validate_payment_list_request(
     req: &api::PaymentListConstraints,
 ) -> CustomResult<(), errors::ApiErrorResponse> {

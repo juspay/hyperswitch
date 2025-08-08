@@ -1823,7 +1823,7 @@ impl PaymentAttemptInterface for KafkaStore {
     }
 
     #[cfg(feature = "v2")]
-    async fn get_total_count_of_filtered_payment_attempts(
+    async fn get_total_count_of_filtered_payment_attempts_get(
         &self,
         merchant_id: &id_type::MerchantId,
         active_attempt_ids: &[String],
@@ -1836,7 +1836,35 @@ impl PaymentAttemptInterface for KafkaStore {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
         self.diesel_store
-            .get_total_count_of_filtered_payment_attempts(
+            .get_total_count_of_filtered_payment_attempts_get(
+                merchant_id,
+                active_attempt_ids,
+                connector,
+                payment_method_type,
+                payment_method_subtype,
+                authentication_type,
+                merchant_connector_id,
+                card_network,
+                storage_scheme,
+            )
+            .await
+    }
+
+    #[cfg(feature = "v2")]
+    async fn get_total_count_of_filtered_payment_attempts_post(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        active_attempt_ids: &[String],
+        connector: Option<Vec<api_models::enums::Connector>>,
+        payment_method_type: Option<Vec<common_enums::PaymentMethod>>,
+        payment_method_subtype: Option<Vec<common_enums::PaymentMethodType>>,
+        authentication_type: Option<Vec<common_enums::AuthenticationType>>,
+        merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
+        card_network: Option<Vec<common_enums::CardNetwork>>,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<i64, errors::StorageError> {
+        self.diesel_store
+            .get_total_count_of_filtered_payment_attempts_post(
                 merchant_id,
                 active_attempt_ids,
                 connector,

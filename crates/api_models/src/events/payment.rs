@@ -2,39 +2,46 @@ use common_utils::events::{ApiEventMetric, ApiEventsType};
 
 #[cfg(feature = "v2")]
 use super::{
-    PaymentAttemptListRequest, PaymentAttemptListResponse, PaymentStartRedirectionRequest,
-    PaymentsCreateIntentRequest, PaymentsGetIntentRequest, PaymentsIntentResponse, PaymentsRequest,
+    PaymentAttemptListRequest, PaymentAttemptListResponse, PaymentListConstraintsPost,
+    PaymentStartRedirectionRequest, PaymentsCreateIntentRequest, PaymentsGetIntentRequest,
+    PaymentsIntentResponse, PaymentsRequest,
 };
 #[cfg(feature = "v2")]
-use crate::payment_methods::{
-    ListMethodsForPaymentMethodsRequest, PaymentMethodListResponseForSession,
-};
 use crate::{
     payment_methods::{
-        self, ListCountriesCurrenciesRequest, ListCountriesCurrenciesResponse,
+        self, CustomerPaymentMethodsListResponse, ListCountriesCurrenciesRequest,
+        ListCountriesCurrenciesResponse, ListMethodsForPaymentMethodsRequest,
         PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest,
-        PaymentMethodCollectLinkResponse, PaymentMethodMigrateResponse, PaymentMethodResponse,
-        PaymentMethodUpdate,
+        PaymentMethodCollectLinkResponse, PaymentMethodListResponseForSession,
+        PaymentMethodMigrateResponse, PaymentMethodResponse, PaymentMethodUpdate,
     },
     payments::{
         self, PaymentListConstraints, PaymentListFilters, PaymentListFiltersV2,
-        PaymentListResponse, PaymentsAggregateResponse, PaymentsSessionResponse,
-        RedirectionResponse,
+        PaymentListResponse, PaymentMethodListResponseForPayments, PaymentsAggregateResponse,
+        PaymentsCaptureResponse, PaymentsResponse, PaymentsSessionResponse, RedirectionResponse,
     },
 };
 #[cfg(feature = "v1")]
 use crate::{
-    payment_methods::{PaymentMethodListRequest, PaymentMethodListResponse},
+    payment_methods::{
+        self, ListCountriesCurrenciesRequest, ListCountriesCurrenciesResponse,
+        PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest,
+        PaymentMethodCollectLinkResponse, PaymentMethodListRequest, PaymentMethodListResponse,
+        PaymentMethodMigrateResponse, PaymentMethodResponse, PaymentMethodUpdate,
+    },
     payments::{
-        ExtendedCardInfoResponse, PaymentIdType, PaymentListFilterConstraints,
-        PaymentListResponseV2, PaymentsApproveRequest, PaymentsCancelPostCaptureRequest,
-        PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
+        self, ExtendedCardInfoResponse, PaymentIdType, PaymentListConstraints,
+        PaymentListFilterConstraints, PaymentListFilters, PaymentListFiltersV2,
+        PaymentListResponse, PaymentListResponseV2, PaymentsAggregateResponse,
+        PaymentsApproveRequest, PaymentsCancelPostCaptureRequest, PaymentsCancelRequest,
+        PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
         PaymentsDynamicTaxCalculationRequest, PaymentsDynamicTaxCalculationResponse,
         PaymentsExternalAuthenticationRequest, PaymentsExternalAuthenticationResponse,
         PaymentsIncrementalAuthorizationRequest, PaymentsManualUpdateRequest,
         PaymentsManualUpdateResponse, PaymentsPostSessionTokensRequest,
         PaymentsPostSessionTokensResponse, PaymentsRejectRequest, PaymentsRetrieveRequest,
-        PaymentsStartRequest, PaymentsUpdateMetadataRequest, PaymentsUpdateMetadataResponse,
+        PaymentsSessionResponse, PaymentsStartRequest, PaymentsUpdateMetadataRequest,
+        PaymentsUpdateMetadataResponse, RedirectionResponse,
     },
 };
 
@@ -403,7 +410,7 @@ impl ApiEventMetric for PaymentListFiltersV2 {
         Some(ApiEventsType::ResourceListAPI)
     }
 }
-
+#[cfg(feature = "v1")]
 impl ApiEventMetric for PaymentListConstraints {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::ResourceListAPI)
@@ -506,5 +513,18 @@ impl ApiEventMetric for payments::PaymentsCaptureResponse {
         Some(ApiEventsType::Payment {
             payment_id: self.id.clone(),
         })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for PaymentListConstraints {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::ResourceListAPI)
+    }
+}
+#[cfg(feature = "v2")]
+impl ApiEventMetric for PaymentListConstraintsPost {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::ResourceListAPI)
     }
 }

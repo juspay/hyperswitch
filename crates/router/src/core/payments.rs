@@ -7113,7 +7113,7 @@ pub async fn list_payments(
                     .flatten()
                     .collect::<Vec<String>>();
 
-                db.get_total_count_of_filtered_payment_attempts(
+                db.get_total_count_of_filtered_payment_attempts_get(
                     merchant_context.get_merchant_account().get_id(),
                     &active_attempt_ids,
                     constraints.connector,
@@ -7204,6 +7204,86 @@ pub async fn apply_filters_on_payments(
 
             Ok(services::ApplicationResponse::Json(
                 api::PaymentListResponseV2 {
+                    count: data.len(),
+                    total_count,
+                    data,
+                },
+            ))
+        },
+        &metrics::PAYMENT_LIST_LATENCY,
+        router_env::metric_attributes!((
+            "merchant_id",
+            merchant_context.get_merchant_account().get_id().clone()
+        )),
+    )
+    .await
+}
+
+#[cfg(all(feature = "olap", feature = "v2"))]
+pub async fn apply_filters_on_payments_v2(
+    state: SessionState,
+    merchant_context: domain::MerchantContext,
+    constraints: payments_api::PaymentListConstraintsPost,
+) -> RouterResponse<payments_api::PaymentListResponse> {
+    common_utils::metrics::utils::record_operation_time(
+        async {
+            let limit = &constraints.limit;
+            helpers::validate_payment_list_request_for_joins(*limit)?;
+            let db: &dyn StorageInterface = state.store.as_ref();
+
+            // Convert V2 PaymentListFilterConstraintsPost to database fetch constraints
+            let fetch_constraints = constraints.clone().into();
+            let list: Vec<(storage::PaymentIntent, Option<storage::PaymentAttempt>)> = db
+                .get_filtered_payment_intents_attempt(
+                    &(&state).into(),
+                    merchant_context.get_merchant_account().get_id(),
+                    &fetch_constraints,
+                    merchant_context.get_merchant_key_store(),
+                    merchant_context.get_merchant_account().storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+            let data: Vec<api_models::payments::PaymentsListResponseItem> =
+                list.into_iter().map(ForeignFrom::foreign_from).collect();
+
+            let active_attempt_ids = db
+                .get_filtered_active_attempt_ids_for_total_count(
+                    merchant_context.get_merchant_account().get_id(),
+                    &fetch_constraints,
+                    merchant_context.get_merchant_account().storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+            let total_count = if constraints.has_no_attempt_filters() {
+                i64::try_from(active_attempt_ids.len())
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Error while converting from usize to i64")
+            } else {
+                let active_attempt_ids = active_attempt_ids
+                    .into_iter()
+                    .flatten()
+                    .collect::<Vec<String>>();
+
+                db.get_total_count_of_filtered_payment_attempts_post(
+                    merchant_context.get_merchant_account().get_id(),
+                    &active_attempt_ids,
+                    constraints.connector,
+                    constraints.payment_method_type,
+                    constraints.payment_method_subtype,
+                    constraints.authentication_type,
+                    constraints.merchant_connector_id,
+                    constraints.card_network,
+                    merchant_context.get_merchant_account().storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Error while retrieving total count of payment attempts")
+            }?;
+
+            Ok(services::ApplicationResponse::Json(
+                payments_api::PaymentListResponse {
                     count: data.len(),
                     total_count,
                     data,

@@ -649,7 +649,11 @@ impl Payments {
                 web::resource("")
                     .route(web::post().to(payments::payments_create_and_confirm_intent)),
             )
-            .service(web::resource("/list").route(web::get().to(payments::payments_list)))
+            .service(
+                web::resource("/list")
+                    .route(web::get().to(payments::payments_list))
+                    .route(web::post().to(payments::payments_list_by_filter)),
+            )
             .service(
                 web::resource("/aggregate").route(web::get().to(payments::get_payments_aggregates)),
             )

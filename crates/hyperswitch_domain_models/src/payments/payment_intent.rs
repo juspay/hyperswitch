@@ -1328,13 +1328,24 @@ pub enum PaymentIntentFetchConstraints {
     Single {
         payment_intent_id: id_type::GlobalPaymentId,
     },
-    List(Box<PaymentIntentListParams>),
+    ListGet(Box<PaymentIntentListParamsGet>),
+    ListPost(Box<PaymentIntentListParamsPost>),
 }
 
 #[cfg(feature = "v2")]
 impl PaymentIntentFetchConstraints {
+    /// Returns a single profile ID for ListGet operations
     pub fn get_profile_id(&self) -> Option<id_type::ProfileId> {
-        if let Self::List(pi_list_params) = self {
+        if let Self::ListGet(pi_list_params) = self {
+            pi_list_params.profile_id.clone()
+        } else {
+            None
+        }
+    }
+
+    /// Returns a vector of profile IDs for ListPost operations
+    pub fn get_profile_id_list(&self) -> Option<Vec<id_type::ProfileId>> {
+        if let Self::ListPost(pi_list_params) = self {
             pi_list_params.profile_id.clone()
         } else {
             None
@@ -1367,7 +1378,7 @@ pub struct PaymentIntentListParams {
 }
 
 #[cfg(feature = "v2")]
-pub struct PaymentIntentListParams {
+pub struct PaymentIntentListParamsGet {
     pub offset: u32,
     pub starting_at: Option<PrimitiveDateTime>,
     pub ending_at: Option<PrimitiveDateTime>,
@@ -1386,6 +1397,29 @@ pub struct PaymentIntentListParams {
     pub limit: Option<u32>,
     pub order: api_models::payments::Order,
     pub card_network: Option<common_enums::CardNetwork>,
+    pub merchant_order_reference_id: Option<String>,
+}
+
+#[cfg(feature = "v2")]
+pub struct PaymentIntentListParamsPost {
+    pub offset: u32,
+    pub starting_at: Option<PrimitiveDateTime>,
+    pub ending_at: Option<PrimitiveDateTime>,
+    pub amount_filter: Option<api_models::payments::AmountFilter>,
+    pub connector: Option<Vec<api_models::enums::Connector>>,
+    pub currency: Option<Vec<common_enums::Currency>>,
+    pub status: Option<Vec<common_enums::IntentStatus>>,
+    pub payment_method_type: Option<Vec<common_enums::PaymentMethod>>,
+    pub payment_method_subtype: Option<Vec<common_enums::PaymentMethodType>>,
+    pub authentication_type: Option<Vec<common_enums::AuthenticationType>>,
+    pub merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
+    pub profile_id: Option<Vec<id_type::ProfileId>>,
+    pub customer_id: Option<id_type::GlobalCustomerId>,
+    pub starting_after_id: Option<id_type::GlobalPaymentId>,
+    pub ending_before_id: Option<id_type::GlobalPaymentId>,
+    pub limit: Option<u32>,
+    pub order: api_models::payments::Order,
+    pub card_network: Option<Vec<common_enums::CardNetwork>>,
     pub merchant_order_reference_id: Option<String>,
 }
 
@@ -1461,7 +1495,7 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
         if let Some(payment_intent_id) = payment_id {
             Self::Single { payment_intent_id }
         } else {
-            Self::List(Box::new(PaymentIntentListParams {
+            Self::ListGet(Box::new(PaymentIntentListParamsGet {
                 offset: offset.unwrap_or_default(),
                 starting_at: created_gte.or(created_gt).or(created),
                 ending_at: created_lte.or(created_lt).or(created),
@@ -1622,6 +1656,84 @@ where
             Ok(Self::List(pi_list_params))
         } else {
             Ok(payment_intent_constraints)
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl From<api_models::payments::PaymentListConstraintsPost> for PaymentIntentFetchConstraints {
+    fn from(value: api_models::payments::PaymentListConstraintsPost) -> Self {
+        let api_models::payments::PaymentListConstraintsPost {
+            payment_id,
+            profile_id,
+            customer_id,
+            starting_after,
+            ending_before,
+            limit,
+            offset,
+            created,
+            created_lt,
+            created_gt,
+            created_lte,
+            created_gte,
+            start_amount,
+            end_amount,
+            connector,
+            currency,
+            status,
+            payment_method_type,
+            payment_method_subtype,
+            authentication_type,
+            merchant_connector_id,
+            order_on,
+            order_by,
+            card_network,
+            merchant_order_reference_id,
+        } = value;
+
+        if let Some(payment_intent_id) = payment_id {
+            Self::Single { payment_intent_id }
+        } else {
+            // Convert V2 amount fields to AmountFilter
+            let amount_filter = if start_amount.is_some() || end_amount.is_some() {
+                Some(api_models::payments::AmountFilter {
+                    start_amount,
+                    end_amount,
+                })
+            } else {
+                None
+            };
+
+            // Convert V2 sorting fields to V1 Order struct
+            let order = api_models::payments::Order {
+                on: order_on,
+                by: order_by,
+            };
+
+            Self::ListPost(Box::new(PaymentIntentListParamsPost {
+                offset: offset.unwrap_or_default(),
+                starting_at: created_gte.or(created_gt).or(created),
+                ending_at: created_lte.or(created_lt),
+                amount_filter,
+                connector,
+                currency,
+                status,
+                payment_method_type,
+                payment_method_subtype,
+                authentication_type,
+                merchant_connector_id,
+                profile_id,
+                customer_id,
+                starting_after_id: starting_after,
+                ending_before_id: ending_before,
+                limit: Some(std::cmp::min(
+                    limit,
+                    common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V2,
+                )),
+                order,
+                card_network,
+                merchant_order_reference_id,
+            }))
         }
     }
 }

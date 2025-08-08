@@ -229,7 +229,7 @@ pub trait PaymentAttemptInterface {
 
     #[cfg(all(feature = "v2", feature = "olap"))]
     #[allow(clippy::too_many_arguments)]
-    async fn get_total_count_of_filtered_payment_attempts(
+    async fn get_total_count_of_filtered_payment_attempts_get(
         &self,
         merchant_id: &id_type::MerchantId,
         active_attempt_ids: &[String],
@@ -239,6 +239,21 @@ pub trait PaymentAttemptInterface {
         authentication_type: Option<storage_enums::AuthenticationType>,
         merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
         card_network: Option<storage_enums::CardNetwork>,
+        storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> error_stack::Result<i64, Self::Error>;
+
+    #[cfg(all(feature = "v2", feature = "olap"))]
+    #[allow(clippy::too_many_arguments)]
+    async fn get_total_count_of_filtered_payment_attempts_post(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        active_attempt_ids: &[String],
+        connector: Option<Vec<api_models::enums::Connector>>,
+        payment_method_type: Option<Vec<storage_enums::PaymentMethod>>,
+        payment_method_subtype: Option<Vec<storage_enums::PaymentMethodType>>,
+        authentication_type: Option<Vec<storage_enums::AuthenticationType>>,
+        merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
+        card_network: Option<Vec<storage_enums::CardNetwork>>,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<i64, Self::Error>;
 }
