@@ -4188,6 +4188,15 @@ impl MerchantConnectorAccountType {
             Self::CacheVal(_) => None,
         }
     }
+
+    pub fn get_webhook_details(
+        &self,
+    ) -> CustomResult<Option<&masking::Secret<serde_json::Value>>, errors::ApiErrorResponse> {
+        match self {
+            Self::DbVal(db_val) => Ok(db_val.connector_webhook_details.as_ref()),
+            Self::CacheVal(_) => Ok(None),
+        }
+    }
 }
 
 /// Query for merchant connector account either by business label or profile id
