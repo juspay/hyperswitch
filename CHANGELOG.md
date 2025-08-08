@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.08.08.1-hotfix1
+
+### Bug Fixes
+
+- **core:** Fix Applepay/Gpay for Trustpay ([#8882](https://github.com/juspay/hyperswitch/pull/8882)) ([`7e816b6`](https://github.com/juspay/hyperswitch/commit/7e816b693cfa2d8fdfffd5f434860f4bc6fe47fc))
+
+**Full Changelog:** [`2025.08.08.1...2025.08.08.1-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.08.08.1...2025.08.08.1-hotfix1)
+
+- - -
+
 ## 2025.08.08.1
 
 ### Features
