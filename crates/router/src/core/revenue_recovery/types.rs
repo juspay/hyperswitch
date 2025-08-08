@@ -47,7 +47,7 @@ use crate::{
 };
 
 type RecoveryResult<T> = error_stack::Result<T, errors::RecoveryError>;
-
+pub const REVENUE_RECOVERY: &str = "revenue_recovery";
 /// The status of Passive Churn Payments
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub enum RevenueRecoveryPaymentsAttemptStatus {
@@ -804,25 +804,15 @@ impl Action {
             error_code,
             error_message,
             connector_name,
-            "revenue_recovery".to_string(),
+            REVENUE_RECOVERY.to_string(),
         )
         .await;
         let is_hard_decline = gsm_record
-            .map(|gsm_record| {
-                if let Some(gsm_error_category) = gsm_record.error_category {
-                    match gsm_error_category {
-                        common_enums::ErrorCategory::HardDecline => {
-                            //TODO:Add logic for card_switch
-                            true
-                        }
-                        _ => false,
-                    }
-                } else {
-                    true
-                }
+            .and_then(|gsm_record| gsm_record.error_category)
+            .map(|gsm_error_category| {
+                gsm_error_category == common_enums::ErrorCategory::HardDecline
             })
             .unwrap_or(true);
-
         let schedule_time = revenue_recovery_payment_data
             .get_schedule_time_based_on_retry_type(
                 db,
