@@ -518,8 +518,8 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
             // This field is none because it is specific to stripebilling.
             charge_id: None,
             card_info: api_models::payments::AdditionalCardInfo {
-                card_network:  Some(payment_method_details.card.brand),
-                card_isin:Some(payment_method_details.card.iin),
+                card_network: Some(payment_method_details.card.brand),
+                card_isin: Some(payment_method_details.card.iin),
                 card_issuer: None,
                 card_type: None,
                 card_issuing_country: None,

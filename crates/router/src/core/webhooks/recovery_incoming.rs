@@ -709,7 +709,8 @@ impl RevenueRecoveryAttempt {
             }),
         };
 
-        let card_info = revenue_recovery_attempt_data.card_info
+        let card_info = revenue_recovery_attempt_data
+            .card_info
             .card_isin
             .clone()
             .async_and_then(|isin| async move {
