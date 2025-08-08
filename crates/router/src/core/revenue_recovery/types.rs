@@ -12,14 +12,16 @@ use common_utils::{
     ext_traits::{OptionExt, ValueExt},
     id_type,
 };
-use diesel_models::{enums, process_tracker::business_status, types as diesel_types};
+use diesel_models::{
+    enums, payment_intent, process_tracker::business_status, types as diesel_types,
+};
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     business_profile, merchant_connector_account,
     merchant_context::{Context, MerchantContext},
     payments::{
-        self as domain_payments, payment_attempt, PaymentConfirmData, PaymentIntent,
-        PaymentIntentData,
+        self as domain_payments, payment_attempt::PaymentAttempt, PaymentConfirmData,
+        PaymentIntent, PaymentIntentData,
     },
     router_data_v2::{self, flow_common_types},
     router_flow_types,
@@ -97,7 +99,7 @@ impl RevenueRecoveryPaymentsAttemptStatus {
         payment_intent: &PaymentIntent,
         process_tracker: storage::ProcessTracker,
         revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
-        payment_attempt: payment_attempt::PaymentAttempt,
+        payment_attempt: PaymentAttempt,
         revenue_recovery_metadata: &mut PaymentRevenueRecoveryMetadata,
     ) -> Result<(), errors::ProcessTrackerError> {
         let db = &*state.store;
@@ -192,18 +194,6 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                     db.as_scheduler()
                         .retry_process(process_tracker.clone(), schedule_time)
                         .await?;
-                } else {
-                    // Record a failure transaction back to Billing Connector
-                    // TODO: Add support for retrying failed outgoing recordback webhooks
-                    record_back_to_billing_connector(
-                        state,
-                        &payment_attempt,
-                        payment_intent,
-                        &revenue_recovery_payment_data.billing_mca,
-                    )
-                    .await
-                    .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
-                    .attach_printable("Failed to record back the billing connector")?;
                 }
             }
             Self::Processing => {
@@ -211,7 +201,7 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                 let action = Box::pin(Action::payment_sync_call(
                     state,
                     revenue_recovery_payment_data,
-                    payment_intent.get_id(),
+                    payment_intent,
                     &process_tracker,
                     payment_attempt,
                 ))
@@ -309,10 +299,10 @@ impl Decision {
 
 #[derive(Debug, Clone)]
 pub enum Action {
-    SyncPayment(payment_attempt::PaymentAttempt),
+    SyncPayment(PaymentAttempt),
     RetryPayment(PrimitiveDateTime),
-    TerminalFailure(payment_attempt::PaymentAttempt),
-    SuccessfulPayment(payment_attempt::PaymentAttempt),
+    TerminalFailure(PaymentAttempt),
+    SuccessfulPayment(PaymentAttempt),
     ReviewPayment,
     ManualReviewAction,
 }
@@ -398,6 +388,7 @@ impl Action {
                         process.clone(),
                         revenue_recovery_payment_data,
                         &payment_data.payment_attempt,
+                        payment_intent,
                     )
                     .await
                 }
@@ -503,17 +494,8 @@ impl Action {
                     .await
                     .change_context(errors::RecoveryError::ProcessTrackerFailure)
                     .attach_printable("Failed to update the process tracker")?;
-                // Record back to billing connector for terminal status
                 // TODO: Add support for retrying failed outgoing recordback webhooks
-                record_back_to_billing_connector(
-                    state,
-                    payment_attempt,
-                    payment_intent,
-                    &revenue_recovery_payment_data.billing_mca,
-                )
-                .await
-                .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
-                .attach_printable("Failed to record back the billing connector")?;
+
                 Ok(())
             }
             Self::SuccessfulPayment(payment_attempt) => {
@@ -567,13 +549,13 @@ impl Action {
     pub async fn payment_sync_call(
         state: &SessionState,
         revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
-        global_payment_id: &id_type::GlobalPaymentId,
+        payment_intent: &PaymentIntent,
         process: &storage::ProcessTracker,
-        payment_attempt: payment_attempt::PaymentAttempt,
+        payment_attempt: PaymentAttempt,
     ) -> RecoveryResult<Self> {
         let response = revenue_recovery_core::api::call_psync_api(
             state,
-            global_payment_id,
+            payment_intent.get_id(),
             revenue_recovery_payment_data,
         )
         .await;
@@ -590,6 +572,7 @@ impl Action {
                         process.clone(),
                         revenue_recovery_payment_data,
                         &payment_attempt,
+                        payment_intent,
                     )
                     .await
                 }
@@ -701,18 +684,7 @@ impl Action {
             }
 
             Self::TerminalFailure(payment_attempt) => {
-                // Record a failure transaction back to Billing Connector
                 // TODO: Add support for retrying failed outgoing recordback webhooks
-                record_back_to_billing_connector(
-                    state,
-                    payment_attempt,
-                    payment_intent,
-                    &revenue_recovery_payment_data.billing_mca,
-                )
-                .await
-                .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
-                .attach_printable("Failed to record back the billing connector")?;
-
                 // finish the current psync task
                 db.as_scheduler()
                     .finish_process_with_business_status(
@@ -782,7 +754,8 @@ impl Action {
         merchant_id: &id_type::MerchantId,
         pt: storage::ProcessTracker,
         revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
-        payment_attempt: &payment_attempt::PaymentAttempt,
+        payment_attempt: &PaymentAttempt,
+        payment_intent: &PaymentIntent,
     ) -> RecoveryResult<Self> {
         let db = &*state.store;
         let next_retry_count = pt.retry_count + 1;
@@ -815,9 +788,11 @@ impl Action {
             .unwrap_or(true);
         let schedule_time = revenue_recovery_payment_data
             .get_schedule_time_based_on_retry_type(
-                db,
+                state,
                 merchant_id,
                 next_retry_count,
+                payment_attempt,
+                payment_intent,
                 is_hard_decline,
             )
             .await;
@@ -832,7 +807,7 @@ impl Action {
 // TODO: Move these to impl based functions
 async fn record_back_to_billing_connector(
     state: &SessionState,
-    payment_attempt: &payment_attempt::PaymentAttempt,
+    payment_attempt: &PaymentAttempt,
     payment_intent: &PaymentIntent,
     billing_mca: &merchant_connector_account::MerchantConnectorAccount,
 ) -> RecoveryResult<()> {
@@ -885,7 +860,7 @@ async fn record_back_to_billing_connector(
 pub fn construct_recovery_record_back_router_data(
     state: &SessionState,
     billing_mca: &merchant_connector_account::MerchantConnectorAccount,
-    payment_attempt: &payment_attempt::PaymentAttempt,
+    payment_attempt: &PaymentAttempt,
     payment_intent: &PaymentIntent,
 ) -> RecoveryResult<hyperswitch_domain_models::types::RevenueRecoveryRecordBackRouterData> {
     let auth_type: types::ConnectorAuthType =

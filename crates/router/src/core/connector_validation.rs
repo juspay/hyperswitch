@@ -129,10 +129,11 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 bluesnap::transformers::BluesnapAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
-            // api_enums::Connector::Bluecode => {
-            //     bluecode::transformers::BluecodeAuthType::try_from(self.auth_type)?;
-            //     Ok(())
-            // }
+            api_enums::Connector::Bluecode => {
+                bluecode::transformers::BluecodeAuthType::try_from(self.auth_type)?;
+                bluecode::transformers::BluecodeMetadataObject::try_from(self.connector_meta_data)?;
+                Ok(())
+            }
             api_enums::Connector::Braintree => {
                 braintree::transformers::BraintreeAuthType::try_from(self.auth_type)?;
                 braintree::transformers::BraintreeMeta::try_from(self.connector_meta_data)?;
@@ -154,10 +155,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 celero::transformers::CeleroAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
-            // api_enums::Connector::Checkbook => {
-            //     checkbook::transformers::CheckbookAuthType::try_from(self.auth_type)?;
-            //     Ok(())
-            // },
+            api_enums::Connector::Checkbook => {
+                checkbook::transformers::CheckbookAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Checkout => {
                 checkout::transformers::CheckoutAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -431,6 +432,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 shift4::transformers::Shift4AuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Silverflow => {
+                silverflow::transformers::SilverflowAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Square => {
                 square::transformers::SquareAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -520,6 +525,14 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Threedsecureio => {
                 threedsecureio::transformers::ThreedsecureioAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Phonepe => {
+                phonepe::transformers::PhonepeAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Paytm => {
+                paytm::transformers::PaytmAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
         }

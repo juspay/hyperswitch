@@ -767,6 +767,7 @@ pub(super) async fn get_or_create_customer_details(
                                     .clone()
                                     .map(|a| a.expose().switch_strategy()),
                                 phone: customer_details.phone.clone(),
+                                tax_registration_id: customer_details.tax_registration_id.clone(),
                             },
                         ),
                     ),
@@ -810,6 +811,7 @@ pub(super) async fn get_or_create_customer_details(
                     default_payment_method_id: None,
                     updated_by: None,
                     version: common_types::consts::API_VERSION,
+                    tax_registration_id: encryptable_customer.tax_registration_id,
                 };
 
                 Ok(Some(
@@ -1060,7 +1062,7 @@ pub async fn get_gsm_record(
     error_message: Option<String>,
     connector_name: Option<String>,
     flow: &str,
-) -> Option<storage::gsm::GatewayStatusMap> {
+) -> Option<hyperswitch_domain_models::gsm::GatewayStatusMap> {
     let connector_name = connector_name.unwrap_or_default();
     let get_gsm = || async {
         state.store.find_gsm_rule(
@@ -1371,12 +1373,18 @@ pub(super) fn get_customer_details_from_request(
         .and_then(|customer_details| customer_details.phone_country_code.clone())
         .or(request.phone_country_code.clone());
 
+    let tax_registration_id = request
+        .customer
+        .as_ref()
+        .and_then(|customer_details| customer_details.tax_registration_id.clone());
+
     CustomerDetails {
         customer_id,
         name: customer_name,
         email: customer_email,
         phone: customer_phone,
         phone_country_code: customer_phone_code,
+        tax_registration_id,
     }
 }
 

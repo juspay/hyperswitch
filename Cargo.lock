@@ -459,6 +459,7 @@ dependencies = [
  "common_enums",
  "common_types",
  "common_utils",
+ "deserialize_form_style_query_parameter",
  "error-stack 0.4.1",
  "euclid",
  "masking",
@@ -1858,6 +1859,7 @@ dependencies = [
 name = "common_types"
 version = "0.1.0"
 dependencies = [
+ "cards",
  "common_enums",
  "common_utils",
  "diesel",
@@ -2567,6 +2569,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "deserialize_form_style_query_parameter"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32f5980bcca58eff485f9b5208f325e15cf5e6b23bfe878fae13f9576e6b6e62"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "deunicode"
 version = "1.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3044,12 +3055,14 @@ dependencies = [
  "masking",
  "once_cell",
  "prost",
+ "prost-types",
  "quick-xml",
  "reqwest 0.11.27",
  "router_env",
  "rust-grpc-client",
  "serde",
  "thiserror 1.0.69",
+ "time",
  "tokio 1.45.1",
  "tonic 0.13.1",
  "tonic-build",
@@ -3525,7 +3538,7 @@ dependencies = [
 [[package]]
 name = "grpc-api-types"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=a9f7cd96693fa034ea69d8e21125ea0f76182fae#a9f7cd96693fa034ea69d8e21125ea0f76182fae"
+source = "git+https://github.com/juspay/connector-service?rev=4387a6310dc9c2693b453b455a8032623f3d6a81#4387a6310dc9c2693b453b455a8032623f3d6a81"
 dependencies = [
  "axum 0.8.4",
  "error-stack 0.5.0",
@@ -6782,6 +6795,7 @@ dependencies = [
  "openssl",
  "payment_methods",
  "pm_auth",
+ "prost-types",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "rdkafka",
@@ -6899,7 +6913,7 @@ dependencies = [
 [[package]]
 name = "rust-grpc-client"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=a9f7cd96693fa034ea69d8e21125ea0f76182fae#a9f7cd96693fa034ea69d8e21125ea0f76182fae"
+source = "git+https://github.com/juspay/connector-service?rev=4387a6310dc9c2693b453b455a8032623f3d6a81#4387a6310dc9c2693b453b455a8032623f3d6a81"
 dependencies = [
  "grpc-api-types",
 ]

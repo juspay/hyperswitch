@@ -1,13 +1,17 @@
 use std::fmt::Debug;
 
 use common_enums::enums;
-use common_utils::{date_time, id_type};
+use common_utils::{date_time, ext_traits::ValueExt, id_type};
+use external_services::grpc_client::{self as external_grpc_client, GrpcHeaders};
 use hyperswitch_domain_models::{
     business_profile, merchant_account, merchant_connector_account, merchant_key_store,
+    payment_method_data::{Card, PaymentMethodData},
+    payments::{payment_attempt::PaymentAttempt, PaymentIntent},
 };
+use masking::PeekInterface;
 use router_env::logger;
 
-use crate::{db::StorageInterface, workflows::revenue_recovery};
+use crate::{db::StorageInterface, routes::SessionState, workflows::revenue_recovery};
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub struct RevenueRecoveryWorkflowTrackingData {
     pub merchant_id: id_type::MerchantId,
@@ -29,9 +33,11 @@ pub struct RevenueRecoveryPaymentData {
 impl RevenueRecoveryPaymentData {
     pub async fn get_schedule_time_based_on_retry_type(
         &self,
-        db: &dyn StorageInterface,
+        state: &SessionState,
         merchant_id: &id_type::MerchantId,
         retry_count: i32,
+        payment_attempt: &PaymentAttempt,
+        payment_intent: &PaymentIntent,
         is_hard_decline: bool,
     ) -> Option<time::PrimitiveDateTime> {
         match self.retry_algorithm {
@@ -41,7 +47,7 @@ impl RevenueRecoveryPaymentData {
             }
             enums::RevenueRecoveryAlgorithmType::Cascading => {
                 revenue_recovery::get_schedule_time_to_retry_mit_payments(
-                    db,
+                    state.store.as_ref(),
                     merchant_id,
                     retry_count,
                 )
@@ -52,14 +58,35 @@ impl RevenueRecoveryPaymentData {
                     None
                 } else {
                     // TODO: Integrate the smart retry call to return back a schedule time
-                    Some(date_time::now())
+                    revenue_recovery::get_schedule_time_for_smart_retry(
+                        state,
+                        payment_attempt,
+                        payment_intent,
+                        retry_count,
+                    )
+                    .await
                 }
             }
         }
     }
 }
+
 #[derive(Debug, serde::Deserialize, Clone, Default)]
 pub struct RevenueRecoverySettings {
     pub monitoring_threshold_in_seconds: i64,
     pub retry_algorithm_type: enums::RevenueRecoveryAlgorithmType,
+    pub recovery_timestamp: RecoveryTimestamp,
+}
+
+#[derive(Debug, serde::Deserialize, Clone)]
+pub struct RecoveryTimestamp {
+    pub initial_timestamp_in_hours: i64,
+}
+
+impl Default for RecoveryTimestamp {
+    fn default() -> Self {
+        Self {
+            initial_timestamp_in_hours: 1,
+        }
+    }
 }

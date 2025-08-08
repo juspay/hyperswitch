@@ -470,6 +470,7 @@ pub trait ConnectorActions: Connector {
                     email: Email::from_str("john.doe@example").ok(),
                     phone: Some(Secret::new("620874518".to_string())),
                     phone_country_code: Some("+31".to_string()),
+                    tax_registration_id: Some("1232343243".to_string().into()),
                 }),
                 vendor_details: None,
                 priority: None,
@@ -555,6 +556,8 @@ pub trait ConnectorActions: Connector {
             authentication_id: None,
             raw_connector_response: None,
             is_payment_id_from_merchant: None,
+            l2_l3_data: None,
+            minor_amount_capturable: None,
         }
     }
 
@@ -998,6 +1001,8 @@ impl Default for PaymentAuthorizeType {
             connector_testing_data: None,
             order_id: None,
             locale: None,
+            payment_channel: None,
+            enable_partial_authorization: None,
         };
         Self(data)
     }

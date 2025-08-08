@@ -358,6 +358,10 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
                     email: customer.email.clone().map(Email::from),
                     phone: customer.phone.clone().map(|phone| phone.into_inner()),
                     phone_country_code: customer.phone_country_code.clone(),
+                    tax_registration_id: customer
+                        .tax_registration_id
+                        .clone()
+                        .map(|tax_registration_id| tax_registration_id.into_inner()),
                 }))
             },
         )
@@ -387,6 +391,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
                         .clone()
                         .map(|email| email.expose().switch_strategy()),
                     phone: self.customer.phone.clone(),
+                    tax_registration_id: self.customer.tax_registration_id.clone(),
                 },
             )),
             Identifier::Merchant(self.merchant_account.get_id().clone()),
@@ -425,6 +430,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             default_payment_method_id: None,
             updated_by: None,
             version: common_types::consts::API_VERSION,
+            tax_registration_id: encryptable_customer.tax_registration_id,
         };
 
         db.insert_customer(
@@ -450,6 +456,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             email: self.customer.email.clone(),
             phone: self.customer.phone.clone(),
             phone_country_code: self.customer.phone_country_code.clone(),
+            tax_registration_id: self.customer.tax_registration_id.clone(),
         })
     }
 

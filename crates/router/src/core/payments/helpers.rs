@@ -149,6 +149,10 @@ pub async fn create_or_update_address_for_payment_by_request(
                                     .email
                                     .as_ref()
                                     .map(|a| a.clone().expose().switch_strategy()),
+                                origin_zip: address
+                                    .address
+                                    .as_ref()
+                                    .and_then(|a| a.origin_zip.clone()),
                             },
                         ),
                     ),
@@ -190,6 +194,7 @@ pub async fn create_or_update_address_for_payment_by_request(
                             );
                         encryptable
                     }),
+                    origin_zip: encryptable_address.origin_zip,
                 };
                 let address = db
                     .find_address_by_merchant_id_payment_id_address_id(
@@ -359,6 +364,7 @@ pub async fn get_domain_address(
                             .email
                             .as_ref()
                             .map(|a| a.clone().expose().switch_strategy()),
+                        origin_zip: address.address.as_ref().and_then(|a| a.origin_zip.clone()),
                     },
                 ),
             ),
@@ -395,6 +401,7 @@ pub async fn get_domain_address(
                     );
                 encryptable
             }),
+            origin_zip: encryptable_address.origin_zip,
         })
     }
     .await
@@ -1583,12 +1590,18 @@ pub fn get_customer_details_from_request(
         .and_then(|customer_details| customer_details.phone_country_code.clone())
         .or(request.phone_country_code.clone());
 
+    let tax_registration_id = request
+        .customer
+        .as_ref()
+        .and_then(|customer_details| customer_details.tax_registration_id.clone());
+
     CustomerDetails {
         customer_id,
         name: customer_name,
         email: customer_email,
         phone: customer_phone,
         phone_country_code: customer_phone_code,
+        tax_registration_id,
     }
 }
 
@@ -1659,12 +1672,14 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
         || request_customer_details.email.is_some()
         || request_customer_details.phone.is_some()
         || request_customer_details.phone_country_code.is_some()
+        || request_customer_details.tax_registration_id.is_some()
     {
         Some(CustomerData {
             name: request_customer_details.name.clone(),
             email: request_customer_details.email.clone(),
             phone: request_customer_details.phone.clone(),
             phone_country_code: request_customer_details.phone_country_code.clone(),
+            tax_registration_id: request_customer_details.tax_registration_id.clone(),
         })
     } else {
         None
@@ -1702,6 +1717,10 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                 .phone_country_code
                 .clone()
                 .or(parsed_customer_data.phone_country_code.clone()),
+            tax_registration_id: request_customer_details
+                .tax_registration_id
+                .clone()
+                .or(parsed_customer_data.tax_registration_id.clone()),
         })
         .or(temp_customer_data);
     let key_manager_state = state.into();
@@ -1744,6 +1763,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                                 .as_ref()
                                 .map(|e| e.clone().expose().switch_strategy()),
                             phone: request_customer_details.phone.clone(),
+                            tax_registration_id: None,
                         },
                     ),
                 ),
@@ -1765,6 +1785,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                         | request_customer_details.name.is_some()
                         | request_customer_details.phone.is_some()
                         | request_customer_details.phone_country_code.is_some()
+                        | request_customer_details.tax_registration_id.is_some()
                     {
                         let customer_update = Update {
                             name: encryptable_customer.name,
@@ -1781,8 +1802,9 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                             phone_country_code: request_customer_details.phone_country_code,
                             description: None,
                             connector_customer: Box::new(None),
-                            metadata: None,
+                            metadata: Box::new(None),
                             address_id: None,
+                            tax_registration_id: encryptable_customer.tax_registration_id,
                         };
 
                         db.update_customer_by_customer_id_merchant_id(
@@ -1824,6 +1846,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                         default_payment_method_id: None,
                         updated_by: None,
                         version: common_types::consts::API_VERSION,
+                        tax_registration_id: encryptable_customer.tax_registration_id,
                     };
                     metrics::CUSTOMER_CREATED.add(1, &[]);
                     db.insert_customer(new_customer, key_manager_state, key_store, storage_scheme)
@@ -2904,6 +2927,7 @@ pub(crate) fn validate_status_with_capture_method(
     utils::when(
         status != storage_enums::IntentStatus::RequiresCapture
             && status != storage_enums::IntentStatus::PartiallyCapturedAndCapturable
+            && status != storage_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
             && status != storage_enums::IntentStatus::Processing,
         || {
             Err(report!(errors::ApiErrorResponse::PaymentUnexpectedState {
@@ -3868,6 +3892,13 @@ mod tests {
             force_3ds_challenge_trigger: None,
             is_iframe_redirection_enabled: None,
             is_payment_id_from_merchant: None,
+            payment_channel: None,
+            tax_status: None,
+            discount_amount: None,
+            order_date: None,
+            shipping_amount_tax: None,
+            duty_amount: None,
+            enable_partial_authorization: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3945,6 +3976,13 @@ mod tests {
             force_3ds_challenge_trigger: None,
             is_iframe_redirection_enabled: None,
             is_payment_id_from_merchant: None,
+            payment_channel: None,
+            tax_status: None,
+            discount_amount: None,
+            order_date: None,
+            shipping_amount_tax: None,
+            duty_amount: None,
+            enable_partial_authorization: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -4020,6 +4058,13 @@ mod tests {
             force_3ds_challenge_trigger: None,
             is_iframe_redirection_enabled: None,
             is_payment_id_from_merchant: None,
+            payment_channel: None,
+            tax_status: None,
+            discount_amount: None,
+            order_date: None,
+            shipping_amount_tax: None,
+            duty_amount: None,
+            enable_partial_authorization: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -4355,6 +4400,8 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         psd2_sca_exemption_type: router_data.psd2_sca_exemption_type,
         raw_connector_response: router_data.raw_connector_response,
         is_payment_id_from_merchant: router_data.is_payment_id_from_merchant,
+        l2_l3_data: router_data.l2_l3_data,
+        minor_amount_capturable: router_data.minor_amount_capturable,
     }
 }
 
@@ -4395,11 +4442,13 @@ pub fn get_attempt_type(
                     | enums::AttemptStatus::PartialCharged
                     | enums::AttemptStatus::PartialChargedAndChargeable
                     | enums::AttemptStatus::Voided
+                    | enums::AttemptStatus::VoidedPostCharge
                     | enums::AttemptStatus::AutoRefunded
                     | enums::AttemptStatus::PaymentMethodAwaited
                     | enums::AttemptStatus::DeviceDataCollectionPending
                     | enums::AttemptStatus::IntegrityFailure
-                    | enums::AttemptStatus::Expired => {
+                    | enums::AttemptStatus::Expired
+                    | enums::AttemptStatus::PartiallyAuthorized => {
                         metrics::MANUAL_RETRY_VALIDATION_FAILED.add(
                             1,
                             router_env::metric_attributes!((
@@ -4450,13 +4499,15 @@ pub fn get_attempt_type(
             }
         }
         enums::IntentStatus::Cancelled
+        | enums::IntentStatus::CancelledPostCapture
         | enums::IntentStatus::RequiresCapture
         | enums::IntentStatus::PartiallyCaptured
         | enums::IntentStatus::PartiallyCapturedAndCapturable
         | enums::IntentStatus::Processing
         | enums::IntentStatus::Succeeded
         | enums::IntentStatus::Conflicted
-        | enums::IntentStatus::Expired => {
+        | enums::IntentStatus::Expired
+        | enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => {
             Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                 message: format!(
                     "You cannot {action} this payment because it has status {}",
@@ -4700,11 +4751,13 @@ pub fn is_manual_retry_allowed(
             | enums::AttemptStatus::PartialCharged
             | enums::AttemptStatus::PartialChargedAndChargeable
             | enums::AttemptStatus::Voided
+            | enums::AttemptStatus::VoidedPostCharge
             | enums::AttemptStatus::AutoRefunded
             | enums::AttemptStatus::PaymentMethodAwaited
             | enums::AttemptStatus::DeviceDataCollectionPending
             | enums::AttemptStatus::IntegrityFailure
-            | enums::AttemptStatus::Expired => {
+            | enums::AttemptStatus::Expired
+            | enums::AttemptStatus::PartiallyAuthorized => {
                 logger::error!("Payment Attempt should not be in this state because Attempt to Intent status mapping doesn't allow it");
                 None
             }
@@ -4718,13 +4771,15 @@ pub fn is_manual_retry_allowed(
             | enums::AttemptStatus::Failure => Some(true),
         },
         enums::IntentStatus::Cancelled
+        | enums::IntentStatus::CancelledPostCapture
         | enums::IntentStatus::RequiresCapture
         | enums::IntentStatus::PartiallyCaptured
         | enums::IntentStatus::PartiallyCapturedAndCapturable
         | enums::IntentStatus::Processing
         | enums::IntentStatus::Succeeded
         | enums::IntentStatus::Conflicted
-        | enums::IntentStatus::Expired => Some(false),
+        | enums::IntentStatus::Expired
+        | enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => Some(false),
 
         enums::IntentStatus::RequiresCustomerAction
         | enums::IntentStatus::RequiresMerchantAction
@@ -5875,7 +5930,7 @@ impl GooglePayTokenDecryptor {
         data: String,
         should_verify_signature: bool,
     ) -> CustomResult<
-        hyperswitch_domain_models::router_data::GooglePayDecryptedData,
+        hyperswitch_domain_models::router_data::GooglePayPredecryptDataInternal,
         errors::GooglePayDecryptionError,
     > {
         // parse the encrypted data
@@ -5909,9 +5964,9 @@ impl GooglePayTokenDecryptor {
         let decrypted = self.decrypt_message(symmetric_encryption_key, encrypted_message)?;
 
         // parse the decrypted data
-        let decrypted_data: hyperswitch_domain_models::router_data::GooglePayDecryptedData =
+        let decrypted_data: hyperswitch_domain_models::router_data::GooglePayPredecryptDataInternal =
             decrypted
-                .parse_struct("GooglePayDecryptedData")
+                .parse_struct("GooglePayPredecryptDataInternal")
                 .change_context(errors::GooglePayDecryptionError::DeserializationFailed)?;
 
         // check the expiration date of the decrypted data
@@ -6441,7 +6496,7 @@ pub async fn get_gsm_record(
     error_message: Option<String>,
     connector_name: String,
     flow: String,
-) -> Option<storage::gsm::GatewayStatusMap> {
+) -> Option<hyperswitch_domain_models::gsm::GatewayStatusMap> {
     let get_gsm = || async {
         state.store.find_gsm_rule(
                 connector_name.clone(),

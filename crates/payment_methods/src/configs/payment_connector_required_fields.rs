@@ -198,6 +198,7 @@ enum RequiredField {
     DcbMsisdn,
     DcbClientUid,
     OrderDetailsProductName,
+    Description,
 }
 
 impl RequiredField {
@@ -856,6 +857,15 @@ impl RequiredField {
                     value: None,
                 },
             ),
+            Self::Description => (
+                "description".to_string(),
+                RequiredFieldInfo {
+                    required_field: "description".to_string(),
+                    display_name: "description".to_string(),
+                    field_type: FieldType::Text,
+                    value: None,
+                },
+            ),
         }
     }
 }
@@ -1071,19 +1081,47 @@ impl Default for RequiredFields {
                 enums::PaymentMethod::Upi,
                 PaymentMethodType(HashMap::from([(
                     enums::PaymentMethodType::UpiCollect,
-                    connectors(vec![(
-                        Connector::Razorpay,
-                        fields(
-                            vec![],
-                            vec![],
-                            vec![
-                                RequiredField::UpiCollectVpaId,
-                                RequiredField::BillingEmail,
-                                RequiredField::BillingPhone,
-                                RequiredField::BillingPhoneCountryCode,
-                            ],
+                    connectors(vec![
+                        (
+                            Connector::Razorpay,
+                            fields(
+                                vec![],
+                                vec![],
+                                vec![
+                                    RequiredField::UpiCollectVpaId,
+                                    RequiredField::BillingEmail,
+                                    RequiredField::BillingPhone,
+                                    RequiredField::BillingPhoneCountryCode,
+                                ],
+                            ),
                         ),
-                    )]),
+                        (
+                            Connector::Phonepe,
+                            fields(
+                                vec![],
+                                vec![],
+                                vec![
+                                    RequiredField::UpiCollectVpaId,
+                                    RequiredField::BillingEmail,
+                                    RequiredField::BillingPhone,
+                                    RequiredField::BillingPhoneCountryCode,
+                                ],
+                            ),
+                        ),
+                        (
+                            Connector::Paytm,
+                            fields(
+                                vec![],
+                                vec![],
+                                vec![
+                                    RequiredField::UpiCollectVpaId,
+                                    RequiredField::BillingEmail,
+                                    RequiredField::BillingPhone,
+                                    RequiredField::BillingPhoneCountryCode,
+                                ],
+                            ),
+                        ),
+                    ]),
                 )])),
             ),
             (
@@ -1212,6 +1250,14 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
                 vec![],
                 vec![],
                 [card_basic(), email(), full_name(), billing_address()].concat(),
+            ),
+        ),
+        (
+            Connector::Barclaycard,
+            fields(
+                vec![],
+                vec![],
+                [card_basic(), full_name(), billing_address()].concat(),
             ),
         ),
         (Connector::Billwerk, fields(vec![], vec![], card_basic())),
@@ -1464,6 +1510,7 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
         (Connector::Rapyd, fields(vec![], card_with_name(), vec![])),
         (Connector::Redsys, fields(vec![], card_basic(), vec![])),
         (Connector::Shift4, fields(vec![], card_basic(), vec![])),
+        (Connector::Silverflow, fields(vec![], vec![], card_basic())),
         (Connector::Square, fields(vec![], vec![], card_basic())),
         (Connector::Stax, fields(vec![], card_with_name(), vec![])),
         (Connector::Stripe, fields(vec![], vec![], card_basic())),
@@ -2379,6 +2426,10 @@ fn get_wallet_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorFi
                         ]),
                     },
                 ),
+                (
+                    Connector::Barclaycard,
+                    fields(vec![], vec![], [full_name(), billing_address()].concat()),
+                ),
                 (Connector::Bluesnap, fields(vec![], vec![], vec![])),
                 (Connector::Noon, fields(vec![], vec![], vec![])),
                 (
@@ -3284,8 +3335,17 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
         (
             enums::PaymentMethodType::Ach,
             connectors(vec![(
-                Connector::Stripe,
-                fields(vec![], vec![], vec![RequiredField::BillingEmail]),
+                Connector::Checkbook,
+                fields(
+                    vec![],
+                    vec![],
+                    vec![
+                        RequiredField::BillingUserFirstName,
+                        RequiredField::BillingUserLastName,
+                        RequiredField::BillingEmail,
+                        RequiredField::Description,
+                    ],
+                ),
             )]),
         ),
         (
@@ -3314,6 +3374,26 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
                         common: HashMap::from([
                             RequiredField::BillingUserFirstName.to_tuple(),
                             RequiredField::BillingUserLastName.to_tuple(),
+                        ]),
+                    },
+                ),
+                (
+                    Connector::Bluecode,
+                    RequiredFieldFinal {
+                        mandate: HashMap::new(),
+                        non_mandate: HashMap::new(),
+                        common: HashMap::from([
+                            RequiredField::BillingUserFirstName.to_tuple(),
+                            RequiredField::BillingUserLastName.to_tuple(),
+                            RequiredField::BillingCountries(vec![
+                                "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE",
+                                "GR", "HU", "IE", "IT", "LV", "LT", "LU", "MT", "NL", "PL", "PT",
+                                "RO", "SK", "SI", "ES", "SE", "IS", "LI", "NO",
+                            ])
+                            .to_tuple(),
+                            RequiredField::BillingAddressCity.to_tuple(),
+                            RequiredField::BillingAddressLine1.to_tuple(),
+                            RequiredField::BillingAddressZip.to_tuple(),
                         ]),
                     },
                 ),

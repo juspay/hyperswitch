@@ -28,6 +28,42 @@ pub mod managers;
 /// crm module
 pub mod crm;
 
+#[cfg(feature = "revenue_recovery")]
+/// date_time module
+pub mod date_time {
+    use error_stack::ResultExt;
+
+    /// Errors in time conversion
+    #[derive(Debug, thiserror::Error)]
+    pub enum DateTimeConversionError {
+        #[error("Invalid timestamp value from prost Timestamp: out of representable range")]
+        /// Error for out of range
+        TimestampOutOfRange,
+    }
+
+    /// Converts a `time::PrimitiveDateTime` to a `prost_types::Timestamp`.
+    pub fn convert_to_prost_timestamp(dt: time::PrimitiveDateTime) -> prost_types::Timestamp {
+        let odt = dt.assume_utc();
+        prost_types::Timestamp {
+            seconds: odt.unix_timestamp(),
+            // This conversion is safe as nanoseconds (0..999_999_999) always fit within an i32.
+            #[allow(clippy::as_conversions)]
+            nanos: odt.nanosecond() as i32,
+        }
+    }
+
+    /// Converts a `prost_types::Timestamp` to an `time::PrimitiveDateTime`.
+    pub fn convert_from_prost_timestamp(
+        ts: &prost_types::Timestamp,
+    ) -> error_stack::Result<time::PrimitiveDateTime, DateTimeConversionError> {
+        let timestamp_nanos = i128::from(ts.seconds) * 1_000_000_000 + i128::from(ts.nanos);
+
+        time::OffsetDateTime::from_unix_timestamp_nanos(timestamp_nanos)
+            .map(|offset_dt| time::PrimitiveDateTime::new(offset_dt.date(), offset_dt.time()))
+            .change_context(DateTimeConversionError::TimestampOutOfRange)
+    }
+}
+
 /// Crate specific constants
 pub mod consts {
     /// General purpose base64 engine
