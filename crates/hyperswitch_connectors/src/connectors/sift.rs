@@ -1,5 +1,8 @@
 pub mod transformers;
 
+use std::sync::LazyLock;
+
+use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
@@ -8,6 +11,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
+    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -19,7 +23,9 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefundSyncRouterData, RefundsRouterData,
@@ -36,16 +42,17 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use transformers as custombilling;
+use masking::{ExposeInterface, Mask};
+use transformers as sift;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
-pub struct Custombilling {
+pub struct Sift {
     amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }
 
-impl Custombilling {
+impl Sift {
     pub fn new() -> &'static Self {
         &Self {
             amount_converter: &StringMinorUnitForConnector,
@@ -53,26 +60,26 @@ impl Custombilling {
     }
 }
 
-impl api::Payment for Custombilling {}
-impl api::PaymentSession for Custombilling {}
-impl api::ConnectorAccessToken for Custombilling {}
-impl api::MandateSetup for Custombilling {}
-impl api::PaymentAuthorize for Custombilling {}
-impl api::PaymentSync for Custombilling {}
-impl api::PaymentCapture for Custombilling {}
-impl api::PaymentVoid for Custombilling {}
-impl api::Refund for Custombilling {}
-impl api::RefundExecute for Custombilling {}
-impl api::RefundSync for Custombilling {}
-impl api::PaymentToken for Custombilling {}
+impl api::Payment for Sift {}
+impl api::PaymentSession for Sift {}
+impl api::ConnectorAccessToken for Sift {}
+impl api::MandateSetup for Sift {}
+impl api::PaymentAuthorize for Sift {}
+impl api::PaymentSync for Sift {}
+impl api::PaymentCapture for Sift {}
+impl api::PaymentVoid for Sift {}
+impl api::Refund for Sift {}
+impl api::RefundExecute for Sift {}
+impl api::RefundSync for Sift {}
+impl api::PaymentToken for Sift {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
-    for Custombilling
+    for Sift
 {
     // Not Implemented (R)
 }
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Custombilling
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Sift
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {
@@ -91,9 +98,9 @@ where
     }
 }
 
-impl ConnectorCommon for Custombilling {
+impl ConnectorCommon for Sift {
     fn id(&self) -> &'static str {
-        "custombilling"
+        "sift"
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
@@ -107,15 +114,20 @@ impl ConnectorCommon for Custombilling {
         "application/json"
     }
 
-    fn base_url<'a>(&self, _connectors: &'a Connectors) -> &'a str {
-        ""
+    fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
+        connectors.sift.base_url.as_ref()
     }
 
     fn get_auth_header(
         &self,
-        _auth_type: &ConnectorAuthType,
+        auth_type: &ConnectorAuthType,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        Ok(vec![])
+        let auth = sift::SiftAuthType::try_from(auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        Ok(vec![(
+            headers::AUTHORIZATION.to_string(),
+            auth.api_key.expose().into_masked(),
+        )])
     }
 
     fn build_error_response(
@@ -123,9 +135,9 @@ impl ConnectorCommon for Custombilling {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: custombilling::CustombillingErrorResponse = res
+        let response: sift::SiftErrorResponse = res
             .response
-            .parse_struct("CustombillingErrorResponse")
+            .parse_struct("SiftErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -145,24 +157,41 @@ impl ConnectorCommon for Custombilling {
     }
 }
 
-impl ConnectorValidation for Custombilling {
-    //TODO: implement functions when support enabled
+impl ConnectorValidation for Sift {
+    fn validate_mandate_payment(
+        &self,
+        _pm_type: Option<enums::PaymentMethodType>,
+        pm_data: PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        match pm_data {
+            PaymentMethodData::Card(_) => Err(errors::ConnectorError::NotImplemented(
+                "validate_mandate_payment does not support cards".to_string(),
+            )
+            .into()),
+            _ => Ok(()),
+        }
+    }
+
+    fn validate_psync_reference_id(
+        &self,
+        _data: &PaymentsSyncData,
+        _is_three_ds: bool,
+        _status: enums::AttemptStatus,
+        _connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        Ok(())
+    }
 }
 
-impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Custombilling {
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Sift {
     //TODO: implement sessions flow
 }
 
-impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Custombilling {}
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Sift {}
 
-impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
-    for Custombilling
-{
-}
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Sift {}
 
-impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData>
-    for Custombilling
-{
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Sift {
     fn get_headers(
         &self,
         req: &PaymentsAuthorizeRouterData,
@@ -194,9 +223,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             req.request.currency,
         )?;
 
-        let connector_router_data = custombilling::CustombillingRouterData::from((amount, req));
-        let connector_req =
-            custombilling::CustombillingPaymentsRequest::try_from(&connector_router_data)?;
+        let connector_router_data = sift::SiftRouterData::from((amount, req));
+        let connector_req = sift::SiftPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -228,9 +256,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: custombilling::CustombillingPaymentsResponse = res
+        let response: sift::SiftPaymentsResponse = res
             .response
-            .parse_struct("Custombilling PaymentsAuthorizeResponse")
+            .parse_struct("Sift PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -250,7 +278,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     }
 }
 
-impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Custombilling {
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Sift {
     fn get_headers(
         &self,
         req: &PaymentsSyncRouterData,
@@ -292,9 +320,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Cus
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: custombilling::CustombillingPaymentsResponse = res
+        let response: sift::SiftPaymentsResponse = res
             .response
-            .parse_struct("custombilling PaymentsSyncResponse")
+            .parse_struct("sift PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -314,7 +342,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Cus
     }
 }
 
-impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Custombilling {
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Sift {
     fn get_headers(
         &self,
         req: &PaymentsCaptureRouterData,
@@ -369,9 +397,9 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: custombilling::CustombillingPaymentsResponse = res
+        let response: sift::SiftPaymentsResponse = res
             .response
-            .parse_struct("Custombilling PaymentsCaptureResponse")
+            .parse_struct("Sift PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -391,9 +419,9 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     }
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Custombilling {}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Sift {}
 
-impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Custombilling {
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Sift {
     fn get_headers(
         &self,
         req: &RefundsRouterData<Execute>,
@@ -425,10 +453,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Customb
             req.request.currency,
         )?;
 
-        let connector_router_data =
-            custombilling::CustombillingRouterData::from((refund_amount, req));
-        let connector_req =
-            custombilling::CustombillingRefundRequest::try_from(&connector_router_data)?;
+        let connector_router_data = sift::SiftRouterData::from((refund_amount, req));
+        let connector_req = sift::SiftRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -457,9 +483,9 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Customb
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: custombilling::RefundResponse = res
+        let response: sift::RefundResponse = res
             .response
-            .parse_struct("custombilling RefundResponse")
+            .parse_struct("sift RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -479,7 +505,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Customb
     }
 }
 
-impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Custombilling {
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Sift {
     fn get_headers(
         &self,
         req: &RefundSyncRouterData,
@@ -524,10 +550,10 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Custombil
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: custombilling::RefundResponse = res
-            .response
-            .parse_struct("custombilling RefundSyncResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: sift::RefundResponse =
+            res.response
+                .parse_struct("sift RefundSyncResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -547,7 +573,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Custombil
 }
 
 #[async_trait::async_trait]
-impl webhooks::IncomingWebhook for Custombilling {
+impl webhooks::IncomingWebhook for Sift {
     fn get_webhook_object_reference_id(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
@@ -570,4 +596,27 @@ impl webhooks::IncomingWebhook for Custombilling {
     }
 }
 
-impl ConnectorSpecifications for Custombilling {}
+static SIFT_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(SupportedPaymentMethods::new);
+
+static SIFT_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Sift",
+    description: "Sift connector",
+    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+};
+
+static SIFT_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+
+impl ConnectorSpecifications for Sift {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&SIFT_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*SIFT_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&SIFT_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}
