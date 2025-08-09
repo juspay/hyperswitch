@@ -508,11 +508,13 @@ impl RevenueRecoveryAttempt {
         payment_intent: &domain_payments::PaymentIntent,
         revenue_recovery_metadata: &api_payments::PaymentRevenueRecoveryMetadata,
         billing_connector_account: &domain::MerchantConnectorAccount,
+        card_info: api_payments::AdditionalCardInfo,
     ) -> CustomResult<Self, errors::RevenueRecoveryError> {
         let revenue_recovery_data = payment_intent
             .create_revenue_recovery_attempt_data(
                 revenue_recovery_metadata.clone(),
                 billing_connector_account,
+                card_info,
             )
             .change_context(errors::RevenueRecoveryError::RevenueRecoveryAttemptDataCreateFailed)
             .attach_printable("Failed to build recovery attempt data")?;
@@ -632,7 +634,6 @@ impl RevenueRecoveryAttempt {
                     .as_ref()
                     .map(|account| account.connector_name),
                 common_enums::TriggeredBy::External,
-                None,
             )
             .await?;
         let attempt_response = Box::pin(payments::record_attempt_core(
@@ -712,7 +713,6 @@ impl RevenueRecoveryAttempt {
         payment_merchant_connector_account_id: Option<id_type::MerchantConnectorAccountId>,
         payment_connector: Option<common_enums::connector_enums::Connector>,
         triggered_by: common_enums::TriggeredBy,
-        additional_card_info: Option<api_models::payments::AdditionalCardInfo>,
     ) -> CustomResult<api_payments::PaymentsAttemptRecordRequest, errors::RevenueRecoveryError>
     {
         let revenue_recovery_attempt_data = &self.0;
@@ -741,10 +741,10 @@ impl RevenueRecoveryAttempt {
             })
             .await
             .flatten();
-        let additional_payment_method_data = additional_card_info
-            .map(|info| api_models::payments::AdditionalPaymentData::Card(Box::new(info)));
         let payment_method_data = api_models::payments::RecordAttemptPaymentMethodDataRequest {
-            payment_method_data: additional_payment_method_data,
+            payment_method_data: Some(api_models::payments::AdditionalPaymentData::Card(Box::new(
+                self.0.card_info.clone(),
+            ))),
             billing: None,
         };
 

@@ -178,16 +178,8 @@ pub async fn record_internal_attempt_api(
     revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
     revenue_recovery_metadata: &payments_api::PaymentRevenueRecoveryMetadata,
 ) -> RouterResult<payments_api::PaymentAttemptRecordResponse> {
-    let revenue_recovery_attempt_data =
-        recovery_incoming::RevenueRecoveryAttempt::get_revenue_recovery_attempt(
-            payment_intent,
-            revenue_recovery_metadata,
-            &revenue_recovery_payment_data.billing_mca,
-        )
-        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
-            message: "get_revenue_recovery_attempt was not constructed".to_string(),
-        })?;
-    let card_info = api_models::payments::AdditionalCardInfo {
+
+     let card_info = api_models::payments::AdditionalCardInfo {
         card_issuer: None,
         card_network: None,
         card_type: Some("credit".to_string()),
@@ -203,6 +195,17 @@ pub async fn record_internal_attempt_api(
         authentication_data: None,
     };
 
+    let revenue_recovery_attempt_data =
+        recovery_incoming::RevenueRecoveryAttempt::get_revenue_recovery_attempt(
+            payment_intent,
+            revenue_recovery_metadata,
+            &revenue_recovery_payment_data.billing_mca,
+            card_info
+        )
+        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "get_revenue_recovery_attempt was not constructed".to_string(),
+        })?;
+
     let request_payload = revenue_recovery_attempt_data
         .create_payment_record_request(
             state,
@@ -214,7 +217,6 @@ pub async fn record_internal_attempt_api(
             ),
             Some(revenue_recovery_metadata.connector),
             common_enums::TriggeredBy::Internal,
-            Some(card_info),
         )
         .await
         .change_context(errors::ApiErrorResponse::GenericNotFoundError {
