@@ -43,6 +43,10 @@ use storage_impl::errors as storage_errors;
 use time::Date;
 
 #[cfg(feature = "v2")]
+use crate::types::storage::revenue_recovery_redis_operation::{
+    PaymentProcessorTokenStatus, PaymentProcessorTokenWithRetryInfo, RedisTokenManager,
+};
+#[cfg(feature = "v2")]
 use crate::{
     core::{
         payments,
@@ -538,15 +542,14 @@ pub async fn get_best_psp_token_available(
         let token_status_map = RedisTokenManager::get_connector_customer_payment_processor_tokens(
             state,
             connector_customer_id,
-        ).await?;
+        )
+        .await?;
         for status in token_status_map.values() {
             if let Some(time) = status.scheduled_at {
                 let schedule_time =time;
                 return Ok(Some((None, Some(schedule_time))));
             }
         }
-
-        
     }
 
     //  Get existing tokens from Redis
@@ -561,16 +564,16 @@ pub async fn get_best_psp_token_available(
 
     let result = RedisTokenManager::get_tokens_with_retry_metadata(state, &existing_tokens);
 
-    let best_token_and_time= call_decider_for_payment_processor_tokens_select_closet_time(
+    let best_token_and_time = call_decider_for_payment_processor_tokens_select_closet_time(
         state,
         merchant_context,
         &result,
         payment_id,
-    ).await?;
+    )
+    .await?;
 
     Ok(best_token_and_time)
 }
-
 
 #[cfg(feature = "v2")]
 pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
@@ -582,7 +585,6 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
 Option<(Option<PaymentProcessorTokenDetails>, Option<time::PrimitiveDateTime>)>,
 errors::ProcessTrackerError,
 > {
-
     let db = &*state.store;
     let key_manager_state = &(state).into();
     let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
