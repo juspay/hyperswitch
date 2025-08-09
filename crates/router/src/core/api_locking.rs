@@ -90,11 +90,12 @@ impl LockAction {
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)?;
-                    let lock_aqcuired = results.iter().any(|res| {
+                    let lock_not_aqcuired = results.iter().any(|res| {
                         // each redis value must match the request_id
+                        // if even 1 does match, the lock is not acquired
                         *res.get_value() != request_id
                     });
-                    if lock_aqcuired {
+                    if !lock_not_aqcuired {
                         logger::info!("Lock acquired for locking inputs {:?}", inputs);
                         return Ok(());
                     }
