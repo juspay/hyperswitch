@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use common_enums::enums;
+use common_enums::enums::{self, CardNetwork};
 use common_utils::{ext_traits::ValueExt, id_type};
 use external_services::grpc_client::{self as external_grpc_client, GrpcHeaders};
 use hyperswitch_domain_models::{
@@ -10,6 +10,7 @@ use hyperswitch_domain_models::{
 };
 use masking::PeekInterface;
 use router_env::logger;
+use serde::{Deserialize, Serialize};
 
 use crate::{db::StorageInterface, routes::SessionState, workflows::revenue_recovery};
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
@@ -58,6 +59,7 @@ impl RevenueRecoveryPaymentData {
                     payment_attempt,
                     payment_intent,
                     retry_count,
+                    None,
                 )
                 .await
             }
@@ -70,6 +72,7 @@ pub struct RevenueRecoverySettings {
     pub monitoring_threshold_in_seconds: i64,
     pub retry_algorithm_type: enums::RevenueRecoveryAlgorithmType,
     pub recovery_timestamp: RecoveryTimestamp,
+    pub card_config: RetryLimitsConfig,
 }
 
 #[derive(Debug, serde::Deserialize, Clone)]
@@ -81,6 +84,35 @@ impl Default for RecoveryTimestamp {
     fn default() -> Self {
         Self {
             initial_timestamp_in_hours: 1,
+        }
+    }
+}
+
+#[derive(Debug, serde::Deserialize, Clone, Default)]
+pub struct RetryLimitsConfig {
+    pub amex: NetworkRetryConfig,
+    pub mastercard: NetworkRetryConfig,
+    pub visa: NetworkRetryConfig,
+    pub discover: NetworkRetryConfig,
+}
+
+#[derive(Debug, serde::Deserialize, Clone, Default)]
+pub struct NetworkRetryConfig {
+    pub max_retries_per_day: i32,
+    pub max_retries_last_30_days: i32,
+}
+impl RetryLimitsConfig {
+    pub fn get_network_config(
+        network: Option<CardNetwork>,
+        state: &SessionState,
+    ) -> &NetworkRetryConfig {
+        match network {
+            Some(CardNetwork::Mastercard) => &state.conf.revenue_recovery.card_config.mastercard,
+            Some(CardNetwork::Visa) => &state.conf.revenue_recovery.card_config.visa,
+            Some(CardNetwork::AmericanExpress) => &state.conf.revenue_recovery.card_config.amex,
+            Some(CardNetwork::Discover) => &state.conf.revenue_recovery.card_config.discover,
+            // All other networks (including None) default to Visa configuration
+            _ => &state.conf.revenue_recovery.card_config.visa,
         }
     }
 }

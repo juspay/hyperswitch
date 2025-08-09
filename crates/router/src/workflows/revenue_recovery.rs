@@ -1,5 +1,10 @@
 #[cfg(feature = "v2")]
+use std::collections::HashMap;
+
+#[cfg(feature = "v2")]
 use api_models::payments::PaymentsGetIntentRequest;
+#[cfg(feature = "v2")]
+use common_enums::enums::CardNetwork;
 #[cfg(feature = "v2")]
 use common_utils::{
     ext_traits::{StringExt, ValueExt},
@@ -14,6 +19,8 @@ use external_services::{
     date_time, grpc_client::revenue_recovery::recovery_decider_client as external_grpc_client,
 };
 #[cfg(feature = "v2")]
+use hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptInterface;
+#[cfg(feature = "v2")]
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     payments::{
@@ -21,6 +28,8 @@ use hyperswitch_domain_models::{
     },
     router_flow_types::Authorize,
 };
+#[cfg(feature = "v2")]
+use crate::workflows::revenue_recovery::payments::helpers;
 #[cfg(feature = "v2")]
 use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
@@ -30,7 +39,13 @@ use scheduler::{consumer::workflows::ProcessTrackerWorkflow, errors};
 use scheduler::{types::process_data, utils as scheduler_utils};
 #[cfg(feature = "v2")]
 use storage_impl::errors as storage_errors;
+#[cfg(feature = "v2")]
+use time::Date;
 
+#[cfg(feature = "v2")]
+use crate::types::storage::revenue_recovery_redis_operation::{
+    PaymentProcessorTokenStatus, PaymentProcessorTokenWithRetryInfo, RedisTokenManager,
+};
 #[cfg(feature = "v2")]
 use crate::{
     core::{
@@ -42,11 +57,20 @@ use crate::{
     types::{
         api::{self as api_types},
         domain,
-        storage::revenue_recovery as pcr_storage_types,
+        storage::{
+            revenue_recovery as pcr_storage_types,
+            revenue_recovery_redis_operation::PaymentProcessorTokenDetails,
+        },
     },
 };
+#[cfg(feature = "v2")]
+use crate::types::storage::revenue_recovery_redis_operation::{RedisTokenManager,PaymentProcessorTokenStatus,PaymentProcessorTokenWithRetryInfo};
+#[cfg(feature = "v2")]
+use crate::types::storage::revenue_recovery::RetryLimitsConfig;
 use crate::{routes::SessionState, types::storage};
 pub struct ExecutePcrWorkflow;
+#[cfg(feature = "v2")]
+pub const REVENUE_RECOVERY: &str = "revenue_recovery";
 
 #[async_trait::async_trait]
 impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
@@ -220,7 +244,8 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
     state: &SessionState,
     payment_attempt: &PaymentAttempt,
     payment_intent: &PaymentIntent,
-    retry_count: i32,
+    retry_count_left: i32,
+    retry_after_time: Option<prost_types::Timestamp>,
 ) -> Option<time::PrimitiveDateTime> {
     let first_error_message = match payment_attempt.error.as_ref() {
         Some(error) => error.message.clone(),
@@ -268,11 +293,14 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
         .feature_metadata
         .as_ref()
         .and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref());
+    let card_network=billing_connector_payment_method_details
+    .and_then(|details| match details {
+        BillingConnectorPaymentMethodDetails::Card(card_info) => card_info.card_network.clone(),
+    });
 
-    let card_network_str = billing_connector_payment_method_details
-        .and_then(|details| match details {
-            BillingConnectorPaymentMethodDetails::Card(card_info) => card_info.card_network.clone(),
-        })
+    let total_retry_count_within_network= RetryLimitsConfig::get_network_config(card_network.clone(), state);
+
+    let card_network_str = card_network
         .map(|cn| cn.to_string());
 
     let card_issuer_str =
@@ -366,7 +394,7 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
         card_network: card_network_str,
         card_issuer: card_issuer_str,
         invoice_start_time: start_time_proto,
-        retry_count: Some(retry_count.into()),
+        retry_count: Some((total_retry_count_within_network.max_retries_last_30_days-retry_count_left).into()),
         merchant_id,
         invoice_amount,
         invoice_currency,
@@ -385,9 +413,10 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
         attempt_response_time,
         payment_method_type,
         payment_gateway,
-        retry_count_left: None,
+        retry_count_left: Some(retry_count_left.into()),
+        total_retry_count_within_network: Some(total_retry_count_within_network.max_retries_last_30_days.into()),
         first_error_msg_time: None,
-        wait_time: None,
+        wait_time: retry_after_time,
     };
 
     if let Some(mut client) = state.grpc_client.recovery_decider_client.clone() {
@@ -451,6 +480,7 @@ struct InternalDeciderRequest {
     payment_method_type: Option<String>,
     payment_gateway: Option<String>,
     retry_count_left: Option<i64>,
+    total_retry_count_within_network: Option<i64>,
     first_error_msg_time: Option<prost_types::Timestamp>,
     wait_time: Option<prost_types::Timestamp>,
 }
@@ -485,8 +515,205 @@ impl From<InternalDeciderRequest> for external_grpc_client::DeciderRequest {
             payment_method_type: internal_request.payment_method_type,
             payment_gateway: internal_request.payment_gateway,
             retry_count_left: internal_request.retry_count_left,
+            total_retry_count_within_network: internal_request.total_retry_count_within_network,
             first_error_msg_time: internal_request.first_error_msg_time,
             wait_time: internal_request.wait_time,
         }
     }
+}
+
+#[cfg(feature = "v2")]
+pub async fn get_best_psp_token_available(
+    state: &SessionState,
+    connector_customer_id: &str,
+    payment_id: &id_type::GlobalPaymentId,
+    merchant_context: domain::MerchantContext,
+) -> Result<
+    Option<(Option<PaymentProcessorTokenDetails>, Option<time::PrimitiveDateTime>)>,
+    errors::ProcessTrackerError,
+> {
+    //  Lock using payment_id
+    let lock_acquired =
+        RedisTokenManager::lock_connector_customer_status(state, connector_customer_id, payment_id)
+            .await?;
+
+    if !lock_acquired {
+        logger::info!("Customer is already locked by another process");
+        let token_status_map = RedisTokenManager::get_connector_customer_payment_processor_tokens(
+            state,
+            connector_customer_id,
+        )
+        .await?;
+        for status in token_status_map.values() {
+            if let Some(time) = status.scheduled_at {
+                let schedule_time =time;
+                return Ok(Some((None, Some(schedule_time))));
+            }
+        }
+    }
+
+    //  Get existing tokens from Redis
+    let existing_tokens = RedisTokenManager::get_connector_customer_payment_processor_tokens(
+        state,
+        connector_customer_id,
+    )
+    .await?;
+
+    //  Insert into payment_intent_feature_metadata (DB operation)
+    // TODO: Implement DB insertion logic
+
+    let result = RedisTokenManager::get_tokens_with_retry_metadata(state, &existing_tokens);
+
+    let best_token_and_time = call_decider_for_payment_processor_tokens_select_closet_time(
+        state,
+        merchant_context,
+        &result,
+        payment_id,
+    )
+    .await?;
+
+    Ok(best_token_and_time)
+}
+
+#[cfg(feature = "v2")]
+pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
+    state: &SessionState,
+    merchant_context: domain::MerchantContext,
+    processor_tokens: &HashMap<String, PaymentProcessorTokenWithRetryInfo>,
+    payment_id: &id_type::GlobalPaymentId,
+) -> Result<
+Option<(Option<PaymentProcessorTokenDetails>, Option<time::PrimitiveDateTime>)>,
+errors::ProcessTrackerError,
+> {
+    let db = &*state.store;
+    let key_manager_state = &(state).into();
+    let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
+    let payment_intent = db
+        .find_payment_intent_by_id(
+            key_manager_state,
+            payment_id,
+            merchant_context.get_merchant_key_store(),
+            merchant_context.get_merchant_account().storage_scheme,
+        )
+        .await?;
+
+    let mut best_token_and_time= None;
+    for (_token_id, token_with_retry_info) in processor_tokens.iter() {
+        let payment_processor_token_details = &token_with_retry_info
+            .token_status
+            .payment_processor_token_details;
+        let inserted_by_attempt_id = &token_with_retry_info.token_status.inserted_by_attempt_id;
+        let monthly_retry_remaining = token_with_retry_info.monthly_retry_remaining;
+        let wait_hours = token_with_retry_info.retry_wait_time_hours;
+        let current_time = time::OffsetDateTime::now_utc();
+        let error_code = token_with_retry_info.token_status.error_code.clone();
+
+        // If error code is None, don't call the decider just return that token with a schedule time of after 5 mins
+        if error_code.is_none() {
+            let utc_schedule_time = time::OffsetDateTime::now_utc() + time::Duration::minutes(5);
+            let schedule_time =
+                time::PrimitiveDateTime::new(utc_schedule_time.date(), utc_schedule_time.time());
+
+            return Ok(Some((
+                Some(payment_processor_token_details.clone()),
+                Some(schedule_time),
+            )));
+        }
+
+        let future_time = current_time + time::Duration::hours(wait_hours);
+
+        let future_prost_timestamp = Some(prost_types::Timestamp {
+            seconds: future_time.unix_timestamp(),
+            nanos: 0,
+        });
+
+        // Fetch PaymentAttempt
+        let payment_attempt = db
+            .find_payment_attempt_by_id(
+                key_manager_state,
+                merchant_context.get_merchant_key_store(),
+                inserted_by_attempt_id,
+                storage_scheme,
+            )
+            .await?;
+
+        let to_not_call_decider= decide_retry_failure_action(state, &payment_attempt)
+            .await?;
+
+        if to_not_call_decider {
+            logger::info!(
+                "Skipping decider call for token inserted by payment attempt {} with error code {} due to hard decline",
+                inserted_by_attempt_id.get_string_repr(), 
+                error_code.clone().unwrap_or_default()
+            );
+            continue;
+        }
+
+
+
+        // Get schedule time
+        if let Some(token_schedule_time) = get_schedule_time_for_smart_retry(
+            state,
+            &payment_attempt,
+            &payment_intent,
+            monthly_retry_remaining,
+            future_prost_timestamp,
+        )
+        .await
+        {
+            match best_token_and_time {
+                Some((_, Some(existing_time))) if token_schedule_time < existing_time => {
+                    best_token_and_time =
+                        Some((Some(payment_processor_token_details.clone()), Some(token_schedule_time)));
+                }
+                None => {
+                    best_token_and_time =
+                        Some((Some(payment_processor_token_details.clone()), Some(token_schedule_time)));
+                }
+                _ => {}
+            }
+        }
+    }
+
+    Ok(best_token_and_time)
+}
+
+#[cfg(feature = "v2")]
+pub async fn decide_retry_failure_action(
+    state: &SessionState,
+    payment_attempt: &PaymentAttempt,
+) -> Result<bool, error_stack::Report<storage_impl::errors::RecoveryError>> {
+    let db = &*state.store;
+
+    let error_message = payment_attempt
+        .error
+        .as_ref()
+        .map(|details| details.message.clone());
+
+    let error_code = payment_attempt
+        .error
+        .as_ref()
+        .map(|details| details.code.clone());
+
+    let connector_name = payment_attempt
+        .connector
+        .clone()
+        .ok_or(storage_impl::errors::RecoveryError::ValueNotFound)
+        .attach_printable("unable to derive payment connector from payment attempt")?;
+
+    let gsm_record = helpers::get_gsm_record(
+        state,
+        error_code,
+        error_message,
+        connector_name,
+        REVENUE_RECOVERY.to_string(),
+    )
+    .await;
+
+    let is_hard_decline = gsm_record
+        .and_then(|record| record.error_category)
+        .map(|category| category == common_enums::ErrorCategory::FrmDecline)
+        .unwrap_or(true);
+
+    Ok(is_hard_decline)
 }
