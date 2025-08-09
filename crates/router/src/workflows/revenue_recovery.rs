@@ -29,6 +29,8 @@ use hyperswitch_domain_models::{
     router_flow_types::Authorize,
 };
 #[cfg(feature = "v2")]
+use crate::workflows::revenue_recovery::payments::helpers;
+#[cfg(feature = "v2")]
 use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
 use router_env::logger;
@@ -61,8 +63,14 @@ use crate::{
         },
     },
 };
+#[cfg(feature = "v2")]
+use crate::types::storage::revenue_recovery_redis_operation::{RedisTokenManager,PaymentProcessorTokenStatus,PaymentProcessorTokenWithRetryInfo};
+#[cfg(feature = "v2")]
+use crate::types::storage::revenue_recovery::RetryLimitsConfig;
 use crate::{routes::SessionState, types::storage};
 pub struct ExecutePcrWorkflow;
+#[cfg(feature = "v2")]
+pub const REVENUE_RECOVERY: &str = "revenue_recovery";
 
 #[async_trait::async_trait]
 impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
@@ -236,7 +244,7 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
     state: &SessionState,
     payment_attempt: &PaymentAttempt,
     payment_intent: &PaymentIntent,
-    retry_count: i32,
+    retry_count_left: i32,
     retry_after_time: Option<prost_types::Timestamp>,
 ) -> Option<time::PrimitiveDateTime> {
     let first_error_message = match payment_attempt.error.as_ref() {
@@ -285,11 +293,14 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
         .feature_metadata
         .as_ref()
         .and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref());
+    let card_network=billing_connector_payment_method_details
+    .and_then(|details| match details {
+        BillingConnectorPaymentMethodDetails::Card(card_info) => card_info.card_network.clone(),
+    });
 
-    let card_network_str = billing_connector_payment_method_details
-        .and_then(|details| match details {
-            BillingConnectorPaymentMethodDetails::Card(card_info) => card_info.card_network.clone(),
-        })
+    let total_retry_count_within_network= RetryLimitsConfig::get_network_config(card_network.clone(), state);
+
+    let card_network_str = card_network
         .map(|cn| cn.to_string());
 
     let card_issuer_str =
@@ -383,7 +394,7 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
         card_network: card_network_str,
         card_issuer: card_issuer_str,
         invoice_start_time: start_time_proto,
-        retry_count: Some(retry_count.into()),
+        retry_count: Some((total_retry_count_within_network.max_retries_last_30_days-retry_count_left).into()),
         merchant_id,
         invoice_amount,
         invoice_currency,
@@ -402,7 +413,8 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
         attempt_response_time,
         payment_method_type,
         payment_gateway,
-        retry_count_left: None,
+        retry_count_left: Some(retry_count_left.into()),
+        total_retry_count_within_network: Some(total_retry_count_within_network.max_retries_last_30_days.into()),
         first_error_msg_time: None,
         wait_time: retry_after_time,
     };
@@ -468,6 +480,7 @@ struct InternalDeciderRequest {
     payment_method_type: Option<String>,
     payment_gateway: Option<String>,
     retry_count_left: Option<i64>,
+    total_retry_count_within_network: Option<i64>,
     first_error_msg_time: Option<prost_types::Timestamp>,
     wait_time: Option<prost_types::Timestamp>,
 }
@@ -502,6 +515,7 @@ impl From<InternalDeciderRequest> for external_grpc_client::DeciderRequest {
             payment_method_type: internal_request.payment_method_type,
             payment_gateway: internal_request.payment_gateway,
             retry_count_left: internal_request.retry_count_left,
+            total_retry_count_within_network: internal_request.total_retry_count_within_network,
             first_error_msg_time: internal_request.first_error_msg_time,
             wait_time: internal_request.wait_time,
         }
@@ -515,10 +529,7 @@ pub async fn get_best_psp_token_available(
     payment_id: &id_type::GlobalPaymentId,
     merchant_context: domain::MerchantContext,
 ) -> Result<
-    Option<(
-        Option<PaymentProcessorTokenDetails>,
-        time::PrimitiveDateTime,
-    )>,
+    Option<(Option<PaymentProcessorTokenDetails>, Option<time::PrimitiveDateTime>)>,
     errors::ProcessTrackerError,
 > {
     //  Lock using payment_id
@@ -535,8 +546,8 @@ pub async fn get_best_psp_token_available(
         .await?;
         for status in token_status_map.values() {
             if let Some(time) = status.scheduled_at {
-                let schedule_time = time;
-                return Ok(Some((None, schedule_time)));
+                let schedule_time =time;
+                return Ok(Some((None, Some(schedule_time))));
             }
         }
     }
@@ -571,11 +582,8 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
     processor_tokens: &HashMap<String, PaymentProcessorTokenWithRetryInfo>,
     payment_id: &id_type::GlobalPaymentId,
 ) -> Result<
-    Option<(
-        Option<PaymentProcessorTokenDetails>,
-        time::PrimitiveDateTime,
-    )>,
-    errors::ProcessTrackerError,
+Option<(Option<PaymentProcessorTokenDetails>, Option<time::PrimitiveDateTime>)>,
+errors::ProcessTrackerError,
 > {
     let db = &*state.store;
     let key_manager_state = &(state).into();
@@ -589,10 +597,7 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
         )
         .await?;
 
-    let mut best_token_and_time: Option<(
-        Option<PaymentProcessorTokenDetails>,
-        time::PrimitiveDateTime,
-    )> = None;
+    let mut best_token_and_time= None;
     for (_token_id, token_with_retry_info) in processor_tokens.iter() {
         let payment_processor_token_details = &token_with_retry_info
             .token_status
@@ -611,7 +616,7 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
 
             return Ok(Some((
                 Some(payment_processor_token_details.clone()),
-                schedule_time,
+                Some(schedule_time),
             )));
         }
 
@@ -632,6 +637,20 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
             )
             .await?;
 
+        let to_not_call_decider= decide_retry_failure_action(state, &payment_attempt)
+            .await?;
+
+        if to_not_call_decider {
+            logger::info!(
+                "Skipping decider call for token inserted by payment attempt {} with error code {} due to hard decline",
+                inserted_by_attempt_id.get_string_repr(), 
+                error_code.clone().unwrap_or_default()
+            );
+            continue;
+        }
+
+
+
         // Get schedule time
         if let Some(token_schedule_time) = get_schedule_time_for_smart_retry(
             state,
@@ -643,17 +662,13 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
         .await
         {
             match best_token_and_time {
-                Some((_, existing_time)) if token_schedule_time < existing_time => {
-                    best_token_and_time = Some((
-                        Some(payment_processor_token_details.clone()),
-                        token_schedule_time,
-                    ));
+                Some((_, Some(existing_time))) if token_schedule_time < existing_time => {
+                    best_token_and_time =
+                        Some((Some(payment_processor_token_details.clone()), Some(token_schedule_time)));
                 }
                 None => {
-                    best_token_and_time = Some((
-                        Some(payment_processor_token_details.clone()),
-                        token_schedule_time,
-                    ));
+                    best_token_and_time =
+                        Some((Some(payment_processor_token_details.clone()), Some(token_schedule_time)));
                 }
                 _ => {}
             }
@@ -661,4 +676,44 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
     }
 
     Ok(best_token_and_time)
+}
+
+#[cfg(feature = "v2")]
+pub async fn decide_retry_failure_action(
+    state: &SessionState,
+    payment_attempt: &PaymentAttempt,
+) -> Result<bool, error_stack::Report<storage_impl::errors::RecoveryError>> {
+    let db = &*state.store;
+
+    let error_message = payment_attempt
+        .error
+        .as_ref()
+        .map(|details| details.message.clone());
+
+    let error_code = payment_attempt
+        .error
+        .as_ref()
+        .map(|details| details.code.clone());
+
+    let connector_name = payment_attempt
+        .connector
+        .clone()
+        .ok_or(storage_impl::errors::RecoveryError::ValueNotFound)
+        .attach_printable("unable to derive payment connector from payment attempt")?;
+
+    let gsm_record = helpers::get_gsm_record(
+        state,
+        error_code,
+        error_message,
+        connector_name,
+        REVENUE_RECOVERY.to_string(),
+    )
+    .await;
+
+    let is_hard_decline = gsm_record
+        .and_then(|record| record.error_category)
+        .map(|category| category == common_enums::ErrorCategory::FrmDecline)
+        .unwrap_or(true);
+
+    Ok(is_hard_decline)
 }
