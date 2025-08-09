@@ -331,25 +331,27 @@ impl RedisTokenManager {
                 .unwrap_or(INITIAL_RETRY_COUNT);
         }
 
-        // Check 30-day limit FIRST (monthly check)
-        let monthly_limit_exceeded =
-            total_30_day_retries >= card_network_config.max_retries_last_30_days;
+        // 1. Check 30-day limit FIRST (monthly check)
+        let monthly_wait_hours =
+            if total_30_day_retries >= card_network_config.max_retries_last_30_days {
+                // Find the oldest retry date in the 30-day window and calculate when it expires
+                let mut oldest_date_with_retries = None;
+                for i in 0..RETRY_WINDOW_DAYS {
+                    let date = today - Duration::days(i.into());
+                    if token.daily_retry_history.get(&date).copied().unwrap_or(0) > 0 {
+                        oldest_date_with_retries = Some(date);
+                    }
+                }
 
-        let monthly_wait_hours = if monthly_limit_exceeded {
-            // Find the most recent oldest retry date within the 30-day window
-            let oldest_retry_date = (0..RETRY_WINDOW_DAYS)
-                .map(|i| today - Duration::days(i.into()))
-                .find(|date| token.daily_retry_history.get(date).copied().unwrap_or(0) > 0);
-
-            oldest_retry_date
-                .map(|date| {
-                    let expiry_time = (date + Duration::days(31)).midnight().assume_utc();
+                if let Some(oldest_date) = oldest_date_with_retries {
+                    let expiry_time = (oldest_date + Duration::days(31)).midnight().assume_utc();
                     (expiry_time - now).whole_hours().max(0)
-                })
-                .unwrap_or(0) // No retry history found
-        } else {
-            0 // Monthly limit not exceeded
-        };
+                } else {
+                    0 // No retry history
+                }
+            } else {
+                0 // Monthly limit not exceeded
+            };
 
         let today_retries = token
             .daily_retry_history

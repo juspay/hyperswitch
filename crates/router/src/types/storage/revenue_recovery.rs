@@ -12,7 +12,7 @@ use masking::PeekInterface;
 use router_env::logger;
 use serde::{Deserialize, Serialize};
 
-use crate::{db::StorageInterface, routes::SessionState, workflows::revenue_recovery};
+use crate::{db::StorageInterface, routes::SessionState, types, workflows::revenue_recovery};
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub struct RevenueRecoveryWorkflowTrackingData {
     pub merchant_id: id_type::MerchantId,
@@ -21,6 +21,7 @@ pub struct RevenueRecoveryWorkflowTrackingData {
     pub payment_attempt_id: id_type::GlobalAttemptId,
     pub billing_mca_id: id_type::MerchantConnectorAccountId,
     pub revenue_recovery_retry: enums::RevenueRecoveryAlgorithmType,
+    pub invoice_scheduled_time: Option<time::PrimitiveDateTime>,
 }
 
 #[derive(Debug, Clone)]
