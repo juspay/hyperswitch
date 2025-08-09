@@ -210,10 +210,8 @@ impl super::RedisConnectionPool {
             return Ok(Vec::new());
         }
 
-        let tenant_aware_keys: Vec<String> = keys
-            .iter()
-            .map(|key| key.tenant_aware_key(self))
-            .collect();
+        let tenant_aware_keys: Vec<String> =
+            keys.iter().map(|key| key.tenant_aware_key(self)).collect();
 
         match self
             .pool

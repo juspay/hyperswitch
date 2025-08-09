@@ -2401,7 +2401,8 @@ impl GetLockingInput for payment_types::PaymentsRequest {
                     override_lock_retries: None,
                 };
                 if let Some(customer_id) = self
-                    .customer_id.as_ref()
+                    .customer_id
+                    .as_ref()
                     .or(self.customer.as_ref().map(|customer| &customer.id))
                 {
                     api_locking::LockAction::HoldMultiple {
@@ -2414,7 +2415,7 @@ impl GetLockingInput for payment_types::PaymentsRequest {
                             },
                         ],
                     }
-                }else{
+                } else {
                     api_locking::LockAction::Hold {
                         input: intent_id_locking_input,
                     }

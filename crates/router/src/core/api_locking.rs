@@ -180,15 +180,14 @@ impl LockAction {
                     .map(|input| RedisKey::from(input.get_redis_locking_key(&merchant_id).as_str()))
                     .collect::<Vec<_>>();
                 let request_id = state.get_request_id();
-                let values = redis_conn.get_multiple_keys::<String>(
-                    &redis_locking_keys,
-                ).await.change_context(errors::ApiErrorResponse::InternalServerError)?;
+                let values = redis_conn
+                    .get_multiple_keys::<String>(&redis_locking_keys)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
                 let invalid_request_id_list = values
                     .iter()
-                    .filter(| redis_value| {
-                        **redis_value != request_id 
-                    })
+                    .filter(|redis_value| **redis_value != request_id)
                     .flatten()
                     .collect::<Vec<_>>();
 
@@ -199,14 +198,21 @@ impl LockAction {
                     );
                     Err(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("The request_id which acquired the lock is not equal to the request_id requesting for releasing the lock")
-                }else{
+                } else {
                     Ok(())
                 }?;
-                let delete_result = redis_conn.delete_multiple_keys(&redis_locking_keys).await.change_context(errors::ApiErrorResponse::InternalServerError)?;
-                let is_key_not_deleted = delete_result.into_iter().find(|delete_reply| delete_reply.is_key_not_deleted()).is_some();
+                let delete_result = redis_conn
+                    .delete_multiple_keys(&redis_locking_keys)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                let is_key_not_deleted = delete_result
+                    .into_iter()
+                    .find(|delete_reply| delete_reply.is_key_not_deleted())
+                    .is_some();
                 if is_key_not_deleted {
-                    Err(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Status release lock called but key is not found in redis")
+                    Err(errors::ApiErrorResponse::InternalServerError).attach_printable(
+                        "Status release lock called but key is not found in redis",
+                    )
                 } else {
                     logger::info!("Lock freed for locking inputs {:?}", inputs);
                     Ok(())
