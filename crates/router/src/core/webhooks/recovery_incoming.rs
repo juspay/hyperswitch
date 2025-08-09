@@ -632,6 +632,7 @@ impl RevenueRecoveryAttempt {
                     .as_ref()
                     .map(|account| account.connector_name),
                 common_enums::TriggeredBy::External,
+                None,
             )
             .await?;
         let attempt_response = Box::pin(payments::record_attempt_core(
@@ -711,6 +712,7 @@ impl RevenueRecoveryAttempt {
         payment_merchant_connector_account_id: Option<id_type::MerchantConnectorAccountId>,
         payment_connector: Option<common_enums::connector_enums::Connector>,
         triggered_by: common_enums::TriggeredBy,
+        additional_card_info: Option<api_models::payments::AdditionalCardInfo>,
     ) -> CustomResult<api_payments::PaymentsAttemptRecordRequest, errors::RevenueRecoveryError>
     {
         let revenue_recovery_attempt_data = &self.0;
@@ -739,6 +741,12 @@ impl RevenueRecoveryAttempt {
             })
             .await
             .flatten();
+        let additional_payment_method_data = additional_card_info
+            .map(|info| api_models::payments::AdditionalPaymentData::Card(Box::new(info)));
+        let payment_method_data = api_models::payments::RecordAttemptPaymentMethodDataRequest {
+            payment_method_data: additional_payment_method_data,
+            billing: None,
+        };
 
         let card_issuer = card_info.and_then(|info| info.card_issuer);
 
@@ -759,7 +767,7 @@ impl RevenueRecoveryAttempt {
             payment_method_type: revenue_recovery_attempt_data.payment_method_type,
             billing_connector_id: billing_merchant_connector_account_id.clone(),
             payment_method_subtype: revenue_recovery_attempt_data.payment_method_sub_type,
-            payment_method_data: None,
+            payment_method_data: Some(payment_method_data),
             metadata: None,
             feature_metadata: Some(feature_metadata),
             transaction_created_at: revenue_recovery_attempt_data.transaction_created_at,

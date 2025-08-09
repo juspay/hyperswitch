@@ -15,6 +15,7 @@ use crate::{
     },
     db::errors::{RouterResponse, StorageErrorExt},
     logger,
+    pii::Secret,
     routes::{app::ReqState, SessionState},
     services,
     types::{
@@ -186,6 +187,21 @@ pub async fn record_internal_attempt_api(
         .change_context(errors::ApiErrorResponse::GenericNotFoundError {
             message: "get_revenue_recovery_attempt was not constructed".to_string(),
         })?;
+    let card_info = api_models::payments::AdditionalCardInfo {
+        card_issuer: None,
+        card_network: None,
+        card_type: Some("credit".to_string()),
+        card_issuing_country: None,
+        bank_code: None,
+        last4: None,
+        card_isin: None,
+        card_extended_bin: None,
+        card_exp_month: Some(Secret::new("12".to_string())),
+        card_exp_year: Some(Secret::new("25".to_string())),
+        card_holder_name: None,
+        payment_checks: None,
+        authentication_data: None,
+    };
 
     let request_payload = revenue_recovery_attempt_data
         .create_payment_record_request(
@@ -198,6 +214,7 @@ pub async fn record_internal_attempt_api(
             ),
             Some(revenue_recovery_metadata.connector),
             common_enums::TriggeredBy::Internal,
+            Some(card_info),
         )
         .await
         .change_context(errors::ApiErrorResponse::GenericNotFoundError {
