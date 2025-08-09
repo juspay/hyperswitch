@@ -44,7 +44,6 @@ pub struct PaymentProcessorTokenStatus {
 }
 
 
-
 /// Token retry availability information with detailed wait times
 #[derive(Debug, Clone)]
 pub struct TokenRetryInfo {
@@ -487,5 +486,43 @@ impl RedisTokenManager {
 
         Ok(!was_existing) 
     }
+
+    #[instrument(skip_all)]
+    pub async fn update_payment_processor_token_error_code_form_process_tracker(
+        state: &SessionState,
+        connector_customer_id: &str,
+        error_code: Option<String>,
+    ) -> CustomResult<bool, errors::StorageError> {
+        let payment_processor_token_info_map =
+            Self::get_connector_customer_payment_processor_tokens(state, connector_customer_id)
+                .await?;
+
+        let mut updated_token: Option<PaymentProcessorTokenStatus> = None;
+
+        for status in payment_processor_token_info_map.values() {
+            if status.scheduled_at.is_some() {
+                updated_token = Some(PaymentProcessorTokenStatus {
+                    payment_processor_token_details: status.payment_processor_token_details.clone(),
+                    inserted_by_attempt_id: status.inserted_by_attempt_id.clone(),
+                    error_code: error_code.clone(),
+                    daily_retry_history: status.daily_retry_history.clone(),
+                    scheduled_at: None,
+                });
+                break;
+            }
+        }
+
+        match updated_token {
+            Some(token) => {
+                Self::upsert_payment_processor_token(state, connector_customer_id, token)
+                    .await?;
+                Ok(true)
+            }
+            None => Ok(false),
+        }
+    }
+
+
+
     
 }
