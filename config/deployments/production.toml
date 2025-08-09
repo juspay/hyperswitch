@@ -840,17 +840,17 @@ monitoring_threshold_in_seconds = 60
 retry_algorithm_type = "cascading"
 
 [revenue_recovery.card_config.amex]
-max_daily_retry_count = 3
+max_retries_per_day = 3
 max_retries_last_30_days = 20
 
 [revenue_recovery.card_config.mastercard]
-max_daily_retry_count = 4
+max_retries_per_day = 4
 max_retries_last_30_days = 25
 
 [revenue_recovery.card_config.visa]
-max_daily_retry_count = 5
+max_retries_per_day = 5
 max_retries_last_30_days = 30
 
 [revenue_recovery.card_config.discover]
-max_daily_retry_count = 2
+max_retries_per_day = 2
 max_retries_last_30_days = 15
