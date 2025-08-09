@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, str::FromStr};
+use std::{collections::HashMap, marker::PhantomData, str::FromStr};
 
 use api_models::{enums as api_enums, payments as api_payments, webhooks};
 use common_utils::{
@@ -16,7 +16,6 @@ use hyperswitch_interfaces::webhooks as interface_webhooks;
 use masking::{PeekInterface, Secret};
 use router_env::{instrument, logger, tracing};
 use services::kafka;
-use std::collections::HashMap;
 
 use crate::{
     core::{
@@ -31,15 +30,14 @@ use crate::{
         connector_integration_interface::{self, RouterDataConversion},
     },
     types::{
-        
         self, api, domain,
-        transformers::ForeignFrom,
         storage::{
             revenue_recovery as storage_churn_recovery,
             revenue_recovery_redis_operation::{
                 PaymentProcessorTokenDetails, PaymentProcessorTokenStatus, RedisTokenManager,
             },
         },
+        transformers::ForeignFrom,
     },
     workflows::revenue_recovery as revenue_recovery_flow,
 };
@@ -990,8 +988,6 @@ impl RevenueRecoveryAttempt {
                 card_type: revenue_recovery_attempt_data.card_info.card_type.clone(),
             },
         };
-
-        
 
         // Make the Redis call to store tokens
         RedisTokenManager::upsert_payment_processor_token(

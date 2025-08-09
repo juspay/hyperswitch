@@ -40,10 +40,7 @@ pub struct PaymentProcessorTokenStatus {
     pub daily_retry_history: HashMap<Date, i32>,
     /// Scheduled time for the next retry attempt
     pub scheduled_at: Option<PrimitiveDateTime>,
-    
 }
-
-
 
 /// Token retry availability information with detailed wait times
 #[derive(Debug, Clone)]
@@ -431,7 +428,6 @@ impl RedisTokenManager {
         Ok(true)
     }
 
-
     /// Upsert a payment processor token - insert if doesn't exist, update existing fields if it does
     #[instrument(skip_all)]
     pub async fn upsert_payment_processor_token(
@@ -444,19 +440,25 @@ impl RedisTokenManager {
             Self::get_connector_customer_payment_processor_tokens(state, connector_customer_id)
                 .await?;
 
-        let payment_processor_token_id = token_data.payment_processor_token_details.payment_processor_token.clone();
+        let payment_processor_token_id = token_data
+            .payment_processor_token_details
+            .payment_processor_token
+            .clone();
 
-        let was_existing = payment_processor_token_info_map.contains_key(&payment_processor_token_id);
+        let was_existing =
+            payment_processor_token_info_map.contains_key(&payment_processor_token_id);
 
         if was_existing {
             // Update existing token - merge the provided data with existing data
-            if let Some(existing_token) = payment_processor_token_info_map.get_mut(&payment_processor_token_id) {
+            if let Some(existing_token) =
+                payment_processor_token_info_map.get_mut(&payment_processor_token_id)
+            {
                 // Update error code if provided
                 if token_data.error_code.is_some() {
                     existing_token.error_code = token_data.error_code;
                 }
                 existing_token.scheduled_at = token_data.scheduled_at;
-                
+
                 // Merge daily retry history - keep existing history and add new entries
                 let today = OffsetDateTime::now_utc().date();
 
@@ -467,13 +469,14 @@ impl RedisTokenManager {
                     .get(&today)
                     .copied()
                     .unwrap_or(INITIAL_RETRY_COUNT);
-                    existing_token
+                existing_token
                     .daily_retry_history
                     .insert(today, current_retry_count + 1);
             }
         } else {
             // Insert new token
-            payment_processor_token_info_map.insert(payment_processor_token_id.to_string(), token_data);
+            payment_processor_token_info_map
+                .insert(payment_processor_token_id.to_string(), token_data);
         }
 
         // Save the updated tokens back to Redis
@@ -484,8 +487,6 @@ impl RedisTokenManager {
         )
         .await?;
 
-
-        Ok(!was_existing) 
+        Ok(!was_existing)
     }
-    
 }
