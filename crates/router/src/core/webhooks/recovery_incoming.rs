@@ -936,7 +936,6 @@ impl RevenueRecoveryAttempt {
                 profile_id,
                 payment_attempt_id,
                 revenue_recovery_retry,
-                active_token: None,
                 invoice_scheduled_time: Some(schedule_time),
             };
 

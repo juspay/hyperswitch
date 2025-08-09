@@ -1114,7 +1114,6 @@ fn create_calculate_workflow_tracking_data(
             .ok_or(storage_impl::errors::RecoveryError::ValueNotFound)?,
         billing_mca_id: revenue_recovery_payment_data.billing_mca.get_id().clone(),
         revenue_recovery_retry: revenue_recovery_payment_data.retry_algorithm,
-        active_token: None,           // will be set by perform_calculate_workflow
         invoice_scheduled_time: None, // Will be set by perform_calculate_workflow
     };
 

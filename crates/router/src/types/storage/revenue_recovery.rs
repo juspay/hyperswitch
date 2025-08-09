@@ -21,8 +21,6 @@ pub struct RevenueRecoveryWorkflowTrackingData {
     pub payment_attempt_id: id_type::GlobalAttemptId,
     pub billing_mca_id: id_type::MerchantConnectorAccountId,
     pub revenue_recovery_retry: enums::RevenueRecoveryAlgorithmType,
-    pub active_token:
-        Option<types::storage::revenue_recovery_redis_operation::PaymentProcessorTokenDetails>,
     pub invoice_scheduled_time: Option<time::PrimitiveDateTime>,
 }
 

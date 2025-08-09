@@ -285,6 +285,9 @@ pub mod business_status {
     /// This status indicates an invoice is queued
     pub const CALCULATE_WORKFLOW_QUEUED: &str = "CALCULATE_WORKFLOW_QUEUED";
 
+    /// This status indicates an invoice has been declined due to hard decline
+    pub const CALCULATE_WORKFLOW_FINISH: &str = "FAILED_DUE_TO_HARD_DECLINE_ERROR";
+
     /// This status indicates that the invoice is scheduled with the best available token
     pub const CALCULATE_WORKFLOW_SCHEDULED: &str = "CALCULATE_WORKFLOW_SCHEDULED";
 
