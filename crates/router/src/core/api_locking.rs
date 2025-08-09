@@ -90,13 +90,10 @@ impl LockAction {
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)?;
-                    let lock_aqcuired = results
-                        .iter()
-                        .find(|res| {
-                            // each redis value must match the request_id
-                            *res.get_value() != request_id
-                        })
-                        .is_some();
+                    let lock_aqcuired = results.iter().any(|res| {
+                        // each redis value must match the request_id
+                        *res.get_value() != request_id
+                    });
                     if lock_aqcuired {
                         logger::info!("Lock acquired for locking inputs {:?}", inputs);
                         return Ok(());
@@ -191,7 +188,7 @@ impl LockAction {
                     .flatten()
                     .collect::<Vec<_>>();
 
-                let _ = if !invalid_request_id_list.is_empty() {
+                if !invalid_request_id_list.is_empty() {
                     logger::error!(
                         "The request_id which acquired the lock is not equal to the request_id requesting for releasing the lock. Invalid request_ids: {:?}",
                         invalid_request_id_list
@@ -207,8 +204,7 @@ impl LockAction {
                     .change_context(errors::ApiErrorResponse::InternalServerError)?;
                 let is_key_not_deleted = delete_result
                     .into_iter()
-                    .find(|delete_reply| delete_reply.is_key_not_deleted())
-                    .is_some();
+                    .any(|delete_reply| delete_reply.is_key_not_deleted());
                 if is_key_not_deleted {
                     Err(errors::ApiErrorResponse::InternalServerError).attach_printable(
                         "Status release lock called but key is not found in redis",

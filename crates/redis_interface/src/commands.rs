@@ -220,10 +220,10 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::GetFailed)
         {
             Ok(values) => Ok(values),
-            Err(err) => {
+            Err(_err) => {
                 #[cfg(not(feature = "multitenancy_fallback"))]
                 {
-                    Err(err)
+                    Err(_err)
                 }
 
                 #[cfg(feature = "multitenancy_fallback")]
@@ -1061,7 +1061,7 @@ impl super::RedisConnectionPool {
             + serde::de::DeserializeOwned,
         V::Error: Into<fred::error::RedisError> + Send + Sync,
     {
-        let futures = keys.into_iter().map(|(key, value)| {
+        let futures = keys.iter().map(|(key, value)| {
             self.set_key_if_not_exists_and_get_value(key, (*value).to_owned(), ttl)
         });
 
@@ -1460,7 +1460,7 @@ mod tests {
                     "multi_test_key2".into(),
                     "multi_test_key3".into(),
                 ];
-                let values = vec!["value1", "value2", "value3"];
+                let values = ["value1", "value2", "value3"];
 
                 // Set the keys
                 for (key, value) in keys.iter().zip(values.iter()) {
@@ -1474,9 +1474,9 @@ mod tests {
                 match result {
                     Ok(retrieved_values) => {
                         retrieved_values.len() == 3
-                            && retrieved_values[0] == Some("value1".to_string())
-                            && retrieved_values[1] == Some("value2".to_string())
-                            && retrieved_values[2] == Some("value3".to_string())
+                            && retrieved_values.first() == Some(&Some("value1".to_string()))
+                            && retrieved_values.get(1) == Some(&Some("value2".to_string()))
+                            && retrieved_values.get(2) == Some(&Some("value3".to_string()))
                     }
                     _ => false,
                 }
@@ -1504,8 +1504,18 @@ mod tests {
                 ];
 
                 // Set only some keys
-                let _ = pool.set_key(&keys[0], "value1".to_string()).await;
-                let _ = pool.set_key(&keys[2], "value3".to_string()).await;
+                let _ = pool
+                    .set_key(
+                        keys.first().expect("should not be none"),
+                        "value1".to_string(),
+                    )
+                    .await;
+                let _ = pool
+                    .set_key(
+                        keys.get(2).expect("should not be none"),
+                        "value3".to_string(),
+                    )
+                    .await;
 
                 // Act
                 let result = pool.get_multiple_keys::<String>(&keys).await;
@@ -1514,9 +1524,11 @@ mod tests {
                 match result {
                     Ok(retrieved_values) => {
                         retrieved_values.len() == 3
-                            && retrieved_values[0] == Some("value1".to_string())
-                            && retrieved_values[1].is_none()
-                            && retrieved_values[2] == Some("value3".to_string())
+                            && *retrieved_values.first().expect("should not be none")
+                                == Some("value1".to_string())
+                            && retrieved_values.get(1).is_none()
+                            && *retrieved_values.get(2).expect("should not be none")
+                                == Some("value3".to_string())
                     }
                     _ => false,
                 }
@@ -1570,7 +1582,7 @@ mod tests {
                     name: String,
                 }
 
-                let test_data = vec![
+                let test_data = [
                     TestData {
                         id: 1,
                         name: "test1".to_string(),
@@ -1589,7 +1601,9 @@ mod tests {
 
                 // Set serialized data for first two keys
                 for (i, data) in test_data.iter().enumerate() {
-                    let _ = pool.serialize_and_set_key(&keys[i], data).await;
+                    let _ = pool
+                        .serialize_and_set_key(keys.get(i).expect("should not be none"), data)
+                        .await;
                 }
 
                 // Act
@@ -1601,9 +1615,9 @@ mod tests {
                 match result {
                     Ok(retrieved_data) => {
                         retrieved_data.len() == 3
-                            && retrieved_data[0] == Some(test_data[0].clone())
-                            && retrieved_data[1] == Some(test_data[1].clone())
-                            && retrieved_data[2].is_none()
+                            && retrieved_data.first() == Some(&Some(test_data[0].clone()))
+                            && retrieved_data.get(1) == Some(&Some(test_data[1].clone()))
+                            && retrieved_data.get(2) == Some(&None)
                     }
                     _ => false,
                 }
