@@ -43,10 +43,6 @@ use storage_impl::errors as storage_errors;
 use time::Date;
 
 #[cfg(feature = "v2")]
-use crate::types::storage::revenue_recovery_redis_operation::{
-    PaymentProcessorTokenStatus, PaymentProcessorTokenWithRetryInfo, RedisTokenManager,
-};
-#[cfg(feature = "v2")]
 use crate::{
     core::{
         payments,

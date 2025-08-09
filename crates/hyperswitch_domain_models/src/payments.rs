@@ -700,6 +700,7 @@ impl PaymentIntent {
         &self,
         revenue_recovery_metadata: api_models::payments::PaymentRevenueRecoveryMetadata,
         billing_connector_account: &merchant_connector_account::MerchantConnectorAccount,
+        card_info: api_models::payments::AdditionalCardInfo,
     ) -> CustomResult<
         revenue_recovery::RevenueRecoveryAttemptData,
         errors::api_error_response::ApiErrorResponse,
@@ -754,21 +755,7 @@ impl PaymentIntent {
             invoice_billing_started_at_time: None,
             // No charge id is present here since it is an internal payment and we didn't call connector yet.
             charge_id: None,
-            card_info: api_models::payments::AdditionalCardInfo {
-                card_issuer: None,
-                card_network: None,
-                card_type: None,
-                card_issuing_country: None,
-                bank_code: None,
-                last4: None,
-                card_isin: None,
-                card_extended_bin: None,
-                card_exp_month: None,
-                card_exp_year: None,
-                card_holder_name: None,
-                payment_checks: None,
-                authentication_data: None,
-            },
+            card_info: card_info.clone(),
         })
     }
 

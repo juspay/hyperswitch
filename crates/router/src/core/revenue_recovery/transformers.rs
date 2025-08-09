@@ -103,7 +103,7 @@ impl ForeignFrom<&api_models::payments::RecoveryPaymentsCreate>
                 .error
                 .as_ref()
                 .and_then(|error| error.network_error_message.clone()),
-            /// retry count will be updated whenever there is new attempt is created.
+            // retry count will be updated whenever there is new attempt is created.
             retry_count: None,
             invoice_next_billing_time: None,
             invoice_billing_started_at_time: data.billing_started_at,
