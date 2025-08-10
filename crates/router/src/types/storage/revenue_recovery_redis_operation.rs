@@ -147,7 +147,7 @@ impl RedisTokenManager {
 
         let redis_conn = state.store.get_redis_conn().change_context(conn_err)?;
 
-        let tokens_key = format!("customer:{}:tokens", connector_customer_id);
+        let tokens_key = format!("customer:{connector_customer_id}:tokens");
 
         let get_hash_err =
             errors::StorageError::RedisError(errors::RedisError::GetHashFieldFailed.into());
@@ -193,7 +193,7 @@ impl RedisTokenManager {
 
         let redis_conn = state.store.get_redis_conn().change_context(conn_err)?;
 
-        let tokens_key = format!("customer:{}:tokens", connector_customer_id);
+        let tokens_key = format!("customer:{connector_customer_id}:tokens");
 
         let set_hash_err =
             errors::StorageError::RedisError(errors::RedisError::SetHashFieldFailed.into());
@@ -297,7 +297,7 @@ impl RedisTokenManager {
             let card_network_config = RetryLimitsConfig::get_network_config(card_network, state);
 
             let monthly_retry_remaining = card_network_config
-                .max_retries_last_30_days
+                .max_retry_count_for_thirty_day
                 .saturating_sub(retry_info.total_30_day_retries);
 
             // Build the per-token result struct.
@@ -345,7 +345,7 @@ impl RedisTokenManager {
 
         let total_30_day_retries = Self::calculate_total_30_day_retries(token, today);
 
-        let monthly_wait_hours = if total_30_day_retries >= config.max_retries_last_30_days {
+        let monthly_wait_hours = if total_30_day_retries >= config.max_retry_count_for_thirty_day {
             (0..RETRY_WINDOW_DAYS)
                 .map(|i| today - Duration::days(i.into()))
                 .find(|date| token.daily_retry_history.get(date).copied().unwrap_or(0) > 0)
