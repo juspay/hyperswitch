@@ -2149,7 +2149,7 @@ impl IncomingWebhook for Paypal {
             paypal::PaypalResource::PaypalDisputeWebhooks(_) => Box::new(details),
             #[cfg(feature = "payouts")]
             paypal::PaypalResource::PaypalBatchPayoutWebhooks(resource) => Box::new(
-                paypal::PaypalFulfillResponse::try_from((*resource, details.event_type)),
+                paypal::PaypalFulfillResponse::try_from((*resource, details.event_type))?,
             ),
         })
     }

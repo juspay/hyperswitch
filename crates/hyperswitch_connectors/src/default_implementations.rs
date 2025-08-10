@@ -3559,7 +3559,6 @@ default_imp_for_payouts_retrieve!(
     connectors::Trustpayments,
     connectors::Tsys,
     connectors::UnifiedAuthenticationService,
-    connectors::Wise,
     connectors::Worldline,
     connectors::Worldpay,
     connectors::Worldpayvantiv,
