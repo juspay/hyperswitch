@@ -65,6 +65,8 @@ use crate::{
         },
     },
 };
+#[cfg(feature = "v2")]
+use common_utils::ext_traits::AsyncExt;
 use crate::{routes::SessionState, types::storage};
 pub struct ExecutePcrWorkflow;
 #[cfg(feature = "v2")]
@@ -392,7 +394,7 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
         card_issuer: card_issuer_str,
         invoice_start_time: start_time_proto,
         retry_count: Some(
-            (total_retry_count_within_network.max_retries_last_30_days - retry_count_left).into(),
+            (total_retry_count_within_network.max_retry_count_for_thirty_day - retry_count_left).into(),
         ),
         merchant_id,
         invoice_amount,
@@ -415,7 +417,7 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
         retry_count_left: Some(retry_count_left.into()),
         total_retry_count_within_network: Some(
             total_retry_count_within_network
-                .max_retries_last_30_days
+                .max_retry_count_for_thirty_day
                 .into(),
         ),
         first_error_msg_time: None,
@@ -694,16 +696,14 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
                 }));
             }
             Some(_) => {
-                if let Some(scheduled_token) = process_token_for_retry(
+                process_token_for_retry(
                     state,
                     token_with_retry_info,
                     merchant_context.clone(),
                     &payment_intent,
                 )
                 .await?
-                {
-                    scheduled_tokens.push(scheduled_token);
-                }
+                .map(|scheduled_token| scheduled_tokens.push(scheduled_token));
             }
         }
     }
@@ -713,19 +713,19 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
         .min_by_key(|token| token.schedule_time)
         .cloned();
 
-    match best_token {
-        Some(token) => {
-            RedisTokenManager::update_payment_processor_token_schedule_time(
-                state,
-                connector_customer_id,
-                &token.token_details.payment_processor_token,
-                Some(token.schedule_time),
-            )
-            .await?;
-            Ok(Some(token))
-        }
-        None => Ok(None),
-    }
+    best_token
+    .async_map(|token| async move {
+        RedisTokenManager::update_payment_processor_token_schedule_time(
+            state,
+            connector_customer_id,
+            &token.token_details.payment_processor_token,
+            Some(token.schedule_time),
+        )
+        .await?;
+        Ok(token)
+    })
+    .await
+    .transpose()
 }
 
 #[cfg(feature = "v2")]
