@@ -1,102 +1,84 @@
-use common_enums::enums;
-use common_utils::types::FloatMajorUnit;
+use api_models::webhooks::IncomingWebhookEvent;
+use common_utils::{pii, types::FloatMajorUnit};
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
+    payment_method_data::{BankTransferData, PaymentMethodData},
     router_data::{ConnectorAuthType, RouterData},
-    router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
-    types::{PaymentsAuthorizeRouterData, RefundsRouterData},
+    router_response_types::PaymentsResponseData,
+    types::PaymentsAuthorizeRouterData,
 };
-use hyperswitch_interfaces::errors;
+use hyperswitch_interfaces::errors::ConnectorError;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::PaymentsAuthorizeRequestData,
+    types::ResponseRouterData,
+    utils::{get_unimplemented_payment_method_error_message, RouterData as _},
 };
 
-//TODO: Fill the struct with respective fields
-pub struct CheckbookRouterData<T> {
-    pub amount: FloatMajorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
-    pub router_data: T,
-}
-
-impl<T> From<(FloatMajorUnit, T)> for CheckbookRouterData<T> {
-    fn from((amount, item): (FloatMajorUnit, T)) -> Self {
-        //Todo :  use utils to convert the amount to the type of amount that a connector accepts
-        Self {
-            amount,
-            router_data: item,
-        }
-    }
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize)]
 pub struct CheckbookPaymentsRequest {
+    name: Secret<String>,
+    recipient: pii::Email,
     amount: FloatMajorUnit,
-    card: CheckbookCard,
+    description: String,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct CheckbookCard {
-    number: cards::CardNumber,
-    expiry_month: Secret<String>,
-    expiry_year: Secret<String>,
-    cvc: Secret<String>,
-    complete: bool,
-}
-
-impl TryFrom<&CheckbookRouterData<&PaymentsAuthorizeRouterData>> for CheckbookPaymentsRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+impl TryFrom<(FloatMajorUnit, &PaymentsAuthorizeRouterData)> for CheckbookPaymentsRequest {
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: &CheckbookRouterData<&PaymentsAuthorizeRouterData>,
+        (amount, item): (FloatMajorUnit, &PaymentsAuthorizeRouterData),
     ) -> Result<Self, Self::Error> {
-        match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(req_card) => {
-                let card = CheckbookCard {
-                    number: req_card.card_number,
-                    expiry_month: req_card.card_exp_month,
-                    expiry_year: req_card.card_exp_year,
-                    cvc: req_card.card_cvc,
-                    complete: item.router_data.request.is_auto_capture()?,
-                };
-                Ok(Self {
-                    amount: item.amount,
-                    card,
-                })
-            }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
+        match item.request.payment_method_data.clone() {
+            PaymentMethodData::BankTransfer(bank_transfer_data) => match *bank_transfer_data {
+                BankTransferData::AchBankTransfer {} => Ok(Self {
+                    name: item.get_billing_full_name()?,
+                    recipient: item.get_billing_email()?,
+                    amount,
+                    description: item.get_description()?,
+                }),
+                _ => Err(ConnectorError::NotImplemented(
+                    get_unimplemented_payment_method_error_message("Checkbook"),
+                )
+                .into()),
+            },
+            _ => Err(ConnectorError::NotImplemented(
+                get_unimplemented_payment_method_error_message("Checkbook"),
+            )
+            .into()),
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
-// Auth Struct
 pub struct CheckbookAuthType {
-    pub(super) api_key: Secret<String>,
+    pub(super) publishable_key: Secret<String>,
+    pub(super) secret_key: Secret<String>,
 }
 
 impl TryFrom<&ConnectorAuthType> for CheckbookAuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_owned(),
+            ConnectorAuthType::BodyKey { key1, api_key } => Ok(Self {
+                publishable_key: key1.to_owned(),
+                secret_key: api_key.to_owned(),
             }),
-            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+            _ => Err(ConnectorError::FailedToObtainAuthType.into()),
         }
     }
 }
 // PaymentsResponse
-//TODO: Append the remaining status flags
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum CheckbookPaymentStatus {
-    Succeeded,
+    Unpaid,
+    InProcess,
+    Paid,
+    Mailed,
+    Printed,
     Failed,
+    Expired,
+    Void,
     #[default]
     Processing,
 }
@@ -104,24 +86,48 @@ pub enum CheckbookPaymentStatus {
 impl From<CheckbookPaymentStatus> for common_enums::AttemptStatus {
     fn from(item: CheckbookPaymentStatus) -> Self {
         match item {
-            CheckbookPaymentStatus::Succeeded => Self::Charged,
-            CheckbookPaymentStatus::Failed => Self::Failure,
-            CheckbookPaymentStatus::Processing => Self::Authorizing,
+            CheckbookPaymentStatus::Paid
+            | CheckbookPaymentStatus::Mailed
+            | CheckbookPaymentStatus::Printed => Self::Charged,
+            CheckbookPaymentStatus::Failed | CheckbookPaymentStatus::Expired => Self::Failure,
+            CheckbookPaymentStatus::Unpaid => Self::AuthenticationPending,
+            CheckbookPaymentStatus::InProcess | CheckbookPaymentStatus::Processing => Self::Pending,
+            CheckbookPaymentStatus::Void => Self::Voided,
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
+impl From<CheckbookPaymentStatus> for IncomingWebhookEvent {
+    fn from(status: CheckbookPaymentStatus) -> Self {
+        match status {
+            CheckbookPaymentStatus::Mailed
+            | CheckbookPaymentStatus::Printed
+            | CheckbookPaymentStatus::Paid => Self::PaymentIntentSuccess,
+            CheckbookPaymentStatus::Failed | CheckbookPaymentStatus::Expired => {
+                Self::PaymentIntentFailure
+            }
+            CheckbookPaymentStatus::Unpaid
+            | CheckbookPaymentStatus::InProcess
+            | CheckbookPaymentStatus::Processing => Self::PaymentIntentProcessing,
+            CheckbookPaymentStatus::Void => Self::PaymentIntentCancelled,
+        }
+    }
+}
+
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CheckbookPaymentsResponse {
-    status: CheckbookPaymentStatus,
-    id: String,
+    pub status: CheckbookPaymentStatus,
+    pub id: String,
+    pub amount: Option<FloatMajorUnit>,
+    pub description: Option<String>,
+    pub name: Option<String>,
+    pub recipient: Option<String>,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, CheckbookPaymentsResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<F, CheckbookPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
@@ -142,83 +148,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, CheckbookPaymentsResponse, T, PaymentsR
     }
 }
 
-//TODO: Fill the struct with respective fields
-// REFUND :
-// Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
-pub struct CheckbookRefundRequest {
-    pub amount: FloatMajorUnit,
-}
-
-impl<F> TryFrom<&CheckbookRouterData<&RefundsRouterData<F>>> for CheckbookRefundRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &CheckbookRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
-        Ok(Self {
-            amount: item.amount.to_owned(),
-        })
-    }
-}
-
-// Type definition for Refund Response
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
-pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
-
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
-        match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
-        }
-    }
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {
-    id: String,
-    status: RefundStatus,
-}
-
-impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: RefundsResponseRouterData<Execute, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
-            ..item.data
-        })
-    }
-}
-
-impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouterData<RSync> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: RefundsResponseRouterData<RSync, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
-            ..item.data
-        })
-    }
-}
-
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct CheckbookErrorResponse {
     pub status_code: u16,

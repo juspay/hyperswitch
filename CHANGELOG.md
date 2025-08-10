@@ -4,6 +4,23 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.08.08.1
+
+### Features
+
+- **api:** Adds support to change reveue_recovery_retry_algorithm_type using UpdateProfileAPI (V2) ([#8858](https://github.com/juspay/hyperswitch/pull/8858)) ([`9c6f0b7`](https://github.com/juspay/hyperswitch/commit/9c6f0b7cfff7a58fb6e9b23a4f7e4196cbb9e074))
+- **connector:** [FISERV] Added PayPal Redirect Payment Method ([#8669](https://github.com/juspay/hyperswitch/pull/8669)) ([`b0b7193`](https://github.com/juspay/hyperswitch/commit/b0b71935cad8a8580b6dbe9f437f87fd8f3df97f))
+- **recovery:** Add support for custom billing api for v2 ([#8838](https://github.com/juspay/hyperswitch/pull/8838)) ([`9e8df84`](https://github.com/juspay/hyperswitch/commit/9e8df8459013d2cda699c0e733f9f9b9a332bb7a))
+- **router:** Add support for GooglePay pre-decrypted token in the payments confirm call ([#8865](https://github.com/juspay/hyperswitch/pull/8865)) ([`b7f42cb`](https://github.com/juspay/hyperswitch/commit/b7f42cbd27a72cc02872d4e1f7b1e2b02263c462))
+
+### Bug Fixes
+
+- **authentication:** Fixed notification_url and updated authentication bug ([#8843](https://github.com/juspay/hyperswitch/pull/8843)) ([`be4b43f`](https://github.com/juspay/hyperswitch/commit/be4b43fa8331ec90705a3e8fd218934b0f039773))
+
+**Full Changelog:** [`2025.08.08.0...2025.08.08.1`](https://github.com/juspay/hyperswitch/compare/2025.08.08.0...2025.08.08.1)
+
+- - -
+
 ## 2025.08.08.0
 
 ### Bug Fixes
