@@ -6,6 +6,8 @@ use api_models::payments::PaymentsGetIntentRequest;
 #[cfg(feature = "v2")]
 use common_enums::enums::CardNetwork;
 #[cfg(feature = "v2")]
+use common_utils::ext_traits::AsyncExt;
+#[cfg(feature = "v2")]
 use common_utils::{
     ext_traits::{StringExt, ValueExt},
     id_type,
@@ -65,8 +67,6 @@ use crate::{
         },
     },
 };
-#[cfg(feature = "v2")]
-use common_utils::ext_traits::AsyncExt;
 use crate::{routes::SessionState, types::storage};
 pub struct ExecutePcrWorkflow;
 #[cfg(feature = "v2")]
@@ -394,7 +394,8 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
         card_issuer: card_issuer_str,
         invoice_start_time: start_time_proto,
         retry_count: Some(
-            (total_retry_count_within_network.max_retry_count_for_thirty_day - retry_count_left).into(),
+            (total_retry_count_within_network.max_retry_count_for_thirty_day - retry_count_left)
+                .into(),
         ),
         merchant_id,
         invoice_amount,
@@ -714,18 +715,18 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
         .cloned();
 
     best_token
-    .async_map(|token| async move {
-        RedisTokenManager::update_payment_processor_token_schedule_time(
-            state,
-            connector_customer_id,
-            &token.token_details.payment_processor_token,
-            Some(token.schedule_time),
-        )
-        .await?;
-        Ok(token)
-    })
-    .await
-    .transpose()
+        .async_map(|token| async move {
+            RedisTokenManager::update_payment_processor_token_schedule_time(
+                state,
+                connector_customer_id,
+                &token.token_details.payment_processor_token,
+                Some(token.schedule_time),
+            )
+            .await?;
+            Ok(token)
+        })
+        .await
+        .transpose()
 }
 
 #[cfg(feature = "v2")]
