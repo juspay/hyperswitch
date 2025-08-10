@@ -19,6 +19,7 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use super::domain;
 use crate::{
     core::errors,
+    db::storage::revenue_recovery_redis_operation,
     headers::{
         ACCEPT_LANGUAGE, BROWSER_NAME, X_APP_ID, X_CLIENT_PLATFORM, X_CLIENT_SOURCE,
         X_CLIENT_VERSION, X_MERCHANT_DOMAIN, X_PAYMENT_CONFIRM_SOURCE, X_REDIRECT_URI,
@@ -2210,6 +2211,30 @@ impl ForeignFrom<card_info_types::CardInfoUpdateRequest> for storage::CardInfo {
             date_created: common_utils::date_time::now(),
             last_updated: Some(common_utils::date_time::now()),
             last_updated_provider: value.last_updated_provider,
+        }
+    }
+}
+
+impl ForeignFrom<&revenue_recovery_redis_operation::PaymentProcessorTokenStatus>
+    for payments::AdditionalCardInfo
+{
+    fn foreign_from(value: &revenue_recovery_redis_operation::PaymentProcessorTokenStatus) -> Self {
+        let card_info = &value.payment_processor_token_details;
+        // TODO! All other card info fields needs to be populated in redis.
+        Self {
+            card_issuer: card_info.card_issuer.to_owned(),
+            card_network: card_info.card_network.to_owned(),
+            card_type: card_info.card_type.to_owned(),
+            card_issuing_country: None,
+            bank_code: None,
+            last4: card_info.last_four_digits.to_owned(),
+            card_isin: None,
+            card_extended_bin: None,
+            card_exp_month: card_info.expiry_month.to_owned(),
+            card_exp_year: card_info.expiry_year.to_owned(),
+            card_holder_name: None,
+            payment_checks: None,
+            authentication_data: None,
         }
     }
 }

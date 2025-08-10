@@ -13,15 +13,18 @@ use crate::{
         payments::{self, operations::Operation},
         webhooks::recovery_incoming,
     },
-    db::errors::{RouterResponse, StorageErrorExt},
+    db::{
+        errors::{RouterResponse, StorageErrorExt},
+        storage::revenue_recovery_redis_operation::RedisTokenManager,
+    },
     logger,
-    pii::Secret,
     routes::{app::ReqState, SessionState},
     services,
     types::{
         api::payments as api_types,
         domain,
         storage::{self, revenue_recovery as revenue_recovery_types},
+        transformers::ForeignFrom,
     },
 };
 
@@ -178,21 +181,20 @@ pub async fn record_internal_attempt_api(
     revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
     revenue_recovery_metadata: &payments_api::PaymentRevenueRecoveryMetadata,
 ) -> RouterResult<payments_api::PaymentAttemptRecordResponse> {
-    let card_info = api_models::payments::AdditionalCardInfo {
-        card_issuer: None,
-        card_network: None,
-        card_type: Some("credit".to_string()),
-        card_issuing_country: None,
-        bank_code: None,
-        last4: None,
-        card_isin: None,
-        card_extended_bin: None,
-        card_exp_month: Some(Secret::new("12".to_string())),
-        card_exp_year: Some(Secret::new("25".to_string())),
-        card_holder_name: None,
-        payment_checks: None,
-        authentication_data: None,
-    };
+    let connector_customer_id = revenue_recovery_metadata.get_connector_customer_id();
+
+    let card_info = RedisTokenManager::get_payment_processor_token_with_schedule_time(
+        state,
+        &connector_customer_id,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+        message: "Failed to fetch token details from redis".to_string(),
+    })?
+    .map(|card| api_models::payments::AdditionalCardInfo::foreign_from(&card))
+    .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
+        message: "Failed to fetch token details from redis".to_string(),
+    })?;
 
     let revenue_recovery_attempt_data =
         recovery_incoming::RevenueRecoveryAttempt::get_revenue_recovery_attempt(

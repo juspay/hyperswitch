@@ -9030,6 +9030,12 @@ impl PaymentRevenueRecoveryMetadata {
     pub fn get_merchant_connector_id_for_api_request(&self) -> id_type::MerchantConnectorAccountId {
         self.active_attempt_payment_connector_id.clone()
     }
+
+    pub fn get_connector_customer_id(&self) -> String {
+        self.billing_connector_payment_details
+            .connector_customer_id
+            .to_owned()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
