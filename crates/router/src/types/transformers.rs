@@ -2216,6 +2216,7 @@ impl ForeignFrom<card_info_types::CardInfoUpdateRequest> for storage::CardInfo {
     }
 }
 
+#[cfg(feature = "v2")]
 impl ForeignFrom<&revenue_recovery_redis_operation::PaymentProcessorTokenStatus>
     for payments::AdditionalCardInfo
 {
