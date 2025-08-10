@@ -178,8 +178,7 @@ pub async fn record_internal_attempt_api(
     revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
     revenue_recovery_metadata: &payments_api::PaymentRevenueRecoveryMetadata,
 ) -> RouterResult<payments_api::PaymentAttemptRecordResponse> {
-
-     let card_info = api_models::payments::AdditionalCardInfo {
+    let card_info = api_models::payments::AdditionalCardInfo {
         card_issuer: None,
         card_network: None,
         card_type: Some("credit".to_string()),
@@ -200,7 +199,7 @@ pub async fn record_internal_attempt_api(
             payment_intent,
             revenue_recovery_metadata,
             &revenue_recovery_payment_data.billing_mca,
-            card_info
+            card_info,
         )
         .change_context(errors::ApiErrorResponse::GenericNotFoundError {
             message: "get_revenue_recovery_attempt was not constructed".to_string(),
