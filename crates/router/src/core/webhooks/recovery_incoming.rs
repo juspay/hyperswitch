@@ -1025,7 +1025,7 @@ impl RevenueRecoveryAttempt {
             token_unit,
         )
         .await
-        .change_context(errors::RevenueRecoveryError::PaymentAttemptFetchFailed)
+        .change_context(errors::RevenueRecoveryError::RevenueRecoveryRedisInsertFailed)
         .attach_printable("Failed to store payment processor tokens in Redis")?;
 
         Ok(())
