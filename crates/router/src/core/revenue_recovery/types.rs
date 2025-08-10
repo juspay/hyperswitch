@@ -785,7 +785,7 @@ impl Action {
             .map(|gsm_error_category| {
                 gsm_error_category == common_enums::ErrorCategory::HardDecline
             })
-            .unwrap_or(true);
+            .unwrap_or(false);
         let schedule_time = revenue_recovery_payment_data
             .get_schedule_time_based_on_retry_type(
                 state,
