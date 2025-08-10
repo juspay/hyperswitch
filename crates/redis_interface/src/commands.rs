@@ -1526,7 +1526,7 @@ mod tests {
                         retrieved_values.len() == 3
                             && *retrieved_values.first().expect("should not be none")
                                 == Some("value1".to_string())
-                            && retrieved_values.get(1).is_none()
+                            && retrieved_values.get(1).is_some_and(|v| v.is_none())
                             && *retrieved_values.get(2).expect("should not be none")
                                 == Some("value3".to_string())
                     }

@@ -22,7 +22,7 @@ pub enum LockStatus {
 pub enum LockAction {
     // Sleep until the lock is acquired
     Hold { input: LockingInput },
-    // Sleep until both locks are acquired
+    // Sleep until all locks are acquired
     HoldMultiple { inputs: Vec<LockingInput> },
     // Queue it but return response as 2xx, could be used for webhooks
     QueueWithOk,
@@ -63,10 +63,6 @@ impl LockAction {
     {
         match self {
             Self::HoldMultiple { inputs } => {
-                let redis_locking_keys = inputs
-                    .iter()
-                    .map(|input| input.get_redis_locking_key(&merchant_id))
-                    .collect::<Vec<_>>();
                 let lock_retries = inputs
                     .iter()
                     .find_map(|input| input.override_lock_retries)
@@ -78,8 +74,9 @@ impl LockAction {
                     .store()
                     .get_redis_conn()
                     .change_context(errors::ApiErrorResponse::InternalServerError)?;
-                let redis_key_values = redis_locking_keys
+                let redis_key_values = inputs
                     .iter()
+                    .map(|input| input.get_redis_locking_key(&merchant_id))
                     .map(|key| (RedisKey::from(key.as_str()), request_id.clone()))
                     .collect::<Vec<_>>();
                 for _retry in 0..lock_retries {
@@ -90,12 +87,12 @@ impl LockAction {
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)?;
-                    let lock_not_aqcuired = results.iter().any(|res| {
+                    let lock_aqcuired = results.iter().all(|res| {
                         // each redis value must match the request_id
                         // if even 1 does match, the lock is not acquired
-                        *res.get_value() != request_id
+                        *res.get_value() == request_id
                     });
-                    if !lock_not_aqcuired {
+                    if lock_aqcuired {
                         logger::info!("Lock acquired for locking inputs {:?}", inputs);
                         return Ok(());
                     }
@@ -191,7 +188,10 @@ impl LockAction {
 
                 if !invalid_request_id_list.is_empty() {
                     logger::error!(
-                        "The request_id which acquired the lock is not equal to the request_id requesting for releasing the lock. Invalid request_ids: {:?}",
+                        "The request_id which acquired the lock is not equal to the request_id requesting for releasing the lock.
+                        Current request_id: {:?},
+                        Redis request_ids : {:?}",
+                        request_id,
                         invalid_request_id_list
                     );
                     Err(errors::ApiErrorResponse::InternalServerError)
