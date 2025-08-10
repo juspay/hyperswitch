@@ -16,10 +16,12 @@ use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payments::payment_intent::CustomerData;
 use masking::{ExposeInterface, PeekInterface, Secret};
 
+#[cfg(feature = "v2")]
+use crate::db::storage::revenue_recovery_redis_operation;
+
 use super::domain;
 use crate::{
     core::errors,
-    db::storage::revenue_recovery_redis_operation,
     headers::{
         ACCEPT_LANGUAGE, BROWSER_NAME, X_APP_ID, X_CLIENT_PLATFORM, X_CLIENT_SOURCE,
         X_CLIENT_VERSION, X_MERCHANT_DOMAIN, X_PAYMENT_CONFIRM_SOURCE, X_REDIRECT_URI,
