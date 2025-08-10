@@ -2068,6 +2068,12 @@ impl IncomingWebhook for Paypal {
                     ),
                 ))
             }
+            #[cfg(feature = "payouts")]
+            paypal::PaypalResource::PaypalBatchPayoutWebhooks(resource) => {
+                Ok(api_models::webhooks::ObjectReferenceId::PayoutId(
+                    api_models::webhooks::PayoutIdType::ConnectorPayoutId(resource.payout_batch_id),
+                ))
+            }
         }
     }
 
@@ -2100,6 +2106,19 @@ impl IncomingWebhook for Paypal {
             | PaypalWebhookEventType::CheckoutOrderCompleted
             | PaypalWebhookEventType::CheckoutOrderProcessed
             | PaypalWebhookEventType::Unknown => None,
+            #[cfg(feature = "payouts")]
+            PaypalWebhookEventType::PayoutsBatchDenied
+            | PaypalWebhookEventType::PayoutsBatchProcessing
+            | PaypalWebhookEventType::PayoutsBatchSuccess
+            | PaypalWebhookEventType::PayoutsItemBlocked
+            | PaypalWebhookEventType::PayoutsItemCanceled
+            | PaypalWebhookEventType::PayoutsItemDenied
+            | PaypalWebhookEventType::PayoutsItemFailed
+            | PaypalWebhookEventType::PayoutsItemHeld
+            | PaypalWebhookEventType::PayoutsItemRefunded
+            | PaypalWebhookEventType::PayoutsItemReturned
+            | PaypalWebhookEventType::PayoutsItemSuccess
+            | PaypalWebhookEventType::PayoutsItemUnclaimed => None,
         };
 
         Ok(transformers::get_payapl_webhooks_event(
@@ -2128,6 +2147,10 @@ impl IncomingWebhook for Paypal {
                 paypal::RefundSyncResponse::try_from((*resource, details.event_type))?,
             ),
             paypal::PaypalResource::PaypalDisputeWebhooks(_) => Box::new(details),
+            #[cfg(feature = "payouts")]
+            paypal::PaypalResource::PaypalBatchPayoutWebhooks(resource) => Box::new(
+                paypal::PaypalFulfillResponse::try_from((*resource, details.event_type)),
+            ),
         })
     }
 
@@ -2143,6 +2166,11 @@ impl IncomingWebhook for Paypal {
             transformers::PaypalResource::PaypalCardWebhooks(_)
             | transformers::PaypalResource::PaypalRedirectsWebhooks(_)
             | transformers::PaypalResource::PaypalRefundWebhooks(_) => {
+                Err(errors::ConnectorError::ResponseDeserializationFailed)
+                    .attach_printable("Expected Dispute webhooks,but found other webhooks")?
+            }
+            #[cfg(feature = "payouts")]
+            transformers::PaypalResource::PaypalBatchPayoutWebhooks(_) => {
                 Err(errors::ConnectorError::ResponseDeserializationFailed)
                     .attach_printable("Expected Dispute webhooks,but found other webhooks")?
             }
