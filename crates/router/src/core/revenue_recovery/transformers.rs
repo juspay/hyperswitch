@@ -107,23 +107,23 @@ impl ForeignFrom<&api_models::payments::RecoveryPaymentsCreate>
             retry_count: None,
             invoice_next_billing_time: None,
             invoice_billing_started_at_time: data.billing_started_at,
-            card_info:card_info
-            .cloned()
-            .unwrap_or(api_models::payments::AdditionalCardInfo {
-                card_issuer: None,
-                card_network: None,
-                card_type: None,
-                card_issuing_country: None,
-                bank_code: None,
-                last4: None,
-                card_isin: None,
-                card_extended_bin: None,
-                card_exp_month: None,
-                card_exp_year: None,
-                card_holder_name: None,
-                payment_checks: None,
-                authentication_data: None,
-            }),
+            card_info: card_info
+                .cloned()
+                .unwrap_or(api_models::payments::AdditionalCardInfo {
+                    card_issuer: None,
+                    card_network: None,
+                    card_type: None,
+                    card_issuing_country: None,
+                    bank_code: None,
+                    last4: None,
+                    card_isin: None,
+                    card_extended_bin: None,
+                    card_exp_month: None,
+                    card_exp_year: None,
+                    card_holder_name: None,
+                    payment_checks: None,
+                    authentication_data: None,
+                }),
             charge_id: None,
         }
     }
