@@ -4,6 +4,7 @@ use common_utils::events::{ApiEventMetric, ApiEventsType};
 use super::{
     PaymentAttemptListRequest, PaymentAttemptListResponse, PaymentStartRedirectionRequest,
     PaymentsCreateIntentRequest, PaymentsGetIntentRequest, PaymentsIntentResponse, PaymentsRequest,
+    RecoveryPaymentsCreate, RecoveryPaymentsResponse,
 };
 #[cfg(feature = "v2")]
 use crate::payment_methods::{
@@ -27,8 +28,8 @@ use crate::{
     payment_methods::{PaymentMethodListRequest, PaymentMethodListResponse},
     payments::{
         ExtendedCardInfoResponse, PaymentIdType, PaymentListFilterConstraints,
-        PaymentListResponseV2, PaymentsApproveRequest, PaymentsCancelRequest,
-        PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
+        PaymentListResponseV2, PaymentsApproveRequest, PaymentsCancelPostCaptureRequest,
+        PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
         PaymentsDynamicTaxCalculationRequest, PaymentsDynamicTaxCalculationResponse,
         PaymentsExternalAuthenticationRequest, PaymentsExternalAuthenticationResponse,
         PaymentsIncrementalAuthorizationRequest, PaymentsManualUpdateRequest,
@@ -127,6 +128,15 @@ impl ApiEventMetric for PaymentsDynamicTaxCalculationResponse {}
 
 #[cfg(feature = "v1")]
 impl ApiEventMetric for PaymentsCancelRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.payment_id.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ApiEventMetric for PaymentsCancelPostCaptureRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Payment {
             payment_id: self.payment_id.clone(),
@@ -407,6 +417,20 @@ impl ApiEventMetric for PaymentListResponse {
     }
 }
 
+#[cfg(feature = "v2")]
+impl ApiEventMetric for RecoveryPaymentsCreate {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        None
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for RecoveryPaymentsResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        None
+    }
+}
+
 #[cfg(feature = "v1")]
 impl ApiEventMetric for PaymentListResponseV2 {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
@@ -487,7 +511,6 @@ impl ApiEventMetric for payments::PaymentMethodListResponseForPayments {
         None
     }
 }
-
 #[cfg(feature = "v2")]
 impl ApiEventMetric for PaymentMethodListResponseForSession {}
 

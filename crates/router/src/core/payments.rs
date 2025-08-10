@@ -81,9 +81,9 @@ use time;
 
 #[cfg(feature = "v1")]
 pub use self::operations::{
-    PaymentApprove, PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate,
-    PaymentIncrementalAuthorization, PaymentPostSessionTokens, PaymentReject, PaymentSession,
-    PaymentSessionUpdate, PaymentStatus, PaymentUpdate, PaymentUpdateMetadata,
+    PaymentApprove, PaymentCancel, PaymentCancelPostCapture, PaymentCapture, PaymentConfirm,
+    PaymentCreate, PaymentIncrementalAuthorization, PaymentPostSessionTokens, PaymentReject,
+    PaymentSession, PaymentSessionUpdate, PaymentStatus, PaymentUpdate, PaymentUpdateMetadata,
 };
 use self::{
     conditional_configs::perform_decision_management,
@@ -3153,10 +3153,12 @@ impl ValidateStatusForOperation for &PaymentRedirectSync {
             | common_enums::IntentStatus::Conflicted
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Processing
             | common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
             | common_enums::IntentStatus::PartiallyCaptured
             | common_enums::IntentStatus::RequiresConfirmation
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable
@@ -3597,9 +3599,9 @@ where
         let decide_wallet_flow = &wallet
             .decide_wallet_flow(state, payment_data, &merchant_connector_account)
             .attach_printable("Failed to decide wallet flow")?
-            .async_map(|payment_proce_data| async move {
+            .async_map(|payment_price_data| async move {
                 wallet
-                    .decrypt_wallet_token(&payment_proce_data, payment_data)
+                    .decrypt_wallet_token(&payment_price_data, payment_data)
                     .await
             })
             .await
@@ -3627,11 +3629,11 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let connector_routing_data = match connector_call_type {
         ConnectorCallType::PreDetermined(connector_routing_data) => connector_routing_data,
-        ConnectorCallType::Retryable(connector_routing_datas) => connector_routing_datas
+        ConnectorCallType::Retryable(connector_routing_data) => connector_routing_data
             .first()
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Found no connector routing data in retryable call")?,
-        ConnectorCallType::SessionMultiple(_session_connector_datas) => {
+        ConnectorCallType::SessionMultiple(_session_connector_data) => {
             return Err(errors::ApiErrorResponse::InternalServerError).attach_printable(
                 "SessionMultiple connector call type is invalid in confirm calls",
             );
@@ -5131,6 +5133,32 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + Send + Sync + Clone,
 {
+    fn check_predecrypted_token(
+        &self,
+        payment_data: &D,
+    ) -> CustomResult<Option<PaymentMethodToken>, errors::ApiErrorResponse> {
+        let google_pay_wallet_data = payment_data
+            .get_payment_method_data()
+            .and_then(|payment_method_data| payment_method_data.get_wallet_data())
+            .and_then(|wallet_data| wallet_data.get_google_pay_wallet_data())
+            .get_required_value("GooglePay wallet token")
+            .attach_printable(
+                "GooglePay wallet data not found in the payment method data during the Apple Pay predecryption flow",
+            )?;
+
+        match &google_pay_wallet_data.tokenization_data {
+            common_payments_types::GpayTokenizationData::Encrypted(_) => Ok(None),
+            common_payments_types::GpayTokenizationData::Decrypted(google_pay_predecrypt_data) => {
+                helpers::validate_card_expiry(
+                    &google_pay_predecrypt_data.card_exp_month,
+                    &google_pay_predecrypt_data.card_exp_year,
+                )?;
+                Ok(Some(PaymentMethodToken::GooglePayDecrypt(Box::new(
+                    google_pay_predecrypt_data.clone(),
+                ))))
+            }
+        }
+    }
     fn decide_wallet_flow(
         &self,
         state: &SessionState,
@@ -5178,14 +5206,19 @@ where
         .attach_printable("failed to create google pay token decryptor")?;
 
         // should_verify_token is set to false to disable verification of token
-        let google_pay_data = decryptor
+        let google_pay_data_internal = decryptor
             .decrypt_token(
-                google_pay_wallet_data.tokenization_data.token.clone(),
+                google_pay_wallet_data
+                    .tokenization_data
+                    .get_encrypted_google_pay_token()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?
+                    .clone(),
                 false,
             )
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("failed to decrypt google pay token")?;
-
+        let google_pay_data =
+            common_types::payments::GPayPredecryptData::from(google_pay_data_internal);
         Ok(PaymentMethodToken::GooglePayDecrypt(Box::new(
             google_pay_data,
         )))
@@ -6948,10 +6981,17 @@ where
             storage_enums::IntentStatus::RequiresCapture
                 | storage_enums::IntentStatus::PartiallyCapturedAndCapturable
         ),
+        "PaymentCancelPostCapture" => matches!(
+            payment_data.get_payment_intent().status,
+            storage_enums::IntentStatus::Succeeded
+                | storage_enums::IntentStatus::PartiallyCaptured
+                | storage_enums::IntentStatus::PartiallyCapturedAndCapturable
+        ),
         "PaymentCapture" => {
             matches!(
                 payment_data.get_payment_intent().status,
                 storage_enums::IntentStatus::RequiresCapture
+                    | storage_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
                     | storage_enums::IntentStatus::PartiallyCapturedAndCapturable
             ) || (matches!(
                 payment_data.get_payment_intent().status,
@@ -9806,6 +9846,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
     fn get_merchant_connector_id_in_attempt(&self) -> Option<id_type::MerchantConnectorAccountId> {
         self.payment_attempt.merchant_connector_id.clone()
     }
+
     fn get_creds_identifier(&self) -> Option<&str> {
         self.creds_identifier.as_deref()
     }

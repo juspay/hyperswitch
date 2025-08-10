@@ -175,6 +175,8 @@ where
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: payment_data.payment_intent.is_payment_id_from_merchant,
+        l2_l3_data: None,
+        minor_amount_capturable: None,
     };
     Ok(router_data)
 }
@@ -328,6 +330,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         order_id: None,
         locale: None,
         payment_channel: None,
+        enable_partial_authorization: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -407,6 +410,8 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: payment_data.payment_intent.is_payment_id_from_merchant,
+        l2_l3_data: None,
+        minor_amount_capturable: None,
     };
 
     Ok(router_data)
@@ -572,6 +577,8 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         authentication_id: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
+        l2_l3_data: None,
+        minor_amount_capturable: None,
     };
 
     Ok(router_data)
@@ -700,6 +707,8 @@ pub async fn construct_router_data_for_psync<'a>(
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
+        l2_l3_data: None,
+        minor_amount_capturable: None,
     };
 
     Ok(router_data)
@@ -883,6 +892,8 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         authentication_id: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
+        l2_l3_data: None,
+        minor_amount_capturable: None,
     };
 
     Ok(router_data)
@@ -1023,6 +1034,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         complete_authorize_url,
         connector_testing_data: None,
         customer_id: None,
+        enable_partial_authorization: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -1102,6 +1114,8 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
+        l2_l3_data: None,
+        minor_amount_capturable: None,
     };
 
     Ok(router_data)
@@ -1228,7 +1242,71 @@ where
         .connector_mandate_detail
         .as_ref()
         .and_then(|detail| detail.get_connector_mandate_request_reference_id());
+    let order_details = payment_data
+        .payment_intent
+        .order_details
+        .as_ref()
+        .map(|order_details| {
+            order_details
+                .iter()
+                .map(|data| {
+                    data.to_owned()
+                        .parse_value("OrderDetailsWithAmount")
+                        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                            field_name: "OrderDetailsWithAmount",
+                        })
+                        .attach_printable("Unable to parse OrderDetailsWithAmount")
+                })
+                .collect::<Result<Vec<_>, _>>()
+        })
+        .transpose()?;
+    let l2_l3_data = state.conf.l2_l3_data_config.enabled.then(|| {
+        let shipping_address = unified_address.get_shipping();
+        let billing_address = unified_address.get_payment_billing();
 
+        types::L2L3Data {
+            order_date: payment_data.payment_intent.order_date,
+            tax_status: payment_data.payment_intent.tax_status,
+            customer_tax_registration_id: customer.as_ref().and_then(|c| {
+                c.tax_registration_id
+                    .as_ref()
+                    .map(|e| e.clone().into_inner())
+            }),
+            order_details: order_details.clone(),
+            discount_amount: payment_data.payment_intent.discount_amount,
+            shipping_cost: payment_data.payment_intent.shipping_cost,
+            shipping_amount_tax: payment_data.payment_intent.shipping_amount_tax,
+            duty_amount: payment_data.payment_intent.duty_amount,
+            order_tax_amount: payment_data
+                .payment_attempt
+                .net_amount
+                .get_order_tax_amount(),
+            merchant_order_reference_id: payment_data
+                .payment_intent
+                .merchant_order_reference_id
+                .clone(),
+            customer_id: payment_data.payment_intent.customer_id.clone(),
+            shipping_origin_zip: shipping_address
+                .and_then(|addr| addr.address.as_ref())
+                .and_then(|details| details.origin_zip.clone()),
+            shipping_state: shipping_address
+                .as_ref()
+                .and_then(|addr| addr.address.as_ref())
+                .and_then(|details| details.state.clone()),
+            shipping_country: shipping_address
+                .as_ref()
+                .and_then(|addr| addr.address.as_ref())
+                .and_then(|details| details.country),
+            shipping_destination_zip: shipping_address
+                .as_ref()
+                .and_then(|addr| addr.address.as_ref())
+                .and_then(|details| details.zip.clone()),
+            billing_address_city: billing_address
+                .as_ref()
+                .and_then(|addr| addr.address.as_ref())
+                .and_then(|details| details.city.clone()),
+        }
+    });
     crate::logger::debug!("unified address details {:?}", unified_address);
 
     router_data = types::RouterData {
@@ -1304,6 +1382,8 @@ where
         psd2_sca_exemption_type: payment_data.payment_intent.psd2_sca_exemption_type,
         raw_connector_response: None,
         is_payment_id_from_merchant: payment_data.payment_intent.is_payment_id_from_merchant,
+        l2_l3_data,
+        minor_amount_capturable: None,
     };
 
     Ok(router_data)
@@ -1497,6 +1577,8 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         psd2_sca_exemption_type: payment_data.payment_intent.psd2_sca_exemption_type,
         raw_connector_response: None,
         is_payment_id_from_merchant: payment_data.payment_intent.is_payment_id_from_merchant,
+        l2_l3_data: None,
+        minor_amount_capturable: None,
     };
 
     Ok(router_data)
@@ -2989,6 +3071,9 @@ where
             fingerprint: payment_intent.fingerprint_id,
             browser_info: payment_attempt.browser_info,
             payment_method_id: payment_attempt.payment_method_id,
+            network_transaction_id: payment_data
+                .get_payment_method_info()
+                .and_then(|info| info.network_transaction_id.clone()),
             payment_method_status: payment_data
                 .get_payment_method_info()
                 .map(|info| info.status),
@@ -3009,6 +3094,7 @@ where
             is_iframe_redirection_enabled: payment_intent.is_iframe_redirection_enabled,
             whole_connector_response: payment_data.get_whole_connector_response(),
             payment_channel: payment_intent.payment_channel,
+            enable_partial_authorization: payment_intent.enable_partial_authorization,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -3304,6 +3390,8 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             issuer_error_message: pa.issuer_error_message,
             is_iframe_redirection_enabled:pi.is_iframe_redirection_enabled,
             payment_channel: pi.payment_channel,
+            network_transaction_id: None,
+            enable_partial_authorization: pi.enable_partial_authorization,
         }
     }
 }
@@ -3634,6 +3722,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             order_id: None,
             locale: None,
             payment_channel: None,
+            enable_partial_authorization: None,
         })
     }
 }
@@ -3867,6 +3956,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             order_id: None,
             locale: Some(additional_data.state.locale.clone()),
             payment_channel: payment_data.payment_intent.payment_channel,
+            enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
         })
     }
 }
@@ -4180,6 +4270,42 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             metadata: payment_data.payment_intent.metadata,
             webhook_url,
             capture_method,
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelPostCaptureData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        todo!()
+    }
+}
+
+#[cfg(feature = "v1")]
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelPostCaptureData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        let payment_data = additional_data.payment_data;
+        let connector = api::ConnectorData::get_connector_by_name(
+            &additional_data.state.conf.connectors,
+            &additional_data.connector_name,
+            api::GetToken::Connector,
+            payment_data.payment_attempt.merchant_connector_id.clone(),
+        )?;
+        let amount = payment_data.payment_attempt.get_total_amount();
+
+        Ok(Self {
+            minor_amount: Some(amount),
+            currency: Some(payment_data.currency),
+            connector_transaction_id: connector
+                .connector
+                .connector_transaction_id(&payment_data.payment_attempt)?
+                .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
+            cancellation_reason: payment_data.payment_attempt.cancellation_reason,
+            connector_meta: payment_data.payment_attempt.connector_metadata,
         })
     }
 }
@@ -4727,6 +4853,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             capture_method: payment_data.payment_attempt.capture_method,
             connector_testing_data,
             customer_id: payment_data.payment_intent.customer_id,
+            enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
         })
     }
 }
@@ -5004,6 +5131,7 @@ impl ForeignFrom<CustomerDetails> for router_request_types::CustomerDetails {
             email: customer.email,
             phone: customer.phone,
             phone_country_code: customer.phone_country_code,
+            tax_registration_id: customer.tax_registration_id,
         }
     }
 }

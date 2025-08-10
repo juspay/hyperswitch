@@ -198,6 +198,7 @@ enum RequiredField {
     DcbMsisdn,
     DcbClientUid,
     OrderDetailsProductName,
+    Description,
 }
 
 impl RequiredField {
@@ -856,6 +857,15 @@ impl RequiredField {
                     value: None,
                 },
             ),
+            Self::Description => (
+                "description".to_string(),
+                RequiredFieldInfo {
+                    required_field: "description".to_string(),
+                    display_name: "description".to_string(),
+                    field_type: FieldType::Text,
+                    value: None,
+                },
+            ),
         }
     }
 }
@@ -1240,6 +1250,14 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
                 vec![],
                 vec![],
                 [card_basic(), email(), full_name(), billing_address()].concat(),
+            ),
+        ),
+        (
+            Connector::Barclaycard,
+            fields(
+                vec![],
+                vec![],
+                [card_basic(), full_name(), billing_address()].concat(),
             ),
         ),
         (Connector::Billwerk, fields(vec![], vec![], card_basic())),
@@ -2408,6 +2426,10 @@ fn get_wallet_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorFi
                         ]),
                     },
                 ),
+                (
+                    Connector::Barclaycard,
+                    fields(vec![], vec![], [full_name(), billing_address()].concat()),
+                ),
                 (Connector::Bluesnap, fields(vec![], vec![], vec![])),
                 (Connector::Noon, fields(vec![], vec![], vec![])),
                 (
@@ -3313,8 +3335,17 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
         (
             enums::PaymentMethodType::Ach,
             connectors(vec![(
-                Connector::Stripe,
-                fields(vec![], vec![], vec![RequiredField::BillingEmail]),
+                Connector::Checkbook,
+                fields(
+                    vec![],
+                    vec![],
+                    vec![
+                        RequiredField::BillingUserFirstName,
+                        RequiredField::BillingUserLastName,
+                        RequiredField::BillingEmail,
+                        RequiredField::Description,
+                    ],
+                ),
             )]),
         ),
         (

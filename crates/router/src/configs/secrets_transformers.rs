@@ -491,6 +491,7 @@ pub(crate) async fn fetch_raw_secrets(
         zero_mandates: conf.zero_mandates,
         network_transaction_id_supported_connectors: conf
             .network_transaction_id_supported_connectors,
+        list_dispute_supported_connectors: conf.list_dispute_supported_connectors,
         required_fields: conf.required_fields,
         delayed_session_response: conf.delayed_session_response,
         webhook_source_verification_call: conf.webhook_source_verification_call,
@@ -539,6 +540,7 @@ pub(crate) async fn fetch_raw_secrets(
         network_tokenization_supported_connectors: conf.network_tokenization_supported_connectors,
         theme: conf.theme,
         platform: conf.platform,
+        l2_l3_data_config: conf.l2_l3_data_config,
         authentication_providers: conf.authentication_providers,
         open_router: conf.open_router,
         #[cfg(feature = "v2")]

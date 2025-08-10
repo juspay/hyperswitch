@@ -1186,6 +1186,7 @@ impl Authenticate for api_models::payments::PaymentsRetrieveRequest {
     }
 }
 impl Authenticate for api_models::payments::PaymentsCancelRequest {}
+impl Authenticate for api_models::payments::PaymentsCancelPostCaptureRequest {}
 impl Authenticate for api_models::payments::PaymentsCaptureRequest {}
 impl Authenticate for api_models::payments::PaymentsIncrementalAuthorizationRequest {}
 impl Authenticate for api_models::payments::PaymentsStartRequest {}

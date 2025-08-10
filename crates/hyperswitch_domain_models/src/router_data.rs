@@ -90,6 +90,7 @@ pub struct RouterData<Flow, Request, Response> {
 
     // minor amount for amount framework
     pub minor_amount_captured: Option<MinorUnit>,
+    pub minor_amount_capturable: Option<MinorUnit>,
 
     pub integrity_check: Result<(), IntegrityCheckError>,
 
@@ -98,6 +99,8 @@ pub struct RouterData<Flow, Request, Response> {
     pub header_payload: Option<payments::HeaderPayload>,
 
     pub connector_mandate_request_reference_id: Option<String>,
+
+    pub l2_l3_data: Option<L2L3Data>,
 
     pub authentication_id: Option<id_type::AuthenticationId>,
     /// Contains the type of sca exemption required for the transaction
@@ -109,6 +112,26 @@ pub struct RouterData<Flow, Request, Response> {
     /// Indicates whether the payment ID was provided by the merchant (true),
     /// or generated internally by Hyperswitch (false)
     pub is_payment_id_from_merchant: Option<bool>,
+}
+
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+pub struct L2L3Data {
+    pub order_date: Option<time::PrimitiveDateTime>,
+    pub tax_status: Option<common_enums::TaxStatus>,
+    pub customer_tax_registration_id: Option<Secret<String>>,
+    pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+    pub discount_amount: Option<MinorUnit>,
+    pub shipping_cost: Option<MinorUnit>,
+    pub shipping_amount_tax: Option<MinorUnit>,
+    pub duty_amount: Option<MinorUnit>,
+    pub order_tax_amount: Option<MinorUnit>,
+    pub merchant_order_reference_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
+    pub shipping_origin_zip: Option<Secret<String>>,
+    pub shipping_state: Option<Secret<String>>,
+    pub shipping_country: Option<common_enums::CountryAlpha2>,
+    pub shipping_destination_zip: Option<Secret<String>>,
+    pub billing_address_city: Option<String>,
 }
 
 // Different patterns of authentication.
@@ -245,7 +268,7 @@ pub struct AccessToken {
 pub enum PaymentMethodToken {
     Token(Secret<String>),
     ApplePayDecrypt(Box<common_payment_types::ApplePayPredecryptData>),
-    GooglePayDecrypt(Box<GooglePayDecryptedData>),
+    GooglePayDecrypt(Box<common_payment_types::GPayPredecryptData>),
     PazeDecrypt(Box<PazeDecryptedData>),
 }
 
@@ -280,6 +303,18 @@ impl TryFrom<ApplePayPredecryptDataInternal> for common_payment_types::ApplePayP
             application_expiration_year,
             payment_data: data.payment_data.into(),
         })
+    }
+}
+
+impl From<GooglePayPredecryptDataInternal> for common_payment_types::GPayPredecryptData {
+    fn from(data: GooglePayPredecryptDataInternal) -> Self {
+        Self {
+            card_exp_month: Secret::new(data.payment_method_details.expiration_month.two_digits()),
+            card_exp_year: Secret::new(data.payment_method_details.expiration_year.four_digits()),
+            application_primary_account_number: data.payment_method_details.pan.clone(),
+            cryptogram: data.payment_method_details.cryptogram.clone(),
+            eci_indicator: data.payment_method_details.eci_indicator.clone(),
+        }
     }
 }
 
@@ -321,7 +356,7 @@ impl ApplePayPredecryptDataInternal {
 
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct GooglePayDecryptedData {
+pub struct GooglePayPredecryptDataInternal {
     pub message_expiration: String,
     pub message_id: String,
     #[serde(rename = "paymentMethod")]
@@ -338,6 +373,7 @@ pub struct GooglePayPaymentMethodDetails {
     pub pan: cards::CardNumber,
     pub cryptogram: Option<Secret<String>>,
     pub eci_indicator: Option<String>,
+    pub card_network: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -753,6 +789,7 @@ impl
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Conflicted
             | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             // For these statuses, update the capturable amount when it reaches terminal / capturable state
@@ -761,7 +798,8 @@ impl
             | common_enums::IntentStatus::Processing => None,
             // Invalid states for this flow
             common_enums::IntentStatus::RequiresPaymentMethod
-            | common_enums::IntentStatus::RequiresConfirmation => None,
+            | common_enums::IntentStatus::RequiresConfirmation
+            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => None,
             // If status is requires capture, get the total amount that can be captured
             // This is in cases where the capture method will be `manual` or `manual_multiple`
             // We do not need to handle the case where amount_to_capture is provided here as it cannot be passed in authroize flow
@@ -790,6 +828,7 @@ impl
             }
             // No amount is captured
             common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             // For these statuses, update the amount captured when it reaches terminal state
@@ -800,7 +839,10 @@ impl
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation => None,
             // No amount has been captured yet
-            common_enums::IntentStatus::RequiresCapture => Some(MinorUnit::zero()),
+            common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => {
+                Some(MinorUnit::zero())
+            }
             // Invalid statues for this flow
             common_enums::IntentStatus::PartiallyCaptured
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
@@ -965,6 +1007,7 @@ impl
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Conflicted
             | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             // For these statuses, update the capturable amount when it reaches terminal / capturable state
@@ -974,7 +1017,8 @@ impl
             // Invalid states for this flow
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation => None,
-            common_enums::IntentStatus::RequiresCapture => {
+            common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => {
                 let total_amount = payment_data.payment_attempt.amount_details.get_net_amount();
                 Some(total_amount)
             }
@@ -1005,9 +1049,11 @@ impl
             }
             // No amount is captured
             common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
-            common_enums::IntentStatus::RequiresCapture => {
+            common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => {
                 let total_amount = payment_data.payment_attempt.amount_details.get_net_amount();
                 Some(total_amount)
             }
@@ -1202,6 +1248,7 @@ impl
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Conflicted
             | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             // For these statuses, update the capturable amount when it reaches terminal / capturable state
@@ -1211,7 +1258,8 @@ impl
             // Invalid states for this flow
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation => None,
-            common_enums::IntentStatus::RequiresCapture => {
+            common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => {
                 let total_amount = payment_attempt.amount_details.get_net_amount();
                 Some(total_amount)
             }
@@ -1241,6 +1289,7 @@ impl
             }
             // No amount is captured
             common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             // For these statuses, update the amount captured when it reaches terminal state
@@ -1250,7 +1299,8 @@ impl
             // Invalid states for this flow
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation => None,
-            common_enums::IntentStatus::RequiresCapture => {
+            common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => {
                 let total_amount = payment_attempt.amount_details.get_net_amount();
                 Some(total_amount)
             }
@@ -1436,6 +1486,7 @@ impl
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Conflicted
             | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             // For these statuses, update the capturable amount when it reaches terminal / capturable state
@@ -1448,7 +1499,8 @@ impl
             // If status is requires capture, get the total amount that can be captured
             // This is in cases where the capture method will be `manual` or `manual_multiple`
             // We do not need to handle the case where amount_to_capture is provided here as it cannot be passed in authroize flow
-            common_enums::IntentStatus::RequiresCapture => {
+            common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => {
                 let total_amount = payment_data.payment_attempt.amount_details.get_net_amount();
                 Some(total_amount)
             }
@@ -1473,6 +1525,7 @@ impl
             }
             // No amount is captured
             common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             // For these statuses, update the amount captured when it reaches terminal state
@@ -1483,7 +1536,10 @@ impl
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation => None,
             // No amount has been captured yet
-            common_enums::IntentStatus::RequiresCapture => Some(MinorUnit::zero()),
+            common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => {
+                Some(MinorUnit::zero())
+            }
             // Invalid statues for this flow
             common_enums::IntentStatus::PartiallyCaptured
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,

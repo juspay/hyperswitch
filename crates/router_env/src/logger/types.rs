@@ -156,6 +156,8 @@ pub enum Flow {
     PaymentsCapture,
     /// Payments cancel flow.
     PaymentsCancel,
+    /// Payments cancel post capture flow.
+    PaymentsCancelPostCapture,
     /// Payments approve flow.
     PaymentsApprove,
     /// Payments reject flow.
@@ -638,6 +640,8 @@ pub enum Flow {
     DecisionEngineDecideGatewayCall,
     /// Decision Engine Gateway Feedback Call
     DecisionEngineGatewayFeedbackCall,
+    /// Recovery payments create flow.
+    RecoveryPaymentsCreate,
     /// Tokenization delete flow
     TokenizationDelete,
 }
