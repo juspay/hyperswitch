@@ -1,6 +1,5 @@
-use std::fmt::Debug;
+use std::{collections::HashMap, fmt::Debug};
 
-use std::collections::HashMap;
 use common_enums::enums::{self, CardNetwork};
 use common_utils::{ext_traits::ValueExt, id_type};
 use external_services::grpc_client::{self as external_grpc_client, GrpcHeaders};
@@ -99,10 +98,7 @@ pub struct NetworkRetryConfig {
 }
 
 impl RetryLimitsConfig {
-    pub fn get_network_config(
-        &self,
-        network: Option<CardNetwork>,
-    ) -> &NetworkRetryConfig {
+    pub fn get_network_config(&self, network: Option<CardNetwork>) -> &NetworkRetryConfig {
         // Hardcoded fallback default config
         static DEFAULT_CONFIG: NetworkRetryConfig = NetworkRetryConfig {
             max_retries_per_day: 20,

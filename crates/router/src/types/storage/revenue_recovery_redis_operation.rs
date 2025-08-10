@@ -141,7 +141,6 @@ impl RedisTokenManager {
         state: &SessionState,
         connector_customer_id: &str,
     ) -> CustomResult<HashMap<String, PaymentProcessorTokenStatus>, errors::StorageError> {
-
         let redis_conn =
             state
                 .store
@@ -198,8 +197,6 @@ impl RedisTokenManager {
                 ))?;
         let tokens_key = format!("customer:{connector_customer_id}:tokens");
 
-            
-
         // allocate capacity up-front to avoid rehashing
         let mut serialized_payment_processor_tokens: HashMap<String, String> =
             HashMap::with_capacity(payment_processor_token_info_map.len());
@@ -215,7 +212,7 @@ impl RedisTokenManager {
             serialized_payment_processor_tokens.insert(payment_processor_token_id, serialized);
         }
 
-        // Update or add tokens 
+        // Update or add tokens
         redis_conn
             .set_hash_fields(
                 &tokens_key.into(),
@@ -223,7 +220,9 @@ impl RedisTokenManager {
                 None,
             )
             .await
-            .change_context(errors::StorageError::RedisError(errors::RedisError::SetHashFieldFailed.into()))?;
+            .change_context(errors::StorageError::RedisError(
+                errors::RedisError::SetHashFieldFailed.into(),
+            ))?;
 
         tracing::info!(
             connector_customer_id = %connector_customer_id,
@@ -350,15 +349,16 @@ impl RedisTokenManager {
 
         let total_30_day_retries = Self::calculate_total_30_day_retries(token, today);
 
-        let monthly_wait_hours = if total_30_day_retries >= card_network_config.max_retry_count_for_thirty_day {
-            (0..RETRY_WINDOW_DAYS)
-                .map(|i| today - Duration::days(i.into()))
-                .find(|date| token.daily_retry_history.get(date).copied().unwrap_or(0) > 0)
-                .map(|date| Self::calculate_wait_hours(date + Duration::days(31), now))
-                .unwrap_or(0)
-        } else {
-            0
-        };
+        let monthly_wait_hours =
+            if total_30_day_retries >= card_network_config.max_retry_count_for_thirty_day {
+                (0..RETRY_WINDOW_DAYS)
+                    .map(|i| today - Duration::days(i.into()))
+                    .find(|date| token.daily_retry_history.get(date).copied().unwrap_or(0) > 0)
+                    .map(|date| Self::calculate_wait_hours(date + Duration::days(31), now))
+                    .unwrap_or(0)
+            } else {
+                0
+            };
 
         let today_retries = token
             .daily_retry_history
@@ -494,9 +494,7 @@ impl RedisTokenManager {
                     daily_retry_history: status.daily_retry_history.clone(),
                     scheduled_at: None,
                 });
-        
 
-        
         match updated_token {
             Some(mut token) => {
                 Self::normalize_retry_window(&mut token, today);
@@ -506,14 +504,23 @@ impl RedisTokenManager {
                     .get(&today)
                     .copied()
                     .unwrap_or(INITIAL_RETRY_COUNT);
-                token
-                    .daily_retry_history
-                    .insert(today, current_count + 1);
+                token.daily_retry_history.insert(today, current_count + 1);
 
                 let mut tokens_map = HashMap::new();
-                tokens_map.insert(token.payment_processor_token_details.payment_processor_token.clone(), token.clone());
+                tokens_map.insert(
+                    token
+                        .payment_processor_token_details
+                        .payment_processor_token
+                        .clone(),
+                    token.clone(),
+                );
 
-                Self::update_or_add_connector_customer_payment_processor_tokens(state, connector_customer_id, tokens_map).await?;
+                Self::update_or_add_connector_customer_payment_processor_tokens(
+                    state,
+                    connector_customer_id,
+                    tokens_map,
+                )
+                .await?;
                 Ok(true)
             }
             None => Ok(false),
@@ -548,8 +555,19 @@ impl RedisTokenManager {
         match updated_token {
             Some(token) => {
                 let mut tokens_map = HashMap::new();
-                tokens_map.insert(token.payment_processor_token_details.payment_processor_token.clone(), token.clone());
-                Self::update_or_add_connector_customer_payment_processor_tokens(state, connector_customer_id, tokens_map).await?;
+                tokens_map.insert(
+                    token
+                        .payment_processor_token_details
+                        .payment_processor_token
+                        .clone(),
+                    token.clone(),
+                );
+                Self::update_or_add_connector_customer_payment_processor_tokens(
+                    state,
+                    connector_customer_id,
+                    tokens_map,
+                )
+                .await?;
                 Ok(true)
             }
             None => Ok(false),

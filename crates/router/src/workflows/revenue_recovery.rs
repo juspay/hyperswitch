@@ -299,9 +299,7 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
         BillingConnectorPaymentMethodDetails::Card(card_info) => card_info.card_network.clone(),
     });
 
-
-    let total_retry_count_within_network =
-        card_config.get_network_config(card_network.clone());
+    let total_retry_count_within_network = card_config.get_network_config(card_network.clone());
 
     let card_network_str = card_network?.to_string();
 
