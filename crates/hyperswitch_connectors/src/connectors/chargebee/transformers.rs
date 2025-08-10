@@ -517,6 +517,7 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
             invoice_billing_started_at_time,
             // This field is none because it is specific to stripebilling.
             charge_id: None,
+            // Need to populate these card info field 
             card_info: api_models::payments::AdditionalCardInfo {
                 card_network: Some(payment_method_details.card.brand),
                 card_isin: Some(payment_method_details.card.iin),

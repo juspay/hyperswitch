@@ -32,7 +32,7 @@ use crate::{
     types::{
         self, api, domain,
         storage::{
-            revenue_recovery as storage_churn_recovery,
+            revenue_recovery as storage_revenue_recovery,
             revenue_recovery_redis_operation::{
                 PaymentProcessorTokenDetails, PaymentProcessorTokenStatus, RedisTokenManager,
             },
@@ -916,7 +916,7 @@ impl RevenueRecoveryAttempt {
             .attach_printable("payment attempt id is required for pcr workflow tracking")?;
 
         let execute_workflow_tracking_data =
-            storage_churn_recovery::RevenueRecoveryWorkflowTrackingData {
+            storage_revenue_recovery::RevenueRecoveryWorkflowTrackingData {
                 billing_mca_id: billing_mca_id.clone(),
                 global_payment_id: payment_id.clone(),
                 merchant_id,

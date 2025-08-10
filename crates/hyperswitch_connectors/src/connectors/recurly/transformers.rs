@@ -206,6 +206,7 @@ impl
                     ),
                     // This none because this field is specific to stripebilling.
                     charge_id: None,
+                    // Need to populate these card info field 
                     card_info: api_models::payments::AdditionalCardInfo {
                         card_network: Some(item.response.payment_method.card_type),
                         card_isin: Some(item.response.payment_method.first_six),
