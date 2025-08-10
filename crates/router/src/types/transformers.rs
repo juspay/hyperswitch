@@ -16,10 +16,9 @@ use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payments::payment_intent::CustomerData;
 use masking::{ExposeInterface, PeekInterface, Secret};
 
+use super::domain;
 #[cfg(feature = "v2")]
 use crate::db::storage::revenue_recovery_redis_operation;
-
-use super::domain;
 use crate::{
     core::errors,
     headers::{
