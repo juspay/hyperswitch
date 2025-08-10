@@ -116,7 +116,15 @@ impl TryFrom<&PayuRouterData<&types::PaymentsAuthorizeRouterData>> for PayuPayme
                             value: PayuWalletCode::Ap,
                             wallet_type: WALLET_IDENTIFIER.to_string(),
                             authorization_code: Secret::new(
-                                BASE64_ENGINE.encode(data.tokenization_data.token),
+                                BASE64_ENGINE.encode(
+                                    data.tokenization_data
+                                        .get_encrypted_google_pay_token()
+                                        .change_context(
+                                            errors::ConnectorError::MissingRequiredField {
+                                                field_name: "gpay wallet_token",
+                                            },
+                                        )?,
+                                ),
                             ),
                         }
                     }),

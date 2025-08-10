@@ -2,7 +2,7 @@ use common_enums::enums;
 use common_utils::types::StringMinorUnit;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
-    router_data::RouterData,
+    router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RefundsResponseData},
@@ -12,18 +12,15 @@ use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::PaymentsAuthorizeRequestData,
-};
+use crate::types::{RefundsResponseRouterData, ResponseRouterData};
 
 //TODO: Fill the struct with respective fields
-pub struct CustombillingRouterData<T> {
+pub struct SiftRouterData<T> {
     pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
 }
 
-impl<T> From<(StringMinorUnit, T)> for CustombillingRouterData<T> {
+impl<T> From<(StringMinorUnit, T)> for SiftRouterData<T> {
     fn from((amount, item): (StringMinorUnit, T)) -> Self {
         //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Self {
@@ -35,13 +32,13 @@ impl<T> From<(StringMinorUnit, T)> for CustombillingRouterData<T> {
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, PartialEq)]
-pub struct CustombillingPaymentsRequest {
+pub struct SiftPaymentsRequest {
     amount: StringMinorUnit,
-    card: CustombillingCard,
+    card: SiftCard,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct CustombillingCard {
+pub struct SiftCard {
     number: cards::CardNumber,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
@@ -49,66 +46,70 @@ pub struct CustombillingCard {
     complete: bool,
 }
 
-impl TryFrom<&CustombillingRouterData<&PaymentsAuthorizeRouterData>>
-    for CustombillingPaymentsRequest
-{
+impl TryFrom<&SiftRouterData<&PaymentsAuthorizeRouterData>> for SiftPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &CustombillingRouterData<&PaymentsAuthorizeRouterData>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: &SiftRouterData<&PaymentsAuthorizeRouterData>) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(req_card) => {
-                let card = CustombillingCard {
-                    number: req_card.card_number,
-                    expiry_month: req_card.card_exp_month,
-                    expiry_year: req_card.card_exp_year,
-                    cvc: req_card.card_cvc,
-                    complete: item.router_data.request.is_auto_capture()?,
-                };
-                Ok(Self {
-                    amount: item.amount.clone(),
-                    card,
-                })
-            }
+            PaymentMethodData::Card(_) => Err(errors::ConnectorError::NotImplemented(
+                "Card payment method not implemented".to_string(),
+            )
+            .into()),
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
 }
 
+//TODO: Fill the struct with respective fields
+// Auth Struct
+pub struct SiftAuthType {
+    pub(super) api_key: Secret<String>,
+}
+
+impl TryFrom<&ConnectorAuthType> for SiftAuthType {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
+        match auth_type {
+            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+                api_key: api_key.to_owned(),
+            }),
+            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+        }
+    }
+}
 // PaymentsResponse
 //TODO: Append the remaining status flags
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
-pub enum CustombillingPaymentStatus {
+pub enum SiftPaymentStatus {
     Succeeded,
     Failed,
     #[default]
     Processing,
 }
 
-impl From<CustombillingPaymentStatus> for common_enums::AttemptStatus {
-    fn from(item: CustombillingPaymentStatus) -> Self {
+impl From<SiftPaymentStatus> for common_enums::AttemptStatus {
+    fn from(item: SiftPaymentStatus) -> Self {
         match item {
-            CustombillingPaymentStatus::Succeeded => Self::Charged,
-            CustombillingPaymentStatus::Failed => Self::Failure,
-            CustombillingPaymentStatus::Processing => Self::Authorizing,
+            SiftPaymentStatus::Succeeded => Self::Charged,
+            SiftPaymentStatus::Failed => Self::Failure,
+            SiftPaymentStatus::Processing => Self::Authorizing,
         }
     }
 }
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct CustombillingPaymentsResponse {
-    status: CustombillingPaymentStatus,
+pub struct SiftPaymentsResponse {
+    status: SiftPaymentStatus,
     id: String,
 }
 
-impl<F, T> TryFrom<ResponseRouterData<F, CustombillingPaymentsResponse, T, PaymentsResponseData>>
+impl<F, T> TryFrom<ResponseRouterData<F, SiftPaymentsResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, CustombillingPaymentsResponse, T, PaymentsResponseData>,
+        item: ResponseRouterData<F, SiftPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: common_enums::AttemptStatus::from(item.response.status),
@@ -131,15 +132,13 @@ impl<F, T> TryFrom<ResponseRouterData<F, CustombillingPaymentsResponse, T, Payme
 // REFUND :
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
-pub struct CustombillingRefundRequest {
+pub struct SiftRefundRequest {
     pub amount: StringMinorUnit,
 }
 
-impl<F> TryFrom<&CustombillingRouterData<&RefundsRouterData<F>>> for CustombillingRefundRequest {
+impl<F> TryFrom<&SiftRouterData<&RefundsRouterData<F>>> for SiftRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &CustombillingRouterData<&RefundsRouterData<F>>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: &SiftRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: item.amount.to_owned(),
         })
@@ -149,7 +148,7 @@ impl<F> TryFrom<&CustombillingRouterData<&RefundsRouterData<F>>> for Custombilli
 // Type definition for Refund Response
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
+#[derive(Debug, Copy, Serialize, Default, Deserialize, Clone)]
 pub enum RefundStatus {
     Succeeded,
     Failed,
@@ -207,9 +206,12 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct CustombillingErrorResponse {
+pub struct SiftErrorResponse {
     pub status_code: u16,
     pub code: String,
     pub message: String,
     pub reason: Option<String>,
+    pub network_advice_code: Option<String>,
+    pub network_decline_code: Option<String>,
+    pub network_error_message: Option<String>,
 }

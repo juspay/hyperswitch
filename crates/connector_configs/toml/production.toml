@@ -114,6 +114,8 @@ payment_method_type = "apple_pay"
 payment_method_type = "google_pay"
 [[adyen.wallet]]
 payment_method_type = "paypal"
+[[adyen.voucher]]
+  payment_method_type = "boleto"
 [adyen.connector_auth.BodyKey]
 api_key = "Adyen API Key"
 key1 = "Adyen Account Id"
@@ -1212,6 +1214,15 @@ key1 = "Secret Key"
 [cryptopay.connector_webhook_details]
 merchant_secret = "Source verification key"
 
+[checkbook]
+[[checkbook.bank_transfer]]
+  payment_method_type = "ach"
+[checkbook.connector_auth.BodyKey]
+  key1 = "Checkbook Publishable key"
+  api_key = "Checkbook API Secret key"
+[checkbook.connector_webhook_details]
+  merchant_secret="Source verification key"
+  
 [checkout]
 [[checkout.credit]]
 payment_method_type = "Mastercard"
@@ -1713,6 +1724,8 @@ payment_method_type = "Discover"
 payment_method_type = "CartesBancaires"
 [[fiserv.debit]]
 payment_method_type = "UnionPay"
+[[fiserv.wallet]]
+payment_method_type = "paypal"
 [[fiserv.wallet]]
   payment_method_type = "google_pay"
 [fiserv.connector_auth.SignatureKey]
@@ -4981,6 +4994,10 @@ payment_method_type = "JCB"
 payment_method_type = "DinersClub"
 [[worldpayvantiv.debit]]
 payment_method_type = "Discover"
+[[worldpayvantiv.wallet]]
+  payment_method_type = "apple_pay"
+[[worldpayvantiv.wallet]]
+  payment_method_type = "google_pay"
 
 [worldpayvantiv.connector_auth.SignatureKey]
 api_key = "Username"
@@ -5196,4 +5213,8 @@ merchant_secret="Source verification key"
 
 [katapult]
 [katapult.connector_auth.HeaderKey]
+api_key = "API Key"
+
+[sift]
+[sift.connector_auth.HeaderKey]
 api_key = "API Key"
