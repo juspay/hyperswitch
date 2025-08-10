@@ -561,6 +561,7 @@ pub async fn get_best_psp_token_available(
         merchant_context,
         &result,
         payment_id,
+        connector_customer_id,
     )
     .await?;
 
@@ -596,7 +597,7 @@ pub async fn calculate_smart_retry_time(
 
 
 
-
+#[cfg(feature = "v2")]
 async fn process_token_for_retry(
     state: &SessionState,
     token_with_retry_info: &PaymentProcessorTokenWithRetryInfo,
@@ -657,6 +658,7 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
     merchant_context: domain::MerchantContext,
     processor_tokens: &HashMap<String, PaymentProcessorTokenWithRetryInfo>,
     payment_id: &id_type::GlobalPaymentId,
+    connector_customer_id: &str,
 ) -> Result<Option<ScheduledToken>, errors::ProcessTrackerError> {
     let db = &*state.store;
     let key_manager_state = &(state).into();
@@ -708,7 +710,14 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
         .min_by_key(|token| token.schedule_time)
         .cloned();
 
-    Ok(best_token)
+    match best_token {
+        Some(token) => {
+            RedisTokenManager::update_payment_processor_token_schedule_time(state,&connector_customer_id,&token.token_details.payment_processor_token,Some(token.schedule_time)).await?;
+            Ok(Some(token))
+        }
+        None => Ok(None),
+    }
+
 }
 
 
