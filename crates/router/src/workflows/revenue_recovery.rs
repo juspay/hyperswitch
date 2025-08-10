@@ -717,7 +717,7 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
 
     match best_token {
         Some(token) => {
-            RedisTokenManager::update_payment_processor_token_schedule_time(state,&connector_customer_id,&token.token_details.payment_processor_token,Some(token.schedule_time)).await?;
+            RedisTokenManager::update_payment_processor_token_schedule_time(state,connector_customer_id,&token.token_details.payment_processor_token,Some(token.schedule_time)).await?;
             Ok(Some(token))
         }
         None => Ok(None),
