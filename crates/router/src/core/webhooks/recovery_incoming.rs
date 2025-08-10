@@ -742,9 +742,9 @@ impl RevenueRecoveryAttempt {
             .await
             .flatten();
         let payment_method_data = api_models::payments::RecordAttemptPaymentMethodDataRequest {
-            payment_method_data: Some(api_models::payments::AdditionalPaymentData::Card(Box::new(
+            payment_method_data: api_models::payments::AdditionalPaymentData::Card(Box::new(
                 self.0.card_info.clone(),
-            ))),
+            )),
             billing: None,
         };
 
