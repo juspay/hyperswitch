@@ -237,7 +237,7 @@ impl RedisTokenManager {
 
         let (year, month, day) = (today.year(), today.month(), today.day());
 
-        format!("{:04}-{:02}-{:02}", year, month, day,)
+        format!("{year:04}-{month:02}-{day:02}",)
     }
 
     /// Normalize retry window to exactly `RETRY_WINDOW_DAYS` days (today to `RETRY_WINDOW_DAYS - 1` days ago).
@@ -345,15 +345,15 @@ impl RedisTokenManager {
 
         let total_30_day_retries = Self::calculate_total_30_day_retries(token, today);
 
-        let monthly_wait_hours = (total_30_day_retries >= config.max_retries_last_30_days)
-            .then(|| {
-                (0..RETRY_WINDOW_DAYS)
-                    .map(|i| today - Duration::days(i.into()))
-                    .find(|date| token.daily_retry_history.get(date).copied().unwrap_or(0) > 0)
-                    .map(|date| Self::calculate_wait_hours(date + Duration::days(31), now))
-                    .unwrap_or(0)
-            })
-            .unwrap_or(0);
+        let monthly_wait_hours = if total_30_day_retries >= config.max_retries_last_30_days {
+            (0..RETRY_WINDOW_DAYS)
+                .map(|i| today - Duration::days(i.into()))
+                .find(|date| token.daily_retry_history.get(date).copied().unwrap_or(0) > 0)
+                .map(|date| Self::calculate_wait_hours(date + Duration::days(31), now))
+                .unwrap_or(0)
+        } else {
+            0
+        };
 
         let today_retries = token
             .daily_retry_history
@@ -361,9 +361,11 @@ impl RedisTokenManager {
             .copied()
             .unwrap_or(INITIAL_RETRY_COUNT);
 
-        let daily_wait_hours = (today_retries >= config.max_retries_per_day)
-            .then(|| Self::calculate_wait_hours(today + Duration::days(1), now))
-            .unwrap_or(0);
+        let daily_wait_hours = if today_retries >= config.max_retries_per_day {
+            Self::calculate_wait_hours(today + Duration::days(1), now)
+        } else {
+            0
+        };
 
         TokenRetryInfo {
             monthly_wait_hours,
