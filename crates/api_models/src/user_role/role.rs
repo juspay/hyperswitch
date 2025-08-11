@@ -44,6 +44,7 @@ pub struct RoleInfoWithParents {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct ParentGroupInfo {
     pub name: ParentGroup,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     pub scopes: Vec<PermissionScope>,
 }

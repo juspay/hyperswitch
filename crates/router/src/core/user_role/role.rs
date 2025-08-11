@@ -1,4 +1,7 @@
-use std::{cmp, collections::HashSet};
+use std::{
+    cmp,
+    collections::{HashMap, HashSet},
+};
 
 use api_models::user_role::role as role_api;
 use common_enums::{EntityType, ParentGroup, PermissionGroup, PermissionScope};
@@ -29,6 +32,9 @@ fn parent_group_info_to_permission_groups(
 
     for parent_group in parent_groups {
         let scopes = &parent_group.scopes;
+        if scopes.is_empty() {
+            return Err(UserErrors::InvalidRoleOperation);
+        }
         for scope in scopes {
             match scope {
                 PermissionScope::Read | PermissionScope::Write => {}
@@ -652,23 +658,36 @@ pub async fn list_roles_with_info_v2(
 
             (is_lower_entity && request_filter).then_some({
                 let permission_groups = role_info.get_permission_groups();
-                let parent_groups =
-                    ParentGroup::get_descriptions_for_groups(role_info.get_entity_type())
-                        .unwrap_or_default()
-                        .into_iter()
-                        .map(|(parent_group, description)| role_api::ParentGroupInfo {
-                            name: parent_group.clone(),
-                            description: Some(description),
-                            scopes: permission_groups
-                                .iter()
-                                .filter_map(|group| {
-                                    (group.parent() == parent_group).then_some(group.scope())
-                                })
-                                .collect::<HashSet<_>>()
-                                .into_iter()
-                                .collect(),
-                        })
-                        .collect();
+
+                let mut parent_groups_map: HashMap<ParentGroup, Vec<PermissionScope>> =
+                    HashMap::new();
+
+                for group in &permission_groups {
+                    let parent = group.parent();
+                    let scope = group.scope();
+                    parent_groups_map.entry(parent).or_default().push(scope);
+                }
+
+                let parent_groups = parent_groups_map
+                    .into_iter()
+                    .map(|(parent_group, scopes)| {
+                        let unique_scopes = scopes
+                            .into_iter()
+                            .collect::<HashSet<_>>()
+                            .into_iter()
+                            .collect();
+
+                        let description =
+                            ParentGroup::get_descriptions_for_groups(role_info.get_entity_type())
+                                .and_then(|descriptions| descriptions.get(&parent_group).cloned());
+
+                        role_api::ParentGroupInfo {
+                            name: parent_group,
+                            description,
+                            scopes: unique_scopes,
+                        }
+                    })
+                    .collect();
 
                 role_api::RoleInfoResponseWithParentsGroup {
                     role_id: role_info.get_role_id().to_string(),
