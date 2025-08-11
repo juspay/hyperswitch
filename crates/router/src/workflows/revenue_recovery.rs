@@ -763,7 +763,7 @@ pub async fn decide_retry_failure_action(
     let is_hard_decline = gsm_record
         .and_then(|record| record.error_category)
         .map(|category| category == common_enums::ErrorCategory::HardDecline)
-        .unwrap_or(true);
+        .unwrap_or(false);
 
     Ok(is_hard_decline)
 }
