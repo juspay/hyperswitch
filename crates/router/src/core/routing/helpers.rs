@@ -2433,12 +2433,17 @@ pub async fn enable_decision_engine_dynamic_routing_setup(
 
     let decision_engine_config_request = match dynamic_routing_type {
         routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
-            let success_based_routing_config = match payload {
-                Some(routing_types::DynamicRoutingPayload::SuccessBasedRoutingPayload(config)) => {
-                    config
-                }
-                _ => routing_types::SuccessBasedRoutingConfig::open_router_config_default(),
-            };
+            let success_based_routing_config = payload
+                .and_then(|p| match p {
+                    routing_types::DynamicRoutingPayload::SuccessBasedRoutingPayload(config) => {
+                        Some(config)
+                    }
+                    _ => None,
+                })
+                .unwrap_or_else(
+                    routing_types::SuccessBasedRoutingConfig::open_router_config_default,
+                );
+
             open_router::DecisionEngineConfigSetupRequest {
                 merchant_id: profile_id.get_string_repr().to_string(),
                 config: open_router::DecisionEngineConfigVariant::SuccessRate(
@@ -2452,12 +2457,16 @@ pub async fn enable_decision_engine_dynamic_routing_setup(
             }
         }
         routing_types::DynamicRoutingType::EliminationRouting => {
-            let elimination_based_routing_config = match payload {
-                Some(routing_types::DynamicRoutingPayload::EliminationRoutingPayload(config)) => {
-                    config
-                }
-                _ => routing_types::EliminationRoutingConfig::open_router_config_default(),
-            };
+            let elimination_based_routing_config = payload
+                .and_then(|p| match p {
+                    routing_types::DynamicRoutingPayload::EliminationRoutingPayload(config) => {
+                        Some(config)
+                    }
+                    _ => None,
+                })
+                .unwrap_or_else(
+                    routing_types::EliminationRoutingConfig::open_router_config_default,
+                );
 
             open_router::DecisionEngineConfigSetupRequest {
                 merchant_id: profile_id.get_string_repr().to_string(),
