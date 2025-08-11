@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{collections::HashMap, fmt::Debug};
 
 use common_enums::enums::{self, CardNetwork};
 use common_utils::{ext_traits::ValueExt, id_type};
@@ -90,30 +90,26 @@ impl Default for RecoveryTimestamp {
 }
 
 #[derive(Debug, serde::Deserialize, Clone, Default)]
-pub struct RetryLimitsConfig {
-    pub amex: NetworkRetryConfig,
-    pub mastercard: NetworkRetryConfig,
-    pub visa: NetworkRetryConfig,
-    pub discover: NetworkRetryConfig,
-}
+pub struct RetryLimitsConfig(pub HashMap<CardNetwork, NetworkRetryConfig>);
 
 #[derive(Debug, serde::Deserialize, Clone, Default)]
 pub struct NetworkRetryConfig {
     pub max_retries_per_day: i32,
     pub max_retry_count_for_thirty_day: i32,
 }
+
 impl RetryLimitsConfig {
-    pub fn get_network_config(
-        network: Option<CardNetwork>,
-        state: &SessionState,
-    ) -> &NetworkRetryConfig {
-        match network {
-            Some(CardNetwork::Mastercard) => &state.conf.revenue_recovery.card_config.mastercard,
-            Some(CardNetwork::Visa) => &state.conf.revenue_recovery.card_config.visa,
-            Some(CardNetwork::AmericanExpress) => &state.conf.revenue_recovery.card_config.amex,
-            Some(CardNetwork::Discover) => &state.conf.revenue_recovery.card_config.discover,
-            // All other networks (including None) default to Visa configuration
-            _ => &state.conf.revenue_recovery.card_config.visa,
+    pub fn get_network_config(&self, network: Option<CardNetwork>) -> &NetworkRetryConfig {
+        // Hardcoded fallback default config
+        static DEFAULT_CONFIG: NetworkRetryConfig = NetworkRetryConfig {
+            max_retries_per_day: 20,
+            max_retry_count_for_thirty_day: 20,
+        };
+
+        if let Some(net) = network {
+            self.0.get(&net).unwrap_or(&DEFAULT_CONFIG)
+        } else {
+            self.0.get(&CardNetwork::Visa).unwrap_or(&DEFAULT_CONFIG)
         }
     }
 }
