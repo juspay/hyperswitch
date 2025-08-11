@@ -454,7 +454,7 @@ router.post(
 );
 
 // Error handling middleware
-// eslint-disable-next-line no-unused-vars
+
 router.use(
   (err: Error, req: Request, res: Response, _next: NextFunction): void => {
     console.error("Error:", err);
