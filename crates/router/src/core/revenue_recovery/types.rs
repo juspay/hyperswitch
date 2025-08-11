@@ -158,7 +158,7 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                 };
 
                 // update the status of token in redis
-                let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_form_process_tracker(
+                let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
                     state,
                     &connector_customer_id,
                     Some("-1".to_string())
@@ -207,7 +207,7 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                 let error_code = recovery_payment_attempt.error_code;
 
                 // update the status of token in redis
-                let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_form_process_tracker(
+                let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
                     state,
                     &connector_customer_id,
                     Some("-1".to_string())
@@ -423,7 +423,7 @@ impl Action {
                             };
 
                             // update the status of token in redis
-                            let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_form_process_tracker(
+                            let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
                     state,
                     &connector_customer_id,
                     Some("-1".to_string())
@@ -472,7 +472,7 @@ impl Action {
                                 .error
                                 .map(|error| error.code);
 
-                            let _update_connector_customer_id = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_form_process_tracker(
+                            let _update_connector_customer_id = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
                                 state,
                                 &connector_customer_id,
                                 error_code
@@ -719,7 +719,7 @@ impl Action {
                         .attach_printable("Failed to extract customer ID from payment intent")?;
 
                     // update the status of token in redis
-                    let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_form_process_tracker(
+                    let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
                     state,
                     &connector_customer_id,
                     Some("-1".to_string())
@@ -745,7 +745,7 @@ impl Action {
 
                     let error_code = payment_attempt.clone().error.map(|error| error.code);
 
-                    let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_form_process_tracker(
+                    let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
                             state,
                             &connector_customer_id,
                             error_code,
