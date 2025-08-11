@@ -393,15 +393,13 @@ Each connector exports an Express router that is imported by the main router. Th
 To start the mock server:
 
 ```bash
-npm run mockserver       # JavaScript version
-npm run mockserver:ts    # TypeScript version
+npm run mockserver
 ```
 
 By default, the server runs on port 3010. You can change this by setting the `MOCKSERVER_PORT` environment variable:
 
 ```bash
-MOCKSERVER_PORT=4000 npm run mockserver       # JavaScript version
-MOCKSERVER_PORT=4000 npm run mockserver:ts    # TypeScript version
+MOCKSERVER_PORT=3010 npm run mockserver
 ```
 
 ### Testing with cURL
