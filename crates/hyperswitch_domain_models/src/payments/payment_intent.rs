@@ -249,7 +249,7 @@ pub struct PaymentIntentUpdateFields {
     pub duty_amount: Option<MinorUnit>,
     pub is_confirm_operation: bool,
     pub payment_channel: Option<common_enums::PaymentChannel>,
-    pub feature_metadata: Option<serde_json::Value>,
+    pub feature_metadata: Option<masking::Secret<serde_json::Value>>,
     pub enable_partial_authorization: Option<bool>,
 }
 
@@ -262,7 +262,7 @@ pub enum PaymentIntentUpdate {
         updated_by: String,
         fingerprint_id: Option<String>,
         incremental_authorization_allowed: Option<bool>,
-        feature_metadata: Option<serde_json::Value>,
+        feature_metadata: Option<masking::Secret<serde_json::Value>>,
     },
     MetadataUpdate {
         metadata: serde_json::Value,
@@ -288,7 +288,7 @@ pub enum PaymentIntentUpdate {
         status: common_enums::IntentStatus,
         incremental_authorization_allowed: Option<bool>,
         updated_by: String,
-        feature_metadata: Option<serde_json::Value>,
+        feature_metadata: Option<masking::Secret<serde_json::Value>>,
     },
     PaymentAttemptAndAttemptCountUpdate {
         active_attempt_id: String,
@@ -440,7 +440,7 @@ pub struct PaymentIntentUpdateInternal {
     pub force_3ds_challenge: Option<bool>,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub payment_channel: Option<common_enums::PaymentChannel>,
-    pub feature_metadata: Option<serde_json::Value>,
+    pub feature_metadata: Option<masking::Secret<serde_json::Value>>,
     pub tax_status: Option<common_enums::TaxStatus>,
     pub discount_amount: Option<MinorUnit>,
     pub order_date: Option<PrimitiveDateTime>,

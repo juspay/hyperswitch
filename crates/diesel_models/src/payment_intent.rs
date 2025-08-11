@@ -2,6 +2,7 @@ use common_enums::{PaymentMethodType, RequestIncrementalAuthorization};
 use common_types::primitive_wrappers::RequestExtendedAuthorizationBool;
 use common_utils::{encryption::Encryption, pii, types::MinorUnit};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
+use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -492,7 +493,7 @@ pub enum PaymentIntentUpdate {
         fingerprint_id: Option<String>,
         updated_by: String,
         incremental_authorization_allowed: Option<bool>,
-        feature_metadata: Option<serde_json::Value>,
+        feature_metadata: Option<masking::Secret<serde_json::Value>>,
     },
     MetadataUpdate {
         metadata: serde_json::Value,
@@ -518,7 +519,7 @@ pub enum PaymentIntentUpdate {
         status: storage_enums::IntentStatus,
         updated_by: String,
         incremental_authorization_allowed: Option<bool>,
-        feature_metadata: Option<serde_json::Value>,
+        feature_metadata: Option<masking::Secret<serde_json::Value>>,
     },
     PaymentAttemptAndAttemptCountUpdate {
         active_attempt_id: String,
@@ -627,7 +628,7 @@ pub struct PaymentIntentUpdateFields {
     pub force_3ds_challenge: Option<bool>,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub payment_channel: Option<common_enums::PaymentChannel>,
-    pub feature_metadata: Option<serde_json::Value>,
+    pub feature_metadata: Option<masking::Secret<serde_json::Value>>,
     pub tax_status: Option<common_enums::TaxStatus>,
     pub discount_amount: Option<MinorUnit>,
     pub order_date: Option<PrimitiveDateTime>,
@@ -848,7 +849,7 @@ pub struct PaymentIntentUpdateInternal {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub extended_return_url: Option<String>,
     pub payment_channel: Option<common_enums::PaymentChannel>,
-    pub feature_metadata: Option<serde_json::Value>,
+    pub feature_metadata: Option<masking::Secret<serde_json::Value>>,
     pub tax_status: Option<common_enums::TaxStatus>,
     pub discount_amount: Option<MinorUnit>,
     pub order_date: Option<PrimitiveDateTime>,
@@ -958,7 +959,9 @@ impl PaymentIntentUpdate {
                 .or(source.is_iframe_redirection_enabled),
             extended_return_url: extended_return_url.or(source.extended_return_url),
             payment_channel: payment_channel.or(source.payment_channel),
-            feature_metadata: feature_metadata.or(source.feature_metadata),
+            feature_metadata: feature_metadata
+                .map(|value| value.expose())
+                .or(source.feature_metadata),
             tax_status: tax_status.or(source.tax_status),
             discount_amount: discount_amount.or(source.discount_amount),
             order_date: order_date.or(source.order_date),
