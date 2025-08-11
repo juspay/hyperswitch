@@ -452,11 +452,12 @@ pub async fn perform_calculate_workflow(
         "Starting CALCULATE_WORKFLOW..."
     );
 
-    // 1. Extract customer_id and token_list from tracking_data
-    let customer_id = payment_intent
-        .extract_connector_customer_id_from_payment_intent()
-        .map_err(|_| sch_errors::ProcessTrackerError::MissingRequiredField)?;
-
+    // 1. Extract connector_customer_id and token_list from tracking_data
+    let connector_customer_id = payment_intent
+            .extract_connector_customer_id_from_payment_intent()
+            .change_context(errors::RecoveryError::ValueNotFound)
+            .attach_printable("Failed to extract customer ID from payment intent")?;
+    
     let merchant_context_from_revenue_recovery_payment_data =
         domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
             revenue_recovery_payment_data.merchant_account.clone(),
@@ -466,7 +467,7 @@ pub async fn perform_calculate_workflow(
     // 2. Get best available token
     let best_token_result = match workflows::revenue_recovery::get_best_psp_token_available(
         state,
-        &customer_id,
+        &connector_customer_id,
         &payment_intent.id,
         merchant_context_from_revenue_recovery_payment_data,
     )
@@ -476,7 +477,7 @@ pub async fn perform_calculate_workflow(
         Err(e) => {
             logger::error!(
                 error = ?e,
-                customer_id = %customer_id,
+                connector_customer_id = %connector_customer_id,
                 "Failed to get best PSP token"
             );
             None
@@ -487,7 +488,7 @@ pub async fn perform_calculate_workflow(
         Some(scheduled_token) => {
             logger::info!(
                 process_id = %process.id,
-                customer_id = %customer_id,
+                connector_customer_id = %connector_customer_id,
                 "Found best available token, creating EXECUTE_WORKFLOW task"
             );
 
@@ -522,7 +523,7 @@ pub async fn perform_calculate_workflow(
 
             logger::info!(
                 process_id = %process.id,
-                customer_id = %customer_id,
+                connector_customer_id = %connector_customer_id,
                 "CALCULATE_WORKFLOW completed successfully"
             );
         }
@@ -532,18 +533,18 @@ pub async fn perform_calculate_workflow(
             // here scheduled_time is the wait time 15 mintutes is a buffer time that we are adding
             logger::info!(
                 process_id = %process.id,
-                customer_id = %customer_id,
+                connector_customer_id = %connector_customer_id,
                 "No token but time available, rescheduling for scheduled time + 15 mins"
             );
 
             let scheduled_token = match storage::revenue_recovery_redis_operation::
-                RedisTokenManager::get_payment_processor_token_with_schedule_time(state, &customer_id)
+                RedisTokenManager::get_payment_processor_token_with_schedule_time(state, &connector_customer_id)
                 .await {
                     Ok(scheduled_token_opt) => scheduled_token_opt,
                     Err(e) => {
                         logger::error!(
                             error = ?e,
-                            customer_id = %customer_id,
+                            connector_customer_id = %connector_customer_id,
                             "Failed to get PSP token status"
                         );
                         None
@@ -583,7 +584,7 @@ pub async fn perform_calculate_workflow(
 
                     logger::info!(
                         process_id = %process.id,
-                        customer_id = %customer_id,
+                        connector_customer_id = %connector_customer_id,
                         new_schedule_time = %new_schedule_time,
                         "CALCULATE_WORKFLOW rescheduled successfully for time + 15 mins"
                     );
@@ -592,7 +593,7 @@ pub async fn perform_calculate_workflow(
                     // Finish calculate workflow with CALCULATE_WORKFLOW_FINISH
                     logger::info!(
                         process_id = %process.id,
-                        customer_id = %customer_id,
+                        connector_customer_id = %connector_customer_id,
                         "No token available, finishing CALCULATE_WORKFLOW"
                     );
 
@@ -613,7 +614,7 @@ pub async fn perform_calculate_workflow(
 
                     logger::info!(
                         process_id = %process.id,
-                        customer_id = %customer_id,
+                        connector_customer_id = %connector_customer_id,
                         "CALCULATE_WORKFLOW finished successfully"
                     );
                 }
