@@ -180,21 +180,8 @@ pub async fn record_internal_attempt_api(
     payment_intent: &payments_domain::PaymentIntent,
     revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
     revenue_recovery_metadata: &payments_api::PaymentRevenueRecoveryMetadata,
+    card_info: payments_api::AdditionalCardInfo,
 ) -> RouterResult<payments_api::PaymentAttemptRecordResponse> {
-    let connector_customer_id = revenue_recovery_metadata.get_connector_customer_id();
-
-    let card_info = RedisTokenManager::get_payment_processor_token_with_schedule_time(
-        state,
-        &connector_customer_id,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::GenericNotFoundError {
-        message: "Failed to fetch token details from redis".to_string(),
-    })?
-    .map(|card| api_models::payments::AdditionalCardInfo::foreign_from(&card))
-    .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
-        message: "Failed to fetch token details from redis".to_string(),
-    })?;
 
     let revenue_recovery_attempt_data =
         recovery_incoming::RevenueRecoveryAttempt::get_revenue_recovery_attempt(

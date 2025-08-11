@@ -417,8 +417,15 @@ impl Action {
         execute_task_process: &storage::ProcessTracker,
         revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
         revenue_recovery_metadata: &mut PaymentRevenueRecoveryMetadata,
+        redis_token: storage::revenue_recovery_redis_operation::PaymentProcessorTokenStatus,
     ) -> Result<(), errors::ProcessTrackerError> {
         let db = &*state.store;
+        let connector_customer_id = payment_intent
+            .extract_connector_customer_id_from_payment_intent()
+            .change_context(errors::RecoveryError::ValueNotFound)
+            .attach_printable("Failed to extract customer ID from payment intent")?;
+
+        let error_code = redis_token.clone().error_code;
         match self {
             Self::SyncPayment(payment_attempt) => {
                 revenue_recovery_core::insert_psync_pcr_task_to_pt(
@@ -471,7 +478,13 @@ impl Action {
                         ),
                     api_enums::UpdateActiveAttempt::Unset,
                 );
-                logger::info!(
+              
+                storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
+                        state,
+                        &connector_customer_id,
+                        error_code,
+                    ).await?;
+                  logger::info!(
                     "Call made to payments update intent api , with the request body {:?}",
                     payment_update_req
                 );
@@ -486,6 +499,15 @@ impl Action {
                 Ok(())
             }
             Self::TerminalFailure(payment_attempt) => {
+                 let last_attempt_error_code = payment_attempt
+                    .error
+                    .as_ref()
+                    .map(|error| error.code.clone());
+                storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
+                        state,
+                        &connector_customer_id,
+                        last_attempt_error_code,
+                    ).await?;
                 db.as_scheduler()
                     .finish_process_with_business_status(
                         execute_task_process.clone(),

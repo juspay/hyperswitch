@@ -518,6 +518,25 @@ pub struct PaymentIntent {
 
 #[cfg(feature = "v2")]
 impl PaymentIntent {
+     /// Extract customer_id from payment intent feature metadata
+    pub fn extract_connector_customer_id_from_payment_intent(
+        &self,
+    ) -> Result<String, common_utils::errors::ValidationError> {
+        self.feature_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref())
+            .map(|recovery| {
+                recovery
+                    .billing_connector_payment_details
+                    .connector_customer_id
+                    .clone()
+            })
+            .ok_or(
+                common_utils::errors::ValidationError::MissingRequiredField {
+                    field_name: "connector_customer_id".to_string(),
+                },
+            )
+    }
     fn get_payment_method_sub_type(&self) -> Option<common_enums::PaymentMethodType> {
         self.feature_metadata
             .as_ref()

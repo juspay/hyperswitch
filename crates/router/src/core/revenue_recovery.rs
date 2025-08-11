@@ -20,7 +20,7 @@ use crate::{
     services::ApplicationResponse,
     types::{
         storage::{self, revenue_recovery as pcr},
-        transformers::ForeignInto,
+        transformers::{ForeignInto,ForeignFrom},
     },
 };
 
@@ -59,11 +59,27 @@ pub async fn perform_execute_payment(
     match decision {
         types::Decision::Execute => {
             // record attempt call
+            let connector_customer_id = revenue_recovery_metadata.get_connector_customer_id();
+
+            let processor_token = storage::revenue_recovery_redis_operation::RedisTokenManager::get_payment_processor_token_with_schedule_time(
+                state,
+                &connector_customer_id,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                message: "Failed to fetch token details from redis".to_string(),
+            })?
+            .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
+                message: "Failed to fetch token details from redis".to_string(),
+            })?;
+            let card_info = api_models::payments::AdditionalCardInfo::foreign_from(&processor_token);
+
             let record_attempt = api::record_internal_attempt_api(
                 state,
                 payment_intent,
                 revenue_recovery_payment_data,
                 &revenue_recovery_metadata,
+                card_info,
             )
             .await;
 
@@ -84,6 +100,7 @@ pub async fn perform_execute_payment(
                         execute_task_process,
                         revenue_recovery_payment_data,
                         &mut revenue_recovery_metadata,
+                        processor_token,
                     ))
                     .await?;
                 }
