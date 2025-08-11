@@ -637,9 +637,9 @@ impl ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> for Paypal {
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PayoutsRouterData<PoSync>, errors::ConnectorError> {
-        let response: paypal::PaypalFulfillResponse = res
+        let response: paypal::PaypalPayoutSyncResponse = res
             .response
-            .parse_struct("PaypalFulfillResponse")
+            .parse_struct("PaypalPayoutSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -2071,7 +2071,15 @@ impl IncomingWebhook for Paypal {
             #[cfg(feature = "payouts")]
             paypal::PaypalResource::PaypalBatchPayoutWebhooks(resource) => {
                 Ok(api_models::webhooks::ObjectReferenceId::PayoutId(
-                    api_models::webhooks::PayoutIdType::ConnectorPayoutId(resource.payout_batch_id),
+                    api_models::webhooks::PayoutIdType::ConnectorPayoutId(
+                        resource.batch_header.payout_batch_id,
+                    ),
+                ))
+            }
+            #[cfg(feature = "payouts")]
+            paypal::PaypalResource::PaypalItemPayoutWebhooks(resource) => {
+                Ok(api_models::webhooks::ObjectReferenceId::PayoutId(
+                    api_models::webhooks::PayoutIdType::PayoutAttemptId(resource.sender_batch_id),
                 ))
             }
         }
@@ -2148,8 +2156,12 @@ impl IncomingWebhook for Paypal {
             ),
             paypal::PaypalResource::PaypalDisputeWebhooks(_) => Box::new(details),
             #[cfg(feature = "payouts")]
-            paypal::PaypalResource::PaypalBatchPayoutWebhooks(resource) => Box::new(
-                paypal::PaypalFulfillResponse::try_from((*resource, details.event_type))?,
+            paypal::PaypalResource::PaypalBatchPayoutWebhooks(resource) => {
+                Box::new(paypal::PaypalPayoutSyncResponse::try_from(*resource)?)
+            }
+            #[cfg(feature = "payouts")]
+            paypal::PaypalResource::PaypalItemPayoutWebhooks(resource) => Box::new(
+                paypal::PaypalPayoutSyncResponse::try_from((*resource, details.event_type))?,
             ),
         })
     }
@@ -2170,7 +2182,8 @@ impl IncomingWebhook for Paypal {
                     .attach_printable("Expected Dispute webhooks,but found other webhooks")?
             }
             #[cfg(feature = "payouts")]
-            transformers::PaypalResource::PaypalBatchPayoutWebhooks(_) => {
+            transformers::PaypalResource::PaypalBatchPayoutWebhooks(_)
+            | transformers::PaypalResource::PaypalItemPayoutWebhooks(_) => {
                 Err(errors::ConnectorError::ResponseDeserializationFailed)
                     .attach_printable("Expected Dispute webhooks,but found other webhooks")?
             }

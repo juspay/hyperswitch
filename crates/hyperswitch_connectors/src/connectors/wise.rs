@@ -6,6 +6,8 @@ use common_utils::request::{Method, RequestBuilder, RequestContent};
 #[cfg(feature = "payouts")]
 use common_utils::types::{AmountConvertor, MinorUnit, MinorUnitForConnector};
 use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt, request::Request};
+#[cfg(not(feature = "payouts"))]
+use error_stack::report;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
@@ -754,42 +756,63 @@ impl IncomingWebhook for Wise {
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, ConnectorError> {
-        let payload: wise::WisePayoutsWebhookBody = request
-            .body
-            .parse_struct("WisePayoutsWebhookBody")
-            .change_context(ConnectorError::WebhookReferenceIdNotFound)?;
+        #[cfg(feature = "payouts")]
+        {
+            let payload: wise::WisePayoutsWebhookBody = request
+                .body
+                .parse_struct("WisePayoutsWebhookBody")
+                .change_context(ConnectorError::WebhookReferenceIdNotFound)?;
 
-        Ok(api_models::webhooks::ObjectReferenceId::PayoutId(
-            api_models::webhooks::PayoutIdType::ConnectorPayoutId(
-                payload.data.resource.id.to_string(),
-            ),
-        ))
+            Ok(api_models::webhooks::ObjectReferenceId::PayoutId(
+                api_models::webhooks::PayoutIdType::ConnectorPayoutId(
+                    payload.data.resource.id.to_string(),
+                ),
+            ))
+        }
+        #[cfg(not(feature = "payouts"))]
+        {
+            Err(report!(ConnectorError::WebhooksNotImplemented))
+        }
     }
 
     fn get_webhook_event_type(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<IncomingWebhookEvent, ConnectorError> {
-        let payload: wise::WisePayoutsWebhookBody = request
-            .body
-            .parse_struct("WisePayoutsWebhookBody")
-            .change_context(ConnectorError::WebhookReferenceIdNotFound)?;
+        #[cfg(feature = "payouts")]
+        {
+            let payload: wise::WisePayoutsWebhookBody = request
+                .body
+                .parse_struct("WisePayoutsWebhookBody")
+                .change_context(ConnectorError::WebhookReferenceIdNotFound)?;
 
-        Ok(transformers::get_wise_webhooks_event(
-            payload.data.current_state,
-        ))
+            Ok(transformers::get_wise_webhooks_event(
+                payload.data.current_state,
+            ))
+        }
+        #[cfg(not(feature = "payouts"))]
+        {
+            Err(report!(ConnectorError::WebhooksNotImplemented))
+        }
     }
 
     fn get_webhook_resource_object(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, ConnectorError> {
-        let payload: wise::WisePayoutsWebhookBody = request
-            .body
-            .parse_struct("WisePayoutsWebhookBody")
-            .change_context(ConnectorError::WebhookReferenceIdNotFound)?;
+        #[cfg(feature = "payouts")]
+        {
+            let payload: wise::WisePayoutsWebhookBody = request
+                .body
+                .parse_struct("WisePayoutsWebhookBody")
+                .change_context(ConnectorError::WebhookReferenceIdNotFound)?;
 
-        Ok(Box::new(wise::WisePayoutSyncResponse::from(payload.data)))
+            Ok(Box::new(wise::WisePayoutSyncResponse::from(payload.data)))
+        }
+        #[cfg(not(feature = "payouts"))]
+        {
+            Err(report!(ConnectorError::WebhooksNotImplemented))
+        }
     }
 }
 

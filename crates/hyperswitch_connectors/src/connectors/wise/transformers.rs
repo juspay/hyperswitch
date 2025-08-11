@@ -682,6 +682,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, WisePayoutSyncResponse>> for Payout
     }
 }
 
+#[cfg(feature = "payouts")]
 impl From<WiseSyncStatus> for PayoutStatus {
     fn from(status: WiseSyncStatus) -> Self {
         match status {

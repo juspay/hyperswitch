@@ -2566,8 +2566,22 @@ pub struct PaypalFulfillResponse {
 #[cfg(feature = "payouts")]
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PaypalBatchResponse {
-    payout_batch_id: String,
-    batch_status: PaypalFulfillStatus,
+    pub payout_batch_id: String,
+    pub batch_status: PaypalFulfillStatus,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PaypalPayoutSyncResponse {
+    batch_header: PaypalSyncBatchResponse,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PaypalSyncBatchResponse {
+    pub payout_batch_id: Option<String>,
+    pub sender_batch_id: Option<String>,
+    pub batch_status: PaypalFulfillStatus,
 }
 
 #[cfg(feature = "payouts")]
@@ -2622,14 +2636,49 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, PaypalFulfillResponse>> for Payouts
 }
 
 #[cfg(feature = "payouts")]
-impl TryFrom<(PaypalBatchPayoutWebhooks, PaypalWebhookEventType)> for PaypalFulfillResponse {
+impl<F> TryFrom<PayoutsResponseRouterData<F, PaypalPayoutSyncResponse>> for PayoutsRouterData<F> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (webhook_body, webhook_event): (PaypalBatchPayoutWebhooks, PaypalWebhookEventType),
+        item: PayoutsResponseRouterData<F, PaypalPayoutSyncResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            batch_header: PaypalBatchResponse {
-                payout_batch_id: webhook_body.payout_batch_id,
+            response: Ok(PayoutsResponseData {
+                status: Some(get_payout_status(item.response.batch_header.batch_status)),
+                connector_payout_id: item.response.batch_header.payout_batch_id,
+                payout_eligible: None,
+                should_add_next_step_to_process_tracker: false,
+                error_code: None,
+                error_message: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl TryFrom<PaypalBatchPayoutWebhooks> for PaypalPayoutSyncResponse {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(webhook_body: PaypalBatchPayoutWebhooks) -> Result<Self, Self::Error> {
+        Ok(Self {
+            batch_header: PaypalSyncBatchResponse {
+                payout_batch_id: Some(webhook_body.batch_header.payout_batch_id),
+                sender_batch_id: None,
+                batch_status: webhook_body.batch_header.batch_status,
+            },
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl TryFrom<(PaypalItemPayoutWebhooks, PaypalWebhookEventType)> for PaypalPayoutSyncResponse {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (webhook_body, webhook_event): (PaypalItemPayoutWebhooks, PaypalWebhookEventType),
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            batch_header: PaypalSyncBatchResponse {
+                payout_batch_id: None,
+                sender_batch_id: Some(webhook_body.sender_batch_id),
                 batch_status: PaypalFulfillStatus::try_from(webhook_event)
                     .attach_printable("Could not find suitable webhook event")?,
             },
@@ -3013,12 +3062,20 @@ pub enum PaypalResource {
     PaypalDisputeWebhooks(Box<PaypalDisputeWebhooks>),
     #[cfg(feature = "payouts")]
     PaypalBatchPayoutWebhooks(Box<PaypalBatchPayoutWebhooks>),
+    #[cfg(feature = "payouts")]
+    PaypalItemPayoutWebhooks(Box<PaypalItemPayoutWebhooks>),
 }
 
 #[cfg(feature = "payouts")]
 #[derive(Deserialize, Debug, Serialize)]
 pub struct PaypalBatchPayoutWebhooks {
-    pub payout_batch_id: String,
+    pub batch_header: PaypalBatchResponse,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Deserialize, Debug, Serialize)]
+pub struct PaypalItemPayoutWebhooks {
+    pub sender_batch_id: String,
     pub transaction_status: PaypalFulfillStatus,
 }
 
