@@ -941,7 +941,7 @@ impl IncomingWebhook for Nuvei {
                 let status = notification
                     .transaction_status
                     .as_ref()
-                    .map(|s| format!("{:?}", s).to_uppercase())
+                    .map(|s| format!("{s:?}").to_uppercase())
                     .unwrap_or_else(|| "UNKNOWN".to_string());
 
                 let to_sign = transformers::concat_strings(&[
