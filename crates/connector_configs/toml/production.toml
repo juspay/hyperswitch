@@ -114,6 +114,8 @@ payment_method_type = "apple_pay"
 payment_method_type = "google_pay"
 [[adyen.wallet]]
 payment_method_type = "paypal"
+[[adyen.voucher]]
+  payment_method_type = "boleto"
 [adyen.connector_auth.BodyKey]
 api_key = "Adyen API Key"
 key1 = "Adyen Account Id"
@@ -1238,6 +1240,15 @@ merchant_secret = "Source verification key"
 [celero.connector_auth.HeaderKey]
 api_key="Celero API Key"
 
+[checkbook]
+[[checkbook.bank_transfer]]
+  payment_method_type = "ach"
+[checkbook.connector_auth.BodyKey]
+  key1 = "Checkbook Publishable key"
+  api_key = "Checkbook API Secret key"
+[checkbook.connector_webhook_details]
+  merchant_secret="Source verification key"
+  
 [checkout]
 [[checkout.credit]]
 payment_method_type = "Mastercard"
@@ -1739,6 +1750,8 @@ payment_method_type = "Discover"
 payment_method_type = "CartesBancaires"
 [[fiserv.debit]]
 payment_method_type = "UnionPay"
+[[fiserv.wallet]]
+payment_method_type = "paypal"
 [[fiserv.wallet]]
   payment_method_type = "google_pay"
 [fiserv.connector_auth.SignatureKey]
@@ -4938,6 +4951,33 @@ placeholder = "Enter Acquirer Merchant ID"
 required = false
 type = "Text"
 
+[nordea]
+[[nordea.bank_debit]]
+  payment_method_type = "sepa"
+[nordea.connector_auth.SignatureKey]
+  api_key="Client Secret"
+  key1="Client ID"
+  api_secret="eIDAS Private Key"
+[nordea.metadata.creditor_account_type]
+  name="creditor_account_type"
+  label="Creditor Account Type"
+  placeholder="Enter Beneficiary Account Type e.g. IBAN"
+  required=true
+  type="Text"
+[nordea.metadata.creditor_account_value]
+  name="creditor_account_value"
+  label="Creditor Account Type"
+  placeholder="Enter Beneficiary Account Number"
+  required=true
+  type="Text"
+[nordea.metadata.creditor_beneficiary_name]
+  name="creditor_beneficiary_name"
+  label="Creditor Account Beneficiary Name"
+  placeholder="Enter Beneficiary Name"
+  required=true
+  type="Text"
+
+
 [worldpayxml]
 [[worldpayxml.credit]]
 payment_method_type = "Mastercard"
@@ -5007,6 +5047,10 @@ payment_method_type = "JCB"
 payment_method_type = "DinersClub"
 [[worldpayvantiv.debit]]
 payment_method_type = "Discover"
+[[worldpayvantiv.wallet]]
+  payment_method_type = "apple_pay"
+[[worldpayvantiv.wallet]]
+  payment_method_type = "google_pay"
 
 [worldpayvantiv.connector_auth.SignatureKey]
 api_key = "Username"
@@ -5222,4 +5266,8 @@ merchant_secret="Source verification key"
 
 [katapult]
 [katapult.connector_auth.HeaderKey]
+api_key = "API Key"
+
+[sift]
+[sift.connector_auth.HeaderKey]
 api_key = "API Key"
