@@ -375,6 +375,7 @@ pub enum OrderSource {
     ApplePay,
     MailOrder,
     Telephone,
+    AndroidPay,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -446,6 +447,32 @@ impl From<WorldPayVativApplePayNetwork> for WorldpayvativCardType {
     }
 }
 
+#[derive(Debug, Clone, Serialize, strum::EnumString)]
+#[serde(rename_all = "UPPERCASE")]
+#[strum(ascii_case_insensitive)]
+pub enum WorldPayVativGooglePayNetwork {
+    Visa,
+    Mastercard,
+    Amex,
+    Discover,
+    Dinersclub,
+    Jcb,
+    Unionpay,
+}
+
+impl From<WorldPayVativGooglePayNetwork> for WorldpayvativCardType {
+    fn from(network: WorldPayVativGooglePayNetwork) -> Self {
+        match network {
+            WorldPayVativGooglePayNetwork::Visa => Self::Visa,
+            WorldPayVativGooglePayNetwork::Mastercard => Self::MasterCard,
+            WorldPayVativGooglePayNetwork::Amex => Self::AmericanExpress,
+            WorldPayVativGooglePayNetwork::Discover => Self::Discover,
+            WorldPayVativGooglePayNetwork::Dinersclub => Self::DinersClub,
+            WorldPayVativGooglePayNetwork::Jcb => Self::JCB,
+            WorldPayVativGooglePayNetwork::Unionpay => Self::UnionPay,
+        }
+    }
+}
 impl TryFrom<common_enums::CardNetwork> for WorldpayvativCardType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(card_network: common_enums::CardNetwork) -> Result<Self, Self::Error> {
@@ -630,12 +657,17 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
     fn try_from(
         item: &WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        if item.router_data.is_three_ds() {
+        if item.router_data.is_three_ds()
+            && !matches!(
+                item.router_data.request.payment_method_data,
+                PaymentMethodData::Wallet(_)
+            )
+        {
             Err(errors::ConnectorError::NotSupported {
                 message: "Card 3DS".to_string(),
                 connector: "Worldpayvantiv",
             })?
-        };
+        }
         let worldpayvantiv_metadata =
             WorldpayvantivMetadataObject::try_from(&item.router_data.connector_meta_data)?;
         if worldpayvantiv_metadata.merchant_config_currency != item.router_data.request.currency {
@@ -765,6 +797,12 @@ impl From<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for OrderSour
         ) = &item.router_data.request.payment_method_data
         {
             return Self::ApplePay;
+        }
+        if let PaymentMethodData::Wallet(
+            hyperswitch_domain_models::payment_method_data::WalletData::GooglePay(_),
+        ) = &item.router_data.request.payment_method_data
+        {
+            return Self::AndroidPay;
         }
 
         match item.router_data.request.payment_channel {
@@ -3653,16 +3691,18 @@ fn get_vantiv_card_data(
                     };
 
                     let apple_pay_network = apple_pay_data
-                        .payment_method
-                        .network
-                        .parse::<WorldPayVativApplePayNetwork>()
-                        .change_context(errors::ConnectorError::ParsingFailed)
-                        .attach_printable_lazy(|| {
-                            format!(
-                                "Failed to parse Apple Pay network: {}",
-                                apple_pay_data.payment_method.network
-                            )
-                        })?;
+    .payment_method
+    .network
+    .parse::<WorldPayVativApplePayNetwork>()
+    .map_err(|_| {
+        error_stack::Report::new(errors::ConnectorError::NotSupported {
+            message: format!(
+                "Invalid Apple Pay network '{}'. Supported networks: Visa,MasterCard,AmEx,Discover,DinersClub,JCB,UnionPay",
+                apple_pay_data.payment_method.network
+            ),
+            connector: "worldpay_vativ"
+        })
+    })?;
 
                     Ok((
                         (Some(WorldpayvantivCardData {
@@ -3679,9 +3719,60 @@ fn get_vantiv_card_data(
                         .into(),
                 ),
             },
-            _ => Err(
-                errors::ConnectorError::NotImplemented("Payment method type".to_string()).into(),
+            hyperswitch_domain_models::payment_method_data::WalletData::GooglePay(
+                google_pay_data,
+            ) => match item.router_data.payment_method_token.clone() {
+                Some(
+                    hyperswitch_domain_models::router_data::PaymentMethodToken::GooglePayDecrypt(
+                        google_pay_decrypted_data,
+                    ),
+                ) => {
+                    let number = google_pay_decrypted_data
+                        .application_primary_account_number
+                        .clone();
+                    let exp_date = google_pay_decrypted_data
+                        .get_expiry_date_as_mmyy()
+                        .change_context(errors::ConnectorError::InvalidDataFormat {
+                            field_name: "payment_method_data.card.card_exp_month",
+                        })?;
+
+                    let cardholder_authentication = CardholderAuthentication {
+                        authentication_value: google_pay_decrypted_data
+                            .cryptogram
+                            .clone()
+                            .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                                field_name: "cryptogram",
+                            })?,
+                    };
+                    let google_pay_network = google_pay_data
+    .info
+    .card_network
+    .parse::<WorldPayVativGooglePayNetwork>()
+    .map_err(|_| {
+        error_stack::Report::new(errors::ConnectorError::NotSupported {
+            message: format!(
+                "Invalid Google Pay card network '{}'. Supported networks: VISA, MASTERCARD, AMEX, DISCOVER, JCB, UNIONPAY",
+                google_pay_data.info.card_network
             ),
+            connector: "worldpay_vativ"
+        })
+    })?;
+
+                    Ok((
+                        (Some(WorldpayvantivCardData {
+                            card_type: google_pay_network.into(),
+                            number,
+                            exp_date,
+                            card_validation_num: None,
+                        })),
+                        Some(cardholder_authentication),
+                    ))
+                }
+                _ => {
+                    Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
+                }
+            },
+            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         },
         _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
     }
@@ -3856,33 +3947,86 @@ fn get_dispute_stage(
 
 pub fn get_dispute_status(
     dispute_cycle: String,
-) -> Result<api_models::enums::DisputeStatus, error_stack::Report<errors::ConnectorError>> {
-    match connector_utils::normalize_string(dispute_cycle.clone())
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?
-        .as_str()
-    {
-        "arbitration"
-        | "arbitrationmastercard"
-        | "arbitrationsplit"
-        | "representment"
-        | "issuerarbitration"
-        | "prearbitration"
-        | "responsetoissuerarbitration"
-        | "arbitrationchargeback" => Ok(api_models::enums::DisputeStatus::DisputeChallenged),
-        "chargebackreversal" | "issueracceptedprearbitration" | "arbitrationwon" => {
-            Ok(api_models::enums::DisputeStatus::DisputeWon)
+    dispute_activities: Vec<Activity>,
+) -> Result<common_enums::DisputeStatus, error_stack::Report<errors::ConnectorError>> {
+    if let Some(activity) = get_last_non_auxiliary_activity_type(dispute_activities) {
+        match activity.as_ref() {
+            "Merchant Accept"
+            | "Issuer Accepted Pre-Arbitration"
+            | "Vantiv Accept"
+            | "Sent Credit" => Ok(common_enums::DisputeStatus::DisputeAccepted),
+
+            "Merchant Represent"
+            | "Respond to Dispute"
+            | "Respond to PreArb"
+            | "Request Arbitration"
+            | "Request Pre-Arbitration"
+            | "Create Arbitration"
+            | "Record Arbitration"
+            | "Create Pre-Arbitration"
+            | "File Arbitration"
+            | "File Pre-Arbitration"
+            | "File Visa Pre-Arbitration"
+            | "Send Representment"
+            | "Send Response"
+            | "Arbitration"
+            | "Arbitration (Mastercard)"
+            | "Arbitration Chargeback"
+            | "Issuer Declined Pre-Arbitration"
+            | "Issuer Arbitration"
+            | "Request Response to Pre-Arbitration"
+            | "Vantiv Represent"
+            | "Vantiv Respond"
+            | "Auto Represent"
+            | "Arbitration Ruling" => Ok(common_enums::DisputeStatus::DisputeChallenged),
+
+            "Arbitration Lost" | "Unsuccessful Arbitration" | "Unsuccessful Pre-Arbitration" => {
+                Ok(common_enums::DisputeStatus::DisputeLost)
+            }
+
+            "Arbitration Won"
+            | "Arbitration Split"
+            | "Successful Arbitration"
+            | "Successful Pre-Arbitration" => Ok(common_enums::DisputeStatus::DisputeWon),
+
+            "Chargeback Reversal" => Ok(common_enums::DisputeStatus::DisputeCancelled),
+
+            "Receive Network Transaction" => Ok(common_enums::DisputeStatus::DisputeOpened),
+
+            "Unaccept" | "Unrepresent" => Ok(common_enums::DisputeStatus::DisputeOpened),
+
+            unexpected_activity => Err(errors::ConnectorError::UnexpectedResponseError(
+                bytes::Bytes::from(format!("Dispute Activity: {unexpected_activity})")),
+            )
+            .into()),
         }
-        "arbitrationlost" | "issuerdeclinedprearbitration" => {
-            Ok(api_models::enums::DisputeStatus::DisputeLost)
+    } else {
+        match connector_utils::normalize_string(dispute_cycle.clone())
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?
+            .as_str()
+        {
+            "arbitration"
+            | "arbitrationmastercard"
+            | "arbitrationsplit"
+            | "representment"
+            | "issuerarbitration"
+            | "prearbitration"
+            | "responsetoissuerarbitration"
+            | "arbitrationchargeback" => Ok(api_models::enums::DisputeStatus::DisputeChallenged),
+            "chargebackreversal" | "issueracceptedprearbitration" | "arbitrationwon" => {
+                Ok(api_models::enums::DisputeStatus::DisputeWon)
+            }
+            "arbitrationlost" | "issuerdeclinedprearbitration" => {
+                Ok(api_models::enums::DisputeStatus::DisputeLost)
+            }
+            "firstchargeback" | "retrievalrequest" | "rapiddisputeresolution" => {
+                Ok(api_models::enums::DisputeStatus::DisputeOpened)
+            }
+            dispute_cycle => Err(errors::ConnectorError::UnexpectedResponseError(
+                bytes::Bytes::from(format!("Dispute Stage: {dispute_cycle}")),
+            )
+            .into()),
         }
-        "firstchargeback" | "retrievalrequest" | "rapiddisputeresolution" => {
-            Ok(api_models::enums::DisputeStatus::DisputeOpened)
-        }
-        _ => Err(errors::ConnectorError::NotSupported {
-            message: format!("Dispute status {dispute_cycle}"),
-            connector: "worldpayvantiv",
-        }
-        .into()),
     }
 }
 
@@ -3914,7 +4058,7 @@ impl TryFrom<ChargebackCase> for DisputeSyncResponse {
             amount,
             currency: item.chargeback_currency_type,
             dispute_stage: get_dispute_stage(item.cycle.clone())?,
-            dispute_status: get_dispute_status(item.cycle.clone())?,
+            dispute_status: get_dispute_status(item.cycle.clone(), item.activity)?,
             connector_status: item.cycle.clone(),
             connector_dispute_id: item.case_id.clone(),
             connector_reason: item.reason_code_description.clone(),
@@ -4147,4 +4291,41 @@ impl
             ..item.data.clone()
         })
     }
+}
+
+fn get_last_non_auxiliary_activity_type(activities: Vec<Activity>) -> Option<String> {
+    let auxiliary_activities: std::collections::HashSet<&'static str> = [
+        "Add Note",
+        "Attach Document",
+        "Attempted Attach Document",
+        "Delete Document",
+        "Update Document",
+        "Move To Error Queue",
+        "Assign to Vantiv",
+        "Assign To Merchant",
+        "Merchant Auto Assign",
+        "Issuer Recalled",
+        "Network Decision",
+        "Request Declined",
+        "Sent Gift",
+        "Successful PayPal",
+    ]
+    .iter()
+    .copied()
+    .collect();
+
+    let mut last_non_auxiliary_activity = None;
+
+    for activity in activities {
+        let auxiliary_activity = activity
+            .activity_type
+            .as_deref()
+            .map(|activity_type| auxiliary_activities.contains(activity_type))
+            .unwrap_or(false);
+
+        if !auxiliary_activity {
+            last_non_auxiliary_activity = activity.activity_type.clone()
+        }
+    }
+    last_non_auxiliary_activity
 }
