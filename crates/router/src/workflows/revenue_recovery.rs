@@ -247,6 +247,7 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
     retry_count_left: i32,
     retry_after_time: Option<prost_types::Timestamp>,
 ) -> Option<time::PrimitiveDateTime> {
+    let card_config = &state.conf.revenue_recovery.card_config;
     let first_error_message = match payment_attempt.error.as_ref() {
         Some(error) => error.message.clone(),
         None => {
@@ -293,14 +294,14 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
         .feature_metadata
         .as_ref()
         .and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref());
+
     let card_network = billing_connector_payment_method_details.and_then(|details| match details {
         BillingConnectorPaymentMethodDetails::Card(card_info) => card_info.card_network.clone(),
     });
 
-    let total_retry_count_within_network =
-        RetryLimitsConfig::get_network_config(card_network.clone(), state);
+    let total_retry_count_within_network = card_config.get_network_config(card_network.clone());
 
-    let card_network_str = card_network.map(|cn| cn.to_string());
+    let card_network_str = card_network?.to_string();
 
     let card_issuer_str =
         billing_connector_payment_method_details.and_then(|details| match details {
@@ -390,7 +391,7 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
         first_error_message,
         billing_state,
         card_funding: card_funding_str,
-        card_network: card_network_str,
+        card_network: Some(card_network_str),
         card_issuer: card_issuer_str,
         invoice_start_time: start_time_proto,
         retry_count: Some(
@@ -761,8 +762,8 @@ pub async fn decide_retry_failure_action(
 
     let is_hard_decline = gsm_record
         .and_then(|record| record.error_category)
-        .map(|category| category == common_enums::ErrorCategory::FrmDecline)
-        .unwrap_or(true);
+        .map(|category| category == common_enums::ErrorCategory::HardDecline)
+        .unwrap_or(false);
 
     Ok(is_hard_decline)
 }
