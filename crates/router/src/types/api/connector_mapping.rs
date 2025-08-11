@@ -203,35 +203,35 @@ impl ConnectorData {
                 enums::Connector::Dlocal => Ok(ConnectorEnum::Old(Box::new(&connector::Dlocal))),
                 #[cfg(feature = "dummy_connector")]
                 enums::Connector::DummyConnector1 => Ok(ConnectorEnum::Old(Box::new(
-                    &connector::DummyConnector::<1>,
+                    connector::DummyConnector::<1>::new(),
                 ))),
                 #[cfg(feature = "dummy_connector")]
                 enums::Connector::DummyConnector2 => Ok(ConnectorEnum::Old(Box::new(
-                    &connector::DummyConnector::<2>,
+                    connector::DummyConnector::<2>::new(),
                 ))),
                 #[cfg(feature = "dummy_connector")]
                 enums::Connector::DummyConnector3 => Ok(ConnectorEnum::Old(Box::new(
-                    &connector::DummyConnector::<3>,
+                    connector::DummyConnector::<3>::new(),
                 ))),
                 #[cfg(feature = "dummy_connector")]
                 enums::Connector::DummyConnector4 => Ok(ConnectorEnum::Old(Box::new(
-                    &connector::DummyConnector::<4>,
+                    connector::DummyConnector::<4>::new(),
                 ))),
                 #[cfg(feature = "dummy_connector")]
                 enums::Connector::DummyConnector5 => Ok(ConnectorEnum::Old(Box::new(
-                    &connector::DummyConnector::<5>,
+                    connector::DummyConnector::<5>::new(),
                 ))),
                 #[cfg(feature = "dummy_connector")]
                 enums::Connector::DummyConnector6 => Ok(ConnectorEnum::Old(Box::new(
-                    &connector::DummyConnector::<6>,
+                    connector::DummyConnector::<6>::new(),
                 ))),
                 #[cfg(feature = "dummy_connector")]
                 enums::Connector::DummyConnector7 => Ok(ConnectorEnum::Old(Box::new(
-                    &connector::DummyConnector::<7>,
+                    connector::DummyConnector::<7>::new(),
                 ))),
                 #[cfg(feature = "dummy_connector")]
                 enums::Connector::DummyBillingConnector => Ok(ConnectorEnum::Old(Box::new(
-                    &connector::DummyConnector::<8>,
+                    connector::DummyConnector::<8>::new(),
                 ))),
                 // enums::Connector::Dwolla => {
                 //     Ok(ConnectorEnum::Old(Box::new(connector::Dwolla::new())))
