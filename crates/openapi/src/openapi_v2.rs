@@ -160,6 +160,7 @@ Never share your secret api keys. Keep them guarded and secure.
 
         // Route for tokenization
         routes::tokenization::create_token_vault_api,
+        routes::tokenization::delete_tokenized_data_api,
     ),
     components(schemas(
         common_utils::types::MinorUnit,
@@ -179,6 +180,9 @@ Never share your secret api keys. Keep them guarded and secure.
         common_utils::payout_method_utils::PaypalAdditionalData,
         common_utils::payout_method_utils::VenmoAdditionalData,
         common_types::payments::SplitPaymentsRequest,
+        common_types::payments::GpayTokenizationData,
+        common_types::payments::GPayPredecryptData,
+        common_types::payments::GpayEcryptedTokenizationData,
         common_types::payments::ApplePayPaymentData,
         common_types::payments::ApplePayPredecryptData,
         common_types::payments::ApplePayCryptogramData,
@@ -487,7 +491,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::SdkNextActionData,
         api_models::payments::SamsungPayWalletData,
         api_models::payments::WeChatPay,
-        api_models::payments::GpayTokenizationData,
         api_models::payments::GooglePayPaymentMethodInfo,
         api_models::payments::ApplePayWalletData,
         api_models::payments::ApplepayPaymentMethod,
@@ -792,6 +795,8 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payments::ForceSync,
         api_models::tokenization::GenericTokenizationRequest,
         api_models::tokenization::GenericTokenizationResponse,
+        api_models::tokenization::DeleteTokenDataRequest,
+        api_models::tokenization::DeleteTokenDataResponse,
     )),
     modifiers(&SecurityAddon)
 )]
