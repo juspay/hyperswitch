@@ -499,12 +499,18 @@ impl RedisTokenManager {
             Some(mut token) => {
                 Self::normalize_retry_window(&mut token, today);
 
-                let current_count = token
-                    .daily_retry_history
-                    .get(&today)
-                    .copied()
-                    .unwrap_or(INITIAL_RETRY_COUNT);
-                token.daily_retry_history.insert(today, current_count + 1);
+                
+                token.error_code.as_ref().map(|_| {
+                    let current_count = token
+                        .daily_retry_history
+                        .get(&today)
+                        .copied()
+                        .unwrap_or(INITIAL_RETRY_COUNT);
+            
+                    token
+                        .daily_retry_history
+                        .insert(today, current_count + 1);
+                });
 
                 let mut tokens_map = HashMap::new();
                 tokens_map.insert(
