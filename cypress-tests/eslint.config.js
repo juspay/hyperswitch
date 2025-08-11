@@ -11,9 +11,9 @@ export default [
   pluginCypress.configs.recommended,
   eslintPluginPrettierRecommended,
   eslintConfigPrettier,
+  ...tseslint.configs.recommended,
   {
     files: ["**/*.ts", "**/*.tsx"],
-    ...tseslint.configs.recommended,
     rules: {
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unused-vars": [
@@ -42,6 +42,7 @@ export default [
       "prefer-const": "warn",
       "cypress/assertion-before-screenshot": "warn",
       "cypress/no-assigning-return-values": "warn",
+      "@typescript-eslint/no-unused-expressions": "off",
       "cypress/no-force": "warn",
       "cypress/no-unnecessary-waiting": "warn",
       "cypress/no-async-tests": "error",

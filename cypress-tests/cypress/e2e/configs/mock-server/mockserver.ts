@@ -33,6 +33,7 @@ function startServer(): Server {
   });
 
   // Handle port already in use error
+  // eslint-disable-next-line no-undef
   server.on("error", (error: NodeJS.ErrnoException) => {
     if (error.code === "EADDRINUSE") {
       console.error(`❌ ERROR: Port ${MOCKSERVER_PORT} is already in use!`);
