@@ -529,14 +529,6 @@ pub async fn perform_calculate_workflow(
         }
 
         None => {
-            // Update scheduled time to scheduled time + 15 minutes
-            // here scheduled_time is the wait time 15 mintutes is a buffer time that we are adding
-            logger::info!(
-                process_id = %process.id,
-                connector_customer_id = %connector_customer_id,
-                "No token but time available, rescheduling for scheduled time + 15 mins"
-            );
-
             let scheduled_token = match storage::revenue_recovery_redis_operation::
                 RedisTokenManager::get_payment_processor_token_with_schedule_time(state, &connector_customer_id)
                 .await {
@@ -553,6 +545,14 @@ pub async fn perform_calculate_workflow(
 
             match scheduled_token {
                 Some(scheduled_token) => {
+                    // Update scheduled time to scheduled time + 15 minutes
+                    // here scheduled_time is the wait time 15 mintutes is a buffer time that we are adding
+                    logger::info!(
+                        process_id = %process.id,
+                        connector_customer_id = %connector_customer_id,
+                        "No token but time available, rescheduling for scheduled time + 15 mins"
+                    );
+
                     let new_schedule_time = scheduled_token
                         .scheduled_at
                         .unwrap_or(common_utils::date_time::now())
