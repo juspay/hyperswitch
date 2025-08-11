@@ -1697,10 +1697,7 @@ fn build_error_response<T>(
                 &response.gw_error_code.map(|e| e.to_string()),
                 &response.gw_error_reason,
             )
-            .map_err(|err| {
-                error_stack::report!(errors::ConnectorError::ResponseHandlingFailed)
-                    .attach_printable(format!("unable to handel nuvei response "))
-            }),
+            .map_err(|_err| error_stack::report!(errors::ConnectorError::ResponseHandlingFailed)),
         ),
         _ => {
             let err = Some(
@@ -1712,7 +1709,7 @@ fn build_error_response<T>(
                     &response.gw_error_code.map(|e| e.to_string()),
                     &response.gw_error_reason,
                 )
-                .map_err(|err| {
+                .map_err(|_err| {
                     error_stack::report!(errors::ConnectorError::ResponseHandlingFailed)
                 }),
             );
@@ -2058,7 +2055,7 @@ fn get_refund_response(
             &response.gw_error_code.map(|e| e.to_string()),
             &response.gw_error_reason,
         )
-        .map_err(|err| error_stack::report!(errors::ConnectorError::ResponseHandlingFailed)),
+        .map_err(|_err| error_stack::report!(errors::ConnectorError::ResponseHandlingFailed)),
         _ => match response.transaction_status {
             Some(NuveiTransactionStatus::Error) => get_error_response(
                 response.err_code,
@@ -2068,7 +2065,7 @@ fn get_refund_response(
                 &response.gw_error_code.map(|e| e.to_string()),
                 &response.gw_error_reason,
             )
-            .map_err(|err| error_stack::report!(errors::ConnectorError::ResponseHandlingFailed)),
+            .map_err(|_err| error_stack::report!(errors::ConnectorError::ResponseHandlingFailed)),
             _ => Ok(RefundsResponseData {
                 connector_refund_id: txn_id,
                 refund_status,
