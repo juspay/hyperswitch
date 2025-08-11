@@ -542,9 +542,9 @@ impl TransactionType {
     ) -> Self {
         let amount_value = amount.parse::<f64>();
         if capture_method == CaptureMethod::Manual || amount_value == Ok(0.0) {
-            TransactionType::Auth
+            Self::Auth
         } else {
-            TransactionType::Sale
+            Self::Sale
         }
     }
 }
@@ -582,7 +582,7 @@ pub fn encode_payload(
     let digest = crypto::Sha256
         .generate_digest(data.as_bytes())
         .change_context(errors::ConnectorError::RequestEncodingFailed)
-        .attach_printable("error encoding the payload")?;
+        .attach_printable("error encoding nuvie payload")?;
     Ok(hex::encode(digest))
 }
 
@@ -1243,7 +1243,7 @@ where
             card_holder_name: item.get_optional_billing_full_name(),
         }),
         billing_address,
-        is_moto: is_moto,
+        is_moto,
         ..Default::default()
     })
 }
@@ -1699,7 +1699,7 @@ fn build_error_response<T>(
             )
             .map_err(|err| {
                 error_stack::report!(errors::ConnectorError::ResponseHandlingFailed)
-                    .attach_printable(format!("{:?}", err))
+                    .attach_printable(format!("unable to handel nuvei response "))
             }),
         ),
         _ => {
@@ -1714,7 +1714,6 @@ fn build_error_response<T>(
                 )
                 .map_err(|err| {
                     error_stack::report!(errors::ConnectorError::ResponseHandlingFailed)
-                        .attach_printable(format!("{:?}", err))
                 }),
             );
             match response.transaction_status {
@@ -2059,10 +2058,7 @@ fn get_refund_response(
             &response.gw_error_code.map(|e| e.to_string()),
             &response.gw_error_reason,
         )
-        .map_err(|err| {
-            error_stack::report!(errors::ConnectorError::ResponseHandlingFailed)
-                .attach_printable(format!("{:?}", err))
-        }),
+        .map_err(|err| error_stack::report!(errors::ConnectorError::ResponseHandlingFailed)),
         _ => match response.transaction_status {
             Some(NuveiTransactionStatus::Error) => get_error_response(
                 response.err_code,
@@ -2072,10 +2068,7 @@ fn get_refund_response(
                 &response.gw_error_code.map(|e| e.to_string()),
                 &response.gw_error_reason,
             )
-            .map_err(|err| {
-                error_stack::report!(errors::ConnectorError::ResponseHandlingFailed)
-                    .attach_printable(format!("{:?}", err))
-            }),
+            .map_err(|err| error_stack::report!(errors::ConnectorError::ResponseHandlingFailed)),
             _ => Ok(RefundsResponseData {
                 connector_refund_id: txn_id,
                 refund_status,
