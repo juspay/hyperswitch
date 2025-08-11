@@ -1073,7 +1073,7 @@ impl super::RedisConnectionPool {
     }
 
     /// Sets a value in Redis if not already present, and returns the value (either existing or newly set).
-    /// This operation is atomic using a Lua script.
+    /// This operation is atomic using Redis transactions.
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn set_key_if_not_exists_and_get_value<V>(
         &self,
@@ -1085,57 +1085,59 @@ impl super::RedisConnectionPool {
         V: TryInto<RedisValue> + Debug + FromRedis + Send + Sync + serde::de::DeserializeOwned,
         V::Error: Into<fred::error::RedisError> + Send + Sync,
     {
-        // Lua script that atomically:
-        // 1. Tries to set the value with SETNX (set if not exists)
-        // 2. If SETNX succeeds, set expiry and return the value we just set
-        // 3. If SETNX fails (key exists), get the existing value and return it
-        let lua_script = r#"
-            local key = KEYS[1]
-            local value = ARGV[1]
-            local ttl = tonumber(ARGV[2])
-            
-            local setnx_result = redis.call('SETNX', key, value)
-            if setnx_result == 1 then
-                -- Successfully set the value, now set expiry if TTL is provided
-                if ttl and ttl > 0 then
-                    redis.call('EXPIRE', key, ttl)
-                end
-                return {'SET', value}
-            else
-                -- Key already exists, get the current value
-                local existing_value = redis.call('GET', key)
-                return {'EXISTS', existing_value}
-            end
-        "#;
-
         let redis_key = key.tenant_aware_key(self);
-        let ttl = ttl.unwrap_or(self.config.default_ttl.into());
+        let ttl_seconds = ttl.unwrap_or(self.config.default_ttl.into());
 
-        // Convert value to RedisValue first to get the string representation
-        let redis_value: RedisValue = value
-            .try_into()
-            .map_err(|e| e.into())
-            .change_context(errors::RedisError::SetFailed)?;
+        // Get a client from the pool and start transaction
+        let trx = self.get_transaction();
 
-        let value_string = match redis_value {
-            RedisValue::String(s) => s.to_string(),
-            RedisValue::Bytes(b) => String::from_utf8_lossy(&b).to_string(),
-            _ => return Err(errors::RedisError::SetFailed.into()),
-        };
+        // Try to set if not exists with expiry - queue the command
+        trx.set::<(), _, _>(
+            &redis_key,
+            value,
+            Some(Expiration::EX(ttl_seconds)),
+            Some(SetOptions::NX),
+            false,
+        )
+        .await
+        .change_context(errors::RedisError::SetFailed)
+        .attach_printable("Failed to queue set command")?;
 
-        let result: (String, V) = self
-            .evaluate_redis_script(
-                lua_script,
-                vec![redis_key],
-                vec![value_string.clone(), ttl.to_string()],
-            )
+        // Always get the value after the SET attempt - queue the command
+        trx.get::<V, _>(&redis_key)
             .await
-            .change_context(errors::RedisError::SetFailed)?;
+            .change_context(errors::RedisError::GetFailed)
+            .attach_printable("Failed to queue get command")?;
 
-        match result.0.as_str() {
-            "SET" => Ok(SetGetReply::ValueSet(result.1)),
-            "EXISTS" => Ok(SetGetReply::ValueExists(result.1)),
-            _ => Err(errors::RedisError::SetFailed.into()),
+        // Execute transaction
+        let mut results: Vec<RedisValue> = trx
+            .exec(true)
+            .await
+            .change_context(errors::RedisError::SetFailed)
+            .attach_printable("Failed to execute the redis transaction")?;
+
+        let msg = "Got unexpected number of results from transaction";
+        let get_result = results
+            .pop()
+            .ok_or(errors::RedisError::SetFailed)
+            .attach_printable(msg)?;
+        let set_result = results
+            .pop()
+            .ok_or(errors::RedisError::SetFailed)
+            .attach_printable(msg)?;
+        // Parse the GET result to get the actual value
+        let actual_value: V = FromRedis::from_value(get_result)
+            .change_context(errors::RedisError::SetFailed)
+            .attach_printable("Failed to convert from redis value")?;
+
+        // Check if SET NX succeeded or failed
+        match set_result {
+            // SET NX returns "OK" if key was set
+            RedisValue::String(_) => Ok(SetGetReply::ValueSet(actual_value)),
+            // SET NX returns null if key already exists
+            RedisValue::Null => Ok(SetGetReply::ValueExists(actual_value)),
+            _ => Err(report!(errors::RedisError::SetFailed))
+                .attach_printable("Unexpected result from SET NX operation"),
         }
     }
 }
