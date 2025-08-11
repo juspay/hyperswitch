@@ -596,22 +596,17 @@ pub fn convert_backend_input_to_routing_eval(
             "payment_method".to_string(),
             Some(ValueType::EnumVariant(pm.to_string())),
         );
+        if let Some(pmt) = input.payment_method.payment_method_type {
+            if let Ok(dv) = (pmt, pm).into_dir_value() {
+                insert_dirvalue_param(&mut params, dv);
+            }
+        }
     }
     if let Some(pmt) = input.payment_method.payment_method_type {
         params.insert(
             "payment_method_type".to_string(),
             Some(ValueType::EnumVariant(pmt.to_string())),
         );
-    }
-    if let Some(pm) = input.payment_method.payment_method {
-        if let Some(pmt) = input.payment_method.payment_method_type {
-            logger::error!(">>>>>>>>>0>>>>>>>");
-            if let Ok(dv) = (pmt, pm).into_dir_value() {
-                logger::error!(">>>>>>>>>1>>>>>>>");
-                logger::error!(">>>>>>>>>>>>>>>>{:?}", dv);
-                insert_dirvalue_param(&mut params, dv);
-            }
-        }
     }
     if let Some(network) = input.payment_method.card_network {
         params.insert(
