@@ -181,7 +181,7 @@ This section gives you:
 - A quick reference table for all flows  
 - Examples of the two most common patterns: **Tokenization‑first** and **Direct Authorization**
 
-> For full details, see [Connector Payment Flow documentation](#) or ask us in Slack.
+> For full details, see [Connector Payment Flow documentation](https://docs.hyperswitch.io/learn-more/hyperswitch-architecture/connector-payment-flows) or ask us in Slack.
 
 ---
 
