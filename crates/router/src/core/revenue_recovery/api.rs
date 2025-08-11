@@ -195,10 +195,12 @@ pub async fn get_payment_attempt_for_revenue_recovery(
             revenue_recovery_data.merchant_account.clone(),
             revenue_recovery_data.key_store.clone(),
         )));
-    
+
     // Get the tracker related information. This includes payment intent and payment attempt
     // Using a unit type for the flow parameter since we only need the payment attempt data
-    let get_tracker_response: payments::operations::GetTrackerResponse<payments_domain::PaymentStatusData<()>> = operation
+    let get_tracker_response: payments::operations::GetTrackerResponse<
+        payments_domain::PaymentStatusData<()>,
+    > = operation
         .to_get_tracker()?
         .get_trackers(
             state,

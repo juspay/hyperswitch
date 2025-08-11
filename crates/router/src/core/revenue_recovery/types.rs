@@ -206,8 +206,8 @@ impl RevenueRecoveryPaymentsAttemptStatus {
 
                 let error_code = recovery_payment_attempt.error_code;
 
-                 // update the status of token in redis
-                 let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_form_process_tracker(
+                // update the status of token in redis
+                let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_form_process_tracker(
                     state,
                     &connector_customer_id,
                     Some("-1".to_string())
@@ -423,15 +423,15 @@ impl Action {
                             };
 
                             // update the status of token in redis
-                let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_form_process_tracker(
+                            let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_form_process_tracker(
                     state,
                     &connector_customer_id,
                     Some("-1".to_string())
                 )
                 .await;
 
-                // unlocking the token
-                let _unlock_the_connector_customer_id = storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
+                            // unlocking the token
+                            let _unlock_the_connector_customer_id = storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
                     state,
                     &connector_customer_id,
                 )
@@ -524,14 +524,15 @@ impl Action {
             }
             None => {
                 // Use the payment operations abstraction instead of direct database access
-                let payment_attempt = revenue_recovery_core::api::get_payment_attempt_for_revenue_recovery(
-                    state,
-                    &payment_intent.id,
-                    revenue_recovery_payment_data,
-                )
-                .await
-                .change_context(errors::RecoveryError::ValueNotFound)
-                .attach_printable("Could not find payment attempt given the payment id")?;
+                let payment_attempt =
+                    revenue_recovery_core::api::get_payment_attempt_for_revenue_recovery(
+                        state,
+                        &payment_intent.id,
+                        revenue_recovery_payment_data,
+                    )
+                    .await
+                    .change_context(errors::RecoveryError::ValueNotFound)
+                    .attach_printable("Could not find payment attempt given the payment id")?;
 
                 logger::info!(
                     process_id = %process.id,
@@ -712,22 +713,21 @@ impl Action {
         match response {
             Ok(_payment_data) => match payment_attempt.status.foreign_into() {
                 RevenueRecoveryPaymentsAttemptStatus::Succeeded => {
-
                     let connector_customer_id = payment_intent
                         .extract_connector_customer_id_from_payment_intent()
                         .change_context(errors::RecoveryError::ValueNotFound)
                         .attach_printable("Failed to extract customer ID from payment intent")?;
 
                     // update the status of token in redis
-                let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_form_process_tracker(
+                    let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_form_process_tracker(
                     state,
                     &connector_customer_id,
                     Some("-1".to_string())
                 )
                 .await;
 
-                // unlocking the token
-                let _unlock_the_connector_customer_id = storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
+                    // unlocking the token
+                    let _unlock_the_connector_customer_id = storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
                     state,
                     &connector_customer_id,
                 )
@@ -738,7 +738,6 @@ impl Action {
                     Ok(Self::SuccessfulPayment(payment_attempt))
                 }
                 RevenueRecoveryPaymentsAttemptStatus::Failed => {
-
                     let connector_customer_id = payment_intent
                         .extract_connector_customer_id_from_payment_intent()
                         .change_context(errors::RecoveryError::ValueNotFound)
