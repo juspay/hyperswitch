@@ -375,7 +375,9 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::ProfileAcquirerCreate | Flow::ProfileAcquirerUpdate => Self::ProfileAcquirer,
             Flow::ThreeDsDecisionRuleExecute => Self::ThreeDsDecisionRule,
-            Flow::TokenizationCreate | Flow::TokenizationRetrieve => Self::GenericTokenization,
+            Flow::TokenizationCreate | Flow::TokenizationRetrieve | Flow::TokenizationDelete => {
+                Self::GenericTokenization
+            }
         }
     }
 }
