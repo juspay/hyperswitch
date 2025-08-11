@@ -6,32 +6,45 @@ use api_models::{
     enums::{AuthenticationConnectors, Connector, PmAuthConnectors, TaxConnectors},
     payments,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use toml;
 
 use crate::common_config::{CardProvider, InputData, Provider, ZenApplePay};
 
-#[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+pub struct PayloadCurrencyAuthKeyType {
+    pub api_key: String,
+    pub processing_account_id: String,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Classic {
     pub password_classic: String,
     pub username_classic: String,
     pub merchant_id_classic: String,
 }
 
-#[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Evoucher {
     pub password_evoucher: String,
     pub username_evoucher: String,
     pub merchant_id_evoucher: String,
 }
 
-#[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct CurrencyAuthKeyType {
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+pub struct CashtoCodeCurrencyAuthKeyType {
     pub classic: Classic,
     pub evoucher: Evoucher,
 }
 
-#[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum CurrencyAuthValue {
+    CashtoCode(CashtoCodeCurrencyAuthKeyType),
+    Payload(PayloadCurrencyAuthKeyType),
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub enum ConnectorAuthType {
     HeaderKey {
         api_key: String,
@@ -52,7 +65,7 @@ pub enum ConnectorAuthType {
         key2: String,
     },
     CurrencyAuthKey {
-        auth_key_map: HashMap<String, CurrencyAuthKeyType>,
+        auth_key_map: HashMap<String, CurrencyAuthValue>,
     },
     CertificateAuth {
         certificate: String,
@@ -63,7 +76,7 @@ pub enum ConnectorAuthType {
 }
 
 #[serde_with::skip_serializing_none]
-#[derive(Debug, Deserialize, serde::Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(untagged)]
 pub enum ApplePayTomlConfig {
     Standard(Box<payments::ApplePayMetadata>),
@@ -71,7 +84,7 @@ pub enum ApplePayTomlConfig {
 }
 
 #[serde_with::skip_serializing_none]
-#[derive(Debug, Clone, serde::Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum KlarnaEndpoint {
     Europe,
     NorthAmerica,
@@ -79,7 +92,7 @@ pub enum KlarnaEndpoint {
 }
 
 #[serde_with::skip_serializing_none]
-#[derive(Debug, Deserialize, serde::Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ConfigMerchantAdditionalDetails {
     pub open_banking_recipient_data: Option<InputData>,
     pub account_data: Option<InputData>,
@@ -96,7 +109,7 @@ pub struct ConfigMerchantAdditionalDetails {
 }
 
 #[serde_with::skip_serializing_none]
-#[derive(Debug, Deserialize, serde::Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ConfigMetadata {
     pub merchant_config_currency: Option<InputData>,
     pub merchant_account_id: Option<InputData>,
@@ -133,10 +146,11 @@ pub struct ConfigMetadata {
     pub platform_url: Option<InputData>,
     pub report_group: Option<InputData>,
     pub proxy_url: Option<InputData>,
+    pub shop_name: Option<InputData>,
 }
 
 #[serde_with::skip_serializing_none]
-#[derive(Debug, Deserialize, serde::Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ConnectorWalletDetailsConfig {
     pub samsung_pay: Option<Vec<InputData>>,
     pub paze: Option<Vec<InputData>>,
@@ -144,7 +158,7 @@ pub struct ConnectorWalletDetailsConfig {
 }
 
 #[serde_with::skip_serializing_none]
-#[derive(Debug, Deserialize, serde::Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ConnectorTomlConfig {
     pub connector_auth: Option<ConnectorAuthType>,
     pub connector_webhook_details: Option<api_models::admin::MerchantConnectorWebhookDetails>,
@@ -169,10 +183,11 @@ pub struct ConnectorTomlConfig {
     pub real_time_payment: Option<Vec<Provider>>,
 }
 #[serde_with::skip_serializing_none]
-#[derive(Debug, Deserialize, serde::Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ConnectorConfig {
     pub authipay: Option<ConnectorTomlConfig>,
     pub juspaythreedsserver: Option<ConnectorTomlConfig>,
+    pub katapult: Option<ConnectorTomlConfig>,
     pub aci: Option<ConnectorTomlConfig>,
     pub adyen: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
@@ -188,9 +203,11 @@ pub struct ConnectorConfig {
     pub billwerk: Option<ConnectorTomlConfig>,
     pub bitpay: Option<ConnectorTomlConfig>,
     pub blackhawknetwork: Option<ConnectorTomlConfig>,
+    pub bluecode: Option<ConnectorTomlConfig>,
     pub bluesnap: Option<ConnectorTomlConfig>,
     pub boku: Option<ConnectorTomlConfig>,
     pub braintree: Option<ConnectorTomlConfig>,
+    pub breadpay: Option<ConnectorTomlConfig>,
     pub cashtocode: Option<ConnectorTomlConfig>,
     pub celero: Option<ConnectorTomlConfig>,
     pub chargebee: Option<ConnectorTomlConfig>,
@@ -219,6 +236,7 @@ pub struct ConnectorConfig {
     pub fiserv: Option<ConnectorTomlConfig>,
     pub fiservemea: Option<ConnectorTomlConfig>,
     pub fiuu: Option<ConnectorTomlConfig>,
+    pub flexiti: Option<ConnectorTomlConfig>,
     pub forte: Option<ConnectorTomlConfig>,
     pub getnet: Option<ConnectorTomlConfig>,
     pub globalpay: Option<ConnectorTomlConfig>,
@@ -234,6 +252,7 @@ pub struct ConnectorConfig {
     pub mifinity: Option<ConnectorTomlConfig>,
     pub mollie: Option<ConnectorTomlConfig>,
     pub moneris: Option<ConnectorTomlConfig>,
+    pub mpgs: Option<ConnectorTomlConfig>,
     pub multisafepay: Option<ConnectorTomlConfig>,
     pub nexinets: Option<ConnectorTomlConfig>,
     pub nexixpay: Option<ConnectorTomlConfig>,
@@ -252,7 +271,9 @@ pub struct ConnectorConfig {
     #[cfg(feature = "payouts")]
     pub paypal_payout: Option<ConnectorTomlConfig>,
     pub paystack: Option<ConnectorTomlConfig>,
+    pub paytm: Option<ConnectorTomlConfig>,
     pub payu: Option<ConnectorTomlConfig>,
+    pub phonepe: Option<ConnectorTomlConfig>,
     pub placetopay: Option<ConnectorTomlConfig>,
     pub plaid: Option<ConnectorTomlConfig>,
     pub powertranz: Option<ConnectorTomlConfig>,
@@ -264,6 +285,7 @@ pub struct ConnectorConfig {
     pub redsys: Option<ConnectorTomlConfig>,
     pub santander: Option<ConnectorTomlConfig>,
     pub shift4: Option<ConnectorTomlConfig>,
+    pub sift: Option<ConnectorTomlConfig>,
     pub silverflow: Option<ConnectorTomlConfig>,
     pub stripe: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
@@ -272,6 +294,7 @@ pub struct ConnectorConfig {
     pub signifyd: Option<ConnectorTomlConfig>,
     pub tokenio: Option<ConnectorTomlConfig>,
     pub trustpay: Option<ConnectorTomlConfig>,
+    pub trustpayments: Option<ConnectorTomlConfig>,
     pub threedsecureio: Option<ConnectorTomlConfig>,
     pub netcetera: Option<ConnectorTomlConfig>,
     pub tsys: Option<ConnectorTomlConfig>,
@@ -384,11 +407,14 @@ impl ConnectorConfig {
             Connector::Billwerk => Ok(connector_data.billwerk),
             Connector::Bitpay => Ok(connector_data.bitpay),
             Connector::Bluesnap => Ok(connector_data.bluesnap),
+            Connector::Bluecode => Ok(connector_data.bluecode),
             Connector::Boku => Ok(connector_data.boku),
             Connector::Braintree => Ok(connector_data.braintree),
+            Connector::Breadpay => Ok(connector_data.breadpay),
             Connector::Cashtocode => Ok(connector_data.cashtocode),
             Connector::Celero => Ok(connector_data.celero),
             Connector::Chargebee => Ok(connector_data.chargebee),
+            Connector::Checkbook => Ok(connector_data.checkbook),
             Connector::Checkout => Ok(connector_data.checkout),
             Connector::Coinbase => Ok(connector_data.coinbase),
             Connector::Coingate => Ok(connector_data.coingate),
@@ -412,6 +438,7 @@ impl ConnectorConfig {
             Connector::Fiserv => Ok(connector_data.fiserv),
             Connector::Fiservemea => Ok(connector_data.fiservemea),
             Connector::Fiuu => Ok(connector_data.fiuu),
+            Connector::Flexiti => Ok(connector_data.flexiti),
             Connector::Forte => Ok(connector_data.forte),
             Connector::Getnet => Ok(connector_data.getnet),
             Connector::Globalpay => Ok(connector_data.globalpay),
@@ -433,6 +460,7 @@ impl ConnectorConfig {
             Connector::Nexixpay => Ok(connector_data.nexixpay),
             Connector::Prophetpay => Ok(connector_data.prophetpay),
             Connector::Nmi => Ok(connector_data.nmi),
+            Connector::Nordea => Ok(connector_data.nordea),
             Connector::Nomupay => Err("Use get_payout_connector_config".to_string()),
             Connector::Novalnet => Ok(connector_data.novalnet),
             Connector::Noon => Ok(connector_data.noon),
@@ -455,6 +483,7 @@ impl ConnectorConfig {
             Connector::Santander => Ok(connector_data.santander),
             Connector::Shift4 => Ok(connector_data.shift4),
             Connector::Signifyd => Ok(connector_data.signifyd),
+            Connector::Silverflow => Ok(connector_data.silverflow),
             Connector::Square => Ok(connector_data.square),
             Connector::Stax => Ok(connector_data.stax),
             Connector::Stripe => Ok(connector_data.stripe),
@@ -491,6 +520,8 @@ impl ConnectorConfig {
             Connector::Netcetera => Ok(connector_data.netcetera),
             Connector::CtpMastercard => Ok(connector_data.ctp_mastercard),
             Connector::Xendit => Ok(connector_data.xendit),
+            Connector::Paytm => Ok(connector_data.paytm),
+            Connector::Phonepe => Ok(connector_data.phonepe),
         }
     }
 }

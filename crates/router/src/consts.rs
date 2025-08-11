@@ -274,6 +274,10 @@ pub const IRRELEVANT_PAYMENT_INTENT_ID: &str = "irrelevant_payment_intent_id";
 /// Default payment attempt id
 pub const IRRELEVANT_PAYMENT_ATTEMPT_ID: &str = "irrelevant_payment_attempt_id";
 
+/// Default payment attempt id
+pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID: &str =
+    "irrelevant_connector_request_reference_id";
+
 // Default payment method storing TTL in redis in seconds
 pub const DEFAULT_PAYMENT_METHOD_STORE_TTL: i64 = 86400; // 1 day
 
@@ -309,7 +313,10 @@ pub const PSD2_COUNTRIES: [Country; 27] = [
 ];
 
 // Rollout percentage config prefix
-pub const UCS_ROLLOUT_PERCENT_CONFIG_PREFIX: &str = "UCS_ROLLOUT_CONFIG";
+pub const UCS_ROLLOUT_PERCENT_CONFIG_PREFIX: &str = "ucs_rollout_config";
+
+// UCS feature enabled config
+pub const UCS_ENABLED: &str = "ucs_enabled";
 
 /// Header value indicating that signature-key-based authentication is used.
 pub const UCS_AUTH_SIGNATURE_KEY: &str = "signature-key";

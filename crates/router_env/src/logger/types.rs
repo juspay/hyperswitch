@@ -156,6 +156,8 @@ pub enum Flow {
     PaymentsCapture,
     /// Payments cancel flow.
     PaymentsCancel,
+    /// Payments cancel post capture flow.
+    PaymentsCancelPostCapture,
     /// Payments approve flow.
     PaymentsApprove,
     /// Payments reject flow.
@@ -523,6 +525,20 @@ pub enum Flow {
     UpdateTheme,
     /// Delete theme
     DeleteTheme,
+    /// Create user theme
+    CreateUserTheme,
+    /// Update user theme
+    UpdateUserTheme,
+    /// Delete user theme
+    DeleteUserTheme,
+    /// Upload file to user theme storage
+    UploadFileToUserThemeStorage,
+    /// Get user theme using theme id
+    GetUserThemeUsingThemeId,
+    ///List All Themes In Lineage
+    ListAllThemesInLineage,
+    /// Get user theme using lineage
+    GetUserThemeUsingLineage,
     /// List initial webhook delivery attempts
     WebhookEventInitialDeliveryAttemptList,
     /// List delivery attempts for a webhook event
@@ -604,6 +620,12 @@ pub enum Flow {
     AuthenticationCreate,
     /// Authentication Eligibility flow
     AuthenticationEligibility,
+    /// Authentication Sync flow
+    AuthenticationSync,
+    /// Authentication Sync Post Update flow
+    AuthenticationSyncPostUpdate,
+    /// Authentication Authenticate flow
+    AuthenticationAuthenticate,
     ///Proxy Flow
     Proxy,
     /// Profile Acquirer Create flow
@@ -618,6 +640,8 @@ pub enum Flow {
     DecisionEngineDecideGatewayCall,
     /// Decision Engine Gateway Feedback Call
     DecisionEngineGatewayFeedbackCall,
+    /// Recovery payments create flow.
+    RecoveryPaymentsCreate,
 }
 
 /// Trait for providing generic behaviour to flow metric

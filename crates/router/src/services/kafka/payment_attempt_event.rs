@@ -133,7 +133,7 @@ impl<'a> KafkaPaymentAttemptEvent<'a> {
             card_discovery: attempt
                 .card_discovery
                 .map(|discovery| discovery.to_string()),
-            routing_approach: attempt.routing_approach,
+            routing_approach: attempt.routing_approach.clone(),
             debit_routing_savings: attempt.debit_routing_savings,
         }
     }
@@ -156,11 +156,11 @@ pub struct KafkaPaymentAttemptEvent<'a> {
     pub payment_method: storage_enums::PaymentMethod,
     pub connector_transaction_id: Option<&'a String>,
     pub authentication_type: storage_enums::AuthenticationType,
-    #[serde(with = "time::serde::timestamp")]
+    #[serde(with = "time::serde::timestamp::nanoseconds")]
     pub created_at: OffsetDateTime,
-    #[serde(with = "time::serde::timestamp")]
+    #[serde(with = "time::serde::timestamp::nanoseconds")]
     pub modified_at: OffsetDateTime,
-    #[serde(default, with = "time::serde::timestamp::option")]
+    #[serde(default, with = "time::serde::timestamp::nanoseconds::option")]
     pub last_synced: Option<OffsetDateTime>,
     pub cancellation_reason: Option<&'a String>,
     pub amount_to_capture: Option<MinorUnit>,

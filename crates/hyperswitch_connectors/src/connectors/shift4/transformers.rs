@@ -296,7 +296,9 @@ impl TryFrom<&PayLaterData> for PaymentMethodType {
             | PayLaterData::WalleyRedirect { .. }
             | PayLaterData::AlmaRedirect { .. }
             | PayLaterData::AtomeRedirect { .. }
-            | PayLaterData::KlarnaSdk { .. } => Err(errors::ConnectorError::NotImplemented(
+            | PayLaterData::FlexitiRedirect { .. }
+            | PayLaterData::KlarnaSdk { .. }
+            | PayLaterData::BreadpayRedirect { .. } => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Shift4"),
             )
             .into()),
@@ -390,6 +392,7 @@ impl TryFrom<&WalletData> for PaymentMethodType {
             | WalletData::GooglePayRedirect(_)
             | WalletData::GooglePayThirdPartySdk(_)
             | WalletData::GooglePay(_)
+            | WalletData::BluecodeRedirect {}
             | WalletData::PaypalRedirect(_)
             | WalletData::MbWayRedirect(_)
             | WalletData::MobilePayRedirect(_)
@@ -453,6 +456,7 @@ impl TryFrom<&BankTransferData> for Shift4PaymentMethod {
             | BankTransferData::InstantBankTransfer {}
             | BankTransferData::InstantBankTransferFinland { .. }
             | BankTransferData::InstantBankTransferPoland { .. }
+            | BankTransferData::IndonesianBankTransfer { .. }
             | BankTransferData::LocalBankTransfer { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Shift4"),

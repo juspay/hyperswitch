@@ -6,16 +6,16 @@ use hyperswitch_domain_models::{
         payments::{
             Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
             CreateConnectorCustomer, CreateOrder, IncrementalAuthorization, PSync,
-            PaymentMethodToken, PostProcessing, PostSessionTokens, PreProcessing, Reject,
-            SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
+            PaymentMethodToken, PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing,
+            Reject, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
         },
         Authenticate, PostAuthenticate, PreAuthenticate,
     },
     router_request_types::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
         CreateOrderRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
         PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
         PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
         PaymentsUpdateMetadataData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
@@ -53,6 +53,17 @@ pub trait PaymentSyncV2:
 /// trait PaymentVoidV2
 pub trait PaymentVoidV2:
     ConnectorIntegrationV2<Void, PaymentFlowData, PaymentsCancelData, PaymentsResponseData>
+{
+}
+
+/// trait PaymentPostCaptureVoidV2
+pub trait PaymentPostCaptureVoidV2:
+    ConnectorIntegrationV2<
+    PostCaptureVoid,
+    PaymentFlowData,
+    PaymentsCancelPostCaptureData,
+    PaymentsResponseData,
+>
 {
 }
 
@@ -246,6 +257,7 @@ pub trait PaymentV2:
     + PaymentSyncV2
     + PaymentCaptureV2
     + PaymentVoidV2
+    + PaymentPostCaptureVoidV2
     + PaymentApproveV2
     + PaymentRejectV2
     + MandateSetupV2

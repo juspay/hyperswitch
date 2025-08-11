@@ -12,6 +12,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
+    payment_method_data::{PaymentMethodData, WalletData},
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -49,10 +50,7 @@ use transformers as fiserv;
 use uuid::Uuid;
 
 use crate::{
-    constants::headers,
-    types::ResponseRouterData,
-    utils as connector_utils,
-    utils::{construct_not_implemented_error_report, convert_amount},
+    constants::headers, types::ResponseRouterData, utils as connector_utils, utils::convert_amount,
 };
 
 #[derive(Clone)]
@@ -207,30 +205,13 @@ impl ConnectorCommon for Fiserv {
     }
 }
 
-impl ConnectorValidation for Fiserv {
-    fn validate_connector_against_payment_request(
-        &self,
-        capture_method: Option<enums::CaptureMethod>,
-        _payment_method: enums::PaymentMethod,
-        _pmt: Option<enums::PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            enums::CaptureMethod::Automatic
-            | enums::CaptureMethod::Manual
-            | enums::CaptureMethod::SequentialAutomatic => Ok(()),
-            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
-                construct_not_implemented_error_report(capture_method, self.id()),
-            ),
-        }
-    }
-}
-
 impl api::ConnectorAccessToken for Fiserv {}
 
 impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Fiserv {
     // Not Implemented (R)
 }
+
+impl ConnectorValidation for Fiserv {}
 
 impl api::Payment for Fiserv {}
 
@@ -416,15 +397,21 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Fis
             },
         )?;
 
+        let (approved_amount, currency) = match &p_sync_response {
+            fiserv::FiservPaymentsResponse::Charges(resp) => (
+                &resp.payment_receipt.approved_amount.total,
+                &resp.payment_receipt.approved_amount.currency,
+            ),
+            fiserv::FiservPaymentsResponse::Checkout(resp) => (
+                &resp.payment_receipt.approved_amount.total,
+                &resp.payment_receipt.approved_amount.currency,
+            ),
+        };
+
         let response_integrity_object = connector_utils::get_sync_integrity_object(
             self.amount_converter,
-            p_sync_response.payment_receipt.approved_amount.total,
-            p_sync_response
-                .payment_receipt
-                .approved_amount
-                .currency
-                .to_string()
-                .clone(),
+            *approved_amount,
+            currency.to_string().clone(),
         )?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -512,15 +499,22 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             .response
             .parse_struct("Fiserv Payment Response")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let (approved_amount, currency) = match &response {
+            fiserv::FiservPaymentsResponse::Charges(resp) => (
+                &resp.payment_receipt.approved_amount.total,
+                &resp.payment_receipt.approved_amount.currency,
+            ),
+            fiserv::FiservPaymentsResponse::Checkout(resp) => (
+                &resp.payment_receipt.approved_amount.total,
+                &resp.payment_receipt.approved_amount.currency,
+            ),
+        };
+
         let response_integrity_object = connector_utils::get_capture_integrity_object(
             self.amount_converter,
-            Some(response.payment_receipt.approved_amount.total),
-            response
-                .payment_receipt
-                .approved_amount
-                .currency
-                .to_string()
-                .clone(),
+            Some(*approved_amount),
+            currency.to_string().clone(),
         )?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -580,13 +574,17 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
     fn get_url(
         &self,
-        _req: &PaymentsAuthorizeRouterData,
+        req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}ch/payments/v1/charges",
-            connectors.fiserv.base_url
-        ))
+        let url = match &req.request.payment_method_data {
+            PaymentMethodData::Wallet(WalletData::PaypalRedirect(_)) => {
+                format!("{}ch/checkouts/v1/orders", connectors.fiserv.base_url)
+            }
+            _ => format!("{}ch/payments/v1/charges", connectors.fiserv.base_url),
+        };
+
+        Ok(url)
     }
 
     fn get_request_body(
@@ -639,15 +637,21 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .parse_struct("Fiserv PaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        let (approved_amount, currency) = match &response {
+            fiserv::FiservPaymentsResponse::Charges(resp) => (
+                &resp.payment_receipt.approved_amount.total,
+                &resp.payment_receipt.approved_amount.currency,
+            ),
+            fiserv::FiservPaymentsResponse::Checkout(resp) => (
+                &resp.payment_receipt.approved_amount.total,
+                &resp.payment_receipt.approved_amount.currency,
+            ),
+        };
+
         let response_integrity_object = connector_utils::get_authorise_integrity_object(
             self.amount_converter,
-            response.payment_receipt.approved_amount.total,
-            response
-                .payment_receipt
-                .approved_amount
-                .currency
-                .to_string()
-                .clone(),
+            *approved_amount,
+            currency.to_string().clone(),
         )?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -852,15 +856,21 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Fiserv {
             },
         )?;
 
+        let (approved_amount, currency) = match &r_sync_response {
+            fiserv::FiservPaymentsResponse::Charges(resp) => (
+                &resp.payment_receipt.approved_amount.total,
+                &resp.payment_receipt.approved_amount.currency,
+            ),
+            fiserv::FiservPaymentsResponse::Checkout(resp) => (
+                &resp.payment_receipt.approved_amount.total,
+                &resp.payment_receipt.approved_amount.currency,
+            ),
+        };
+
         let response_integrity_object = connector_utils::get_refund_integrity_object(
             self.amount_converter,
-            r_sync_response.payment_receipt.approved_amount.total,
-            r_sync_response
-                .payment_receipt
-                .approved_amount
-                .currency
-                .to_string()
-                .clone(),
+            *approved_amount,
+            currency.to_string().clone(),
         )?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -965,6 +975,28 @@ static FISERV_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Laz
                     }
                 }),
             ),
+        },
+    );
+
+    fiserv_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        enums::PaymentMethodType::GooglePay,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    fiserv_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        enums::PaymentMethodType::Paypal,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
         },
     );
 
