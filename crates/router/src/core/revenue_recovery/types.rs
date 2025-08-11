@@ -412,8 +412,8 @@ impl Action {
                 )
                 .await;
 
-                                // unlocking the token
-                                let _unlock_the_connector_customer_id = storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
+                            // unlocking the token
+                            let _unlock_the_connector_customer_id = storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
                     state,
                     &connector_customer_id,
                 )
@@ -696,7 +696,7 @@ impl Action {
                         .attach_printable("Failed to extract customer ID from payment intent")?;
 
                     // update the status of token in redis
-                        let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
+                    let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
                     state,
                     &connector_customer_id,
                     Some("-1".to_string())

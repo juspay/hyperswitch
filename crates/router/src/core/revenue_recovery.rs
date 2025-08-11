@@ -454,10 +454,10 @@ pub async fn perform_calculate_workflow(
 
     // 1. Extract connector_customer_id and token_list from tracking_data
     let connector_customer_id = payment_intent
-            .extract_connector_customer_id_from_payment_intent()
-            .change_context(errors::RecoveryError::ValueNotFound)
-            .attach_printable("Failed to extract customer ID from payment intent")?;
-    
+        .extract_connector_customer_id_from_payment_intent()
+        .change_context(errors::RecoveryError::ValueNotFound)
+        .attach_printable("Failed to extract customer ID from payment intent")?;
+
     let merchant_context_from_revenue_recovery_payment_data =
         domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
             revenue_recovery_payment_data.merchant_account.clone(),
