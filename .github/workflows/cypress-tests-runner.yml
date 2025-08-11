@@ -404,33 +404,27 @@ jobs:
       - name: Start mock servers for alpha connectors
         if: ${{ env.RUN_TESTS == 'true' }}
         run: |
-          # Start mock servers for each alpha connector
-          for connector in ${{ env.ALPHA_PAYMENTS_CONNECTORS }}; do
-            pascal_case_connector="$(echo "$connector" | sed -E 's/(^|_)([a-z])/\U\2/g')"
-            if [ -f "cypress-tests/cypress/e2e/configs/mock-server/${pascal_case_connector}.ts" ]; then
-              echo "Starting mock server for ${connector}"
-              cd cypress-tests
+          echo "Starting mock server for ${connector}"
+          cd cypress-tests
 
-              npm run mockserver &
+          npm run mockserver &
 
-              MOCK_PID=$!
-              echo "MOCK_${connector^^}_PID=${MOCK_PID}" >> $GITHUB_ENV
-              cd ..
+          MOCK_PID=$!
+          echo "MOCK_PID=${MOCK_PID}" >> $GITHUB_ENV
+          cd ..
 
-              # Wait for mock server to be ready
-              COUNT=0
-              while ! nc -z localhost 3010; do
-                if [ $COUNT -gt 6 ]; then # Wait for up to 1 minute (6 * 10 seconds)
-                  echo "Mock server for ${connector} did not start within a reasonable time."
-                  exit 1
-                else
-                  COUNT=$((COUNT+1))
-                  sleep 10
-                fi
-              done
-              echo "Mock server for ${connector} is ready"
+          # Wait for mock server to be ready
+          COUNT=0
+          while ! nc -z localhost 3010; do
+            if [ $COUNT -gt 6 ]; then # Wait for up to 1 minute (6 * 10 seconds)
+              echo "Mock server for ${connector} did not start within a reasonable time."
+              exit 1
+            else
+              COUNT=$((COUNT+1))
+              sleep 10
             fi
           done
+          echo "Mock server for ${connector} is ready"
 
       - name: Setup Local Server with Alpha Connector Configs
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -479,14 +473,7 @@ jobs:
 
           # Cleanup
           kill "${{ env.PID }}"
-
-          # Kill mock servers
-          for connector in ${{ env.ALPHA_PAYMENTS_CONNECTORS }}; do
-            VAR_NAME="MOCK_${connector^^}_PID"
-            if [ -n "${!VAR_NAME:-}" ]; then
-              kill "${!VAR_NAME}" || true
-            fi
-          done
+          kill "${{ env.MOCK_PID }}"
 
       - name: Upload Cypress test results for Alpha Connectors
         if: env.RUN_TESTS == 'true' && failure()
