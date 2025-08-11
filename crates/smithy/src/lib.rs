@@ -279,25 +279,105 @@ fn generate_enum_impl(
                     // If there are no fields with `value_type`, this variant should be skipped.
                     return None;
                 } else if variant.fields.len() == 1 {
+                    // Single field - reference the type directly instead of creating a wrapper
                     let field = &variant.fields[0];
-                    let value_type = &field.value_type;
-                    if !value_type.is_empty() {
-                        quote! {
-                            {
-                                let (target, new_shapes) = smithy_core::types::resolve_type_and_generate_shapes(#value_type, &mut shapes).unwrap();
-                                shapes.extend(new_shapes);
-                                target
-                            }
-                        }
-                    } else {
-                        // This case should ideally not be hit if all variants have attributes.
-                        // We can default to Unit or error out.
+                    let field_value_type = &field.value_type;
+                    
+                    if field_value_type.is_empty() {
                         return None;
+                    }
+
+                    quote! {
+                        {
+                            let (target_type, new_shapes) = smithy_core::types::resolve_type_and_generate_shapes(#field_value_type, &mut shapes).unwrap();
+                            shapes.extend(new_shapes);
+                            target_type
+                        }
                     }
                 } else {
                     // Multiple fields - create an inline structure
-                    let inline_struct_name = format!("{}{}Data", stringify!(#name), variant_name);
-                    quote! { format!("com.hyperswitch.types#{}", #inline_struct_name) }
+                    let inline_struct_members = variant.fields.iter().map(|field| {
+                        let field_name = &field.name;
+                        let field_value_type = &field.value_type;
+                        let field_doc = field
+                            .documentation
+                            .as_ref()
+                            .map(|doc| quote! { Some(#doc.to_string()) })
+                            .unwrap_or(quote! { None });
+
+                        let mut field_constraints = field.constraints.clone();
+                        if !field.optional && !field_constraints.iter().any(|c| matches!(c, SmithyConstraint::Required)) {
+                            field_constraints.push(SmithyConstraint::Required);
+                        }
+
+                        let field_traits = if field_constraints.is_empty() {
+                            quote! { vec![] }
+                        } else {
+                            let trait_tokens = field_constraints
+                                .iter()
+                                .map(|constraint| match constraint {
+                                    SmithyConstraint::Pattern(pattern) => quote! {
+                                        smithy_core::SmithyTrait::Pattern { pattern: #pattern.to_string() }
+                                    },
+                                    SmithyConstraint::Range(min, max) => {
+                                        let min_expr = min.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
+                                        let max_expr = max.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
+                                        quote! {
+                                            smithy_core::SmithyTrait::Range {
+                                                min: #min_expr,
+                                                max: #max_expr
+                                            }
+                                        }
+                                    },
+                                    SmithyConstraint::Length(min, max) => {
+                                        let min_expr = min.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
+                                        let max_expr = max.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
+                                        quote! {
+                                            smithy_core::SmithyTrait::Length {
+                                                min: #min_expr,
+                                                max: #max_expr
+                                            }
+                                        }
+                                    },
+                                    SmithyConstraint::Required => quote! {
+                                        smithy_core::SmithyTrait::Required
+                                    },
+                                })
+                                .collect::<Vec<_>>();
+
+                            quote! { vec![#(#trait_tokens),*] }
+                        };
+
+                        quote! {
+                            {
+                                let (field_target, field_shapes) = smithy_core::types::resolve_type_and_generate_shapes(#field_value_type, &mut shapes).unwrap();
+                                shapes.extend(field_shapes);
+                                inline_members.insert(#field_name.to_string(), smithy_core::SmithyMember {
+                                    target: field_target,
+                                    documentation: #field_doc,
+                                    traits: #field_traits,
+                                });
+                            }
+                        }
+                    });
+
+                    quote! {
+                        {
+                            let inline_struct_name = format!("{}{}Data", stringify!(#name), #variant_name);
+                            let mut inline_members = std::collections::HashMap::new();
+                            
+                            #(#inline_struct_members)*
+                            
+                            let inline_shape = smithy_core::SmithyShape::Structure {
+                                members: inline_members,
+                                documentation: None,
+                                traits: vec![],
+                            };
+                            
+                            shapes.insert(inline_struct_name.clone(), inline_shape);
+                            inline_struct_name
+                        }
+                    }
                 };
 
                 // Apply serde rename transformation if specified
@@ -536,7 +616,14 @@ fn parse_serde_enum_attributes(attrs: &[Attribute]) -> syn::Result<SerdeEnumAttr
                             }
                         }
                     }
+                } else if meta.path.is_ident("tag") {
+                    // Parse and ignore the tag attribute for now
+                    // This prevents parsing errors when tag is present
+                    if let Ok(value) = meta.value() {
+                        let _ = value.parse::<Lit>();
+                    }
                 }
+                // Ignore other serde attributes to prevent parsing errors
                 Ok(())
             })?;
         }

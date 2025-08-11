@@ -147,6 +147,7 @@ pub fn resolve_type_and_generate_shapes(
         "PrimitiveDateTime" | "time::PrimitiveDateTime" => "smithy.api#Timestamp".to_string(),
         "Amount" | "MinorUnit" => "smithy.api#Long".to_string(),
         "serde_json::Value" | "Value" | "Object" => "smithy.api#Document".to_string(),
+        "Url" | "url::Url" => "smithy.api#String".to_string(),
 
         vt if vt.starts_with("Option<") && vt.ends_with('>') => {
             let inner_type = extract_generic_inner_type(vt, "Option")

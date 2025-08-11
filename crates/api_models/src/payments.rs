@@ -2623,6 +2623,7 @@ pub struct PaymentMethodDataRequest {
     /// billing details for the payment method.
     /// This billing details will be passed to the processor as billing address.
     /// If not passed, then payment.billing will be considered
+    #[smithy(value_type = "Option<Address>")]
     pub billing: Option<Address>,
 }
 
@@ -4648,17 +4649,21 @@ pub enum NextActionType {
     RedirectInsidePopup,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(tag = "type", rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum NextActionData {
     /// Contains the url for redirection flow
     #[cfg(feature = "v1")]
     RedirectToUrl {
+        #[smithy(value_type = "String")]
         redirect_to_url: String,
     },
     #[cfg(feature = "v1")]
     RedirectInsidePopup {
+        #[smithy(value_type = "String")]
         popup_url: String,
+        #[smithy(value_type = "String")]
         redirect_response_url: String,
     },
     /// Contains the url for redirection flow
@@ -4678,18 +4683,24 @@ pub enum NextActionData {
     /// Contains url for Qr code image, this qr code has to be shown in sdk
     QrCodeInformation {
         #[schema(value_type = String)]
+        #[smithy(value_type = "String")]
         /// Hyperswitch generated image data source url
         image_data_url: Option<Url>,
+        #[smithy(value_type = "Option<i64>")]
         display_to_timestamp: Option<i64>,
         #[schema(value_type = String)]
+        #[smithy(value_type = "String")]
         /// The url for Qr code given by the connector
         qr_code_url: Option<Url>,
+        #[smithy(value_type = "Option<String>")]
         display_text: Option<String>,
+        #[smithy(value_type = "Option<String>")]
         border_color: Option<String>,
     },
     /// Contains url to fetch Qr code data
     FetchQrCodeInformation {
         #[schema(value_type = String)]
+        #[smithy(value_type = "String")]
         qr_code_fetch_url: Url,
     },
     /// Contains the download url and the reference number for transaction
