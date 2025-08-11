@@ -4,6 +4,7 @@ use api_models::{admin::PaymentMethodsEnabled, enums::FrmSuggestion};
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, ValueExt};
 use error_stack::ResultExt;
+use hyperswitch_interfaces::api::ConnectorSpecifications;
 use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
 
@@ -461,7 +462,15 @@ where
         for (merchant_connector_account, payment_method_type, payment_method) in
             connector_and_supporting_payment_method_type
         {
-            let connector_type = api::GetToken::from(payment_method_type);
+            let connector_data_result = api::ConnectorData::get_connector_by_name(
+                &state.conf.connectors,
+                &merchant_connector_account.connector_name.to_string(),
+                api::GetToken::Connector, // Default value, will be replaced by the result of decide_session_token_flow
+                Some(merchant_connector_account.get_id()),
+            );
+            let connector_type =
+                decide_session_token_flow(&connector_data_result?.connector, payment_method_type);
+
             if let Ok(connector_data) = api::ConnectorData::get_connector_by_name(
                 &state.conf.connectors,
                 &merchant_connector_account.connector_name.to_string(),
@@ -503,6 +512,25 @@ where
         _payment_data: &mut PaymentData<F>,
     ) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
+    }
+}
+
+/// Decides the session token flow based on payment method type
+fn decide_session_token_flow(
+    connector: &hyperswitch_interfaces::connector_integration_interface::ConnectorEnum,
+    payment_method_type: api_models::enums::PaymentMethodType,
+) -> api::GetToken {
+    if connector.validate_sdk_session_token_for_payment_method(&payment_method_type) {
+        return api::GetToken::Connector;
+    }
+
+    match payment_method_type {
+        api_models::enums::PaymentMethodType::ApplePay => api::GetToken::ApplePayMetadata,
+        api_models::enums::PaymentMethodType::GooglePay => api::GetToken::GpayMetadata,
+        api_models::enums::PaymentMethodType::Paypal => api::GetToken::PaypalSdkMetadata,
+        api_models::enums::PaymentMethodType::SamsungPay => api::GetToken::SamsungPayMetadata,
+        api_models::enums::PaymentMethodType::Paze => api::GetToken::PazeMetadata,
+        _ => api::GetToken::Connector,
     }
 }
 

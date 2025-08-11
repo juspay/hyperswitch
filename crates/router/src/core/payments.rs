@@ -3996,6 +3996,8 @@ where
             &merchant_connector_account,
             merchant_recipient_data,
             None,
+            None,
+            None,
         )
         .await?;
 
@@ -4750,6 +4752,8 @@ where
             customer,
             &merchant_connector_account,
             merchant_recipient_data,
+            None,
+            None,
             None,
         )
         .await?;
@@ -5613,6 +5617,8 @@ where
                 &merchant_connector_account,
                 None,
                 None,
+                Some(session_connector_data.payment_method_type),
+                Some(session_connector_data.payment_method_sub_type),
             )
             .await?;
 
@@ -5937,6 +5943,8 @@ where
                         merchant_connector_account,
                         None,
                         None,
+                        None,
+                        None,
                     )
                     .await?;
 
@@ -6245,6 +6253,8 @@ where
             merchant_conn_account,
             None,
             header_payload,
+            None,
+            None,
         )
         .await?;
 

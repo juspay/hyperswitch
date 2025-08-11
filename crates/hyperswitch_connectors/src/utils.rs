@@ -6266,6 +6266,7 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         tenant_id: data.tenant_id.clone(),
         status: data.status,
         payment_method: data.payment_method,
+        payment_method_type: data.payment_method_type,
         connector_auth_type: data.connector_auth_type.clone(),
         description: data.description.clone(),
         address: data.address.clone(),
