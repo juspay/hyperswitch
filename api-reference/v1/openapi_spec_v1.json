@@ -11868,6 +11868,7 @@
           "nmi",
           "nomupay",
           "noon",
+          "nordea",
           "novalnet",
           "nuvei",
           "opennode",
@@ -29440,7 +29441,8 @@
             "items": {
               "$ref": "#/components/schemas/BankCodeResponse"
             },
-            "description": "The list of banks enabled, if applicable for a payment method type",
+            "description": "The list of banks enabled, if applicable for a payment method type . To be deprecated soon.",
+            "deprecated": true,
             "nullable": true
           },
           "bank_debits": {
@@ -29800,6 +29802,7 @@
           "nmi",
           "nomupay",
           "noon",
+          "nordea",
           "novalnet",
           "nuvei",
           "opennode",

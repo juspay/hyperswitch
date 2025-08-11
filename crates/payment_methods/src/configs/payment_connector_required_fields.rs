@@ -6,8 +6,9 @@ use api_models::{
 };
 
 use crate::configs::settings::{
-    ConnectorFields, Mandates, RequiredFieldFinal, SupportedConnectorsForMandate,
-    SupportedPaymentMethodTypesForMandate, SupportedPaymentMethodsForMandate, ZeroMandates,
+    BankRedirectConfig, ConnectorFields, Mandates, RequiredFieldFinal,
+    SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
+    SupportedPaymentMethodsForMandate, ZeroMandates,
 };
 #[cfg(feature = "v1")]
 use crate::configs::settings::{PaymentMethodType, RequiredFields};
@@ -1001,8 +1002,8 @@ pub fn get_shipping_required_fields() -> HashMap<String, RequiredFieldInfo> {
 }
 
 #[cfg(feature = "v1")]
-impl Default for RequiredFields {
-    fn default() -> Self {
+impl RequiredFields {
+    pub fn new(bank_config: &BankRedirectConfig) -> Self {
         let cards_required_fields = get_cards_required_fields();
         let mut debit_required_fields = cards_required_fields.clone();
         debit_required_fields.extend(HashMap::from([
@@ -1043,7 +1044,7 @@ impl Default for RequiredFields {
             ),
             (
                 enums::PaymentMethod::BankRedirect,
-                PaymentMethodType(get_bank_redirect_required_fields()),
+                PaymentMethodType(get_bank_redirect_required_fields(bank_config)),
             ),
             (
                 enums::PaymentMethod::Wallet,
@@ -1226,6 +1227,13 @@ impl Default for RequiredFields {
                 )])),
             ),
         ]))
+    }
+}
+
+#[cfg(feature = "v1")]
+impl Default for RequiredFields {
+    fn default() -> Self {
+        Self::new(&BankRedirectConfig::default())
     }
 }
 
@@ -1598,7 +1606,9 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
 }
 
 #[cfg(feature = "v1")]
-fn get_bank_redirect_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorFields> {
+fn get_bank_redirect_required_fields(
+    bank_config: &BankRedirectConfig,
+) -> HashMap<enums::PaymentMethodType, ConnectorFields> {
     HashMap::from([
         (
             enums::PaymentMethodType::OpenBankingUk,
@@ -2077,69 +2087,14 @@ fn get_bank_redirect_required_fields() -> HashMap<enums::PaymentMethodType, Conn
                                 FieldType::UserFullName,
                             ),
                             RequiredField::EpsBankOptions(
-                                vec![
-                                    enums::BankNames::AbnAmro,
-                                    enums::BankNames::ArzteUndApothekerBank,
-                                    enums::BankNames::AsnBank,
-                                    enums::BankNames::AustrianAnadiBankAg,
-                                    enums::BankNames::BankAustria,
-                                    enums::BankNames::BankhausCarlSpangler,
-                                    enums::BankNames::BankhausSchelhammerUndSchatteraAg,
-                                    enums::BankNames::BawagPskAg,
-                                    enums::BankNames::BksBankAg,
-                                    enums::BankNames::BrullKallmusBankAg,
-                                    enums::BankNames::BtvVierLanderBank,
-                                    enums::BankNames::Bunq,
-                                    enums::BankNames::CapitalBankGraweGruppeAg,
-                                    enums::BankNames::Citi,
-                                    enums::BankNames::Dolomitenbank,
-                                    enums::BankNames::EasybankAg,
-                                    enums::BankNames::ErsteBankUndSparkassen,
-                                    enums::BankNames::Handelsbanken,
-                                    enums::BankNames::HypoAlpeadriabankInternationalAg,
-                                    enums::BankNames::HypoNoeLbFurNiederosterreichUWien,
-                                    enums::BankNames::HypoOberosterreichSalzburgSteiermark,
-                                    enums::BankNames::HypoTirolBankAg,
-                                    enums::BankNames::HypoVorarlbergBankAg,
-                                    enums::BankNames::HypoBankBurgenlandAktiengesellschaft,
-                                    enums::BankNames::Ing,
-                                    enums::BankNames::Knab,
-                                    enums::BankNames::MarchfelderBank,
-                                    enums::BankNames::OberbankAg,
-                                    enums::BankNames::RaiffeisenBankengruppeOsterreich,
-                                    enums::BankNames::Rabobank,
-                                    enums::BankNames::Regiobank,
-                                    enums::BankNames::Revolut,
-                                    enums::BankNames::SnsBank,
-                                    enums::BankNames::TriodosBank,
-                                    enums::BankNames::VanLanschot,
-                                    enums::BankNames::Moneyou,
-                                    enums::BankNames::SchoellerbankAg,
-                                    enums::BankNames::SpardaBankWien,
-                                    enums::BankNames::VolksbankGruppe,
-                                    enums::BankNames::VolkskreditbankAg,
-                                    enums::BankNames::VrBankBraunau,
-                                    enums::BankNames::PlusBank,
-                                    enums::BankNames::EtransferPocztowy24,
-                                    enums::BankNames::BankiSpbdzielcze,
-                                    enums::BankNames::BankNowyBfgSa,
-                                    enums::BankNames::GetinBank,
-                                    enums::BankNames::Blik,
-                                    enums::BankNames::NoblePay,
-                                    enums::BankNames::IdeaBank,
-                                    enums::BankNames::EnveloBank,
-                                    enums::BankNames::NestPrzelew,
-                                    enums::BankNames::MbankMtransfer,
-                                    enums::BankNames::Inteligo,
-                                    enums::BankNames::PbacZIpko,
-                                    enums::BankNames::BnpParibas,
-                                    enums::BankNames::BankPekaoSa,
-                                    enums::BankNames::VolkswagenBank,
-                                    enums::BankNames::AliorBank,
-                                    enums::BankNames::Boz,
-                                ]
-                                .into_iter()
-                                .collect(),
+                                bank_config
+                                    .0
+                                    .get(&enums::PaymentMethodType::Eps)
+                                    .and_then(|connector_bank_names| {
+                                        connector_bank_names.0.get("stripe")
+                                    })
+                                    .map(|bank_names| bank_names.banks.clone())
+                                    .unwrap_or_default(),
                             ),
                             RequiredField::BillingLastName("billing_name", FieldType::UserFullName),
                         ],
@@ -3209,6 +3164,19 @@ fn get_bank_debit_required_fields() -> HashMap<enums::PaymentMethodType, Connect
                 (
                     Connector::Inespay,
                     fields(vec![], vec![], vec![RequiredField::SepaBankDebitIban]),
+                ),
+                (
+                    Connector::Nordea,
+                    RequiredFieldFinal {
+                        mandate: HashMap::new(),
+
+                        non_mandate: HashMap::new(),
+
+                        common: HashMap::from([
+                            RequiredField::BillingAddressCountries(vec!["DK,FI,NO,SE"]).to_tuple(),
+                            RequiredField::SepaBankDebitIban.to_tuple(),
+                        ]),
+                    },
                 ),
             ]),
         ),

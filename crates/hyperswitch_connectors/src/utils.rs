@@ -1696,6 +1696,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
     fn get_ip_address_as_optional(&self) -> Option<Secret<String, IpAddress>>;
+    fn get_ip_address(&self) -> Result<Secret<String, IpAddress>, Error>;
     fn get_optional_user_agent(&self) -> Option<String>;
     fn get_original_amount(&self) -> i64;
     fn get_surcharge_amount(&self) -> Option<i64>;
@@ -1817,6 +1818,16 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
                 .ip_address
                 .map(|ip| Secret::new(ip.to_string()))
         })
+    }
+    fn get_ip_address(&self) -> Result<Secret<String, IpAddress>, Error> {
+        let ip_address = self
+            .browser_info
+            .clone()
+            .and_then(|browser_info| browser_info.ip_address);
+
+        let val = ip_address.ok_or_else(missing_field_err("browser_info.ip_address"))?;
+
+        Ok(Secret::new(val.to_string()))
     }
     fn get_optional_user_agent(&self) -> Option<String> {
         self.browser_info
