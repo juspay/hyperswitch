@@ -18,7 +18,10 @@ use diesel_models::{enums, routing_algorithm};
 use error_stack::ResultExt;
 use euclid::{
     backend::BackendInput,
-    frontend::ast::{self},
+    frontend::{
+        ast::{self},
+        dir::{self, transformers::IntoDirValue},
+    },
 };
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use external_services::grpc_client::dynamic_routing as ir_client;
@@ -600,6 +603,16 @@ pub fn convert_backend_input_to_routing_eval(
             Some(ValueType::EnumVariant(pmt.to_string())),
         );
     }
+    if let Some(pm) = input.payment_method.payment_method {
+        if let Some(pmt) = input.payment_method.payment_method_type {
+            logger::error!(">>>>>>>>>0>>>>>>>");
+            if let Ok(dv) = (pmt, pm).into_dir_value() {
+                logger::error!(">>>>>>>>>1>>>>>>>");
+                logger::error!(">>>>>>>>>>>>>>>>{:?}", dv);
+                insert_dirvalue_param(&mut params, dv);
+            }
+        }
+    }
     if let Some(network) = input.payment_method.card_network {
         params.insert(
             "card_network".to_string(),
@@ -645,6 +658,106 @@ pub fn convert_backend_input_to_routing_eval(
         parameters: params,
         fallback_output,
     })
+}
+
+// All the independent variants of payment method types, configured via dashboard
+fn insert_dirvalue_param(params: &mut HashMap<String, Option<ValueType>>, dv: dir::DirValue) {
+    match dv {
+        dir::DirValue::RewardType(v) => {
+            params.insert(
+                "reward".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::CardType(v) => {
+            params.insert(
+                "card".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::PayLaterType(v) => {
+            params.insert(
+                "pay_later".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::WalletType(v) => {
+            params.insert(
+                "wallet".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::VoucherType(v) => {
+            params.insert(
+                "voucher".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::BankRedirectType(v) => {
+            params.insert(
+                "bank_redirect".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::BankDebitType(v) => {
+            params.insert(
+                "bank_debit".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::BankTransferType(v) => {
+            params.insert(
+                "bank_transfer".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::RealTimePaymentType(v) => {
+            params.insert(
+                "real_time_payment".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::UpiType(v) => {
+            params.insert(
+                "upi".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::GiftCardType(v) => {
+            params.insert(
+                "gift_card".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::CardRedirectType(v) => {
+            params.insert(
+                "card_redirect".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::OpenBankingType(v) => {
+            params.insert(
+                "open_banking".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::MobilePaymentType(v) => {
+            params.insert(
+                "mobile_payment".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::CryptoType(v) => {
+            params.insert(
+                "crypto".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        _ => {
+            // all other values can be ignored for now as they don't converge with
+            // payment method type
+        }
+    }
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
