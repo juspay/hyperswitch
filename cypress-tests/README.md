@@ -418,7 +418,7 @@ curl -X POST "http://localhost:3010/silverflow/charges" \
 To use the mock server with Hyperswitch, you need to redirect the base URL for the Silverflow connector to the mock server. Run Hyperswitch with the following environment variable:
 
 ```bash
-ROUTER__CONNECTORS__SILVERFLOW__BASE_URL=http://localhost:3010 cargo r
+ROUTER__CONNECTORS__SILVERFLOW__BASE_URL=http://localhost:3010/silverflow cargo r
 ```
 
 This will redirect all Silverflow API calls from Hyperswitch to your local mock server instead of the actual Silverflow API.
