@@ -2248,7 +2248,6 @@ impl From<&NuveiWebhook> for NuveiWebhookTransactionId {
     }
 }
 
-
 // Convert webhook to payments response for further processing
 impl From<NuveiWebhook> for NuveiPaymentsResponse {
     fn from(webhook: NuveiWebhook) -> Self {
