@@ -45,6 +45,8 @@ CREATE TABLE payment_attempt_queue (
     `card_network` Nullable(String),
     `routing_approach` LowCardinality(Nullable(String)),
     `debit_routing_savings` Nullable(UInt32),
+    `signature_network` Nullable(String),
+    `is_issuer_regulated` Nullable(Bool),
     `sign_flag` Int8
 ) ENGINE = Kafka SETTINGS kafka_broker_list = 'kafka0:29092',
 kafka_topic_list = 'hyperswitch-payment-attempt-events',
@@ -100,6 +102,8 @@ CREATE TABLE payment_attempts (
     `card_network` Nullable(String),
     `routing_approach` LowCardinality(Nullable(String)),
     `debit_routing_savings` Nullable(UInt32),
+    `signature_network` Nullable(String),
+    `is_issuer_regulated` Nullable(Bool),
     `sign_flag` Int8,
     INDEX connectorIndex connector TYPE bloom_filter GRANULARITY 1,
     INDEX paymentMethodIndex payment_method TYPE bloom_filter GRANULARITY 1,
@@ -107,8 +111,7 @@ CREATE TABLE payment_attempts (
     INDEX currencyIndex currency TYPE bloom_filter GRANULARITY 1,
     INDEX statusIndex status TYPE bloom_filter GRANULARITY 1
 ) ENGINE = CollapsingMergeTree(sign_flag) PARTITION BY toStartOfDay(created_at)
-ORDER BY
-    (created_at, merchant_id, attempt_id) TTL created_at + toIntervalMonth(18) SETTINGS index_granularity = 8192;
+ORDER BY (created_at, merchant_id, attempt_id) TTL created_at + toIntervalMonth(18) SETTINGS index_granularity = 8192;
 
 CREATE MATERIALIZED VIEW payment_attempt_mv TO payment_attempts (
     `payment_id` String,
@@ -158,10 +161,11 @@ CREATE MATERIALIZED VIEW payment_attempt_mv TO payment_attempts (
     `card_network` Nullable(String),
     `routing_approach` LowCardinality(Nullable(String)),
     `debit_routing_savings` Nullable(UInt32),
+    `signature_network` Nullable(String),
+    `is_issuer_regulated` Nullable(Bool),
     `sign_flag` Int8
 ) AS
-SELECT
-    payment_id,
+SELECT payment_id,
     merchant_id,
     attempt_id,
     status,
@@ -208,8 +212,8 @@ SELECT
     card_network,
     routing_approach,
     debit_routing_savings,
+    signature_network,
+    is_issuer_regulated,
     sign_flag
-FROM
-    payment_attempt_queue
-WHERE
-    length(_error) = 0;
+FROM payment_attempt_queue
+WHERE length(_error) = 0;
