@@ -82,13 +82,18 @@ pub async fn call_proxy_api(
     payment_intent: &payments_domain::PaymentIntent,
     revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
     revenue_recovery: &payments_api::PaymentRevenueRecoveryMetadata,
-    active_token: storage::revenue_recovery_redis_operation::PaymentProcessorTokenDetails,
+    scheduled_token: storage::revenue_recovery_redis_operation::PaymentProcessorTokenStatus,
 ) -> RouterResult<payments_domain::PaymentConfirmData<api_types::Authorize>> {
     let operation = payments::operations::proxy_payments_intent::PaymentProxyIntent;
+    let token = scheduled_token
+        .payment_processor_token_details
+        .payment_processor_token;
+    let expiry_month = scheduled_token.payment_processor_token_details.expiry_month;
+    let expiry_year = scheduled_token.payment_processor_token_details.expiry_year;
     let req = payments_api::ProxyPaymentsRequest {
         return_url: None,
         amount: payments_api::AmountDetails::new(payment_intent.amount_details.clone().into()),
-        recurring_details: revenue_recovery.get_payment_token_for_api_request(),
+        recurring_details: revenue_recovery.get_payment_token_for_api_request(token),
         shipping: None,
         browser_info: None,
         connector: revenue_recovery.connector.to_string(),
@@ -170,6 +175,42 @@ pub async fn update_payment_intent_api(
     )
     .await?;
     Ok(payment_data)
+}
+
+pub async fn get_payment_attempt_for_revenue_recovery(
+    state: &SessionState,
+    payment_id: &id_type::GlobalPaymentId,
+    revenue_recovery_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
+) -> RouterResult<payments_domain::payment_attempt::PaymentAttempt> {
+    let operation = payments::operations::PaymentGet;
+    let req = payments_api::PaymentsRetrieveRequest {
+        force_sync: false,
+        param: None,
+        expand_attempts: true,
+        return_raw_connector_response: None,
+        merchant_connector_details: None,
+    };
+    let merchant_context_from_revenue_recovery_data =
+        MerchantContext::NormalMerchant(Box::new(Context(
+            revenue_recovery_data.merchant_account.clone(),
+            revenue_recovery_data.key_store.clone(),
+        )));
+    
+    // Get the tracker related information. This includes payment intent and payment attempt
+    // Using a unit type for the flow parameter since we only need the payment attempt data
+    let get_tracker_response: payments::operations::GetTrackerResponse<payments_domain::PaymentStatusData<()>> = operation
+        .to_get_tracker()?
+        .get_trackers(
+            state,
+            payment_id,
+            &req,
+            &merchant_context_from_revenue_recovery_data,
+            &revenue_recovery_data.profile,
+            &payments_domain::HeaderPayload::default(),
+        )
+        .await?;
+
+    Ok(get_tracker_response.payment_data.payment_attempt)
 }
 
 pub async fn record_internal_attempt_api(

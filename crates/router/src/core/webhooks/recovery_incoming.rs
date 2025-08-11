@@ -48,24 +48,6 @@ use crate::{
     workflows::revenue_recovery as revenue_recovery_flow,
 };
 
-// function to extract customer ID from payment intent
-pub fn extract_customer_id_from_intent(
-    payment_intent: &revenue_recovery::RecoveryPaymentIntent,
-) -> CustomResult<String, errors::RevenueRecoveryError> {
-    payment_intent
-        .feature_metadata
-        .as_ref()
-        .and_then(|metadata| metadata.revenue_recovery.as_ref())
-        .map(|recovery| {
-            recovery
-                .billing_connector_payment_details
-                .connector_customer_id
-                .clone()
-        })
-        .ok_or(report!(errors::RevenueRecoveryError::CustomerIdNotFound))
-        .attach_printable("Customer ID not found in payment intent feature metadata")
-}
-
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 #[cfg(feature = "revenue_recovery")]
