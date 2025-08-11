@@ -1,6 +1,7 @@
 use cards::CardNumber;
 use common_enums::enums;
 use common_utils::{pii::Email, request::Method, types::StringMajorUnit};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{BankDebitData, BankRedirectData, PaymentMethodData, WalletData},
     router_data::{ConnectorAuthType, PaymentMethodToken, RouterData},
@@ -329,11 +330,19 @@ fn get_payment_method_for_wallet(
                 shipping_address: get_shipping_details(item)?,
             },
         ))),
-        WalletData::ApplePay(applepay_wallet_data) => Ok(MolliePaymentMethodData::Applepay(
-            Box::new(ApplePayMethodData {
-                apple_pay_payment_token: Secret::new(applepay_wallet_data.payment_data.to_owned()),
-            }),
-        )),
+        WalletData::ApplePay(applepay_wallet_data) => {
+            let apple_pay_encrypted_data = applepay_wallet_data
+                .payment_data
+                .get_encrypted_apple_pay_payment_data_mandatory()
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "Apple pay encrypted data",
+                })?;
+            Ok(MolliePaymentMethodData::Applepay(Box::new(
+                ApplePayMethodData {
+                    apple_pay_payment_token: Secret::new(apple_pay_encrypted_data.to_owned()),
+                },
+            )))
+        }
         _ => Err(errors::ConnectorError::NotImplemented("Payment Method".to_string()).into()),
     }
 }

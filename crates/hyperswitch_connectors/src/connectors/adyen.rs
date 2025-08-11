@@ -208,6 +208,7 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Sepa
                 | PaymentMethodType::Vipps
                 | PaymentMethodType::Venmo
+                | PaymentMethodType::Skrill
                 | PaymentMethodType::Paypal => match capture_method {
                     enums::CaptureMethod::Automatic
                     | enums::CaptureMethod::SequentialAutomatic
@@ -303,6 +304,7 @@ impl ConnectorValidation for Adyen {
                     }
                 },
                 PaymentMethodType::AmazonPay
+                | PaymentMethodType::Breadpay
                 | PaymentMethodType::Paysera
                 | PaymentMethodType::Skrill
                 | PaymentMethodType::CardRedirect
@@ -336,8 +338,11 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::InstantBankTransfer
                 | PaymentMethodType::InstantBankTransferFinland
                 | PaymentMethodType::InstantBankTransferPoland
+                | PaymentMethodType::IndonesianBankTransfer
                 | PaymentMethodType::SepaBankTransfer
-                | PaymentMethodType::RevolutPay => {
+                | PaymentMethodType::Flexiti
+                | PaymentMethodType::RevolutPay
+                | PaymentMethodType::Bluecode => {
                     capture_method_not_supported!(connector, capture_method, payment_method_type)
                 }
             },
@@ -1843,6 +1848,7 @@ impl IncomingWebhook for Adyen {
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+
         Ok(transformers::get_adyen_webhook_event(
             notif.event_code,
             notif.success,

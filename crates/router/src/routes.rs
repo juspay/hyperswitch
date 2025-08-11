@@ -91,8 +91,9 @@ pub use self::app::{
     ApiKeys, AppState, ApplePayCertificatesMigration, Authentication, Cache, Cards, Chat, Configs,
     ConnectorOnboarding, Customers, Disputes, EphemeralKey, FeatureMatrix, Files, Forex, Gsm,
     Health, Hypersense, Mandates, MerchantAccount, MerchantConnectorAccount, PaymentLink,
-    PaymentMethods, Payments, Poll, ProcessTracker, Profile, ProfileAcquirer, ProfileNew, Refunds,
-    Relay, RelayWebhooks, SessionState, ThreeDsDecisionRule, User, Webhooks,
+    PaymentMethods, Payments, Poll, ProcessTracker, ProcessTrackerDeprecated, Profile,
+    ProfileAcquirer, ProfileNew, Refunds, Relay, RelayWebhooks, SessionState, ThreeDsDecisionRule,
+    User, UserDeprecated, Webhooks,
 };
 #[cfg(feature = "olap")]
 pub use self::app::{Blocklist, Organization, Routing, Verify, WebhookEvents};

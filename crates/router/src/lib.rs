@@ -92,6 +92,12 @@ pub mod headers {
     pub const X_CLIENT_SECRET: &str = "X-Client-Secret";
     pub const X_CUSTOMER_ID: &str = "X-Customer-Id";
     pub const X_CONNECTED_MERCHANT_ID: &str = "x-connected-merchant-id";
+    // Header value for X_CONNECTOR_HTTP_STATUS_CODE differs by version.
+    // Constant name is kept the same for consistency across versions.
+    #[cfg(feature = "v1")]
+    pub const X_CONNECTOR_HTTP_STATUS_CODE: &str = "connector_http_status_code";
+    #[cfg(feature = "v2")]
+    pub const X_CONNECTOR_HTTP_STATUS_CODE: &str = "x-connector-http-status-code";
 }
 
 pub mod pii {
@@ -210,7 +216,10 @@ pub fn mk_app(
 
         #[cfg(feature = "v2")]
         {
-            server_app = server_app.service(routes::ProcessTracker::server(state.clone()));
+            server_app = server_app
+                .service(routes::UserDeprecated::server(state.clone()))
+                .service(routes::ProcessTrackerDeprecated::server(state.clone()))
+                .service(routes::ProcessTracker::server(state.clone()));
         }
     }
 

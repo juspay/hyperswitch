@@ -396,12 +396,7 @@ async fn build_and_send_request(
 
     state
         .api_client
-        .send_request(
-            state,
-            request,
-            Some(types::OUTGOING_WEBHOOK_TIMEOUT_SECS),
-            false,
-        )
+        .send_request(state, request, None, false)
         .await
 }
 

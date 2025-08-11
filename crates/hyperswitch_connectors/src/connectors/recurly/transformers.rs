@@ -265,10 +265,12 @@ impl TryFrom<enums::AttemptStatus> for RecurlyRecordStatus {
             | enums::AttemptStatus::AuthenticationPending
             | enums::AttemptStatus::AuthenticationSuccessful
             | enums::AttemptStatus::Authorized
+            | enums::AttemptStatus::PartiallyAuthorized
             | enums::AttemptStatus::AuthorizationFailed
             | enums::AttemptStatus::Authorizing
             | enums::AttemptStatus::CodInitiated
             | enums::AttemptStatus::Voided
+            | enums::AttemptStatus::VoidedPostCharge
             | enums::AttemptStatus::VoidInitiated
             | enums::AttemptStatus::CaptureInitiated
             | enums::AttemptStatus::VoidFailed
@@ -278,7 +280,8 @@ impl TryFrom<enums::AttemptStatus> for RecurlyRecordStatus {
             | enums::AttemptStatus::PaymentMethodAwaited
             | enums::AttemptStatus::ConfirmationAwaited
             | enums::AttemptStatus::DeviceDataCollectionPending
-            | enums::AttemptStatus::IntegrityFailure => Err(errors::ConnectorError::NotSupported {
+            | enums::AttemptStatus::IntegrityFailure
+            | enums::AttemptStatus::Expired => Err(errors::ConnectorError::NotSupported {
                 message: "Record back flow is only supported for terminal status".to_string(),
                 connector: "recurly",
             }
@@ -441,6 +444,7 @@ impl
                                 .and_then(|address| address.postal_code),
                             first_name: None,
                             last_name: None,
+                            origin_zip: None,
                         }),
                         phone: None,
                         email: None,
