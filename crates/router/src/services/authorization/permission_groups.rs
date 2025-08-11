@@ -159,6 +159,10 @@ impl ParentGroupExt for ParentGroup {
     }
 
     fn validate_scopes(&self, scopes: &[PermissionScope]) -> Result<(), UserErrors> {
+        if scopes.is_empty() {
+            return Err(UserErrors::InvalidRoleOperation);
+        }
+
         let valid_scopes: Vec<PermissionScope> = PermissionGroup::iter()
             .filter(|group| group.parent() == *self)
             .map(|group| group.scope())

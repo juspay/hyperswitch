@@ -29,14 +29,6 @@ fn parent_group_info_to_permission_groups(
 
     for parent_group in parent_groups {
         let scopes = &parent_group.scopes;
-        if scopes.is_empty() {
-            return Err(UserErrors::InvalidRoleOperation);
-        }
-        for scope in scopes {
-            match scope {
-                PermissionScope::Read | PermissionScope::Write => {}
-            }
-        }
         parent_group.name.validate_scopes(scopes)?;
 
         let groups = PermissionGroup::iter()
