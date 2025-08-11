@@ -278,7 +278,11 @@ impl TryFrom<(&WalletData, &Option<PaymentMethodToken>)> for TokenizedCardData {
             .change_context(errors::ConnectorError::MissingRequiredField {
                 field_name: "Apple pay expiry year",
             })?;
-        let expiry_month = apple_pay_decrypt_data.get_expiry_month();
+        let expiry_month = apple_pay_decrypt_data.get_expiry_month().change_context(
+            errors::ConnectorError::InvalidDataFormat {
+                field_name: "expiration_month",
+            },
+        )?;
 
         Ok(Self {
             card_data: ArchipelTokenizedCard {
