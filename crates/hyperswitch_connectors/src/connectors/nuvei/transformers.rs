@@ -1206,7 +1206,7 @@ where
                 (
                     None,
                     Some(V2AdditionalParams {
-                        rebill_expiry:None,
+                        rebill_expiry: None,
                         rebill_frequency: None,
                         challenge_window_size: Some("05".to_string()),
                         challenge_preference: Some("01".to_string()),
@@ -1290,16 +1290,17 @@ impl TryFrom<(&types::PaymentsCompleteAuthorizeRouterData, Secret<String>)>
         let item = data.0;
         let request_data = match item.request.payment_method_data.clone() {
             Some(PaymentMethodData::Card(card)) => {
-                let device_details= DeviceDetails::foreign_try_from(&item.request.browser_info)?;
+                let device_details = DeviceDetails::foreign_try_from(&item.request.browser_info)?;
                 Ok(Self {
-                payment_option: PaymentOption::from(NuveiCardDetails {
-                    card,
-                    three_d: None,
-                    card_holder_name: item.get_optional_billing_full_name(),
-                }),
-                device_details,
-                ..Default::default()
-            })},
+                    payment_option: PaymentOption::from(NuveiCardDetails {
+                        card,
+                        three_d: None,
+                        card_holder_name: item.get_optional_billing_full_name(),
+                    }),
+                    device_details,
+                    ..Default::default()
+                })
+            }
             Some(PaymentMethodData::Wallet(..))
             | Some(PaymentMethodData::PayLater(..))
             | Some(PaymentMethodData::BankDebit(..))
