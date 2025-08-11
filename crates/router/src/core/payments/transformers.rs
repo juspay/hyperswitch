@@ -1170,6 +1170,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
     merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
     _merchant_recipient_data: Option<types::MerchantRecipientData>,
     header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+    payment_method_type: Option<common_enums::PaymentMethodType>,
 ) -> RouterResult<types::PaymentsSessionRouterData> {
     fp_utils::when(merchant_connector_account.is_disabled(), || {
         Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
@@ -1902,6 +1903,11 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         .payment_attempt
         .payment_method
         .or(payment_data.payment_attempt.payment_method)
+        .get_required_value("payment_method_type")?;
+    let payment_method_type = payment_data
+        .payment_attempt
+        .payment_method_type
+        .or(payment_data.payment_attempt.payment_method_type)
         .get_required_value("payment_method_type")?;
 
     // [#44]: why should response be filled during request

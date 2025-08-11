@@ -4,6 +4,7 @@ use api_models::{admin::PaymentMethodsEnabled, enums::FrmSuggestion};
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, ValueExt};
 use error_stack::ResultExt;
+use hyperswitch_interfaces::api::ConnectorSpecifications;
 use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
 

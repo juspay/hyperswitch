@@ -11,6 +11,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
+    ext_traits::OptionExt,
     payment_method_data::{PaymentMethodData, WalletData},
     router_data::{ConnectorAuthType, PaymentMethodToken, RouterData},
     router_flow_types::refunds::{Execute, RSync},
@@ -434,6 +435,26 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
                         },
                     }))
                 }
+                WalletData::PaypalSdk(ref req_wallet) => {
+                    let payment_method_id = req_wallet.token.clone();
+                    Ok(Self::PayPal(BraintreePayPalRequest {
+                        query: CHARGE_PAYPAL_MUTATION.to_string(),
+                        variables: GenericVariableInput {
+                            input: WalletPaymentInput {
+                                payment_method_id: payment_method_id.clone().ok_or(
+                                    errors::ConnectorError::MissingRequiredField {
+                                        field_name: "apple_pay token",
+                                    },
+                                )?,
+                                transaction: WalletTransactionBody {
+                                    amount: item.amount.clone(),
+                                    merchant_account_id: metadata.merchant_account_id,
+                                },
+                            },
+                        },
+                    }))
+                }
+                
                 _ => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("braintree"),
                 )
@@ -1545,6 +1566,14 @@ impl<F, T> TryFrom<ResponseRouterData<F, BraintreeTokenResponse, T, PaymentsResp
 #[derive(Debug, Clone, Display, Deserialize, Serialize)]
 #[serde(untagged)]
 #[serde(rename_all = "snake_case")]
+pub enum PaypalFlow {
+    #[strum(serialize = "checkout")]
+    Checkout,
+}
+
+#[derive(Debug, Clone, Display, Deserialize, Serialize)]
+#[serde(untagged)]
+#[serde(rename_all = "snake_case")]
 pub enum GooglePayPriceStatus {
     #[strum(serialize = "FINAL")]
     Final,
@@ -1702,6 +1731,47 @@ impl
                                     },
                                 },
                             ),
+                        ))
+                    }
+                    common_enums::PaymentMethodType::Paypal => {
+                        let metadata = data.connector_meta_data.clone();
+
+                        let paypal_sdk_data = data
+                            .connector_meta_data
+                            .clone()
+                            .parse_value::<payment_types::PaypalSdkSessionTokenData>(
+                                "PaypalSdkSessionTokenData",
+                            )
+                            .change_context(errors::ConnectorError::NoConnectorMetaData)
+                            .attach_printable(format!(
+                                "cannot parse paypal_sdk metadata from the given value {metadata:?}"
+                            ))?;
+
+                        SessionToken::Paypal(Box::new(
+                            api_models::payments::PaypalSessionTokenResponse {
+                                connector: "braintree".to_string(),
+                                session_token: paypal_sdk_data.data.client_id,
+                                sdk_next_action: api_models::payments::SdkNextAction {
+                                    next_action: api_models::payments::NextActionCall::Confirm,
+                                },
+                                client_token: Some(
+                                    res.data.create_client_token.client_token.clone().expose(),
+                                ),
+                                transaction_info: Some(
+                                    api_models::payments::PaypalTransactionInfo {
+                                        flow: PaypalFlow::Checkout.to_string(),
+                                        currency_code: data.request.currency,
+                                        total_price: StringMajorUnitForConnector
+                                            .convert(
+                                                MinorUnit::new(data.request.amount),
+                                                data.request.currency,
+                                            )
+                                            .change_context(
+                                                errors::ConnectorError::AmountConversionFailed,
+                                            )?,
+                                    },
+                                ),
+                            },
                         ))
                     }
                     _ => {
