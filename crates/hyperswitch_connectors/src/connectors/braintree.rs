@@ -39,12 +39,10 @@ use hyperswitch_domain_models::{
     },
     types::{
         MandateRevokeRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
-        PaymentsCaptureRouterData, PaymentsCompleteAuthorizeRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData, TokenizationRouterData,
+        PaymentsCaptureRouterData, PaymentsCompleteAuthorizeRouterData, PaymentsSessionRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData, TokenizationRouterData,
     },
 };
-use hyperswitch_domain_models::types::PaymentsSessionRouterData;
-use hyperswitch_interfaces::types::PaymentsSessionType;
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse,
@@ -57,8 +55,8 @@ use hyperswitch_interfaces::{
     events::connector_api_logs::ConnectorEvent,
     types::{
         MandateRevokeType, PaymentsAuthorizeType, PaymentsCaptureType,
-        PaymentsCompleteAuthorizeType, PaymentsSyncType, PaymentsVoidType, RefundExecuteType,
-        RefundSyncType, Response, TokenizationType,
+        PaymentsCompleteAuthorizeType, PaymentsSessionType, PaymentsSyncType, PaymentsVoidType,
+        RefundExecuteType, RefundSyncType, Response, TokenizationType,
     },
     webhooks::{IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails},
 };
@@ -304,11 +302,14 @@ impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> fo
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        utils::ForeignTryFrom::foreign_try_from((
+            crate::types::PaymentsSessionResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            data.clone(),
+        ))
     }
 
     fn get_error_response(
@@ -1438,5 +1439,17 @@ impl ConnectorSpecifications for Braintree {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&BRAINTREE_SUPPORTED_WEBHOOK_FLOWS)
+    }
+
+    fn is_sdk_session_token_generation_enabled(&self) -> bool {
+        true
+    }
+
+    fn supported_payment_methods_for_sdk_session_token(&self) -> Vec<enums::PaymentMethodType> {
+        vec![
+            enums::PaymentMethodType::ApplePay,
+            enums::PaymentMethodType::GooglePay,
+            enums::PaymentMethodType::Paypal,
+        ]
     }
 }

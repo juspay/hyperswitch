@@ -1905,13 +1905,10 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::OpenBankingPIS => Self::OpenBanking,
             PaymentMethodType::DirectCarrierBilling => Self::MobilePayment,
             PaymentMethodType::RevolutPay => Self::Wallet,
-            PaymentMethodType::Skrill => Self::Wallet,
-            PaymentMethodType::Paysera => Self::Wallet,
             PaymentMethodType::IndonesianBankTransfer => Self::BankTransfer,
         }
     }
 }
-  
 
 #[derive(Debug)]
 pub struct NumericCountryCodeParseError;
