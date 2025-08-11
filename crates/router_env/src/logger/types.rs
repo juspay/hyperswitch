@@ -473,6 +473,8 @@ pub enum Flow {
     PaymentsAuthorize,
     /// Create Role
     CreateRole,
+    /// Create Role V2
+    CreateRoleV2,
     /// Update Role
     UpdateRole,
     /// User email flow start
@@ -644,8 +646,6 @@ pub enum Flow {
     DecisionEngineGatewayFeedbackCall,
     /// Recovery payments create flow.
     RecoveryPaymentsCreate,
-    /// Create Role V2
-    CreateRoleV2,
 }
 
 /// Trait for providing generic behaviour to flow metric
