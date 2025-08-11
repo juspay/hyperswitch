@@ -593,4 +593,24 @@ impl RedisTokenManager {
 
         Ok(scheduled_token)
     }
+    #[instrument(skip_all)]
+    pub async fn get_token_with_max_retry_remaining(
+        state: &SessionState,
+        connector_customer_id: &str,
+    ) -> CustomResult<Option<PaymentProcessorTokenWithRetryInfo>, errors::StorageError> {
+        // Get all tokens for the customer
+        let tokens_map = Self::get_connector_customer_payment_processor_tokens(state, connector_customer_id).await?;
+
+        // Decorate tokens with retry metadata
+        let tokens_with_retry = Self::get_tokens_with_retry_metadata(state, &tokens_map);
+
+        // Find the token with max retry remaining
+        let max_retry_token = tokens_with_retry
+            .into_iter()
+            .max_by_key(|(_, token_info)| token_info.monthly_retry_remaining)
+            .map(|(_, token_info)| token_info);
+
+        Ok(max_retry_token)
+    }
+
 }
