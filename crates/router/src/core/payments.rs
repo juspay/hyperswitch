@@ -5031,24 +5031,27 @@ where
         let apple_pay_wallet_data = payment_data
             .get_payment_method_data()
             .and_then(|payment_method_data| payment_method_data.get_wallet_data())
-            .and_then(|wallet_data| wallet_data.get_apple_pay_wallet_data())
-            .get_required_value("Apple Pay wallet token")
-            .attach_printable(
-                "Apple Pay wallet data not found in the payment method data during the Apple Pay predecryption flow",
-            )?;
+            .and_then(|wallet_data| wallet_data.get_apple_pay_wallet_data());
 
-        match &apple_pay_wallet_data.payment_data {
-            common_payments_types::ApplePayPaymentData::Encrypted(_) => Ok(None),
-            common_payments_types::ApplePayPaymentData::Decrypted(apple_pay_predecrypt_data) => {
-                helpers::validate_card_expiry(
-                    &apple_pay_predecrypt_data.application_expiration_month,
-                    &apple_pay_predecrypt_data.application_expiration_year,
-                )?;
-                Ok(Some(PaymentMethodToken::ApplePayDecrypt(Box::new(
-                    apple_pay_predecrypt_data.clone(),
-                ))))
+        let result = if let Some(data) = apple_pay_wallet_data {
+            match &data.payment_data {
+                common_payments_types::ApplePayPaymentData::Encrypted(_) => None,
+                common_payments_types::ApplePayPaymentData::Decrypted(
+                    apple_pay_predecrypt_data,
+                ) => {
+                    helpers::validate_card_expiry(
+                        &apple_pay_predecrypt_data.application_expiration_month,
+                        &apple_pay_predecrypt_data.application_expiration_year,
+                    )?;
+                    Some(PaymentMethodToken::ApplePayDecrypt(Box::new(
+                        apple_pay_predecrypt_data.clone(),
+                    )))
+                }
             }
-        }
+        } else {
+            None
+        };
+        Ok(result)
     }
 
     fn decide_wallet_flow(
@@ -5140,24 +5143,27 @@ where
         let google_pay_wallet_data = payment_data
             .get_payment_method_data()
             .and_then(|payment_method_data| payment_method_data.get_wallet_data())
-            .and_then(|wallet_data| wallet_data.get_google_pay_wallet_data())
-            .get_required_value("GooglePay wallet token")
-            .attach_printable(
-                "GooglePay wallet data not found in the payment method data during the Apple Pay predecryption flow",
-            )?;
+            .and_then(|wallet_data| wallet_data.get_google_pay_wallet_data());
 
-        match &google_pay_wallet_data.tokenization_data {
-            common_payments_types::GpayTokenizationData::Encrypted(_) => Ok(None),
-            common_payments_types::GpayTokenizationData::Decrypted(google_pay_predecrypt_data) => {
-                helpers::validate_card_expiry(
-                    &google_pay_predecrypt_data.card_exp_month,
-                    &google_pay_predecrypt_data.card_exp_year,
-                )?;
-                Ok(Some(PaymentMethodToken::GooglePayDecrypt(Box::new(
-                    google_pay_predecrypt_data.clone(),
-                ))))
+        let result = if let Some(data) = google_pay_wallet_data {
+            match &data.tokenization_data {
+                common_payments_types::GpayTokenizationData::Encrypted(_) => None,
+                common_payments_types::GpayTokenizationData::Decrypted(
+                    google_pay_predecrypt_data,
+                ) => {
+                    helpers::validate_card_expiry(
+                        &google_pay_predecrypt_data.card_exp_month,
+                        &google_pay_predecrypt_data.card_exp_year,
+                    )?;
+                    Some(PaymentMethodToken::GooglePayDecrypt(Box::new(
+                        google_pay_predecrypt_data.clone(),
+                    )))
+                }
             }
-        }
+        } else {
+            None
+        };
+        Ok(result)
     }
     fn decide_wallet_flow(
         &self,

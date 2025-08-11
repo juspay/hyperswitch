@@ -4,6 +4,31 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.08.11.0
+
+### Features
+
+- **checkbook_io:** Connector integrate ACH ([#8730](https://github.com/juspay/hyperswitch/pull/8730)) ([`bee4aed`](https://github.com/juspay/hyperswitch/commit/bee4aed40cf0f332d9878a5b80a1d7440002cdfc))
+- **connector:** [SIFT] add Connector Template Code ([#8488](https://github.com/juspay/hyperswitch/pull/8488)) ([`2d3abd7`](https://github.com/juspay/hyperswitch/commit/2d3abd711a7382a1fa8b5fbfeccbbab2ef6d4255))
+- **core:**
+  - Adding integration for webhooks through UCS ([#8814](https://github.com/juspay/hyperswitch/pull/8814)) ([`06dc66c`](https://github.com/juspay/hyperswitch/commit/06dc66c62e33c1c56c42aab18a7959e1648d6fae))
+  - Fix Applepay/Gpay for Trustpay ([#8881](https://github.com/juspay/hyperswitch/pull/8881)) ([`7a3b4da`](https://github.com/juspay/hyperswitch/commit/7a3b4dacb2d0f4ce57f7a833be91d963f6e335e1))
+- **router:** Add tokenization support for proxy and update the route for proxy ([#8530](https://github.com/juspay/hyperswitch/pull/8530)) ([`767dee9`](https://github.com/juspay/hyperswitch/commit/767dee9eb0b0dc8de471b47c123aee7cb516b998))
+- **v2:** Introduce configs and health endpoints for v2 ([#8835](https://github.com/juspay/hyperswitch/pull/8835)) ([`8bbb768`](https://github.com/juspay/hyperswitch/commit/8bbb76840bb5b560b0e4d0f98c5fd5530dc11cef))
+
+### Bug Fixes
+
+- **ci:** Fix Spell Check For CI Pull Request ([#8857](https://github.com/juspay/hyperswitch/pull/8857)) ([`ede0b4f`](https://github.com/juspay/hyperswitch/commit/ede0b4f74eeddea5d7c7306e82fcdf47d9fc17a2))
+- **connector:** Change Refund Reason Type in Adyen ([#8849](https://github.com/juspay/hyperswitch/pull/8849)) ([`3547eac`](https://github.com/juspay/hyperswitch/commit/3547eac397fa09794625e8c48b548e4a445bae77))
+
+### Refactors
+
+- **euclid:** Refactor logs for evaluation of equality for dynamic routing evaluate response ([#8834](https://github.com/juspay/hyperswitch/pull/8834)) ([`ef27ac5`](https://github.com/juspay/hyperswitch/commit/ef27ac5c3df80ff4886dfce97ab5b8e278320ce1))
+
+**Full Changelog:** [`2025.08.08.1...2025.08.11.0`](https://github.com/juspay/hyperswitch/compare/2025.08.08.1...2025.08.11.0)
+
+- - -
+
 ## 2025.08.08.1
 
 ### Features
