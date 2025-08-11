@@ -754,7 +754,8 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Wise {}
 impl IncomingWebhook for Wise {
     fn get_webhook_object_reference_id(
         &self,
-        request: &IncomingWebhookRequestDetails<'_>,
+        #[cfg(feature = "payouts")] request: &IncomingWebhookRequestDetails<'_>,
+        #[cfg(not(feature = "payouts"))] _request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, ConnectorError> {
         #[cfg(feature = "payouts")]
         {
@@ -777,7 +778,8 @@ impl IncomingWebhook for Wise {
 
     fn get_webhook_event_type(
         &self,
-        request: &IncomingWebhookRequestDetails<'_>,
+        #[cfg(feature = "payouts")] request: &IncomingWebhookRequestDetails<'_>,
+        #[cfg(not(feature = "payouts"))] _request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<IncomingWebhookEvent, ConnectorError> {
         #[cfg(feature = "payouts")]
         {
@@ -798,7 +800,8 @@ impl IncomingWebhook for Wise {
 
     fn get_webhook_resource_object(
         &self,
-        request: &IncomingWebhookRequestDetails<'_>,
+        #[cfg(feature = "payouts")] request: &IncomingWebhookRequestDetails<'_>,
+        #[cfg(not(feature = "payouts"))] _request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, ConnectorError> {
         #[cfg(feature = "payouts")]
         {
