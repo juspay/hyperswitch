@@ -5675,8 +5675,7 @@ pub async fn get_session_token_for_click_to_pay(
     )))
 }
 
-#[cfg(feature = "v1")]
-async fn get_card_brands_based_on_active_merchant_connector_account(
+pub async fn get_card_brands_based_on_active_merchant_connector_account(
     state: &SessionState,
     profile_id: &id_type::ProfileId,
     key_store: &domain::MerchantKeyStore,
@@ -5697,9 +5696,24 @@ async fn get_card_brands_based_on_active_merchant_connector_account(
     let payment_connectors_eligible_for_click_to_pay =
         state.conf.authentication_providers.click_to_pay.clone();
 
-    let filtered_payment_connector_accounts: Vec<
+    let filtered_payment_connector_accounts = filter_connector_accounts(
+        merchant_configured_payment_connectors,
+        payment_connectors_eligible_for_click_to_pay,
+    );
+
+    let card_brands = extract_card_brands(filtered_payment_connector_accounts)?;
+
+    Ok(card_brands)
+}
+
+#[cfg(feature = "v1")]
+fn filter_connector_accounts(
+    merchant_configured_payment_connectors: Vec<
         hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
-    > = merchant_configured_payment_connectors
+    >,
+    payment_connectors_eligible_for_click_to_pay: HashSet<enums::Connector>,
+) -> Vec<hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount> {
+    merchant_configured_payment_connectors
         .into_iter()
         .filter(|account| {
             enums::Connector::from_str(&account.connector_name)
@@ -5707,8 +5721,33 @@ async fn get_card_brands_based_on_active_merchant_connector_account(
                 .map(|connector| payment_connectors_eligible_for_click_to_pay.contains(&connector))
                 .unwrap_or(false)
         })
-        .collect();
+        .collect()
+}
 
+#[cfg(feature = "v2")]
+fn filter_connector_accounts(
+    merchant_configured_payment_connectors: Vec<
+        hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
+    >,
+    payment_connectors_eligible_for_click_to_pay: HashSet<enums::Connector>,
+) -> Vec<hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount> {
+    merchant_configured_payment_connectors
+        .into_iter()
+        .filter(|account| {
+            enums::Connector::from_str(account.connector_name.to_string().as_str())
+                .ok()
+                .map(|connector| payment_connectors_eligible_for_click_to_pay.contains(&connector))
+                .unwrap_or(false)
+        })
+        .collect()
+}
+
+#[cfg(feature = "v1")]
+fn extract_card_brands(
+    filtered_payment_connector_accounts: Vec<
+        hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
+    >,
+) -> RouterResult<HashSet<enums::CardNetwork>> {
     let mut card_brands = HashSet::new();
 
     for account in filtered_payment_connector_accounts {
@@ -5729,10 +5768,38 @@ async fn get_card_brands_based_on_active_merchant_connector_account(
             }
         }
     }
+
     Ok(card_brands)
 }
 
-fn validate_customer_details_for_click_to_pay(customer_details: &CustomerData) -> RouterResult<()> {
+#[cfg(feature = "v2")]
+fn extract_card_brands(
+    filtered_payment_connector_accounts: Vec<
+        hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
+    >,
+) -> RouterResult<HashSet<enums::CardNetwork>> {
+    let mut card_brands = HashSet::new();
+
+    for account in filtered_payment_connector_accounts {
+        if let Some(values) = &account.payment_methods_enabled {
+            for val in values {
+                if let Some(payment_method_subtypes) = &val.payment_method_subtypes {
+                    for payment_method_subtype in payment_method_subtypes {
+                        if let Some(networks) = &payment_method_subtype.card_networks {
+                            card_brands.extend(networks.iter().cloned());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(card_brands)
+}
+
+pub fn validate_customer_details_for_click_to_pay(
+    customer_details: &CustomerData,
+) -> RouterResult<()> {
     match (
         customer_details.phone.as_ref(),
         customer_details.phone_country_code.as_ref(),

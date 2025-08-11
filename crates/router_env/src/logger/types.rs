@@ -626,6 +626,8 @@ pub enum Flow {
     AuthenticationSyncPostUpdate,
     /// Authentication Authenticate flow
     AuthenticationAuthenticate,
+    /// Authentication Session Token flow
+    AuthenticationSessionToken,
     ///Proxy Flow
     Proxy,
     /// Profile Acquirer Create flow
