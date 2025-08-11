@@ -27,8 +27,9 @@ use hyperswitch_domain_models::{
             BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, RecoveryRecordBack,
         },
         webhooks::VerifyWebhookSource,
-        AccessTokenAuth, AccessTokenAuthentication, ExternalVaultCreateFlow,
+        AccessTokenAuth, AccessTokenAuthentication, Authenticate, ExternalVaultCreateFlow,
         ExternalVaultDeleteFlow, ExternalVaultInsertFlow, ExternalVaultRetrieveFlow,
+        PostAuthenticate, PreAuthenticate,
     },
     router_request_types::{
         authentication,
@@ -107,7 +108,8 @@ use hyperswitch_interfaces::{
             PaymentIncrementalAuthorizationV2, PaymentPostCaptureVoidV2,
             PaymentPostSessionTokensV2, PaymentRejectV2, PaymentSessionUpdateV2, PaymentSessionV2,
             PaymentSyncV2, PaymentTokenV2, PaymentUpdateMetadataV2, PaymentV2, PaymentVoidV2,
-            PaymentsCompleteAuthorizeV2, PaymentsPostProcessingV2, PaymentsPreProcessingV2,
+            PaymentsAuthenticateV2, PaymentsCompleteAuthorizeV2, PaymentsPostAuthenticateV2,
+            PaymentsPostProcessingV2, PaymentsPreAuthenticateV2, PaymentsPreProcessingV2,
             TaxCalculationV2,
         },
         refunds_v2::{RefundExecuteV2, RefundSyncV2, RefundV2},
@@ -146,6 +148,9 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             impl PaymentTokenV2 for $path::$connector{}
             impl ConnectorCustomerV2 for $path::$connector{}
             impl PaymentsPreProcessingV2 for $path::$connector{}
+            impl PaymentsPreAuthenticateV2 for $path::$connector{}
+            impl PaymentsAuthenticateV2 for $path::$connector{}
+            impl PaymentsPostAuthenticateV2 for $path::$connector{}
             impl PaymentsPostProcessingV2 for $path::$connector{}
             impl TaxCalculationV2 for $path::$connector{}
             impl PaymentSessionUpdateV2 for $path::$connector{}
@@ -211,6 +216,24 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             > for $path::$connector{}
             impl ConnectorIntegrationV2<
             PreProcessing,
+            PaymentFlowData,
+                PaymentsPreProcessingData,
+                PaymentsResponseData,
+            > for $path::$connector{}
+            impl ConnectorIntegrationV2<
+            PreAuthenticate,
+            PaymentFlowData,
+                PaymentsAuthorizeData,
+                PaymentsResponseData,
+            > for $path::$connector{}
+            impl ConnectorIntegrationV2<
+            Authenticate,
+            PaymentFlowData,
+                PaymentsPreProcessingData,
+                PaymentsResponseData,
+            > for $path::$connector{}
+            impl ConnectorIntegrationV2<
+            PostAuthenticate,
             PaymentFlowData,
                 PaymentsPreProcessingData,
                 PaymentsResponseData,

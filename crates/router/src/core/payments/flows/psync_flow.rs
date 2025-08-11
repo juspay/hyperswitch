@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use async_trait::async_trait;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::router_flow_types::NextActionFlows;
 use masking::Secret;
 use unified_connector_service_client::payments as payments_grpc;
 
@@ -69,6 +70,7 @@ impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::Payme
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+        next_action_flow: Option<hyperswitch_domain_models::router_flow_types::NextActionFlows>,
     ) -> RouterResult<
         types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
     > {
@@ -99,6 +101,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         _business_profile: &domain::Profile,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
         return_raw_connector_response: Option<bool>,
+        connector_flow: Option<NextActionFlows>,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::PSync,
