@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use common_enums::{connector_enums::Connector, AttemptStatus, PaymentMethodType};
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use error_stack::ResultExt;
@@ -13,7 +15,6 @@ use hyperswitch_domain_models::{
     router_response_types::PaymentsResponseData,
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
-use std::str::FromStr;
 use unified_connector_service_client::payments::{
     self as payments_grpc, payment_method::PaymentMethod, CardDetails, CardPaymentMethodType,
     PaymentServiceAuthorizeResponse,

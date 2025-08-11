@@ -102,8 +102,9 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::collections::{HashMap, HashSet};
+
+    use super::*;
 
     #[test]
     fn test_deserialize_hashset_inner_success() {
