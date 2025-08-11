@@ -357,9 +357,7 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
     
 
     let start_time_proto = modified_start_time_primitive
-        .map(|time| {
-            date_time::convert_to_prost_timestamp(time)
-    });
+     .map(date_time::convert_to_prost_timestamp);
 
 
     let merchant_id = Some(merchant_id.get_string_repr().to_string());
