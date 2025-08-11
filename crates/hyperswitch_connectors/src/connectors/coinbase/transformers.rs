@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 
 use common_enums::enums;
-use common_utils::{pii, request::Method};
+use common_utils::{pii, request::Method, types::StringMajorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RedirectForm},
-    types,
+    types::{self, PaymentsAuthorizeRouterData},
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
@@ -21,9 +21,24 @@ use crate::{
     },
 };
 
+#[derive(Debug, Serialize)]
+pub struct CoinbaseRouterData<T> {
+    amount: StringMajorUnit,
+    router_data: T,
+}
+
+impl<T> From<(StringMajorUnit, T)> for CoinbaseRouterData<T> {
+    fn from((amount, item): (StringMajorUnit, T)) -> Self {
+        Self {
+            amount,
+            router_data: item,
+        }
+    }
+}
+
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct LocalPrice {
-    pub amount: String,
+    pub amount: StringMajorUnit,
     pub currency: String,
 }
 
@@ -43,9 +58,11 @@ pub struct CoinbasePaymentsRequest {
     pub cancel_url: String,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for CoinbasePaymentsRequest {
+impl TryFrom<&CoinbaseRouterData<&PaymentsAuthorizeRouterData>> for CoinbasePaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &CoinbaseRouterData<&PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
         get_crypto_specific_payment_data(item)
     }
 }
@@ -263,23 +280,24 @@ impl TryFrom<&Option<pii::SecretSerdeValue>> for CoinbaseConnectorMeta {
 }
 
 fn get_crypto_specific_payment_data(
-    item: &types::PaymentsAuthorizeRouterData,
+    item: &CoinbaseRouterData<&PaymentsAuthorizeRouterData>,
 ) -> Result<CoinbasePaymentsRequest, error_stack::Report<errors::ConnectorError>> {
     let billing_address = item
+        .router_data
         .get_billing()
         .ok()
         .and_then(|billing_address| billing_address.address.as_ref());
     let name =
         billing_address.and_then(|add| add.get_first_name().ok().map(|name| name.to_owned()));
-    let description = item.get_description().ok();
-    let connector_meta = CoinbaseConnectorMeta::try_from(&item.connector_meta_data)
+    let description = item.router_data.get_description().ok();
+    let connector_meta = CoinbaseConnectorMeta::try_from(&item.router_data.connector_meta_data)
         .change_context(errors::ConnectorError::InvalidConnectorConfig {
             config: "Merchant connector account metadata",
         })?;
     let pricing_type = connector_meta.pricing_type;
     let local_price = get_local_price(item);
-    let redirect_url = item.request.get_router_return_url()?;
-    let cancel_url = item.request.get_router_return_url()?;
+    let redirect_url = item.router_data.request.get_router_return_url()?;
+    let cancel_url = item.router_data.request.get_router_return_url()?;
 
     Ok(CoinbasePaymentsRequest {
         name,
@@ -291,10 +309,10 @@ fn get_crypto_specific_payment_data(
     })
 }
 
-fn get_local_price(item: &types::PaymentsAuthorizeRouterData) -> LocalPrice {
+fn get_local_price(item: &CoinbaseRouterData<&PaymentsAuthorizeRouterData>) -> LocalPrice {
     LocalPrice {
-        amount: format!("{:?}", item.request.amount),
-        currency: item.request.currency.to_string(),
+        amount: item.amount.clone(),
+        currency: item.router_data.request.currency.to_string(),
     }
 }
 
@@ -375,7 +393,7 @@ pub struct PaymentThreshold {
 
 #[derive(Debug, Clone, Serialize, Default, Deserialize, PartialEq, Eq)]
 pub struct OverpaymentAbsoluteThreshold {
-    pub amount: String,
+    pub amount: StringMajorUnit,
     pub currency: String,
 }
 

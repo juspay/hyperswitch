@@ -171,7 +171,7 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Checkout::new())))
                 }
                 enums::Connector::Coinbase => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Coinbase)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Coinbase::new())))
                 }
                 enums::Connector::Coingate => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Coingate::new())))
