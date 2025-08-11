@@ -74,7 +74,7 @@ pub async fn get_groups_and_resources_for_role_from_token(
     ))
     .await
 }
-
+// TODO: To be deprecated
 pub async fn create_role(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -333,7 +333,7 @@ pub async fn list_users_in_lineage(
     ))
     .await
 }
-
+// TODO: To be deprecated
 pub async fn list_roles_with_info(
     state: web::Data<AppState>,
     req: HttpRequest,

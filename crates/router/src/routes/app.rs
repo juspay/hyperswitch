@@ -2668,12 +2668,13 @@ impl User {
         route =
             route.service(
                 web::scope("/role")
-                    .service(web::resource("/new").route(web::post().to(user_role::create_role_v2)))
+                    // TODO: To be deprecated
                     .service(
                         web::resource("")
                             .route(web::get().to(user_role::get_role_from_token))
                             .route(web::post().to(user_role::create_role)),
                     )
+                    .service(web::resource("/new").route(web::post().to(user_role::create_role_v2)))
                     .service(web::resource("/v2").route(
                         web::get().to(user_role::get_groups_and_resources_for_role_from_token),
                     ))
@@ -2684,6 +2685,7 @@ impl User {
                     )
                     .service(
                         web::scope("/list")
+                            // TODO: To be deprecated
                             .service(
                                 web::resource("")
                                     .route(web::get().to(user_role::list_roles_with_info)),
