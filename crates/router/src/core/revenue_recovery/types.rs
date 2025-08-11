@@ -478,13 +478,13 @@ impl Action {
                         ),
                     api_enums::UpdateActiveAttempt::Unset,
                 );
-              
+
                 storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
                         state,
                         &connector_customer_id,
                         error_code,
                     ).await?;
-                  logger::info!(
+                logger::info!(
                     "Call made to payments update intent api , with the request body {:?}",
                     payment_update_req
                 );
@@ -499,7 +499,7 @@ impl Action {
                 Ok(())
             }
             Self::TerminalFailure(payment_attempt) => {
-                 let last_attempt_error_code = payment_attempt
+                let last_attempt_error_code = payment_attempt
                     .error
                     .as_ref()
                     .map(|error| error.code.clone());

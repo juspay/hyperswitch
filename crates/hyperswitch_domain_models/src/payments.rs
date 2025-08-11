@@ -518,7 +518,7 @@ pub struct PaymentIntent {
 
 #[cfg(feature = "v2")]
 impl PaymentIntent {
-     /// Extract customer_id from payment intent feature metadata
+    /// Extract customer_id from payment intent feature metadata
     pub fn extract_connector_customer_id_from_payment_intent(
         &self,
     ) -> Result<String, common_utils::errors::ValidationError> {

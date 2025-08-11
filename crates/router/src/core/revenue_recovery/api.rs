@@ -182,7 +182,6 @@ pub async fn record_internal_attempt_api(
     revenue_recovery_metadata: &payments_api::PaymentRevenueRecoveryMetadata,
     card_info: payments_api::AdditionalCardInfo,
 ) -> RouterResult<payments_api::PaymentAttemptRecordResponse> {
-
     let revenue_recovery_attempt_data =
         recovery_incoming::RevenueRecoveryAttempt::get_revenue_recovery_attempt(
             payment_intent,

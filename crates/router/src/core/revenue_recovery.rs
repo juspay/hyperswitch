@@ -20,7 +20,7 @@ use crate::{
     services::ApplicationResponse,
     types::{
         storage::{self, revenue_recovery as pcr},
-        transformers::{ForeignInto,ForeignFrom},
+        transformers::{ForeignFrom, ForeignInto},
     },
 };
 
@@ -72,7 +72,8 @@ pub async fn perform_execute_payment(
             .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
                 message: "Failed to fetch token details from redis".to_string(),
             })?;
-            let card_info = api_models::payments::AdditionalCardInfo::foreign_from(&processor_token);
+            let card_info =
+                api_models::payments::AdditionalCardInfo::foreign_from(&processor_token);
 
             let record_attempt = api::record_internal_attempt_api(
                 state,
