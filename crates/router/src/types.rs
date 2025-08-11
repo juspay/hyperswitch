@@ -48,8 +48,8 @@ pub use hyperswitch_domain_models::{
     payment_address::PaymentAddress,
     router_data::{
         AccessToken, AdditionalPaymentMethodConnectorResponse, ConnectorAuthType,
-        ConnectorResponseData, ErrorResponse, GooglePayDecryptedData,
-        GooglePayPaymentMethodDetails, L2L3Data, PaymentMethodBalance, PaymentMethodToken,
+        ConnectorResponseData, ErrorResponse, GooglePayPaymentMethodDetails,
+        GooglePayPredecryptDataInternal, L2L3Data, PaymentMethodBalance, PaymentMethodToken,
         RecurringMandatePaymentData, RouterData,
     },
     router_data_v2::{
@@ -267,7 +267,11 @@ pub trait PayoutIndividualDetailsExt {
 }
 
 pub trait Capturable {
-    fn get_captured_amount<F>(&self, _payment_data: &PaymentData<F>) -> Option<i64>
+    fn get_captured_amount<F>(
+        &self,
+        _amount_captured: Option<i64>,
+        _payment_data: &PaymentData<F>,
+    ) -> Option<i64>
     where
         F: Clone,
     {
@@ -276,6 +280,7 @@ pub trait Capturable {
     fn get_amount_capturable<F>(
         &self,
         _payment_data: &PaymentData<F>,
+        _get_amount_capturable: Option<i64>,
         _attempt_status: common_enums::AttemptStatus,
     ) -> Option<i64>
     where
@@ -287,27 +292,32 @@ pub trait Capturable {
 
 #[cfg(feature = "v1")]
 impl Capturable for PaymentsAuthorizeData {
-    fn get_captured_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
+    fn get_captured_amount<F>(
+        &self,
+        amount_captured: Option<i64>,
+        payment_data: &PaymentData<F>,
+    ) -> Option<i64>
     where
         F: Clone,
     {
-        Some(
+        amount_captured.or(Some(
             payment_data
                 .payment_attempt
                 .get_total_amount()
                 .get_amount_as_i64(),
-        )
+        ))
     }
 
     fn get_amount_capturable<F>(
         &self,
         payment_data: &PaymentData<F>,
+        amount_capturable: Option<i64>,
         attempt_status: common_enums::AttemptStatus,
     ) -> Option<i64>
     where
         F: Clone,
     {
-        match payment_data.get_capture_method().unwrap_or_default()
+        let amount_capturable_from_intent_status = match payment_data.get_capture_method().unwrap_or_default()
         {
             common_enums::CaptureMethod::Automatic
             | common_enums::CaptureMethod::SequentialAutomatic => {
@@ -315,7 +325,6 @@ impl Capturable for PaymentsAuthorizeData {
                 match intent_status {
                     common_enums::IntentStatus::Succeeded
                     | common_enums::IntentStatus::Failed
-                    | common_enums::IntentStatus::Processing
                     | common_enums::IntentStatus::Conflicted
                     | common_enums::IntentStatus::Expired => Some(0),
                     common_enums::IntentStatus::Cancelled
@@ -326,7 +335,9 @@ impl Capturable for PaymentsAuthorizeData {
                     | common_enums::IntentStatus::RequiresPaymentMethod
                     | common_enums::IntentStatus::RequiresConfirmation
                     | common_enums::IntentStatus::RequiresCapture
-                    | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+                    | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+                    | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
+                    | common_enums::IntentStatus::Processing => None,
                 }
             },
             common_enums::CaptureMethod::Manual => Some(payment_data.payment_attempt.get_total_amount().get_amount_as_i64()),
@@ -334,13 +345,25 @@ impl Capturable for PaymentsAuthorizeData {
             common_enums::CaptureMethod::ManualMultiple |
             // Scheduled capture is not supported as of now
             common_enums::CaptureMethod::Scheduled => None,
-        }
+        };
+        amount_capturable
+            .or(amount_capturable_from_intent_status)
+            .or(Some(
+                payment_data
+                    .payment_attempt
+                    .get_total_amount()
+                    .get_amount_as_i64(),
+            ))
     }
 }
 
 #[cfg(feature = "v1")]
 impl Capturable for PaymentsCaptureData {
-    fn get_captured_amount<F>(&self, _payment_data: &PaymentData<F>) -> Option<i64>
+    fn get_captured_amount<F>(
+        &self,
+        _amount_captured: Option<i64>,
+        _payment_data: &PaymentData<F>,
+    ) -> Option<i64>
     where
         F: Clone,
     {
@@ -349,6 +372,7 @@ impl Capturable for PaymentsCaptureData {
     fn get_amount_capturable<F>(
         &self,
         _payment_data: &PaymentData<F>,
+        _amount_capturable: Option<i64>,
         attempt_status: common_enums::AttemptStatus,
     ) -> Option<i64>
     where
@@ -369,33 +393,39 @@ impl Capturable for PaymentsCaptureData {
             | common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation
             | common_enums::IntentStatus::RequiresCapture
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => None,
         }
     }
 }
 
 #[cfg(feature = "v1")]
 impl Capturable for CompleteAuthorizeData {
-    fn get_captured_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
+    fn get_captured_amount<F>(
+        &self,
+        amount_captured: Option<i64>,
+        payment_data: &PaymentData<F>,
+    ) -> Option<i64>
     where
         F: Clone,
     {
-        Some(
+        amount_captured.or(Some(
             payment_data
                 .payment_attempt
                 .get_total_amount()
                 .get_amount_as_i64(),
-        )
+        ))
     }
     fn get_amount_capturable<F>(
         &self,
         payment_data: &PaymentData<F>,
+        amount_capturable: Option<i64>,
         attempt_status: common_enums::AttemptStatus,
     ) -> Option<i64>
     where
         F: Clone,
     {
-        match payment_data
+        let amount_capturable_from_intent_status = match payment_data
             .get_capture_method()
             .unwrap_or_default()
         {
@@ -404,7 +434,6 @@ impl Capturable for CompleteAuthorizeData {
                 match intent_status {
                     common_enums::IntentStatus::Succeeded
                     | common_enums::IntentStatus::Failed
-                    | common_enums::IntentStatus::Processing
                     | common_enums::IntentStatus::Conflicted
                     | common_enums::IntentStatus::Expired => Some(0),
                     common_enums::IntentStatus::Cancelled | common_enums::IntentStatus::PartiallyCaptured
@@ -414,7 +443,9 @@ impl Capturable for CompleteAuthorizeData {
                     | common_enums::IntentStatus::RequiresPaymentMethod
                     | common_enums::IntentStatus::RequiresConfirmation
                     | common_enums::IntentStatus::RequiresCapture
-                    | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+                    | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+                    | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
+                    | common_enums::IntentStatus::Processing => None,
                 }
             },
             common_enums::CaptureMethod::Manual => Some(payment_data.payment_attempt.get_total_amount().get_amount_as_i64()),
@@ -422,7 +453,15 @@ impl Capturable for CompleteAuthorizeData {
             common_enums::CaptureMethod::ManualMultiple |
             // Scheduled capture is not supported as of now
             common_enums::CaptureMethod::Scheduled => None,
-        }
+        };
+        amount_capturable
+            .or(amount_capturable_from_intent_status)
+            .or(Some(
+                payment_data
+                    .payment_attempt
+                    .get_total_amount()
+                    .get_amount_as_i64(),
+            ))
     }
 }
 
@@ -432,7 +471,11 @@ impl Capturable for SdkPaymentsSessionUpdateData {}
 impl Capturable for PaymentsPostSessionTokensData {}
 impl Capturable for PaymentsUpdateMetadataData {}
 impl Capturable for PaymentsCancelData {
-    fn get_captured_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
+    fn get_captured_amount<F>(
+        &self,
+        _amount_captured: Option<i64>,
+        payment_data: &PaymentData<F>,
+    ) -> Option<i64>
     where
         F: Clone,
     {
@@ -445,6 +488,7 @@ impl Capturable for PaymentsCancelData {
     fn get_amount_capturable<F>(
         &self,
         _payment_data: &PaymentData<F>,
+        _amount_capturable: Option<i64>,
         attempt_status: common_enums::AttemptStatus,
     ) -> Option<i64>
     where
@@ -465,12 +509,17 @@ impl Capturable for PaymentsCancelData {
             | common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation
             | common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
         }
     }
 }
 impl Capturable for PaymentsCancelPostCaptureData {
-    fn get_captured_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
+    fn get_captured_amount<F>(
+        &self,
+        _amount_captured: Option<i64>,
+        payment_data: &PaymentData<F>,
+    ) -> Option<i64>
     where
         F: Clone,
     {
@@ -483,6 +532,7 @@ impl Capturable for PaymentsCancelPostCaptureData {
     fn get_amount_capturable<F>(
         &self,
         _payment_data: &PaymentData<F>,
+        _amount_capturable: Option<i64>,
         attempt_status: common_enums::AttemptStatus,
     ) -> Option<i64>
     where
@@ -492,7 +542,6 @@ impl Capturable for PaymentsCancelPostCaptureData {
         match intent_status {
             common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::CancelledPostCapture
-            | common_enums::IntentStatus::Processing
             | common_enums::IntentStatus::PartiallyCaptured
             | common_enums::IntentStatus::Conflicted
             | common_enums::IntentStatus::Expired => Some(0),
@@ -503,7 +552,9 @@ impl Capturable for PaymentsCancelPostCaptureData {
             | common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation
             | common_enums::IntentStatus::RequiresCapture
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => None,
         }
     }
 }
@@ -514,29 +565,39 @@ impl Capturable for PaymentsIncrementalAuthorizationData {
     fn get_amount_capturable<F>(
         &self,
         _payment_data: &PaymentData<F>,
+        amount_capturable: Option<i64>,
         _attempt_status: common_enums::AttemptStatus,
     ) -> Option<i64>
     where
         F: Clone,
     {
-        Some(self.total_amount)
+        amount_capturable.or(Some(self.total_amount))
     }
 }
 impl Capturable for PaymentsSyncData {
     #[cfg(feature = "v1")]
-    fn get_captured_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
+    fn get_captured_amount<F>(
+        &self,
+        _amount_captured: Option<i64>,
+        payment_data: &PaymentData<F>,
+    ) -> Option<i64>
     where
         F: Clone,
     {
         payment_data
             .payment_attempt
             .amount_to_capture
+            .or(payment_data.payment_intent.amount_captured)
             .or_else(|| Some(payment_data.payment_attempt.get_total_amount()))
             .map(|amt| amt.get_amount_as_i64())
     }
 
     #[cfg(feature = "v2")]
-    fn get_captured_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
+    fn get_captured_amount<F>(
+        &self,
+        _amount_captured: Option<i64>,
+        payment_data: &PaymentData<F>,
+    ) -> Option<i64>
     where
         F: Clone,
     {
@@ -549,9 +610,30 @@ impl Capturable for PaymentsSyncData {
             .map(|amt| amt.get_amount_as_i64())
     }
 
+    #[cfg(feature = "v1")]
     fn get_amount_capturable<F>(
         &self,
-        _payment_data: &PaymentData<F>,
+        payment_data: &PaymentData<F>,
+        amount_capturable: Option<i64>,
+        attempt_status: common_enums::AttemptStatus,
+    ) -> Option<i64>
+    where
+        F: Clone,
+    {
+        if attempt_status.is_terminal_status() {
+            Some(0)
+        } else {
+            amount_capturable.or(Some(MinorUnit::get_amount_as_i64(
+                payment_data.payment_attempt.amount_capturable,
+            )))
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    fn get_amount_capturable<F>(
+        &self,
+        payment_data: &PaymentData<F>,
+        amount_capturable: Option<i64>,
         attempt_status: common_enums::AttemptStatus,
     ) -> Option<i64>
     where
@@ -1155,6 +1237,7 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             order_id: None,
             locale: None,
             payment_channel: None,
+            enable_partial_authorization: data.request.enable_partial_authorization,
         }
     }
 }
@@ -1219,6 +1302,7 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             raw_connector_response: data.raw_connector_response.clone(),
             is_payment_id_from_merchant: data.is_payment_id_from_merchant,
             l2_l3_data: data.l2_l3_data.clone(),
+            minor_amount_capturable: data.minor_amount_capturable,
         }
     }
 }
@@ -1289,6 +1373,7 @@ impl<F1, F2>
             raw_connector_response: None,
             is_payment_id_from_merchant: data.is_payment_id_from_merchant,
             l2_l3_data: None,
+            minor_amount_capturable: None,
         }
     }
 }

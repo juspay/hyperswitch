@@ -1893,6 +1893,18 @@ Cypress.Commands.add(
                   globalState.set("nextActionType", "image_data_url");
                 }
                 break;
+              case "ach":
+                if (
+                  response.body.next_action
+                    ?.bank_transfer_steps_and_charges_details != null
+                ) {
+                  globalState.set(
+                    "nextActionType",
+                    "bank_transfer_steps_and_charges_details"
+                  );
+                }
+
+                break;
               default:
                 expect(response.body)
                   .to.have.property("next_action")
@@ -3231,7 +3243,12 @@ Cypress.Commands.add(
     const nextActionType = globalState.get("nextActionType");
 
     const expectedUrl = new URL(expectedRedirection);
-    const redirectionUrl = new URL(nextActionUrl);
+    let redirectionUrl = null;
+    try {
+      redirectionUrl = new URL(nextActionUrl);
+    } catch {
+      /* banktransfer may not have redirection url */
+    }
 
     handleRedirection(
       "bank_transfer",

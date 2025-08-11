@@ -23,8 +23,7 @@ use serde::{ser::Serializer, Deserialize, Serialize};
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        self, ApplePayDecrypt, CardData as _, PaymentsCancelRequestData, PaymentsSyncRequestData,
-        RouterData as _,
+        self, CardData as _, PaymentsCancelRequestData, PaymentsSyncRequestData, RouterData as _,
     },
 };
 
@@ -70,14 +69,6 @@ pub struct FiservPaymentsRequest {
 pub enum FiservCheckoutChargesRequest {
     Checkout(CheckoutPaymentsRequest),
     Charges(ChargesPaymentRequest),
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ChargesPaymentRequest {
-    source: Source,
-    transaction_interaction: Option<TransactionInteraction>,
-    transaction_details: TransactionDetails,
 }
 
 #[derive(Debug, Serialize)]
@@ -135,6 +126,20 @@ pub struct FiservPaymentMethod {
 #[serde(rename_all = "camelCase")]
 pub struct FiservOrder {
     intent: FiservIntent,
+}
+
+#[derive(Debug, Serialize, Clone, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum FiservIntent {
+    Authorize,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChargesPaymentRequest {
+    source: Source,
+    transaction_interaction: Option<TransactionInteraction>,
+    transaction_details: TransactionDetails,
 }
 
 #[derive(Debug, Serialize)]
@@ -221,7 +226,7 @@ pub struct CardData {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WalletCardData {
-    card_data: Secret<String>,
+    card_data: cards::CardNumber,
     expiration_month: Secret<String>,
     expiration_year: Secret<String>,
 }
@@ -433,7 +438,13 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
             }
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 WalletData::GooglePay(data) => {
-                    let token_string = data.tokenization_data.token.to_owned(); // Secret<String>
+                    let token_string = data
+                        .tokenization_data
+                        .get_encrypted_google_pay_token()
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "gpay wallet_token",
+                        })?
+                        .to_owned();
 
                     let parsed = parse_googlepay_token_safely(&token_string);
 
@@ -536,9 +547,14 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
                                     card_data: pre_decrypt_data
                                         .application_primary_account_number
                                         .clone(),
-                                    expiration_month: pre_decrypt_data.get_expiry_month()?,
-                                    expiration_year: pre_decrypt_data
-                                        .get_four_digit_expiry_year()?,
+                                    expiration_month: pre_decrypt_data
+                                        .get_expiry_month()
+                                        .change_context(
+                                            errors::ConnectorError::MissingRequiredField {
+                                                field_name: "apple_pay_expiry_month",
+                                            },
+                                        )?,
+                                    expiration_year: pre_decrypt_data.get_four_digit_expiry_year(),
                                 },
                             }),
                             transaction_details: TransactionDetails {
@@ -558,9 +574,16 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
                         }),
                     ),
                     _ => {
-                        let decoded_bytes = BASE64_ENGINE
-                            .decode(apple_pay_data.payment_data)
-                            .change_context(errors::ConnectorError::ParsingFailed)?;
+                        let decoded_bytes = match apple_pay_data.payment_data {
+                            common_types::payments::ApplePayPaymentData::Encrypted(
+                                ref encrypted_str,
+                            ) => BASE64_ENGINE
+                                .decode(encrypted_str)
+                                .change_context(errors::ConnectorError::ParsingFailed)?,
+                            _ => {
+                                return Err(errors::ConnectorError::ParsingFailed.into());
+                            }
+                        };
 
                         let payment_data_decoded: ApplePayDecryptedData =
                             serde_json::from_slice(&decoded_bytes)
@@ -892,13 +915,6 @@ pub struct FiservResponseActions {
     #[serde(rename = "type")]
     action_type: String,
     url: url::Url,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "UPPERCASE")]
-pub enum FiservIntent {
-    Create,
-    Authorize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

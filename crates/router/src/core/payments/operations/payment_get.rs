@@ -34,6 +34,7 @@ impl ValidateStatusForOperation for PaymentGet {
     ) -> Result<(), errors::ApiErrorResponse> {
         match intent_status {
             common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
             | common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::Processing
@@ -54,6 +55,7 @@ impl ValidateStatusForOperation for PaymentGet {
                     current_value: intent_status.to_string(),
                     states: [
                         common_enums::IntentStatus::RequiresCapture,
+                        common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture,
                         common_enums::IntentStatus::RequiresCustomerAction,
                         common_enums::IntentStatus::RequiresMerchantAction,
                         common_enums::IntentStatus::Processing,

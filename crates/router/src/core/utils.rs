@@ -240,6 +240,7 @@ pub async fn construct_payout_router_data<'a, F>(
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
+        minor_amount_capturable: None,
     };
 
     Ok(router_data)
@@ -409,6 +410,7 @@ pub async fn construct_refund_router_data<'a, F>(
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
+        minor_amount_capturable: None,
     };
 
     Ok(router_data)
@@ -614,6 +616,7 @@ pub async fn construct_refund_router_data<'a, F>(
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
+        minor_amount_capturable: None,
     };
 
     Ok(router_data)
@@ -926,6 +929,9 @@ pub fn validate_dispute_status(
             DisputeStatus::DisputeChallenged
                 | DisputeStatus::DisputeWon
                 | DisputeStatus::DisputeLost
+                | DisputeStatus::DisputeAccepted
+                | DisputeStatus::DisputeCancelled
+                | DisputeStatus::DisputeExpired
         ),
         DisputeStatus::DisputeWon => matches!(dispute_status, DisputeStatus::DisputeWon),
         DisputeStatus::DisputeLost => matches!(dispute_status, DisputeStatus::DisputeLost),
@@ -1053,6 +1059,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
+        minor_amount_capturable: None,
     };
     Ok(router_data)
 }
@@ -1155,6 +1162,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
+        minor_amount_capturable: None,
     };
     Ok(router_data)
 }
@@ -1266,6 +1274,7 @@ pub async fn construct_upload_file_router_data<'a>(
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
+        minor_amount_capturable: None,
     };
     Ok(router_data)
 }
@@ -1338,6 +1347,7 @@ pub async fn construct_dispute_list_router_data<'a>(
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
+        minor_amount_capturable: None,
     })
 }
 
@@ -1442,6 +1452,7 @@ pub async fn construct_dispute_sync_router_data<'a>(
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
+        minor_amount_capturable: None,
     };
     Ok(router_data)
 }
@@ -1569,6 +1580,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
+        minor_amount_capturable: None,
     };
     Ok(router_data)
 }
@@ -1674,6 +1686,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
+        minor_amount_capturable: None,
     };
     Ok(router_data)
 }
@@ -1773,6 +1786,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
+        minor_amount_capturable: None,
     };
     Ok(router_data)
 }
@@ -2603,12 +2617,27 @@ pub fn should_proceed_with_submit_evidence(
     dispute_stage: DisputeStage,
     dispute_status: DisputeStatus,
 ) -> bool {
-    matches!(dispute_stage, DisputeStage::DisputeReversal)
-        || matches!(
-            dispute_status,
-            DisputeStatus::DisputeExpired
-                | DisputeStatus::DisputeCancelled
-                | DisputeStatus::DisputeWon
-                | DisputeStatus::DisputeLost,
-        )
+    matches!(
+        dispute_stage,
+        DisputeStage::PreDispute
+            | DisputeStage::Dispute
+            | DisputeStage::PreArbitration
+            | DisputeStage::Arbitration
+    ) && matches!(
+        dispute_status,
+        DisputeStatus::DisputeOpened | DisputeStatus::DisputeChallenged
+    )
+}
+
+pub fn should_proceed_with_accept_dispute(
+    dispute_stage: DisputeStage,
+    dispute_status: DisputeStatus,
+) -> bool {
+    matches!(
+        dispute_stage,
+        DisputeStage::PreDispute | DisputeStage::Dispute | DisputeStage::PreArbitration
+    ) && matches!(
+        dispute_status,
+        DisputeStatus::DisputeChallenged | DisputeStatus::DisputeOpened
+    )
 }

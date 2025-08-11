@@ -10,6 +10,8 @@ use masking::PeekInterface;
 use router_env::{env, instrument, logger, tracing, types, Flow};
 
 use super::app::ReqState;
+#[cfg(feature = "v2")]
+use crate::core::revenue_recovery::api as recovery;
 use crate::{
     self as app,
     core::{
@@ -111,6 +113,40 @@ pub async fn payments_create(
             ),
         },
         locking_action,
+    ))
+    .await
+}
+
+#[cfg(feature = "v2")]
+pub async fn recovery_payments_create(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<payment_types::RecoveryPaymentsCreate>,
+) -> impl Responder {
+    let flow = Flow::RecoveryPaymentsCreate;
+    let mut payload = json_payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req.clone(),
+        payload,
+        |state, auth: auth::AuthenticationData, req_payload, req_state| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            recovery::custom_revenue_recovery_core(
+                state.to_owned(),
+                req_state,
+                merchant_context,
+                auth.profile,
+                req_payload,
+            )
+        },
+        &auth::V2ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        },
+        api_locking::LockAction::NotApplicable,
     ))
     .await
 }
