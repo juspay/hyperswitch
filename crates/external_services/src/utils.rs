@@ -28,10 +28,11 @@ use serde::Deserialize;
 ///     deserialize_hashset_inner("1,2,3");
 /// assert!(result.is_ok());
 ///
-/// let hashset = result.unwrap();
-/// assert!(hashset.contains(&1));
-/// assert!(hashset.contains(&2));
-/// assert!(hashset.contains(&3));
+/// if let Ok(hashset) = result {
+///     assert!(hashset.contains(&1));
+///     assert!(hashset.contains(&2));
+///     assert!(hashset.contains(&3));
+/// }
 /// ```
 fn deserialize_hashset_inner<T>(value: impl AsRef<str>) -> Result<HashSet<T>, String>
 where
@@ -111,11 +112,12 @@ mod tests {
         let result: Result<HashSet<i32>, String> = deserialize_hashset_inner("1,2,3");
         assert!(result.is_ok());
 
-        let hashset = result.unwrap();
-        assert_eq!(hashset.len(), 3);
-        assert!(hashset.contains(&1));
-        assert!(hashset.contains(&2));
-        assert!(hashset.contains(&3));
+        if let Ok(hashset) = result {
+            assert_eq!(hashset.len(), 3);
+            assert!(hashset.contains(&1));
+            assert!(hashset.contains(&2));
+            assert!(hashset.contains(&3));
+        }
     }
 
     #[test]
@@ -123,18 +125,21 @@ mod tests {
         let result: Result<HashSet<String>, String> = deserialize_hashset_inner(" a , b , c ");
         assert!(result.is_ok());
 
-        let hashset = result.unwrap();
-        assert_eq!(hashset.len(), 3);
-        assert!(hashset.contains("a"));
-        assert!(hashset.contains("b"));
-        assert!(hashset.contains("c"));
+        if let Ok(hashset) = result {
+            assert_eq!(hashset.len(), 3);
+            assert!(hashset.contains("a"));
+            assert!(hashset.contains("b"));
+            assert!(hashset.contains("c"));
+        }
     }
 
     #[test]
     fn test_deserialize_hashset_inner_empty_string() {
         let result: Result<HashSet<String>, String> = deserialize_hashset_inner("");
         assert!(result.is_ok());
-        assert_eq!(result.unwrap().len(), 0);
+        if let Ok(hashset) = result {
+            assert_eq!(hashset.len(), 0);
+        }
     }
 
     #[test]
@@ -142,9 +147,10 @@ mod tests {
         let result: Result<HashSet<String>, String> = deserialize_hashset_inner("single");
         assert!(result.is_ok());
 
-        let hashset = result.unwrap();
-        assert_eq!(hashset.len(), 1);
-        assert!(hashset.contains("single"));
+        if let Ok(hashset) = result {
+            assert_eq!(hashset.len(), 1);
+            assert!(hashset.contains("single"));
+        }
     }
 
     #[test]
@@ -152,8 +158,9 @@ mod tests {
         let result: Result<HashSet<i32>, String> = deserialize_hashset_inner("1,invalid,3");
         assert!(result.is_err());
 
-        let error = result.unwrap_err();
-        assert!(error.contains("Unable to deserialize `invalid` as `i32`"));
+        if let Err(error) = result {
+            assert!(error.contains("Unable to deserialize `invalid` as `i32`"));
+        }
     }
 
     #[test]
@@ -161,10 +168,11 @@ mod tests {
         let result: Result<HashSet<String>, String> = deserialize_hashset_inner("a,b,a,c,b");
         assert!(result.is_ok());
 
-        let hashset = result.unwrap();
-        assert_eq!(hashset.len(), 3); // Duplicates should be removed
-        assert!(hashset.contains("a"));
-        assert!(hashset.contains("b"));
-        assert!(hashset.contains("c"));
+        if let Ok(hashset) = result {
+            assert_eq!(hashset.len(), 3); // Duplicates should be removed
+            assert!(hashset.contains("a"));
+            assert!(hashset.contains("b"));
+            assert!(hashset.contains("c"));
+        }
     }
 }
