@@ -352,11 +352,8 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
             recovery_timestamp_config.initial_timestamp_in_hours,
         ))
     });
-    
 
-    let start_time_proto = modified_start_time_primitive
-     .map(date_time::convert_to_prost_timestamp);
-
+    let start_time_proto = modified_start_time_primitive.map(date_time::convert_to_prost_timestamp);
 
     let merchant_id = Some(merchant_id.get_string_repr().to_string());
     let invoice_amount = Some(
