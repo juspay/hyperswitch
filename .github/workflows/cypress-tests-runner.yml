@@ -404,11 +404,10 @@ jobs:
       - name: Start mock servers for alpha connectors
         if: ${{ env.RUN_TESTS == 'true' }}
         run: |
-          # Start mock servers for each alpha connector with unique ports
-          PORT_COUNTER=3010
+          # Start mock servers for each alpha connector
           for connector in ${{ env.ALPHA_PAYMENTS_CONNECTORS }}; do
             pascal_case_connector="$(echo "$connector" | sed -E 's/(^|_)([a-z])/\U\2/g')"
-            if [ -f "cypress-tests/cypress/e2e/configs/mock-server/${pascal_case_connector}.js" ]; then
+            if [ -f "cypress-tests/cypress/e2e/configs/mock-server/${pascal_case_connector}.ts" ]; then
               echo "Starting mock server for ${connector}"
               cd cypress-tests
 

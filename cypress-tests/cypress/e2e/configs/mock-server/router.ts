@@ -7,10 +7,8 @@ import type {
   Router,
   RequestHandler,
 } from "express";
-// Import from TypeScript version
-import silverflowApp from "./Silverflow.ts";
-// TODO: Update to import from TypeScript version once fully tested
-// import silverflowApp from "./Silverflow";
+
+import silverflowApp from "./Connectors/Silverflow.ts";
 
 interface MockRouters {
   [key: string]: RequestHandler;
