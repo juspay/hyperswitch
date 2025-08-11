@@ -66,11 +66,9 @@ use router_env::{instrument, tracing};
 #[cfg(feature = "v2")]
 pub use self::payment_attempt_list::PaymentGetListAttempts;
 #[cfg(feature = "v2")]
-pub use self::payment_get::PaymentGet;
-
-#[cfg(feature = "v2")]
 pub use self::payment_complete_authorize_v2::CompleteAuthorize;
-
+#[cfg(feature = "v2")]
+pub use self::payment_get::PaymentGet;
 #[cfg(feature = "v2")]
 pub use self::payment_get_intent::PaymentGetIntent;
 pub use self::payment_response::PaymentResponse;

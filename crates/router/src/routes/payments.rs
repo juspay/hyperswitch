@@ -2829,7 +2829,7 @@ pub async fn payment_confirm_intent(
                 _,
                 _,
                 _,
-                PaymentConfirmData<api_types::Authorize>,
+                PaymentConfirmData<_>,
             >(
                 state,
                 req_state,
