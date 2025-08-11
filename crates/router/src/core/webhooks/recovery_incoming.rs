@@ -725,8 +725,8 @@ impl RevenueRecoveryAttempt {
                 charge_id: self.0.charge_id.clone(),
             }),
         };
-
-        let card_info = revenue_recovery_attempt_data
+        // TODO! card info support needs to be added to populate card_information
+        let _card_info = revenue_recovery_attempt_data
             .card_info
             .card_isin
             .clone()
@@ -743,12 +743,12 @@ impl RevenueRecoveryAttempt {
             .flatten();
         let payment_method_data = api_models::payments::RecordAttemptPaymentMethodDataRequest {
             payment_method_data: api_models::payments::AdditionalPaymentData::Card(Box::new(
-                self.0.card_info.clone(),
+                revenue_recovery_attempt_data.card_info.clone(),
             )),
             billing: None,
         };
 
-        let card_issuer = card_info.and_then(|info| info.card_issuer);
+        let card_issuer = revenue_recovery_attempt_data.card_info.card_issuer.clone();
 
         let error =
             Option::<api_payments::RecordAttemptErrorDetails>::from(revenue_recovery_attempt_data);

@@ -35,7 +35,7 @@ pub async fn call_psync_api(
 ) -> RouterResult<payments_domain::PaymentStatusData<api_types::PSync>> {
     let operation = payments::operations::PaymentGet;
     let req = payments_api::PaymentsRetrieveRequest {
-        force_sync: false,
+        force_sync: true,
         param: None,
         expand_attempts: true,
         return_raw_connector_response: None,

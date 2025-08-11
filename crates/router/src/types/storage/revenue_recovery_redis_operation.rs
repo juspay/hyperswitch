@@ -543,7 +543,7 @@ impl RedisTokenManager {
 
         let scheduled_token = tokens
             .values()
-            .find(|status| status.scheduled_at.is_some())
+            .find(|status| status.error_code.is_some())
             .cloned();
 
         Ok(scheduled_token)
