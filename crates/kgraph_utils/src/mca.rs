@@ -27,7 +27,7 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::Credit => Ok(dirval!(CardType = Credit)),
         api_enums::PaymentMethodType::Debit => Ok(dirval!(CardType = Debit)),
         #[cfg(feature = "v2")]
-            api_enums::PaymentMethodType::Card => Ok(dirval!(CardType = Card)),
+        api_enums::PaymentMethodType::Card => Ok(dirval!(CardType = Card)),
         api_enums::PaymentMethodType::Giropay => Ok(dirval!(BankRedirectType = Giropay)),
         api_enums::PaymentMethodType::Ideal => Ok(dirval!(BankRedirectType = Ideal)),
         api_enums::PaymentMethodType::Sofort => Ok(dirval!(BankRedirectType = Sofort)),
@@ -37,8 +37,8 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::Flexiti => Ok(dirval!(PayLaterType = Flexiti)),
         api_enums::PaymentMethodType::Affirm => Ok(dirval!(PayLaterType = Affirm)),
         api_enums::PaymentMethodType::AfterpayClearpay => {
-                Ok(dirval!(PayLaterType = AfterpayClearpay))
-            }
+            Ok(dirval!(PayLaterType = AfterpayClearpay))
+        }
         api_enums::PaymentMethodType::GooglePay => Ok(dirval!(WalletType = GooglePay)),
         api_enums::PaymentMethodType::Bluecode => Ok(dirval!(WalletType = Bluecode)),
         api_enums::PaymentMethodType::ApplePay => Ok(dirval!(WalletType = ApplePay)),
@@ -51,8 +51,8 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::AliPay => Ok(dirval!(WalletType = AliPay)),
         api_enums::PaymentMethodType::AliPayHk => Ok(dirval!(WalletType = AliPayHk)),
         api_enums::PaymentMethodType::BancontactCard => {
-                Ok(dirval!(BankRedirectType = BancontactCard))
-            }
+            Ok(dirval!(BankRedirectType = BancontactCard))
+        }
         api_enums::PaymentMethodType::Blik => Ok(dirval!(BankRedirectType = Blik)),
         api_enums::PaymentMethodType::MbWay => Ok(dirval!(WalletType = MbWay)),
         api_enums::PaymentMethodType::MobilePay => Ok(dirval!(WalletType = MobilePay)),
@@ -62,17 +62,17 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::Pse => Ok(dirval!(BankTransferType = Pse)),
         api_enums::PaymentMethodType::Interac => Ok(dirval!(BankRedirectType = Interac)),
         api_enums::PaymentMethodType::OnlineBankingCzechRepublic => {
-                Ok(dirval!(BankRedirectType = OnlineBankingCzechRepublic))
-            }
+            Ok(dirval!(BankRedirectType = OnlineBankingCzechRepublic))
+        }
         api_enums::PaymentMethodType::OnlineBankingFinland => {
-                Ok(dirval!(BankRedirectType = OnlineBankingFinland))
-            }
+            Ok(dirval!(BankRedirectType = OnlineBankingFinland))
+        }
         api_enums::PaymentMethodType::OnlineBankingPoland => {
-                Ok(dirval!(BankRedirectType = OnlineBankingPoland))
-            }
+            Ok(dirval!(BankRedirectType = OnlineBankingPoland))
+        }
         api_enums::PaymentMethodType::OnlineBankingSlovakia => {
-                Ok(dirval!(BankRedirectType = OnlineBankingSlovakia))
-            }
+            Ok(dirval!(BankRedirectType = OnlineBankingSlovakia))
+        }
         api_enums::PaymentMethodType::Swish => Ok(dirval!(WalletType = Swish)),
         api_enums::PaymentMethodType::Trustly => Ok(dirval!(BankRedirectType = Trustly)),
         api_enums::PaymentMethodType::Bizum => Ok(dirval!(BankRedirectType = Bizum)),
@@ -92,14 +92,14 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::Alma => Ok(dirval!(PayLaterType = Alma)),
         api_enums::PaymentMethodType::Dana => Ok(dirval!(WalletType = Dana)),
         api_enums::PaymentMethodType::OnlineBankingFpx => {
-                Ok(dirval!(BankRedirectType = OnlineBankingFpx))
-            }
+            Ok(dirval!(BankRedirectType = OnlineBankingFpx))
+        }
         api_enums::PaymentMethodType::OnlineBankingThailand => {
-                Ok(dirval!(BankRedirectType = OnlineBankingThailand))
-            }
+            Ok(dirval!(BankRedirectType = OnlineBankingThailand))
+        }
         api_enums::PaymentMethodType::LocalBankRedirect => {
-                Ok(dirval!(BankRedirectType = LocalBankRedirect))
-            }
+            Ok(dirval!(BankRedirectType = LocalBankRedirect))
+        }
         api_enums::PaymentMethodType::TouchNGo => Ok(dirval!(WalletType = TouchNGo)),
         api_enums::PaymentMethodType::Atome => Ok(dirval!(PayLaterType = Atome)),
         api_enums::PaymentMethodType::Boleto => Ok(dirval!(VoucherType = Boleto)),
@@ -109,8 +109,8 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::RedPagos => Ok(dirval!(VoucherType = RedPagos)),
         api_enums::PaymentMethodType::Alfamart => Ok(dirval!(VoucherType = Alfamart)),
         api_enums::PaymentMethodType::BcaBankTransfer => {
-                Ok(dirval!(BankTransferType = BcaBankTransfer))
-            }
+            Ok(dirval!(BankTransferType = BcaBankTransfer))
+        }
         api_enums::PaymentMethodType::BniVa => Ok(dirval!(BankTransferType = BniVa)),
         api_enums::PaymentMethodType::BriVa => Ok(dirval!(BankTransferType = BriVa)),
         api_enums::PaymentMethodType::Breadpay => Ok(dirval!(PayLaterType = Breadpay)),
@@ -119,23 +119,23 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::Indomaret => Ok(dirval!(VoucherType = Indomaret)),
         api_enums::PaymentMethodType::MandiriVa => Ok(dirval!(BankTransferType = MandiriVa)),
         api_enums::PaymentMethodType::LocalBankTransfer => {
-                Ok(dirval!(BankTransferType = LocalBankTransfer))
-            }
+            Ok(dirval!(BankTransferType = LocalBankTransfer))
+        }
         api_enums::PaymentMethodType::InstantBankTransfer => {
-                Ok(dirval!(BankTransferType = InstantBankTransfer))
-            }
+            Ok(dirval!(BankTransferType = InstantBankTransfer))
+        }
         api_enums::PaymentMethodType::InstantBankTransferFinland => {
-                Ok(dirval!(BankTransferType = InstantBankTransferFinland))
-            }
+            Ok(dirval!(BankTransferType = InstantBankTransferFinland))
+        }
         api_enums::PaymentMethodType::InstantBankTransferPoland => {
-                Ok(dirval!(BankTransferType = InstantBankTransferPoland))
-            }
+            Ok(dirval!(BankTransferType = InstantBankTransferPoland))
+        }
         api_enums::PaymentMethodType::SepaBankTransfer => {
-                Ok(dirval!(BankTransferType = SepaBankTransfer))
-            }
+            Ok(dirval!(BankTransferType = SepaBankTransfer))
+        }
         api_enums::PaymentMethodType::PermataBankTransfer => {
-                Ok(dirval!(BankTransferType = PermataBankTransfer))
-            }
+            Ok(dirval!(BankTransferType = PermataBankTransfer))
+        }
         api_enums::PaymentMethodType::IndonesianBankTransfer => {
             Ok(dirval!(BankTransferType = IndonesianBankTransfer))
         }
@@ -151,8 +151,8 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::Benefit => Ok(dirval!(CardRedirectType = Benefit)),
         api_enums::PaymentMethodType::Knet => Ok(dirval!(CardRedirectType = Knet)),
         api_enums::PaymentMethodType::OpenBankingUk => {
-                Ok(dirval!(BankRedirectType = OpenBankingUk))
-            }
+            Ok(dirval!(BankRedirectType = OpenBankingUk))
+        }
         api_enums::PaymentMethodType::MomoAtm => Ok(dirval!(CardRedirectType = MomoAtm)),
         api_enums::PaymentMethodType::Oxxo => Ok(dirval!(VoucherType = Oxxo)),
         api_enums::PaymentMethodType::CardRedirect => Ok(dirval!(CardRedirectType = CardRedirect)),
@@ -165,15 +165,13 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::PromptPay => Ok(dirval!(RealTimePaymentType = PromptPay)),
         api_enums::PaymentMethodType::VietQr => Ok(dirval!(RealTimePaymentType = VietQr)),
         api_enums::PaymentMethodType::OpenBankingPIS => {
-                Ok(dirval!(OpenBankingType = OpenBankingPIS))
-            }
+            Ok(dirval!(OpenBankingType = OpenBankingPIS))
+        }
         api_enums::PaymentMethodType::Paze => Ok(dirval!(WalletType = Paze)),
         api_enums::PaymentMethodType::DirectCarrierBilling => {
-                Ok(dirval!(MobilePaymentType = DirectCarrierBilling))
-            }
+            Ok(dirval!(MobilePaymentType = DirectCarrierBilling))
+        }
         api_enums::PaymentMethodType::RevolutPay => Ok(dirval!(WalletType = RevolutPay)),
-api_enums::PaymentMethodType::Skrill => Ok(dirval!(WalletType = Skrill)),
-        api_enums::PaymentMethodType::Paysera => Ok(dirval!(WalletType = Paysera)),
     }
 }
 

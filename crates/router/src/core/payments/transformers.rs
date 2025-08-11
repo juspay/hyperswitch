@@ -135,6 +135,7 @@ where
         attempt_id: payment_data.payment_attempt.get_id().to_owned(),
         status: payment_data.payment_attempt.status,
         payment_method: diesel_models::enums::PaymentMethod::default(),
+        payment_method_type: diesel_models::enums::PaymentMethodType::default(),
         connector_auth_type: auth_type,
         description: None,
         address: payment_data.address.clone(),
@@ -1175,6 +1176,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
     merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
     _merchant_recipient_data: Option<types::MerchantRecipientData>,
     header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+    payment_method_type: Option<common_enums::PaymentMethodType>,
 ) -> RouterResult<types::PaymentsSessionRouterData> {
     fp_utils::when(merchant_connector_account.is_disabled(), || {
         Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
@@ -1598,6 +1600,8 @@ pub async fn construct_payment_router_data<'a, F, T>(
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
     merchant_recipient_data: Option<types::MerchantRecipientData>,
     header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+    payment_method: Option<common_enums::PaymentMethod>,
+    payment_method_type: Option<common_enums::PaymentMethodType>,
 ) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
 where
     T: TryFrom<PaymentAdditionalData<'a, F>>,
@@ -1606,8 +1610,6 @@ where
     error_stack::Report<errors::ApiErrorResponse>:
         From<<T as TryFrom<PaymentAdditionalData<'a, F>>>::Error>,
 {
-    let (payment_method, router_data);
-
     fp_utils::when(merchant_connector_account.is_disabled(), || {
         Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
     })?;
@@ -1620,11 +1622,21 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while parsing value for ConnectorAuthType")?;
 
-    payment_method = payment_data
-        .payment_attempt
-        .payment_method
-        .or(payment_data.payment_attempt.payment_method)
-        .get_required_value("payment_method_type")?;
+    let pm: common_enums::PaymentMethod = match payment_method {
+        Some(pm) => pm,
+        None => payment_data
+            .payment_attempt
+            .payment_method
+            .get_required_value("payment_method")?,
+    };
+
+    let pmt: common_enums::PaymentMethodType = match payment_method_type {
+        Some(pmt) => pmt,
+        None => payment_data
+            .payment_attempt
+            .payment_method_type
+            .get_required_value("payment_method")?,
+    };
 
     let resource_id = match payment_data
         .payment_attempt
@@ -1778,7 +1790,7 @@ where
     });
     crate::logger::debug!("unified address details {:?}", unified_address);
 
-    router_data = types::RouterData {
+    let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_context.get_merchant_account().get_id().clone(),
         customer_id,
@@ -1791,7 +1803,8 @@ where
             .to_owned(),
         attempt_id: payment_data.payment_attempt.attempt_id.clone(),
         status: payment_data.payment_attempt.status,
-        payment_method,
+        payment_method: pm,
+        payment_method_type: pmt,
         connector_auth_type: auth_type,
         description: payment_data.payment_intent.description.clone(),
         address: unified_address,
@@ -1897,6 +1910,11 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         .payment_method
         .or(payment_data.payment_attempt.payment_method)
         .get_required_value("payment_method_type")?;
+    let payment_method_type = payment_data
+        .payment_attempt
+        .payment_method_type
+        .or(payment_data.payment_attempt.payment_method_type)
+        .get_required_value("payment_method_type")?;
 
     // [#44]: why should response be filled during request
     let response = Err(hyperswitch_domain_models::router_data::ErrorResponse {
@@ -1989,6 +2007,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         attempt_id: payment_data.payment_attempt.attempt_id.clone(),
         status: payment_data.payment_attempt.status,
         payment_method,
+        payment_method_type,
         connector_auth_type: auth_type,
         description: payment_data.payment_intent.description.clone(),
         address: unified_address,
@@ -5190,6 +5209,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             metadata: payment_data.payment_intent.metadata,
             order_tax_amount,
             shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
+            payment_method: payment_data.payment_attempt.payment_method,
+            payment_method_type: payment_data.payment_attempt.payment_method_type,
         })
     }
 }
@@ -5293,6 +5314,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             order_tax_amount,
             shipping_cost,
             metadata,
+            payment_method: payment_data.payment_attempt.payment_method,
+            payment_method_type: payment_data.payment_attempt.payment_method_type,
         })
     }
 }
