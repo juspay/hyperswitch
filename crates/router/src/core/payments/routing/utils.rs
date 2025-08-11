@@ -597,8 +597,14 @@ pub fn convert_backend_input_to_routing_eval(
             Some(ValueType::EnumVariant(pm.to_string())),
         );
         if let Some(pmt) = input.payment_method.payment_method_type {
-            if let Ok(dv) = (pmt, pm).into_dir_value() {
-                insert_dirvalue_param(&mut params, dv);
+            match (pmt, pm).into_dir_value() {
+                Ok(dv) => insert_dirvalue_param(&mut params, dv),
+                Err(e) => logger::debug!(
+                    ?e,
+                    ?pmt,
+                    ?pm,
+                    "decision_engine_euclid: into_dir_value failed; skipping subset param"
+                ),
             }
         }
     }
@@ -748,9 +754,13 @@ fn insert_dirvalue_param(params: &mut HashMap<String, Option<ValueType>>, dv: di
                 Some(ValueType::EnumVariant(v.to_string())),
             );
         }
-        _ => {
+        other => {
             // all other values can be ignored for now as they don't converge with
             // payment method type
+            logger::warn!(
+                ?other,
+                "decision_engine_euclid: unmapped dir::DirValue; add a mapping here"
+            );
         }
     }
 }
