@@ -28,6 +28,7 @@ pub struct ConnectorData {
 pub enum GetToken {
     GpayMetadata,
     SamsungPayMetadata,
+    AmazonPayMetadata,
     ApplePayMetadata,
     PaypalSdkMetadata,
     PazeMetadata,
@@ -114,9 +115,9 @@ impl ConnectorData {
                 enums::Connector::Airwallex => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Airwallex::new())))
                 }
-                // enums::Connector::Amazonpay => {
-                //     Ok(ConnectorEnum::Old(Box::new(connector::Amazonpay)))
-                // }
+                enums::Connector::Amazonpay => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Amazonpay::new())))
+                }
                 enums::Connector::Archipel => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Archipel::new())))
                 }
