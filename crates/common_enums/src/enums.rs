@@ -2571,7 +2571,7 @@ pub enum DecisionEngineMerchantCategoryCode {
 }
 
 impl CardNetwork {
-    pub fn is_global_network(&self) -> bool {
+    pub fn is_signature_network(&self) -> bool {
         match self {
             Self::Interac
             | Self::Star
