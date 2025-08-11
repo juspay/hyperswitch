@@ -49,8 +49,15 @@ use crate::{
 
 const VAULT_SERVICE_NAME: &str = "CARD";
 
+#[cfg(feature = "v1")]
 pub struct SupplementaryVaultData {
     pub customer_id: Option<id_type::CustomerId>,
+    pub payment_method_id: Option<String>,
+}
+
+#[cfg(feature = "v2")]
+pub struct SupplementaryVaultData {
+    pub customer_id: Option<id_type::GlobalCustomerId>,
     pub payment_method_id: Option<String>,
 }
 
@@ -169,213 +176,217 @@ impl Vaultable for domain::Card {
     }
 }
 
-// impl Vaultable for domain::BankTransferData {
-//     fn get_value1(
-//         &self,
-//         _customer_id: Option<id_type::CustomerId>,
-//     ) -> CustomResult<String, errors::VaultError> {
-//         let value1 = domain::TokenizedBankTransferValue1 {
-//             data: self.to_owned(),
-//         };
+#[cfg(feature = "v1")]
+impl Vaultable for domain::BankTransferData {
+    fn get_value1(
+        &self,
+        _customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
+        let value1 = domain::TokenizedBankTransferValue1 {
+            data: self.to_owned(),
+        };
 
-//         value1
-//             .encode_to_string_of_json()
-//             .change_context(errors::VaultError::RequestEncodingFailed)
-//             .attach_printable("Failed to encode bank transfer data")
-//     }
+        value1
+            .encode_to_string_of_json()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode bank transfer data")
+    }
 
-//     fn get_value2(
-//         &self,
-//         customer_id: Option<id_type::CustomerId>,
-//     ) -> CustomResult<String, errors::VaultError> {
-//         let value2 = domain::TokenizedBankTransferValue2 { customer_id };
+    fn get_value2(
+        &self,
+        customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
+        let value2 = domain::TokenizedBankTransferValue2 { customer_id };
 
-//         value2
-//             .encode_to_string_of_json()
-//             .change_context(errors::VaultError::RequestEncodingFailed)
-//             .attach_printable("Failed to encode bank transfer supplementary data")
-//     }
+        value2
+            .encode_to_string_of_json()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode bank transfer supplementary data")
+    }
 
-//     fn from_values(
-//         value1: String,
-//         value2: String,
-//     ) -> CustomResult<(Self, SupplementaryVaultData), errors::VaultError> {
-//         let value1: domain::TokenizedBankTransferValue1 = value1
-//             .parse_struct("TokenizedBankTransferValue1")
-//             .change_context(errors::VaultError::ResponseDeserializationFailed)
-//             .attach_printable("Could not deserialize into bank transfer data")?;
+    fn from_values(
+        value1: String,
+        value2: String,
+    ) -> CustomResult<(Self, SupplementaryVaultData), errors::VaultError> {
+        let value1: domain::TokenizedBankTransferValue1 = value1
+            .parse_struct("TokenizedBankTransferValue1")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Could not deserialize into bank transfer data")?;
 
-//         let value2: domain::TokenizedBankTransferValue2 = value2
-//             .parse_struct("TokenizedBankTransferValue2")
-//             .change_context(errors::VaultError::ResponseDeserializationFailed)
-//             .attach_printable("Could not deserialize into supplementary bank transfer data")?;
+        let value2: domain::TokenizedBankTransferValue2 = value2
+            .parse_struct("TokenizedBankTransferValue2")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Could not deserialize into supplementary bank transfer data")?;
 
-//         let bank_transfer_data = value1.data;
+        let bank_transfer_data = value1.data;
 
-//         let supp_data = SupplementaryVaultData {
-//             customer_id: value2.customer_id,
-//             payment_method_id: None,
-//         };
+        let supp_data = SupplementaryVaultData {
+            customer_id: value2.customer_id,
+            payment_method_id: None,
+        };
 
-//         Ok((bank_transfer_data, supp_data))
-//     }
-// }
+        Ok((bank_transfer_data, supp_data))
+    }
+}
 
-// impl Vaultable for domain::WalletData {
-//     fn get_value1(
-//         &self,
-//         _customer_id: Option<id_type::CustomerId>,
-//     ) -> CustomResult<String, errors::VaultError> {
-//         let value1 = domain::TokenizedWalletValue1 {
-//             data: self.to_owned(),
-//         };
+#[cfg(feature = "v1")]
+impl Vaultable for domain::WalletData {
+    fn get_value1(
+        &self,
+        _customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
+        let value1 = domain::TokenizedWalletValue1 {
+            data: self.to_owned(),
+        };
 
-//         value1
-//             .encode_to_string_of_json()
-//             .change_context(errors::VaultError::RequestEncodingFailed)
-//             .attach_printable("Failed to encode wallet data value1")
-//     }
+        value1
+            .encode_to_string_of_json()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode wallet data value1")
+    }
 
-//     fn get_value2(
-//         &self,
-//         customer_id: Option<id_type::CustomerId>,
-//     ) -> CustomResult<String, errors::VaultError> {
-//         let value2 = domain::TokenizedWalletValue2 { customer_id };
+    fn get_value2(
+        &self,
+        customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
+        let value2 = domain::TokenizedWalletValue2 { customer_id };
 
-//         value2
-//             .encode_to_string_of_json()
-//             .change_context(errors::VaultError::RequestEncodingFailed)
-//             .attach_printable("Failed to encode wallet data value2")
-//     }
+        value2
+            .encode_to_string_of_json()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode wallet data value2")
+    }
 
-//     fn from_values(
-//         value1: String,
-//         value2: String,
-//     ) -> CustomResult<(Self, SupplementaryVaultData), errors::VaultError> {
-//         let value1: domain::TokenizedWalletValue1 = value1
-//             .parse_struct("TokenizedWalletValue1")
-//             .change_context(errors::VaultError::ResponseDeserializationFailed)
-//             .attach_printable("Could not deserialize into wallet data value1")?;
+    fn from_values(
+        value1: String,
+        value2: String,
+    ) -> CustomResult<(Self, SupplementaryVaultData), errors::VaultError> {
+        let value1: domain::TokenizedWalletValue1 = value1
+            .parse_struct("TokenizedWalletValue1")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Could not deserialize into wallet data value1")?;
 
-//         let value2: domain::TokenizedWalletValue2 = value2
-//             .parse_struct("TokenizedWalletValue2")
-//             .change_context(errors::VaultError::ResponseDeserializationFailed)
-//             .attach_printable("Could not deserialize into wallet data value2")?;
+        let value2: domain::TokenizedWalletValue2 = value2
+            .parse_struct("TokenizedWalletValue2")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Could not deserialize into wallet data value2")?;
 
-//         let wallet = value1.data;
+        let wallet = value1.data;
 
-//         let supp_data = SupplementaryVaultData {
-//             customer_id: value2.customer_id,
-//             payment_method_id: None,
-//         };
+        let supp_data = SupplementaryVaultData {
+            customer_id: value2.customer_id,
+            payment_method_id: None,
+        };
 
-//         Ok((wallet, supp_data))
-//     }
-// }
+        Ok((wallet, supp_data))
+    }
+}
 
-// impl Vaultable for domain::BankRedirectData {
-//     fn get_value1(
-//         &self,
-//         _customer_id: Option<id_type::CustomerId>,
-//     ) -> CustomResult<String, errors::VaultError> {
-//         let value1 = domain::TokenizedBankRedirectValue1 {
-//             data: self.to_owned(),
-//         };
+#[cfg(feature = "v1")]
+impl Vaultable for domain::BankRedirectData {
+    fn get_value1(
+        &self,
+        _customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
+        let value1 = domain::TokenizedBankRedirectValue1 {
+            data: self.to_owned(),
+        };
 
-//         value1
-//             .encode_to_string_of_json()
-//             .change_context(errors::VaultError::RequestEncodingFailed)
-//             .attach_printable("Failed to encode bank redirect data")
-//     }
+        value1
+            .encode_to_string_of_json()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode bank redirect data")
+    }
 
-//     fn get_value2(
-//         &self,
-//         customer_id: Option<id_type::CustomerId>,
-//     ) -> CustomResult<String, errors::VaultError> {
-//         let value2 = domain::TokenizedBankRedirectValue2 { customer_id };
+    fn get_value2(
+        &self,
+        customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
+        let value2 = domain::TokenizedBankRedirectValue2 { customer_id };
 
-//         value2
-//             .encode_to_string_of_json()
-//             .change_context(errors::VaultError::RequestEncodingFailed)
-//             .attach_printable("Failed to encode bank redirect supplementary data")
-//     }
+        value2
+            .encode_to_string_of_json()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode bank redirect supplementary data")
+    }
 
-//     fn from_values(
-//         value1: String,
-//         value2: String,
-//     ) -> CustomResult<(Self, SupplementaryVaultData), errors::VaultError> {
-//         let value1: domain::TokenizedBankRedirectValue1 = value1
-//             .parse_struct("TokenizedBankRedirectValue1")
-//             .change_context(errors::VaultError::ResponseDeserializationFailed)
-//             .attach_printable("Could not deserialize into bank redirect data")?;
+    fn from_values(
+        value1: String,
+        value2: String,
+    ) -> CustomResult<(Self, SupplementaryVaultData), errors::VaultError> {
+        let value1: domain::TokenizedBankRedirectValue1 = value1
+            .parse_struct("TokenizedBankRedirectValue1")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Could not deserialize into bank redirect data")?;
 
-//         let value2: domain::TokenizedBankRedirectValue2 = value2
-//             .parse_struct("TokenizedBankRedirectValue2")
-//             .change_context(errors::VaultError::ResponseDeserializationFailed)
-//             .attach_printable("Could not deserialize into supplementary bank redirect data")?;
+        let value2: domain::TokenizedBankRedirectValue2 = value2
+            .parse_struct("TokenizedBankRedirectValue2")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Could not deserialize into supplementary bank redirect data")?;
 
-//         let bank_transfer_data = value1.data;
+        let bank_transfer_data = value1.data;
 
-//         let supp_data = SupplementaryVaultData {
-//             customer_id: value2.customer_id,
-//             payment_method_id: None,
-//         };
+        let supp_data = SupplementaryVaultData {
+            customer_id: value2.customer_id,
+            payment_method_id: None,
+        };
 
-//         Ok((bank_transfer_data, supp_data))
-//     }
-// }
+        Ok((bank_transfer_data, supp_data))
+    }
+}
 
-// impl Vaultable for domain::BankDebitData {
-//     fn get_value1(
-//         &self,
-//         _customer_id: Option<id_type::CustomerId>,
-//     ) -> CustomResult<String, errors::VaultError> {
-//         let value1 = domain::TokenizedBankDebitValue1 {
-//             data: self.to_owned(),
-//         };
+#[cfg(feature = "v1")]
+impl Vaultable for domain::BankDebitData {
+    fn get_value1(
+        &self,
+        _customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
+        let value1 = domain::TokenizedBankDebitValue1 {
+            data: self.to_owned(),
+        };
 
-//         value1
-//             .encode_to_string_of_json()
-//             .change_context(errors::VaultError::RequestEncodingFailed)
-//             .attach_printable("Failed to encode bank debit data")
-//     }
+        value1
+            .encode_to_string_of_json()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode bank debit data")
+    }
 
-//     fn get_value2(
-//         &self,
-//         customer_id: Option<id_type::CustomerId>,
-//     ) -> CustomResult<String, errors::VaultError> {
-//         let value2 = domain::TokenizedBankDebitValue2 { customer_id };
+    fn get_value2(
+        &self,
+        customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
+        let value2 = domain::TokenizedBankDebitValue2 { customer_id };
 
-//         value2
-//             .encode_to_string_of_json()
-//             .change_context(errors::VaultError::RequestEncodingFailed)
-//             .attach_printable("Failed to encode bank debit supplementary data")
-//     }
+        value2
+            .encode_to_string_of_json()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode bank debit supplementary data")
+    }
 
-//     fn from_values(
-//         value1: String,
-//         value2: String,
-//     ) -> CustomResult<(Self, SupplementaryVaultData), errors::VaultError> {
-//         let value1: domain::TokenizedBankDebitValue1 = value1
-//             .parse_struct("TokenizedBankDebitValue1")
-//             .change_context(errors::VaultError::ResponseDeserializationFailed)
-//             .attach_printable("Could not deserialize into bank debit data")?;
+    fn from_values(
+        value1: String,
+        value2: String,
+    ) -> CustomResult<(Self, SupplementaryVaultData), errors::VaultError> {
+        let value1: domain::TokenizedBankDebitValue1 = value1
+            .parse_struct("TokenizedBankDebitValue1")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Could not deserialize into bank debit data")?;
 
-//         let value2: domain::TokenizedBankDebitValue2 = value2
-//             .parse_struct("TokenizedBankDebitValue2")
-//             .change_context(errors::VaultError::ResponseDeserializationFailed)
-//             .attach_printable("Could not deserialize into supplementary bank debit data")?;
+        let value2: domain::TokenizedBankDebitValue2 = value2
+            .parse_struct("TokenizedBankDebitValue2")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Could not deserialize into supplementary bank debit data")?;
 
-//         let bank_transfer_data = value1.data;
+        let bank_transfer_data = value1.data;
 
-//         let supp_data = SupplementaryVaultData {
-//             customer_id: value2.customer_id,
-//             payment_method_id: None,
-//         };
+        let supp_data = SupplementaryVaultData {
+            customer_id: value2.customer_id,
+            payment_method_id: None,
+        };
 
-//         Ok((bank_transfer_data, supp_data))
-//     }
-// }
+        Ok((bank_transfer_data, supp_data))
+    }
+}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "type", content = "value", rename_all = "snake_case")]

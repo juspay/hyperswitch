@@ -2758,6 +2758,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::CompleteAuthor
                 | common_enums::AttemptStatus::AutoRefunded
                 | common_enums::AttemptStatus::Unresolved
                 | common_enums::AttemptStatus::Pending
+                | common_enums::AttemptStatus::VoidedPostCharge
+                | common_enums::AttemptStatus::Expired
                 | common_enums::AttemptStatus::Failure => (),
 
                 common_enums::AttemptStatus::Started
@@ -2773,6 +2775,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::CompleteAuthor
                 | common_enums::AttemptStatus::PaymentMethodAwaited
                 | common_enums::AttemptStatus::ConfirmationAwaited
                 | common_enums::AttemptStatus::DeviceDataCollectionPending
+                | common_enums::AttemptStatus::PartiallyAuthorized
                 | common_enums::AttemptStatus::IntegrityFailure => {
                     let pm_update_status = enums::PaymentMethodStatus::Active;
 

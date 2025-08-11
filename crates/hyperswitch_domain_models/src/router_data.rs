@@ -1085,6 +1085,9 @@ impl
             }
             // Invalid statues for this flow, after doing authorization this state is invalid
             common_enums::IntentStatus::PartiallyCaptured
+            | common_enums::IntentStatus::CancelledPostCapture
+            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
+            | common_enums::IntentStatus::Expired
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
         }
     }
@@ -1117,6 +1120,9 @@ impl
             common_enums::IntentStatus::RequiresCapture => Some(MinorUnit::zero()),
             // Invalid statues for this flow
             common_enums::IntentStatus::PartiallyCaptured
+            | common_enums::IntentStatus::CancelledPostCapture
+            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
+            | common_enums::IntentStatus::Expired
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
         }
     }

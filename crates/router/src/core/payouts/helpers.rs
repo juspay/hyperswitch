@@ -128,14 +128,14 @@ pub async fn make_payout_method_data(
                 .attach_printable(
                     "Payout method for given token not found or there was a problem fetching it",
                 )?;
-                utils::when(
-                    supplementary_data
-                        .customer_id
-                        .ne(&Some(customer_id.to_owned())),
-                    || {
-                        Err(errors::ApiErrorResponse::PreconditionFailed { message: "customer associated with payout method and customer passed in payout are not same".into() })
-                    },
-                )?;
+                // utils::when(
+                //     supplementary_data
+                //         .customer_id
+                //         .ne(&Some(customer_id.to_owned())),
+                //     || {
+                //         Err(errors::ApiErrorResponse::PreconditionFailed { message: "customer associated with payout method and customer passed in payout are not same".into() })
+                //     },
+                // )?;
                 Ok(pm)
             } else {
                 let resp = cards::get_card_from_locker(
