@@ -2668,6 +2668,7 @@ impl User {
         route =
             route.service(
                 web::scope("/role")
+                    .service(web::resource("/new").route(web::post().to(user_role::create_role_v2)))
                     .service(
                         web::resource("")
                             .route(web::get().to(user_role::get_role_from_token))
@@ -2686,6 +2687,10 @@ impl User {
                             .service(
                                 web::resource("")
                                     .route(web::get().to(user_role::list_roles_with_info)),
+                            )
+                            .service(
+                                web::resource("/v2")
+                                    .route(web::get().to(user_role::list_roles_with_info_v2)),
                             )
                             .service(web::resource("/invite").route(
                                 web::get().to(user_role::list_invitable_roles_at_entity_level),

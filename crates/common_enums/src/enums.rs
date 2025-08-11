@@ -7672,7 +7672,9 @@ pub enum PermissionGroup {
     ThemeManage,
 }
 
-#[derive(Clone, Debug, serde::Serialize, PartialEq, Eq, Hash, strum::EnumIter)]
+#[derive(
+    Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash, strum::EnumIter,
+)]
 pub enum ParentGroup {
     Operations,
     Connectors,
@@ -7686,7 +7688,7 @@ pub enum ParentGroup {
     Theme,
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, serde::Serialize)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Resource {
     Payment,
@@ -7717,7 +7719,9 @@ pub enum Resource {
     Theme,
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, serde::Serialize, Hash)]
+#[derive(
+    Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, serde::Serialize, serde::Deserialize, Hash,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum PermissionScope {
     Read = 0,

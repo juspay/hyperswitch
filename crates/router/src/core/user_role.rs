@@ -102,24 +102,21 @@ pub async fn get_parent_group_info(
     .await
     .to_not_found_response(UserErrors::InvalidRoleId)?;
 
-    let parent_groups = ParentGroup::get_descriptions_for_groups(
-        role_info.get_entity_type(),
-        PermissionGroup::iter().collect(),
-    )
-    .unwrap_or_default()
-    .into_iter()
-    .map(|(parent_group, description)| role_api::ParentGroupInfo {
-        name: parent_group.clone(),
-        description,
-        scopes: PermissionGroup::iter()
-            .filter_map(|group| (group.parent() == parent_group).then_some(group.scope()))
-            // TODO: Remove this hashset conversion when merhant access
-            // and organization access groups are removed
-            .collect::<HashSet<_>>()
-            .into_iter()
-            .collect(),
-    })
-    .collect::<Vec<_>>();
+    let parent_groups = ParentGroup::get_descriptions_for_groups(role_info.get_entity_type())
+        .unwrap_or_default()
+        .into_iter()
+        .map(|(parent_group, description)| role_api::ParentGroupInfo {
+            name: parent_group.clone(),
+            description: Some(description),
+            scopes: PermissionGroup::iter()
+                .filter_map(|group| (group.parent() == parent_group).then_some(group.scope()))
+                // TODO: Remove this hashset conversion when merhant access
+                // and organization access groups are removed
+                .collect::<HashSet<_>>()
+                .into_iter()
+                .collect(),
+        })
+        .collect::<Vec<_>>();
 
     Ok(ApplicationResponse::Json(parent_groups))
 }

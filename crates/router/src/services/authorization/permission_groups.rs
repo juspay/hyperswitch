@@ -4,6 +4,7 @@ use common_enums::{EntityType, ParentGroup, PermissionGroup, PermissionScope, Re
 use strum::IntoEnumIterator;
 
 use super::permissions::{self, ResourceExt};
+use crate::core::errors::UserErrors;
 
 pub trait PermissionGroupExt {
     fn scope(&self) -> PermissionScope;
@@ -115,10 +116,9 @@ impl PermissionGroupExt for PermissionGroup {
 
 pub trait ParentGroupExt {
     fn resources(&self) -> Vec<Resource>;
-    fn get_descriptions_for_groups(
-        entity_type: EntityType,
-        groups: Vec<PermissionGroup>,
-    ) -> Option<HashMap<ParentGroup, String>>;
+    fn get_descriptions_for_groups(entity_type: EntityType)
+        -> Option<HashMap<ParentGroup, String>>;
+    fn validate_scopes(&self, scopes: &[PermissionScope]) -> Result<(), UserErrors>;
 }
 
 impl ParentGroupExt for ParentGroup {
@@ -137,18 +137,9 @@ impl ParentGroupExt for ParentGroup {
         }
     }
 
-    fn get_descriptions_for_groups(
-        entity_type: EntityType,
-        groups: Vec<PermissionGroup>,
-    ) -> Option<HashMap<Self, String>> {
+    fn get_descriptions_for_groups(entity_type: EntityType) -> Option<HashMap<Self, String>> {
         let descriptions_map = Self::iter()
             .filter_map(|parent| {
-                let scopes = groups
-                    .iter()
-                    .filter(|group| group.parent() == parent)
-                    .map(|group| group.scope())
-                    .max()?;
-
                 let resources = parent
                     .resources()
                     .iter()
@@ -157,10 +148,7 @@ impl ParentGroupExt for ParentGroup {
                     .collect::<Option<Vec<_>>>()?
                     .join(", ");
 
-                Some((
-                    parent,
-                    format!("{} {}", permissions::get_scope_name(scopes), resources),
-                ))
+                Some((parent, resources))
             })
             .collect::<HashMap<_, _>>();
 
@@ -168,6 +156,20 @@ impl ParentGroupExt for ParentGroup {
             .is_empty()
             .not()
             .then_some(descriptions_map)
+    }
+
+    fn validate_scopes(&self, scopes: &[PermissionScope]) -> Result<(), UserErrors> {
+        let valid_scopes: Vec<PermissionScope> = PermissionGroup::iter()
+            .filter(|group| group.parent() == *self)
+            .map(|group| group.scope())
+            .collect();
+
+        for scope in scopes {
+            if !valid_scopes.contains(scope) {
+                return Err(UserErrors::InvalidRoleOperation);
+            }
+        }
+        Ok(())
     }
 }
 

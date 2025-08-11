@@ -95,6 +95,26 @@ pub async fn create_role(
     .await
 }
 
+pub async fn create_role_v2(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<role_api::CreateRoleV2Request>,
+) -> HttpResponse {
+    let flow = Flow::CreateRoleV2;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        json_payload.into_inner(),
+        role_core::create_role_v2,
+        &auth::JWTAuth {
+            permission: Permission::MerchantUserWrite,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 pub async fn get_role(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -328,6 +348,29 @@ pub async fn list_roles_with_info(
         query.into_inner(),
         |state, user_from_token, request, _| {
             role_core::list_roles_with_info(state, user_from_token, request)
+        },
+        &auth::JWTAuth {
+            permission: Permission::ProfileUserRead,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn list_roles_with_info_v2(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<role_api::ListRolesRequest>,
+) -> HttpResponse {
+    let flow = Flow::ListRolesV2WithParentsGroupsInfo;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        query.into_inner(),
+        |state, user_from_token, request, _| {
+            role_core::list_roles_with_info_v2(state, user_from_token, request)
         },
         &auth::JWTAuth {
             permission: Permission::ProfileUserRead,
