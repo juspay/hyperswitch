@@ -599,7 +599,9 @@ impl RedisTokenManager {
         connector_customer_id: &str,
     ) -> CustomResult<Option<PaymentProcessorTokenWithRetryInfo>, errors::StorageError> {
         // Get all tokens for the customer
-        let tokens_map = Self::get_connector_customer_payment_processor_tokens(state, connector_customer_id).await?;
+        let tokens_map =
+            Self::get_connector_customer_payment_processor_tokens(state, connector_customer_id)
+                .await?;
 
         // Decorate tokens with retry metadata
         let tokens_with_retry = Self::get_tokens_with_retry_metadata(state, &tokens_map);
@@ -612,5 +614,4 @@ impl RedisTokenManager {
 
         Ok(max_retry_token)
     }
-
 }
