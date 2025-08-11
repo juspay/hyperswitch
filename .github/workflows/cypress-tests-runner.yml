@@ -349,28 +349,11 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         run: chmod +x target/debug/router
 
-      - name: Download Encrypted JSON from S3 and Decrypt
-        if: ${{ env.RUN_TESTS == 'true' }}
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.CONNECTOR_CREDS_AWS_ACCESS_KEY_ID }}
-          AWS_REGION: ${{ secrets.CONNECTOR_CREDS_AWS_REGION }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.CONNECTOR_CREDS_AWS_SECRET_ACCESS_KEY }}
-          CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
-          CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
-          DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "42f1b7cb-c24d-4913-b56c-be8ca498183c.json.gpg"
-        shell: bash
-        run: |
-          mkdir -p ".github/secrets" ".github/test"
-
-          aws s3 cp "${CONNECTOR_CREDS_S3_BUCKET_URI}/${S3_SOURCE_FILE_NAME}" ".github/secrets/${DESTINATION_FILE_NAME}"
-          gpg --quiet --batch --yes --decrypt --passphrase="${CONNECTOR_AUTH_PASSPHRASE}" --output ".github/test/creds.json" ".github/secrets/${DESTINATION_FILE_NAME}"
-
       - name: Set paths in env
         if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
         run: |
-          echo "CYPRESS_CONNECTOR_AUTH_FILE_PATH=${{ github.workspace }}/.github/test/creds.json" >> $GITHUB_ENV
+          echo "CYPRESS_CONNECTOR_AUTH_FILE_PATH=${{ github.workspace }}/cypress-tests/cypress/e2e/configs/mock-server/Creds.json" >> $GITHUB_ENV
 
       - name: Fetch keys
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -421,14 +404,15 @@ jobs:
       - name: Start mock servers for alpha connectors
         if: ${{ env.RUN_TESTS == 'true' }}
         run: |
-          # Start mock servers for each alpha connector
+          # Start mock servers for each alpha connector with unique ports
+          PORT_COUNTER=3010
           for connector in ${{ env.ALPHA_PAYMENTS_CONNECTORS }}; do
             pascal_case_connector="$(echo "$connector" | sed -E 's/(^|_)([a-z])/\U\2/g')"
             if [ -f "cypress-tests/cypress/e2e/configs/mock-server/${pascal_case_connector}.js" ]; then
               echo "Starting mock server for ${connector}"
               cd cypress-tests
 
-              node "cypress/e2e/configs/mock-server/${pascal_case_connector}.js" &
+              npm run mockserver &
 
               MOCK_PID=$!
               echo "MOCK_${connector^^}_PID=${MOCK_PID}" >> $GITHUB_ENV
@@ -460,8 +444,8 @@ jobs:
           # Set base URLs for alpha connectors to point to mock servers
           for connector in ${{ env.ALPHA_PAYMENTS_CONNECTORS }}; do
             CONNECTOR_ENV_VAR="ROUTER__CONNECTORS__$(echo ${connector} | tr '[:lower:]' '[:upper:]')__BASE_URL"
-            export ${CONNECTOR_ENV_VAR}="http://localhost:3010"
-            echo "${CONNECTOR_ENV_VAR}=http://localhost:3010" >> $GITHUB_ENV
+            export ${CONNECTOR_ENV_VAR}="http://localhost:3010/${connector}"
+            echo "${CONNECTOR_ENV_VAR}=http://localhost:3010/${connector}" >> $GITHUB_ENV
           done
 
           # Start the server in the background
