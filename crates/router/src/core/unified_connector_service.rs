@@ -1,3 +1,4 @@
+use api_models::admin;
 use common_enums::{AttemptStatus, GatewaySystem, PaymentMethodType};
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use diesel_models::types::FeatureMetadata;
@@ -211,6 +212,8 @@ where
     payment_data.set_payment_intent(payment_intent);
 
     Ok(())
+}
+
 pub async fn should_call_unified_connector_service_for_webhooks(
     state: &SessionState,
     merchant_context: &MerchantContext,
@@ -547,7 +550,7 @@ pub async fn call_unified_connector_service_for_webhook(
         .unified_connector_service_client
         .as_ref()
         .ok_or_else(|| {
-            error_stack::report!(ApiErrorResponse::WebhookProcessingFailure)
+            error_stack::report!(errors::ApiErrorResponse::WebhookProcessingFailure)
                 .attach_printable("UCS client is not available for webhook processing")
         })?;
 
@@ -597,10 +600,10 @@ pub async fn call_unified_connector_service_for_webhook(
             build_unified_connector_service_auth_metadata(mca_type, merchant_context)
         })
         .transpose()
-        .change_context(ApiErrorResponse::InternalServerError)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to build UCS auth metadata")?
         .ok_or_else(|| {
-            error_stack::report!(ApiErrorResponse::InternalServerError).attach_printable(
+            error_stack::report!(errors::ApiErrorResponse::InternalServerError).attach_printable(
                 "Missing merchant connector account for UCS webhook transformation",
             )
         })?;
@@ -629,7 +632,7 @@ pub async fn call_unified_connector_service_for_webhook(
         }
         Err(err) => {
             // When UCS is configured, we don't fall back to direct connector processing
-            Err(ApiErrorResponse::WebhookProcessingFailure)
+            Err(errors::ApiErrorResponse::WebhookProcessingFailure)
                 .attach_printable(format!("UCS webhook processing failed: {err}"))
         }
     }
