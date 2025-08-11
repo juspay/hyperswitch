@@ -14,6 +14,7 @@ use hyperswitch_domain_models::{
     router_response_types::PaymentsResponseData,
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
+use router_env::logger;
 use unified_connector_service_client::payments::{
     self as payments_grpc, payment_method::PaymentMethod, CardDetails, CardPaymentMethodType,
     PaymentServiceAuthorizeResponse,
@@ -33,9 +34,13 @@ use crate::{
     },
     routes::SessionState,
     types::transformers::ForeignTryFrom,
+    utils,
 };
 
-mod transformers;
+pub mod transformers;
+
+// Re-export webhook transformer types for easier access
+pub use transformers::WebhookTransformData;
 
 /// Generic version of should_call_unified_connector_service that works with any type
 /// implementing OperationSessionGetters trait
@@ -206,6 +211,40 @@ where
     payment_data.set_payment_intent(payment_intent);
 
     Ok(())
+pub async fn should_call_unified_connector_service_for_webhooks(
+    state: &SessionState,
+    merchant_context: &MerchantContext,
+    connector_name: &str,
+) -> RouterResult<bool> {
+    if state.grpc_client.unified_connector_service_client.is_none() {
+        logger::debug!(
+            connector = connector_name.to_string(),
+            "Unified Connector Service client is not available for webhooks"
+        );
+        return Ok(false);
+    }
+
+    let ucs_config_key = consts::UCS_ENABLED;
+
+    if !is_ucs_enabled(state, ucs_config_key).await {
+        return Ok(false);
+    }
+
+    let merchant_id = merchant_context
+        .get_merchant_account()
+        .get_id()
+        .get_string_repr();
+
+    let config_key = format!(
+        "{}_{}_{}_Webhooks",
+        consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
+        merchant_id,
+        connector_name
+    );
+
+    let should_execute = should_execute_based_on_rollout(state, &config_key).await?;
+
+    Ok(should_execute)
 }
 
 pub fn build_unified_connector_service_payment_method(
@@ -444,4 +483,162 @@ pub fn handle_unified_connector_service_response_for_payment_repeat(
         Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
 
     Ok((status, router_data_response, status_code))
+}
+
+pub fn build_webhook_secrets_from_merchant_connector_account(
+    #[cfg(feature = "v1")] merchant_connector_account: &MerchantConnectorAccountType,
+    #[cfg(feature = "v2")] merchant_connector_account: &MerchantConnectorAccountTypeDetails,
+) -> CustomResult<Option<payments_grpc::WebhookSecrets>, UnifiedConnectorServiceError> {
+    // Extract webhook credentials from merchant connector account
+    // This depends on how webhook secrets are stored in the merchant connector account
+
+    #[cfg(feature = "v1")]
+    let webhook_details = merchant_connector_account
+        .get_webhook_details()
+        .map_err(|_| UnifiedConnectorServiceError::FailedToObtainAuthType)?;
+
+    #[cfg(feature = "v2")]
+    let webhook_details = match merchant_connector_account {
+        MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(mca) => {
+            mca.connector_webhook_details.as_ref()
+        }
+        MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => None,
+    };
+
+    match webhook_details {
+        Some(details) => {
+            // Parse the webhook details JSON to extract secrets
+            let webhook_details: admin::MerchantConnectorWebhookDetails = details
+                .clone()
+                .parse_value("MerchantConnectorWebhookDetails")
+                .change_context(UnifiedConnectorServiceError::FailedToObtainAuthType)
+                .attach_printable("Failed to parse MerchantConnectorWebhookDetails")?;
+
+            // Build gRPC WebhookSecrets from parsed details
+            Ok(Some(payments_grpc::WebhookSecrets {
+                secret: webhook_details.merchant_secret.expose().to_string(),
+                additional_secret: webhook_details
+                    .additional_secret
+                    .map(|secret| secret.expose().to_string()),
+            }))
+        }
+        None => Ok(None),
+    }
+}
+
+/// High-level abstraction for calling UCS webhook transformation
+/// This provides a clean interface similar to payment flow UCS calls
+pub async fn call_unified_connector_service_for_webhook(
+    state: &SessionState,
+    merchant_context: &MerchantContext,
+    connector_name: &str,
+    body: &actix_web::web::Bytes,
+    request_details: &hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails<'_>,
+    merchant_connector_account: Option<
+        &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
+    >,
+) -> RouterResult<(
+    api_models::webhooks::IncomingWebhookEvent,
+    bool,
+    WebhookTransformData,
+)> {
+    let ucs_client = state
+        .grpc_client
+        .unified_connector_service_client
+        .as_ref()
+        .ok_or_else(|| {
+            error_stack::report!(ApiErrorResponse::WebhookProcessingFailure)
+                .attach_printable("UCS client is not available for webhook processing")
+        })?;
+
+    // Build webhook secrets from merchant connector account
+    let webhook_secrets = merchant_connector_account.and_then(|mca| {
+        #[cfg(feature = "v1")]
+        let mca_type = MerchantConnectorAccountType::DbVal(Box::new(mca.clone()));
+        #[cfg(feature = "v2")]
+        let mca_type =
+            MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(mca.clone()));
+
+        build_webhook_secrets_from_merchant_connector_account(&mca_type)
+            .map_err(|e| {
+                logger::warn!(
+                    build_error=?e,
+                    connector_name=connector_name,
+                    "Failed to build webhook secrets from merchant connector account in call_unified_connector_service_for_webhook"
+                );
+                e
+            })
+            .ok()
+            .flatten()
+    });
+
+    // Build UCS transform request using new webhook transformers
+    let transform_request = transformers::build_webhook_transform_request(
+        body,
+        request_details,
+        webhook_secrets,
+        merchant_context
+            .get_merchant_account()
+            .get_id()
+            .get_string_repr(),
+        connector_name,
+    )?;
+
+    // Build connector auth metadata
+    let connector_auth_metadata = merchant_connector_account
+        .map(|mca| {
+            #[cfg(feature = "v1")]
+            let mca_type = MerchantConnectorAccountType::DbVal(Box::new(mca.clone()));
+            #[cfg(feature = "v2")]
+            let mca_type = MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
+                mca.clone(),
+            ));
+
+            build_unified_connector_service_auth_metadata(mca_type, merchant_context)
+        })
+        .transpose()
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to build UCS auth metadata")?
+        .ok_or_else(|| {
+            error_stack::report!(ApiErrorResponse::InternalServerError).attach_printable(
+                "Missing merchant connector account for UCS webhook transformation",
+            )
+        })?;
+
+    // Build gRPC headers
+    let grpc_headers = external_services::grpc_client::GrpcHeaders {
+        tenant_id: state.tenant.tenant_id.get_string_repr().to_string(),
+        request_id: Some(utils::generate_id(consts::ID_LENGTH, "webhook_req")),
+    };
+
+    // Make UCS call - client availability already verified
+    match ucs_client
+        .transform_incoming_webhook(transform_request, connector_auth_metadata, grpc_headers)
+        .await
+    {
+        Ok(response) => {
+            let transform_response = response.into_inner();
+            let transform_data = transformers::transform_ucs_webhook_response(transform_response)?;
+
+            // UCS handles everything internally - event type, source verification, decoding
+            Ok((
+                transform_data.event_type,
+                transform_data.source_verified,
+                transform_data,
+            ))
+        }
+        Err(err) => {
+            // When UCS is configured, we don't fall back to direct connector processing
+            Err(ApiErrorResponse::WebhookProcessingFailure)
+                .attach_printable(format!("UCS webhook processing failed: {err}"))
+        }
+    }
+}
+
+/// Extract webhook content from UCS response for further processing
+/// This provides a helper function to extract specific data from UCS responses
+pub fn extract_webhook_content_from_ucs_response(
+    transform_data: &WebhookTransformData,
+) -> Option<&unified_connector_service_client::payments::WebhookResponseContent> {
+    transform_data.webhook_content.as_ref()
 }

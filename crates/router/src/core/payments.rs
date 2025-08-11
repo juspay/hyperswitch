@@ -3601,9 +3601,9 @@ where
         let decide_wallet_flow = &wallet
             .decide_wallet_flow(state, payment_data, &merchant_connector_account)
             .attach_printable("Failed to decide wallet flow")?
-            .async_map(|payment_proce_data| async move {
+            .async_map(|payment_price_data| async move {
                 wallet
-                    .decrypt_wallet_token(&payment_proce_data, payment_data)
+                    .decrypt_wallet_token(&payment_price_data, payment_data)
                     .await
             })
             .await
@@ -3631,11 +3631,11 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let connector_routing_data = match connector_call_type {
         ConnectorCallType::PreDetermined(connector_routing_data) => connector_routing_data,
-        ConnectorCallType::Retryable(connector_routing_datas) => connector_routing_datas
+        ConnectorCallType::Retryable(connector_routing_data) => connector_routing_data
             .first()
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Found no connector routing data in retryable call")?,
-        ConnectorCallType::SessionMultiple(_session_connector_datas) => {
+        ConnectorCallType::SessionMultiple(_session_connector_data) => {
             return Err(errors::ApiErrorResponse::InternalServerError).attach_printable(
                 "SessionMultiple connector call type is invalid in confirm calls",
             );
@@ -5095,24 +5095,27 @@ where
         let apple_pay_wallet_data = payment_data
             .get_payment_method_data()
             .and_then(|payment_method_data| payment_method_data.get_wallet_data())
-            .and_then(|wallet_data| wallet_data.get_apple_pay_wallet_data())
-            .get_required_value("Apple Pay wallet token")
-            .attach_printable(
-                "Apple Pay wallet data not found in the payment method data during the Apple Pay predecryption flow",
-            )?;
+            .and_then(|wallet_data| wallet_data.get_apple_pay_wallet_data());
 
-        match &apple_pay_wallet_data.payment_data {
-            common_payments_types::ApplePayPaymentData::Encrypted(_) => Ok(None),
-            common_payments_types::ApplePayPaymentData::Decrypted(apple_pay_predecrypt_data) => {
-                helpers::validate_card_expiry(
-                    &apple_pay_predecrypt_data.application_expiration_month,
-                    &apple_pay_predecrypt_data.application_expiration_year,
-                )?;
-                Ok(Some(PaymentMethodToken::ApplePayDecrypt(Box::new(
-                    apple_pay_predecrypt_data.clone(),
-                ))))
+        let result = if let Some(data) = apple_pay_wallet_data {
+            match &data.payment_data {
+                common_payments_types::ApplePayPaymentData::Encrypted(_) => None,
+                common_payments_types::ApplePayPaymentData::Decrypted(
+                    apple_pay_predecrypt_data,
+                ) => {
+                    helpers::validate_card_expiry(
+                        &apple_pay_predecrypt_data.application_expiration_month,
+                        &apple_pay_predecrypt_data.application_expiration_year,
+                    )?;
+                    Some(PaymentMethodToken::ApplePayDecrypt(Box::new(
+                        apple_pay_predecrypt_data.clone(),
+                    )))
+                }
             }
-        }
+        } else {
+            None
+        };
+        Ok(result)
     }
 
     fn decide_wallet_flow(
@@ -5197,6 +5200,35 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + Send + Sync + Clone,
 {
+    fn check_predecrypted_token(
+        &self,
+        payment_data: &D,
+    ) -> CustomResult<Option<PaymentMethodToken>, errors::ApiErrorResponse> {
+        let google_pay_wallet_data = payment_data
+            .get_payment_method_data()
+            .and_then(|payment_method_data| payment_method_data.get_wallet_data())
+            .and_then(|wallet_data| wallet_data.get_google_pay_wallet_data());
+
+        let result = if let Some(data) = google_pay_wallet_data {
+            match &data.tokenization_data {
+                common_payments_types::GpayTokenizationData::Encrypted(_) => None,
+                common_payments_types::GpayTokenizationData::Decrypted(
+                    google_pay_predecrypt_data,
+                ) => {
+                    helpers::validate_card_expiry(
+                        &google_pay_predecrypt_data.card_exp_month,
+                        &google_pay_predecrypt_data.card_exp_year,
+                    )?;
+                    Some(PaymentMethodToken::GooglePayDecrypt(Box::new(
+                        google_pay_predecrypt_data.clone(),
+                    )))
+                }
+            }
+        } else {
+            None
+        };
+        Ok(result)
+    }
     fn decide_wallet_flow(
         &self,
         state: &SessionState,
@@ -5244,14 +5276,19 @@ where
         .attach_printable("failed to create google pay token decryptor")?;
 
         // should_verify_token is set to false to disable verification of token
-        let google_pay_data = decryptor
+        let google_pay_data_internal = decryptor
             .decrypt_token(
-                google_pay_wallet_data.tokenization_data.token.clone(),
+                google_pay_wallet_data
+                    .tokenization_data
+                    .get_encrypted_google_pay_token()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?
+                    .clone(),
                 false,
             )
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("failed to decrypt google pay token")?;
-
+        let google_pay_data =
+            common_types::payments::GPayPredecryptData::from(google_pay_data_internal);
         Ok(PaymentMethodToken::GooglePayDecrypt(Box::new(
             google_pay_data,
         )))
@@ -6146,7 +6183,9 @@ where
             }
         }
         Some(domain::PaymentMethodData::BankDebit(_)) => {
-            if connector.connector_name == router_types::Connector::Gocardless {
+            if connector.connector_name == router_types::Connector::Gocardless
+                || connector.connector_name == router_types::Connector::Nordea
+            {
                 router_data = router_data.preprocessing_steps(state, connector).await?;
                 let is_error_in_response = router_data.response.is_err();
                 // If is_error_in_response is true, should_continue_payment should be false, we should throw the error
