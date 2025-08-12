@@ -15,9 +15,8 @@ use common_utils::{
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{
-        self, BankRedirectData, Card, CardRedirectData,
-        GiftCardData, GooglePayWalletData, PayLaterData, PaymentMethodData, VoucherData,
-        WalletData,
+        self, BankRedirectData, Card, CardRedirectData, GiftCardData, GooglePayWalletData,
+        PayLaterData, PaymentMethodData, VoucherData, WalletData,
     },
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
@@ -33,9 +32,9 @@ use hyperswitch_domain_models::{
         RefundsResponseData,
     },
     types::{
-        ConnectorCustomerRouterData,
-        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsUpdateMetadataRouterData,
-        RefundsRouterData, SetupMandateRouterData, TokenizationRouterData,
+        ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
+        PaymentsUpdateMetadataRouterData, RefundsRouterData, SetupMandateRouterData,
+        TokenizationRouterData,
     },
 };
 use hyperswitch_interfaces::{consts, errors::ConnectorError};
@@ -1229,10 +1228,7 @@ fn create_stripe_payment_method(
                 enums::AuthenticationType::NoThreeDs => Auth3ds::Automatic,
             };
             Ok((
-                StripePaymentMethodData::try_from((
-                    card_details,
-                    payment_method_auth_type,
-                ))?,
+                StripePaymentMethodData::try_from((card_details, payment_method_auth_type))?,
                 Some(StripePaymentMethodType::Card),
                 billing_address,
             ))
@@ -1258,17 +1254,14 @@ fn create_stripe_payment_method(
                 billing_address
             };
             let pm_type = StripePaymentMethodType::try_from(bank_redirect_data)?;
-            let bank_redirect_data =
-                StripePaymentMethodData::try_from(bank_redirect_data)?;
+            let bank_redirect_data = StripePaymentMethodData::try_from(bank_redirect_data)?;
 
             Ok((bank_redirect_data, Some(pm_type), billing_address))
         }
         PaymentMethodData::Wallet(wallet_data) => {
             let pm_type = get_stripe_payment_method_type_from_wallet_data(wallet_data)?;
-            let wallet_specific_data = StripePaymentMethodData::try_from((
-                wallet_data,
-                payment_method_token,
-            ))?;
+            let wallet_specific_data =
+                StripePaymentMethodData::try_from((wallet_data, payment_method_token))?;
             Ok((
                 wallet_specific_data,
                 pm_type,
@@ -1278,23 +1271,22 @@ fn create_stripe_payment_method(
         PaymentMethodData::BankDebit(bank_debit_data) => {
             let (pm_type, bank_debit_data) = get_bank_debit_data(bank_debit_data);
 
-            let pm_data =
-                StripePaymentMethodData::BankDebit(StripeBankDebitData {
-                    bank_specific_data: bank_debit_data,
-                });
+            let pm_data = StripePaymentMethodData::BankDebit(StripeBankDebitData {
+                bank_specific_data: bank_debit_data,
+            });
 
             Ok((pm_data, Some(pm_type), billing_address))
         }
         PaymentMethodData::BankTransfer(bank_transfer_data) => match bank_transfer_data.deref() {
             payment_method_data::BankTransferData::AchBankTransfer {} => Ok((
-                StripePaymentMethodData::BankTransfer(
-                    StripeBankTransferData::AchBankTransfer(Box::new(AchTransferData {
+                StripePaymentMethodData::BankTransfer(StripeBankTransferData::AchBankTransfer(
+                    Box::new(AchTransferData {
                         payment_method_data_type: StripePaymentMethodType::CustomerBalance,
                         bank_transfer_type: StripeCreditTransferTypes::AchCreditTransfer,
                         payment_method_type: StripePaymentMethodType::CustomerBalance,
                         balance_funding_type: BankTransferType::BankTransfers,
-                    })),
-                ),
+                    }),
+                )),
                 None,
                 StripeBillingAddress::default(),
             )),
@@ -1316,8 +1308,8 @@ fn create_stripe_payment_method(
                 StripeBillingAddress::default(),
             )),
             payment_method_data::BankTransferData::SepaBankTransfer {} => Ok((
-                StripePaymentMethodData::BankTransfer(
-                    StripeBankTransferData::SepaBankTransfer(Box::new(SepaBankTransferData {
+                StripePaymentMethodData::BankTransfer(StripeBankTransferData::SepaBankTransfer(
+                    Box::new(SepaBankTransferData {
                         payment_method_data_type: StripePaymentMethodType::CustomerBalance,
                         bank_transfer_type: BankTransferType::EuBankTransfer,
                         balance_funding_type: BankTransferType::BankTransfers,
@@ -1327,20 +1319,20 @@ fn create_stripe_payment_method(
                                 field_name: "billing_address.country",
                             },
                         )?,
-                    })),
-                ),
+                    }),
+                )),
                 Some(StripePaymentMethodType::CustomerBalance),
                 billing_address,
             )),
             payment_method_data::BankTransferData::BacsBankTransfer {} => Ok((
-                StripePaymentMethodData::BankTransfer(
-                    StripeBankTransferData::BacsBankTransfers(Box::new(BacsBankTransferData {
+                StripePaymentMethodData::BankTransfer(StripeBankTransferData::BacsBankTransfers(
+                    Box::new(BacsBankTransferData {
                         payment_method_data_type: StripePaymentMethodType::CustomerBalance,
                         bank_transfer_type: BankTransferType::GbBankTransfer,
                         balance_funding_type: BankTransferType::BankTransfers,
                         payment_method_type: StripePaymentMethodType::CustomerBalance,
-                    })),
-                ),
+                    }),
+                )),
                 Some(StripePaymentMethodType::CustomerBalance),
                 billing_address,
             )),
@@ -1456,7 +1448,7 @@ fn get_stripe_card_network(card_network: common_enums::CardNetwork) -> Option<St
 impl TryFrom<(&Card, Auth3ds)> for StripePaymentMethodData {
     type Error = ConnectorError;
     fn try_from((card, payment_method_auth_type): (&Card, Auth3ds)) -> Result<Self, Self::Error> {
-        let data = StripeCardData {
+        Ok(Self::Card(StripeCardData {
             payment_method_data_type: StripePaymentMethodType::Card,
             payment_method_data_card_number: card.card_number.clone(),
             payment_method_data_card_exp_month: card.card_exp_month.clone(),
@@ -1467,13 +1459,11 @@ impl TryFrom<(&Card, Auth3ds)> for StripePaymentMethodData {
                 .card_network
                 .clone()
                 .and_then(get_stripe_card_network),
-        };
-        Ok(Self::Card(data))
+        }))
     }
 }
 
-impl TryFrom<(&WalletData, Option<PaymentMethodToken>)> for StripePaymentMethodData
-{
+impl TryFrom<(&WalletData, Option<PaymentMethodToken>)> for StripePaymentMethodData {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         (wallet_data, payment_method_token): (&WalletData, Option<PaymentMethodToken>),
@@ -1582,8 +1572,7 @@ impl TryFrom<(&WalletData, Option<PaymentMethodToken>)> for StripePaymentMethodD
     }
 }
 
-impl TryFrom<&BankRedirectData> for StripePaymentMethodData
-{
+impl TryFrom<&BankRedirectData> for StripePaymentMethodData {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(bank_redirect_data: &BankRedirectData) -> Result<Self, Self::Error> {
         let payment_method_data_type = StripePaymentMethodType::try_from(bank_redirect_data)?;
@@ -1661,8 +1650,7 @@ impl TryFrom<&BankRedirectData> for StripePaymentMethodData
     }
 }
 
-impl TryFrom<&GooglePayWalletData> for StripePaymentMethodData
-{
+impl TryFrom<&GooglePayWalletData> for StripePaymentMethodData {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(gpay_data: &GooglePayWalletData) -> Result<Self, Self::Error> {
         Ok(Self::Wallet(StripeWallet::GooglepayToken(GooglePayToken {
