@@ -12,4 +12,7 @@ CREATE TABLE hyperswitch_ai_interaction (
     database_query TEXT,
     interaction_status VARCHAR(64),
     created_at TIMESTAMP NOT NULL DEFAULT now()
-);
+)  PARTITION BY RANGE (created_at);
+-- Create a default partition for the table
+CREATE TABLE hyperswitch_ai_interaction_default
+    PARTITION OF hyperswitch_ai_interaction DEFAULT;
