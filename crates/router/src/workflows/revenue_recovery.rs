@@ -18,27 +18,26 @@ use common_utils::{
 };
 #[cfg(feature = "v2")]
 use diesel_models::types::BillingConnectorPaymentMethodDetails;
+use error_stack::Report;
 #[cfg(feature = "v2")]
 use error_stack::ResultExt;
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 use external_services::{
     date_time, grpc_client::revenue_recovery::recovery_decider_client as external_grpc_client,
 };
-
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::router_flow_types;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
-    payments::{
-     PaymentConfirmData, PaymentIntent, PaymentIntentData,
-    },
+    payments::{PaymentConfirmData, PaymentIntent, PaymentIntentData},
     router_flow_types::Authorize,
 };
 #[cfg(feature = "v2")]
 use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
 use router_env::logger;
+use router_env::tracing;
 use scheduler::{consumer::workflows::ProcessTrackerWorkflow, errors};
 #[cfg(feature = "v2")]
 use scheduler::{types::process_data, utils as scheduler_utils};
@@ -61,7 +60,6 @@ use crate::types::storage::revenue_recovery::RetryLimitsConfig;
 use crate::types::storage::revenue_recovery_redis_operation::{
     PaymentProcessorTokenStatus, PaymentProcessorTokenWithRetryInfo, RedisTokenManager,
 };
-use router_env::tracing;
 #[cfg(feature = "v2")]
 use crate::workflows::revenue_recovery::payments::helpers;
 #[cfg(feature = "v2")]
@@ -82,7 +80,6 @@ use crate::{
     },
 };
 use crate::{routes::SessionState, types::storage};
-use error_stack::Report;
 pub struct ExecutePcrWorkflow;
 #[cfg(feature = "v2")]
 pub const REVENUE_RECOVERY: &str = "revenue_recovery";
@@ -311,9 +308,7 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
         .and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref());
 
     let card_network = billing_connector_payment_method_details.and_then(|details| match details {
-            BillingConnectorPaymentMethodDetails::Card(card_info) => {
-            card_info.card_network.clone()
-        }
+        BillingConnectorPaymentMethodDetails::Card(card_info) => card_info.card_network.clone(),
     });
 
     let total_retry_count_within_network = card_config.get_network_config(card_network.clone());
@@ -322,15 +317,17 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
 
     let card_issuer_str =
         billing_connector_payment_method_details.and_then(|details| match details {
-            BillingConnectorPaymentMethodDetails::Card(card_info) => {
-                card_info.card_issuer.clone()
-            }
+            BillingConnectorPaymentMethodDetails::Card(card_info) => card_info.card_issuer.clone(),
         });
 
     let card_funding_str = payment_intent
         .feature_metadata
         .as_ref()
-        .and_then(|revenue_recovery_data| revenue_recovery_data.payment_revenue_recovery_metadata.as_ref())
+        .and_then(|revenue_recovery_data| {
+            revenue_recovery_data
+                .payment_revenue_recovery_metadata
+                .as_ref()
+        })
         .map(|payment_metadata| payment_metadata.payment_method_subtype.to_string());
 
     let start_time_primitive = payment_intent.created_at;
@@ -558,10 +555,15 @@ pub async fn get_best_psp_token_available(
     merchant_context: domain::MerchantContext,
 ) -> CustomResult<Option<ScheduledToken>, errors::ProcessTrackerError> {
     //  Lock using payment_id
-    let locked =
-        RedisTokenManager::lock_connector_customer_status(state, connector_customer_id, &payment_intent.id)
-            .await
-            .change_context(errors::ProcessTrackerError::ERedisError(errors::RedisError::RedisConnectionError.into()))?;
+    let locked = RedisTokenManager::lock_connector_customer_status(
+        state,
+        connector_customer_id,
+        &payment_intent.id,
+    )
+    .await
+    .change_context(errors::ProcessTrackerError::ERedisError(
+        errors::RedisError::RedisConnectionError.into(),
+    ))?;
 
     match !locked {
         true => Ok(None),
@@ -574,7 +576,9 @@ pub async fn get_best_psp_token_available(
                     connector_customer_id,
                 )
                 .await
-                .change_context(errors::ProcessTrackerError::ERedisError(errors::RedisError::RedisConnectionError.into()))?;
+                .change_context(errors::ProcessTrackerError::ERedisError(
+                    errors::RedisError::RedisConnectionError.into(),
+                ))?;
 
             // TODO: Insert into payment_intent_feature_metadata (DB operation)
 
@@ -671,8 +675,6 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
     payment_intent: &PaymentIntent,
     connector_customer_id: &str,
 ) -> CustomResult<Option<ScheduledToken>, errors::ProcessTrackerError> {
-
-
     let attempts_response = Box::pin(payments::payments_list_attempts_using_payment_intent_id::<
         payments::operations::PaymentGetListAttempts,
         api_payments::PaymentAttemptListResponse,
@@ -759,9 +761,7 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
                 tracing::debug!(
                     "Found payment processor token with no error code scheduling it for {schedule_time}",
                 );
-                break; 
-
-
+                break;
             }
             Some(_) => {
                 process_token_for_retry(

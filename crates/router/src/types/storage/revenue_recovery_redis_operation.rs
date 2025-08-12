@@ -9,10 +9,7 @@ use router_env::{instrument, tracing};
 use serde::{Deserialize, Serialize};
 use time::{Date, Duration, OffsetDateTime, PrimitiveDateTime};
 
-use crate::{
-    db::errors,
-    SessionState,
-};
+use crate::{db::errors, SessionState};
 
 // Constants for retry window management
 const RETRY_WINDOW_DAYS: i32 = 30;
@@ -139,7 +136,6 @@ impl RedisTokenManager {
                 Ok(false)
             }
         }
-        
     }
 
     /// Get all payment processor tokens for a connector customer
@@ -188,7 +184,6 @@ impl RedisTokenManager {
             connector_customer_id = connector_customer_id,
             "Fetched payment processor tokens",
         );
-            
 
         Ok(payment_processor_token_info_map)
     }
@@ -323,9 +318,7 @@ impl RedisTokenManager {
 
             result.insert(payment_processor_token_id.clone(), token_with_retry_info);
         }
-        tracing::debug!(
-            "Fetched payment processor tokens with retry metadata",
-        );
+        tracing::debug!("Fetched payment processor tokens with retry metadata",);
 
         result
     }
@@ -486,10 +479,10 @@ impl RedisTokenManager {
             token_map,
         )
         .await?;
-    tracing::debug!(
-        connector_customer_id = connector_customer_id,
-        "Upsert payment processor tokens",
-    );
+        tracing::debug!(
+            connector_customer_id = connector_customer_id,
+            "Upsert payment processor tokens",
+        );
 
         Ok(!was_existing)
     }
