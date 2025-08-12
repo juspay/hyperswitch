@@ -56,6 +56,7 @@ mod gpayments;
 mod helcim;
 mod hipay;
 mod hyperswitch_vault;
+mod hyperwallet;
 mod iatapay;
 mod inespay;
 mod itaubank;
