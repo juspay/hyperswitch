@@ -124,7 +124,7 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
         >(
             state,
             state.get_req_state(),
-            merchant_context_from_revenue_recovery_payment_data,
+            merchant_context_from_revenue_recovery_payment_data.clone(),
             revenue_recovery_payment_data.profile.clone(),
             payments::operations::PaymentGetIntent,
             request,
@@ -138,6 +138,8 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
                 Box::pin(pcr::perform_execute_payment(
                     state,
                     &process,
+                    &revenue_recovery_payment_data.profile.clone(),
+                    merchant_context_from_revenue_recovery_payment_data.clone(),
                     &tracking_data,
                     &revenue_recovery_payment_data,
                     &payment_data.payment_intent,
@@ -148,6 +150,8 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
                 Box::pin(pcr::perform_payments_sync(
                     state,
                     &process,
+                    &revenue_recovery_payment_data.profile.clone(),
+                    merchant_context_from_revenue_recovery_payment_data.clone(),
                     &tracking_data,
                     &revenue_recovery_payment_data,
                     &payment_data.payment_intent,
@@ -159,8 +163,7 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
                 Box::pin(pcr::perform_calculate_workflow(
                     state,
                     &process,
-                    state.get_req_state(),
-                    revenue_recovery_payment_data.profile.clone(),
+                    &revenue_recovery_payment_data.profile.clone(),
                     merchant_context_from_revenue_recovery_payment_data,
                     &tracking_data,
                     &revenue_recovery_payment_data,

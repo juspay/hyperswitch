@@ -179,6 +179,8 @@ pub async fn upsert_calculate_pcr_task(
 pub async fn perform_execute_payment(
     state: &SessionState,
     execute_task_process: &storage::ProcessTracker,
+    profile: &domain::Profile,
+    merchant_context: domain::MerchantContext,
     tracking_data: &pcr::RevenueRecoveryWorkflowTrackingData,
     revenue_recovery_payment_data: &pcr::RevenueRecoveryPaymentData,
     payment_intent: &PaymentIntent,
@@ -223,6 +225,8 @@ pub async fn perform_execute_payment(
                         revenue_recovery_payment_data.merchant_account.get_id(),
                         payment_intent,
                         execute_task_process,
+                        profile,
+                        merchant_context,
                         revenue_recovery_payment_data,
                         &revenue_recovery_metadata,
                     ))
@@ -399,6 +403,8 @@ async fn insert_psync_pcr_task_to_pt(
 pub async fn perform_payments_sync(
     state: &SessionState,
     process: &storage::ProcessTracker,
+    profile: &domain::Profile,
+    merchant_context: domain::MerchantContext,
     tracking_data: &pcr::RevenueRecoveryWorkflowTrackingData,
     revenue_recovery_payment_data: &pcr::RevenueRecoveryPaymentData,
     payment_intent: &PaymentIntent,
@@ -424,6 +430,8 @@ pub async fn perform_payments_sync(
             state,
             payment_intent,
             process.clone(),
+            profile,
+            merchant_context,
             revenue_recovery_payment_data,
             payment_attempt,
             &mut revenue_recovery_metadata,
@@ -437,7 +445,6 @@ pub async fn perform_payments_sync(
 pub async fn perform_calculate_workflow(
     state: &SessionState,
     process: &storage::ProcessTracker,
-    req_state: &ReqState,
     profile: &domain::Profile,
     merchant_context: domain::MerchantContext,
     tracking_data: &pcr::RevenueRecoveryWorkflowTrackingData,
@@ -472,9 +479,9 @@ pub async fn perform_calculate_workflow(
         state,
         merchant_id,
         &connector_customer_id,
-        req_state,
+        &state.get_req_state(),
         profile,
-        &payment_intent.id,
+        &payment_intent,
         merchant_context_from_revenue_recovery_payment_data,
     )
     .await

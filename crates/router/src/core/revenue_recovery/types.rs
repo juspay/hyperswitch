@@ -44,7 +44,7 @@ use crate::{
     routes::SessionState,
     services::{self, connector_integration_interface::RouterDataConversion},
     types::{
-        self, api as api_types, api::payments as payments_types, storage, transformers::ForeignInto,
+        self, api as api_types, api::payments as payments_types, domain, storage, transformers::ForeignInto,
     },
     workflows::{payment_sync, revenue_recovery::get_schedule_time_to_retry_mit_payments},
 };
@@ -94,11 +94,14 @@ impl RevenueRecoveryPaymentsAttemptStatus {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) async fn update_pt_status_based_on_attempt_status_for_payments_sync(
         &self,
         state: &SessionState,
         payment_intent: &PaymentIntent,
         process_tracker: storage::ProcessTracker,
+        profile: &domain::Profile,
+        merchant_context: domain::MerchantContext,
         revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
         payment_attempt: PaymentAttempt,
         revenue_recovery_metadata: &mut PaymentRevenueRecoveryMetadata,
@@ -217,6 +220,8 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                 reopen_calculate_workflow_on_payment_failure(
                     state,
                     &process_tracker,
+                    profile,
+                    merchant_context,
                     payment_intent,
                     revenue_recovery_payment_data,
                 )
@@ -229,6 +234,8 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                     revenue_recovery_payment_data,
                     payment_intent,
                     &process_tracker,
+                    profile,
+                    merchant_context,
                     payment_attempt,
                 ))
                 .await?;
@@ -333,11 +340,14 @@ pub enum Action {
     ManualReviewAction,
 }
 impl Action {
+    #[allow(clippy::too_many_arguments)]
     pub async fn execute_payment(
         state: &SessionState,
         merchant_id: &id_type::MerchantId,
         payment_intent: &PaymentIntent,
         process: &storage::ProcessTracker,
+        profile: &domain::Profile,
+        merchant_context: domain::MerchantContext,
         revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
         revenue_recovery_metadata: &PaymentRevenueRecoveryMetadata,
     ) -> RecoveryResult<Self> {
@@ -472,6 +482,8 @@ impl Action {
                             reopen_calculate_workflow_on_payment_failure(
                                 state,
                                 process,
+                                profile,
+                                merchant_context,
                                 payment_intent,
                                 revenue_recovery_payment_data,
                             )
@@ -678,6 +690,8 @@ impl Action {
         revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
         payment_intent: &PaymentIntent,
         process: &storage::ProcessTracker,
+        profile: &domain::Profile,
+        merchant_context: domain::MerchantContext,
         payment_attempt: PaymentAttempt,
     ) -> RecoveryResult<Self> {
         let response = revenue_recovery_core::api::call_psync_api(
@@ -738,6 +752,8 @@ impl Action {
                     reopen_calculate_workflow_on_payment_failure(
                         state,
                         process,
+                        profile,
+                        merchant_context,
                         payment_intent,
                         revenue_recovery_payment_data,
                     )
@@ -949,6 +965,8 @@ impl Action {
 pub async fn reopen_calculate_workflow_on_payment_failure(
     state: &SessionState,
     process: &storage::ProcessTracker,
+    profile: &domain::Profile,
+    merchant_context: domain::MerchantContext,
     payment_intent: &PaymentIntent,
     revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
 ) -> RecoveryResult<()> {
@@ -1031,6 +1049,8 @@ pub async fn reopen_calculate_workflow_on_payment_failure(
             perform_calculate_workflow(
                 state,
                 process,
+                profile,
+                merchant_context,
                 &tracking_data,
                 revenue_recovery_payment_data,
                 payment_intent,
