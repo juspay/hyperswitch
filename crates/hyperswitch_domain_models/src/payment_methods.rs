@@ -88,6 +88,7 @@ pub struct PaymentMethod {
     pub network_token_requestor_reference_id: Option<String>,
     pub network_token_locker_id: Option<String>,
     pub network_token_payment_method_data: OptionalEncryptableValue,
+    pub billing_connector_subscription_id: Option<String>,
 }
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, router_derive::ToEncryption)]
@@ -295,6 +296,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             network_token_payment_method_data: self
                 .network_token_payment_method_data
                 .map(|val| val.into()),
+            billing_connector_subscription_id: self.billing_connector_subscription_id,
         })
     }
 
@@ -382,6 +384,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                         .and_then(|val| val.try_into_optionaloperation())
                     })
                     .await?,
+                billing_connector_subscription_id: item.billing_connector_subscription_id,
             })
         }
         .await
@@ -430,6 +433,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             network_token_payment_method_data: self
                 .network_token_payment_method_data
                 .map(|val| val.into()),
+            billing_connector_subscription_id: self.billing_connector_subscription_id,
         })
     }
 }
@@ -1109,6 +1113,7 @@ mod tests {
             network_token_requestor_reference_id: None,
             network_token_locker_id: None,
             network_token_payment_method_data: None,
+            billing_connector_subscription_id: None,
         };
         payment_method.clone()
     }

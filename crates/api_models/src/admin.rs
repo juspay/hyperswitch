@@ -2189,6 +2189,9 @@ pub struct ProfileCreate {
     /// Time interval (in hours) for polling the connector to check dispute statuses
     #[schema(value_type = Option<i32>, example = 2)]
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+
+    /// Name of the billing connector to be used for this profile
+    pub billing_connector: Option<String>,
 }
 
 #[nutype::nutype(

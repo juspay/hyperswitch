@@ -529,6 +529,7 @@ async fn store_bank_details_in_payment_methods(
                 network_token_requestor_reference_id: None,
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
+                billing_connector_subscription_id: None,
             };
 
             new_entries.push(pm_new);

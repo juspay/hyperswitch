@@ -60,6 +60,7 @@ pub struct PaymentMethod {
     pub network_token_requestor_reference_id: Option<String>,
     pub network_token_locker_id: Option<String>,
     pub network_token_payment_method_data: Option<Encryption>,
+    pub billing_connector_subscription_id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -143,6 +144,7 @@ pub struct PaymentMethodNew {
     pub network_token_requestor_reference_id: Option<String>,
     pub network_token_locker_id: Option<String>,
     pub network_token_payment_method_data: Option<Encryption>,
+    pub billing_connector_subscription_id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -450,6 +452,7 @@ impl PaymentMethodUpdateInternal {
             network_token_locker_id: network_token_locker_id.or(source.network_token_locker_id),
             network_token_payment_method_data: network_token_payment_method_data
                 .or(source.network_token_payment_method_data),
+            billing_connector_subscription_id: source.billing_connector_subscription_id,
         }
     }
 }
@@ -867,6 +870,9 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             network_token_locker_id: payment_method_new.network_token_locker_id.clone(),
             network_token_payment_method_data: payment_method_new
                 .network_token_payment_method_data
+                .clone(),
+            billing_connector_subscription_id: payment_method_new
+                .billing_connector_subscription_id
                 .clone(),
         }
     }

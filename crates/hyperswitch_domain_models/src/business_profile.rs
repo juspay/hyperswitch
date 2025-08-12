@@ -84,6 +84,7 @@ pub struct Profile {
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+    pub billing_connector: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -140,6 +141,7 @@ pub struct ProfileSetter {
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+    pub billing_connector: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -203,6 +205,7 @@ impl From<ProfileSetter> for Profile {
             merchant_category_code: value.merchant_category_code,
             merchant_country_code: value.merchant_country_code,
             dispute_polling_interval: value.dispute_polling_interval,
+            billing_connector: value.billing_connector,
         }
     }
 }
@@ -848,6 +851,7 @@ impl super::behaviour::Conversion for Profile {
             merchant_category_code: self.merchant_category_code,
             merchant_country_code: self.merchant_country_code,
             dispute_polling_interval: self.dispute_polling_interval,
+            billing_connector: self.billing_connector,
         })
     }
 
@@ -947,6 +951,7 @@ impl super::behaviour::Conversion for Profile {
                 merchant_category_code: item.merchant_category_code,
                 merchant_country_code: item.merchant_country_code,
                 dispute_polling_interval: item.dispute_polling_interval,
+                billing_connector: item.billing_connector,
             })
         }
         .await
@@ -1013,6 +1018,7 @@ impl super::behaviour::Conversion for Profile {
             merchant_category_code: self.merchant_category_code,
             merchant_country_code: self.merchant_country_code,
             dispute_polling_interval: self.dispute_polling_interval,
+            billing_connector: self.billing_connector,
         })
     }
 }
