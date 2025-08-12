@@ -10,7 +10,7 @@ use api_models::authentication::{
 use api_models::{
     authentication::{
         AcquirerDetails, AuthenticationAuthenticateRequest, AuthenticationAuthenticateResponse,
-        AuthenticationCreateRequest, AuthenticationResponse,
+        AuthenticationCreateRequest, AuthenticationResponse, PostAuthenticationRequest,
     },
     payments,
 };
@@ -1827,4 +1827,188 @@ pub async fn authentication_create_core(
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         response,
     ))
+}
+
+#[cfg(feature = "v2")]
+pub async fn post_authentication_core(
+    state: SessionState,
+    merchant_context: domain::MerchantContext,
+    req: PostAuthenticationRequest,
+    profile: hyperswitch_domain_models::business_profile::Profile,
+    authentication_id: common_utils::id_type::AuthenticationId,
+) -> RouterResponse<api_models::authentication::PostAuthenticationResponse> {
+    let merchant_account = merchant_context.get_merchant_account();
+    let merchant_id = merchant_account.get_id();
+    let db = &*state.store;
+    let authentication = db
+        .find_authentication_by_merchant_id_authentication_id(merchant_id, &authentication_id)
+        .await
+        .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {
+            id: authentication_id.get_string_repr().to_owned(),
+        })?;
+    let (authentication_connector, three_ds_connector_account) =
+        auth_utils::get_authentication_connector_data(
+            &state,
+            merchant_context.get_merchant_key_store(),
+            &profile,
+            authentication.authentication_connector.clone(),
+        )
+        .await?;
+    // Construct the pre authentication request data
+    let service_details = req
+        .payment_method_data
+        .payment_method_data
+        .get_click_to_pay_details();
+    let domain_service_details = hyperswitch_domain_models::router_request_types::unified_authentication_service::CtpServiceDetails {
+        service_session_ids: Some(ServiceSessionIds {
+            merchant_transaction_id: service_details
+                .as_ref()
+                .and_then(|details| details.merchant_transaction_id.clone()),
+            correlation_id: service_details
+                .as_ref()
+                .and_then(|details| details.correlation_id.clone()),
+            x_src_flow_id: service_details
+                .as_ref()
+                .and_then(|details| details.x_src_flow_id.clone()),
+        }),
+        payment_details: None,
+    };
+
+    let transaction_details = TransactionDetails {
+        amount: authentication.amount,
+        currency: authentication.currency,
+        device_channel: None,
+        message_category: None,
+    };
+
+    let authentication_info = Some(AuthenticationInfo {
+        authentication_type: None,
+        authentication_reasons: None,
+        consent_received: false, // This is not relevant in this flow so keeping it as false
+        is_authenticated: false, // This is not relevant in this flow so keeping it as false
+        locale: None,
+        supported_card_brands: None,
+        encrypted_payload: service_details
+            .as_ref()
+            .and_then(|details| details.encrypted_payload.clone()),
+    });
+    let pre_authentication_request_data = UasPreAuthenticationRequestData {
+        service_details: Some(domain_service_details),
+        transaction_details: Some(transaction_details),
+        payment_details: None,
+        authentication_info,
+        merchant_details: None,
+        billing_address: None,
+        acquirer_bin: None,
+        acquirer_merchant_id: None,
+    };
+    // call pre-auth
+    let pre_auth_router_data: UasPreAuthenticationRouterData = utils::construct_uas_router_data(
+        &state,
+        authentication_connector.to_string(),
+        common_enums::PaymentMethod::Card,
+        authentication.merchant_id.clone(),
+        None,
+        pre_authentication_request_data,
+        &three_ds_connector_account,
+        Some(authentication.authentication_id.to_owned()),
+        None,
+    )?;
+
+    let _pre_auth_response = Box::pin(utils::do_auth_connector_call(
+        &state,
+        UNIFIED_AUTHENTICATION_SERVICE.to_string(),
+        pre_auth_router_data,
+    ))
+    .await?;
+    // construct post auth request data
+    let post_authentication_data = UasPostAuthenticationRequestData {
+        threeds_server_transaction_id: None,
+    };
+
+    let post_auth_router_data: UasPostAuthenticationRouterData = utils::construct_uas_router_data(
+        &state,
+        authentication_connector.to_string(),
+        common_enums::PaymentMethod::Card,
+        authentication.merchant_id.clone(),
+        None,
+        post_authentication_data,
+        &three_ds_connector_account,
+        Some(authentication_id.to_owned()),
+        None,
+    )?;
+
+    // call post authn
+    let post_auth_response = utils::do_auth_connector_call(
+        &state,
+        UNIFIED_AUTHENTICATION_SERVICE.to_string(),
+        post_auth_router_data,
+    )
+    .await?;
+
+    let updated_authentication = utils::external_authentication_update_trackers(
+        &state,
+        post_auth_response.clone(),
+        authentication.clone(),
+        None,
+        merchant_context.get_merchant_key_store(),
+        None,
+        None,
+        None,
+        None,
+    )
+    .await?;
+
+    //tokenize when authentication is successful
+    let token_id = if let Ok(res) = post_auth_response.response.clone() {
+        let cell_id_string = "12345";
+        let cell_id = common_utils::id_type::CellId::from_str(cell_id_string).unwrap();
+
+        let tokenization_data = res.get_token_details_from_post_authentication_data();
+
+        if let Some(data) = tokenization_data {
+            use crate::services;
+
+            let tokenization_response = super::tokenization::create_vault_token_core(
+                state,
+                merchant_account,
+                merchant_context.get_merchant_key_store(),
+                api_models::tokenization::GenericTokenizationRequest {
+                    customer_id: common_utils::id_type::GlobalCustomerId::generate(&cell_id),
+                    token_request: masking::Secret::new(serde_json::json!({
+                        "network_token": data.payment_token,
+                        "expiry_month": data.token_expiration_month,
+                        "expiry_year": data.token_expiration_year,
+                    })),
+                },
+            )
+            .await?;
+            if let services::ApplicationResponse::Json(resp) = tokenization_response {
+                Some(resp.id)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    match post_auth_response.response {
+        Ok(_response) => Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+            api_models::authentication::PostAuthenticationResponse {
+                authentication_status: updated_authentication.authentication_status,
+                tokenization_id: token_id,
+            },
+        )),
+        Err(error_response) => Err(ApiErrorResponse::ExternalConnectorError {
+            code: error_response.code,
+            message: error_response.message,
+            connector: authentication_connector.to_string(),
+            status_code: error_response.status_code,
+            reason: error_response.reason,
+        }
+        .into()),
+    }
 }

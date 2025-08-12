@@ -249,8 +249,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
             } => {
                 let trans_status = authentication_details
                     .trans_status
-                    .ok_or(ApiErrorResponse::InternalServerError)
-                    .attach_printable("missing trans_status in PostAuthentication Details")?;
+                    .unwrap_or_default();
 
                 authentication_details
                     .dynamic_data_details

@@ -108,6 +108,17 @@ pub enum UasAuthenticationResponseData {
     Confirmation {},
 }
 
+impl UasAuthenticationResponseData {
+    pub fn get_token_details_from_post_authentication_data(&self) -> Option<TokenDetails> {
+        match self {
+            UasAuthenticationResponseData::PostAuthentication {
+                authentication_details,
+            } => authentication_details.token_details.clone(),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct PreAuthenticationDetails {
     pub threeds_server_transaction_id: Option<String>,

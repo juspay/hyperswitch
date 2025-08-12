@@ -213,6 +213,17 @@ impl MerchantConnectorAccount {
         .await
     }
 
+    pub async fn find_by_name(
+        conn: &PgPooledConn,
+        name: String,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::connector_name.eq(name.to_owned()),
+        )
+        .await
+    }
+
     pub async fn find_by_merchant_id(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,

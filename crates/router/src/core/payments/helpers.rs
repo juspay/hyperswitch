@@ -4338,7 +4338,16 @@ pub async fn get_merchant_connector_account(
                     }
                     #[cfg(feature = "v2")]
                     {
-                        todo!()
+                        db
+                        .find_merchant_connector_account_by_name(
+                            key_manager_state,
+                            connector_name.to_string(),
+                            key_store,
+                        )
+                        .await
+                        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                            id: connector_name.clone().to_string(),
+                        })
                     }
                 };
             mca.map(Box::new).map(MerchantConnectorAccountType::DbVal)

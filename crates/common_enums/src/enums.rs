@@ -7595,9 +7595,9 @@ impl From<RoleScope> for EntityType {
 pub enum TransactionStatus {
     /// Authentication/ Account Verification Successful
     #[serde(rename = "Y")]
+    #[default]
     Success,
     /// Not Authenticated /Account Not Verified; Transaction denied
-    #[default]
     #[serde(rename = "N")]
     Failure,
     /// Authentication/ Account Verification Could Not Be Performed; Technical or other problem, as indicated in Authentication Response(ARes) or Result Request (RReq)

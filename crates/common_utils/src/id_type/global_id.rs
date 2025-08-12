@@ -72,7 +72,7 @@ impl From<AlphaNumericIdError> for CellIdError {
 
 impl CellId {
     /// Create a new cell id from a string
-    fn from_str(cell_id_string: impl AsRef<str>) -> Result<Self, CellIdError> {
+    pub fn from_str(cell_id_string: impl AsRef<str>) -> Result<Self, CellIdError> {
         let trimmed_input_string = cell_id_string.as_ref().trim().to_string();
         let alphanumeric_id = AlphaNumericId::from(trimmed_input_string.into())?;
         let length_id = LengthId::from_alphanumeric_id(alphanumeric_id)?;

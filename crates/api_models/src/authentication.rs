@@ -7,13 +7,17 @@ use common_utils::{
 };
 #[cfg(feature = "v1")]
 use error_stack::ResultExt;
+#[cfg(feature = "v2")]
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
 #[cfg(feature = "v1")]
 use crate::payments::{Address, BrowserInformation, PaymentMethodData};
-use crate::payments::{CustomerDetails, DeviceChannel, SdkInformation, ThreeDsCompletionIndicator};
+use crate::payments::{
+    CtpServiceDetails, CustomerDetails, DeviceChannel, SdkInformation, ThreeDsCompletionIndicator,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct AuthenticationCreateRequest {
@@ -60,6 +64,66 @@ pub struct AuthenticationCreateRequest {
     /// Acquirer details information
     #[schema(value_type = Option<AcquirerDetails>)]
     pub acquirer_details: Option<AcquirerDetails>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct PostAuthenticationRequest {
+    pub payment_method_data: PostAuthenticationRequestPaymentMethodData,
+    pub client_secret: Option<Secret<String>>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct PostAuthenticationResponse {
+    pub authentication_status: common_enums::AuthenticationStatus,
+    pub tokenization_id: Option<id_type::GlobalTokenId>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct PostAuthenticationRequestPaymentMethodData {
+    pub payment_method_type: AuthenticationPaymentMethodType,
+    pub payment_method_data: AuthenticationPaymentMethodData,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub enum AuthenticationPaymentMethodType {
+    #[serde(rename = "ctp")]
+    ClickToPay,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(untagged)]
+pub enum AuthenticationPaymentMethodData {
+    ClickToPayDetails(ClickToPayDetails),
+}
+
+impl AuthenticationPaymentMethodData {
+    pub fn get_click_to_pay_details(&self) -> Option<&ClickToPayDetails> {
+        match self {
+            AuthenticationPaymentMethodData::ClickToPayDetails(details) => Some(details),
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct ClickToPayDetails {
+    /// merchant transaction id
+    pub merchant_transaction_id: Option<String>,
+    /// network transaction correlation id
+    pub correlation_id: Option<String>,
+    /// session transaction flow id
+    pub x_src_flow_id: Option<String>,
+    /// provider Eg: Visa, Mastercard
+    #[schema(value_type = Option<CtpServiceProvider>)]
+    pub provider: Option<super::enums::CtpServiceProvider>,
+    /// Encrypted payload
+    #[schema(value_type = Option<String>)]
+    pub encrypted_payload: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -606,5 +670,17 @@ impl ApiEventMetric for AuthenticationSyncPostUpdateRequest {
         Some(ApiEventsType::Authentication {
             authentication_id: self.authentication_id.clone(),
         })
+    }
+}
+
+impl ApiEventMetric for PostAuthenticationRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        None
+    }
+}
+
+impl ApiEventMetric for PostAuthenticationResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        None
     }
 }

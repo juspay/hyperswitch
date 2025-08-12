@@ -620,6 +620,8 @@ pub enum Flow {
     AuthenticationCreate,
     /// Authentication Eligibility flow
     AuthenticationEligibility,
+    /// Post Authentication Flow
+    PostAuthenticationFlow,
     /// Authentication Sync flow
     AuthenticationSync,
     /// Authentication Sync Post Update flow
