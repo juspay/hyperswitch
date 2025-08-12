@@ -1065,8 +1065,6 @@ impl Tokenizable for ExternalVaultProxyPaymentsData {
     }
 }
 
-// Note: GetIntegrityObject trait implementation for ExternalVaultProxyPaymentsData 
-// is implemented in the hyperswitch_domain_models crate to avoid orphan rule violations
 
 impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
     fn foreign_from(data: &SetupMandateRouterData) -> Self {

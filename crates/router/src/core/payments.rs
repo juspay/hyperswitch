@@ -1563,7 +1563,7 @@ where
                 .await?;
 
 
-            let router_data = decide_unified_connector_service_call(
+            let router_data = call_unified_connector_service_for_external_proxy(
                 state,
                 req_state.clone(),
                 &merchant_context,
@@ -4646,6 +4646,20 @@ where
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
     record_time_taken_with(|| async {
+        if should_call_unified_connector_service(state, merchant_context, &router_data).await? {
+            if should_add_task_to_process_tracker(payment_data) {
+                operation
+                    .to_domain()?
+                    .add_task_to_process_tracker(
+                        state,
+                        payment_data.get_payment_attempt(),
+                        false,
+                        schedule_time,
+                    )
+                    .await
+                    .map_err(|error| logger::error!(process_tracker_error=?error))
+                    .ok();
+            }
 
             (_, *payment_data) = operation
                 .to_update_tracker()?
@@ -4661,6 +4675,95 @@ where
                     header_payload.clone(),
                 )
                 .await?;
+
+            router_data
+                .call_unified_connector_service(
+                    state,
+                    merchant_connector_account_type_details.clone(),
+                    merchant_context,
+                )
+                .await?;
+
+            Ok(router_data)
+        } else {
+            call_connector_service(
+                state,
+                req_state,
+                merchant_context,
+                connector,
+                operation,
+                payment_data,
+                customer,
+                call_connector_action,
+                schedule_time,
+                header_payload,
+                frm_suggestion,
+                business_profile,
+                is_retry_payment,
+                should_retry_with_pan,
+                return_raw_connector_response,
+                merchant_connector_account_type_details,
+                router_data,
+                updated_customer,
+            )
+            .await
+        }
+    })
+    .await
+}
+
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
+#[instrument(skip_all)]
+pub async fn call_unified_connector_service_for_external_proxy<F, RouterDReq, ApiRequest, D>(
+    state: &SessionState,
+    req_state: ReqState,
+    merchant_context: &domain::MerchantContext,
+    _connector: api::ConnectorData,
+    operation: &BoxedOperation<'_, F, ApiRequest, D>,
+    payment_data: &mut D,
+    customer: &Option<domain::Customer>,
+    _call_connector_action: CallConnectorAction,
+    _schedule_time: Option<time::PrimitiveDateTime>,
+    header_payload: HeaderPayload,
+    frm_suggestion: Option<storage_enums::FrmSuggestion>,
+    _business_profile: &domain::Profile,
+    _is_retry_payment: bool,
+    _should_retry_with_pan: bool,
+    _return_raw_connector_response: Option<bool>,
+    merchant_connector_account_type_details: domain::MerchantConnectorAccountTypeDetails,
+    mut router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
+    _updated_customer: Option<storage::CustomerUpdate>,
+) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
+where
+    F: Send + Clone + Sync,
+    RouterDReq: Send + Sync,
+
+    // To create connector flow specific interface data
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+    D: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
+    RouterData<F, RouterDReq, router_types::PaymentsResponseData>: Feature<F, RouterDReq> + Send,
+    // To construct connector flow specific api
+    dyn api::Connector:
+        services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
+{
+    record_time_taken_with(|| async {
+
+            (_, *payment_data) = operation
+                .to_update_tracker()?
+                .update_trackers(
+                    state,
+                    req_state,
+                    payment_data.clone(),
+                    customer.clone(),
+                    merchant_context.get_merchant_account().storage_scheme,
+                    None,
+                    merchant_context.get_merchant_key_store(),
+                    frm_suggestion,
+                    header_payload.clone(),
+                )
+                .await?;
+
             router_data
                 .call_unified_connector_service(
                     state,
@@ -4673,6 +4776,7 @@ where
     })
     .await
 }
+
 #[cfg(feature = "v1")]
 // This function does not perform the tokenization action, as the payment method is not saved in this flow.
 #[allow(clippy::too_many_arguments)]

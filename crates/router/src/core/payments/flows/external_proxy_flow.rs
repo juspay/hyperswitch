@@ -87,8 +87,6 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData> for
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
 
-        // if self.should_proceed_with_authorize() {
-            // self.decide_authentication_type();
             logger::debug!(auth_type=?self.auth_type);
             let mut auth_router_data = services::execute_connector_processing_step(
                 state,
@@ -103,7 +101,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData> for
 
             // External vault proxy doesn't use integrity checks
             auth_router_data.integrity_check = Ok(());
-            metrics::PAYMENT_COUNT.add(1, &[]); // Move outside of the if block
+            metrics::PAYMENT_COUNT.add(1, &[]);
 
             Ok(auth_router_data)
     }
