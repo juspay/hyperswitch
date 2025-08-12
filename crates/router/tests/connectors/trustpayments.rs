@@ -52,6 +52,7 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                     state: Some(Secret::new("NY".to_string())),
                     first_name: Some(Secret::new("John".to_string())),
                     last_name: Some(Secret::new("Doe".to_string())),
+                    origin_zip: None,
                 }),
                 phone: Some(hyperswitch_domain_models::address::PhoneDetails {
                     number: Some(Secret::new("1234567890".to_string())),
