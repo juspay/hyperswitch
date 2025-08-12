@@ -55,21 +55,7 @@ impl RevenueRecoveryPaymentData {
                 )
                 .await
             }
-            enums::RevenueRecoveryAlgorithmType::Smart => {
-                // revenue_recovery::get_schedule_time_for_smart_retry(
-                //     state,
-                //     merchant_id,
-                //     &payment_attempt,
-                //     payment_intent,
-                //     retry_count,
-                //     None,
-                // )
-                // .await
-                // .change_context(
-                //     errors::ProcessTrackerError::EApiErrorResponse,
-                // )
-                None
-            }
+            enums::RevenueRecoveryAlgorithmType::Smart => None,
         }
     }
 }

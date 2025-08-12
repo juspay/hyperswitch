@@ -20,7 +20,7 @@ use crate::{
     core::errors::{self, RouterResponse, RouterResult, StorageErrorExt},
     db::StorageInterface,
     logger,
-    routes::{metrics, app::ReqState, SessionState},
+    routes::{app::ReqState, metrics, SessionState},
     services::ApplicationResponse,
     types::{
         domain,

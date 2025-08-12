@@ -4,6 +4,25 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.08.12.0
+
+### Features
+
+- **connector:** Add support of passing metadata in adyen payment request ([#8871](https://github.com/juspay/hyperswitch/pull/8871)) ([`4434bf1`](https://github.com/juspay/hyperswitch/commit/4434bf19af882b8ba9b747a8b4735383674d1835))
+- **core/connector:** Introduce authentication token flow and add sepa bankdebit for nordea ([#8133](https://github.com/juspay/hyperswitch/pull/8133)) ([`b46a838`](https://github.com/juspay/hyperswitch/commit/b46a838d0ef9d2e28524848eccc33b132c738ab2))
+- **payouts:** Add payout webhooks for Paypal and Wise ([#8888](https://github.com/juspay/hyperswitch/pull/8888)) ([`fdc102d`](https://github.com/juspay/hyperswitch/commit/fdc102de4750bd0e6f129cbd5e9f952efd343fd4))
+- **router:** Add new api for delete tokenization record ([#8361](https://github.com/juspay/hyperswitch/pull/8361)) ([`0e95785`](https://github.com/juspay/hyperswitch/commit/0e957854372f1e6a81ce72234b8a4fda16cb4b8d))
+- **ucs:** Add gateway system {Direct | UnifiedConnectorSystem} in feature metadata for v1 ([#8854](https://github.com/juspay/hyperswitch/pull/8854)) ([`d034fad`](https://github.com/juspay/hyperswitch/commit/d034fadbdcfad9cb32e64b21f6352b811346c946))
+
+### Bug Fixes
+
+- **connector:** [NETCETERA] add fixes for authentication response fields ([#8907](https://github.com/juspay/hyperswitch/pull/8907)) ([`58b3e64`](https://github.com/juspay/hyperswitch/commit/58b3e64f5e4777c6a9a37a9fb12a5a24c689db61))
+- **eps_bank_name:** Send eps supported bank names inside the structs for sdk. ([#8779](https://github.com/juspay/hyperswitch/pull/8779)) ([`d4d8236`](https://github.com/juspay/hyperswitch/commit/d4d8236e3102505553334b3d395496ae97ee8e14))
+
+**Full Changelog:** [`2025.08.11.0...2025.08.12.0`](https://github.com/juspay/hyperswitch/compare/2025.08.11.0...2025.08.12.0)
+
+- - -
+
 ## 2025.08.11.0
 
 ### Features
