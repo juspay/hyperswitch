@@ -98,6 +98,8 @@ pub type BoxedWebhookSourceVerificationConnectorIntegrationInterface<T, Req, Res
     BoxedConnectorIntegrationInterface<T, common_types::WebhookSourceVerifyData, Req, Resp>;
 pub type BoxedExternalAuthenticationConnectorIntegrationInterface<T, Req, Resp> =
     BoxedConnectorIntegrationInterface<T, common_types::ExternalAuthenticationFlowData, Req, Resp>;
+pub type BoxedAuthenticationTokenConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::AuthenticationTokenFlowData, Req, Resp>;
 pub type BoxedAccessTokenConnectorIntegrationInterface<T, Req, Resp> =
     BoxedConnectorIntegrationInterface<T, common_types::AccessTokenFlowData, Req, Resp>;
 pub type BoxedFilesConnectorIntegrationInterface<T, Req, Resp> =
@@ -1186,6 +1188,7 @@ impl Authenticate for api_models::payments::PaymentsRetrieveRequest {
     }
 }
 impl Authenticate for api_models::payments::PaymentsCancelRequest {}
+impl Authenticate for api_models::payments::PaymentsCancelPostCaptureRequest {}
 impl Authenticate for api_models::payments::PaymentsCaptureRequest {}
 impl Authenticate for api_models::payments::PaymentsIncrementalAuthorizationRequest {}
 impl Authenticate for api_models::payments::PaymentsStartRequest {}
