@@ -592,6 +592,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = nuvei::NuveiPaymentsRequest::try_from((req, req.get_session_token()?))?;
+        println!("request nittt {:?}", serde_json::to_string(&connector_req));
+
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -629,7 +631,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .switch()?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-
+        println!("response nittt {:?}", res.response);
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),

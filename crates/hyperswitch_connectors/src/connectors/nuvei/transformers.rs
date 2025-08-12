@@ -1,4 +1,5 @@
 use common_enums::{enums, CaptureMethod, PaymentChannel};
+use common_types::payments::{ApplePayPaymentData};
 use common_utils::{
     crypto::{self, GenerateDigest},
     date_time,
@@ -430,7 +431,7 @@ pub struct Card {
     pub cvv2_reply: Option<String>,
     pub avs_code: Option<String>,
     pub card_type: Option<String>,
-    pub card_brand: Option<String>,
+    pub brand: Option<String>,
     pub issuer_bank_name: Option<String>,
     pub issuer_country: Option<String>,
     pub is_prepaid: Option<String>,
@@ -441,7 +442,9 @@ pub struct Card {
 #[serde(rename_all = "camelCase")]
 pub struct ExternalToken {
     pub external_token_provider: ExternalTokenProvider,
-    pub mobile_token: Secret<String>,
+    pub mobile_token: Option<Secret<String>>,
+    pub cryptogram: Option<Secret<String>>,
+    pub eci_provider: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -641,50 +644,126 @@ pub struct NuveiCardDetails {
 impl TryFrom<GooglePayWalletData> for NuveiPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(gpay_data: GooglePayWalletData) -> Result<Self, Self::Error> {
-        Ok(Self {
-            payment_option: PaymentOption {
-                card: Some(Card {
-                    external_token: Some(ExternalToken {
-                        external_token_provider: ExternalTokenProvider::GooglePay,
-                        mobile_token: Secret::new(
-                            utils::GooglePayWalletData::try_from(gpay_data)
-                                .change_context(errors::ConnectorError::InvalidDataFormat {
-                                    field_name: "google_pay_data",
-                                })?
-                                .encode_to_string_of_json()
-                                .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+        match gpay_data.tokenization_data {
+            GpayTokenizationData::Decrypted(ref gpay_predecrypt_data) => Ok(Self {
+                payment_option: PaymentOption {
+                    card: Some(Card {
+                        brand: Some(gpay_data.info.card_network.clone()),
+                        card_number: Some(
+                            gpay_predecrypt_data
+                                .application_primary_account_number
+                                .clone(),
                         ),
+                        last4_digits: Some(Secret::new(
+                            gpay_predecrypt_data
+                                .application_primary_account_number
+                                .clone()
+                                .get_last4(),
+                        )),
+                        expiration_month: Some(gpay_predecrypt_data.card_exp_month.clone()),
+                        expiration_year: Some(gpay_predecrypt_data.card_exp_year.clone()),
+                        external_token: Some(ExternalToken {
+                            external_token_provider: ExternalTokenProvider::GooglePay,
+                            mobile_token: None,
+                            cryptogram: gpay_predecrypt_data.cryptogram.clone(),
+                            eci_provider: gpay_predecrypt_data.eci_indicator.clone(),
+                        }),
+                        ..Default::default()
                     }),
                     ..Default::default()
-                }),
+                },
                 ..Default::default()
-            },
-            ..Default::default()
-        })
+            }),
+            GpayTokenizationData::Encrypted(_) => Ok(Self {
+                payment_option: PaymentOption {
+                    card: Some(Card {
+                        external_token: Some(ExternalToken {
+                            external_token_provider: ExternalTokenProvider::GooglePay,
+                            mobile_token: Some(Secret::new(
+                                gpay_data.encode_to_string_of_json().change_context(
+                                    errors::ConnectorError::RequestEncodingFailed,
+                                )?,
+                            )),
+                            cryptogram: None,
+                            eci_provider: None,
+                        }),
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                },
+                ..Default::default()
+            }),
+        }
     }
 }
 impl TryFrom<ApplePayWalletData> for NuveiPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(apple_pay_data: ApplePayWalletData) -> Result<Self, Self::Error> {
-        let apple_pay_encrypted_data = apple_pay_data
-            .payment_data
-            .get_encrypted_apple_pay_payment_data_mandatory()
-            .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "Apple pay encrypted data",
-            })?;
-        Ok(Self {
-            payment_option: PaymentOption {
-                card: Some(Card {
-                    external_token: Some(ExternalToken {
-                        external_token_provider: ExternalTokenProvider::ApplePay,
-                        mobile_token: Secret::new(apple_pay_encrypted_data.clone()),
+        match apple_pay_data.payment_data {
+            ApplePayPaymentData::Decrypted(apple_pay_predecrypt_data) => Ok(Self {
+                payment_option: PaymentOption {
+                    card: Some(Card {
+                        brand:Some(apple_pay_data.payment_method.network.clone()),
+                        card_number: Some(
+                            apple_pay_predecrypt_data
+                                .application_primary_account_number
+                                .clone(),
+                        ),
+                        last4_digits: Some(Secret::new(
+                            apple_pay_predecrypt_data
+                                .application_primary_account_number
+                                .get_last4(),
+                        )),
+                        expiration_month: Some(
+                            apple_pay_predecrypt_data
+                                .application_expiration_month
+                                .clone(),
+                        ),
+                        expiration_year: Some(
+                            apple_pay_predecrypt_data
+                                .application_expiration_year
+                                .clone(),
+                        ),
+                        external_token: Some(ExternalToken {
+                            external_token_provider: ExternalTokenProvider::ApplePay,
+                            mobile_token: None,
+                            cryptogram: Some(
+                                apple_pay_predecrypt_data
+                                    .payment_data
+                                    .online_payment_cryptogram,
+                            ),
+                            eci_provider: Some(
+                                apple_pay_predecrypt_data
+                                    .payment_data
+                                    .eci_indicator
+                                    .ok_or_else(missing_field_err("payment_method_data.wallet.apple_pay.payment_data.eci_indicator"))?,
+                            ),
+                        }),
+                        ..Default::default()
                     }),
                     ..Default::default()
-                }),
+                },
                 ..Default::default()
-            },
-            ..Default::default()
-        })
+            }),
+            ApplePayPaymentData::Encrypted(_) => Ok(Self {
+                payment_option: PaymentOption {
+                    card: Some(Card {
+                        external_token: Some(ExternalToken {
+                            external_token_provider: ExternalTokenProvider::ApplePay,
+                            mobile_token: Some(Secret::new(apple_pay_data.clone().encode_to_string_of_json().change_context(
+                                    errors::ConnectorError::RequestEncodingFailed,
+                                )?,               
+                        )),
+                            cryptogram: None,
+                            eci_provider: None,
+                        }),
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                },
+                ..Default::default()
+            }),
+        }
     }
 }
 
@@ -1104,9 +1183,11 @@ where
             client_request_id: item.connector_request_reference_id.clone(),
             session_token: Secret::new(data.1),
             capture_method: item.request.get_capture_method(),
+
             ..Default::default()
         })?;
-        let return_url = item.request.get_return_url_required()?;
+        // let return_url = item.request.get_return_url_required()?;
+        let return_url = "https://google.com".to_string();
 
         let amount_details = match item.request.get_order_tax_amount()? {
             Some(tax) => Some(NuvieAmountDetails {
@@ -1114,13 +1195,31 @@ where
             }),
             None => None,
         };
+        let address = item
+            .get_optional_billing()
+            .and_then(|billing_details| billing_details.address.as_ref());
+
+        let billing_address = match address {
+            Some(address) => {
+                let first_name = address.get_first_name()?.clone();
+                Some(BillingAddress {
+                    first_name: Some(first_name.clone()),
+                    last_name: Some(address.get_last_name().ok().unwrap_or(&first_name).clone()),
+                    email: item.request.get_email_required()?,
+                    country: item.get_billing_country()?,
+                })
+            }
+            None => None,
+        };
         Ok(Self {
             is_rebilling: request_data.is_rebilling,
             user_token_id: item.customer_id.clone(),
             related_transaction_id: request_data.related_transaction_id,
             payment_option: request_data.payment_option,
-            billing_address: request_data.billing_address,
-            device_details: request_data.device_details,
+            billing_address,
+            device_details: DeviceDetails::foreign_try_from(
+                &item.request.get_browser_info().clone(),
+            )?,
             url_details: Some(UrlDetails {
                 success_url: return_url.clone(),
                 failure_url: return_url.clone(),
@@ -2371,7 +2470,7 @@ fn convert_to_additional_payment_method_connector_response(
         "merchant_advice_code_description": merchant_advice_description
     });
 
-    let card_network = card.card_brand.clone();
+    let card_network = card.brand.clone();
     let three_ds_data = card
         .three_d
         .clone()
