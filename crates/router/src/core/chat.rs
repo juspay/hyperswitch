@@ -164,12 +164,12 @@ pub async fn list_chat_conversations(
             .ok_or(ChatErrors::InternalServerError)?;
 
         let user_query_decrypted_bytes = GcmAes256
-            .decode_message(&key, user_query_encrypted.into_inner().into())
+            .decode_message(&key, user_query_encrypted.into_inner())
             .change_context(ChatErrors::InternalServerError)
             .attach_printable("Failed to decrypt user query")?;
 
         let response_decrypted_bytes = GcmAes256
-            .decode_message(&key, response_encrypted.into_inner().into())
+            .decode_message(&key, response_encrypted.into_inner())
             .change_context(ChatErrors::InternalServerError)
             .attach_printable("Failed to decrypt response")?;
 

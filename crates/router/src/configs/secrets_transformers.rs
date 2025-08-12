@@ -307,7 +307,7 @@ impl SecretsHandler for settings::ChatSettings {
         let chat_settings = value.get_inner();
 
         let encryption_key = secret_management_client
-            .get_secret(chat_settings.encryption_key.clone().into())
+            .get_secret(chat_settings.encryption_key.clone())
             .await?;
 
         Ok(value.transition_state(|chat_settings| Self {

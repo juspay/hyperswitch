@@ -32,7 +32,7 @@ pub async fn construct_hyperswitch_ai_interaction(
     let encrypted_user_query = crypto_operation::<String, masking::WithType>(
         &state.into(),
         type_name!(HyperswitchAiInteraction),
-        CryptoOperation::Encrypt(req.message.clone().into()),
+        CryptoOperation::Encrypt(req.message.clone()),
         Identifier::Merchant(user_from_token.merchant_id.clone()),
         &key,
     )
@@ -44,7 +44,7 @@ pub async fn construct_hyperswitch_ai_interaction(
     let encrypted_response = crypto_operation::<serde_json::Value, masking::WithType>(
         &state.into(),
         type_name!(HyperswitchAiInteraction),
-        CryptoOperation::Encrypt(response.response.clone().into()),
+        CryptoOperation::Encrypt(response.response.clone()),
         Identifier::Merchant(user_from_token.merchant_id.clone()),
         &key,
     )
