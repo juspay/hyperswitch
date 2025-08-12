@@ -895,7 +895,7 @@ where
                             &business_profile,
                         )
                         .await?;
-                    
+
                     if should_trigger_post_processing_flows {
                         complete_postprocessing_steps_if_required(
                             state,
@@ -1061,15 +1061,15 @@ where
                         .await?;
 
                     operation
-                    .to_post_update_tracker()?
-                    .save_pm_and_mandate(
-                        state,
-                        &router_data.clone(),
-                        merchant_context,
-                        &mut payment_data,
-                        &business_profile,
-                    )
-                    .await?;
+                        .to_post_update_tracker()?
+                        .save_pm_and_mandate(
+                            state,
+                            &router_data.clone(),
+                            merchant_context,
+                            &mut payment_data,
+                            &business_profile,
+                        )
+                        .await?;
 
                     if should_trigger_post_processing_flows {
                         complete_postprocessing_steps_if_required(
