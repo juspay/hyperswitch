@@ -767,7 +767,7 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
                 process_token_for_retry(
                     state,
                     token_with_retry_info,
-                    &payment_intent,
+                    payment_intent,
                     payment_attempt_response,
                 )
                 .await?
