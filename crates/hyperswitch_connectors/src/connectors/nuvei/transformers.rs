@@ -1202,7 +1202,6 @@ where
             }
             // non mandate transactions
             _ => {
-                println!("$$$Non-mandate transaction");
                 (
                     None,
                     Some(V2AdditionalParams {
