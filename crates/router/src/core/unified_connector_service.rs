@@ -198,22 +198,22 @@ pub fn build_unified_connector_service_payment_method(
             })
         }
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::Reward => {
-            let reward_type = match payment_method_type {
-                PaymentMethodType::ClassicReward => 1,
-                PaymentMethodType::Evoucher => 2,
-                _ => {
-                    return Err(UnifiedConnectorServiceError::NotImplemented(format!(
-                        "Unimplemented payment method subtype: {payment_method_type:?}"
-                    ))
-                    .into());
-                }
-            };
-
-            Ok(payments_grpc::PaymentMethod {
-                payment_method: Some(PaymentMethod::Reward(RewardPaymentMethodType {
-                    reward_type,
-                })),
-            })
+            match payment_method_type {
+                PaymentMethodType::ClassicReward => Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Reward(RewardPaymentMethodType {
+                        reward_type: 1,
+                    })),
+                }),
+                PaymentMethodType::Evoucher => Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Reward(RewardPaymentMethodType {
+                        reward_type: 2,
+                    })),
+                }),
+                _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
+                    "Unimplemented payment method subtype: {payment_method_type:?}"
+                ))
+                .into()),
+            }
         }
         _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
             "Unimplemented payment method: {payment_method_data:?}"
@@ -298,7 +298,7 @@ pub fn build_unified_connector_service_auth_metadata(
         }),
         ConnectorAuthType::CurrencyAuthKey { auth_key_map } => Ok(ConnectorAuthMetadata {
             connector_name,
-            auth_type: "currency-auth-key".to_string(),
+            auth_type: consts::UCS_AUTH_CURRENCY_AUTH_KEY.to_string(),
             api_key: None,
             key1: None,
             api_secret: None,

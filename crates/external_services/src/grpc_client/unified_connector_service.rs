@@ -385,8 +385,10 @@ pub fn build_unified_connector_service_grpc_headers(
         );
     }
     if let Some(auth_key_map) = meta.auth_key_map {
-        let auth_key_map_str = serde_json::to_string(&auth_key_map)
-            .map_err(|_| UnifiedConnectorServiceError::ParsingFailed)?;
+        let auth_key_map_str = serde_json::to_string(&auth_key_map).map_err(|error| {
+            logger::error!(?error);
+            UnifiedConnectorServiceError::ParsingFailed
+        })?;
         metadata.append(
             consts::UCS_HEADER_AUTH_KEY_MAP,
             parse("auth_key_map", &auth_key_map_str)?,
