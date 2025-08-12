@@ -9364,6 +9364,91 @@ pub fn filter_network_tokenization_supported_connectors(
 }
 
 #[cfg(feature = "v1")]
+pub struct ActionTypesBuilder {
+    action_types: Vec<ActionType>,
+}
+
+#[cfg(feature = "v1")]
+impl ActionTypesBuilder {
+    pub fn new() -> Self {
+        Self {
+            action_types: Vec::new(),
+        }
+    }
+
+    pub fn with_mandate_flow(
+        mut self,
+        is_mandate_flow: bool,
+        connector_mandate_details: &Result<
+            Option<diesel_models::PaymentsMandateReference>,
+            error_stack::Report<common_utils::errors::ParsingError>,
+        >,
+    ) -> Self {
+        if is_mandate_flow {
+            self.action_types.extend(
+                connector_mandate_details
+                    .as_ref()
+                    .ok()
+                    .map(|details| ActionType::ConnectorMandate(details.to_owned())),
+            );
+        }
+        self
+    }
+
+    pub async fn with_network_tokenization(
+        mut self,
+        state: &SessionState,
+        is_network_token_with_ntid_flow: IsNtWithNtiFlow,
+        is_nt_with_ntid_supported_connector: bool,
+        payment_method_info: &domain::PaymentMethod,
+    ) -> Self {
+        match is_network_token_with_ntid_flow {
+            IsNtWithNtiFlow::NtWithNtiSupported(network_transaction_id)
+                if is_nt_with_ntid_supported_connector =>
+            {
+                self.action_types.extend(
+                    network_tokenization::do_status_check_for_network_token(
+                        state,
+                        payment_method_info,
+                    )
+                    .await
+                    .ok()
+                    .map(|(token_exp_month, token_exp_year)| {
+                        ActionType::NetworkTokenWithNetworkTransactionId(NTWithNTIRef {
+                            token_exp_month,
+                            token_exp_year,
+                            network_transaction_id,
+                        })
+                    }),
+                );
+            }
+            _ => (),
+        }
+        self
+    }
+
+    pub fn with_card_network_transaction_id(
+        mut self,
+        is_card_with_ntid_flow: bool,
+        payment_method_info: &domain::PaymentMethod,
+    ) -> Self {
+        if is_card_with_ntid_flow {
+            self.action_types.extend(
+                payment_method_info
+                    .network_transaction_id
+                    .as_ref()
+                    .map(|ntid| ActionType::CardWithNetworkTransactionId(ntid.clone())),
+            );
+        }
+        self
+    }
+
+    pub fn build(self) -> Vec<ActionType> {
+        self.action_types
+    }
+}
+
+#[cfg(feature = "v1")]
 pub async fn get_all_action_types(
     state: &SessionState,
     is_connector_agnostic_mit_enabled: Option<bool>,
@@ -9412,54 +9497,21 @@ pub async fn get_all_action_types(
         .and_then(|(details, merchant_id)| details.clone().map(|d| d.contains_key(merchant_id)))
         .unwrap_or(false);
 
-    let mut action_types: Vec<ActionType> = Vec::new();
-
-    // Collect mandate flow action types
-    if is_mandate_flow {
-        action_types.extend(
-            connector_mandate_details
-                .as_ref()
-                .ok()
-                .map(|details| ActionType::ConnectorMandate(details.to_owned())),
-        );
-    }
-
     let is_nt_with_ntid_supported_connector = ntid_supported_connectors
         .contains(&connector.connector_name)
         && network_tokenization_supported_connectors.contains(&connector.connector_name);
 
-    // Collect network token with network transaction ID action types
-    match is_network_token_with_ntid_flow {
-        IsNtWithNtiFlow::NtWithNtiSupported(network_transaction_id)
-            if is_nt_with_ntid_supported_connector =>
-        {
-            action_types.extend(
-                network_tokenization::do_status_check_for_network_token(state, payment_method_info)
-                    .await
-                    .ok()
-                    .map(|(token_exp_month, token_exp_year)| {
-                        ActionType::NetworkTokenWithNetworkTransactionId(NTWithNTIRef {
-                            token_exp_month,
-                            token_exp_year,
-                            network_transaction_id,
-                        })
-                    }),
-            );
-        }
-        _ => (),
-    }
-
-    // Collect card with network transaction ID action types
-    if is_card_with_ntid_flow {
-        action_types.extend(
-            payment_method_info
-                .network_transaction_id
-                .as_ref()
-                .map(|ntid| ActionType::CardWithNetworkTransactionId(ntid.clone())),
-        );
-    }
-
-    action_types
+    ActionTypesBuilder::new()
+        .with_mandate_flow(is_mandate_flow, connector_mandate_details)
+        .with_network_tokenization(
+            state,
+            is_network_token_with_ntid_flow,
+            is_nt_with_ntid_supported_connector,
+            payment_method_info,
+        )
+        .await
+        .with_card_network_transaction_id(is_card_with_ntid_flow, payment_method_info)
+        .build()
 }
 
 pub fn is_network_transaction_id_flow(
