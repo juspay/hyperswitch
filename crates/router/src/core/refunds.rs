@@ -14,7 +14,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
 use router_env::{instrument, tracing};
-use scheduler::{consumer::types::process_data, utils as process_tracker_utils};
+use scheduler::{consumer::types::process_data, utils as process_tracker_utils, errors as sch_errors};
 #[cfg(feature = "olap")]
 use strum::IntoEnumIterator;
 
@@ -40,7 +40,6 @@ use crate::{
         transformers::{ForeignFrom, ForeignInto},
     },
     utils::{self, OptionExt},
-    workflows::payment_sync,
 };
 
 // ********************************************** REFUND EXECUTE **********************************************
@@ -1439,7 +1438,7 @@ pub async fn sync_refund_with_gateway_workflow(
                 .await?
         }
         _ => {
-            _ = payment_sync::retry_sync_task(
+            _ = retry_refund_sync_task(
                 &*state.store,
                 response.connector,
                 response.merchant_id,
@@ -1450,6 +1449,33 @@ pub async fn sync_refund_with_gateway_workflow(
     }
 
     Ok(())
+}
+
+
+/// Schedule the task for refund retry
+///
+/// Returns bool which indicates whether this was the last refund retry or not
+pub async fn retry_refund_sync_task(
+    db: &dyn db::StorageInterface,
+    connector: String,
+    merchant_id: common_utils::id_type::MerchantId,
+    pt: storage::ProcessTracker,
+) -> Result<bool, sch_errors::ProcessTrackerError> {
+    let schedule_time =
+    get_refund_sync_process_schedule_time(db, &connector, &merchant_id, pt.retry_count + 1).await?;
+
+    match schedule_time {
+        Some(s_time) => {
+            db.as_scheduler().retry_process(pt, s_time).await?;
+            Ok(false)
+        }
+        None => {
+            db.as_scheduler()
+                .finish_process_with_business_status(pt, business_status::RETRIES_EXCEEDED)
+                .await?;
+            Ok(true)
+        }
+    }
 }
 
 #[instrument(skip_all)]
