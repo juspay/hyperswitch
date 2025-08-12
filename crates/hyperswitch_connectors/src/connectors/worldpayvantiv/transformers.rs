@@ -843,7 +843,7 @@ impl TryFrom<&SetupMandateRouterData> for CnpOnlineRequest {
             ship_to_address,
             card: card.clone(),
             token: None,
-            processing_type: processing_type,
+            processing_type,
             original_network_transaction_id: None,
             cardholder_authentication,
             enhanced_data,
