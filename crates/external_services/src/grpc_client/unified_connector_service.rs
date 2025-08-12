@@ -190,7 +190,10 @@ impl UnifiedConnectorServiceClient {
                     }
                 }
             }
-            None => None,
+            None => {
+                router_env::logger::error!(?config.unified_connector_service, "Unified Connector Service config is missing");
+                None
+            }
         }
     }
 
