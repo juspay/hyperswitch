@@ -1149,4 +1149,14 @@ impl utils::ConnectorErrorTypeMapping for Trustpay {
     }
 }
 
-impl ConnectorSpecifications for Trustpay {}
+impl ConnectorSpecifications for Trustpay {
+    #[cfg(feature = "v2")]
+    fn generate_connector_request_reference_id(
+        &self,
+        _payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+        _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> String {
+        // The length of receipt for Trustpay order request should not exceed 35 characters.
+        uuid::Uuid::now_v7().simple().to_string()
+    }
+}
