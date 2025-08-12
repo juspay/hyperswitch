@@ -3066,7 +3066,7 @@ pub async fn confirm_intent_with_external_vault_proxy(
             return api::log_and_return_error_response(err);
         }
     };
-    
+
     // Prepare the internal payload
     let internal_payload = internal_payload_types::PaymentsGenericRequestWithResourceId {
         global_payment_id: global_payment_id.clone(),

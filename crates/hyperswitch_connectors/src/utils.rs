@@ -55,11 +55,11 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         AuthenticationData, AuthoriseIntegrityObject, BrowserInformation, CaptureIntegrityObject,
-        CompleteAuthorizeData, ConnectorCustomerData, MandateRevokeRequestData,
-        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCaptureData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
-        PaymentsSyncData, RefundIntegrityObject, RefundsData, ResponseId, SetupMandateRequestData,
-        SyncIntegrityObject, ExternalVaultProxyPaymentsData
+        CompleteAuthorizeData, ConnectorCustomerData, ExternalVaultProxyPaymentsData,
+        MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsPostSessionTokensData,
+        PaymentsPreProcessingData, PaymentsSyncData, RefundIntegrityObject, RefundsData,
+        ResponseId, SetupMandateRequestData, SyncIntegrityObject,
     },
     router_response_types::{CaptureSyncResponse, PaymentsResponseData},
     types::{OrderDetailsWithAmount, SetupMandateRouterData},
@@ -6611,7 +6611,7 @@ impl SplitPaymentData for SetupMandateRequestData {
         None
     }
 }
-impl SplitPaymentData for ExternalVaultProxyPaymentsData{
+impl SplitPaymentData for ExternalVaultProxyPaymentsData {
     fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
         None
     }

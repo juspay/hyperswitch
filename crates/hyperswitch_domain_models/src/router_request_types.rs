@@ -13,7 +13,14 @@ use serde_with::serde_as;
 
 use super::payment_method_data::PaymentMethodData;
 use crate::{
-    address, errors::api_error_response::ApiErrorResponse, mandates, payment_method_data::ExternalVaultPaymentMethodData, payments, router_data::{self, AccessTokenAuthenticationResponse, RouterData}, router_flow_types as flows, router_response_types as response_types, vault::PaymentMethodVaultingData
+    address,
+    errors::api_error_response::ApiErrorResponse,
+    mandates,
+    payment_method_data::ExternalVaultPaymentMethodData,
+    payments,
+    router_data::{self, AccessTokenAuthenticationResponse, RouterData},
+    router_flow_types as flows, router_response_types as response_types,
+    vault::PaymentMethodVaultingData,
 };
 #[derive(Debug, Clone)]
 pub struct PaymentsAuthorizeData {
@@ -78,7 +85,7 @@ pub struct PaymentsAuthorizeData {
     pub locale: Option<String>,
     pub payment_channel: Option<common_enums::PaymentChannel>,
     pub enable_partial_authorization: Option<bool>,
-} 
+}
 
 #[derive(Debug, Clone)]
 pub struct ExternalVaultProxyPaymentsData {
@@ -148,7 +155,11 @@ pub struct ExternalVaultProxyPaymentsData {
 // Implement ConnectorCustomerData conversion for ExternalVaultProxy RouterData
 impl
     TryFrom<
-        &RouterData<flows::ExternalVaultProxy, ExternalVaultProxyPaymentsData, response_types::PaymentsResponseData>,
+        &RouterData<
+            flows::ExternalVaultProxy,
+            ExternalVaultProxyPaymentsData,
+            response_types::PaymentsResponseData,
+        >,
     > for ConnectorCustomerData
 {
     type Error = error_stack::Report<ApiErrorResponse>;

@@ -16,7 +16,8 @@ use crate::{
         mandate,
         payments::{
             self, access_token, customers, helpers, tokenization, transformers, PaymentData,
-        }, unified_connector_service,
+        },
+        unified_connector_service,
     },
     logger,
     routes::{metrics, SessionState},
@@ -27,7 +28,6 @@ use crate::{
     },
     utils::OptionExt,
 };
-
 
 #[cfg(feature = "v2")]
 #[async_trait]
@@ -54,23 +54,26 @@ impl
             types::PaymentsResponseData,
         >,
     > {
-        Box::pin(transformers::construct_external_vault_proxy_payment_router_data(
-            state,
-            self.clone(),
-            connector_id,
-            merchant_context,
-            customer,
-            merchant_connector_account,
-            merchant_recipient_data,
-            header_payload,
-        ))
+        Box::pin(
+            transformers::construct_external_vault_proxy_payment_router_data(
+                state,
+                self.clone(),
+                connector_id,
+                merchant_context,
+                customer,
+                merchant_connector_account,
+                merchant_recipient_data,
+                header_payload,
+            ),
+        )
         .await
     }
-
 }
 
 #[async_trait]
-impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData> for types::ExternalVaultProxyPaymentsRouterData {
+impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
+    for types::ExternalVaultProxyPaymentsRouterData
+{
     async fn decide_flows<'a>(
         mut self,
         state: &SessionState,
@@ -87,23 +90,23 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData> for
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
 
-            logger::debug!(auth_type=?self.auth_type);
-            let mut auth_router_data = services::execute_connector_processing_step(
-                state,
-                connector_integration,
-                &self,
-                call_connector_action.clone(),
-                connector_request,
-                return_raw_connector_response,
-            )
-            .await
-            .to_payment_failed_response()?;
+        logger::debug!(auth_type=?self.auth_type);
+        let mut auth_router_data = services::execute_connector_processing_step(
+            state,
+            connector_integration,
+            &self,
+            call_connector_action.clone(),
+            connector_request,
+            return_raw_connector_response,
+        )
+        .await
+        .to_payment_failed_response()?;
 
-            // External vault proxy doesn't use integrity checks
-            auth_router_data.integrity_check = Ok(());
-            metrics::PAYMENT_COUNT.add(1, &[]);
+        // External vault proxy doesn't use integrity checks
+        auth_router_data.integrity_check = Ok(());
+        metrics::PAYMENT_COUNT.add(1, &[]);
 
-            Ok(auth_router_data)
+        Ok(auth_router_data)
     }
 
     async fn add_access_token<'a>(
@@ -378,12 +381,13 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData> for
                 .change_context(ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to construct Payment Authorize Request")?;
 
-        let connector_auth_metadata = unified_connector_service::build_unified_connector_service_auth_metadata(
-            merchant_connector_account,
-            merchant_context,
-        )
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to construct request metadata")?;
+        let connector_auth_metadata =
+            unified_connector_service::build_unified_connector_service_auth_metadata(
+                merchant_connector_account,
+                merchant_context,
+            )
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to construct request metadata")?;
 
         let response = client
             .payment_authorize(
