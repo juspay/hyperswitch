@@ -14,7 +14,9 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
 use router_env::{instrument, tracing};
-use scheduler::{consumer::types::process_data, utils as process_tracker_utils, errors as sch_errors};
+use scheduler::{
+    consumer::types::process_data, errors as sch_errors, utils as process_tracker_utils,
+};
 #[cfg(feature = "olap")]
 use strum::IntoEnumIterator;
 
@@ -1451,7 +1453,6 @@ pub async fn sync_refund_with_gateway_workflow(
     Ok(())
 }
 
-
 /// Schedule the task for refund retry
 ///
 /// Returns bool which indicates whether this was the last refund retry or not
@@ -1462,7 +1463,8 @@ pub async fn retry_refund_sync_task(
     pt: storage::ProcessTracker,
 ) -> Result<bool, sch_errors::ProcessTrackerError> {
     let schedule_time =
-    get_refund_sync_process_schedule_time(db, &connector, &merchant_id, pt.retry_count + 1).await?;
+        get_refund_sync_process_schedule_time(db, &connector, &merchant_id, pt.retry_count + 1)
+            .await?;
 
     match schedule_time {
         Some(s_time) => {
