@@ -523,7 +523,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             .attach_printable("Failed to fetch Unified Connector Service client")?;
 
         let payment_authorize_request =
-            payments_grpc::PaymentServiceAuthorizeRequest::foreign_try_from(self)
+            payments_grpc::PaymentServiceAuthorizeRequest::foreign_try_from(&*self)
                 .change_context(ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to construct Payment Authorize Request")?;
 

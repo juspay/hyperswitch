@@ -1520,6 +1520,20 @@ where
 
     // Get the trackers related to track the state of the payment
     let operations::GetTrackerResponse { mut payment_data } = get_tracker_response;
+
+    let (_operation, customer) = operation
+        .to_domain()?
+        .get_customer_details(
+            state,
+            &mut payment_data,
+            merchant_context.get_merchant_key_store(),
+            merchant_context.get_merchant_account().storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
+        .attach_printable("Failed while fetching/creating customer")?;
+
+
     // consume the req merchant_connector_id and set it in the payment_data
     let connector = operation
         .to_domain()?
@@ -1528,21 +1542,50 @@ where
 
     let payment_data = match connector {
         ConnectorCallType::PreDetermined(connector_data) => {
-            let router_data = call_connector_service_for_external_vault_proxy(
+            let (mca_type_details, updated_customer, router_data) =
+                call_connector_service_prerequisites(
+                    state,
+                    req_state.clone(),
+                    &merchant_context,
+                    connector_data.connector_data.clone(),
+                    &operation,
+                    &mut payment_data,
+                    &customer,
+                    call_connector_action.clone(),
+                    None,
+                    header_payload.clone(),
+                    None,
+                    &profile,
+                    false,
+                    false, //should_retry_with_pan is set to false in case of PreDetermined ConnectorCallType
+                    req.should_return_raw_response(),
+                )
+                .await?;
+
+
+            let router_data = decide_unified_connector_service_call(
                 state,
                 req_state.clone(),
                 &merchant_context,
                 connector_data.connector_data.clone(),
                 &operation,
                 &mut payment_data,
+                &customer,
                 call_connector_action.clone(),
+                None, // schedule_time is not used in PreDetermined ConnectorCallType
                 header_payload.clone(),
+                #[cfg(feature = "frm")]
+                None,
                 &profile,
-                return_raw_connector_response,
+                false,
+                false, //should_retry_with_pan is set to false in case of PreDetermined ConnectorCallType
+                req.should_return_raw_response(),
+                mca_type_details,
+                router_data,
+                updated_customer,
             )
             .await?;
-
-            let payments_response_operation = Box::new(PaymentResponse);
+        let payments_response_operation = Box::new(PaymentResponse);
 
             payments_response_operation
                 .to_post_update_tracker()?
@@ -1555,8 +1598,8 @@ where
                 )
                 .await?
         }
-        ConnectorCallType::Retryable(vec) => todo!(),
-        ConnectorCallType::SessionMultiple(vec) => todo!(),
+        ConnectorCallType::Retryable(_) => todo!(),
+        ConnectorCallType::SessionMultiple(_) => todo!(),
         ConnectorCallType::Skip => payment_data,
     };
 
@@ -4603,20 +4646,6 @@ where
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
     record_time_taken_with(|| async {
-        if should_call_unified_connector_service(state, merchant_context, &router_data).await? {
-            if should_add_task_to_process_tracker(payment_data) {
-                operation
-                    .to_domain()?
-                    .add_task_to_process_tracker(
-                        state,
-                        payment_data.get_payment_attempt(),
-                        false,
-                        schedule_time,
-                    )
-                    .await
-                    .map_err(|error| logger::error!(process_tracker_error=?error))
-                    .ok();
-            }
 
             (_, *payment_data) = operation
                 .to_update_tracker()?
@@ -4632,7 +4661,6 @@ where
                     header_payload.clone(),
                 )
                 .await?;
-
             router_data
                 .call_unified_connector_service(
                     state,
@@ -4642,29 +4670,6 @@ where
                 .await?;
 
             Ok(router_data)
-        } else {
-            call_connector_service(
-                state,
-                req_state,
-                merchant_context,
-                connector,
-                operation,
-                payment_data,
-                customer,
-                call_connector_action,
-                schedule_time,
-                header_payload,
-                frm_suggestion,
-                business_profile,
-                is_retry_payment,
-                should_retry_with_pan,
-                return_raw_connector_response,
-                merchant_connector_account_type_details,
-                router_data,
-                updated_customer,
-            )
-            .await
-        }
     })
     .await
 }

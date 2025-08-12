@@ -2960,13 +2960,11 @@ pub async fn confirm_intent_with_external_vault_proxy(
         }
     };
     
-
     // Prepare the internal payload
     let internal_payload = internal_payload_types::PaymentsGenericRequestWithResourceId {
-        global_payment_id,
+        global_payment_id: global_payment_id.clone(),
         payload: json_payload.into_inner(),
     };
-    println!("internal_payloaddd: {:?}", internal_payload);
 
     // Determine the locking action, if required
     let locking_action = internal_payload.get_locking_input(flow.clone());
@@ -3007,10 +3005,16 @@ pub async fn confirm_intent_with_external_vault_proxy(
                 None,
             ))
         },
-        &auth::V2ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
-        },
+        auth::api_or_client_auth(
+            &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
+            &auth::V2ClientAuth(common_utils::types::authentication::ResourceId::Payment(
+                global_payment_id,
+            )),
+            req.headers(),
+        ),
         locking_action,
     ))
     .await
@@ -3043,7 +3047,7 @@ pub async fn payment_status(
     };
 
     let internal_payload = internal_payload_types::PaymentsGenericRequestWithResourceId {
-        global_payment_id,
+        global_payment_id: global_payment_id.clone(),
         payload,
     };
 

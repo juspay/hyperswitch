@@ -1030,6 +1030,17 @@ impl ForeignFrom<&PaymentsAuthorizeRouterData> for AuthorizeSessionTokenData {
     }
 }
 
+impl ForeignFrom<&ExternalVaultProxyPaymentsRouterData> for AuthorizeSessionTokenData {
+    fn foreign_from(data: &ExternalVaultProxyPaymentsRouterData) -> Self {
+        Self {
+            amount_to_capture: data.amount_captured,
+            currency: data.request.currency,
+            connector_transaction_id: data.payment_id.clone(),
+            amount: Some(data.request.amount),
+        }
+    }
+}
+
 pub trait Tokenizable {
     fn set_session_token(&mut self, token: Option<String>);
 }
