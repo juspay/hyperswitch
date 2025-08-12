@@ -159,6 +159,9 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
                 Box::pin(pcr::perform_calculate_workflow(
                     state,
                     &process,
+                    state.get_req_state(),
+                    revenue_recovery_payment_data.profile.clone(),
+                    merchant_context_from_revenue_recovery_payment_data,
                     &tracking_data,
                     &revenue_recovery_payment_data,
                     &payment_data.payment_intent,

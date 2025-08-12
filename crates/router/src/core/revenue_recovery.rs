@@ -20,7 +20,7 @@ use crate::{
     core::errors::{self, RouterResponse, RouterResult, StorageErrorExt},
     db::StorageInterface,
     logger,
-    routes::{metrics, SessionState},
+    routes::{metrics, app::ReqState, SessionState},
     services::ApplicationResponse,
     types::{
         domain,
@@ -437,6 +437,9 @@ pub async fn perform_payments_sync(
 pub async fn perform_calculate_workflow(
     state: &SessionState,
     process: &storage::ProcessTracker,
+    req_state: &ReqState,
+    profile: &domain::Profile,
+    merchant_context: domain::MerchantContext,
     tracking_data: &pcr::RevenueRecoveryWorkflowTrackingData,
     revenue_recovery_payment_data: &pcr::RevenueRecoveryPaymentData,
     payment_intent: &PaymentIntent,
@@ -467,7 +470,10 @@ pub async fn perform_calculate_workflow(
     // 2. Get best available token
     let best_token_result = match workflows::revenue_recovery::get_best_psp_token_available(
         state,
+        merchant_id,
         &connector_customer_id,
+        req_state,
+        profile,
         &payment_intent.id,
         merchant_context_from_revenue_recovery_payment_data,
     )
