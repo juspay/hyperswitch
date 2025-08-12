@@ -50,6 +50,7 @@ pub struct AddressDetails {
     pub state: Option<Secret<String>>,
     pub first_name: Option<Secret<String>>,
     pub last_name: Option<Secret<String>>,
+    pub origin_zip: Option<Secret<String>>,
 }
 
 impl AddressDetails {
@@ -88,6 +89,7 @@ impl AddressDetails {
                 line3: self.line3.clone().or(other.line3.clone()),
                 zip: self.zip.clone().or(other.zip.clone()),
                 state: self.state.clone().or(other.state.clone()),
+                origin_zip: self.origin_zip.clone().or(other.origin_zip.clone()),
             }
         } else {
             self.clone()
@@ -123,6 +125,7 @@ impl From<api_models::payments::AddressDetails> for AddressDetails {
             state: address.state,
             first_name: address.first_name,
             last_name: address.last_name,
+            origin_zip: address.origin_zip,
         }
     }
 }
@@ -160,6 +163,7 @@ impl From<AddressDetails> for api_models::payments::AddressDetails {
             state: address.state,
             first_name: address.first_name,
             last_name: address.last_name,
+            origin_zip: address.origin_zip,
         }
     }
 }

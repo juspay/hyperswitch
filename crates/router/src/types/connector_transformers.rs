@@ -22,14 +22,14 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Billwerk => Self::Billwerk,
             api_enums::Connector::Bitpay => Self::Bitpay,
             api_enums::Connector::Bluesnap => Self::Bluesnap,
-            // api_enums::Connector::Bluecode => Self::Bluecode,
+            api_enums::Connector::Bluecode => Self::Bluecode,
             api_enums::Connector::Boku => Self::Boku,
             api_enums::Connector::Braintree => Self::Braintree,
             api_enums::Connector::Breadpay => Self::Breadpay,
             api_enums::Connector::Cashtocode => Self::Cashtocode,
             api_enums::Connector::Celero => Self::Celero,
             api_enums::Connector::Chargebee => Self::Chargebee,
-            // api_enums::Connector::Checkbook => Self::Checkbook,
+            api_enums::Connector::Checkbook => Self::Checkbook,
             api_enums::Connector::Checkout => Self::Checkout,
             api_enums::Connector::Coinbase => Self::Coinbase,
             api_enums::Connector::Coingate => Self::Coingate,
@@ -57,6 +57,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Fiserv => Self::Fiserv,
             api_enums::Connector::Fiservemea => Self::Fiservemea,
             api_enums::Connector::Fiuu => Self::Fiuu,
+            api_enums::Connector::Flexiti => Self::Flexiti,
             api_enums::Connector::Forte => Self::Forte,
             api_enums::Connector::Getnet => Self::Getnet,
             api_enums::Connector::Globalpay => Self::Globalpay,
@@ -98,7 +99,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Nmi => Self::Nmi,
             api_enums::Connector::Nomupay => Self::Nomupay,
             api_enums::Connector::Noon => Self::Noon,
-            // api_enums::Connector::Nordea => Self::Nordea,
+            api_enums::Connector::Nordea => Self::Nordea,
             api_enums::Connector::Novalnet => Self::Novalnet,
             api_enums::Connector::Nuvei => Self::Nuvei,
             api_enums::Connector::Opennode => Self::Opennode,
@@ -119,6 +120,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Redsys => Self::Redsys,
             api_enums::Connector::Santander => Self::Santander,
             api_enums::Connector::Shift4 => Self::Shift4,
+            api_enums::Connector::Silverflow => Self::Silverflow,
             api_enums::Connector::Signifyd => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "signifyd is not a routable connector".to_string(),
@@ -186,6 +188,8 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
                     message: "Taxjar is not a routable connector".to_string(),
                 })?
             }
+            api_enums::Connector::Phonepe => Self::Phonepe,
+            api_enums::Connector::Paytm => Self::Paytm,
         })
     }
 }
