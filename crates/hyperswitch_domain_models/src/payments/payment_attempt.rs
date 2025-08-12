@@ -37,6 +37,8 @@ use error_stack::ResultExt;
 #[cfg(feature = "v2")]
 use masking::PeekInterface;
 use masking::Secret;
+#[cfg(feature = "v1")]
+use router_env::logger;
 #[cfg(feature = "v2")]
 use rustc_hash::FxHashMap;
 #[cfg(feature = "v1")]
@@ -62,9 +64,6 @@ use crate::{
     mandates::{MandateDataType, MandateDetails},
     router_request_types,
 };
-
-#[cfg(feature = "v1")]
-use router_env::logger;
 
 #[async_trait::async_trait]
 pub trait PaymentAttemptInterface {
