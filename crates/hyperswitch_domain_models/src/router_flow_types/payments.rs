@@ -27,6 +27,9 @@ pub struct PSync;
 pub struct Void;
 
 #[derive(Debug, Clone)]
+pub struct PostCaptureVoid;
+
+#[derive(Debug, Clone)]
 pub struct Reject;
 
 #[derive(Debug, Clone)]
