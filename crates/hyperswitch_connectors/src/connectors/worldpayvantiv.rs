@@ -242,8 +242,6 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
             None,
             None,
         )?;
-        let body_string = String::from_utf8(connector_req.clone()).unwrap();
-        router_env::logger::debug!("sssssssssss {:?}", body_string);
         Ok(RequestContent::RawBytes(connector_req))
     }
 
@@ -271,8 +269,6 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<SetupMandateRouterData, errors::ConnectorError> {
-        // For certification purposes, to be removed later
-        router_env::logger::info!(raw_connector_response=?res.response);
         let response: worldpayvantiv::CnpOnlineResponse =
             connector_utils::deserialize_xml_to_struct(&res.response)?;
         event_builder.map(|i| i.set_response_body(&response));
@@ -339,8 +335,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             None,
             None,
         )?;
-        let body_string = String::from_utf8(connector_req.clone()).unwrap();
-        router_env::logger::debug!("sssssssssss {:?}", body_string);
         Ok(RequestContent::RawBytes(connector_req))
     }
 

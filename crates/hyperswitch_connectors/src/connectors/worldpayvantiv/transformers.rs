@@ -515,45 +515,6 @@ impl TryFrom<&connector_utils::CardIssuer> for WorldpayvativCardType {
     }
 }
 
-impl TryFrom<&PaymentMethodData> for WorldpayvantivCardData {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(payment_method_data: &PaymentMethodData) -> Result<Self, Self::Error> {
-        match payment_method_data {
-            PaymentMethodData::Card(card) => {
-                let card_type = match card.card_network.clone() {
-                    Some(card_type) => WorldpayvativCardType::try_from(card_type)?,
-                    None => WorldpayvativCardType::try_from(&card.get_card_issuer()?)?,
-                };
-
-                let exp_date = card.get_expiry_date_as_mmyy()?;
-
-                Ok(Self {
-                    card_type,
-                    number: card.card_number.clone(),
-                    exp_date,
-                    card_validation_num: Some(card.card_cvc.clone()),
-                })
-            }
-            PaymentMethodData::CardDetailsForNetworkTransactionId(card_data) => {
-                let card_type = match card_data.card_network.clone() {
-                    Some(card_type) => WorldpayvativCardType::try_from(card_type)?,
-                    None => WorldpayvativCardType::try_from(&card_data.get_card_issuer()?)?,
-                };
-
-                let exp_date = card_data.get_expiry_date_as_mmyy()?;
-
-                Ok(Self {
-                    card_type,
-                    number: card_data.card_number.clone(),
-                    exp_date,
-                    card_validation_num: None,
-                })
-            }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
-        }
-    }
-}
-
 impl<F> TryFrom<ResponseRouterData<F, VantivSyncResponse, PaymentsSyncData, PaymentsResponseData>>
     for RouterData<F, PaymentsSyncData, PaymentsResponseData>
 {
