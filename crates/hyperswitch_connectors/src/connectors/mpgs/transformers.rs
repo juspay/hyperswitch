@@ -2,13 +2,13 @@ use common_enums::enums;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
-    router_flow_types::refunds::{Execute, RSync},
-    router_request_types::ResponseId,
+    router_flow_types::{payments::PaymentMethodToken, refunds::{Execute, RSync}},
+    router_request_types::{PaymentMethodTokenizationData, ResponseId},
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, RefundsRouterData},
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -42,7 +42,7 @@ impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for MpgsRouterDat
 }
 
 #[derive(Debug, Serialize, Default)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "UPPERCASE")]
 pub enum MpgsApiOperation {
     Pay,
     #[default]
@@ -119,6 +119,12 @@ impl TryFrom<&MpgsRouterData<&PaymentsAuthorizeRouterData>> for MpgsPaymentsRequ
             _ => None,
         };
 
+        let source_of_funds = source_of_funds.ok_or_else(|| {
+            errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("mpgs"),
+            )
+        })?;
+
         Ok(Self {
             api_operation: if item.router_data.request.is_auto_capture()? {
                 MpgsApiOperation::Pay
@@ -131,7 +137,7 @@ impl TryFrom<&MpgsRouterData<&PaymentsAuthorizeRouterData>> for MpgsPaymentsRequ
             },
             source_of_funds: MpgsSourceOfFunds {
                 r#type: "CARD".to_string(),
-                provided: source_of_funds,
+                provided: Some(source_of_funds),
             },
             transaction: MpgsTransaction {
                 reference: item.router_data.payment_id.clone(),
@@ -157,6 +163,41 @@ impl TryFrom<&MpgsRouterData<&PaymentsCaptureRouterData>> for MpgsPaymentsReques
                 reference: item.router_data.request.connector_transaction_id.clone(),
             },
         })
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MpgsTokenRequest {
+    pub source_of_funds: MpgsSourceOfFunds,
+}
+
+impl TryFrom<&PaymentMethodTokenizationData> for MpgsTokenRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &PaymentMethodTokenizationData) -> Result<Self, Self::Error> {
+        let card = match item.payment_method_data.clone() {
+            PaymentMethodData::Card(c) => c,
+            _ => {
+                return Err(errors::ConnectorError::NotImplemented(
+                    "Payment Method".to_string(),
+                )
+                .into())
+            }
+        };
+        let source_of_funds = MpgsSourceOfFunds {
+            r#type: "CARD".to_string(),
+            provided: Some(MpgsProvidedSourceOfFunds {
+                card: MpgsCard {
+                    number: card.card_number,
+                    expiry: MpgsExpiry {
+                        month: card.card_exp_month,
+                        year: card.card_exp_year,
+                    },
+                    security_code: Some(card.card_cvc),
+                },
+            }),
+        };
+        Ok(Self { source_of_funds })
     }
 }
 
@@ -372,4 +413,30 @@ pub struct MpgsErrorResponse {
 pub struct MpgsError {
     pub cause: String,
     pub explanation: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct MpgsTokenResponse {
+    pub source_of_funds: MpgsTokenSource,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct MpgsTokenSource {
+    pub token: Secret<String>,
+}
+
+impl<F, T> TryFrom<ResponseRouterData<F, MpgsTokenResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, MpgsTokenResponse, T, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(PaymentsResponseData::TokenizationResponse {
+                token: item.response.source_of_funds.token.expose(),
+            }),
+            ..item.data
+        })
+    }
 }

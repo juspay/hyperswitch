@@ -5192,6 +5192,30 @@ api_secret="website name"
 key1="merchant_id"
 
 [mpgs]
+[[mpgs.credit]]
+payment_method_type = "Visa"
+[[mpgs.credit]]
+payment_method_type = "Mastercard"
+[[mpgs.credit]]
+payment_method_type = "AmericanExpress"
+[[mpgs.credit]]
+payment_method_type = "Discover"
+[[mpgs.credit]]
+payment_method_type = "JCB"
+[[mpgs.credit]]
+payment_method_type = "DinersClub"
+[[mpgs.debit]]
+payment_method_type = "Visa"
+[[mpgs.debit]]
+payment_method_type = "Mastercard"
+[[mpgs.debit]]
+payment_method_type = "AmericanExpress"
+[[mpgs.debit]]
+payment_method_type = "Discover"
+[[mpgs.debit]]
+payment_method_type = "JCB"
+[[mpgs.debit]]
+payment_method_type = "DinersClub"
 [mpgs.connector_auth.HeaderKey]
 api_key = "API Key"
 
