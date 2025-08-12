@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use api_models::admin;
-use common_enums::{AttemptStatus, Connector, GatewaySystem, PaymentMethodType};
+use common_enums::{connector_enums::Connector, AttemptStatus, GatewaySystem, PaymentMethodType};
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use diesel_models::types::FeatureMetadata;
 use error_stack::ResultExt;
