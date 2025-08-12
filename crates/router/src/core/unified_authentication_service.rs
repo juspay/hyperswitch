@@ -1676,33 +1676,38 @@ pub async fn authentication_post_sync_core(
             authentication.authentication_connector.clone(),
         )
         .await?;
-
-    let post_auth_response =
-        <ExternalAuthentication as UnifiedAuthenticationService>::post_authentication(
-            &state,
-            &business_profile,
-            None,
-            &three_ds_connector_account,
-            &authentication_connector.to_string(),
-            &authentication_id,
-            common_enums::PaymentMethod::Card,
-            merchant_id,
-            Some(&authentication),
-        )
-        .await?;
-
-    utils::external_authentication_update_trackers(
-        &state,
-        post_auth_response,
-        authentication.clone(),
-        None,
-        merchant_context.get_merchant_key_store(),
-        None,
-        None,
-        None,
-        None,
-    )
-    .await?;
+    
+    let updated_authentication = match authentication.trans_status.clone() {
+        Some(trans_status) if trans_status.clone().is_pending() => {
+            let post_auth_response =
+            <ExternalAuthentication as UnifiedAuthenticationService>::post_authentication(
+                &state,
+                &business_profile,
+                None,
+                &three_ds_connector_account,
+                &authentication_connector.to_string(),
+                &authentication_id,
+                common_enums::PaymentMethod::Card,
+                merchant_id,
+                Some(&authentication),
+            )
+            .await?;
+    
+            utils::external_authentication_update_trackers(
+                &state,
+                post_auth_response,
+                authentication.clone(),
+                None,
+                merchant_context.get_merchant_key_store(),
+                None,
+                None,
+                None,
+                None,
+            )
+            .await?
+        }
+        _ => authentication,
+    };
 
     let authentication_details = business_profile
         .authentication_connector_details
@@ -1711,7 +1716,7 @@ pub async fn authentication_post_sync_core(
         .attach_printable("authentication_connector_details not configured by the merchant")?;
 
     let authentication_response = AuthenticationAuthenticateResponse::foreign_try_from((
-        &authentication,
+        &updated_authentication,
         None,
         None,
         authentication_details,
@@ -1722,13 +1727,13 @@ pub async fn authentication_post_sync_core(
         &business_profile,
         &authentication_response,
         authentication_connector.to_string(),
-        authentication.return_url,
-        authentication
+        updated_authentication.return_url,
+        updated_authentication
             .authentication_client_secret
             .clone()
             .map(masking::Secret::new)
             .as_ref(),
-        authentication.amount,
+        updated_authentication.amount,
     )?;
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::JsonForRedirection(redirect_response))
