@@ -8,8 +8,8 @@ import type {
   RequestHandler,
 } from "express";
 // Import from TypeScript version
-import silverflowApp from "./Silverflow.ts";
-import celeroApp from "./Celero.ts";
+import silverflowApp from "./Connectors/Silverflow.ts";
+import celeroApp from "./Connectors/Celero.ts";
 
 // TODO: Update to import from TypeScript version once fully tested
 // import silverflowApp from "./Silverflow";
