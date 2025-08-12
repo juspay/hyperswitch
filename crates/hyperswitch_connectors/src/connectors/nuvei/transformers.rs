@@ -2251,23 +2251,6 @@ impl From<&NuveiWebhook> for NuveiWebhookTransactionId {
     }
 }
 
-// Map webhook to appropriate transaction status
-impl From<&NuveiWebhook> for NuveiTransactionStatus {
-    fn from(webhook: &NuveiWebhook) -> Self {
-        match webhook {
-            NuveiWebhook::Chargeback(_) => Self::Processing, // Chargebacks are processed separately
-            NuveiWebhook::PaymentDmn(notification) => match notification.transaction_status {
-                Some(TransactionStatus::Approved) => Self::Approved,
-                Some(TransactionStatus::Declined) | Some(TransactionStatus::Error) => {
-                    Self::Declined
-                }
-                Some(TransactionStatus::Settled) => Self::Approved,
-                _ => Self::Processing,
-            },
-        }
-    }
-}
-
 // Convert webhook to payments response for further processing
 impl From<NuveiWebhook> for NuveiPaymentsResponse {
     fn from(webhook: NuveiWebhook) -> Self {
