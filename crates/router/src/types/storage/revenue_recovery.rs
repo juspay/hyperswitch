@@ -54,9 +54,7 @@ impl RevenueRecoveryPaymentData {
                 )
                 .await
             }
-            enums::RevenueRecoveryAlgorithmType::Smart => {
-                None
-            }
+            enums::RevenueRecoveryAlgorithmType::Smart => None,
         }
     }
 }
