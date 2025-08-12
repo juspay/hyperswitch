@@ -18,6 +18,7 @@ use common_utils::{
 };
 #[cfg(feature = "v2")]
 use diesel_models::types::BillingConnectorPaymentMethodDetails;
+#[cfg(feature = "v2")]
 use error_stack::Report;
 #[cfg(feature = "v2")]
 use error_stack::ResultExt;
@@ -37,6 +38,7 @@ use hyperswitch_domain_models::{
 use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
 use router_env::logger;
+#[cfg(feature = "v2")]
 use router_env::tracing;
 use scheduler::{consumer::workflows::ProcessTrackerWorkflow, errors};
 #[cfg(feature = "v2")]
@@ -709,6 +711,10 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
     }
     .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
 
+    tracing::debug!(
+        "Fetched payment attempts",
+    );
+
     let mut latest_map_with_attempt: HashMap<String, PaymentAttemptResponse> = HashMap::new();
 
     payment_attempt_list_result
@@ -738,6 +744,9 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
         })
         .collect();
 
+    tracing::debug!(
+        "Filtered  payment attempts based on payment tokens",
+    );
     let mut scheduled_tokens: Vec<ScheduledToken> = Vec::new();
 
     for (token_with_retry_info, payment_attempt_response) in filterd_token_with_attempt.values() {
@@ -781,6 +790,11 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
         .min_by_key(|token| token.schedule_time)
         .cloned();
 
+
+
+    tracing::debug!(
+        "Found payment processor token with least schedule time",
+    );
     best_token
         .async_map(|token| async move {
             RedisTokenManager::update_payment_processor_token_schedule_time(
