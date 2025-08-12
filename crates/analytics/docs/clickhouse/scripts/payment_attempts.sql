@@ -111,7 +111,8 @@ CREATE TABLE payment_attempts (
     INDEX currencyIndex currency TYPE bloom_filter GRANULARITY 1,
     INDEX statusIndex status TYPE bloom_filter GRANULARITY 1
 ) ENGINE = CollapsingMergeTree(sign_flag) PARTITION BY toStartOfDay(created_at)
-ORDER BY (created_at, merchant_id, attempt_id) TTL created_at + toIntervalMonth(18) SETTINGS index_granularity = 8192;
+ORDER BY 
+    (created_at, merchant_id, attempt_id) TTL created_at + toIntervalMonth(18) SETTINGS index_granularity = 8192;
 
 CREATE MATERIALIZED VIEW payment_attempt_mv TO payment_attempts (
     `payment_id` String,
@@ -165,7 +166,8 @@ CREATE MATERIALIZED VIEW payment_attempt_mv TO payment_attempts (
     `is_issuer_regulated` Nullable(Bool),
     `sign_flag` Int8
 ) AS
-SELECT payment_id,
+SELECT 
+    payment_id,
     merchant_id,
     attempt_id,
     status,
@@ -215,5 +217,7 @@ SELECT payment_id,
     signature_network,
     is_issuer_regulated,
     sign_flag
-FROM payment_attempt_queue
-WHERE length(_error) = 0;
+FROM 
+    payment_attempt_queue
+WHERE 
+    length(_error) = 0;
