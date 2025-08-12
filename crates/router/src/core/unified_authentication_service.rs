@@ -1676,23 +1676,23 @@ pub async fn authentication_post_sync_core(
             authentication.authentication_connector.clone(),
         )
         .await?;
-    
+
     let updated_authentication = match authentication.trans_status.clone() {
         Some(trans_status) if trans_status.clone().is_pending() => {
             let post_auth_response =
-            <ExternalAuthentication as UnifiedAuthenticationService>::post_authentication(
-                &state,
-                &business_profile,
-                None,
-                &three_ds_connector_account,
-                &authentication_connector.to_string(),
-                &authentication_id,
-                common_enums::PaymentMethod::Card,
-                merchant_id,
-                Some(&authentication),
-            )
-            .await?;
-    
+                <ExternalAuthentication as UnifiedAuthenticationService>::post_authentication(
+                    &state,
+                    &business_profile,
+                    None,
+                    &three_ds_connector_account,
+                    &authentication_connector.to_string(),
+                    &authentication_id,
+                    common_enums::PaymentMethod::Card,
+                    merchant_id,
+                    Some(&authentication),
+                )
+                .await?;
+
             utils::external_authentication_update_trackers(
                 &state,
                 post_auth_response,
