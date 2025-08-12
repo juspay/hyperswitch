@@ -1201,18 +1201,16 @@ where
                 )
             }
             // non mandate transactions
-            _ => {
-                (
-                    None,
-                    Some(V2AdditionalParams {
-                        rebill_expiry: None,
-                        rebill_frequency: None,
-                        challenge_window_size: Some("05".to_string()),
-                        challenge_preference: Some("01".to_string()),
-                    }),
-                    None,
-                )
-            }
+            _ => (
+                None,
+                Some(V2AdditionalParams {
+                    rebill_expiry: None,
+                    rebill_frequency: None,
+                    challenge_window_size: Some("05".to_string()),
+                    challenge_preference: Some("01".to_string()),
+                }),
+                None,
+            ),
         };
     let three_d = if item.is_three_ds() {
         let browser_details = match &browser_information {
