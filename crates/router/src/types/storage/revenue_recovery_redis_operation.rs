@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use time::{Date, Duration, OffsetDateTime, PrimitiveDateTime};
 
 use crate::{
-    db::errors, types::storage::revenue_recovery::RetryLimitsConfig, workflows::revenue_recovery,
+    db::errors,
     SessionState,
 };
 
@@ -123,7 +123,13 @@ impl RedisTokenManager {
         let lock_key = format!("customer:{connector_customer_id}:status");
 
         match redis_conn.delete_key(&lock_key.into()).await {
-            Ok(DelReply::KeyDeleted) => Ok(true),
+            Ok(DelReply::KeyDeleted) => {
+                tracing::debug!(
+                    connector_customer_id = connector_customer_id,
+                    "Connector customer unlocked"
+                );
+                Ok(true)
+            }
             Ok(DelReply::KeyNotDeleted) => {
                 tracing::debug!("Tried to unlock a stream which is already unlocked");
                 Ok(false)
@@ -133,6 +139,7 @@ impl RedisTokenManager {
                 Ok(false)
             }
         }
+        
     }
 
     /// Get all payment processor tokens for a connector customer
@@ -177,6 +184,11 @@ impl RedisTokenManager {
                     }
                 })
                 .collect();
+        tracing::debug!(
+            connector_customer_id = connector_customer_id,
+            "Fetched payment processor tokens",
+        );
+            
 
         Ok(payment_processor_token_info_map)
     }
@@ -226,7 +238,7 @@ impl RedisTokenManager {
 
         tracing::info!(
             connector_customer_id = %connector_customer_id,
-            "Successfully updated customer tokens",
+            "Successfully updated or added customer tokens",
         );
 
         Ok(())
@@ -311,6 +323,9 @@ impl RedisTokenManager {
 
             result.insert(payment_processor_token_id.clone(), token_with_retry_info);
         }
+        tracing::debug!(
+            "Fetched payment processor tokens with retry metadata",
+        );
 
         result
     }
@@ -471,6 +486,10 @@ impl RedisTokenManager {
             token_map,
         )
         .await?;
+    tracing::debug!(
+        connector_customer_id = connector_customer_id,
+        "Upsert payment processor tokens",
+    );
 
         Ok(!was_existing)
     }
@@ -524,9 +543,19 @@ impl RedisTokenManager {
                     tokens_map,
                 )
                 .await?;
+                tracing::debug!(
+                    connector_customer_id = connector_customer_id,
+                    "Updated payment processor tokens with error code",
+                );
                 Ok(true)
             }
-            None => Ok(false),
+            None => {
+                tracing::debug!(
+                    connector_customer_id = connector_customer_id,
+                    "No Token found with scheduled time to update error code",
+                );
+                Ok(false)
+            }
         }
     }
 
@@ -571,9 +600,19 @@ impl RedisTokenManager {
                     tokens_map,
                 )
                 .await?;
+                tracing::debug!(
+                    connector_customer_id = connector_customer_id,
+                    "Updated payment processor tokens with schedule time",
+                );
                 Ok(true)
             }
-            None => Ok(false),
+            None => {
+                tracing::debug!(
+                    connector_customer_id = connector_customer_id,
+                    "payment processor tokens with not found",
+                );
+                Ok(false)
+            }
         }
     }
 
@@ -590,6 +629,11 @@ impl RedisTokenManager {
             .values()
             .find(|status| status.scheduled_at.is_some())
             .cloned();
+
+        tracing::debug!(
+            connector_customer_id = connector_customer_id,
+            "Fetched payment processor token with schedule time",
+        );
 
         Ok(scheduled_token)
     }
@@ -611,6 +655,11 @@ impl RedisTokenManager {
             .into_iter()
             .max_by_key(|(_, token_info)| token_info.monthly_retry_remaining)
             .map(|(_, token_info)| token_info);
+
+        tracing::debug!(
+            connector_customer_id = connector_customer_id,
+            "Fetched payment processor token with max retry remaining",
+        );
 
         Ok(max_retry_token)
     }
