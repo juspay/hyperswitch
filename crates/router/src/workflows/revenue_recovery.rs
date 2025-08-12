@@ -711,9 +711,7 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
     }
     .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
 
-    tracing::debug!(
-        "Fetched payment attempts",
-    );
+    tracing::debug!("Fetched payment attempts",);
 
     let mut latest_map_with_attempt: HashMap<String, PaymentAttemptResponse> = HashMap::new();
 
@@ -744,9 +742,7 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
         })
         .collect();
 
-    tracing::debug!(
-        "Filtered  payment attempts based on payment tokens",
-    );
+    tracing::debug!("Filtered  payment attempts based on payment tokens",);
     let mut scheduled_tokens: Vec<ScheduledToken> = Vec::new();
 
     for (token_with_retry_info, payment_attempt_response) in filterd_token_with_attempt.values() {
@@ -790,11 +786,7 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
         .min_by_key(|token| token.schedule_time)
         .cloned();
 
-
-
-    tracing::debug!(
-        "Found payment processor token with least schedule time",
-    );
+    tracing::debug!("Found payment processor token with least schedule time",);
     best_token
         .async_map(|token| async move {
             RedisTokenManager::update_payment_processor_token_schedule_time(
