@@ -95,7 +95,6 @@ use hyperswitch_interfaces::{
         },
         disputes_v2::{AcceptDisputeV2, DefendDisputeV2, DisputeV2, SubmitEvidenceV2},
         files_v2::{FileUploadV2, RetrieveFileV2, UploadFileV2},
-        // payments::{ExternalVaultProxyPaymentsCreate},
         payments_v2::{
             ConnectorCustomerV2, MandateSetupV2, PaymentApproveV2, PaymentAuthorizeSessionTokenV2,
             PaymentAuthorizeV2, PaymentCaptureV2, PaymentCreateOrderV2,
@@ -145,12 +144,6 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             impl PaymentUpdateMetadataV2 for $path::$connector{}
             impl PaymentCreateOrderV2 for $path::$connector{}
             impl ExternalVaultV2 for $path::$connector{}
-            // impl ExternalVaultProxyPaymentsCreate for $path::$connector{}
-            // impl ConnectorIntegrationV2<
-            //     ExternalVaultProxy,
-            //     PaymentFlowData,
-            //     ExternalVaultProxyPaymentsData,
-            //     PaymentsResponseData,
             impl
             ConnectorIntegrationV2<Authorize,PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>
             for $path::$connector{}
