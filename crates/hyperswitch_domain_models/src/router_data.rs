@@ -1503,27 +1503,22 @@ impl
         // Based on the status of the response, we can determine the amount capturable
         let intent_status = common_enums::IntentStatus::from(self.status);
         match intent_status {
-            // If the status is already succeeded / failed we cannot capture any more amount
-            // So set the amount capturable to zero
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Cancelled
-            | common_enums::IntentStatus::Conflicted => Some(MinorUnit::zero()),
-            // For these statuses, update the capturable amount when it reaches terminal / capturable state
+            | common_enums::IntentStatus::CancelledPostCapture
+            | common_enums::IntentStatus::Conflicted
+            | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::Processing => None,
-            // Invalid states for this flow
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation => None,
-            // If status is requires capture, get the total amount that can be captured
-            // This is in cases where the capture method will be `manual` or `manual_multiple`
-            // We do not need to handle the case where amount_to_capture is provided here as it cannot be passed in authroize flow
-            common_enums::IntentStatus::RequiresCapture => {
+            common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => {
                 let total_amount = payment_data.payment_attempt.amount_details.get_net_amount();
                 Some(total_amount)
             }
-            // Invalid statues for this flow, after doing authorization this state is invalid
             common_enums::IntentStatus::PartiallyCaptured
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
         }
@@ -1536,26 +1531,21 @@ impl
         // Based on the status of the response, we can determine the amount that was captured
         let intent_status = common_enums::IntentStatus::from(self.status);
         match intent_status {
-            // If the status is succeeded then we have captured the whole amount
-            // we need not check for `amount_to_capture` here because passing `amount_to_capture` when authorizing is not supported
             common_enums::IntentStatus::Succeeded | common_enums::IntentStatus::Conflicted => {
                 let total_amount = payment_data.payment_attempt.amount_details.get_net_amount();
                 Some(total_amount)
             }
-            // No amount is captured
-            common_enums::IntentStatus::Cancelled | common_enums::IntentStatus::Failed => {
-                Some(MinorUnit::zero())
-            }
-            // For these statuses, update the amount captured when it reaches terminal state
+            common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::Failed
+            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
+            | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::Processing => None,
-            // Invalid states for this flow
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation => None,
-            // No amount has been captured yet
-            common_enums::IntentStatus::RequiresCapture => Some(MinorUnit::zero()),
-            // Invalid statues for this flow
+            common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::CancelledPostCapture => Some(MinorUnit::zero()),
             common_enums::IntentStatus::PartiallyCaptured
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
         }
