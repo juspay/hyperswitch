@@ -214,14 +214,27 @@ impl IncomingWebhook for Netcetera {
             .body
             .parse_struct("netcetera ResultsResponseData")
             .change_context(ConnectorError::WebhookBodyDecodingFailed)?;
+
+        let challenge_cancel = webhook_body
+            .results_request
+            .as_ref()
+            .and_then(|v| v.get("challengeCancel").and_then(|v| v.as_str()))
+            .map(|s| s.to_string());
+
+        let challenge_code_reason = webhook_body
+            .results_request
+            .as_ref()
+            .and_then(|v| v.get("transStatusReason").and_then(|v| v.as_str()))
+            .map(|s| s.to_string());
+
         Ok(ExternalAuthenticationPayload {
             trans_status: webhook_body
                 .trans_status
                 .unwrap_or(common_enums::TransactionStatus::InformationOnly),
             authentication_value: webhook_body.authentication_value,
             eci: webhook_body.eci,
-            challenge_cancel: webhook_body.challenge_cancel,
-            challenge_code_reason: webhook_body.trans_status_reason,
+            challenge_cancel,
+            challenge_code_reason,
         })
     }
 }
