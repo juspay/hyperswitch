@@ -465,6 +465,9 @@ async fn payments_create_core() {
         issuer_error_message: None,
         is_iframe_redirection_enabled: None,
         whole_connector_response: None,
+        payment_channel: None,
+        network_transaction_id: None,
+        enable_partial_authorization: None,
     };
     let expected_response =
         services::ApplicationResponse::JsonWithHeaders((expected_response, vec![]));
@@ -743,6 +746,9 @@ async fn payments_create_core_adyen_no_redirect() {
             issuer_error_message: None,
             is_iframe_redirection_enabled: None,
             whole_connector_response: None,
+            payment_channel: None,
+            network_transaction_id: None,
+            enable_partial_authorization: None,
         },
         vec![],
     ));

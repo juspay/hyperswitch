@@ -247,6 +247,7 @@ inespay.base_url = "https://apiflow.inespay.com/san/v21"
 itaubank.base_url = "https://sandbox.devportal.itau.com.br/"
 jpmorgan.base_url = "https://api-mock.payments.jpmorgan.com/api/v2"
 juspaythreedsserver.base_url = "http://localhost:8000"
+katapult.base_url = "https://sandbox.katapult.com/api/v3"
 jpmorgan.secondary_base_url= "https://id.payments.jpmorgan.com"
 klarna.base_url = "https://api{{klarna_region}}.playground.klarna.com/"
 mifinity.base_url = "https://demo.mifinity.com/"
@@ -275,7 +276,9 @@ payme.base_url = "https://sandbox.payme.io/"
 payone.base_url = "https://payment.preprod.payone.com/"
 paypal.base_url = "https://api-m.sandbox.paypal.com/"
 paystack.base_url = "https://api.paystack.co"
+paytm.base_url = "https://securegw-stage.paytm.in/"
 payu.base_url = "https://secure.snd.payu.com/"
+phonepe.base_url = "https://api.phonepe.com/apis/hermes/"
 placetopay.base_url = "https://test.placetopay.com/rest/gateway"
 plaid.base_url = "https://sandbox.plaid.com"
 powertranz.base_url = "https://staging.ptranz.com/api/"
@@ -287,6 +290,7 @@ redsys.base_url = "https://sis-t.redsys.es:25443"
 riskified.base_url = "https://sandbox.riskified.com/api"
 santander.base_url = "https://pix.santander.com.br/api/v1/sandbox/"
 shift4.base_url = "https://api.shift4.com/"
+sift.base_url = "https://api.sift.com/v205"
 silverflow.base_url = "https://api-sbx.silverflow.co/v1"
 signifyd.base_url = "https://api.signifyd.com/"
 square.base_url = "https://connect.squareupsandbox.com/"
@@ -313,6 +317,7 @@ worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
 worldpayvantiv.base_url = "https://transact.vantivprelive.com/vap/communicator/online"
 worldpayvantiv.secondary_base_url = "https://onlinessr.vantivprelive.com"
+worldpayvantiv.third_base_url = "https://services.vantivprelive.com"
 worldpayxml.base_url = "https://secure-test.worldpay.com/jsp/merchant/xml/paymentService.jsp"
 xendit.base_url = "https://api.xendit.co"
 zsl.base_url = "https://api.sitoffalb.net/"
@@ -471,6 +476,7 @@ square = { long_lived_token = false, payment_method = "card" }
 braintree = { long_lived_token = false, payment_method = "card" }
 gocardless = { long_lived_token = true, payment_method = "bank_debit" }
 billwerk = { long_lived_token = false, payment_method = "card" }
+globalpay = { long_lived_token = false, payment_method = "card", flow = "mandates" }
 
 [debit_routing_config]                                       # Debit Routing configs
 supported_currencies = "USD"                                 # Supported currencies for debit routing
@@ -644,6 +650,14 @@ open_banking_uk = { country = "DE,GB,AT,BE,CY,EE,ES,FI,FR,GR,HR,IE,IT,LT,LU,LV,M
 [pm_filters.razorpay]
 upi_collect = { country = "IN", currency = "INR" }
 
+[pm_filters.phonepe]
+upi_collect = { country = "IN", currency = "INR" }
+upi_intent = { country = "IN", currency = "INR" }
+
+[pm_filters.paytm]
+upi_collect = { country = "IN", currency = "INR" }
+upi_intent = { country = "IN", currency = "INR" }
+
 [pm_filters.plaid]
 open_banking_pis = {currency = "EUR,GBP"}
 
@@ -671,12 +685,17 @@ google_pay = { currency = "USD" }
 samsung_pay = { currency = "USD" }
 
 [pm_filters.cybersource]
-credit = { currency = "USD,GBP,EUR,PLN,SEK" }
-debit = { currency = "USD,GBP,EUR,PLN,SEK" }
+credit = { currency = "USD,GBP,EUR,PLN,SEK,XOF" }
+debit = { currency = "USD,GBP,EUR,PLN,SEK,XOF" }
 apple_pay = { currency = "ARS, CAD, CLP, COP, CNY, EUR, HKD, KWD, MYR, MXN, NZD, PEN, QAR, SAR, SGD, ZAR, UAH, GBP, AED, USD, PLN, SEK" }
 google_pay = { currency = "ARS, AUD, CAD, CLP, COP, EUR, HKD, INR, KWD, MYR, MXN, NZD, PEN, QAR, SAR, SGD, ZAR, UAH, AED, GBP, USD, PLN, SEK" }
 samsung_pay = { currency = "USD,GBP,EUR,SEK" }
 paze = { currency = "USD,SEK" }
+
+[pm_filters.barclaycard]
+credit = { currency = "USD,GBP,EUR,PLN,SEK" }
+debit = { currency = "USD,GBP,EUR,PLN,SEK" }
+google_pay = { currency = "ARS, AUD, CAD, CLP, COP, EUR, HKD, INR, KWD, MYR, MXN, NZD, PEN, QAR, SAR, SGD, ZAR, UAH, AED, GBP, USD, PLN, SEK" }
 
 [pm_filters.globepay]
 ali_pay = { country = "GB",currency = "GBP" }
@@ -734,6 +753,10 @@ crypto_currency = { country = "US, CA, GB, AT, BE, BG, HR, CY, CZ, DK, EE, FI, F
 debit = { country = "FR", currency = "CAD, AUD, EUR, USD" }
 credit = { country = "FR", currency = "CAD, AUD, EUR, USD" }
 
+[pm_filters.payload]
+debit = { currency = "USD,CAD" }
+credit = { currency = "USD,CAD" }
+
 [pm_filters.digitalvirgo]
 direct_carrier_billing = {country = "MA, CM, ZA, EG, SN, DZ, TN, ML, GN, GH, LY, GA, CG, MG, BW, SD, NG, ID, SG, AZ, TR, FR, ES, PL, GB, PT, DE, IT, BE, IE, SK, GR, NL, CH, BR, MX, AR, CL, AE, IQ, KW, BH, SA, QA, PS, JO, OM, RU" , currency = "MAD, XOF, XAF, ZAR, EGP, DZD, TND, GNF, GHS, LYD, XAF, CDF, MGA, BWP, SDG, NGN, IDR, SGD, RUB, AZN, TRY, EUR, PLN, GBP, CHF, BRL, MXN, ARS, CLP, AED, IQD, KWD, BHD, SAR, QAR, ILS, JOD, OMR" }
 
@@ -754,6 +777,9 @@ sofort = { country = "AT,BE,DE,ES,IT,NL", currency = "EUR" }
 
 [pm_filters.klarna]
 klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NL,NZ,NO,PL,PT,ES,SE,CH,GB,US", currency = "CHF,DKK,EUR,GBP,NOK,PLN,SEK,USD,AUD,NZD,CAD" }
+
+[pm_filters.flexiti]
+flexiti = { country = "CA", currency = "CAD" }
 
 [pm_filters.nexixpay]
 credit = { country = "AT,BE,CY,EE,FI,FR,DE,GR,IE,IT,LV,LT,LU,MT,NL,PT,SK,SI,ES,BG,HR,DK,GB,NO,PL,CZ,RO,SE,CH,HU,AU,BR,US", currency = "ARS,AUD,BHD,CAD,CLP,CNY,COP,HRK,CZK,DKK,HKD,HUF,INR,JPY,KZT,JOD,KRW,KWD,MYR,MXN,NGN,NOK,PHP,QAR,RUB,SAR,SGD,VND,ZAR,SEK,CHF,THB,AED,EGP,GBP,USD,TWD,BYN,RSD,AZN,RON,TRY,AOA,BGN,EUR,UAH,PLN,BRL" }
@@ -785,6 +811,9 @@ paypal = { country = "AD,AE,AL,AM,AR,AT,AU,AZ,BA,BB,BD,BE,BG,BH,BI,BM,BN,BO,BR,B
 
 [pm_filters.mifinity]
 mifinity = { country = "BR,CN,SG,MY,DE,CH,DK,GB,ES,AD,GI,FI,FR,GR,HR,IT,JP,MX,AR,CO,CL,PE,VE,UY,PY,BO,EC,GT,HN,SV,NI,CR,PA,DO,CU,PR,NL,NO,PL,PT,SE,RU,TR,TW,HK,MO,AX,AL,DZ,AS,AO,AI,AG,AM,AW,AU,AT,AZ,BS,BH,BD,BB,BE,BZ,BJ,BM,BT,BQ,BA,BW,IO,BN,BG,BF,BI,KH,CM,CA,CV,KY,CF,TD,CX,CC,KM,CG,CK,CI,CW,CY,CZ,DJ,DM,EG,GQ,ER,EE,ET,FK,FO,FJ,GF,PF,TF,GA,GM,GE,GH,GL,GD,GP,GU,GG,GN,GW,GY,HT,HM,VA,IS,IN,ID,IE,IM,IL,JE,JO,KZ,KE,KI,KW,KG,LA,LV,LB,LS,LI,LT,LU,MK,MG,MW,MV,ML,MT,MH,MQ,MR,MU,YT,FM,MD,MC,MN,ME,MS,MA,MZ,NA,NR,NP,NC,NZ,NE,NG,NU,NF,MP,OM,PK,PW,PS,PG,PH,PN,QA,RE,RO,RW,BL,SH,KN,LC,MF,PM,VC,WS,SM,ST,SA,SN,RS,SC,SL,SX,SK,SI,SB,SO,ZA,GS,KR,LK,SR,SJ,SZ,TH,TL,TG,TK,TO,TT,TN,TM,TC,TV,UG,UA,AE,UZ,VU,VN,VG,VI,WF,EH,ZM", currency = "AUD,CAD,CHF,CNY,CZK,DKK,EUR,GBP,INR,JPY,NOK,NZD,PLN,RUB,SEK,ZAR,USD,EGP,UYU,UZS" }
+
+[pm_filters.nordea]
+sepa = { country = "DK,FI,NO,SE", currency = "DKK,EUR,NOK,SEK" }
 
 [pm_filters.fiuu]
 duit_now = { country = "MY", currency = "MYR" }
@@ -859,13 +888,18 @@ apple_pay = { country = "EG, MA, ZA, AU, HK, JP, MO, MY, MN, NZ, SG, KR, TW, VN,
 [pm_filters.fiserv]
 credit = {country = "AU,NZ,CN,HK,IN,LK,KR,MY,SG,GB,BE,FR,DE,IT,ME,NL,PL,ES,ZA,AR,BR,CO,MX,PA,UY,US,CA", currency = "AFN,ALL,DZD,AOA,ARS,AMD,AWG,AUD,AZN,BSD,BHD,BDT,BBD,BYN,BZD,BMD,BTN,BOB,VES,BAM,BWP,BRL,BND,BGN,BIF,KHR,CAD,CVE,KYD,XAF,CLP,CNY,COP,KMF,CDF,CRC,HRK,CUP,CZK,DKK,DJF,DOP,XCD,EGP,ERN,ETB,EUR,FKP,FJD,XPF,GMD,GEL,GHS,GIP,GTQ,GNF,GYD,HTG,HNL,HKD,HUF,ISK,INR,IDR,IRR,IQD,ILS,JMD,JPY,JOD,KZT,KES,KGS,KWD,LAK,LBP,LSL,LRD,LYD,MOP,MKD,MGA,MWK,MYR,MVR,MRU,MUR,MXN,MDL,MNT,MAD,MZN,MMK,NAD,NPR,ANG,NZD,NIO,NGN,VUV,KPW,NOK,OMR,PKR,PAB,PGK,PYG,PEN,PHP,PLN,GBP,QAR,RON,RUB,RWF,SHP,SVC,WST,STN,SAR,RSD,SCR,SLL,SGD,SBD,SOS,ZAR,KRW,SSP,LKR,SDG,SRD,SZL,SEK,CHF,SYP,TWD,TJS,TZS,THB,TOP,TTD,TND,TRY,TMT,UGX,UAH,AED,USD,UYU,UZS,VND,XOF,YER,ZMW,ZWL"}
 debit = {country = "AU,NZ,CN,HK,IN,LK,KR,MY,SG,GB,BE,FR,DE,IT,ME,NL,PL,ES,ZA,AR,BR,CO,MX,PA,UY,US,CA", currency = "AFN,ALL,DZD,AOA,ARS,AMD,AWG,AUD,AZN,BSD,BHD,BDT,BBD,BYN,BZD,BMD,BTN,BOB,VES,BAM,BWP,BRL,BND,BGN,BIF,KHR,CAD,CVE,KYD,XAF,CLP,CNY,COP,KMF,CDF,CRC,HRK,CUP,CZK,DKK,DJF,DOP,XCD,EGP,ERN,ETB,EUR,FKP,FJD,XPF,GMD,GEL,GHS,GIP,GTQ,GNF,GYD,HTG,HNL,HKD,HUF,ISK,INR,IDR,IRR,IQD,ILS,JMD,JPY,JOD,KZT,KES,KGS,KWD,LAK,LBP,LSL,LRD,LYD,MOP,MKD,MGA,MWK,MYR,MVR,MRU,MUR,MXN,MDL,MNT,MAD,MZN,MMK,NAD,NPR,ANG,NZD,NIO,NGN,VUV,KPW,NOK,OMR,PKR,PAB,PGK,PYG,PEN,PHP,PLN,GBP,QAR,RON,RUB,RWF,SHP,SVC,WST,STN,SAR,RSD,SCR,SLL,SGD,SBD,SOS,ZAR,KRW,SSP,LKR,SDG,SRD,SZL,SEK,CHF,SYP,TWD,TJS,TZS,THB,TOP,TTD,TND,TRY,TMT,UGX,UAH,AED,USD,UYU,UZS,VND,XOF,YER,ZMW,ZWL"}
+paypal = { currency = "AUD,EUR,BRL,CAD,CNY,EUR,EUR,EUR,GBP,HKD,INR,EUR,JPY,MYR,EUR,NZD,PHP,PLN,SGD,USD", country = "AU, BE, BR, CA, CN, DE, ES, FR, GB, HK, IN, IT, JP, MY, NL, NZ, PH, PL, SG, US" }
 google_pay = { country = "AU,AT,BE,BR,CA,CN,HK,MY,NZ,SG,US", currency = "AUD,EUR,EUR,BRL,CAD,CNY,HKD,MYR,NZD,SGD,USD" }
+apple_pay = { country = "AU,NZ,CN,HK,JP,SG,MY,KR,TW,VN,GB,IE,FR,DE,IT,ES,PT,NL,BE,LU,AT,CH,SE,FI,DK,NO,PL,CZ,SK,HU,LT,LV,EE,GR,RO,BG,HR,SI,MT,CY,IS,LI,MC,SM,VA,US,CA,MX,BR,AR,CL,CO,PE,UY,CR,PA,DO,EC,SV,GT,HN,BS,PR,AE,SA,QA,KW,BH,OM,IL,JO,PS,EG,MA,ZA,GE,AM,AZ,MD,ME,MK,AL,BA,RS,UA", currency = "AUD,BRL,CAD,CHF,CZK,DKK,EUR,GBP,HKD,HUF,ILS,JPY,MXN,NOK,NZD,PHP,PLN,SEK,SGD,THB,TWD,USD" }
 
 [pm_filters.santander]
 pix = { country = "BR", currency = "BRL" }
 
+[pm_filters.bluecode]
+bluecode = { country = "AT,BE,BG,HR,CY,CZ,DK,EE,FI,FR,DE,GR,HU,IE,IT,LV,LT,LU,MT,NL,PL,PT,RO,SK,SI,ES,SE,IS,LI,NO", currency = "EUR" }
+
 [connector_customer]
-connector_list = "adyen,facilitapay,gocardless,hyperswitch_vault,stax,stripe"
+connector_list = "adyen,authorizedotnet,facilitapay,gocardless,hyperswitch_vault,stax,stripe"
 payout_connector_list = "nomupay,stripe,wise"
 
 [bank_config.online_banking_fpx]
@@ -1123,16 +1157,21 @@ static_routing_enabled = true           # Enable or disable Open Router for stat
 url = "http://localhost:8080"           # Open Router URL
 
 [grpc_client.unified_connector_service]
-host = "localhost"                      # Unified Connector Service Client Host
-port = 8000                             # Unified Connector Service Client Port
+base_url = "http://localhost:8000"      # Unified Connector Service Base URL
 connection_timeout = 10                 # Connection Timeout Duration in Seconds
+
+[grpc_client.recovery_decider_client] # Revenue recovery client base url
+base_url = "http://127.0.0.1:8080" #Base URL
 
 [billing_connectors_invoice_sync]
 billing_connectors_which_requires_invoice_sync_call = "recurly" # List of billing connectors which has invoice sync api call
 
 [revenue_recovery]
-monitoring_threshold_in_seconds = 2592000 # 30*24*60*60 secs , threshold for monitoring the retry system
-retry_algorithm_type = "cascading" # type of retry algorithm 
+monitoring_threshold_in_seconds = 60  # 60 secs , threshold for monitoring the retry system
+retry_algorithm_type = "cascading"  # type of retry algorithm
+
+[revenue_recovery.recovery_timestamp] # Timestamp configuration for Revenue Recovery
+initial_timestamp_in_hours = 1          # number of hours added to start time for Decider service of Revenue Recovery
 
 [clone_connector_allowlist]
 merchant_ids = "merchant_ids"           # Comma-separated list of allowed merchant IDs
@@ -1149,3 +1188,8 @@ allow_connected_merchants = false # Enable or disable connected merchant account
 [chat]
 enabled = false                                # Enable or disable chat features
 hyperswitch_ai_host = "http://0.0.0.0:8000"    # Hyperswitch ai workflow host
+
+[proxy_status_mapping]
+proxy_connector_http_status_code = false    # If enabled, the http status code of the connector will be proxied in the response
+[list_dispute_supported_connectors]
+connector_list = "worldpayvantiv"

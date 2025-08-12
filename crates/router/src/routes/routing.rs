@@ -6,7 +6,10 @@
 use actix_web::{web, HttpRequest, Responder};
 use api_models::{
     enums,
-    routing::{self as routing_types, RoutingRetrieveQuery},
+    routing::{
+        self as routing_types, RoutingEvaluateRequest, RoutingEvaluateResponse,
+        RoutingRetrieveQuery,
+    },
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::merchant_context::MerchantKeyStore;
@@ -19,10 +22,7 @@ use router_env::{
 use crate::{
     core::{
         api_locking, conditional_config,
-        payments::routing::utils::{
-            DecisionEngineApiHandler, EuclidApiClient, RoutingEvaluateRequest,
-            RoutingEvaluateResponse,
-        },
+        payments::routing::utils::{DecisionEngineApiHandler, EuclidApiClient},
         routing, surcharge_decision_config,
     },
     db::errors::StorageErrorExt,

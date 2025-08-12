@@ -114,6 +114,8 @@ payment_method_type = "apple_pay"
 payment_method_type = "google_pay"
 [[adyen.wallet]]
 payment_method_type = "paypal"
+[[adyen.voucher]]
+  payment_method_type = "boleto"
 [adyen.connector_auth.BodyKey]
 api_key = "Adyen API Key"
 key1 = "Adyen Account Id"
@@ -1028,10 +1030,82 @@ payment_method_type = "DinersClub"
 payment_method_type = "CartesBancaires"
 [[barclaycard.debit]]
 payment_method_type = "UnionPay"
+[[barclaycard.wallet]]
+  payment_method_type = "google_pay"
 [barclaycard.connector_auth.SignatureKey]
 api_key = "Key"
 key1 = "Merchant ID"
 api_secret = "Shared Secret"
+
+[[barclaycard.metadata.google_pay]]
+name = "merchant_name"
+label = "Google Pay Merchant Name"
+placeholder = "Enter Google Pay Merchant Name"
+required = true
+type = "Text"
+[[barclaycard.metadata.google_pay]]
+name = "merchant_id"
+label = "Google Pay Merchant Id"
+placeholder = "Enter Google Pay Merchant Id"
+required = true
+type = "Text"
+[[barclaycard.metadata.google_pay]]
+name = "gateway_merchant_id"
+label = "Google Pay Merchant Key"
+placeholder = "Enter Google Pay Merchant Key"
+required = true
+type = "Text"
+[[barclaycard.metadata.google_pay]]
+name = "allowed_auth_methods"
+label = "Allowed Auth Methods"
+placeholder = "Enter Allowed Auth Methods"
+required = true
+type = "MultiSelect"
+options = ["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+[[barclaycard.connector_wallets_details.google_pay]]
+name = "merchant_name"
+label = "Google Pay Merchant Name"
+placeholder = "Enter Google Pay Merchant Name"
+required = true
+type = "Text"
+[[barclaycard.connector_wallets_details.google_pay]]
+name = "merchant_id"
+label = "Google Pay Merchant Id"
+placeholder = "Enter Google Pay Merchant Id"
+required = true
+type = "Text"
+[[barclaycard.connector_wallets_details.google_pay]]
+name = "gateway_merchant_id"
+label = "Google Pay Merchant Key"
+placeholder = "Enter Google Pay Merchant Key"
+required = true
+type = "Text"
+[[barclaycard.connector_wallets_details.google_pay]]
+name = "public_key"
+label = "Google Pay Public Key"
+placeholder = "Enter Google Pay Public Key"
+required = true
+type = "Text"
+[[barclaycard.connector_wallets_details.google_pay]]
+name = "private_key"
+label = "Google Pay Private Key"
+placeholder = "Enter Google Pay Private Key"
+required = true
+type = "Text"
+[[barclaycard.connector_wallets_details.google_pay]]
+name = "recipient_id"
+label = "Recipient Id"
+placeholder = "Enter Recipient Id"
+required = true
+type = "Text"
+[[barclaycard.connector_wallets_details.google_pay]]
+name = "allowed_auth_methods"
+label = "Allowed Auth Methods"
+placeholder = "Enter Allowed Auth Methods"
+required = true
+type = "MultiSelect"
+options = ["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 [cashtocode]
 [[cashtocode.reward]]
@@ -1138,6 +1212,15 @@ key1 = "Secret Key"
 [cryptopay.connector_webhook_details]
 merchant_secret = "Source verification key"
 
+[checkbook]
+[[checkbook.bank_transfer]]
+  payment_method_type = "ach"
+[checkbook.connector_auth.BodyKey]
+  key1 = "Checkbook Publishable key"
+  api_key = "Checkbook API Secret key"
+[checkbook.connector_webhook_details]
+  merchant_secret="Source verification key"
+  
 [checkout]
 [[checkout.credit]]
 payment_method_type = "Mastercard"
@@ -1639,6 +1722,12 @@ payment_method_type = "Discover"
 payment_method_type = "CartesBancaires"
 [[fiserv.debit]]
 payment_method_type = "UnionPay"
+[[fiserv.wallet]]
+payment_method_type = "paypal"
+[[fiserv.wallet]]
+  payment_method_type = "apple_pay"
+[[fiserv.wallet]]
+  payment_method_type = "google_pay"
 [fiserv.connector_auth.SignatureKey]
 api_key = "API Key"
 key1 = "Merchant ID"
@@ -1722,6 +1811,58 @@ placeholder="Enter Allowed Auth Methods"
 required=true
 type="MultiSelect"
 options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+[[fiserv.metadata.apple_pay]]
+name="certificate"
+label="Merchant Certificate (Base64 Encoded)"
+placeholder="Enter Merchant Certificate (Base64 Encoded)"
+required=true
+type="Text"
+[[fiserv.metadata.apple_pay]]
+name="certificate_keys"
+label="Merchant PrivateKey (Base64 Encoded)"
+placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
+required=true
+type="Text"
+[[fiserv.metadata.apple_pay]]
+name="merchant_identifier"
+label="Apple Merchant Identifier"
+placeholder="Enter Apple Merchant Identifier"
+required=true
+type="Text"
+[[fiserv.metadata.apple_pay]]
+name="display_name"
+label="Display Name"
+placeholder="Enter Display Name"
+required=true
+type="Text"
+[[fiserv.metadata.apple_pay]]
+name="initiative"
+label="Domain"
+placeholder="Enter Domain"
+required=true
+type="Select"
+options=["web","ios"]
+[[fiserv.metadata.apple_pay]]
+name="initiative_context"
+label="Domain Name"
+placeholder="Enter Domain Name"
+required=true
+type="Text"
+[[fiserv.metadata.apple_pay]]
+name="merchant_business_country"
+label="Merchant Business Country"
+placeholder="Enter Merchant Business Country"
+required=true
+type="Select"
+options=[]
+[[fiserv.metadata.apple_pay]]
+name="payment_processing_details_at"
+label="Payment Processing Details At"
+placeholder="Enter Payment Processing Details At"
+required=true
+type="Radio"
+options=["Connector", "Hyperswitch"]
 
 [fiservemea]
 [[fiservemea.credit]]
@@ -4725,8 +4866,8 @@ key1 = "Username"
 
 [facilitapay.metadata.destination_account_number]
 name="destination_account_number"
-label="Destination Account Number"
-placeholder="Enter Destination Account Number"
+label="Merchant Account Number"
+placeholder="Enter Merchant's (to_bank_account_id) Account Number"
 required=true
 type="Text"
 
@@ -4836,6 +4977,33 @@ placeholder = "Enter Acquirer Merchant ID"
 required = false
 type = "Text"
 
+[nordea]
+[[nordea.bank_debit]]
+  payment_method_type = "sepa"
+[nordea.connector_auth.SignatureKey]
+  api_key="Client Secret"
+  key1="Client ID"
+  api_secret="eIDAS Private Key"
+[nordea.metadata.creditor_account_type]
+  name="creditor_account_type"
+  label="Creditor Account Type"
+  placeholder="Enter Beneficiary Account Type e.g. IBAN"
+  required=true
+  type="Text"
+[nordea.metadata.creditor_account_value]
+  name="creditor_account_value"
+  label="Creditor Account Type"
+  placeholder="Enter Beneficiary Account Number"
+  required=true
+  type="Text"
+[nordea.metadata.creditor_beneficiary_name]
+  name="creditor_beneficiary_name"
+  label="Creditor Account Beneficiary Name"
+  placeholder="Enter Beneficiary Name"
+  required=true
+  type="Text"
+
+
 [worldpayxml]
 [[worldpayxml.credit]]
 payment_method_type = "Mastercard"
@@ -4905,6 +5073,10 @@ payment_method_type = "JCB"
 payment_method_type = "DinersClub"
 [[worldpayvantiv.debit]]
 payment_method_type = "Discover"
+[[worldpayvantiv.wallet]]
+  payment_method_type = "apple_pay"
+[[worldpayvantiv.wallet]]
+  payment_method_type = "google_pay"
 
 [worldpayvantiv.connector_auth.SignatureKey]
 api_key = "Username"
@@ -5028,7 +5200,12 @@ payment_method_type = "Discover"
 payment_method_type = "Mastercard"
 [[payload.debit]]
 payment_method_type = "Visa"
-[payload.connector_auth.HeaderKey]
+
+[payload.connector_auth.CurrencyAuthKey.auth_key_map.USD]
+processing_account_id = "processing_account_id"
+api_key = "API Key"
+[payload.connector_auth.CurrencyAuthKey.auth_key_map.CAD]
+processing_account_id = "processing_account_id"
 api_key = "API Key"
 
 [silverflow]
@@ -5070,19 +5247,64 @@ merchant_secret = "Source verification key"
 [blackhawknetwork.connector_auth.HeaderKey]
 api_key = "API Key"
 
+[flexiti]
+[flexiti.connector_auth.BodyKey]
+api_key = "Client id"
+key1 = "Client secret"
+[[flexiti.pay_later]]
+payment_method_type = "flexiti"
+payment_experience = "redirect_to_url"
+
 [breadpay]
 [breadpay.connector_auth.BodyKey]
 api_key = "API Key"
 key1 = "API Secret"
+[[breadpay.pay_later]]
+payment_method_type = "breadpay"
+payment_experience = "redirect_to_url"
 
+[phonepe]
+[[phonepe.upi]]
+payment_method_type = "upi_collect"
+[[phonepe.upi]]
+payment_method_type = "upi_intent"
+[phonepe.connector_auth.SignatureKey]
+api_key="merchant_id"
+api_secret="key_index"
+key1="salt_key"
 
-[flexiti]
-[flexiti.connector_auth.HeaderKey]
-api_key = "API Key"
+[paytm]
+[[paytm.upi]]
+payment_method_type = "upi_collect"
+[[paytm.upi]]
+payment_method_type = "upi_intent"
+[paytm.connector_auth.SignatureKey]
+api_key="Signing key"
+api_secret="website name"
+key1="merchant_id"
 
 [mpgs]
 [mpgs.connector_auth.HeaderKey]
 api_key = "API Key"
+
 [bluecode]
+[[bluecode.wallet]]
+  payment_method_type = "bluecode"
 [bluecode.connector_auth.HeaderKey]
+api_key = "E-Order Token"
+[bluecode.metadata.shop_name]
+name="shop_name"
+label="Shop Name"
+placeholder="Enter your Shop Name"
+required=true
+type="Text"
+[bluecode.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[katapult]
+[katapult.connector_auth.HeaderKey]
+api_key = "API Key"
+
+[sift]
+[sift.connector_auth.HeaderKey]
 api_key = "API Key"

@@ -6,7 +6,8 @@ export const customerAcceptance = {
   accepted_at: "1963-05-03T04:07:52.723Z",
   online: {
     ip_address: "127.0.0.1",
-    user_agent: "amet irure esse",
+    user_agent:
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/22F76 [FBAN/FBIOS;FBAV/520.0.0.38.101;FBBV/756351453;FBDV/iPhone14,7;FBMD/iPhone;FBSN/iOS;FBSV/18.5;FBSS/3;FBID/phone;FBLC/fr_FR;FBOP/5;FBRV/760683563;IABMV/1]",
   },
 };
 
@@ -191,6 +192,12 @@ export const payment_methods_enabled = [
         installment_payment_enabled: true,
       },
       {
+        payment_method_type: "ach",
+        minimum_amount: 0,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+      },
+      {
         payment_method_type: "instant_bank_transfer_finland",
         minimum_amount: 1,
         maximum_amount: 68607706,
@@ -324,6 +331,14 @@ export const payment_methods_enabled = [
         installment_payment_enabled: true,
         payment_experience: "invoke_sdk_client",
       },
+      {
+        payment_method_type: "skrill",
+        payment_experience: "redirect_to_url",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
     ],
   },
 ];
@@ -342,6 +357,7 @@ export const connectorDetails = {
           },
         },
       }),
+
     Pix: getCustomExchange({
       Request: {
         payment_method: "bank_transfer",
@@ -349,6 +365,31 @@ export const connectorDetails = {
         payment_method_data: {
           bank_transfer: {
             pix: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "BR",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
+        currency: "BRL",
+      },
+    }),
+    Ach: getCustomExchange({
+      Request: {
+        payment_method: "bank_transfer",
+        payment_method_type: "ach",
+        payment_method_data: {
+          bank_transfer: {
+            ach_bank_transfer: {},
           },
         },
         billing: {
