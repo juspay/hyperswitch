@@ -140,7 +140,7 @@ Once your connector logic is implemented, this environment lets you ensure it be
 
 ### Verify Server Health
 
-Once the Hyperswitch Router Service is running, you can verify it's operational by checking the health endpoint in a separte terminal window:
+Once the Hyperswitch Router Service is running, you can verify it's operational by checking the health endpoint in a separate terminal window:
 
 ```bash
 curl --head --request GET 'http://localhost:8080/health'
