@@ -6584,6 +6584,7 @@ default_imp_for_external_vault_proxy_payments_create!(
     connectors::Signifyd,
     connectors::Stax,
     connectors::Square,
+    connectors::Stripe,
     connectors::Stripebilling,
     connectors::Taxjar,
     connectors::Threedsecureio,

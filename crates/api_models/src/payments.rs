@@ -2535,8 +2535,8 @@ pub enum ProxyPaymentMethodData {
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct ProxyCardData {
-    /// The card number
-    #[schema(value_type = String, example = "4242424242424242")]
+    /// The token which refers to the card number
+    #[schema(value_type = String, example = "token_card_number")]
     pub card_number: String,
 
     /// The card's expiry month

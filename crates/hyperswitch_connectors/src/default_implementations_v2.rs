@@ -3641,7 +3641,6 @@ macro_rules! default_imp_for_new_connector_integration_external_vault_proxy {
 }
 
 default_imp_for_new_connector_integration_external_vault_proxy!(
-    connectors::Stripe,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -3732,6 +3731,7 @@ default_imp_for_new_connector_integration_external_vault_proxy!(
     connectors::Signifyd,
     connectors::Stax,
     connectors::Square,
+    connectors::Stripe,
     connectors::Stripebilling,
     connectors::Taxjar,
     connectors::Threedsecureio,

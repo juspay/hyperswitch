@@ -39,7 +39,7 @@ use hyperswitch_domain_models::{
     types::{
         ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
         PaymentsCaptureRouterData, PaymentsSyncRouterData, PaymentsUpdateMetadataRouterData,
-        RefundsRouterData, TokenizationRouterData, ExternalVaultProxyPaymentsRouterData
+        RefundsRouterData, TokenizationRouterData
     },
 };
 #[cfg(feature = "payouts")]
@@ -238,8 +238,6 @@ impl api::PaymentVoid for Stripe {}
 impl api::PaymentCapture for Stripe {}
 impl api::PaymentSession for Stripe {}
 impl api::ConnectorAccessToken for Stripe {}
-// impl api::ExternalVaultProxy for Stripe {}
-impl api::ExternalVaultProxyPaymentsCreateV1 for Stripe {}
 
 impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Stripe {
     // Not Implemented (R)
@@ -2763,145 +2761,6 @@ impl ConnectorIntegration<PoRecipientAccount, PayoutsData, PayoutsResponseData> 
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
         self.build_error_response(res, event_builder)
-    }
-}
-
-// ExternalVaultProxy implementation for Stripe
-impl ConnectorIntegration<hyperswitch_domain_models::router_flow_types::ExternalVaultProxy, hyperswitch_domain_models::router_request_types::ExternalVaultProxyPaymentsData, PaymentsResponseData> for Stripe {
-    fn get_headers(
-        &self,
-        req: &ExternalVaultProxyPaymentsRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
-        let mut header = vec![(
-            CONTENT_TYPE.to_string(),
-            self.common_get_content_type().to_string().into(),
-        )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
-        Ok(header)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &ExternalVaultProxyPaymentsRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<String, ConnectorError> {
-        Ok(format!(
-            "{}{}",
-            self.base_url(connectors),
-            "v1/payment_intents"
-        ))
-    }
-
-    fn get_request_body(
-        &self,
-        req: &ExternalVaultProxyPaymentsRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, ConnectorError> {
-        let amount = utils::convert_amount(
-            self.amount_converter,
-            req.request.minor_amount,
-            req.request.currency,
-        )?;
-        let connector_req = stripe::PaymentIntentRequest::try_from((req, amount))?;
-
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
-    }
-
-    fn build_request(
-        &self,
-        req: &ExternalVaultProxyPaymentsRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, ConnectorError> {
-        Ok(Some(
-            RequestBuilder::new()
-                .method(Method::Post)
-                .url(&self.get_url(req, connectors)?)
-                .attach_default_headers()
-                .headers(self.get_headers(req, connectors)?)
-                .set_body(self.get_request_body(req, connectors)?)
-                .build(),
-        ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &ExternalVaultProxyPaymentsRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<ExternalVaultProxyPaymentsRouterData, ConnectorError> {
-        let response: stripe::PaymentIntentResponse = res
-            .response
-            .parse_struct("PaymentIntentResponse")
-            .change_context(ConnectorError::ResponseDeserializationFailed)?;
-
-        let response_integrity_object = get_authorise_integrity_object(
-            self.amount_converter,
-            response.amount,
-            response.currency.clone(),
-        )?;
-
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-
-        let new_router_data = RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(ConnectorError::ResponseHandlingFailed);
-
-        new_router_data.map(|mut router_data| {
-            router_data.request.integrity_object = Some(response_integrity_object);
-            router_data
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, ConnectorError> {
-        let response: stripe::ErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(ConnectorError::ResponseDeserializationFailed)?;
-
-        event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response
-                .error
-                .code
-                .clone()
-                .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
-            message: response
-                .error
-                .code
-                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message.map(|message| {
-                response
-                    .error
-                    .decline_code
-                    .clone()
-                    .map(|decline_code| {
-                        format!("message - {message}, decline_code - {decline_code}")
-                    })
-                    .unwrap_or(message)
-            }),
-            attempt_status: None,
-            connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            network_advice_code: response.error.network_advice_code,
-            network_decline_code: response.error.network_decline_code,
-            network_error_message: response.error.decline_code.or(response.error.advice_code),
-        })
     }
 }
 
