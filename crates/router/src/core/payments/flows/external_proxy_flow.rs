@@ -397,7 +397,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData> for
 
         let payment_authorize_response = response.into_inner();
 
-        let (status, router_data_response) =
+        let (status, router_data_response, status_code) =
             unified_connector_service::handle_unified_connector_service_response_for_payment_authorize(
                 payment_authorize_response.clone(),
             )
@@ -406,7 +406,10 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData> for
 
         self.status = status;
         self.response = router_data_response;
-        self.raw_connector_response = payment_authorize_response.raw_connector_response;
+        self.raw_connector_response = payment_authorize_response
+        .raw_connector_response
+        .map(masking::Secret::new);
+        self.connector_http_status_code = Some(status_code);
 
         Ok(())
     }

@@ -313,7 +313,7 @@ impl ForeignTryFrom<&RouterData<SetupMandate, SetupMandateRequestData, PaymentsR
             .request
             .payment_method_type
             .map(|payment_method_type| {
-                build_unified_connector_service_payment_method(
+                unified_connector_service::build_unified_connector_service_payment_method(
                     router_data.request.payment_method_data.clone(),
                     payment_method_type,
                 )
@@ -413,6 +413,17 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
         router_data: &RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
+        let browser_info = router_data
+            .request
+            .browser_info
+            .clone()
+            .map(payments_grpc::BrowserInformation::foreign_try_from)
+            .transpose()?;
+        let capture_method = router_data
+            .request
+            .capture_method
+            .map(payments_grpc::CaptureMethod::foreign_try_from)
+            .transpose()?;
 
         let mandate_reference = match &router_data.request.mandate_id {
             Some(mandate) => match &mandate.mandate_reference_id {
@@ -459,6 +470,13 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
                 })
                 .unwrap_or_default(),
             webhook_url: router_data.request.webhook_url.clone(),
+            capture_method: capture_method.map(|capture_method| capture_method.into()),
+            email: router_data
+                .request
+                .email
+                .clone()
+                .map(|e| e.expose().expose()),
+            browser_info,
         })
     }
 }

@@ -548,7 +548,7 @@ pub async fn construct_external_vault_proxy_payment_router_data<'a>(
             payment_data
                 .payment_intent
                 .request_incremental_authorization,
-            RequestIncrementalAuthorization::True | RequestIncrementalAuthorization::Default
+            RequestIncrementalAuthorization::True
         ),
         metadata: payment_data.payment_intent.metadata.expose_option(),
         authentication_data: None,
@@ -641,6 +641,8 @@ pub async fn construct_external_vault_proxy_payment_router_data<'a>(
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: payment_data.payment_intent.is_payment_id_from_merchant,
+        l2_l3_data: None,
+        minor_amount_capturable: None,
     };
 
     Ok(router_data)
