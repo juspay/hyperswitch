@@ -13,7 +13,7 @@ use crate::{
 pub trait HyperswitchAiInteractionInterface {
     async fn insert_hyperswitch_ai_interaction(
         &self,
-        hyperswitch_ai_intercation: storage::HyperswitchAiInteractionNew,
+        hyperswitch_ai_interaction: storage::HyperswitchAiInteractionNew,
     ) -> CustomResult<storage::HyperswitchAiInteraction, errors::StorageError>;
 
     async fn list_hyperswitch_ai_interactions(
@@ -29,10 +29,10 @@ impl HyperswitchAiInteractionInterface for Store {
     #[instrument(skip_all)]
     async fn insert_hyperswitch_ai_interaction(
         &self,
-        hyperswitch_ai_intercation: storage::HyperswitchAiInteractionNew,
+        hyperswitch_ai_interaction: storage::HyperswitchAiInteractionNew,
     ) -> CustomResult<storage::HyperswitchAiInteraction, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        hyperswitch_ai_intercation
+        hyperswitch_ai_interaction
             .insert(&conn)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -60,22 +60,22 @@ impl HyperswitchAiInteractionInterface for Store {
 impl HyperswitchAiInteractionInterface for MockDb {
     async fn insert_hyperswitch_ai_interaction(
         &self,
-        hyperswitch_ai_intercation: storage::HyperswitchAiInteractionNew,
+        hyperswitch_ai_interaction: storage::HyperswitchAiInteractionNew,
     ) -> CustomResult<storage::HyperswitchAiInteraction, errors::StorageError> {
         let mut hyperswitch_ai_interactions = self.hyperswitch_ai_interactions.lock().await;
         let hyperswitch_ai_interaction = storage::HyperswitchAiInteraction {
-            id: hyperswitch_ai_intercation.id,
-            session_id: hyperswitch_ai_intercation.session_id,
-            user_id: hyperswitch_ai_intercation.user_id,
-            merchant_id: hyperswitch_ai_intercation.merchant_id,
-            profile_id: hyperswitch_ai_intercation.profile_id,
-            org_id: hyperswitch_ai_intercation.org_id,
-            role_id: hyperswitch_ai_intercation.role_id,
-            user_query: hyperswitch_ai_intercation.user_query,
-            response: hyperswitch_ai_intercation.response,
-            database_query: hyperswitch_ai_intercation.database_query,
-            interaction_status: hyperswitch_ai_intercation.interaction_status,
-            created_at: hyperswitch_ai_intercation.created_at,
+            id: hyperswitch_ai_interaction.id,
+            session_id: hyperswitch_ai_interaction.session_id,
+            user_id: hyperswitch_ai_interaction.user_id,
+            merchant_id: hyperswitch_ai_interaction.merchant_id,
+            profile_id: hyperswitch_ai_interaction.profile_id,
+            org_id: hyperswitch_ai_interaction.org_id,
+            role_id: hyperswitch_ai_interaction.role_id,
+            user_query: hyperswitch_ai_interaction.user_query,
+            response: hyperswitch_ai_interaction.response,
+            database_query: hyperswitch_ai_interaction.database_query,
+            interaction_status: hyperswitch_ai_interaction.interaction_status,
+            created_at: hyperswitch_ai_interaction.created_at,
         };
         hyperswitch_ai_interactions.push(hyperswitch_ai_interaction.clone());
         Ok(hyperswitch_ai_interaction)
