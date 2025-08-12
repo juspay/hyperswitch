@@ -1,6 +1,6 @@
 -- Your SQL goes here
 CREATE TABLE hyperswitch_ai_interaction (
-    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    id VARCHAR(64) NOT NULL,
     session_id VARCHAR(64),
     user_id VARCHAR(64),
     merchant_id VARCHAR(64),
@@ -11,8 +11,11 @@ CREATE TABLE hyperswitch_ai_interaction (
     response BYTEA,
     database_query TEXT,
     interaction_status VARCHAR(64),
-    created_at TIMESTAMP NOT NULL DEFAULT now()
-)  PARTITION BY RANGE (created_at);
--- Create a default partition for the table
+    created_at TIMESTAMP NOT NULL DEFAULT now(),
+    PRIMARY KEY (id, created_at)
+) PARTITION BY RANGE (created_at);
+
+-- Create a default partition
 CREATE TABLE hyperswitch_ai_interaction_default
     PARTITION OF hyperswitch_ai_interaction DEFAULT;
+

@@ -20,7 +20,7 @@ impl HyperswitchAiInteraction {
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
-            dsl::merchant_id.eq(merchant_id.map(|id| id.clone())),
+            dsl::merchant_id.eq(merchant_id.cloned()),
             Some(limit),
             Some(offset),
             Some(dsl::created_at.desc()),
