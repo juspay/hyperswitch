@@ -846,3 +846,6 @@ click_to_pay = {connector_list = "adyen, cybersource, trustpay"}
 [revenue_recovery]
 monitoring_threshold_in_seconds = 60
 retry_algorithm_type = "cascading"
+
+[grpc_client.unified_connector_service]
+ucs_only_connectors = "paytm, phonepe"    # Comma-separated list of connectors that use UCS only
