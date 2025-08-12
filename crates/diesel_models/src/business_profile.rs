@@ -196,6 +196,7 @@ pub struct ProfileUpdateInternal {
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+    pub billing_connector: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -251,6 +252,7 @@ impl ProfileUpdateInternal {
             merchant_category_code,
             merchant_country_code,
             dispute_polling_interval,
+            billing_connector,
         } = self;
         Profile {
             profile_id: source.profile_id,
@@ -337,7 +339,7 @@ impl ProfileUpdateInternal {
             merchant_category_code: merchant_category_code.or(source.merchant_category_code),
             merchant_country_code: merchant_country_code.or(source.merchant_country_code),
             dispute_polling_interval: dispute_polling_interval.or(source.dispute_polling_interval),
-            billing_connector: source.billing_connector.clone(),
+            billing_connector: billing_connector.or(source.billing_connector),
         }
     }
 }

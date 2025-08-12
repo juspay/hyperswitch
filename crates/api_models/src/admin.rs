@@ -2530,6 +2530,10 @@ pub struct ProfileResponse {
 
     #[schema(value_type = Option<u32>, example = 2)]
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+
+    /// Indicates the billing processor used by the merchant.
+    #[schema(value_type = String, example = "chargebee")]
+    pub billing_connector: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -2861,6 +2865,10 @@ pub struct ProfileUpdate {
 
     #[schema(value_type = Option<u32>, example = 2)]
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+
+    /// Indicates the billing processor used by the merchant.
+    #[schema(value_type = String, example = "chargebee")]
+    pub billing_connector: Option<String>,
 }
 
 #[cfg(feature = "v2")]
