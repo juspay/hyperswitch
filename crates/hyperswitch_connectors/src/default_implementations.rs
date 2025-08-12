@@ -42,7 +42,7 @@ use hyperswitch_domain_models::{
         webhooks::VerifyWebhookSource,
         AccessTokenAuthentication, Authenticate, AuthenticationConfirmation,
         ExternalVaultCreateFlow, ExternalVaultDeleteFlow, ExternalVaultInsertFlow,
-        ExternalVaultRetrieveFlow, ExternalVaultProxy, PostAuthenticate, PreAuthenticate,
+        ExternalVaultProxy, ExternalVaultRetrieveFlow, PostAuthenticate, PreAuthenticate,
     },
     router_request_types::{
         authentication,
@@ -53,13 +53,13 @@ use hyperswitch_domain_models::{
         },
         AcceptDisputeRequestData, AccessTokenAuthenticationRequestData, AuthorizeSessionTokenData,
         CompleteAuthorizeData, ConnectorCustomerData, CreateOrderRequestData,
-        DefendDisputeRequestData, DisputeSyncData, FetchDisputesRequestData,
-        ExternalVaultProxyPaymentsData, MandateRevokeRequestData, PaymentsApproveData, PaymentsCancelPostCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
-        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RetrieveFileRequestData,
-        SdkPaymentsSessionUpdateData, SubmitEvidenceRequestData, UploadFileRequestData,
-        VaultRequestData, VerifyWebhookSourceRequestData,
+        DefendDisputeRequestData, DisputeSyncData, ExternalVaultProxyPaymentsData,
+        FetchDisputesRequestData, MandateRevokeRequestData, PaymentsApproveData,
+        PaymentsCancelPostCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
+        PaymentsRejectData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData,
+        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SubmitEvidenceRequestData,
+        UploadFileRequestData, VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
@@ -117,10 +117,11 @@ use hyperswitch_interfaces::{
         },
         files::{FileUpload, RetrieveFile, UploadFile},
         payments::{
-            ConnectorCustomer, ExternalVaultProxyPaymentsCreateV1, PaymentApprove, PaymentAuthorizeSessionToken,
-            PaymentIncrementalAuthorization, PaymentPostCaptureVoid, PaymentPostSessionTokens,
-            PaymentReject, PaymentSessionUpdate, PaymentUpdateMetadata, PaymentsCompleteAuthorize,
-            PaymentsCreateOrder, PaymentsPostProcessing, PaymentsPreProcessing, TaxCalculation,
+            ConnectorCustomer, ExternalVaultProxyPaymentsCreateV1, PaymentApprove,
+            PaymentAuthorizeSessionToken, PaymentIncrementalAuthorization, PaymentPostCaptureVoid,
+            PaymentPostSessionTokens, PaymentReject, PaymentSessionUpdate, PaymentUpdateMetadata,
+            PaymentsCompleteAuthorize, PaymentsCreateOrder, PaymentsPostProcessing,
+            PaymentsPreProcessing, TaxCalculation,
         },
         revenue_recovery::RevenueRecovery,
         vault::{
@@ -7513,7 +7514,7 @@ macro_rules! default_imp_for_connector_authentication_token {
         {}
     )*
     };
-} 
+}
 
 default_imp_for_connector_authentication_token!(
     connectors::Aci,

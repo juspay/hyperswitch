@@ -9,9 +9,13 @@ use external_services::grpc_client::unified_connector_service::UnifiedConnectorS
 use hyperswitch_connectors::utils::QrImage;
 use hyperswitch_domain_models::{
     router_data::{ErrorResponse, RouterData},
-    router_flow_types::{payments::{Authorize, PSync, SetupMandate}, ExternalVaultProxy},
+    router_flow_types::{
+        payments::{Authorize, PSync, SetupMandate},
+        ExternalVaultProxy,
+    },
     router_request_types::{
-        AuthenticationData, ExternalVaultProxyPaymentsData, PaymentsAuthorizeData, PaymentsSyncData, SetupMandateRequestData,
+        AuthenticationData, ExternalVaultProxyPaymentsData, PaymentsAuthorizeData,
+        PaymentsSyncData, SetupMandateRequestData,
     },
     router_response_types::{PaymentsResponseData, RedirectForm},
 };
@@ -183,13 +187,19 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
     }
 }
 
-impl ForeignTryFrom<&RouterData<ExternalVaultProxy, ExternalVaultProxyPaymentsData, PaymentsResponseData>>
-    for payments_grpc::PaymentServiceAuthorizeRequest
+impl
+    ForeignTryFrom<
+        &RouterData<ExternalVaultProxy, ExternalVaultProxyPaymentsData, PaymentsResponseData>,
+    > for payments_grpc::PaymentServiceAuthorizeRequest
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
-        router_data: &RouterData<ExternalVaultProxy, ExternalVaultProxyPaymentsData, PaymentsResponseData>,
+        router_data: &RouterData<
+            ExternalVaultProxy,
+            ExternalVaultProxyPaymentsData,
+            PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 

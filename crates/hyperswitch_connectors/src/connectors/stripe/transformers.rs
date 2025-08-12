@@ -1,5 +1,4 @@
-use std::fmt::Debug;
-use std::{collections::HashMap, ops::Deref};
+use std::{collections::HashMap, fmt::Debug, ops::Deref};
 
 use api_models::{self, enums as api_enums, payments};
 use common_enums::{enums, AttemptStatus, PaymentChargeType, StripeChargeType};

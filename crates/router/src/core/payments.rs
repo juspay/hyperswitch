@@ -1562,7 +1562,6 @@ where
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;
 
-
     // consume the req merchant_connector_id and set it in the payment_data
     let connector = operation
         .to_domain()?
@@ -1591,7 +1590,6 @@ where
                 )
                 .await?;
 
-
             let router_data = call_unified_connector_service_for_external_proxy(
                 state,
                 req_state.clone(),
@@ -1614,7 +1612,7 @@ where
                 updated_customer,
             )
             .await?;
-        let payments_response_operation = Box::new(PaymentResponse);
+            let payments_response_operation = Box::new(PaymentResponse);
 
             payments_response_operation
                 .to_post_update_tracker()?
@@ -2341,7 +2339,7 @@ where
         .await?;
 
     let (payment_data, _req, connector_http_status_code, external_latency) =
-    external_vault_proxy_for_payments_operation_core::<_, _, _, _, _>(
+        external_vault_proxy_for_payments_operation_core::<_, _, _, _, _>(
             &state,
             req_state,
             merchant_context.clone(),
@@ -2365,7 +2363,6 @@ where
         None,
     )
 }
-
 
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
@@ -4928,31 +4925,30 @@ where
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
     record_time_taken_with(|| async {
+        (_, *payment_data) = operation
+            .to_update_tracker()?
+            .update_trackers(
+                state,
+                req_state,
+                payment_data.clone(),
+                customer.clone(),
+                merchant_context.get_merchant_account().storage_scheme,
+                None,
+                merchant_context.get_merchant_key_store(),
+                frm_suggestion,
+                header_payload.clone(),
+            )
+            .await?;
 
-            (_, *payment_data) = operation
-                .to_update_tracker()?
-                .update_trackers(
-                    state,
-                    req_state,
-                    payment_data.clone(),
-                    customer.clone(),
-                    merchant_context.get_merchant_account().storage_scheme,
-                    None,
-                    merchant_context.get_merchant_key_store(),
-                    frm_suggestion,
-                    header_payload.clone(),
-                )
-                .await?;
+        router_data
+            .call_unified_connector_service(
+                state,
+                merchant_connector_account_type_details.clone(),
+                merchant_context,
+            )
+            .await?;
 
-            router_data
-                .call_unified_connector_service(
-                    state,
-                    merchant_connector_account_type_details.clone(),
-                    merchant_context,
-                )
-                .await?;
-
-            Ok(router_data)
+        Ok(router_data)
     })
     .await
 }

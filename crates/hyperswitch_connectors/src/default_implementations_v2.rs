@@ -18,9 +18,9 @@ use hyperswitch_domain_models::{
         mandate_revoke::MandateRevoke,
         payments::{
             Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
-            CreateConnectorCustomer, CreateOrder, IncrementalAuthorization, PSync,
-            PaymentMethodToken, PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing,
-            Reject, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,ExternalVaultProxy,
+            CreateConnectorCustomer, CreateOrder, ExternalVaultProxy, IncrementalAuthorization,
+            PSync, PaymentMethodToken, PostCaptureVoid, PostProcessing, PostSessionTokens,
+            PreProcessing, Reject, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
         },
         refunds::{Execute, RSync},
         revenue_recovery::{
@@ -39,14 +39,15 @@ use hyperswitch_domain_models::{
         AcceptDisputeRequestData, AccessTokenAuthenticationRequestData, AccessTokenRequestData,
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
         CreateOrderRequestData, DefendDisputeRequestData, DisputeSyncData,
-        FetchDisputesRequestData, MandateRevokeRequestData, PaymentMethodTokenizationData,
-        PaymentsApproveData, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
-        PaymentsRejectData, PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
+        ExternalVaultProxyPaymentsData, FetchDisputesRequestData, MandateRevokeRequestData,
+        PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
+        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
+        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
         PaymentsUpdateMetadataData, RefundsData, RetrieveFileRequestData,
         SdkPaymentsSessionUpdateData, SetupMandateRequestData, SubmitEvidenceRequestData,
-        UploadFileRequestData, VaultRequestData, VerifyWebhookSourceRequestData,ExternalVaultProxyPaymentsData,
+        UploadFileRequestData, VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         revenue_recovery::{
@@ -102,13 +103,13 @@ use hyperswitch_interfaces::{
         },
         files_v2::{FileUploadV2, RetrieveFileV2, UploadFileV2},
         payments_v2::{
-            ConnectorCustomerV2, MandateSetupV2, PaymentApproveV2, PaymentAuthorizeSessionTokenV2,
-            PaymentAuthorizeV2, PaymentCaptureV2, PaymentCreateOrderV2,
-            PaymentIncrementalAuthorizationV2, PaymentPostCaptureVoidV2,
+            ConnectorCustomerV2, ExternalVaultProxyPaymentsCreate, MandateSetupV2,
+            PaymentApproveV2, PaymentAuthorizeSessionTokenV2, PaymentAuthorizeV2, PaymentCaptureV2,
+            PaymentCreateOrderV2, PaymentIncrementalAuthorizationV2, PaymentPostCaptureVoidV2,
             PaymentPostSessionTokensV2, PaymentRejectV2, PaymentSessionUpdateV2, PaymentSessionV2,
             PaymentSyncV2, PaymentTokenV2, PaymentUpdateMetadataV2, PaymentV2, PaymentVoidV2,
             PaymentsCompleteAuthorizeV2, PaymentsPostProcessingV2, PaymentsPreProcessingV2,
-            TaxCalculationV2, ExternalVaultProxyPaymentsCreate
+            TaxCalculationV2,
         },
         refunds_v2::{RefundExecuteV2, RefundSyncV2, RefundV2},
         revenue_recovery_v2::{

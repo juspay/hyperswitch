@@ -37,9 +37,10 @@ use hyperswitch_domain_models::router_flow_types::{
     mandate_revoke::MandateRevoke,
     payments::{
         Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture,
-        CompleteAuthorize, CreateConnectorCustomer, CreateOrder, IncrementalAuthorization,
-        InitPayment, PSync, PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing,
-        Reject, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,ExternalVaultProxy
+        CompleteAuthorize, CreateConnectorCustomer, CreateOrder, ExternalVaultProxy,
+        IncrementalAuthorization, InitPayment, PSync, PostCaptureVoid, PostProcessing,
+        PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session, SetupMandate,
+        UpdateMetadata, Void,
     },
     refunds::{Execute, RSync},
     webhooks::VerifyWebhookSource,
@@ -71,10 +72,11 @@ pub use hyperswitch_domain_models::{
         AuthorizeSessionTokenData, BrowserInformation, ChargeRefunds, ChargeRefundsOptions,
         CompleteAuthorizeData, CompleteAuthorizeRedirectResponse, ConnectorCustomerData,
         CreateOrderRequestData, DefendDisputeRequestData, DestinationChargeRefund,
-        DirectChargeRefund, DisputeSyncData, FetchDisputesRequestData, MandateRevokeRequestData,
-        MultipleCaptureRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
-        PaymentsAuthorizeData, ExternalVaultProxyPaymentsData, PaymentsCancelData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
+        DirectChargeRefund, DisputeSyncData, ExternalVaultProxyPaymentsData,
+        FetchDisputesRequestData, MandateRevokeRequestData, MultipleCaptureRequestData,
+        PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
         PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
         PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
         PaymentsUpdateMetadataData, RefundsData, ResponseId, RetrieveFileRequestData,
@@ -1190,7 +1192,6 @@ impl Tokenizable for ExternalVaultProxyPaymentsData {
         self.session_token = token;
     }
 }
-
 
 impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
     fn foreign_from(data: &SetupMandateRouterData) -> Self {

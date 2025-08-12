@@ -722,7 +722,7 @@ impl PaymentAttempt {
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         let id = id_type::GlobalAttemptId::generate(&cell_id);
         let intent_amount_details = payment_intent.amount_details.clone();
-        let attempt_amount_details = AttemptAmountDetails{
+        let attempt_amount_details = AttemptAmountDetails {
             net_amount: intent_amount_details.order_amount,
             amount_to_capture: None,
             surcharge_amount: None,

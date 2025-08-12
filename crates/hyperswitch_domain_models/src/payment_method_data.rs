@@ -48,7 +48,7 @@ pub enum PaymentMethodData {
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum ExternalVaultPaymentMethodData {
-    Card(ExternalVaultCard)
+    Card(ExternalVaultCard),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -913,18 +913,11 @@ impl From<api_models::payments::ProxyPaymentMethodData> for ExternalVaultPayment
             api_models::payments::ProxyPaymentMethodData::VaultDataCard(card_data) => {
                 Self::Card(ExternalVaultCard::from(card_data))
             }
-            
         }
     }
 }
-impl
-    From<
-        api_models::payments::ProxyCardData> for ExternalVaultCard
-{
-    fn from(
-        value: 
-            api_models::payments::ProxyCardData,
-    ) -> Self {
+impl From<api_models::payments::ProxyCardData> for ExternalVaultCard {
+    fn from(value: api_models::payments::ProxyCardData) -> Self {
         let api_models::payments::ProxyCardData {
             card_number,
             card_exp_month,
@@ -941,10 +934,10 @@ impl
             card_issuer: None,
             card_network: None,
             card_type: None,
-            card_issuing_country:None,
-            bank_code:None,
-            nick_name:None,
-            card_holder_name:None,
+            card_issuing_country: None,
+            bank_code: None,
+            nick_name: None,
+            card_holder_name: None,
             co_badged_card_data: None,
         }
     }

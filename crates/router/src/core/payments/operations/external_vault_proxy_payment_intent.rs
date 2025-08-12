@@ -67,54 +67,73 @@ impl ValidateStatusForOperation for ExternalVaultProxyPaymentIntent {
 type BoxedConfirmOperation<'b, F> =
     super::BoxedOperation<'b, F, ExternalVaultProxyPaymentsRequest, PaymentConfirmData<F>>;
 
-impl<F: Send + Clone + Sync> Operation<F, ExternalVaultProxyPaymentsRequest> for &ExternalVaultProxyPaymentIntent {
+impl<F: Send + Clone + Sync> Operation<F, ExternalVaultProxyPaymentsRequest>
+    for &ExternalVaultProxyPaymentIntent
+{
     type Data = PaymentConfirmData<F>;
     fn to_validate_request(
         &self,
-    ) -> RouterResult<&(dyn ValidateRequest<F, ExternalVaultProxyPaymentsRequest, Self::Data> + Send + Sync)>
-    {
+    ) -> RouterResult<
+        &(dyn ValidateRequest<F, ExternalVaultProxyPaymentsRequest, Self::Data> + Send + Sync),
+    > {
         Ok(*self)
     }
     fn to_get_tracker(
         &self,
-    ) -> RouterResult<&(dyn GetTracker<F, Self::Data, ExternalVaultProxyPaymentsRequest> + Send + Sync)> {
+    ) -> RouterResult<
+        &(dyn GetTracker<F, Self::Data, ExternalVaultProxyPaymentsRequest> + Send + Sync),
+    > {
         Ok(*self)
     }
-    fn to_domain(&self) -> RouterResult<&(dyn Domain<F, ExternalVaultProxyPaymentsRequest, Self::Data>)> {
+    fn to_domain(
+        &self,
+    ) -> RouterResult<&(dyn Domain<F, ExternalVaultProxyPaymentsRequest, Self::Data>)> {
         Ok(*self)
     }
     fn to_update_tracker(
         &self,
-    ) -> RouterResult<&(dyn UpdateTracker<F, Self::Data, ExternalVaultProxyPaymentsRequest> + Send + Sync)> {
+    ) -> RouterResult<
+        &(dyn UpdateTracker<F, Self::Data, ExternalVaultProxyPaymentsRequest> + Send + Sync),
+    > {
         Ok(*self)
     }
 }
 
 #[automatically_derived]
-impl<F: Send + Clone + Sync> Operation<F, ExternalVaultProxyPaymentsRequest> for ExternalVaultProxyPaymentIntent {
+impl<F: Send + Clone + Sync> Operation<F, ExternalVaultProxyPaymentsRequest>
+    for ExternalVaultProxyPaymentIntent
+{
     type Data = PaymentConfirmData<F>;
     fn to_validate_request(
         &self,
-    ) -> RouterResult<&(dyn ValidateRequest<F, ExternalVaultProxyPaymentsRequest, Self::Data> + Send + Sync)>
-    {
+    ) -> RouterResult<
+        &(dyn ValidateRequest<F, ExternalVaultProxyPaymentsRequest, Self::Data> + Send + Sync),
+    > {
         Ok(self)
     }
     fn to_get_tracker(
         &self,
-    ) -> RouterResult<&(dyn GetTracker<F, Self::Data, ExternalVaultProxyPaymentsRequest> + Send + Sync)> {
+    ) -> RouterResult<
+        &(dyn GetTracker<F, Self::Data, ExternalVaultProxyPaymentsRequest> + Send + Sync),
+    > {
         Ok(self)
     }
-    fn to_domain(&self) -> RouterResult<&dyn Domain<F, ExternalVaultProxyPaymentsRequest, Self::Data>> {
+    fn to_domain(
+        &self,
+    ) -> RouterResult<&dyn Domain<F, ExternalVaultProxyPaymentsRequest, Self::Data>> {
         Ok(self)
     }
     fn to_update_tracker(
         &self,
-    ) -> RouterResult<&(dyn UpdateTracker<F, Self::Data, ExternalVaultProxyPaymentsRequest> + Send + Sync)> {
+    ) -> RouterResult<
+        &(dyn UpdateTracker<F, Self::Data, ExternalVaultProxyPaymentsRequest> + Send + Sync),
+    > {
         Ok(self)
     }
 }
 
-impl<F: Send + Clone + Sync> ValidateRequest<F, ExternalVaultProxyPaymentsRequest, PaymentConfirmData<F>>
+impl<F: Send + Clone + Sync>
+    ValidateRequest<F, ExternalVaultProxyPaymentsRequest, PaymentConfirmData<F>>
     for ExternalVaultProxyPaymentIntent
 {
     #[instrument(skip_all)]
@@ -258,11 +277,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ExternalVaultP
                 )
             }),
         };
-        let payment_method_data = request
-            .payment_method_data
-            .payment_method_data
-            .clone()
-            .map(hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::from);
+        let payment_method_data = request.payment_method_data.payment_method_data.clone().map(
+            hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::from,
+        );
 
         let payment_data = PaymentConfirmData {
             flow: std::marker::PhantomData,
@@ -275,7 +292,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ExternalVaultP
             merchant_connector_details: None,
             external_vault_pmd: payment_method_data,
         };
-
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };
 

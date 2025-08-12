@@ -8,9 +8,9 @@ use crate::{
         AccessTokenAuthentication, Authenticate, AuthenticationConfirmation, Authorize,
         AuthorizeSessionToken, BillingConnectorInvoiceSync, BillingConnectorPaymentsSync,
         CalculateTax, Capture, CompleteAuthorize, CreateConnectorCustomer, CreateOrder, Execute,
-        IncrementalAuthorization, PSync, PaymentMethodToken, PostAuthenticate, PostCaptureVoid,
-        PostSessionTokens, PreAuthenticate, PreProcessing, RSync, SdkSessionUpdate, Session,
-        SetupMandate, UpdateMetadata, VerifyWebhookSource, Void, ExternalVaultProxy
+        ExternalVaultProxy, IncrementalAuthorization, PSync, PaymentMethodToken, PostAuthenticate,
+        PostCaptureVoid, PostSessionTokens, PreAuthenticate, PreProcessing, RSync,
+        SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, VerifyWebhookSource, Void,
     },
     router_request_types::{
         revenue_recovery::{
@@ -24,13 +24,13 @@ use crate::{
         },
         AccessTokenAuthenticationRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
         CompleteAuthorizeData, ConnectorCustomerData, CreateOrderRequestData,
-        MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostSessionTokensData,
+        ExternalVaultProxyPaymentsData, MandateRevokeRequestData, PaymentMethodTokenizationData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostSessionTokensData,
         PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
         PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData,
         SdkPaymentsSessionUpdateData, SetupMandateRequestData, VaultRequestData,
-        VerifyWebhookSourceRequestData, ExternalVaultProxyPaymentsData,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         revenue_recovery::{
