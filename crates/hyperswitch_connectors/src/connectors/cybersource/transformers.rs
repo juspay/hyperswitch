@@ -3,7 +3,7 @@ use api_models::payments;
 use api_models::payouts::PayoutMethodData;
 use base64::Engine;
 use common_enums::{enums, FutureUsage};
-use common_types::payments::ApplePayPredecryptData;
+use common_types::payments::{ApplePayPredecryptData, GPayPredecryptData};
 use common_utils::{
     consts, date_time,
     ext_traits::{OptionExt, ValueExt},
@@ -26,7 +26,7 @@ use hyperswitch_domain_models::{
     },
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
-        ErrorResponse, GooglePayDecryptedData, PaymentMethodToken, RouterData,
+        ErrorResponse, PaymentMethodToken, RouterData,
     },
     router_flow_types::{
         payments::Authorize,
@@ -195,7 +195,11 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                 WalletData::ApplePay(apple_pay_data) => match item.payment_method_token.clone() {
                     Some(payment_method_token) => match payment_method_token {
                         PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
-                            let expiration_month = decrypt_data.get_expiry_month();
+                            let expiration_month = decrypt_data.get_expiry_month().change_context(
+                                errors::ConnectorError::InvalidDataFormat {
+                                    field_name: "expiration_month",
+                                },
+                            )?;
                             let expiration_year = decrypt_data.get_four_digit_expiry_year();
                             (
                                 PaymentInformation::ApplePay(Box::new(
@@ -254,8 +258,16 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                         GooglePayTokenPaymentInformation {
                             fluid_data: FluidData {
                                 value: Secret::from(
-                                    consts::BASE64_ENGINE
-                                        .encode(google_pay_data.tokenization_data.token),
+                                    consts::BASE64_ENGINE.encode(
+                                        google_pay_data
+                                            .tokenization_data
+                                            .get_encrypted_google_pay_token()
+                                            .change_context(
+                                                errors::ConnectorError::MissingRequiredField {
+                                                    field_name: "gpay wallet_token",
+                                                },
+                                            )?,
+                                    ),
                                 ),
                                 descriptor: None,
                             },
@@ -1427,29 +1439,23 @@ impl
                 )
                 .ok();
                 let effective_authentication_type = authn_data.authentication_type.map(Into::into);
-                let network_score: Option<u32> =
-                    if ccard.card_network == Some(common_enums::CardNetwork::CartesBancaires) {
-                        match authn_data.message_extension.as_ref() {
-                            Some(secret) => {
-                                let exposed_value = secret.clone().expose();
-                                match serde_json::from_value::<Vec<MessageExtensionAttribute>>(
-                                    exposed_value,
-                                ) {
-                                    Ok(exts) => extract_score_id(&exts),
-                                    Err(err) => {
-                                        router_env::logger::error!(
-                                            "Failed to deserialize message_extension: {:?}",
-                                            err
-                                        );
-                                        None
-                                    }
-                                }
-                            }
-                            None => None,
-                        }
-                    } else {
-                        None
-                    };
+                let network_score = (ccard.card_network
+                    == Some(common_enums::CardNetwork::CartesBancaires))
+                .then_some(authn_data.message_extension.as_ref())
+                .flatten()
+                .map(|secret| secret.clone().expose())
+                .and_then(|exposed| {
+                    serde_json::from_value::<Vec<MessageExtensionAttribute>>(exposed)
+                        .map_err(|err| {
+                            router_env::logger::error!(
+                                "Failed to deserialize message_extension: {:?}",
+                                err
+                            );
+                        })
+                        .ok()
+                        .and_then(|exts| extract_score_id(&exts))
+                });
+
                 CybersourceConsumerAuthInformation {
                     pares_status,
                     ucaf_collection_indicator,
@@ -1554,29 +1560,23 @@ impl
                     date_time::DateFormat::YYYYMMDDHHmmss,
                 )
                 .ok();
-                let network_score: Option<u32> =
-                    if ccard.card_network == Some(common_enums::CardNetwork::CartesBancaires) {
-                        match authn_data.message_extension.as_ref() {
-                            Some(secret) => {
-                                let exposed_value = secret.clone().expose();
-                                match serde_json::from_value::<Vec<MessageExtensionAttribute>>(
-                                    exposed_value,
-                                ) {
-                                    Ok(exts) => extract_score_id(&exts),
-                                    Err(err) => {
-                                        router_env::logger::error!(
-                                            "Failed to deserialize message_extension: {:?}",
-                                            err
-                                        );
-                                        None
-                                    }
-                                }
-                            }
-                            None => None,
-                        }
-                    } else {
-                        None
-                    };
+                let network_score = (ccard.card_network
+                    == Some(common_enums::CardNetwork::CartesBancaires))
+                .then_some(authn_data.message_extension.as_ref())
+                .flatten()
+                .map(|secret| secret.clone().expose())
+                .and_then(|exposed| {
+                    serde_json::from_value::<Vec<MessageExtensionAttribute>>(exposed)
+                        .map_err(|err| {
+                            router_env::logger::error!(
+                                "Failed to deserialize message_extension: {:?}",
+                                err
+                            );
+                        })
+                        .ok()
+                        .and_then(|exts| extract_score_id(&exts))
+                });
+
                 CybersourceConsumerAuthInformation {
                     pares_status,
                     ucaf_collection_indicator,
@@ -1685,30 +1685,23 @@ impl
                     date_time::DateFormat::YYYYMMDDHHmmss,
                 )
                 .ok();
-                let network_score: Option<u32> = if token_data.card_network
-                    == Some(common_enums::CardNetwork::CartesBancaires)
-                {
-                    match authn_data.message_extension.as_ref() {
-                        Some(secret) => {
-                            let exposed_value = secret.clone().expose();
-                            match serde_json::from_value::<Vec<MessageExtensionAttribute>>(
-                                exposed_value,
-                            ) {
-                                Ok(exts) => extract_score_id(&exts),
-                                Err(err) => {
-                                    router_env::logger::error!(
-                                        "Failed to deserialize message_extension: {:?}",
-                                        err
-                                    );
-                                    None
-                                }
-                            }
-                        }
-                        None => None,
-                    }
-                } else {
-                    None
-                };
+                let network_score = (token_data.card_network
+                    == Some(common_enums::CardNetwork::CartesBancaires))
+                .then_some(authn_data.message_extension.as_ref())
+                .flatten()
+                .map(|secret| secret.clone().expose())
+                .and_then(|exposed| {
+                    serde_json::from_value::<Vec<MessageExtensionAttribute>>(exposed)
+                        .map_err(|err| {
+                            router_env::logger::error!(
+                                "Failed to deserialize message_extension: {:?}",
+                                err
+                            );
+                        })
+                        .ok()
+                        .and_then(|exts| extract_score_id(&exts))
+                });
+
                 CybersourceConsumerAuthInformation {
                     pares_status,
                     ucaf_collection_indicator,
@@ -1971,7 +1964,11 @@ impl
             Some(apple_pay_wallet_data.payment_method.network.clone()),
         ))?;
         let client_reference_information = ClientReferenceInformation::from(item);
-        let expiration_month = apple_pay_data.get_expiry_month();
+        let expiration_month = apple_pay_data.get_expiry_month().change_context(
+            errors::ConnectorError::InvalidDataFormat {
+                field_name: "expiration_month",
+            },
+        )?;
         let expiration_year = apple_pay_data.get_four_digit_expiry_year();
         let payment_information =
             PaymentInformation::ApplePay(Box::new(ApplePayPaymentInformation {
@@ -2051,7 +2048,14 @@ impl
             PaymentInformation::GooglePayToken(Box::new(GooglePayTokenPaymentInformation {
                 fluid_data: FluidData {
                     value: Secret::from(
-                        consts::BASE64_ENGINE.encode(google_pay_data.tokenization_data.token),
+                        consts::BASE64_ENGINE.encode(
+                            google_pay_data
+                                .tokenization_data
+                                .get_encrypted_google_pay_token()
+                                .change_context(errors::ConnectorError::MissingRequiredField {
+                                    field_name: "gpay wallet_token",
+                                })?,
+                        ),
                     ),
                     descriptor: None,
                 },
@@ -2080,7 +2084,7 @@ impl
 impl
     TryFrom<(
         &CybersourceRouterData<&PaymentsAuthorizeRouterData>,
-        Box<GooglePayDecryptedData>,
+        Box<GPayPredecryptData>,
         GooglePayWalletData,
     )> for CybersourcePaymentsRequest
 {
@@ -2088,7 +2092,7 @@ impl
     fn try_from(
         (item, google_pay_decrypted_data, google_pay_data): (
             &CybersourceRouterData<&PaymentsAuthorizeRouterData>,
-            Box<GooglePayDecryptedData>,
+            Box<GPayPredecryptData>,
             GooglePayWalletData,
         ),
     ) -> Result<Self, Self::Error> {
@@ -2107,21 +2111,21 @@ impl
         let payment_information =
             PaymentInformation::GooglePay(Box::new(GooglePayPaymentInformation {
                 tokenized_card: TokenizedCard {
-                    number: google_pay_decrypted_data.payment_method_details.pan,
-                    cryptogram: google_pay_decrypted_data.payment_method_details.cryptogram,
+                    number: google_pay_decrypted_data
+                        .application_primary_account_number
+                        .clone(),
+                    cryptogram: google_pay_decrypted_data.cryptogram.clone(),
                     transaction_type,
-                    expiration_year: Secret::new(
-                        google_pay_decrypted_data
-                            .payment_method_details
-                            .expiration_year
-                            .four_digits(),
-                    ),
-                    expiration_month: Secret::new(
-                        google_pay_decrypted_data
-                            .payment_method_details
-                            .expiration_month
-                            .two_digits(),
-                    ),
+                    expiration_year: google_pay_decrypted_data
+                        .get_four_digit_expiry_year()
+                        .change_context(errors::ConnectorError::InvalidDataFormat {
+                            field_name: "expiration_year",
+                        })?,
+                    expiration_month: google_pay_decrypted_data
+                        .get_expiry_month()
+                        .change_context(errors::ConnectorError::InvalidDataFormat {
+                            field_name: "expiration_month",
+                        })?,
                 },
             }));
         let processing_information = ProcessingInformation::try_from((

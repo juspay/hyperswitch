@@ -640,9 +640,9 @@ impl ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> for Paypal {
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PayoutsRouterData<PoSync>, errors::ConnectorError> {
-        let response: paypal::PaypalFulfillResponse = res
+        let response: paypal::PaypalPayoutSyncResponse = res
             .response
-            .parse_struct("PaypalFulfillResponse")
+            .parse_struct("PaypalPayoutSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -2072,6 +2072,20 @@ impl IncomingWebhook for Paypal {
                     ),
                 ))
             }
+            #[cfg(feature = "payouts")]
+            paypal::PaypalResource::PaypalBatchPayoutWebhooks(resource) => {
+                Ok(api_models::webhooks::ObjectReferenceId::PayoutId(
+                    api_models::webhooks::PayoutIdType::ConnectorPayoutId(
+                        resource.batch_header.payout_batch_id,
+                    ),
+                ))
+            }
+            #[cfg(feature = "payouts")]
+            paypal::PaypalResource::PaypalItemPayoutWebhooks(resource) => {
+                Ok(api_models::webhooks::ObjectReferenceId::PayoutId(
+                    api_models::webhooks::PayoutIdType::PayoutAttemptId(resource.sender_batch_id),
+                ))
+            }
         }
     }
 
@@ -2104,6 +2118,19 @@ impl IncomingWebhook for Paypal {
             | PaypalWebhookEventType::CheckoutOrderCompleted
             | PaypalWebhookEventType::CheckoutOrderProcessed
             | PaypalWebhookEventType::Unknown => None,
+            #[cfg(feature = "payouts")]
+            PaypalWebhookEventType::PayoutsBatchDenied
+            | PaypalWebhookEventType::PayoutsBatchProcessing
+            | PaypalWebhookEventType::PayoutsBatchSuccess
+            | PaypalWebhookEventType::PayoutsItemBlocked
+            | PaypalWebhookEventType::PayoutsItemCanceled
+            | PaypalWebhookEventType::PayoutsItemDenied
+            | PaypalWebhookEventType::PayoutsItemFailed
+            | PaypalWebhookEventType::PayoutsItemHeld
+            | PaypalWebhookEventType::PayoutsItemRefunded
+            | PaypalWebhookEventType::PayoutsItemReturned
+            | PaypalWebhookEventType::PayoutsItemSuccess
+            | PaypalWebhookEventType::PayoutsItemUnclaimed => None,
         };
 
         Ok(transformers::get_payapl_webhooks_event(
@@ -2132,6 +2159,14 @@ impl IncomingWebhook for Paypal {
                 paypal::RefundSyncResponse::try_from((*resource, details.event_type))?,
             ),
             paypal::PaypalResource::PaypalDisputeWebhooks(_) => Box::new(details),
+            #[cfg(feature = "payouts")]
+            paypal::PaypalResource::PaypalBatchPayoutWebhooks(resource) => {
+                Box::new(paypal::PaypalPayoutSyncResponse::try_from(*resource)?)
+            }
+            #[cfg(feature = "payouts")]
+            paypal::PaypalResource::PaypalItemPayoutWebhooks(resource) => Box::new(
+                paypal::PaypalPayoutSyncResponse::try_from((*resource, details.event_type))?,
+            ),
         })
     }
 
@@ -2147,6 +2182,12 @@ impl IncomingWebhook for Paypal {
             transformers::PaypalResource::PaypalCardWebhooks(_)
             | transformers::PaypalResource::PaypalRedirectsWebhooks(_)
             | transformers::PaypalResource::PaypalRefundWebhooks(_) => {
+                Err(errors::ConnectorError::ResponseDeserializationFailed)
+                    .attach_printable("Expected Dispute webhooks,but found other webhooks")?
+            }
+            #[cfg(feature = "payouts")]
+            transformers::PaypalResource::PaypalBatchPayoutWebhooks(_)
+            | transformers::PaypalResource::PaypalItemPayoutWebhooks(_) => {
                 Err(errors::ConnectorError::ResponseDeserializationFailed)
                     .attach_printable("Expected Dispute webhooks,but found other webhooks")?
             }

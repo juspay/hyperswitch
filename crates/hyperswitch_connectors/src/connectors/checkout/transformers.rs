@@ -341,7 +341,11 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                             }))
                         }
                         PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
-                            let exp_month = decrypt_data.get_expiry_month();
+                            let exp_month = decrypt_data.get_expiry_month().change_context(
+                                errors::ConnectorError::InvalidDataFormat {
+                                    field_name: "expiration_month",
+                                },
+                            )?;
                             let expiry_year_4_digit = decrypt_data.get_four_digit_expiry_year();
                             Ok(PaymentSource::ApplePayPredecrypt(Box::new(
                                 ApplePayPredecrypt {

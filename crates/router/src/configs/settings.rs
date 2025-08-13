@@ -30,9 +30,10 @@ use hyperswitch_interfaces::{
 };
 use masking::Secret;
 pub use payment_methods::configs::settings::{
-    ConnectorFields, EligiblePaymentMethods, Mandates, PaymentMethodAuth, PaymentMethodType,
-    RequiredFieldFinal, RequiredFields, SupportedConnectorsForMandate,
-    SupportedPaymentMethodTypesForMandate, SupportedPaymentMethodsForMandate, ZeroMandates,
+    BankRedirectConfig, BanksVector, ConnectorBankNames, ConnectorFields, EligiblePaymentMethods,
+    Mandates, PaymentMethodAuth, PaymentMethodType, RequiredFieldFinal, RequiredFields,
+    SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
+    SupportedPaymentMethodsForMandate, ZeroMandates,
 };
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
@@ -676,17 +677,6 @@ pub enum PaymentMethodTypeTokenFilter {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
-pub struct BankRedirectConfig(pub HashMap<enums::PaymentMethodType, ConnectorBankNames>);
-#[derive(Debug, Deserialize, Clone)]
-pub struct ConnectorBankNames(pub HashMap<String, BanksVector>);
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct BanksVector {
-    #[serde(deserialize_with = "deserialize_hashset")]
-    pub banks: HashSet<common_enums::enums::BankNames>,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
 #[serde(transparent)]
 pub struct ConnectorFilters(pub HashMap<String, PaymentMethodFilters>);
 
@@ -1015,9 +1005,14 @@ impl Settings<SecuredSecret> {
             .build()
             .change_context(ApplicationError::ConfigurationError)?;
 
-        serde_path_to_error::deserialize(config)
+        let mut settings: Self = serde_path_to_error::deserialize(config)
             .attach_printable("Unable to deserialize application configuration")
-            .change_context(ApplicationError::ConfigurationError)
+            .change_context(ApplicationError::ConfigurationError)?;
+        #[cfg(feature = "v1")]
+        {
+            settings.required_fields = RequiredFields::new(&settings.bank_config);
+        }
+        Ok(settings)
     }
 
     pub fn validate(&self) -> ApplicationResult<()> {

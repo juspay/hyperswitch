@@ -17,11 +17,14 @@ use hyperswitch_domain_models::{
 };
 use masking::{ExposeInterface, PeekInterface};
 use router_env::tracing;
-use unified_connector_service_client::payments::{self as payments_grpc, Identifier};
+use unified_connector_service_client::payments::{
+    self as payments_grpc, Identifier, PaymentServiceTransformRequest,
+    PaymentServiceTransformResponse,
+};
 use url::Url;
 
 use crate::{
-    core::unified_connector_service::build_unified_connector_service_payment_method,
+    core::{errors, unified_connector_service::build_unified_connector_service_payment_method},
     types::transformers::ForeignTryFrom,
 };
 impl ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
@@ -38,6 +41,13 @@ impl ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
             .get_connector_transaction_id()
             .map(|id| Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(id)),
+            })
+            .map_err(|e| {
+                tracing::debug!(
+                    transaction_id_error=?e,
+                    "Failed to extract connector transaction ID for UCS payment sync request"
+                );
+                e
             })
             .ok();
 
@@ -674,6 +684,7 @@ impl ForeignTryFrom<common_enums::CardNetwork> for payments_grpc::CardNetwork {
             common_enums::CardNetwork::UnionPay => Ok(Self::Unionpay),
             common_enums::CardNetwork::RuPay => Ok(Self::Rupay),
             common_enums::CardNetwork::Maestro => Ok(Self::Maestro),
+            common_enums::CardNetwork::AmericanExpress => Ok(Self::Amex),
             _ => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "Card Network not supported".to_string(),
@@ -1005,6 +1016,113 @@ impl ForeignTryFrom<common_types::payments::CustomerAcceptance>
             online_mandate_details,
         })
     }
+}
+
+impl ForeignTryFrom<&hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails<'_>>
+    for payments_grpc::RequestDetails
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        request_details: &hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> Result<Self, Self::Error> {
+        let headers_map = request_details
+            .headers
+            .iter()
+            .map(|(key, value)| {
+                let value_string = value.to_str().unwrap_or_default().to_string();
+                (key.as_str().to_string(), value_string)
+            })
+            .collect();
+
+        Ok(Self {
+            method: 1, // POST method for webhooks
+            uri: Some({
+                let uri_result = request_details
+                    .headers
+                    .get("x-forwarded-path")
+                    .and_then(|h| h.to_str().map_err(|e| {
+                        tracing::warn!(
+                            header_conversion_error=?e,
+                            header_value=?h,
+                            "Failed to convert x-forwarded-path header to string for webhook processing"
+                        );
+                        e
+                    }).ok());
+
+                uri_result.unwrap_or_else(|| {
+                    tracing::debug!("x-forwarded-path header not found or invalid, using default '/Unknown'");
+                    "/Unknown"
+                }).to_string()
+            }),
+            body: request_details.body.to_vec(),
+            headers: headers_map,
+            query_params: Some(request_details.query_params.clone()),
+        })
+    }
+}
+
+/// Webhook transform data structure containing UCS response information
+pub struct WebhookTransformData {
+    pub event_type: api_models::webhooks::IncomingWebhookEvent,
+    pub source_verified: bool,
+    pub webhook_content: Option<payments_grpc::WebhookResponseContent>,
+    pub response_ref_id: Option<String>,
+}
+
+/// Transform UCS webhook response into webhook event data
+pub fn transform_ucs_webhook_response(
+    response: PaymentServiceTransformResponse,
+) -> Result<WebhookTransformData, error_stack::Report<errors::ApiErrorResponse>> {
+    let event_type = match response.event_type {
+        0 => api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess,
+        1 => api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure,
+        2 => api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing,
+        3 => api_models::webhooks::IncomingWebhookEvent::PaymentIntentCancelled,
+        4 => api_models::webhooks::IncomingWebhookEvent::RefundSuccess,
+        5 => api_models::webhooks::IncomingWebhookEvent::RefundFailure,
+        6 => api_models::webhooks::IncomingWebhookEvent::MandateRevoked,
+        _ => api_models::webhooks::IncomingWebhookEvent::EventNotSupported,
+    };
+
+    Ok(WebhookTransformData {
+        event_type,
+        source_verified: response.source_verified,
+        webhook_content: response.content,
+        response_ref_id: response.response_ref_id.and_then(|identifier| {
+            identifier.id_type.and_then(|id_type| match id_type {
+                payments_grpc::identifier::IdType::Id(id) => Some(id),
+                payments_grpc::identifier::IdType::EncodedData(encoded_data) => Some(encoded_data),
+                payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
+            })
+        }),
+    })
+}
+
+/// Build UCS webhook transform request from webhook components
+pub fn build_webhook_transform_request(
+    _webhook_body: &[u8],
+    request_details: &hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails<'_>,
+    webhook_secrets: Option<payments_grpc::WebhookSecrets>,
+    merchant_id: &str,
+    connector_id: &str,
+) -> Result<PaymentServiceTransformRequest, error_stack::Report<errors::ApiErrorResponse>> {
+    let request_details_grpc = payments_grpc::RequestDetails::foreign_try_from(request_details)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to transform webhook request details to gRPC format")?;
+
+    Ok(PaymentServiceTransformRequest {
+        request_ref_id: Some(Identifier {
+            id_type: Some(payments_grpc::identifier::IdType::Id(format!(
+                "{}_{}_{}",
+                merchant_id,
+                connector_id,
+                time::OffsetDateTime::now_utc().unix_timestamp()
+            ))),
+        }),
+        request_details: Some(request_details_grpc),
+        webhook_secrets,
+    })
 }
 
 pub fn convert_connector_service_status_code(
