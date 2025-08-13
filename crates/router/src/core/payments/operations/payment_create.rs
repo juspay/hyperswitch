@@ -1,8 +1,10 @@
-use std::marker::PhantomData;
+use std::{collections::HashMap, marker::PhantomData};
 
 use api_models::{
-    enums::FrmSuggestion, mandates::RecurringDetails, payment_methods::PaymentMethodsData,
-    payments::GetAddressFromPaymentMethodData,
+    enums::FrmSuggestion,
+    mandates::RecurringDetails,
+    payment_methods::PaymentMethodsData,
+    payments::{BillingConnectorDetails, GetAddressFromPaymentMethodData},
 };
 use async_trait::async_trait;
 use common_types::payments as common_payments_types;
@@ -582,13 +584,20 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let unified_address =
             address.unify_with_payment_method_data_billing(payment_method_data_billing);
 
-        let chargebee_subscription_id = request.connector_metadata.as_ref().and_then(|cm| {
-            cm.chargebee
-                .as_ref()
-                .and_then(|cb| cb.subscription_id.clone())
-        });
-
-        logger::debug!("subscription-ID-create: {:?}", chargebee_subscription_id);
+        let billing_connector_subscription_id: Option<String> = request
+            .metadata
+            .clone()
+            .map(|val| val.parse_value::<HashMap<String, serde_json::Value>>("hashMap"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "metadata",
+            })?
+            .and_then(|metadata| metadata.get("billing_connector_details").cloned())
+            .and_then(|val| {
+                val.parse_value::<BillingConnectorDetails>("BillingConnectorDetails")
+                    .ok()
+            })
+            .and_then(|details| details.subscription_id);
 
         let payment_data = PaymentData {
             flow: PhantomData,
@@ -637,7 +646,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             vault_operation: None,
             threeds_method_comp_ind: None,
             whole_connector_response: None,
-            billing_connector_subscription_id: chargebee_subscription_id,
+            billing_connector_subscription_id,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

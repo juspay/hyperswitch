@@ -7002,7 +7002,13 @@ pub struct ConnectorMetadata {
     pub noon: Option<NoonData>,
     pub braintree: Option<BraintreeData>,
     pub adyen: Option<AdyenConnectorMetadata>,
-    pub chargebee: Option<ChargeBeeData>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct BillingConnectorDetails {
+    pub connector: String,
+    pub subscription_id: Option<String>,
+    pub invoice_id: Option<String>,
 }
 
 impl ConnectorMetadata {

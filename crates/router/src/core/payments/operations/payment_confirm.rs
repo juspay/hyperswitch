@@ -1,11 +1,12 @@
-use std::marker::PhantomData;
-
 #[cfg(feature = "v1")]
 use api_models::payment_methods::PaymentMethodsData;
 use api_models::{
     admin::ExtendedCardInfoConfig,
     enums::FrmSuggestion,
-    payments::{ConnectorMandateReferenceId, ExtendedCardInfo, GetAddressFromPaymentMethodData},
+    payments::{
+        BillingConnectorDetails, ConnectorMandateReferenceId, ExtendedCardInfo,
+        GetAddressFromPaymentMethodData,
+    },
 };
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, StringExt, ValueExt};
@@ -18,6 +19,8 @@ use hyperswitch_domain_models::router_request_types::unified_authentication_serv
 use masking::{ExposeInterface, PeekInterface};
 use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
+use std::collections::HashMap;
+use std::marker::PhantomData;
 use tracing_futures::Instrument;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
@@ -430,13 +433,20 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .as_ref()
             .map(|mcd| mcd.creds_identifier.to_owned());
 
-        let chargebee_subscription_id = request.connector_metadata.as_ref().and_then(|cm| {
-            cm.chargebee
-                .as_ref()
-                .and_then(|cb| cb.subscription_id.clone())
-        });
-
-        logger::debug!("subscription-ID-confirm: {:?}", chargebee_subscription_id);
+        let billing_connector_subscription_id: Option<String> = request
+            .metadata
+            .clone()
+            .map(|val| val.parse_value::<HashMap<String, serde_json::Value>>("hashMap"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "metadata",
+            })?
+            .and_then(|metadata| metadata.get("billing_connector_details").cloned())
+            .and_then(|val| {
+                val.parse_value::<BillingConnectorDetails>("BillingConnectorDetails")
+                    .ok()
+            })
+            .and_then(|details| details.subscription_id);
 
         payment_intent.shipping_address_id =
             shipping_address.as_ref().map(|i| i.address_id.clone());
@@ -837,7 +847,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             vault_operation: None,
             threeds_method_comp_ind: None,
             whole_connector_response: None,
-            billing_connector_subscription_id: chargebee_subscription_id,
+            billing_connector_subscription_id,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
