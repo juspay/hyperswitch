@@ -656,7 +656,7 @@ impl Action {
                 )
                 .await
                 .change_context(errors::RecoveryError::PaymentCallFailed)?;
-            
+
                 db.as_scheduler()
                     .finish_process_with_business_status(
                         execute_task_process.clone(),
@@ -930,7 +930,7 @@ impl Action {
                 )
                 .await
                 .change_context(errors::RecoveryError::PaymentCallFailed)?;
-            
+
                 // TODO: Add support for retrying failed outgoing recordback webhooks
                 // finish the current psync task
                 db.as_scheduler()
