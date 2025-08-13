@@ -1340,20 +1340,14 @@ impl PaymentIntentFetchConstraints {
 
 #[cfg(feature = "v2")]
 pub enum PaymentIntentFetchConstraints {
-    Single {
-        payment_intent_id: id_type::GlobalPaymentId,
-    },
     List(Box<PaymentIntentListParams>),
 }
 
 #[cfg(feature = "v2")]
 impl PaymentIntentFetchConstraints {
     pub fn get_profile_id(&self) -> Option<id_type::ProfileId> {
-        if let Self::List(pi_list_params) = self {
-            pi_list_params.profile_id.clone()
-        } else {
-            None
-        }
+        let Self::List(pi_list_params) = self;
+        pi_list_params.profile_id.clone()
     }
 }
 
@@ -1402,6 +1396,7 @@ pub struct PaymentIntentListParams {
     pub order: api_models::payments::Order,
     pub card_network: Option<Vec<common_enums::CardNetwork>>,
     pub merchant_order_reference_id: Option<String>,
+    pub payment_id: Option<id_type::GlobalPaymentId>,
 }
 
 #[cfg(feature = "v1")]
@@ -1473,39 +1468,36 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             merchant_order_reference_id,
             offset,
         } = value;
-        if let Some(payment_intent_id) = payment_id {
-            Self::Single { payment_intent_id }
-        } else {
-            Self::List(Box::new(PaymentIntentListParams {
-                offset: offset.unwrap_or_default(),
-                starting_at: created_gte.or(created_gt).or(created),
-                ending_at: created_lte.or(created_lt).or(created),
-                amount_filter: (start_amount.is_some() || end_amount.is_some()).then_some({
-                    api_models::payments::AmountFilter {
-                        start_amount,
-                        end_amount,
-                    }
-                }),
-                connector,
-                currency,
-                status,
-                payment_method_type,
-                payment_method_subtype,
-                authentication_type,
-                merchant_connector_id,
-                profile_id,
-                customer_id,
-                starting_after_id: starting_after,
-                ending_before_id: ending_before,
-                limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V1)),
-                order: api_models::payments::Order {
-                    on: order_on,
-                    by: order_by,
-                },
-                card_network,
-                merchant_order_reference_id,
-            }))
-        }
+        Self::List(Box::new(PaymentIntentListParams {
+            offset: offset.unwrap_or_default(),
+            starting_at: created_gte.or(created_gt).or(created),
+            ending_at: created_lte.or(created_lt).or(created),
+            amount_filter: (start_amount.is_some() || end_amount.is_some()).then_some({
+                api_models::payments::AmountFilter {
+                    start_amount,
+                    end_amount,
+                }
+            }),
+            connector,
+            currency,
+            status,
+            payment_method_type,
+            payment_method_subtype,
+            authentication_type,
+            merchant_connector_id,
+            profile_id,
+            customer_id,
+            starting_after_id: starting_after,
+            ending_before_id: ending_before,
+            limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V1)),
+            order: api_models::payments::Order {
+                on: order_on,
+                by: order_by,
+            },
+            card_network,
+            merchant_order_reference_id,
+            payment_id,
+        }))
     }
 }
 

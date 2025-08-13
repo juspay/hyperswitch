@@ -1361,9 +1361,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             .into_boxed();
 
         query = match constraints {
-            PaymentIntentFetchConstraints::Single { payment_intent_id } => {
-                query.filter(pi_dsl::id.eq(payment_intent_id.to_owned()))
-            }
             PaymentIntentFetchConstraints::List(params) => {
                 query = match params.order {
                     Order {
@@ -1500,6 +1497,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 if let Some(card_network) = &params.card_network {
                     query = query.filter(pa_dsl::card_network.eq_any(card_network.clone()));
                 }
+
+                if let Some(payment_id) = &params.payment_id {
+                    query = query.filter(pi_dsl::id.eq(payment_id.clone()));
+                }
+
                 query
             }
         };
@@ -1560,9 +1562,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             .into_boxed();
 
         query = match constraints {
-            PaymentIntentFetchConstraints::Single { payment_intent_id } => {
-                query.filter(pi_dsl::id.eq(payment_intent_id.to_owned()))
-            }
             PaymentIntentFetchConstraints::List(params) => {
                 if let Some(customer_id) = &params.customer_id {
                     query = query.filter(pi_dsl::customer_id.eq(customer_id.clone()));
@@ -1611,6 +1610,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     Some(status) => query.filter(pi_dsl::status.eq_any(status.clone())),
                     None => query,
                 };
+
+                if let Some(payment_id) = &params.payment_id {
+                    query = query.filter(pi_dsl::id.eq(payment_id.clone()));
+                }
 
                 query
             }
