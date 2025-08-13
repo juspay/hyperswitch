@@ -85,6 +85,9 @@ pub mod consts {
 
     /// Header key for sending the API secret in signature-based authentication.
     pub(crate) const UCS_HEADER_API_SECRET: &str = "x-api-secret";
+
+    /// Header key for sending the AUTH KEY MAP in currency-based authentication.
+    pub(crate) const UCS_HEADER_AUTH_KEY_MAP: &str = "x-auth-key-map";
 }
 
 /// Metrics for interactions with external systems.
