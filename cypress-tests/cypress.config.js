@@ -10,8 +10,7 @@ const screenshotsFolderName = `screenshots/${connectorId}`;
 const reportName = process.env.REPORT_NAME || `${connectorId}_report`;
 
 // Detect CI environment and apply appropriate timeout multipliers
-const isCI = process.env.CI === 'true' || 
-             process.env.GITHUB_ACTIONS === 'true';
+const isCI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true";
 
 const timeoutMultiplier = isCI ? 1.5 : 1;
 
@@ -87,11 +86,11 @@ export default defineConfig({
     videoCompression: 32,
     videosFolder: `cypress/videos/${connectorId}`,
     chromeWebSecurity: false,
-    
+
     // Add retry configuration for flaky tests, especially in CI
     retries: {
       runMode: isCI ? 3 : 1, // Retry 3 times in CI, 1 time locally
-      openMode: 1
+      openMode: 1,
     },
   },
 });
