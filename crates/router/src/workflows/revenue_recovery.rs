@@ -34,7 +34,6 @@ use hyperswitch_domain_models::{
     payments::{PaymentConfirmData, PaymentIntent, PaymentIntentData},
     router_flow_types::Authorize,
 };
-use crate::workflows::revenue_recovery::pcr::api;
 #[cfg(feature = "v2")]
 use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
@@ -82,7 +81,7 @@ use crate::{
         },
     },
 };
-use crate::{routes::SessionState, types::storage};
+use crate::{routes::SessionState, types::storage, workflows::revenue_recovery::pcr::api};
 pub struct ExecutePcrWorkflow;
 #[cfg(feature = "v2")]
 pub const REVENUE_RECOVERY: &str = "revenue_recovery";
@@ -678,16 +677,10 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
     payment_intent: &PaymentIntent,
     connector_customer_id: &str,
 ) -> CustomResult<Option<ScheduledToken>, errors::ProcessTrackerError> {
-    
-    let payment_attempt_list_result = api::call_list_attempt_api(
-        state,
-        merchant_context,
-        req_state,     
-        profile,
-        payment_intent,
-    )
-    .await
-    .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
+    let payment_attempt_list_result =
+        api::call_list_attempt_api(state, merchant_context, req_state, profile, payment_intent)
+            .await
+            .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
 
     tracing::debug!("Fetched payment attempts",);
 

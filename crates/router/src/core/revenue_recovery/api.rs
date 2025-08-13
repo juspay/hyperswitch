@@ -1,12 +1,12 @@
 use actix_web::{web, Responder};
-use api_models::payments as payments_api;
+use api_models::{payments as payments_api, payments as api_payments};
 use common_utils::id_type;
 use error_stack::{report, FutureExt, ResultExt};
 use hyperswitch_domain_models::{
     merchant_context::{Context, MerchantContext},
     payments as payments_domain,
 };
-use api_models::payments as api_payments;
+
 use crate::{
     core::{
         errors::{self, RouterResult},
@@ -358,15 +358,13 @@ pub async fn custom_revenue_recovery_core(
     ))
 }
 
-
 pub async fn call_list_attempt_api(
     state: &SessionState,
     merchant_context: MerchantContext,
     req_state: &ReqState,
-    profile: &domain::Profile, 
+    profile: &domain::Profile,
     payment_intent: &payments_domain::PaymentIntent,
 ) -> Result<payments_api::PaymentAttemptListResponse, errors::ApiErrorResponse> {
-
     let attempts_response = Box::pin(payments::payments_list_attempts_using_payment_intent_id::<
         payments::operations::PaymentGetListAttempts,
         api_payments::PaymentAttemptListResponse,
@@ -401,7 +399,6 @@ pub async fn call_list_attempt_api(
             })
         }
     }?;
-    
-    
+
     Ok(payment_attempt_list_result)
 }
