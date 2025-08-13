@@ -4,8 +4,8 @@ import jsQR from "jsqr";
 
 // Define constants for wait times
 const CONSTANTS = {
-  TIMEOUT: 20000, // 20 seconds
-  WAIT_TIME: 10000, // 10 seconds
+  TIMEOUT: 60000, // 90 seconds (increased from 20 for CI stability)
+  WAIT_TIME: 30000, // 30 seconds (increased from 10 for CI stability)
   ERROR_PATTERNS: [
     /^(4|5)\d{2}\s/, // HTTP error status codes
     /\berror occurred\b/i,

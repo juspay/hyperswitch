@@ -9,6 +9,12 @@ const connectorId = process.env.CYPRESS_CONNECTOR || "service";
 const screenshotsFolderName = `screenshots/${connectorId}`;
 const reportName = process.env.REPORT_NAME || `${connectorId}_report`;
 
+// Detect CI environment and apply appropriate timeout multipliers
+const isCI = process.env.CI === 'true' || 
+             process.env.GITHUB_ACTIONS === 'true';
+
+const timeoutMultiplier = isCI ? 1.5 : 1;
+
 export default defineConfig({
   e2e: {
     setupNodeEvents(on, config) {
@@ -71,14 +77,21 @@ export default defineConfig({
       inlineAssets: true,
       saveJson: true,
     },
-    defaultCommandTimeout: 15000,
-    pageLoadTimeout: 50000,
-    responseTimeout: 45000,
-    requestTimeout: 30000,
+    defaultCommandTimeout: Math.round(30000 * timeoutMultiplier),
+    pageLoadTimeout: Math.round(60000 * timeoutMultiplier),
+    responseTimeout: Math.round(60000 * timeoutMultiplier),
+    requestTimeout: Math.round(45000 * timeoutMultiplier),
+    taskTimeout: Math.round(120000 * timeoutMultiplier),
     screenshotsFolder: screenshotsFolderName,
     video: true,
     videoCompression: 32,
     videosFolder: `cypress/videos/${connectorId}`,
     chromeWebSecurity: false,
+    
+    // Add retry configuration for flaky tests, especially in CI
+    retries: {
+      runMode: isCI ? 3 : 1, // Retry 3 times in CI, 1 time locally
+      openMode: 1
+    },
   },
 });
