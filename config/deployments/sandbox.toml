@@ -856,3 +856,6 @@ retry_algorithm_type = "cascading"
 
 [list_dispute_supported_connectors]
 connector_list = "worldpayvantiv"
+
+[grpc_client.unified_connector_service]
+ucs_only_connectors = "paytm, phonepe"    # Comma-separated list of connectors that use UCS only

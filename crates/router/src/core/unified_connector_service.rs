@@ -1,5 +1,7 @@
+use std::str::FromStr;
+
 use api_models::admin;
-use common_enums::{AttemptStatus, GatewaySystem, PaymentMethodType};
+use common_enums::{connector_enums::Connector, AttemptStatus, GatewaySystem, PaymentMethodType};
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use diesel_models::types::FeatureMetadata;
 use error_stack::ResultExt;
@@ -105,6 +107,9 @@ where
         .get_string_repr();
 
     let connector_name = router_data.connector.clone();
+    let connector_enum = Connector::from_str(&connector_name)
+        .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)?;
+
     let payment_method = router_data.payment_method.to_string();
     let flow_name = get_flow_name::<F>()?;
 
@@ -113,7 +118,7 @@ where
         .grpc_client
         .unified_connector_service
         .as_ref()
-        .is_some_and(|config| config.ucs_only_connectors.contains(&connector_name));
+        .is_some_and(|config| config.ucs_only_connectors.contains(&connector_enum));
 
     if is_ucs_only_connector {
         router_env::logger::info!(
