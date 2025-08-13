@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use common_utils::{consts as common_utils_consts, errors::CustomResult, types::Url};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
@@ -9,7 +11,8 @@ use tonic::{
 };
 use unified_connector_service_client::payments::{
     self as payments_grpc, payment_service_client::PaymentServiceClient,
-    PaymentServiceAuthorizeResponse,
+    PaymentServiceAuthorizeResponse, PaymentServiceTransformRequest,
+    PaymentServiceTransformResponse,
 };
 
 use crate::{
@@ -96,6 +99,10 @@ pub enum UnifiedConnectorServiceError {
     /// Failed to perform Payment Repeat Payment from gRPC Server
     #[error("Failed to perform Repeat Payment from gRPC Server")]
     PaymentRepeatEverythingFailure,
+
+    /// Failed to transform incoming webhook from gRPC Server
+    #[error("Failed to transform incoming webhook from gRPC Server")]
+    WebhookTransformFailure,
 }
 
 /// Result type for Dynamic Routing
@@ -139,6 +146,10 @@ pub struct ConnectorAuthMetadata {
     /// Optional API secret used for signature or secure authentication.
     pub api_secret: Option<Secret<String>>,
 
+    /// Optional auth_key_map used for authentication.
+    pub auth_key_map:
+        Option<HashMap<common_enums::enums::Currency, common_utils::pii::SecretSerdeValue>>,
+
     /// Id of the merchant.
     pub merchant_id: Secret<String>,
 }
@@ -181,7 +192,10 @@ impl UnifiedConnectorServiceClient {
                     }
                 }
             }
-            None => None,
+            None => {
+                router_env::logger::error!(?config.unified_connector_service, "Unified Connector Service config is missing");
+                None
+            }
         }
     }
 
@@ -194,6 +208,7 @@ impl UnifiedConnectorServiceClient {
     ) -> UnifiedConnectorServiceResult<tonic::Response<PaymentServiceAuthorizeResponse>> {
         let mut request = tonic::Request::new(payment_authorize_request);
 
+        let connector_name = connector_auth_metadata.connector_name.clone();
         let metadata =
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
         *request.metadata_mut() = metadata;
@@ -203,7 +218,14 @@ impl UnifiedConnectorServiceClient {
             .authorize(request)
             .await
             .change_context(UnifiedConnectorServiceError::PaymentAuthorizeFailure)
-            .inspect_err(|error| logger::error!(?error))
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="payment_authorize",
+                    connector_name=?connector_name,
+                    "UCS payment authorize gRPC call failed"
+                )
+            })
     }
 
     /// Performs Payment Sync/Get
@@ -216,6 +238,7 @@ impl UnifiedConnectorServiceClient {
     {
         let mut request = tonic::Request::new(payment_get_request);
 
+        let connector_name = connector_auth_metadata.connector_name.clone();
         let metadata =
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
         *request.metadata_mut() = metadata;
@@ -225,7 +248,14 @@ impl UnifiedConnectorServiceClient {
             .get(request)
             .await
             .change_context(UnifiedConnectorServiceError::PaymentGetFailure)
-            .inspect_err(|error| logger::error!(?error))
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="payment_get",
+                    connector_name=?connector_name,
+                    "UCS payment get/sync gRPC call failed"
+                )
+            })
     }
 
     /// Performs Payment Setup Mandate
@@ -238,6 +268,7 @@ impl UnifiedConnectorServiceClient {
     {
         let mut request = tonic::Request::new(payment_register_request);
 
+        let connector_name = connector_auth_metadata.connector_name.clone();
         let metadata =
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
         *request.metadata_mut() = metadata;
@@ -247,7 +278,14 @@ impl UnifiedConnectorServiceClient {
             .register(request)
             .await
             .change_context(UnifiedConnectorServiceError::PaymentRegisterFailure)
-            .inspect_err(|error| logger::error!(?error))
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="payment_setup_mandate",
+                    connector_name=?connector_name,
+                    "UCS payment setup mandate gRPC call failed"
+                )
+            })
     }
 
     /// Performs Payment repeat (MIT - Merchant Initiated Transaction).
@@ -261,6 +299,7 @@ impl UnifiedConnectorServiceClient {
     > {
         let mut request = tonic::Request::new(payment_repeat_request);
 
+        let connector_name = connector_auth_metadata.connector_name.clone();
         let metadata =
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
         *request.metadata_mut() = metadata;
@@ -270,7 +309,43 @@ impl UnifiedConnectorServiceClient {
             .repeat_everything(request)
             .await
             .change_context(UnifiedConnectorServiceError::PaymentRepeatEverythingFailure)
-            .inspect_err(|error| logger::error!(?error))
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="payment_repeat",
+                    connector_name=?connector_name,
+                    "UCS payment repeat gRPC call failed"
+                )
+            })
+    }
+
+    /// Transforms incoming webhook through UCS
+    pub async fn transform_incoming_webhook(
+        &self,
+        webhook_transform_request: PaymentServiceTransformRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeaders,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<PaymentServiceTransformResponse>> {
+        let mut request = tonic::Request::new(webhook_transform_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+
+        self.client
+            .clone()
+            .transform(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::WebhookTransformFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="transform_incoming_webhook",
+                    connector_name=?connector_name,
+                    "UCS webhook transform gRPC call failed"
+                )
+            })
     }
 }
 
@@ -312,23 +387,34 @@ pub fn build_unified_connector_service_grpc_headers(
             parse("api_secret", api_secret.peek())?,
         );
     }
+    if let Some(auth_key_map) = meta.auth_key_map {
+        let auth_key_map_str = serde_json::to_string(&auth_key_map).map_err(|error| {
+            logger::error!(?error);
+            UnifiedConnectorServiceError::ParsingFailed
+        })?;
+        metadata.append(
+            consts::UCS_HEADER_AUTH_KEY_MAP,
+            parse("auth_key_map", &auth_key_map_str)?,
+        );
+    }
 
     metadata.append(
         common_utils_consts::X_MERCHANT_ID,
         parse(common_utils_consts::X_MERCHANT_ID, meta.merchant_id.peek())?,
     );
 
-    grpc_headers.tenant_id
-            .parse()
-            .map(|tenant_id| {
-                metadata.append(
-                    common_utils_consts::TENANT_HEADER,
-                    tenant_id)
-            })
-            .inspect_err(
-                |err| logger::warn!(header_parse_error=?err,"invalid {} received",common_utils_consts::TENANT_HEADER),
-            )
-            .ok();
+    if let Err(err) = grpc_headers
+        .tenant_id
+        .parse()
+        .map(|tenant_id| metadata.append(common_utils_consts::TENANT_HEADER, tenant_id))
+    {
+        logger::error!(
+            header_parse_error=?err,
+            tenant_id=?grpc_headers.tenant_id,
+            "Failed to parse tenant_id header for UCS gRPC request: {}",
+            common_utils_consts::TENANT_HEADER
+        );
+    }
 
     Ok(metadata)
 }

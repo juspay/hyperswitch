@@ -592,7 +592,7 @@ pub struct AuthorizedotnetSetupMandateResponse {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthorizedotnetCustomerResponse {
-    customer_profile_id: String,
+    customer_profile_id: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     customer_payment_profile_id_list: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -607,14 +607,21 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetCustomerResponse, T, Pay
     fn try_from(
         item: ResponseRouterData<F, AuthorizedotnetCustomerResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let connector_customer_id = item.response.customer_profile_id.clone();
         match item.response.messages.result_code {
-            ResultCode::Ok => Ok(Self {
-                response: Ok(PaymentsResponseData::ConnectorCustomerResponse {
-                    connector_customer_id,
+            ResultCode::Ok => match item.response.customer_profile_id.clone() {
+                Some(connector_customer_id) => Ok(Self {
+                    response: Ok(PaymentsResponseData::ConnectorCustomerResponse {
+                        connector_customer_id,
+                    }),
+                    ..item.data
                 }),
-                ..item.data
-            }),
+                None => Err(
+                    errors::ConnectorError::UnexpectedResponseError(bytes::Bytes::from(
+                        "Missing customer profile id from Authorizedotnet".to_string(),
+                    ))
+                    .into(),
+                ),
+            },
             ResultCode::Error => {
                 let error_message = item.response.messages.message.first();
                 let error_code = error_message.map(|error| error.code.clone());

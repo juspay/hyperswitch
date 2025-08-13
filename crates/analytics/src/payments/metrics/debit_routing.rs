@@ -56,6 +56,14 @@ where
             })
             .switch()?;
         query_builder.add_select_column("currency").switch()?;
+
+        query_builder
+            .add_select_column("signature_network")
+            .switch()?;
+        query_builder
+            .add_select_column("is_issuer_regulated")
+            .switch()?;
+
         query_builder
             .add_select_column(Aggregate::Min {
                 field: "created_at",
@@ -84,6 +92,16 @@ where
                 .attach_printable("Error grouping by dimensions")
                 .switch()?;
         }
+
+        query_builder
+            .add_group_by_clause("signature_network")
+            .attach_printable("Error grouping by signature_network")
+            .switch()?;
+
+        query_builder
+            .add_group_by_clause("is_issuer_regulated")
+            .attach_printable("Error grouping by is_issuer_regulated")
+            .switch()?;
 
         query_builder
             .add_group_by_clause("currency")

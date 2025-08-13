@@ -81,23 +81,6 @@ pub struct RevenueRecoveryInvoiceData {
     pub billing_started_at: Option<PrimitiveDateTime>,
 }
 
-/// type of action that needs to taken after consuming recovery payload
-#[derive(Debug)]
-pub enum RecoveryAction {
-    /// Stops the process tracker and update the payment intent.
-    CancelInvoice,
-    /// Records the external transaction against payment intent.
-    ScheduleFailedPayment,
-    /// Records the external payment and stops the internal process tracker.
-    SuccessPaymentExternal,
-    /// Pending payments from billing processor.
-    PendingPayment,
-    /// No action required.
-    NoAction,
-    /// Invalid event has been received.
-    InvalidAction,
-}
-
 #[derive(Clone, Debug)]
 pub struct RecoveryPaymentIntent {
     pub payment_id: id_type::GlobalPaymentId,
@@ -131,63 +114,6 @@ impl RecoveryPaymentAttempt {
                 .as_ref()
                 .map(|recovery| recovery.attempt_triggered_by)
         })
-    }
-}
-
-impl RecoveryAction {
-    pub fn get_action(
-        event_type: webhooks::IncomingWebhookEvent,
-        attempt_triggered_by: Option<common_enums::TriggeredBy>,
-    ) -> Self {
-        match event_type {
-            webhooks::IncomingWebhookEvent::PaymentIntentFailure
-            | webhooks::IncomingWebhookEvent::PaymentIntentSuccess
-            | webhooks::IncomingWebhookEvent::PaymentIntentProcessing
-            | webhooks::IncomingWebhookEvent::PaymentIntentPartiallyFunded
-            | webhooks::IncomingWebhookEvent::PaymentIntentCancelled
-            | webhooks::IncomingWebhookEvent::PaymentIntentCancelFailure
-            | webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationSuccess
-            | webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationFailure
-            | webhooks::IncomingWebhookEvent::PaymentIntentCaptureSuccess
-            | webhooks::IncomingWebhookEvent::PaymentIntentCaptureFailure
-            | webhooks::IncomingWebhookEvent::PaymentIntentExpired
-            | webhooks::IncomingWebhookEvent::PaymentActionRequired
-            | webhooks::IncomingWebhookEvent::EventNotSupported
-            | webhooks::IncomingWebhookEvent::SourceChargeable
-            | webhooks::IncomingWebhookEvent::SourceTransactionCreated
-            | webhooks::IncomingWebhookEvent::RefundFailure
-            | webhooks::IncomingWebhookEvent::RefundSuccess
-            | webhooks::IncomingWebhookEvent::DisputeOpened
-            | webhooks::IncomingWebhookEvent::DisputeExpired
-            | webhooks::IncomingWebhookEvent::DisputeAccepted
-            | webhooks::IncomingWebhookEvent::DisputeCancelled
-            | webhooks::IncomingWebhookEvent::DisputeChallenged
-            | webhooks::IncomingWebhookEvent::DisputeWon
-            | webhooks::IncomingWebhookEvent::DisputeLost
-            | webhooks::IncomingWebhookEvent::MandateActive
-            | webhooks::IncomingWebhookEvent::MandateRevoked
-            | webhooks::IncomingWebhookEvent::EndpointVerification
-            | webhooks::IncomingWebhookEvent::ExternalAuthenticationARes
-            | webhooks::IncomingWebhookEvent::FrmApproved
-            | webhooks::IncomingWebhookEvent::FrmRejected
-            | webhooks::IncomingWebhookEvent::PayoutSuccess
-            | webhooks::IncomingWebhookEvent::PayoutFailure
-            | webhooks::IncomingWebhookEvent::PayoutProcessing
-            | webhooks::IncomingWebhookEvent::PayoutCancelled
-            | webhooks::IncomingWebhookEvent::PayoutCreated
-            | webhooks::IncomingWebhookEvent::PayoutExpired
-            | webhooks::IncomingWebhookEvent::PayoutReversed => Self::InvalidAction,
-            webhooks::IncomingWebhookEvent::RecoveryPaymentFailure => match attempt_triggered_by {
-                Some(common_enums::TriggeredBy::Internal) => Self::NoAction,
-                Some(common_enums::TriggeredBy::External) | None => Self::ScheduleFailedPayment,
-            },
-            webhooks::IncomingWebhookEvent::RecoveryPaymentSuccess => match attempt_triggered_by {
-                Some(common_enums::TriggeredBy::Internal) => Self::NoAction,
-                Some(common_enums::TriggeredBy::External) | None => Self::SuccessPaymentExternal,
-            },
-            webhooks::IncomingWebhookEvent::RecoveryPaymentPending => Self::PendingPayment,
-            webhooks::IncomingWebhookEvent::RecoveryInvoiceCancel => Self::CancelInvoice,
-        }
     }
 }
 

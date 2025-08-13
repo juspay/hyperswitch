@@ -4188,6 +4188,15 @@ impl MerchantConnectorAccountType {
             Self::CacheVal(_) => None,
         }
     }
+
+    pub fn get_webhook_details(
+        &self,
+    ) -> CustomResult<Option<&masking::Secret<serde_json::Value>>, errors::ApiErrorResponse> {
+        match self {
+            Self::DbVal(db_val) => Ok(db_val.connector_webhook_details.as_ref()),
+            Self::CacheVal(_) => Ok(None),
+        }
+    }
 }
 
 /// Query for merchant connector account either by business label or profile id
@@ -4858,19 +4867,30 @@ pub async fn get_additional_payment_data(
                     "Card cobadge check failed due to an invalid card network regex",
                 )?;
 
-            let card_network = match (
-                is_cobadged_based_on_regex,
-                card_data.co_badged_card_data.is_some(),
-            ) {
-                (false, false) => {
+            let (card_network, signature_network, is_regulated) = card_data
+                .co_badged_card_data
+                .as_ref()
+                .map(|co_badged_data| {
+                    logger::debug!("Co-badged card data found");
+
+                    (
+                        card_data.card_network.clone(),
+                        co_badged_data
+                            .co_badged_card_networks_info
+                            .get_signature_network(),
+                        Some(co_badged_data.is_regulated),
+                    )
+                })
+                .or_else(|| {
+                    is_cobadged_based_on_regex.then(|| {
+                        logger::debug!("Card network is cobadged (regex-based detection)");
+                        (card_data.card_network.clone(), None, None)
+                    })
+                })
+                .unwrap_or_else(|| {
                     logger::debug!("Card network is not cobadged");
-                    None
-                }
-                _ => {
-                    logger::debug!("Card network is cobadged");
-                    card_data.card_network.clone()
-                }
-            };
+                    (None, None, None)
+                });
 
             let last4 = Some(card_data.card_number.get_last4());
             if card_data.card_issuer.is_some()
@@ -4895,6 +4915,8 @@ pub async fn get_additional_payment_data(
                         // These are filled after calling the processor / connector
                         payment_checks: None,
                         authentication_data: None,
+                        is_regulated,
+                        signature_network: signature_network.clone(),
                     }),
                 )))
             } else {
@@ -4925,6 +4947,8 @@ pub async fn get_additional_payment_data(
                                 // These are filled after calling the processor / connector
                                 payment_checks: None,
                                 authentication_data: None,
+                                is_regulated,
+                                signature_network: signature_network.clone(),
                             },
                         ))
                     });
@@ -4945,6 +4969,8 @@ pub async fn get_additional_payment_data(
                             // These are filled after calling the processor / connector
                             payment_checks: None,
                             authentication_data: None,
+                            is_regulated,
+                            signature_network: signature_network.clone(),
                         },
                     ))
                 })))
@@ -5190,6 +5216,8 @@ pub async fn get_additional_payment_data(
                         // These are filled after calling the processor / connector
                         payment_checks: None,
                         authentication_data: None,
+                        is_regulated: None,
+                        signature_network: None,
                     }),
                 )))
             } else {
@@ -5220,6 +5248,8 @@ pub async fn get_additional_payment_data(
                                 // These are filled after calling the processor / connector
                                 payment_checks: None,
                                 authentication_data: None,
+                                is_regulated: None,
+                                signature_network: None,
                             },
                         ))
                     });
@@ -5240,6 +5270,8 @@ pub async fn get_additional_payment_data(
                             // These are filled after calling the processor / connector
                             payment_checks: None,
                             authentication_data: None,
+                            is_regulated: None,
+                            signature_network: None,
                         },
                     ))
                 })))
@@ -5930,7 +5962,7 @@ impl GooglePayTokenDecryptor {
         data: String,
         should_verify_signature: bool,
     ) -> CustomResult<
-        hyperswitch_domain_models::router_data::GooglePayDecryptedData,
+        hyperswitch_domain_models::router_data::GooglePayPredecryptDataInternal,
         errors::GooglePayDecryptionError,
     > {
         // parse the encrypted data
@@ -5964,9 +5996,9 @@ impl GooglePayTokenDecryptor {
         let decrypted = self.decrypt_message(symmetric_encryption_key, encrypted_message)?;
 
         // parse the decrypted data
-        let decrypted_data: hyperswitch_domain_models::router_data::GooglePayDecryptedData =
+        let decrypted_data: hyperswitch_domain_models::router_data::GooglePayPredecryptDataInternal =
             decrypted
-                .parse_struct("GooglePayDecryptedData")
+                .parse_struct("GooglePayPredecryptDataInternal")
                 .change_context(errors::GooglePayDecryptionError::DeserializationFailed)?;
 
         // check the expiration date of the decrypted data

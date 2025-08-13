@@ -319,6 +319,8 @@ pub struct PaymentMetricsBucketValue {
     pub debit_routed_transaction_count: Option<u64>,
     pub debit_routing_savings: Option<u64>,
     pub debit_routing_savings_in_usd: Option<u64>,
+    pub signature_network: Option<String>,
+    pub is_issuer_regulated: Option<bool>,
 }
 
 #[derive(Debug, serde::Serialize)]
