@@ -2,7 +2,7 @@ use common_enums::enums;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
-    router_flow_types::{payments::PaymentMethodToken, refunds::{Execute, RSync}},
+    router_flow_types::refunds::{Execute, RSync},
     router_request_types::{PaymentMethodTokenizationData, ResponseId},
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, RefundsRouterData},
@@ -116,7 +116,33 @@ impl TryFrom<&MpgsRouterData<&PaymentsAuthorizeRouterData>> for MpgsPaymentsRequ
                     security_code: Some(card.card_cvc),
                 },
             }),
-            _ => None,
+            PaymentMethodData::NetworkToken(network_token) => Some(MpgsProvidedSourceOfFunds {
+                card: MpgsCard {
+                    number: network_token.token_number,
+                    expiry: MpgsExpiry {
+                        month: network_token.token_exp_month,
+                        year: network_token.token_exp_year,
+                    },
+                    security_code: network_token.token_cryptogram,
+                },
+            }),
+            PaymentMethodData::Wallet(_)
+            | PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => None,
         };
 
         let source_of_funds = source_of_funds.ok_or_else(|| {
