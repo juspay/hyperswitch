@@ -183,13 +183,13 @@ pub async fn trigger_refund_to_gateway(
     )
     .await?;
 
-    let add_access_token_result = access_token::add_access_token(
+    let add_access_token_result = Box::pin(access_token::add_access_token(
         state,
         &connector,
         merchant_context,
         &router_data,
         creds_identifier.as_deref(),
-    )
+    ))
     .await?;
 
     logger::debug!(refund_router_data=?router_data);
@@ -617,13 +617,13 @@ pub async fn sync_refund_with_gateway(
     )
     .await?;
 
-    let add_access_token_result = access_token::add_access_token(
+    let add_access_token_result = Box::pin(access_token::add_access_token(
         state,
         &connector,
         merchant_context,
         &router_data,
         creds_identifier.as_deref(),
-    )
+    ))
     .await?;
 
     logger::debug!(refund_retrieve_router_data=?router_data);

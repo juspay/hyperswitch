@@ -256,6 +256,11 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelReques
                     status: enums::IntentStatus::Cancelled,
                     updated_by: storage_scheme.to_string(),
                     incremental_authorization_allowed: None,
+                    feature_metadata: payment_data
+                        .payment_intent
+                        .feature_metadata
+                        .clone()
+                        .map(masking::Secret::new),
                 };
                 (Some(payment_intent_update), enums::AttemptStatus::Voided)
             } else {

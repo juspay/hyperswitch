@@ -141,7 +141,13 @@ fn fetch_payment_instrument(
         PaymentMethodData::Wallet(wallet) => match wallet {
             WalletData::GooglePay(data) => Ok(PaymentInstrument::Googlepay(WalletPayment {
                 payment_type: PaymentType::Encrypted,
-                wallet_token: Secret::new(data.tokenization_data.token),
+                wallet_token: Secret::new(
+                    data.tokenization_data
+                        .get_encrypted_google_pay_token()
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "gpay wallet_token",
+                        })?,
+                ),
                 ..WalletPayment::default()
             })),
             WalletData::ApplePay(data) => Ok(PaymentInstrument::Applepay(WalletPayment {

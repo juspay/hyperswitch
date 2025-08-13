@@ -371,7 +371,6 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                             state.clone(),
                             merchant_context,
                             profile,
-                            webhook_details,
                             source_verified,
                             &connector,
                             merchant_connector_account,

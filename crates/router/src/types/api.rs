@@ -43,7 +43,8 @@ use api_models::routing::{self as api_routing, RoutableConnectorChoice};
 use common_enums::RoutableConnectors;
 use error_stack::ResultExt;
 pub use hyperswitch_domain_models::router_flow_types::{
-    access_token_auth::AccessTokenAuth, mandate_revoke::MandateRevoke,
+    access_token_auth::{AccessTokenAuth, AccessTokenAuthentication},
+    mandate_revoke::MandateRevoke,
     webhooks::VerifyWebhookSource,
 };
 pub use hyperswitch_interfaces::{
@@ -62,7 +63,8 @@ pub use hyperswitch_interfaces::{
             RevenueRecovery, RevenueRecoveryRecordBack,
         },
         revenue_recovery_v2::RevenueRecoveryV2,
-        BoxedConnector, Connector, ConnectorAccessToken, ConnectorAccessTokenV2, ConnectorCommon,
+        BoxedConnector, Connector, ConnectorAccessToken, ConnectorAccessTokenV2,
+        ConnectorAuthenticationToken, ConnectorAuthenticationTokenV2, ConnectorCommon,
         ConnectorCommonExt, ConnectorMandateRevoke, ConnectorMandateRevokeV2,
         ConnectorTransactionId, ConnectorVerifyWebhookSource, ConnectorVerifyWebhookSourceV2,
         CurrencyUnit,

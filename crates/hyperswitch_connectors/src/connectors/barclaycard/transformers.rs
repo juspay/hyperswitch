@@ -1,6 +1,7 @@
 use base64::Engine;
 use common_enums::enums;
 use common_utils::{consts, pii};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{GooglePayWalletData, PaymentMethodData, WalletData},
     router_data::{
@@ -496,7 +497,7 @@ impl
         let email = item.router_data.request.get_email()?;
         let bill_to = build_bill_to(item.router_data.get_billing_address()?, email)?;
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
-        let payment_information = PaymentInformation::from(&google_pay_data);
+        let payment_information = PaymentInformation::try_from(&google_pay_data)?;
         let processing_information =
             ProcessingInformation::try_from((item, Some(PaymentSolution::GooglePay), None))?;
         let client_reference_information = ClientReferenceInformation::from(item);
@@ -1675,15 +1676,24 @@ impl TryFrom<&hyperswitch_domain_models::payment_method_data::Card> for PaymentI
     }
 }
 
-impl From<&GooglePayWalletData> for PaymentInformation {
-    fn from(google_pay_data: &GooglePayWalletData) -> Self {
-        Self::GooglePay(Box::new(GooglePayPaymentInformation {
+impl TryFrom<&GooglePayWalletData> for PaymentInformation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(google_pay_data: &GooglePayWalletData) -> Result<Self, Self::Error> {
+        Ok(Self::GooglePay(Box::new(GooglePayPaymentInformation {
             fluid_data: FluidData {
                 value: Secret::from(
-                    consts::BASE64_ENGINE.encode(google_pay_data.tokenization_data.token.clone()),
+                    consts::BASE64_ENGINE.encode(
+                        google_pay_data
+                            .tokenization_data
+                            .get_encrypted_google_pay_token()
+                            .change_context(errors::ConnectorError::MissingRequiredField {
+                                field_name: "gpay wallet_token",
+                            })?
+                            .clone(),
+                    ),
                 ),
             },
-        }))
+        })))
     }
 }
 

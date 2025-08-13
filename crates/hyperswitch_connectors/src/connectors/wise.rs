@@ -6,7 +6,9 @@ use common_utils::request::{Method, RequestBuilder, RequestContent};
 #[cfg(feature = "payouts")]
 use common_utils::types::{AmountConvertor, MinorUnit, MinorUnitForConnector};
 use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt, request::Request};
-use error_stack::{report, ResultExt};
+#[cfg(not(feature = "payouts"))]
+use error_stack::report;
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
@@ -22,14 +24,16 @@ use hyperswitch_domain_models::{
 };
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::{
-    router_flow_types::{PoCancel, PoCreate, PoEligibility, PoFulfill, PoQuote, PoRecipient},
+    router_flow_types::{
+        PoCancel, PoCreate, PoEligibility, PoFulfill, PoQuote, PoRecipient, PoSync,
+    },
     types::{PayoutsData, PayoutsResponseData, PayoutsRouterData},
 };
 #[cfg(feature = "payouts")]
 use hyperswitch_interfaces::types::PayoutQuoteType;
 #[cfg(feature = "payouts")]
 use hyperswitch_interfaces::types::{
-    PayoutCancelType, PayoutCreateType, PayoutFulfillType, PayoutRecipientType,
+    PayoutCancelType, PayoutCreateType, PayoutFulfillType, PayoutRecipientType, PayoutSyncType,
 };
 use hyperswitch_interfaces::{
     api::{
@@ -225,6 +229,8 @@ impl api::PayoutQuote for Wise {}
 impl api::PayoutRecipient for Wise {}
 #[cfg(feature = "payouts")]
 impl api::PayoutFulfill for Wise {}
+#[cfg(feature = "payouts")]
+impl api::PayoutSync for Wise {}
 
 #[cfg(feature = "payouts")]
 impl ConnectorIntegration<PoCancel, PayoutsData, PayoutsResponseData> for Wise {
@@ -388,6 +394,78 @@ impl ConnectorIntegration<PoQuote, PayoutsData, PayoutsResponseData> for Wise {
         let response: wise::WisePayoutQuoteResponse = res
             .response
             .parse_struct("WisePayoutQuoteResponse")
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> for Wise {
+    fn get_url(
+        &self,
+        req: &PayoutsRouterData<PoSync>,
+        connectors: &Connectors,
+    ) -> CustomResult<String, ConnectorError> {
+        let transfer_id = req.request.connector_payout_id.to_owned().ok_or(
+            ConnectorError::MissingRequiredField {
+                field_name: "transfer_id",
+            },
+        )?;
+        Ok(format!(
+            "{}/v1/transfers/{}",
+            connectors.wise.base_url, transfer_id
+        ))
+    }
+
+    fn get_headers(
+        &self,
+        req: &PayoutsRouterData<PoSync>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn build_request(
+        &self,
+        req: &PayoutsRouterData<PoSync>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Get)
+            .url(&PayoutSyncType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(PayoutSyncType::get_headers(self, req, connectors)?)
+            .build();
+
+        Ok(Some(request))
+    }
+
+    #[instrument(skip_all)]
+    fn handle_response(
+        &self,
+        data: &PayoutsRouterData<PoSync>,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PayoutsRouterData<PoSync>, ConnectorError> {
+        let response: wise::WisePayoutSyncResponse = res
+            .response
+            .parse_struct("WisePayoutSyncResponse")
             .change_context(ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -676,23 +754,68 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Wise {}
 impl IncomingWebhook for Wise {
     fn get_webhook_object_reference_id(
         &self,
-        _request: &IncomingWebhookRequestDetails<'_>,
+        #[cfg(feature = "payouts")] request: &IncomingWebhookRequestDetails<'_>,
+        #[cfg(not(feature = "payouts"))] _request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, ConnectorError> {
-        Err(report!(ConnectorError::WebhooksNotImplemented))
+        #[cfg(feature = "payouts")]
+        {
+            let payload: wise::WisePayoutsWebhookBody = request
+                .body
+                .parse_struct("WisePayoutsWebhookBody")
+                .change_context(ConnectorError::WebhookReferenceIdNotFound)?;
+
+            Ok(api_models::webhooks::ObjectReferenceId::PayoutId(
+                api_models::webhooks::PayoutIdType::ConnectorPayoutId(
+                    payload.data.resource.id.to_string(),
+                ),
+            ))
+        }
+        #[cfg(not(feature = "payouts"))]
+        {
+            Err(report!(ConnectorError::WebhooksNotImplemented))
+        }
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &IncomingWebhookRequestDetails<'_>,
+        #[cfg(feature = "payouts")] request: &IncomingWebhookRequestDetails<'_>,
+        #[cfg(not(feature = "payouts"))] _request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<IncomingWebhookEvent, ConnectorError> {
-        Err(report!(ConnectorError::WebhooksNotImplemented))
+        #[cfg(feature = "payouts")]
+        {
+            let payload: wise::WisePayoutsWebhookBody = request
+                .body
+                .parse_struct("WisePayoutsWebhookBody")
+                .change_context(ConnectorError::WebhookReferenceIdNotFound)?;
+
+            Ok(transformers::get_wise_webhooks_event(
+                payload.data.current_state,
+            ))
+        }
+        #[cfg(not(feature = "payouts"))]
+        {
+            Err(report!(ConnectorError::WebhooksNotImplemented))
+        }
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &IncomingWebhookRequestDetails<'_>,
+        #[cfg(feature = "payouts")] request: &IncomingWebhookRequestDetails<'_>,
+        #[cfg(not(feature = "payouts"))] _request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, ConnectorError> {
-        Err(report!(ConnectorError::WebhooksNotImplemented))
+        #[cfg(feature = "payouts")]
+        {
+            let payload: wise::WisePayoutsWebhookBody = request
+                .body
+                .parse_struct("WisePayoutsWebhookBody")
+                .change_context(ConnectorError::WebhookReferenceIdNotFound)?;
+
+            Ok(Box::new(wise::WisePayoutSyncResponse::from(payload.data)))
+        }
+        #[cfg(not(feature = "payouts"))]
+        {
+            Err(report!(ConnectorError::WebhooksNotImplemented))
+        }
     }
 }
 

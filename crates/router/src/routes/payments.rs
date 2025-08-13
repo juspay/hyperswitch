@@ -10,6 +10,8 @@ use masking::PeekInterface;
 use router_env::{env, instrument, logger, tracing, types, Flow};
 
 use super::app::ReqState;
+#[cfg(feature = "v2")]
+use crate::core::revenue_recovery::api as recovery;
 use crate::{
     self as app,
     core::{
@@ -111,6 +113,40 @@ pub async fn payments_create(
             ),
         },
         locking_action,
+    ))
+    .await
+}
+
+#[cfg(feature = "v2")]
+pub async fn recovery_payments_create(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<payment_types::RecoveryPaymentsCreate>,
+) -> impl Responder {
+    let flow = Flow::RecoveryPaymentsCreate;
+    let mut payload = json_payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req.clone(),
+        payload,
+        |state, auth: auth::AuthenticationData, req_payload, req_state| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            recovery::custom_revenue_recovery_core(
+                state.to_owned(),
+                req_state,
+                merchant_context,
+                auth.profile,
+                req_payload,
+            )
+        },
+        &auth::V2ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        },
+        api_locking::LockAction::NotApplicable,
     ))
     .await
 }
@@ -2358,12 +2394,31 @@ impl GetLockingInput for payment_types::PaymentsRequest {
     {
         match self.payment_id {
             Some(payment_types::PaymentIdType::PaymentIntentId(ref id)) => {
-                api_locking::LockAction::Hold {
-                    input: api_locking::LockingInput {
-                        unique_locking_key: id.get_string_repr().to_owned(),
-                        api_identifier: lock_utils::ApiIdentifier::from(flow),
-                        override_lock_retries: None,
-                    },
+                let api_identifier = lock_utils::ApiIdentifier::from(flow);
+                let intent_id_locking_input = api_locking::LockingInput {
+                    unique_locking_key: id.get_string_repr().to_owned(),
+                    api_identifier: api_identifier.clone(),
+                    override_lock_retries: None,
+                };
+                if let Some(customer_id) = self
+                    .customer_id
+                    .as_ref()
+                    .or(self.customer.as_ref().map(|customer| &customer.id))
+                {
+                    api_locking::LockAction::HoldMultiple {
+                        inputs: vec![
+                            intent_id_locking_input,
+                            api_locking::LockingInput {
+                                unique_locking_key: customer_id.get_string_repr().to_owned(),
+                                api_identifier,
+                                override_lock_retries: None,
+                            },
+                        ],
+                    }
+                } else {
+                    api_locking::LockAction::Hold {
+                        input: intent_id_locking_input,
+                    }
                 }
             }
             _ => api_locking::LockAction::NotApplicable,

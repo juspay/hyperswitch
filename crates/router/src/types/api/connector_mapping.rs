@@ -164,9 +164,9 @@ impl ConnectorData {
                 enums::Connector::Chargebee => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Chargebee::new())))
                 }
-                // enums::Connector::Checkbook => {
-                //     Ok(ConnectorEnum::Old(Box::new(connector::Checkbook)))
-                // }
+                enums::Connector::Checkbook => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Checkbook::new())))
+                }
                 enums::Connector::Checkout => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Checkout::new())))
                 }
@@ -312,7 +312,9 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Nomupay::new())))
                 }
                 enums::Connector::Noon => Ok(ConnectorEnum::Old(Box::new(connector::Noon::new()))),
-                // enums::Connector::Nordea => Ok(ConnectorEnum::Old(Box::new(connector::Nordea::new()))),
+                enums::Connector::Nordea => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Nordea::new())))
+                }
                 enums::Connector::Novalnet => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Novalnet::new())))
                 }

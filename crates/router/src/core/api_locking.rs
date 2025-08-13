@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use actix_web::rt::time as actix_time;
 use error_stack::{report, ResultExt};
-use redis_interface as redis;
+use redis_interface::{self as redis, RedisKey};
 use router_env::{instrument, logger, tracing};
 
 use super::errors::{self, RouterResult};
@@ -22,6 +22,8 @@ pub enum LockStatus {
 pub enum LockAction {
     // Sleep until the lock is acquired
     Hold { input: LockingInput },
+    // Sleep until all locks are acquired
+    HoldMultiple { inputs: Vec<LockingInput> },
     // Queue it but return response as 2xx, could be used for webhooks
     QueueWithOk,
     // Return Error
@@ -38,7 +40,7 @@ pub struct LockingInput {
 }
 
 impl LockingInput {
-    fn get_redis_locking_key(&self, merchant_id: common_utils::id_type::MerchantId) -> String {
+    fn get_redis_locking_key(&self, merchant_id: &common_utils::id_type::MerchantId) -> String {
         format!(
             "{}_{}_{}_{}",
             API_LOCK_PREFIX,
@@ -60,13 +62,50 @@ impl LockAction {
         A: SessionStateInfo,
     {
         match self {
+            Self::HoldMultiple { inputs } => {
+                let lock_retries = inputs
+                    .iter()
+                    .find_map(|input| input.override_lock_retries)
+                    .unwrap_or(state.conf().lock_settings.lock_retries);
+                let request_id = state.get_request_id();
+                let redis_lock_expiry_seconds =
+                    state.conf().lock_settings.redis_lock_expiry_seconds;
+                let redis_conn = state
+                    .store()
+                    .get_redis_conn()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                let redis_key_values = inputs
+                    .iter()
+                    .map(|input| input.get_redis_locking_key(&merchant_id))
+                    .map(|key| (RedisKey::from(key.as_str()), request_id.clone()))
+                    .collect::<Vec<_>>();
+                for _retry in 0..lock_retries {
+                    let results: Vec<redis::SetGetReply<_>> = redis_conn
+                        .set_multiple_keys_if_not_exists_and_get_values(
+                            &redis_key_values,
+                            Some(i64::from(redis_lock_expiry_seconds)),
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                    let lock_aqcuired = results.iter().all(|res| {
+                        // each redis value must match the request_id
+                        // if even 1 does match, the lock is not acquired
+                        *res.get_value() == request_id
+                    });
+                    if lock_aqcuired {
+                        logger::info!("Lock acquired for locking inputs {:?}", inputs);
+                        return Ok(());
+                    }
+                }
+                Err(report!(errors::ApiErrorResponse::ResourceBusy))
+            }
             Self::Hold { input } => {
                 let redis_conn = state
                     .store()
                     .get_redis_conn()
                     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-                let redis_locking_key = input.get_redis_locking_key(merchant_id);
+                let redis_locking_key = input.get_redis_locking_key(&merchant_id);
                 let delay_between_retries_in_milliseconds = state
                     .conf()
                     .lock_settings
@@ -125,13 +164,64 @@ impl LockAction {
         A: SessionStateInfo,
     {
         match self {
+            Self::HoldMultiple { inputs } => {
+                let redis_conn = state
+                    .store()
+                    .get_redis_conn()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+                let redis_locking_keys = inputs
+                    .iter()
+                    .map(|input| RedisKey::from(input.get_redis_locking_key(&merchant_id).as_str()))
+                    .collect::<Vec<_>>();
+                let request_id = state.get_request_id();
+                let values = redis_conn
+                    .get_multiple_keys::<String>(&redis_locking_keys)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+                let invalid_request_id_list = values
+                    .iter()
+                    .filter(|redis_value| **redis_value != request_id)
+                    .flatten()
+                    .collect::<Vec<_>>();
+
+                if !invalid_request_id_list.is_empty() {
+                    logger::error!(
+                        "The request_id which acquired the lock is not equal to the request_id requesting for releasing the lock.
+                        Current request_id: {:?},
+                        Redis request_ids : {:?}",
+                        request_id,
+                        invalid_request_id_list
+                    );
+                    Err(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("The request_id which acquired the lock is not equal to the request_id requesting for releasing the lock")
+                } else {
+                    Ok(())
+                }?;
+                let delete_result = redis_conn
+                    .delete_multiple_keys(&redis_locking_keys)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                let is_key_not_deleted = delete_result
+                    .into_iter()
+                    .any(|delete_reply| delete_reply.is_key_not_deleted());
+                if is_key_not_deleted {
+                    Err(errors::ApiErrorResponse::InternalServerError).attach_printable(
+                        "Status release lock called but key is not found in redis",
+                    )
+                } else {
+                    logger::info!("Lock freed for locking inputs {:?}", inputs);
+                    Ok(())
+                }
+            }
             Self::Hold { input } => {
                 let redis_conn = state
                     .store()
                     .get_redis_conn()
                     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-                let redis_locking_key = input.get_redis_locking_key(merchant_id);
+                let redis_locking_key = input.get_redis_locking_key(&merchant_id);
 
                 match redis_conn
                     .get_key::<Option<String>>(&redis_locking_key.as_str().into())

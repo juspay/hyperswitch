@@ -1379,6 +1379,7 @@ pub struct ProfileGeneralUpdate {
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+    pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
 }
 
 #[cfg(feature = "v2")]
@@ -1459,6 +1460,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     external_vault_connector_details,
                     merchant_category_code,
                     merchant_country_code,
+                    revenue_recovery_retry_algorithm_type,
                 } = *update;
                 Self {
                     profile_name,
@@ -1505,7 +1507,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_clear_pan_retries_enabled: None,
                     is_debit_routing_enabled,
                     merchant_business_country,
-                    revenue_recovery_retry_algorithm_type: None,
+                    revenue_recovery_retry_algorithm_type,
                     revenue_recovery_retry_algorithm_data: None,
                     is_iframe_redirection_enabled,
                     is_external_vault_enabled,

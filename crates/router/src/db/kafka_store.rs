@@ -4289,6 +4289,24 @@ impl TokenizationInterface for KafkaStore {
             .get_entity_id_vault_id_by_token_id(token, merchant_key_store, key_manager_state)
             .await
     }
+
+    async fn update_tokenization_record(
+        &self,
+        tokenization: hyperswitch_domain_models::tokenization::Tokenization,
+        tokenization_update: hyperswitch_domain_models::tokenization::TokenizationUpdate,
+        merchant_key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+        key_manager_state: &KeyManagerState,
+    ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
+    {
+        self.diesel_store
+            .update_tokenization_record(
+                tokenization,
+                tokenization_update,
+                merchant_key_store,
+                key_manager_state,
+            )
+            .await
+    }
 }
 
 #[cfg(not(all(feature = "v2", feature = "tokenization_v2")))]

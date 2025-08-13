@@ -188,8 +188,11 @@ impl ConnectorValidation for Worldpayvantiv {
         pm_type: Option<api_models::enums::PaymentMethodType>,
         pm_data: PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd =
-            std::collections::HashSet::from([connector_utils::PaymentMethodDataType::Card]);
+        let mandate_supported_pmd = std::collections::HashSet::from([
+            connector_utils::PaymentMethodDataType::Card,
+            connector_utils::PaymentMethodDataType::ApplePay,
+            connector_utils::PaymentMethodDataType::GooglePay,
+        ]);
         connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
@@ -1575,6 +1578,17 @@ static WORLDPAYVANTIV_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethod
         worldpayvantiv_supported_payment_methods.add(
             common_enums::PaymentMethod::Wallet,
             common_enums::PaymentMethodType::ApplePay,
+            PaymentMethodDetails {
+                mandates: common_enums::FeatureStatus::Supported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        worldpayvantiv_supported_payment_methods.add(
+            common_enums::PaymentMethod::Wallet,
+            common_enums::PaymentMethodType::GooglePay,
             PaymentMethodDetails {
                 mandates: common_enums::FeatureStatus::Supported,
                 refunds: common_enums::FeatureStatus::Supported,

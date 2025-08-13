@@ -1645,7 +1645,7 @@ impl
             hyperswitch_domain_models::gsm::GatewayStatusMap,
         ),
     ) -> Self {
-        let gsm_db_record_infered_feature = match gsm_db_record.feature_data.get_decision() {
+        let gsm_db_record_inferred_feature = match gsm_db_record.feature_data.get_decision() {
             api_enums::GsmDecision::Retry | api_enums::GsmDecision::DoDefault => {
                 api_enums::GsmFeature::Retry
             }
@@ -1653,7 +1653,7 @@ impl
 
         let gsm_feature = gsm_update_request
             .feature
-            .unwrap_or(gsm_db_record_infered_feature);
+            .unwrap_or(gsm_db_record_inferred_feature);
 
         match gsm_feature {
             api_enums::GsmFeature::Retry => {

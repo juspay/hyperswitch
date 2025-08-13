@@ -294,3 +294,9 @@ pub enum HealthCheckDecisionEngineError {
     #[error("Failed to establish Decision Engine connection")]
     FailedToCallDecisionEngineService,
 }
+
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum HealthCheckUnifiedConnectorServiceError {
+    #[error("Failed to establish Unified Connector Service connection")]
+    FailedToCallUnifiedConnectorService,
+}

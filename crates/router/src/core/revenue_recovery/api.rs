@@ -1,6 +1,7 @@
+use actix_web::{web, Responder};
 use api_models::payments as payments_api;
 use common_utils::id_type;
-use error_stack::ResultExt;
+use error_stack::{report, FutureExt, ResultExt};
 use hyperswitch_domain_models::{
     merchant_context::{Context, MerchantContext},
     payments as payments_domain,
@@ -12,11 +13,13 @@ use crate::{
         payments::{self, operations::Operation},
         webhooks::recovery_incoming,
     },
+    db::errors::{RouterResponse, StorageErrorExt},
     logger,
-    routes::SessionState,
+    routes::{app::ReqState, SessionState},
     services,
     types::{
         api::payments as api_types,
+        domain,
         storage::{self, revenue_recovery as revenue_recovery_types},
     },
 };
@@ -230,4 +233,127 @@ pub async fn record_internal_attempt_api(
                 .attach_printable("failed to record attempt for revenue recovery workflow")
         }
     }
+}
+
+pub async fn custom_revenue_recovery_core(
+    state: SessionState,
+    req_state: ReqState,
+    merchant_context: MerchantContext,
+    profile: domain::Profile,
+    request: api_models::payments::RecoveryPaymentsCreate,
+) -> RouterResponse<payments_api::RecoveryPaymentsResponse> {
+    let store = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+    let payment_merchant_connector_account_id = request.payment_merchant_connector_id.to_owned();
+    // Find the payment & billing merchant connector id at the top level to avoid multiple DB calls.
+    let payment_merchant_connector_account = store
+        .find_merchant_connector_account_by_id(
+            key_manager_state,
+            &payment_merchant_connector_account_id,
+            merchant_context.get_merchant_key_store(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: payment_merchant_connector_account_id
+                .clone()
+                .get_string_repr()
+                .to_string(),
+        })?;
+    let billing_connector_account = store
+        .find_merchant_connector_account_by_id(
+            key_manager_state,
+            &request.billing_merchant_connector_id.clone(),
+            merchant_context.get_merchant_key_store(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: request
+                .billing_merchant_connector_id
+                .clone()
+                .get_string_repr()
+                .to_string(),
+        })?;
+
+    let recovery_intent =
+        recovery_incoming::RevenueRecoveryInvoice::get_or_create_custom_recovery_intent(
+            request.clone(),
+            &state,
+            &req_state,
+            &merchant_context,
+            &profile,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+            message: format!(
+                "Failed to load recovery intent for merchant reference id : {:?}",
+                request.merchant_reference_id.to_owned()
+            )
+            .to_string(),
+        })?;
+
+    let (revenue_recovery_attempt_data, updated_recovery_intent) =
+        recovery_incoming::RevenueRecoveryAttempt::load_recovery_attempt_from_api(
+            request.clone(),
+            &state,
+            &req_state,
+            &merchant_context,
+            &profile,
+            recovery_intent.clone(),
+            payment_merchant_connector_account,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+            message: format!(
+                "Failed to load recovery attempt for merchant reference id : {:?}",
+                request.merchant_reference_id.to_owned()
+            )
+            .to_string(),
+        })?;
+
+    let intent_retry_count = updated_recovery_intent
+        .feature_metadata
+        .as_ref()
+        .and_then(|metadata| metadata.get_retry_count())
+        .ok_or(report!(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "Failed to fetch retry count from intent feature metadata".to_string(),
+        }))?;
+
+    router_env::logger::info!("Intent retry count: {:?}", intent_retry_count);
+    let recovery_action = recovery_incoming::RecoveryAction {
+        action: request.action.to_owned(),
+    };
+    let mca_retry_threshold = billing_connector_account
+        .get_retry_threshold()
+        .ok_or(report!(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "Failed to fetch retry threshold from billing merchant connector account"
+                .to_string(),
+        }))?;
+
+    recovery_action
+        .handle_action(
+            &state,
+            &profile,
+            &merchant_context,
+            &billing_connector_account,
+            mca_retry_threshold,
+            intent_retry_count,
+            &(
+                Some(revenue_recovery_attempt_data),
+                updated_recovery_intent.clone(),
+            ),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "Unexpected response from recovery core".to_string(),
+        })?;
+
+    let response = api_models::payments::RecoveryPaymentsResponse {
+        id: updated_recovery_intent.payment_id.to_owned(),
+        intent_status: updated_recovery_intent.status.to_owned(),
+        merchant_reference_id: updated_recovery_intent.merchant_reference_id.to_owned(),
+    };
+
+    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+        response,
+    ))
 }

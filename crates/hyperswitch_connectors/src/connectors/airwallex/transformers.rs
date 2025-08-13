@@ -743,11 +743,16 @@ fn get_wallet_details(
 ) -> Result<AirwallexPaymentMethod, errors::ConnectorError> {
     let wallet_details: AirwallexPaymentMethod = match wallet_data {
         WalletData::GooglePay(gpay_details) => {
+            let token = gpay_details
+                .tokenization_data
+                .get_encrypted_google_pay_token()
+                .attach_printable("Failed to get gpay wallet token")
+                .map_err(|_| errors::ConnectorError::MissingRequiredField {
+                    field_name: "gpay wallet_token",
+                })?;
             AirwallexPaymentMethod::Wallets(AirwallexWalletData::GooglePay(GooglePayData {
                 googlepay: GooglePayDetails {
-                    encrypted_payment_token: Secret::new(
-                        gpay_details.tokenization_data.token.clone(),
-                    ),
+                    encrypted_payment_token: Secret::new(token.clone()),
                     payment_data_type: GpayPaymentDataType::EncryptedPaymentToken,
                 },
                 payment_method_type: AirwallexPaymentType::Googlepay,

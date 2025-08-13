@@ -4188,6 +4188,15 @@ impl MerchantConnectorAccountType {
             Self::CacheVal(_) => None,
         }
     }
+
+    pub fn get_webhook_details(
+        &self,
+    ) -> CustomResult<Option<&masking::Secret<serde_json::Value>>, errors::ApiErrorResponse> {
+        match self {
+            Self::DbVal(db_val) => Ok(db_val.connector_webhook_details.as_ref()),
+            Self::CacheVal(_) => Ok(None),
+        }
+    }
 }
 
 /// Query for merchant connector account either by business label or profile id
@@ -5930,7 +5939,7 @@ impl GooglePayTokenDecryptor {
         data: String,
         should_verify_signature: bool,
     ) -> CustomResult<
-        hyperswitch_domain_models::router_data::GooglePayDecryptedData,
+        hyperswitch_domain_models::router_data::GooglePayPredecryptDataInternal,
         errors::GooglePayDecryptionError,
     > {
         // parse the encrypted data
@@ -5964,9 +5973,9 @@ impl GooglePayTokenDecryptor {
         let decrypted = self.decrypt_message(symmetric_encryption_key, encrypted_message)?;
 
         // parse the decrypted data
-        let decrypted_data: hyperswitch_domain_models::router_data::GooglePayDecryptedData =
+        let decrypted_data: hyperswitch_domain_models::router_data::GooglePayPredecryptDataInternal =
             decrypted
-                .parse_struct("GooglePayDecryptedData")
+                .parse_struct("GooglePayPredecryptDataInternal")
                 .change_context(errors::GooglePayDecryptionError::DeserializationFailed)?;
 
         // check the expiration date of the decrypted data

@@ -40,6 +40,10 @@ pub trait HealthCheckInterface {
     async fn health_check_decision_engine(
         &self,
     ) -> CustomResult<HealthState, errors::HealthCheckDecisionEngineError>;
+
+    async fn health_check_unified_connector_service(
+        &self,
+    ) -> CustomResult<HealthState, errors::HealthCheckUnifiedConnectorServiceError>;
 }
 
 #[async_trait::async_trait]
@@ -207,6 +211,21 @@ impl HealthCheckInterface for app::SessionState {
             Ok(HealthState::Running)
         } else {
             logger::debug!("Decision engine health check not applicable");
+            Ok(HealthState::NotApplicable)
+        }
+    }
+
+    async fn health_check_unified_connector_service(
+        &self,
+    ) -> CustomResult<HealthState, errors::HealthCheckUnifiedConnectorServiceError> {
+        if let Some(_ucs_client) = &self.grpc_client.unified_connector_service_client {
+            // For now, we'll just check if the client exists and is configured
+            // In the future, this could be enhanced to make an actual health check call
+            // to the unified connector service if it supports health check endpoints
+            logger::debug!("Unified Connector Service client is configured and available");
+            Ok(HealthState::Running)
+        } else {
+            logger::debug!("Unified Connector Service client not configured");
             Ok(HealthState::NotApplicable)
         }
     }
