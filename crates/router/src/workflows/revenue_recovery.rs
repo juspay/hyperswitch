@@ -65,6 +65,8 @@ use crate::types::storage::revenue_recovery_redis_operation::{
 #[cfg(feature = "v2")]
 use crate::workflows::revenue_recovery::payments::helpers;
 #[cfg(feature = "v2")]
+use crate::workflows::revenue_recovery::pcr::api;
+#[cfg(feature = "v2")]
 use crate::{
     core::{
         payments,
@@ -276,19 +278,13 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
     payment_intent: &PaymentIntent,
     retry_count_left: i32,
     retry_after_time: Option<prost_types::Timestamp>,
+    pg_error_code: Option<String>,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
     let card_config = &state.conf.revenue_recovery.card_config;
     let first_error_message = match payment_attempt.error.as_ref() {
-        Some(error) => Ok(error.message.clone()),
-        None => {
-            logger::error!(
-                payment_intent_id = ?payment_intent.id,
-                attempt_id = ?payment_attempt.id,
-                "Payment attempt error information not found - cannot proceed with smart retry"
-            );
-            Err(errors::ProcessTrackerError::EApiErrorResponse)
-        }
-    }?;
+        Some(error) => error.message.clone(),
+        None => "no error message found in payment attempt".to_string(),
+    };
 
     let billing_state = payment_intent
         .billing_address
@@ -389,10 +385,6 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
     let payment_method_type = Some(payment_attempt.payment_method_type.to_string());
     let payment_gateway = payment_attempt.connector.clone();
 
-    let pg_error_code = payment_attempt
-        .error
-        .as_ref()
-        .map(|error| error.code.clone());
     let network_advice_code = payment_attempt
         .error
         .as_ref()
@@ -642,6 +634,7 @@ pub async fn calculate_smart_retry_time(
         payment_intent,
         monthly_retry_remaining,
         future_timestamp,
+        token_with_retry_info.token_status.error_code.clone(),
     )
     .await
 }
@@ -693,39 +686,10 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
     payment_intent: &PaymentIntent,
     connector_customer_id: &str,
 ) -> CustomResult<Option<ScheduledToken>, errors::ProcessTrackerError> {
-    let attempts_response = Box::pin(payments::payments_list_attempts_using_payment_intent_id::<
-        payments::operations::PaymentGetListAttempts,
-        api_payments::PaymentAttemptListResponse,
-        _,
-        payments::operations::payment_attempt_list::PaymentGetListAttempts,
-        hyperswitch_domain_models::payments::PaymentAttemptListData<
-            payments::operations::PaymentGetListAttempts,
-        >,
-    >(
-        state.clone(),
-        req_state.clone(),
-        merchant_context.clone(),
-        profile.clone(),
-        payments::operations::PaymentGetListAttempts,
-        api_payments::PaymentAttemptListRequest {
-            payment_intent_id: payment_intent.id.clone(),
-        },
-        payment_intent.id.clone(),
-        hyperswitch_domain_models::payments::HeaderPayload::default(),
-    ))
-    .await;
-
-    let payment_attempt_list_result = match attempts_response {
-        Ok(services::ApplicationResponse::JsonWithHeaders((pi, _))) => Ok(pi),
-        Ok(_) => Err(RevenueRecoveryError::PaymentAttemptFetchFailed)
-            .attach_printable("Unexpected response from payment intent core"),
-        error @ Err(_) => {
-            logger::error!(?error);
-            Err(RevenueRecoveryError::PaymentAttemptFetchFailed)
-                .attach_printable("failed to fetch payment attempt in recovery webhook flow")
-        }
-    }
-    .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
+    let payment_attempt_list_result =
+        api::call_list_attempt_api(state, merchant_context, req_state, profile, payment_intent)
+            .await
+            .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
 
     tracing::debug!("Fetched payment attempts",);
 
