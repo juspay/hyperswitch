@@ -651,6 +651,10 @@ impl Payments {
             )
             .service(web::resource("/list").route(web::get().to(payments::payments_list)))
             .service(
+                web::resource("/recovery-list")
+                    .route(web::get().to(payments::revenue_recovery_invoices_list)),
+            )
+            .service(
                 web::resource("/aggregate").route(web::get().to(payments::get_payments_aggregates)),
             )
             .service(

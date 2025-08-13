@@ -3444,6 +3444,41 @@ impl ForeignFrom<(storage::PaymentIntent, Option<storage::PaymentAttempt>)>
     }
 }
 
+#[cfg(feature = "v2")]
+impl ForeignFrom<(storage::PaymentIntent, Option<storage::PaymentAttempt>)>
+    for api_models::payments::RecoveryPaymentsListResponseItem
+{
+    fn foreign_from((pi, pa): (storage::PaymentIntent, Option<storage::PaymentAttempt>)) -> Self {
+        Self {
+            id: pi.id,
+            merchant_id: pi.merchant_id,
+            profile_id: pi.profile_id,
+            customer_id: pi.customer_id,
+            status: pi.status,
+            amount: api_models::payments::PaymentAmountDetailsResponse::foreign_from((
+                &pi.amount_details,
+                pa.as_ref().map(|p| &p.amount_details),
+            )),
+            created: pi.created_at,
+            payment_method_type: pa.as_ref().and_then(|p| p.payment_method_type.into()),
+            payment_method_subtype: pa.as_ref().and_then(|p| p.payment_method_subtype.into()),
+            connector: pa.as_ref().and_then(|p| p.connector.clone()),
+            merchant_connector_id: pa.as_ref().and_then(|p| p.merchant_connector_id.clone()),
+            customer: None,
+            merchant_reference_id: pi.merchant_reference_id,
+            description: pi.description.map(|val| val.get_string_repr().to_string()),
+            attempt_count: pi.attempt_count,
+            error: pa
+                .as_ref()
+                .and_then(|p| p.error.as_ref())
+                .map(api_models::payments::ErrorDetails::foreign_from),
+            cancellation_reason: pa.as_ref().and_then(|p| p.cancellation_reason.clone()),
+            modified_at: pa.as_ref().map(|p| p.modified_at),
+            last_attempt_at: pa.as_ref().map(|p| p.created_at),
+        }
+    }
+}
+
 #[cfg(feature = "v1")]
 impl ForeignFrom<ephemeral_key::EphemeralKey> for api::ephemeral_key::EphemeralKeyCreateResponse {
     fn foreign_from(from: ephemeral_key::EphemeralKey) -> Self {
