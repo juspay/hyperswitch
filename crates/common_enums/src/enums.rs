@@ -141,12 +141,14 @@ pub enum AttemptStatus {
     Authorizing,
     CodInitiated,
     Voided,
+    VoidedPostCharge,
     VoidInitiated,
     CaptureInitiated,
     CaptureFailed,
     VoidFailed,
     AutoRefunded,
     PartialCharged,
+    PartiallyAuthorized,
     PartialChargedAndChargeable,
     Unresolved,
     #[default]
@@ -166,6 +168,7 @@ impl AttemptStatus {
             | Self::Charged
             | Self::AutoRefunded
             | Self::Voided
+            | Self::VoidedPostCharge
             | Self::VoidFailed
             | Self::CaptureFailed
             | Self::Failure
@@ -176,6 +179,7 @@ impl AttemptStatus {
             | Self::AuthenticationPending
             | Self::AuthenticationSuccessful
             | Self::Authorized
+            | Self::PartiallyAuthorized
             | Self::AuthorizationFailed
             | Self::Authorizing
             | Self::CodInitiated
@@ -1501,6 +1505,7 @@ impl EventClass {
                 EventType::PaymentFailed,
                 EventType::PaymentProcessing,
                 EventType::PaymentCancelled,
+                EventType::PaymentCancelledPostCapture,
                 EventType::PaymentAuthorized,
                 EventType::PaymentCaptured,
                 EventType::PaymentExpired,
@@ -1555,7 +1560,9 @@ pub enum EventType {
     PaymentFailed,
     PaymentProcessing,
     PaymentCancelled,
+    PaymentCancelledPostCapture,
     PaymentAuthorized,
+    PaymentPartiallyAuthorized,
     PaymentCaptured,
     PaymentExpired,
     ActionRequired,
@@ -1659,6 +1666,8 @@ pub enum IntentStatus {
     Failed,
     /// This payment has been cancelled.
     Cancelled,
+    /// This payment has been cancelled post capture.
+    CancelledPostCapture,
     /// This payment is still being processed by the payment processor.
     /// The status update might happen through webhooks or polling with the connector.
     Processing,
@@ -1677,6 +1686,8 @@ pub enum IntentStatus {
     PartiallyCaptured,
     /// The payment has been captured partially and the remaining amount is capturable
     PartiallyCapturedAndCapturable,
+    /// The payment has been authorized for a partial amount and requires capture
+    PartiallyAuthorizedAndRequiresCapture,
     /// There has been a discrepancy between the amount/currency sent in the request and the amount/currency received by the processor
     Conflicted,
     /// The payment expired before it could be captured.
@@ -1690,6 +1701,7 @@ impl IntentStatus {
             Self::Succeeded
             | Self::Failed
             | Self::Cancelled
+            | Self::CancelledPostCapture
             | Self::PartiallyCaptured
             | Self::Expired => true,
             Self::Processing
@@ -1699,6 +1711,7 @@ impl IntentStatus {
             | Self::RequiresConfirmation
             | Self::RequiresCapture
             | Self::PartiallyCapturedAndCapturable
+            | Self::PartiallyAuthorizedAndRequiresCapture
             | Self::Conflicted => false,
         }
     }
@@ -1713,13 +1726,14 @@ impl IntentStatus {
             | Self::Succeeded
             | Self::Failed
             | Self::Cancelled
+            | Self::CancelledPostCapture
             |  Self::PartiallyCaptured
             |  Self::RequiresCapture | Self::Conflicted | Self::Expired=> false,
             Self::Processing
             | Self::RequiresCustomerAction
             | Self::RequiresMerchantAction
             | Self::PartiallyCapturedAndCapturable
-            => true,
+            | Self::PartiallyAuthorizedAndRequiresCapture => true,
         }
     }
 }
@@ -1826,6 +1840,7 @@ impl From<AttemptStatus> for PaymentMethodStatus {
         match attempt_status {
             AttemptStatus::Failure
             | AttemptStatus::Voided
+            | AttemptStatus::VoidedPostCharge
             | AttemptStatus::Started
             | AttemptStatus::Pending
             | AttemptStatus::Unresolved
@@ -1844,6 +1859,7 @@ impl From<AttemptStatus> for PaymentMethodStatus {
             | AttemptStatus::AutoRefunded
             | AttemptStatus::PartialCharged
             | AttemptStatus::PartialChargedAndChargeable
+            | AttemptStatus::PartiallyAuthorized
             | AttemptStatus::ConfirmationAwaited
             | AttemptStatus::DeviceDataCollectionPending
             | AttemptStatus::IntegrityFailure
@@ -1940,6 +1956,7 @@ pub enum PaymentMethodType {
     Benefit,
     Bizum,
     Blik,
+    Bluecode,
     Boleto,
     BcaBankTransfer,
     BniVa,
@@ -2062,6 +2079,7 @@ impl PaymentMethodType {
             Self::Benefit => "Benefit",
             Self::Bizum => "Bizum",
             Self::Blik => "BLIK",
+            Self::Bluecode => "Bluecode",
             Self::Boleto => "Boleto Bancário",
             Self::BcaBankTransfer => "BCA Bank Transfer",
             Self::BniVa => "BNI Virtual Account",
@@ -2202,6 +2220,34 @@ pub enum PaymentMethod {
     MobilePayment,
 }
 
+/// Indicates the gateway system through which the payment is processed.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum GatewaySystem {
+    #[default]
+    Direct,
+    UnifiedConnectorService,
+}
+
 /// The type of the payment that differentiates between normal and various types of mandate payments. Use 'setup_mandate' in case of zero auth flow.
 #[derive(
     Clone,
@@ -2248,6 +2294,37 @@ pub enum ScaExemptionType {
     #[default]
     LowValue,
     TransactionRiskAnalysis,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+/// Describes the channel through which the payment was initiated.
+pub enum PaymentChannel {
+    #[default]
+    Ecommerce,
+    MailOrder,
+    TelephoneOrder,
+    #[serde(untagged)]
+    #[strum(default)]
+    Other(String),
 }
 
 #[derive(
@@ -2585,6 +2662,8 @@ pub enum DisputeStage {
     #[default]
     Dispute,
     PreArbitration,
+    Arbitration,
+    DisputeReversal,
 }
 
 /// Status of the dispute
@@ -2769,9 +2848,8 @@ pub enum CountryAlpha2 {
 #[strum(serialize_all = "snake_case")]
 pub enum RequestIncrementalAuthorization {
     True,
-    False,
     #[default]
-    Default,
+    False,
 }
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Debug, Serialize, Deserialize, strum::Display, ToSchema,)]
@@ -3083,6 +3161,7 @@ pub enum FileUploadProvider {
     Router,
     Stripe,
     Checkout,
+    Worldpayvantiv,
 }
 
 #[derive(
@@ -7232,6 +7311,26 @@ pub enum MerchantDecision {
     Rejected,
     AutoRefunded,
 }
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    strum::EnumIter,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum TaxStatus {
+    Taxable,
+    Exempt,
+}
 
 #[derive(
     Clone,
@@ -8040,6 +8139,7 @@ pub enum UIWidgetFormLayout {
     Clone,
     Copy,
     Debug,
+    Default,
     Eq,
     PartialEq,
     serde::Deserialize,
@@ -8052,6 +8152,7 @@ pub enum UIWidgetFormLayout {
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum DeleteStatus {
+    #[default]
     Active,
     Redacted,
 }
@@ -8419,7 +8520,7 @@ pub enum NetworkTokenizationToggle {
     Skip,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, ToSchema)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum GooglePayAuthMethod {
     /// Contain pan data only
@@ -8556,6 +8657,8 @@ pub enum ProcessTrackerRunner {
     AttachPayoutAccountWorkflow,
     PaymentMethodStatusUpdateWorkflow,
     PassiveRecoveryWorkflow,
+    ProcessDisputeWorkflow,
+    DisputeListWorkflow,
 }
 
 #[derive(Debug)]
