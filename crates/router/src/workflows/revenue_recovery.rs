@@ -34,6 +34,7 @@ use hyperswitch_domain_models::{
     payments::{PaymentConfirmData, PaymentIntent, PaymentIntentData},
     router_flow_types::Authorize,
 };
+#[cfg(feature = "v2")]
 use crate::workflows::revenue_recovery::pcr::api;
 #[cfg(feature = "v2")]
 use masking::{ExposeInterface, PeekInterface, Secret};
