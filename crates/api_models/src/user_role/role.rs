@@ -52,6 +52,8 @@ pub struct ParentGroupInfo {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct ListRolesRequest {
     pub entity_type: Option<EntityType>,
+    #[serde(default)]
+    pub groups: bool,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -98,4 +100,11 @@ pub struct MinimalRoleInfo {
 pub struct GroupsAndResources {
     pub groups: Vec<PermissionGroup>,
     pub resources: Vec<Resource>,
+}
+
+#[derive(Debug, serde::Serialize)]
+#[serde(untagged)]
+pub enum ListRolesResponse {
+    WithGroups(Vec<RoleInfoResponseNew>),
+    WithParentGroups(Vec<RoleInfoResponseWithParentsGroup>),
 }

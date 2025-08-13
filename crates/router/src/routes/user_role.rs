@@ -339,7 +339,11 @@ pub async fn list_roles_with_info(
     req: HttpRequest,
     query: web::Query<role_api::ListRolesRequest>,
 ) -> HttpResponse {
-    let flow = Flow::ListRolesV2;
+    let flow = if query.groups {
+        Flow::ListRolesV2WithParentsGroupsInfo
+    } else {
+        Flow::ListRolesV2
+    };
 
     Box::pin(api::server_wrap(
         flow,
@@ -348,29 +352,6 @@ pub async fn list_roles_with_info(
         query.into_inner(),
         |state, user_from_token, request, _| {
             role_core::list_roles_with_info(state, user_from_token, request)
-        },
-        &auth::JWTAuth {
-            permission: Permission::ProfileUserRead,
-        },
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
-pub async fn list_roles_with_info_v2(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    query: web::Query<role_api::ListRolesRequest>,
-) -> HttpResponse {
-    let flow = Flow::ListRolesV2WithParentsGroupsInfo;
-
-    Box::pin(api::server_wrap(
-        flow,
-        state.clone(),
-        &req,
-        query.into_inner(),
-        |state, user_from_token, request, _| {
-            role_core::list_roles_with_info_v2(state, user_from_token, request)
         },
         &auth::JWTAuth {
             permission: Permission::ProfileUserRead,

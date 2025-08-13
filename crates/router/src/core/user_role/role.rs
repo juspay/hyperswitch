@@ -487,7 +487,7 @@ pub async fn list_roles_with_info(
     state: SessionState,
     user_from_token: UserFromToken,
     request: role_api::ListRolesRequest,
-) -> UserResponse<Vec<role_api::RoleInfoResponseNew>> {
+) -> UserResponse<role_api::ListRolesResponse> {
     let user_role_info = user_from_token
         .get_role_info_from_db(&state)
         .await
@@ -552,123 +552,60 @@ pub async fn list_roles_with_info(
 
     role_info_vec.extend(custom_roles.into_iter().map(roles::RoleInfo::from));
 
-    let list_role_info_response = role_info_vec
-        .into_iter()
-        .filter_map(|role_info| {
-            let is_lower_entity = user_role_entity >= role_info.get_entity_type();
-            let request_filter = request.entity_type.map_or(true, |entity_type| {
-                entity_type == role_info.get_entity_type()
-            });
+    if request.groups {
+        let list_role_info_response = role_info_vec
+            .into_iter()
+            .filter_map(|role_info| {
+                let is_lower_entity = user_role_entity >= role_info.get_entity_type();
+                let request_filter = request.entity_type.map_or(true, |entity_type| {
+                    entity_type == role_info.get_entity_type()
+                });
 
-            (is_lower_entity && request_filter).then_some(role_api::RoleInfoResponseNew {
-                role_id: role_info.get_role_id().to_string(),
-                role_name: role_info.get_role_name().to_string(),
-                groups: role_info.get_permission_groups().to_vec(),
-                entity_type: role_info.get_entity_type(),
-                scope: role_info.get_scope(),
+                (is_lower_entity && request_filter).then_some({
+                    let permission_groups = role_info.get_permission_groups();
+                    let parent_groups = permission_groups_to_parent_group_info(
+                        &permission_groups,
+                        role_info.get_entity_type(),
+                    );
+
+                    role_api::RoleInfoResponseWithParentsGroup {
+                        role_id: role_info.get_role_id().to_string(),
+                        role_name: role_info.get_role_name().to_string(),
+                        entity_type: role_info.get_entity_type(),
+                        parent_groups,
+                        role_scope: role_info.get_scope(),
+                    }
+                })
             })
-        })
-        .collect::<Vec<_>>();
+            .collect::<Vec<_>>();
 
-    Ok(ApplicationResponse::Json(list_role_info_response))
-}
+        Ok(ApplicationResponse::Json(
+            role_api::ListRolesResponse::WithParentGroups(list_role_info_response),
+        ))
+    } else {
+        // Return RoleInfoResponseNew format
+        let list_role_info_response = role_info_vec
+            .into_iter()
+            .filter_map(|role_info| {
+                let is_lower_entity = user_role_entity >= role_info.get_entity_type();
+                let request_filter = request.entity_type.map_or(true, |entity_type| {
+                    entity_type == role_info.get_entity_type()
+                });
 
-pub async fn list_roles_with_info_v2(
-    state: SessionState,
-    user_from_token: UserFromToken,
-    request: role_api::ListRolesRequest,
-) -> UserResponse<Vec<role_api::RoleInfoResponseWithParentsGroup>> {
-    let user_role_info = user_from_token
-        .get_role_info_from_db(&state)
-        .await
-        .attach_printable("Invalid role_id in JWT")?;
-
-    if user_role_info.is_internal() {
-        return Err(UserErrors::InvalidRoleOperationWithMessage(
-            "Internal roles are not allowed for this operation".to_string(),
-        )
-        .into());
-    }
-
-    let mut role_info_vec = PREDEFINED_ROLES.values().cloned().collect::<Vec<_>>();
-
-    let user_role_entity = user_role_info.get_entity_type();
-    let is_lineage_data_required = request.entity_type.is_none();
-    let tenant_id = user_from_token
-        .tenant_id
-        .as_ref()
-        .unwrap_or(&state.tenant.tenant_id)
-        .to_owned();
-    let custom_roles =
-        match utils::user_role::get_min_entity(user_role_entity, request.entity_type)? {
-            EntityType::Tenant | EntityType::Organization => state
-                .global_store
-                .generic_list_roles_by_entity_type(
-                    ListRolesByEntityPayload::Organization,
-                    is_lineage_data_required,
-                    tenant_id,
-                    user_from_token.org_id,
-                )
-                .await
-                .change_context(UserErrors::InternalServerError)
-                .attach_printable("Failed to get roles")?,
-            EntityType::Merchant => state
-                .global_store
-                .generic_list_roles_by_entity_type(
-                    ListRolesByEntityPayload::Merchant(user_from_token.merchant_id),
-                    is_lineage_data_required,
-                    tenant_id,
-                    user_from_token.org_id,
-                )
-                .await
-                .change_context(UserErrors::InternalServerError)
-                .attach_printable("Failed to get roles")?,
-
-            EntityType::Profile => state
-                .global_store
-                .generic_list_roles_by_entity_type(
-                    ListRolesByEntityPayload::Profile(
-                        user_from_token.merchant_id,
-                        user_from_token.profile_id,
-                    ),
-                    is_lineage_data_required,
-                    tenant_id,
-                    user_from_token.org_id,
-                )
-                .await
-                .change_context(UserErrors::InternalServerError)
-                .attach_printable("Failed to get roles")?,
-        };
-
-    role_info_vec.extend(custom_roles.into_iter().map(roles::RoleInfo::from));
-
-    let list_role_info_response = role_info_vec
-        .into_iter()
-        .filter_map(|role_info| {
-            let is_lower_entity = user_role_entity >= role_info.get_entity_type();
-            let request_filter = request.entity_type.map_or(true, |entity_type| {
-                entity_type == role_info.get_entity_type()
-            });
-
-            (is_lower_entity && request_filter).then_some({
-                let permission_groups = role_info.get_permission_groups();
-                let parent_groups = permission_groups_to_parent_group_info(
-                    &permission_groups,
-                    role_info.get_entity_type(),
-                );
-
-                role_api::RoleInfoResponseWithParentsGroup {
+                (is_lower_entity && request_filter).then_some(role_api::RoleInfoResponseNew {
                     role_id: role_info.get_role_id().to_string(),
                     role_name: role_info.get_role_name().to_string(),
+                    groups: role_info.get_permission_groups().to_vec(),
                     entity_type: role_info.get_entity_type(),
-                    parent_groups,
-                    role_scope: role_info.get_scope(),
-                }
+                    scope: role_info.get_scope(),
+                })
             })
-        })
-        .collect::<Vec<_>>();
+            .collect::<Vec<_>>();
 
-    Ok(ApplicationResponse::Json(list_role_info_response))
+        Ok(ApplicationResponse::Json(
+            role_api::ListRolesResponse::WithGroups(list_role_info_response),
+        ))
+    }
 }
 
 pub async fn list_roles_at_entity_level(
