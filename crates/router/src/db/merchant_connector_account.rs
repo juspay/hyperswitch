@@ -463,22 +463,17 @@ impl MerchantConnectorAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            cache::get_or_populate_in_memory(
-                self,
-                &name,
-                find_call,
-                &cache::ACCOUNTS_CACHE,
-            )
-            .await?
-            .convert(
-                state,
-                key_store.key.get_inner(),
-                common_utils::types::keymanager::Identifier::Merchant(
-                    key_store.merchant_id.clone(),
-                ),
-            )
-            .await
-            .change_context(errors::StorageError::DecryptionError)
+            cache::get_or_populate_in_memory(self, &name, find_call, &cache::ACCOUNTS_CACHE)
+                .await?
+                .convert(
+                    state,
+                    key_store.key.get_inner(),
+                    common_utils::types::keymanager::Identifier::Merchant(
+                        key_store.merchant_id.clone(),
+                    ),
+                )
+                .await
+                .change_context(errors::StorageError::DecryptionError)
         }
     }
 

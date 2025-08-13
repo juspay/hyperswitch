@@ -369,12 +369,15 @@ impl From<Flow> for ApiIdentifier {
             | Flow::AuthenticationSync
             | Flow::AuthenticationSyncPostUpdate
             | Flow::AuthenticationAuthenticate
+            | Flow::AuthenticationSessionToken
             | Flow::PostAuthenticationFlow => Self::Authentication,
             Flow::Proxy => Self::Proxy,
 
             Flow::ProfileAcquirerCreate | Flow::ProfileAcquirerUpdate => Self::ProfileAcquirer,
             Flow::ThreeDsDecisionRuleExecute => Self::ThreeDsDecisionRule,
-            Flow::TokenizationCreate | Flow::TokenizationRetrieve => Self::GenericTokenization,
+            Flow::TokenizationCreate | Flow::TokenizationRetrieve | Flow::TokenizationDelete => {
+                Self::GenericTokenization
+            }
         }
     }
 }

@@ -13,6 +13,8 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
+#[cfg(feature = "v2")]
+use crate::payments::ClickToPaySessionResponse;
 #[cfg(feature = "v1")]
 use crate::payments::{Address, BrowserInformation, PaymentMethodData};
 use crate::payments::{
@@ -64,6 +66,10 @@ pub struct AuthenticationCreateRequest {
     /// Acquirer details information
     #[schema(value_type = Option<AcquirerDetails>)]
     pub acquirer_details: Option<AcquirerDetails>,
+
+    /// Customer details.
+    #[schema(value_type = Option<CustomerDetails>)]
+    pub customer_details: Option<CustomerDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -202,6 +208,10 @@ pub struct AuthenticationResponse {
     /// Profile Acquirer ID get from profile acquirer configuration
     #[schema(value_type = Option<String>)]
     pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
+
+    /// Customer details.
+    #[schema(value_type = Option<CustomerDetails>)]
+    pub customer_details: Option<CustomerDetails>,
 }
 
 impl ApiEventMetric for AuthenticationCreateRequest {
@@ -666,6 +676,55 @@ pub struct AuthenticationSyncPostUpdateRequest {
 }
 
 impl ApiEventMetric for AuthenticationSyncPostUpdateRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Authentication {
+            authentication_id: self.authentication_id.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct AuthenticationSessionTokenRequest {
+    /// Authentication ID for the authentication
+    #[serde(skip_deserializing)]
+    pub authentication_id: id_type::AuthenticationId,
+    /// Client Secret for the authentication
+    #[schema(value_type = String)]
+    pub client_secret: Option<masking::Secret<String>>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct AuthenticationSessionResponse {
+    /// The identifier for the payment
+    #[schema(value_type = String)]
+    pub authentication_id: id_type::AuthenticationId,
+    /// The list of session token object
+    pub session_token: Vec<AuthenticationSessionToken>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[serde(tag = "wallet_name")]
+#[serde(rename_all = "snake_case")]
+pub enum AuthenticationSessionToken {
+    /// The sessions response structure for ClickToPay
+    ClickToPay(Box<ClickToPaySessionResponse>),
+    NoSessionTokenReceived,
+}
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for AuthenticationSessionTokenRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Authentication {
+            authentication_id: self.authentication_id.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for AuthenticationSessionResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Authentication {
             authentication_id: self.authentication_id.clone(),

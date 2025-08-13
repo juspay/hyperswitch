@@ -8092,6 +8092,14 @@
               }
             ],
             "nullable": true
+          },
+          "customer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -8336,6 +8344,14 @@
           "profile_acquirer_id": {
             "type": "string",
             "description": "Profile Acquirer ID get from profile acquirer configuration",
+            "nullable": true
+          },
+          "customer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDetails"
+              }
+            ],
             "nullable": true
           }
         }

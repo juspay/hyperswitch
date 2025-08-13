@@ -4244,6 +4244,15 @@ impl ClientSecretFetch for api_models::authentication::AuthenticationSyncRequest
     }
 }
 
+#[cfg(feature = "v2")]
+impl ClientSecretFetch for api_models::authentication::AuthenticationSessionTokenRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret
+            .as_ref()
+            .map(|client_secret| client_secret.peek())
+    }
+}
+
 impl ClientSecretFetch for api_models::authentication::PostAuthenticationRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret

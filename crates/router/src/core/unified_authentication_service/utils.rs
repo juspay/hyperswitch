@@ -247,9 +247,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
             UasAuthenticationResponseData::PostAuthentication {
                 authentication_details,
             } => {
-                let trans_status = authentication_details
-                    .trans_status
-                    .unwrap_or_default();
+                let trans_status = authentication_details.trans_status.unwrap_or_default();
 
                 authentication_details
                     .dynamic_data_details
