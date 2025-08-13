@@ -736,6 +736,16 @@ impl<'a> FromRow<'a, PgRow> for super::payments::metrics::PaymentMetricRow {
                 ColumnNotFound(_) => Ok(Default::default()),
                 e => Err(e),
             })?;
+        let signature_network: Option<String> =
+            row.try_get("signature_network").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let is_issuer_regulated: Option<bool> =
+            row.try_get("is_issuer_regulated").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
         let total: Option<bigdecimal::BigDecimal> = row.try_get("total").or_else(|e| match e {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
@@ -768,6 +778,8 @@ impl<'a> FromRow<'a, PgRow> for super::payments::metrics::PaymentMetricRow {
             error_reason,
             first_attempt,
             routing_approach,
+            signature_network,
+            is_issuer_regulated,
             total,
             count,
             start_bucket,
