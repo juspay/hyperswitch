@@ -1,8 +1,6 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use common_enums::connector_enums::Connector;
-use std::collections::HashMap;
-
 use common_utils::{consts as common_utils_consts, errors::CustomResult, types::Url};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
