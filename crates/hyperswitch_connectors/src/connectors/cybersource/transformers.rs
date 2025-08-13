@@ -1439,29 +1439,23 @@ impl
                 )
                 .ok();
                 let effective_authentication_type = authn_data.authentication_type.map(Into::into);
-                let network_score: Option<u32> =
-                    if ccard.card_network == Some(common_enums::CardNetwork::CartesBancaires) {
-                        match authn_data.message_extension.as_ref() {
-                            Some(secret) => {
-                                let exposed_value = secret.clone().expose();
-                                match serde_json::from_value::<Vec<MessageExtensionAttribute>>(
-                                    exposed_value,
-                                ) {
-                                    Ok(exts) => extract_score_id(&exts),
-                                    Err(err) => {
-                                        router_env::logger::error!(
-                                            "Failed to deserialize message_extension: {:?}",
-                                            err
-                                        );
-                                        None
-                                    }
-                                }
-                            }
-                            None => None,
-                        }
-                    } else {
-                        None
-                    };
+                let network_score = (ccard.card_network
+                    == Some(common_enums::CardNetwork::CartesBancaires))
+                .then_some(authn_data.message_extension.as_ref())
+                .flatten()
+                .map(|secret| secret.clone().expose())
+                .and_then(|exposed| {
+                    serde_json::from_value::<Vec<MessageExtensionAttribute>>(exposed)
+                        .map_err(|err| {
+                            router_env::logger::error!(
+                                "Failed to deserialize message_extension: {:?}",
+                                err
+                            );
+                        })
+                        .ok()
+                        .and_then(|exts| extract_score_id(&exts))
+                });
+
                 CybersourceConsumerAuthInformation {
                     pares_status,
                     ucaf_collection_indicator,
@@ -1566,29 +1560,23 @@ impl
                     date_time::DateFormat::YYYYMMDDHHmmss,
                 )
                 .ok();
-                let network_score: Option<u32> =
-                    if ccard.card_network == Some(common_enums::CardNetwork::CartesBancaires) {
-                        match authn_data.message_extension.as_ref() {
-                            Some(secret) => {
-                                let exposed_value = secret.clone().expose();
-                                match serde_json::from_value::<Vec<MessageExtensionAttribute>>(
-                                    exposed_value,
-                                ) {
-                                    Ok(exts) => extract_score_id(&exts),
-                                    Err(err) => {
-                                        router_env::logger::error!(
-                                            "Failed to deserialize message_extension: {:?}",
-                                            err
-                                        );
-                                        None
-                                    }
-                                }
-                            }
-                            None => None,
-                        }
-                    } else {
-                        None
-                    };
+                let network_score = (ccard.card_network
+                    == Some(common_enums::CardNetwork::CartesBancaires))
+                .then_some(authn_data.message_extension.as_ref())
+                .flatten()
+                .map(|secret| secret.clone().expose())
+                .and_then(|exposed| {
+                    serde_json::from_value::<Vec<MessageExtensionAttribute>>(exposed)
+                        .map_err(|err| {
+                            router_env::logger::error!(
+                                "Failed to deserialize message_extension: {:?}",
+                                err
+                            );
+                        })
+                        .ok()
+                        .and_then(|exts| extract_score_id(&exts))
+                });
+
                 CybersourceConsumerAuthInformation {
                     pares_status,
                     ucaf_collection_indicator,
@@ -1697,30 +1685,23 @@ impl
                     date_time::DateFormat::YYYYMMDDHHmmss,
                 )
                 .ok();
-                let network_score: Option<u32> = if token_data.card_network
-                    == Some(common_enums::CardNetwork::CartesBancaires)
-                {
-                    match authn_data.message_extension.as_ref() {
-                        Some(secret) => {
-                            let exposed_value = secret.clone().expose();
-                            match serde_json::from_value::<Vec<MessageExtensionAttribute>>(
-                                exposed_value,
-                            ) {
-                                Ok(exts) => extract_score_id(&exts),
-                                Err(err) => {
-                                    router_env::logger::error!(
-                                        "Failed to deserialize message_extension: {:?}",
-                                        err
-                                    );
-                                    None
-                                }
-                            }
-                        }
-                        None => None,
-                    }
-                } else {
-                    None
-                };
+                let network_score = (token_data.card_network
+                    == Some(common_enums::CardNetwork::CartesBancaires))
+                .then_some(authn_data.message_extension.as_ref())
+                .flatten()
+                .map(|secret| secret.clone().expose())
+                .and_then(|exposed| {
+                    serde_json::from_value::<Vec<MessageExtensionAttribute>>(exposed)
+                        .map_err(|err| {
+                            router_env::logger::error!(
+                                "Failed to deserialize message_extension: {:?}",
+                                err
+                            );
+                        })
+                        .ok()
+                        .and_then(|exts| extract_score_id(&exts))
+                });
+
                 CybersourceConsumerAuthInformation {
                     pares_status,
                     ucaf_collection_indicator,

@@ -34,7 +34,7 @@ use api_models::{
     mandates::RecurringDetails,
     payments::{self as payments_api},
 };
-pub use common_enums::enums::CallConnectorAction;
+pub use common_enums::enums::{CallConnectorAction, GatewaySystem};
 use common_types::payments as common_payments_types;
 use common_utils::{
     ext_traits::{AsyncExt, StringExt},
@@ -91,6 +91,8 @@ use self::{
     operations::{BoxedOperation, Operation, PaymentResponse},
     routing::{self as self_routing, SessionFlowRoutingInput},
 };
+#[cfg(feature = "v1")]
+use super::unified_connector_service::update_gateway_system_in_feature_metadata;
 use super::{
     errors::StorageErrorExt, payment_methods::surcharge_decision_configs, routing::TransactionData,
     unified_connector_service::should_call_unified_connector_service,
@@ -782,10 +784,11 @@ where
             payment_data = match connector_details {
                 ConnectorCallType::PreDetermined(ref connector) => {
                     #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-                    let routable_connectors =
-                        convert_connector_data_to_routable_connectors(&[connector.clone()])
-                            .map_err(|e| logger::error!(routable_connector_error=?e))
-                            .unwrap_or_default();
+                    let routable_connectors = convert_connector_data_to_routable_connectors(
+                        std::slice::from_ref(connector),
+                    )
+                    .map_err(|e| logger::error!(routable_connector_error=?e))
+                    .unwrap_or_default();
                     let schedule_time = if should_add_task_to_process_tracker {
                         payment_sync::get_sync_process_schedule_time(
                             &*state.store,
@@ -4043,7 +4046,22 @@ where
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
     record_time_taken_with(|| async {
-        if should_call_unified_connector_service(state, merchant_context, &router_data).await? {
+        if should_call_unified_connector_service(
+            state,
+            merchant_context,
+            &router_data,
+            Some(payment_data),
+        )
+        .await?
+        {
+            router_env::logger::info!(
+                "Processing payment through UCS gateway system - payment_id={}, attempt_id={}",
+                payment_data
+                    .get_payment_intent()
+                    .payment_id
+                    .get_string_repr(),
+                payment_data.get_payment_attempt().attempt_id
+            );
             if should_add_task_to_process_tracker(payment_data) {
                 operation
                     .to_domain()?
@@ -4057,6 +4075,12 @@ where
                     .map_err(|error| logger::error!(process_tracker_error=?error))
                     .ok();
             }
+
+            // Update feature metadata to track UCS usage for stickiness
+            update_gateway_system_in_feature_metadata(
+                payment_data,
+                GatewaySystem::UnifiedConnectorService,
+            )?;
 
             (_, *payment_data) = operation
                 .to_update_tracker()?
@@ -4083,6 +4107,18 @@ where
 
             Ok((router_data, merchant_connector_account))
         } else {
+            router_env::logger::info!(
+                "Processing payment through Direct gateway system - payment_id={}, attempt_id={}",
+                payment_data
+                    .get_payment_intent()
+                    .payment_id
+                    .get_string_repr(),
+                payment_data.get_payment_attempt().attempt_id
+            );
+
+            // Update feature metadata to track Direct routing usage for stickiness
+            update_gateway_system_in_feature_metadata(payment_data, GatewaySystem::Direct)?;
+
             call_connector_service(
                 state,
                 req_state,
@@ -4440,8 +4476,13 @@ where
         .await?;
 
     // do order creation
-    let should_call_unified_connector_service =
-        should_call_unified_connector_service(state, merchant_context, &router_data).await?;
+    let should_call_unified_connector_service = should_call_unified_connector_service(
+        state,
+        merchant_context,
+        &router_data,
+        Some(payment_data),
+    )
+    .await?;
 
     let (connector_request, should_continue_further) = if !should_call_unified_connector_service {
         let mut should_continue_further = true;
@@ -4501,6 +4542,12 @@ where
 
     record_time_taken_with(|| async {
         if should_call_unified_connector_service {
+            router_env::logger::info!(
+                "Processing payment through UCS gateway system- payment_id={}, attempt_id={}",
+                payment_data.get_payment_intent().id.get_string_repr(),
+                payment_data.get_payment_attempt().id.get_string_repr()
+            );
+
             router_data
                 .call_unified_connector_service(
                     state,
@@ -4556,7 +4603,19 @@ where
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
     record_time_taken_with(|| async {
-        if should_call_unified_connector_service(state, merchant_context, &router_data).await? {
+        if should_call_unified_connector_service(
+            state,
+            merchant_context,
+            &router_data,
+            Some(payment_data),
+        )
+        .await?
+        {
+            router_env::logger::info!(
+                "Executing payment through UCS gateway system - payment_id={}, attempt_id={}",
+                payment_data.get_payment_intent().id.get_string_repr(),
+                payment_data.get_payment_attempt().id.get_string_repr()
+            );
             if should_add_task_to_process_tracker(payment_data) {
                 operation
                     .to_domain()?
@@ -4596,6 +4655,12 @@ where
 
             Ok(router_data)
         } else {
+            router_env::logger::info!(
+                "Processing payment through Direct gateway system - payment_id={}, attempt_id={}",
+                payment_data.get_payment_intent().id.get_string_repr(),
+                payment_data.get_payment_attempt().id.get_string_repr()
+            );
+
             call_connector_service(
                 state,
                 req_state,
