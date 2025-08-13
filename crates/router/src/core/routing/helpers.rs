@@ -2250,10 +2250,9 @@ pub async fn create_specific_dynamic_routing_setup(
     let algo = match dynamic_routing_type {
         routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
             let (description, success_config) = match &payload {
-                routing_types::DynamicRoutingPayload::SuccessBasedRoutingPayload(config) => (
-                    Some(config.detail.description.clone()),
-                    &config.config,
-                ),
+                routing_types::DynamicRoutingPayload::SuccessBasedRoutingPayload(config) => {
+                    (Some(config.detail.description.clone()), &config.config)
+                }
                 _ => {
                     return Err((errors::ApiErrorResponse::InvalidRequestData {
                         message: "Invalid payload type for Success Rate Based Routing".to_string(),
@@ -2278,10 +2277,9 @@ pub async fn create_specific_dynamic_routing_setup(
         }
         routing_types::DynamicRoutingType::EliminationRouting => {
             let (description, elimination_config) = match &payload {
-                routing_types::DynamicRoutingPayload::EliminationRoutingPayload(config) => (
-                    Some(config.detail.description.clone()),
-                    &config.config,
-                ),
+                routing_types::DynamicRoutingPayload::EliminationRoutingPayload(config) => {
+                    (Some(config.detail.description.clone()), &config.config)
+                }
                 _ => {
                     return Err((errors::ApiErrorResponse::InvalidRequestData {
                         message: "Invalid payload type for Elimination Routing".to_string(),

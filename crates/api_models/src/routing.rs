@@ -1074,7 +1074,6 @@ pub struct SuccessSection {
     pub detail: SuccessDetail,
 }
 
-
 impl Default for SuccessBasedRoutingConfig {
     fn default() -> Self {
         Self {
