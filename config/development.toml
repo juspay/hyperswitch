@@ -1291,7 +1291,7 @@ cluster = "CLUSTER"
 version = "HOSTNAME"
 
 [chat]
-enabled = true
+enabled = false
 hyperswitch_ai_host = "http://0.0.0.0:8000"
 encryption_key = ""
 
