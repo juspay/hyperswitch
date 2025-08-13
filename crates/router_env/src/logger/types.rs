@@ -628,6 +628,8 @@ pub enum Flow {
     AuthenticationSyncPostUpdate,
     /// Authentication Authenticate flow
     AuthenticationAuthenticate,
+    /// Authentication Session Token flow
+    AuthenticationSessionToken,
     ///Proxy Flow
     Proxy,
     /// Profile Acquirer Create flow
@@ -644,6 +646,8 @@ pub enum Flow {
     DecisionEngineGatewayFeedbackCall,
     /// Recovery payments create flow.
     RecoveryPaymentsCreate,
+    /// Tokenization delete flow
+    TokenizationDelete,
 }
 
 /// Trait for providing generic behaviour to flow metric

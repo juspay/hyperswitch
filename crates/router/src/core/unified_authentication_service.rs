@@ -2,6 +2,8 @@ pub mod types;
 use std::str::FromStr;
 
 pub mod utils;
+#[cfg(feature = "v2")]
+use api_models::authentication::AuthenticationSessionTokenRequest;
 #[cfg(feature = "v1")]
 use api_models::authentication::{
     AuthenticationEligibilityRequest, AuthenticationEligibilityResponse,
@@ -14,10 +16,14 @@ use api_models::{
     },
     payments,
 };
+#[cfg(feature = "v2")]
+use common_utils::types::AmountConvertor;
 #[cfg(feature = "v1")]
 use common_utils::{ext_traits::ValueExt, types::keymanager::ToEncryptable};
 use diesel_models::authentication::{Authentication, AuthenticationNew};
 use error_stack::ResultExt;
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::ext_traits::OptionExt;
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse,
     payment_method_data,
@@ -41,6 +47,11 @@ use super::{
     errors::{RouterResponse, RouterResult},
     payments::helpers::MerchantConnectorAccountType,
 };
+#[cfg(feature = "v2")]
+use crate::core::payments::{
+    get_card_brands_based_on_active_merchant_connector_account,
+    validate_customer_details_for_click_to_pay,
+};
 use crate::{
     consts,
     core::{
@@ -58,6 +69,7 @@ use crate::{
     services::AuthFlow,
     types::{domain::types::AsyncLift, transformers::ForeignTryFrom},
 };
+
 #[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl UnifiedAuthenticationService for ClickToPay {
@@ -550,6 +562,7 @@ pub async fn create_new_authentication(
     currency: Option<common_enums::Currency>,
     return_url: Option<String>,
     profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
+    customer_details: Option<common_utils::encryption::Encryption>,
 ) -> RouterResult<Authentication> {
     let service_details_value = service_details
         .map(serde_json::to_value)
@@ -613,6 +626,7 @@ pub async fn create_new_authentication(
         challenge_cancel: None,
         challenge_code_reason: None,
         message_extension: None,
+        customer_details,
     };
     state
         .store
@@ -701,6 +715,40 @@ pub async fn authentication_create_core(
                 .unwrap_or((None, None, None))
         };
 
+    let customer_details = req
+        .customer_details
+        .clone()
+        .async_lift(|customer_details| async {
+            domain::types::crypto_operation(
+                &key_manager_state,
+                common_utils::type_name!(Authentication),
+                domain::types::CryptoOperation::EncryptOptional(
+                    customer_details
+                        .map(|details| {
+                            common_utils::ext_traits::Encode::encode_to_value(&details)
+                                .map(masking::Secret::<serde_json::Value>::new)
+                                .change_context(ApiErrorResponse::InternalServerError)
+                                .attach_printable(
+                                    "Unable to encode customer details to serde_json::Value",
+                                )
+                        })
+                        .transpose()?,
+                ),
+                common_utils::types::keymanager::Identifier::Merchant(
+                    merchant_context
+                        .get_merchant_key_store()
+                        .merchant_id
+                        .clone(),
+                ),
+                merchant_context.get_merchant_key_store().key.peek(),
+            )
+            .await
+            .and_then(|val| val.try_into_optionaloperation())
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt customer details")
+        })
+        .await?;
+
     let new_authentication = create_new_authentication(
         &state,
         merchant_id.clone(),
@@ -723,6 +771,9 @@ pub async fn authentication_create_core(
         Some(req.currency),
         req.return_url,
         req.profile_acquirer_id.clone(),
+        customer_details
+            .clone()
+            .map(common_utils::encryption::Encryption::from),
     )
     .await?;
 
@@ -748,6 +799,7 @@ pub async fn authentication_create_core(
         profile_id,
         acquirer_details,
         new_authentication.profile_acquirer_id,
+        req.customer_details,
     ))?;
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
@@ -763,17 +815,27 @@ impl
         common_utils::id_type::ProfileId,
         Option<AcquirerDetails>,
         Option<common_utils::id_type::ProfileAcquirerId>,
+        Option<payments::CustomerDetails>,
     )> for AuthenticationResponse
 {
     type Error = error_stack::Report<ApiErrorResponse>;
     fn foreign_try_from(
-        (authentication, amount, currency, profile_id, acquirer_details, profile_acquirer_id): (
+        (
+            authentication,
+            amount,
+            currency,
+            profile_id,
+            acquirer_details,
+            profile_acquirer_id,
+            customer_details,
+        ): (
             Authentication,
             common_utils::types::MinorUnit,
             common_enums::Currency,
             common_utils::id_type::ProfileId,
             Option<AcquirerDetails>,
             Option<common_utils::id_type::ProfileAcquirerId>,
+            Option<payments::CustomerDetails>,
         ),
     ) -> Result<Self, Self::Error> {
         let authentication_connector = authentication
@@ -801,6 +863,7 @@ impl
             psd2_sca_exemption_type: authentication.psd2_sca_exemption_type,
             acquirer_details,
             profile_acquirer_id,
+            customer_details,
         })
     }
 }
@@ -1760,6 +1823,7 @@ pub async fn authentication_create_core(
     } else {
         None
     };
+    let key_manager_state = (&state).into();
 
     let organization_id = merchant_account.organization_id.clone();
     let authentication_id = common_utils::id_type::AuthenticationId::generate_authentication_id(
@@ -1774,6 +1838,40 @@ pub async fn authentication_create_core(
         ),
         None => (None, None, None),
     };
+
+    let customer_details = req
+        .customer_details
+        .clone()
+        .async_lift(|customer_details| async {
+            domain::types::crypto_operation(
+                &key_manager_state,
+                common_utils::type_name!(Authentication),
+                domain::types::CryptoOperation::EncryptOptional(
+                    customer_details
+                        .map(|details| {
+                            common_utils::ext_traits::Encode::encode_to_value(&details)
+                                .map(masking::Secret::<serde_json::Value>::new)
+                                .change_context(ApiErrorResponse::InternalServerError)
+                                .attach_printable(
+                                    "Unable to encode customer details to serde_json::Value",
+                                )
+                        })
+                        .transpose()?,
+                ),
+                common_utils::types::keymanager::Identifier::Merchant(
+                    merchant_context
+                        .get_merchant_key_store()
+                        .merchant_id
+                        .clone(),
+                ),
+                merchant_context.get_merchant_key_store().key.peek(),
+            )
+            .await
+            .and_then(|val| val.try_into_optionaloperation())
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt customer details")
+        })
+        .await?;
 
     let new_authentication = create_new_authentication(
         &state,
@@ -1797,6 +1895,9 @@ pub async fn authentication_create_core(
         Some(req.currency),
         req.return_url,
         req.profile_acquirer_id.clone(),
+        customer_details
+            .clone()
+            .map(common_utils::encryption::Encryption::from),
     )
     .await?;
 
@@ -1822,11 +1923,178 @@ pub async fn authentication_create_core(
         profile_id.clone(),
         acquirer_details,
         new_authentication.profile_acquirer_id,
+        req.customer_details,
     ))?;
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         response,
     ))
+}
+
+#[cfg(feature = "v2")]
+pub async fn authentication_session_core(
+    state: SessionState,
+    merchant_context: domain::MerchantContext,
+    req: AuthenticationSessionTokenRequest,
+    profile: hyperswitch_domain_models::business_profile::Profile,
+) -> RouterResponse<api_models::authentication::AuthenticationSessionResponse> {
+    let merchant_account = merchant_context.get_merchant_account();
+    let merchant_id = merchant_account.get_id();
+    let business_profile = profile;
+    let authentication_id = req.authentication_id;
+    let authentication = state
+        .store
+        .find_authentication_by_merchant_id_authentication_id(merchant_id, &authentication_id)
+        .await
+        .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {
+            id: authentication_id.get_string_repr().to_owned(),
+        })?;
+
+    let mut session_tokens = Vec::new();
+
+    if business_profile.is_click_to_pay_enabled {
+        if let Some(value) = business_profile.authentication_product_ids.clone() {
+            let session_token = get_session_token_for_click_to_pay(
+                &state,
+                merchant_context.get_merchant_account().get_id(),
+                &merchant_context,
+                value,
+                business_profile.get_id(),
+                &authentication,
+            )
+            .await?;
+            session_tokens.push(session_token);
+        }
+    }
+
+    let response = api_models::authentication::AuthenticationSessionResponse {
+        authentication_id,
+        session_token: session_tokens,
+    };
+
+    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+        response,
+    ))
+}
+
+#[cfg(feature = "v2")]
+pub async fn get_session_token_for_click_to_pay(
+    state: &SessionState,
+    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_context: &domain::MerchantContext,
+    authentication_product_ids: common_types::payments::AuthenticationConnectorAccountMap,
+    profile_id: &common_utils::id_type::ProfileId,
+    authentication: &Authentication,
+) -> RouterResult<api_models::authentication::AuthenticationSessionToken> {
+    let click_to_pay_mca_id = authentication_product_ids
+        .get_click_to_pay_connector_account_id()
+        .change_context(ApiErrorResponse::MissingRequiredField {
+            field_name: "authentication_product_ids",
+        })?;
+    let key_manager_state = &(state).into();
+
+    let merchant_connector_account = state
+        .store
+        .find_merchant_connector_account_by_id(
+            key_manager_state,
+            &click_to_pay_mca_id,
+            merchant_context.get_merchant_key_store(),
+        )
+        .await
+        .to_not_found_response(ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: click_to_pay_mca_id.get_string_repr().to_string(),
+        })?;
+
+    let click_to_pay_metadata: hyperswitch_domain_models::payments::ClickToPayMetaData =
+        merchant_connector_account
+            .metadata
+            .parse_value("ClickToPayMetaData")
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Error while parsing ClickToPayMetaData")?;
+    let transaction_currency = authentication
+        .currency
+        .ok_or(ApiErrorResponse::InternalServerError)
+        .attach_printable("currency is not present in payment_data.payment_intent")?;
+    let required_amount_type = common_utils::types::StringMajorUnitForConnector;
+    let amount = authentication
+        .amount
+        .ok_or(ApiErrorResponse::InternalServerError)
+        .attach_printable("amount is not present in authentication")?;
+    let transaction_amount = required_amount_type
+        .convert(amount, transaction_currency)
+        .change_context(ApiErrorResponse::AmountConversionFailed {
+            amount_type: "string major unit",
+        })?;
+
+    let customer_details_decrypted = authentication
+        .customer_details
+        .clone()
+        .async_lift(|inner| async {
+            domain::types::crypto_operation::<serde_json::Value, masking::WithType>(
+                key_manager_state,
+                common_utils::type_name!(Authentication),
+                domain::types::CryptoOperation::DecryptOptional(inner),
+                common_utils::types::keymanager::Identifier::Merchant(
+                    merchant_context
+                        .get_merchant_key_store()
+                        .merchant_id
+                        .clone(),
+                ),
+                merchant_context.get_merchant_key_store().key.peek(),
+            )
+            .await
+            .and_then(|val| val.try_into_optionaloperation())
+        })
+        .await
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to decrypt email from authentication table")?;
+
+    let customer_details = customer_details_decrypted
+        .parse_value("CustomerData")
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Error while parsing customer data from authentication table")?;
+
+    validate_customer_details_for_click_to_pay(&customer_details)?;
+
+    let provider = match merchant_connector_account
+        .connector_name
+        .to_string()
+        .as_str()
+    {
+        "ctp_mastercard" => Some(common_enums::CtpServiceProvider::Mastercard),
+        "ctp_visa" => Some(common_enums::CtpServiceProvider::Visa),
+        _ => None,
+    };
+
+    let card_brands = [
+        common_enums::CardNetwork::Mastercard,
+        common_enums::CardNetwork::Visa,
+    ]
+    .iter()
+    .cloned()
+    .collect::<std::collections::HashSet<_>>();
+
+    Ok(
+        api_models::authentication::AuthenticationSessionToken::ClickToPay(Box::new(
+            payments::ClickToPaySessionResponse {
+                dpa_id: click_to_pay_metadata.dpa_id,
+                dpa_name: click_to_pay_metadata.dpa_name,
+                locale: click_to_pay_metadata.locale,
+                card_brands,
+                acquirer_bin: click_to_pay_metadata.acquirer_bin,
+                acquirer_merchant_id: click_to_pay_metadata.acquirer_merchant_id,
+                merchant_category_code: click_to_pay_metadata.merchant_category_code,
+                merchant_country_code: click_to_pay_metadata.merchant_country_code,
+                transaction_amount,
+                transaction_currency_code: transaction_currency,
+                phone_number: customer_details.phone.clone(),
+                email: customer_details.email.clone(),
+                phone_country_code: customer_details.phone_country_code.clone(),
+                provider,
+                dpa_client_id: click_to_pay_metadata.dpa_client_id.clone(),
+            },
+        )),
+    )
 }
 
 #[cfg(feature = "v2")]
