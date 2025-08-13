@@ -18,7 +18,6 @@ use common_utils::{
 };
 #[cfg(feature = "v2")]
 use diesel_models::types::BillingConnectorPaymentMethodDetails;
-use error_stack::Report;
 #[cfg(feature = "v2")]
 use error_stack::Report;
 #[cfg(feature = "v2")]

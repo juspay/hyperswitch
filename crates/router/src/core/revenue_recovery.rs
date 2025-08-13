@@ -77,7 +77,7 @@ pub async fn upsert_calculate_pcr_task(
 
     match existing_entry {
         Some(existing_process)
-            if existing_process.business_status == business_status::CALCULATE_WORKFLOW_QUEUED =>
+            if existing_process.status == common_enums::enums::ProcessTrackerStatus::Finish =>
         {
             // Entry exists - update the status to New and scheduled time to 1 hour from now
             router_env::logger::info!(
@@ -90,7 +90,7 @@ pub async fn upsert_calculate_pcr_task(
                 retry_count: Some(intent_retry_count.into()),
                 schedule_time: Some(schedule_time),
                 tracking_data: Some(existing_process.clone().tracking_data),
-                business_status: Some(business_status::CALCULATE_WORKFLOW_QUEUED.to_string()),
+                business_status: Some(business_status::PENDING.to_string()),
                 status: Some(enums::ProcessTrackerStatus::Pending),
                 updated_at: Some(common_utils::date_time::now()),
             };
@@ -481,7 +481,7 @@ pub async fn perform_calculate_workflow(
         &connector_customer_id,
         &state.get_req_state(),
         profile,
-        &payment_intent,
+        payment_intent,
         merchant_context_from_revenue_recovery_payment_data,
     )
     .await
@@ -576,9 +576,7 @@ pub async fn perform_calculate_workflow(
                         retry_count: Some(process.clone().retry_count),
                         schedule_time: Some(new_schedule_time),
                         tracking_data: Some(process.clone().tracking_data),
-                        business_status: Some(String::from(
-                            business_status::CALCULATE_WORKFLOW_QUEUED,
-                        )),
+                        business_status: Some(String::from(business_status::PENDING)),
                         status: Some(common_enums::ProcessTrackerStatus::Pending),
                         updated_at: Some(common_utils::date_time::now()),
                     };
@@ -691,7 +689,7 @@ async fn insert_execute_pcr_task_to_pt(
                 schedule_time: Some(schedule_time),
                 tracking_data: Some(existing_process.clone().tracking_data),
                 business_status: Some(String::from(business_status::PENDING)),
-                status: Some(enums::ProcessTrackerStatus::New),
+                status: Some(enums::ProcessTrackerStatus::Pending),
                 updated_at: Some(common_utils::date_time::now()),
             };
 

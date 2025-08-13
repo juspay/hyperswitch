@@ -157,7 +157,7 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                 let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
                     state,
                     &connector_customer_id,
-                    Some("-1".to_string())
+                    None
                 )
                 .await;
 
@@ -206,7 +206,7 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                 let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
                     state,
                     &connector_customer_id,
-                    Some("-1".to_string())
+                    error_code
                 )
                 .await;
 
@@ -419,7 +419,7 @@ impl Action {
                             let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
                     state,
                     &connector_customer_id,
-                    Some("-1".to_string())
+                    None
                 )
                 .await;
 
@@ -627,6 +627,36 @@ impl Action {
                 Ok(())
             }
             Self::TerminalFailure(payment_attempt) => {
+                // update the connector payment transmission field to Unsuccessful and unset active attempt id
+                revenue_recovery_metadata.set_payment_transmission_field_for_api_request(
+                    enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful,
+                );
+
+                let payment_update_req =
+                PaymentsUpdateIntentRequest::update_feature_metadata_and_active_attempt_with_api(
+                    payment_intent
+                        .feature_metadata
+                        .clone()
+                        .unwrap_or_default()
+                        .convert_back()
+                        .set_payment_revenue_recovery_metadata_using_api(
+                            revenue_recovery_metadata.clone(),
+                        ),
+                    api_enums::UpdateActiveAttempt::Unset,
+                );
+                logger::info!(
+                    "Call made to payments update intent api , with the request body {:?}",
+                    payment_update_req
+                );
+                revenue_recovery_core::api::update_payment_intent_api(
+                    state,
+                    payment_intent.id.clone(),
+                    revenue_recovery_payment_data,
+                    payment_update_req,
+                )
+                .await
+                .change_context(errors::RecoveryError::PaymentCallFailed)?;
+            
                 db.as_scheduler()
                     .finish_process_with_business_status(
                         execute_task_process.clone(),
@@ -714,7 +744,7 @@ impl Action {
                     let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
                     state,
                     &connector_customer_id,
-                    Some("-1".to_string())
+                    None
                 )
                 .await;
 
@@ -870,6 +900,37 @@ impl Action {
             }
 
             Self::TerminalFailure(payment_attempt) => {
+                // update the connector payment transmission field to Unsuccessful and unset active attempt id
+                revenue_recovery_metadata.set_payment_transmission_field_for_api_request(
+                    enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful,
+                );
+
+                let payment_update_req =
+                PaymentsUpdateIntentRequest::update_feature_metadata_and_active_attempt_with_api(
+                    payment_intent
+                        .feature_metadata
+                        .clone()
+                        .unwrap_or_default()
+                        .convert_back()
+                        .set_payment_revenue_recovery_metadata_using_api(
+                            revenue_recovery_metadata.clone(),
+                        ),
+                    api_enums::UpdateActiveAttempt::Unset,
+                );
+                logger::info!(
+                    "Call made to payments update intent api , with the request body {:?}",
+                    payment_update_req
+                );
+
+                revenue_recovery_core::api::update_payment_intent_api(
+                    state,
+                    payment_intent.id.clone(),
+                    revenue_recovery_payment_data,
+                    payment_update_req,
+                )
+                .await
+                .change_context(errors::RecoveryError::PaymentCallFailed)?;
+            
                 // TODO: Add support for retrying failed outgoing recordback webhooks
                 // finish the current psync task
                 db.as_scheduler()
@@ -1008,14 +1069,14 @@ pub async fn reopen_calculate_workflow_on_payment_failure(
             // 3. Set business status to QUEUED
             // 4. Schedule for immediate execution
             let new_retry_count = process.retry_count + 1;
-            let new_schedule_time = common_utils::date_time::now() + time::Duration::hours(1);
+            let new_schedule_time = common_utils::date_time::now() + time::Duration::minutes(1);
 
             let pt_update = storage::ProcessTrackerUpdate::Update {
                 name: Some(task.to_string()),
                 retry_count: Some(new_retry_count),
                 schedule_time: Some(new_schedule_time),
                 tracking_data: Some(process.clone().tracking_data),
-                business_status: Some(String::from(business_status::CALCULATE_WORKFLOW_QUEUED)),
+                business_status: Some(String::from(business_status::PENDING)),
                 status: Some(common_enums::ProcessTrackerStatus::Pending),
                 updated_at: Some(common_utils::date_time::now()),
             };
