@@ -865,8 +865,7 @@ impl IncomingWebhook for Nmi {
                 .as_str();
 
             // Decode hex signature to bytes
-            hex::decode(signature)
-                .change_context(ConnectorError::WebhookSignatureNotFound)
+            hex::decode(signature).change_context(ConnectorError::WebhookSignatureNotFound)
         } else {
             Err(report!(ConnectorError::WebhookSignatureNotFound))
         }
