@@ -1888,7 +1888,7 @@ pub async fn post_authentication_core(
         is_authenticated: false, // This is not relevant in this flow so keeping it as false
         locale: None,
         supported_card_brands: None,
-        encrypted_payload: service_details
+        encypted_payload: service_details
             .as_ref()
             .and_then(|details| details.encrypted_payload.clone()),
     });
