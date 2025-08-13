@@ -518,11 +518,13 @@ impl RevenueRecoveryAttempt {
         payment_intent: &domain_payments::PaymentIntent,
         revenue_recovery_metadata: &api_payments::PaymentRevenueRecoveryMetadata,
         billing_connector_account: &domain::MerchantConnectorAccount,
+        card_info: api_payments::AdditionalCardInfo,
     ) -> CustomResult<Self, errors::RevenueRecoveryError> {
         let revenue_recovery_data = payment_intent
             .create_revenue_recovery_attempt_data(
                 revenue_recovery_metadata.clone(),
                 billing_connector_account,
+                card_info,
             )
             .change_context(errors::RevenueRecoveryError::RevenueRecoveryAttemptDataCreateFailed)
             .attach_printable("Failed to build recovery attempt data")?;
@@ -733,8 +735,8 @@ impl RevenueRecoveryAttempt {
                 charge_id: self.0.charge_id.clone(),
             }),
         };
-
-        let card_info = revenue_recovery_attempt_data
+        // TODO! card info support needs to be added to populate card_information
+        let _card_info = revenue_recovery_attempt_data
             .card_info
             .card_isin
             .clone()
@@ -749,8 +751,14 @@ impl RevenueRecoveryAttempt {
             })
             .await
             .flatten();
+        let payment_method_data = api_models::payments::RecordAttemptPaymentMethodDataRequest {
+            payment_method_data: api_models::payments::AdditionalPaymentData::Card(Box::new(
+                revenue_recovery_attempt_data.card_info.clone(),
+            )),
+            billing: None,
+        };
 
-        let card_issuer = card_info.and_then(|info| info.card_issuer);
+        let card_issuer = revenue_recovery_attempt_data.card_info.card_issuer.clone();
 
         let error =
             Option::<api_payments::RecordAttemptErrorDetails>::from(revenue_recovery_attempt_data);
@@ -769,7 +777,7 @@ impl RevenueRecoveryAttempt {
             payment_method_type: revenue_recovery_attempt_data.payment_method_type,
             billing_connector_id: billing_merchant_connector_account_id.clone(),
             payment_method_subtype: revenue_recovery_attempt_data.payment_method_sub_type,
-            payment_method_data: None,
+            payment_method_data: Some(payment_method_data),
             metadata: None,
             feature_metadata: Some(feature_metadata),
             transaction_created_at: revenue_recovery_attempt_data.transaction_created_at,

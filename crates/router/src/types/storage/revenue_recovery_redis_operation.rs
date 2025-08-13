@@ -498,7 +498,7 @@ impl RedisTokenManager {
             Self::get_connector_customer_payment_processor_tokens(state, connector_customer_id)
                 .await?
                 .values()
-                .find(|status| status.scheduled_at.is_some())
+                .find(|status| status.error_code.is_some())
                 .map(|status| PaymentProcessorTokenStatus {
                     payment_processor_token_details: status.payment_processor_token_details.clone(),
                     inserted_by_attempt_id: status.inserted_by_attempt_id.clone(),
@@ -620,7 +620,7 @@ impl RedisTokenManager {
 
         let scheduled_token = tokens
             .values()
-            .find(|status| status.scheduled_at.is_some())
+            .find(|status| status.error_code.is_some())
             .cloned();
 
         tracing::debug!(

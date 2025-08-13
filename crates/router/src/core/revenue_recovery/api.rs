@@ -13,7 +13,10 @@ use crate::{
         payments::{self, operations::Operation},
         webhooks::recovery_incoming,
     },
-    db::errors::{RouterResponse, StorageErrorExt},
+    db::{
+        errors::{RouterResponse, StorageErrorExt},
+        storage::revenue_recovery_redis_operation::RedisTokenManager,
+    },
     logger,
     routes::{app::ReqState, SessionState},
     services,
@@ -21,6 +24,7 @@ use crate::{
         api::payments as api_types,
         domain,
         storage::{self, revenue_recovery as revenue_recovery_types},
+        transformers::ForeignFrom,
     },
 };
 
@@ -31,7 +35,7 @@ pub async fn call_psync_api(
 ) -> RouterResult<payments_domain::PaymentStatusData<api_types::PSync>> {
     let operation = payments::operations::PaymentGet;
     let req = payments_api::PaymentsRetrieveRequest {
-        force_sync: false,
+        force_sync: true,
         param: None,
         expand_attempts: true,
         return_raw_connector_response: None,
@@ -182,12 +186,14 @@ pub async fn record_internal_attempt_api(
     payment_intent: &payments_domain::PaymentIntent,
     revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
     revenue_recovery_metadata: &payments_api::PaymentRevenueRecoveryMetadata,
+    card_info: payments_api::AdditionalCardInfo,
 ) -> RouterResult<payments_api::PaymentAttemptRecordResponse> {
     let revenue_recovery_attempt_data =
         recovery_incoming::RevenueRecoveryAttempt::get_revenue_recovery_attempt(
             payment_intent,
             revenue_recovery_metadata,
             &revenue_recovery_payment_data.billing_mca,
+            card_info,
         )
         .change_context(errors::ApiErrorResponse::GenericNotFoundError {
             message: "get_revenue_recovery_attempt was not constructed".to_string(),
