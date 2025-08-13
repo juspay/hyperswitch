@@ -583,7 +583,6 @@ pub async fn list_roles_with_info(
             role_api::ListRolesResponse::WithParentGroups(list_role_info_response),
         ))
     } else {
-        // Return RoleInfoResponseNew format
         let list_role_info_response = role_info_vec
             .into_iter()
             .filter_map(|role_info| {
