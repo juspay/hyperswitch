@@ -35,8 +35,6 @@ use hyperswitch_domain_models::{
     router_flow_types::Authorize,
 };
 #[cfg(feature = "v2")]
-use crate::workflows::revenue_recovery::pcr::api;
-#[cfg(feature = "v2")]
 use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
 use router_env::logger;
@@ -66,6 +64,8 @@ use crate::types::storage::revenue_recovery_redis_operation::{
 };
 #[cfg(feature = "v2")]
 use crate::workflows::revenue_recovery::payments::helpers;
+#[cfg(feature = "v2")]
+use crate::workflows::revenue_recovery::pcr::api;
 #[cfg(feature = "v2")]
 use crate::{
     core::{
