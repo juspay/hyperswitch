@@ -53,6 +53,7 @@ pub mod worldpayvantiv_constants {
     pub const XML_STANDALONE: &str = "yes";
     pub const XML_CHARGEBACK: &str = "http://www.vantivcnp.com/chargebacks";
     pub const MAC_FIELD_NUMBER: &str = "39";
+    pub const CUSTOMER_REFERENCE_MAX_LENGTH: usize = 17;
 }
 
 pub struct WorldpayvantivRouterData<T> {
@@ -297,7 +298,7 @@ pub struct Sale {
 #[serde(rename_all = "camelCase")]
 pub struct EnhancedData {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub customer_reference: Option<CustomerId>,
+    pub customer_reference: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sales_tax: Option<MinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -675,6 +676,7 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
             .customer_id
             .clone()
             .map(|customer_id| customer_id.get_string_repr().to_string());
+        
         let bill_to_address = get_bill_to_address(item.router_data);
         let ship_to_address = get_ship_to_address(item.router_data);
         let processing_info = get_processing_info(&item.router_data.request)?;
@@ -770,9 +772,9 @@ impl TryFrom<&SetupMandateRouterData> for CnpOnlineRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &SetupMandateRouterData) -> Result<Self, Self::Error> {
         if item.is_three_ds()
-            && !matches!(
+            && matches!(
                 item.request.payment_method_data,
-                PaymentMethodData::Wallet(_)
+                PaymentMethodData::Card(_)
             )
         {
             Err(errors::ConnectorError::NotSupported {
@@ -815,6 +817,7 @@ impl TryFrom<&SetupMandateRouterData> for CnpOnlineRequest {
             .customer_id
             .clone()
             .map(|customer_id| customer_id.get_string_repr().to_string());
+
         let bill_to_address = get_bill_to_address(item);
         let ship_to_address = get_ship_to_address(item);
         let processing_type = if item.request.is_customer_initiated_mandate_payment() {
@@ -934,8 +937,12 @@ where
             None => None,
         };
 
+        let customer_reference = get_vantiv_customer_reference(
+            &l2_l3_data.customer_id,
+        );
+
         let enhanced_data = EnhancedData {
-            customer_reference: l2_l3_data.customer_id,
+            customer_reference,
             sales_tax: l2_l3_data.order_tax_amount,
             tax_exempt,
             discount_amount: l2_l3_data.discount_amount,
@@ -1436,6 +1443,19 @@ where
             }
         }
     }
+}
+
+fn get_vantiv_customer_reference(
+    customer_id: &Option<CustomerId>,
+) -> Option<String> {
+    customer_id.as_ref().and_then(|id| {
+        let customer_id_str = id.get_string_repr().to_string();
+        if customer_id_str.len() <= worldpayvantiv_constants::CUSTOMER_REFERENCE_MAX_LENGTH {
+            Some(customer_id_str)
+        } else {
+            None
+        }
+    })
 }
 
 impl<F> TryFrom<ResponseRouterData<F, CnpOnlineResponse, PaymentsCancelData, PaymentsResponseData>>
