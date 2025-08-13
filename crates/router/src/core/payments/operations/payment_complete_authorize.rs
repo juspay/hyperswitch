@@ -308,6 +308,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     merchant_connector_details.creds_identifier.to_owned()
                 });
 
+        let chargebee_subscription_id = request.connector_metadata.as_ref().and_then(|cm| {
+            cm.chargebee
+                .as_ref()
+                .and_then(|cb| cb.subscription_id.clone())
+        });
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -363,6 +369,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             vault_operation: None,
             threeds_method_comp_ind: request.threeds_method_comp_ind.clone(),
             whole_connector_response: None,
+            billing_connector_subscription_id: chargebee_subscription_id,
         };
 
         let customer_details = Some(CustomerDetails {

@@ -6896,6 +6896,7 @@ where
     pub vault_operation: Option<domain_payments::VaultOperation>,
     pub threeds_method_comp_ind: Option<api_models::payments::ThreeDsCompletionIndicator>,
     pub whole_connector_response: Option<Secret<String>>,
+    pub billing_connector_subscription_id: Option<String>,
 }
 
 #[derive(Clone, serde::Serialize, Debug)]

@@ -582,6 +582,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let unified_address =
             address.unify_with_payment_method_data_billing(payment_method_data_billing);
 
+        let chargebee_subscription_id = request.connector_metadata.as_ref().and_then(|cm| {
+            cm.chargebee
+                .as_ref()
+                .and_then(|cb| cb.subscription_id.clone())
+        });
+
+        logger::debug!("subscription-ID-create: {:?}", chargebee_subscription_id);
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -629,6 +637,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             vault_operation: None,
             threeds_method_comp_ind: None,
             whole_connector_response: None,
+            billing_connector_subscription_id: chargebee_subscription_id,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

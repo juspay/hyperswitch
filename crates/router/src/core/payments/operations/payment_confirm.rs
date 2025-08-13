@@ -430,6 +430,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .as_ref()
             .map(|mcd| mcd.creds_identifier.to_owned());
 
+        let chargebee_subscription_id = request.connector_metadata.as_ref().and_then(|cm| {
+            cm.chargebee
+                .as_ref()
+                .and_then(|cb| cb.subscription_id.clone())
+        });
+
+        logger::debug!("subscription-ID-confirm: {:?}", chargebee_subscription_id);
+
         payment_intent.shipping_address_id =
             shipping_address.as_ref().map(|i| i.address_id.clone());
         payment_intent.billing_address_id = billing_address.as_ref().map(|i| i.address_id.clone());
@@ -829,6 +837,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             vault_operation: None,
             threeds_method_comp_ind: None,
             whole_connector_response: None,
+            billing_connector_subscription_id: chargebee_subscription_id,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

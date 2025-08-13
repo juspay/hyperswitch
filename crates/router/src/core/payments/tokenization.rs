@@ -93,6 +93,7 @@ pub async fn save_payment_method<FData>(
     merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     vault_operation: Option<hyperswitch_domain_models::payments::VaultOperation>,
     payment_method_info: Option<domain::PaymentMethod>,
+    billing_connector_subscription_id: Option<String>,
 ) -> RouterResult<SavePaymentMethodDataResponse>
 where
     FData: mandate::MandateBehaviour + Clone,
@@ -387,12 +388,13 @@ where
                                         pm.metadata.as_ref(),
                                         connector_token,
                                     )?;
-                                    payment_methods::cards::update_payment_method_metadata_and_last_used(
+                                    payment_methods::cards::update_payment_method_metadata_and_last_used_and_subscription_id(
                                         state,
                                         merchant_context.get_merchant_key_store(),
                                         db,
                                         pm.clone(),
                                         pm_metadata,
+                                        billing_connector_subscription_id.clone(),
                                         merchant_context.get_merchant_account().storage_scheme,
                                     )
                                     .await
@@ -425,7 +427,7 @@ where
                                                 network_token_requestor_ref_id,
                                                 network_token_locker_id,
                                                 pm_network_token_data_encrypted,
-                                                None, // change this to accept the actual id
+                                                billing_connector_subscription_id, // change this to accept the actual id
                                             )
                                             .await
                                     } else {
@@ -545,7 +547,7 @@ where
                                                     network_token_requestor_ref_id,
                                                     network_token_locker_id,
                                                     pm_network_token_data_encrypted,
-                                                    None,
+                                                    billing_connector_subscription_id,
                                                 )
                                                 .await
                                         } else {
@@ -767,7 +769,7 @@ where
                                     network_token_requestor_ref_id.clone(),
                                     network_token_locker_id,
                                     pm_network_token_data_encrypted,
-                                    None,
+                                    billing_connector_subscription_id,
                                 )
                                 .await?;
 

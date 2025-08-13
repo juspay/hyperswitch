@@ -2142,17 +2142,19 @@ where
 }
 
 #[cfg(feature = "v1")]
-pub async fn update_payment_method_metadata_and_last_used(
+pub async fn update_payment_method_metadata_and_last_used_and_subscription_id(
     state: &routes::SessionState,
     key_store: &domain::MerchantKeyStore,
     db: &dyn db::StorageInterface,
     pm: domain::PaymentMethod,
     pm_metadata: Option<serde_json::Value>,
+    billing_connector_subscription_id: Option<String>,
     storage_scheme: MerchantStorageScheme,
 ) -> errors::CustomResult<(), errors::VaultError> {
     let pm_update = payment_method::PaymentMethodUpdate::MetadataUpdateAndLastUsed {
         metadata: pm_metadata,
         last_used_at: common_utils::date_time::now(),
+        billing_connector_subscription_id,
     };
     db.update_payment_method(&(state.into()), key_store, pm, pm_update, storage_scheme)
         .await

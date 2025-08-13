@@ -553,6 +553,7 @@ async fn get_tracker_for_sync<
         vault_operation: None,
         threeds_method_comp_ind: None,
         whole_connector_response: None,
+        billing_connector_subscription_id: None,
     };
 
     let get_trackers_response = operations::GetTrackerResponse {
