@@ -123,6 +123,8 @@ impl ForeignFrom<&api_models::payments::RecoveryPaymentsCreate>
                     card_holder_name: None,
                     payment_checks: None,
                     authentication_data: None,
+                    is_regulated: None,
+                    signature_network: None,
                 }),
             charge_id: None,
         }
