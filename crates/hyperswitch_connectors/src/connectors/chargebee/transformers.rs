@@ -534,7 +534,6 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
                 authentication_data: None,
                 is_regulated: None,
                 signature_network: None,
-
             },
         })
     }

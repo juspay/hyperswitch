@@ -262,7 +262,7 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
     payment_intent: &PaymentIntent,
     retry_count_left: i32,
     retry_after_time: Option<prost_types::Timestamp>,
-    pg_error_code : Option<String>,
+    pg_error_code: Option<String>,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
     let card_config = &state.conf.revenue_recovery.card_config;
     let first_error_message = match payment_attempt.error.as_ref() {

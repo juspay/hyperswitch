@@ -770,7 +770,6 @@ impl PaymentIntent {
                 authentication_data: None,
                 is_regulated: None,
                 signature_network: None,
-
             },
         })
     }
