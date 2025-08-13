@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use common_utils::{consts as common_utils_consts, errors::CustomResult, types::Url};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
@@ -143,6 +145,10 @@ pub struct ConnectorAuthMetadata {
 
     /// Optional API secret used for signature or secure authentication.
     pub api_secret: Option<Secret<String>>,
+
+    /// Optional auth_key_map used for authentication.
+    pub auth_key_map:
+        Option<HashMap<common_enums::enums::Currency, common_utils::pii::SecretSerdeValue>>,
 
     /// Id of the merchant.
     pub merchant_id: Secret<String>,
@@ -379,6 +385,16 @@ pub fn build_unified_connector_service_grpc_headers(
         metadata.append(
             consts::UCS_HEADER_API_SECRET,
             parse("api_secret", api_secret.peek())?,
+        );
+    }
+    if let Some(auth_key_map) = meta.auth_key_map {
+        let auth_key_map_str = serde_json::to_string(&auth_key_map).map_err(|error| {
+            logger::error!(?error);
+            UnifiedConnectorServiceError::ParsingFailed
+        })?;
+        metadata.append(
+            consts::UCS_HEADER_AUTH_KEY_MAP,
+            parse("auth_key_map", &auth_key_map_str)?,
         );
     }
 
