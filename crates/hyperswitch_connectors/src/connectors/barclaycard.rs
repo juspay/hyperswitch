@@ -8,32 +8,34 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, MinorUnit, StringMajorUnitForConnector, StringMajorUnit}
+    types::{AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
-        payments::{Authorize, Capture, CompleteAuthorize, PreProcessing, PSync, PaymentMethodToken, Session, SetupMandate, Void },
+        payments::{
+            Authorize, Capture, CompleteAuthorize, PSync, PaymentMethodToken, PreProcessing,
+            Session, SetupMandate, Void,
+        },
         refunds::{Execute, RSync},
     },
     router_request_types::{
-        AccessTokenRequestData, CompleteAuthorizeData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
-        RefundsData, SetupMandateRequestData,
+        AccessTokenRequestData, CompleteAuthorizeData, PaymentMethodTokenizationData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData,
+        PaymentsSessionData, PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
         SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData, PaymentsCompleteAuthorizeRouterData,
-        PaymentsPreProcessingRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsCompleteAuthorizeRouterData, PaymentsPreProcessingRouterData,
         PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
-
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
@@ -54,13 +56,16 @@ use url::Url;
 use crate::{
     constants::{self, headers},
     types::ResponseRouterData,
-    utils::{convert_amount, RefundsRequestData, PaymentsAuthorizeRequestData, RouterData as OtherRouterData},
+    utils::{
+        convert_amount, PaymentsAuthorizeRequestData, RefundsRequestData,
+        RouterData as OtherRouterData,
+    },
 };
 
 pub const V_C_MERCHANT_ID: &str = "v-c-merchant-id";
 
 #[derive(Clone)]
-pub struct Barclaycard{
+pub struct Barclaycard {
     amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
 }
 
@@ -347,7 +352,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
     ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
-    
+
     fn get_content_type(&self) -> &'static str {
         self.common_get_content_type()
     }
@@ -419,7 +424,9 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
-                .url(&types::PaymentsPreProcessingType::get_url(self, req, connectors)?)
+                .url(&types::PaymentsPreProcessingType::get_url(
+                    self, req, connectors,
+                )?)
                 .attach_default_headers()
                 .headers(types::PaymentsPreProcessingType::get_headers(
                     self, req, connectors,
@@ -477,9 +484,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        if req.is_three_ds()
-            && req.request.is_card()
-        {
+        if req.is_three_ds() && req.request.is_card() {
             Ok(format!(
                 "{}risk/v1/authentication-setups",
                 ConnectorCommon::base_url(self, connectors)
@@ -505,15 +510,13 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         )?;
         let connector_router_data = barclaycard::BarclaycardRouterData::try_from((amount, req))?;
 
-        if req.is_three_ds()
-            && req.request.is_card()
-        {
+        if req.is_three_ds() && req.request.is_card() {
             let connector_req =
                 barclaycard::BarclaycardAuthSetupRequest::try_from(&connector_router_data)?;
             Ok(RequestContent::Json(Box::new(connector_req)))
         } else {
             let connector_req =
-            barclaycard::BarclaycardPaymentsRequest::try_from(&connector_router_data)?;
+                barclaycard::BarclaycardPaymentsRequest::try_from(&connector_router_data)?;
             Ok(RequestContent::Json(Box::new(connector_req)))
         }
     }
@@ -546,9 +549,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        if data.is_three_ds()
-            && data.request.is_card()
-        {
+        if data.is_three_ds() && data.request.is_card() {
             let response: barclaycard::BarclaycardAuthSetupResponse = res
                 .response
                 .parse_struct("Barclaycard AuthSetupResponse")
@@ -561,18 +562,18 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 http_code: res.status_code,
             })
         } else {
-        let response: barclaycard::BarclaycardPaymentsResponse = res
-            .response
-            .parse_struct("Barclaycard PaymentsAuthorizeResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
+            let response: barclaycard::BarclaycardPaymentsResponse = res
+                .response
+                .parse_struct("Barclaycard PaymentsAuthorizeResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            event_builder.map(|i| i.set_response_body(&response));
+            router_env::logger::info!(connector_response=?response);
+            RouterData::try_from(ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            })
+        }
     }
 
     fn get_error_response(
@@ -855,7 +856,8 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ba
         let amount = convert_amount(
             self.amount_converter,
             amount_in_minor_unit,
-            req.request.currency
+            req.request
+                .currency
                 .ok_or(errors::ConnectorError::MissingRequiredField {
                     field_name: "currency",
                 })?,

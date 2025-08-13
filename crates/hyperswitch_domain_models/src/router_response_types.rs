@@ -264,7 +264,7 @@ pub enum RedirectForm {
         ddc_url: String,
         reference_id: String,
     },
-    BarclaycardConsumerAuth{
+    BarclaycardConsumerAuth {
         access_token: String,
         step_up_url: String,
     },

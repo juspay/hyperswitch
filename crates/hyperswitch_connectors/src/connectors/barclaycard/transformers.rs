@@ -1,6 +1,11 @@
 use base64::Engine;
 use common_enums::enums;
-use common_utils::{consts, date_time, pii , types::SemanticVersion, ext_traits::ValueExt, types::StringMajorUnit};
+use common_utils::{
+    consts, date_time,
+    ext_traits::ValueExt,
+    pii,
+    types::{SemanticVersion, StringMajorUnit},
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{GooglePayWalletData, PaymentMethodData, WalletData},
@@ -10,13 +15,14 @@ use hyperswitch_domain_models::{
     },
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{
-        authentication::MessageExtensionAttribute, CompleteAuthorizeData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSyncData,
+        authentication::MessageExtensionAttribute, CompleteAuthorizeData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSyncData,
         ResponseId,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData, RedirectForm},
+    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData, PaymentsCompleteAuthorizeRouterData, PaymentsPreProcessingRouterData,
-        RefundsRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsCompleteAuthorizeRouterData, PaymentsPreProcessingRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::errors;
@@ -28,8 +34,9 @@ use crate::{
     constants,
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData, PaymentsPreProcessingRequestData,  PaymentsSyncRequestData,
-        RouterData as OtherRouterData,
+        self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData,
+        PaymentsCompleteAuthorizeRequestData, PaymentsPreProcessingRequestData,
+        PaymentsSyncRequestData, RouterData as OtherRouterData,
     },
 };
 pub struct BarclaycardAuthType {
@@ -63,16 +70,9 @@ pub struct BarclaycardRouterData<T> {
     pub router_data: T,
 }
 
-impl<T> TryFrom<(StringMajorUnit, T)>
-    for BarclaycardRouterData<T>
-{
+impl<T> TryFrom<(StringMajorUnit, T)> for BarclaycardRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (amount, item): (
-            StringMajorUnit,
-            T,
-        ),
-    ) -> Result<Self, Self::Error> {
+    fn try_from((amount, item): (StringMajorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data: item,
@@ -382,7 +382,9 @@ impl
     }
 }
 
-impl From<&BarclaycardRouterData<&PaymentsCompleteAuthorizeRouterData>> for ClientReferenceInformation {
+impl From<&BarclaycardRouterData<&PaymentsCompleteAuthorizeRouterData>>
+    for ClientReferenceInformation
+{
     fn from(item: &BarclaycardRouterData<&PaymentsCompleteAuthorizeRouterData>) -> Self {
         Self {
             code: Some(item.router_data.connector_request_reference_id.clone()),
@@ -1063,7 +1065,10 @@ impl
             hyperswitch_domain_models::payment_method_data::Card,
         ),
     ) -> Result<Self, Self::Error> {
-        let email = item.router_data.get_billing_email().or(item.router_data.request.get_email())?;
+        let email = item
+            .router_data
+            .get_billing_email()
+            .or(item.router_data.request.get_email())?;
         let bill_to = build_bill_to(item.router_data.get_billing_address()?, email)?;
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
         let payment_information = PaymentInformation::try_from(&ccard)?;
@@ -1167,7 +1172,10 @@ impl
             hyperswitch_domain_models::payment_method_data::Card,
         ),
     ) -> Result<Self, Self::Error> {
-        let email = item.router_data.get_billing_email().or(item.router_data.request.get_email())?;
+        let email = item
+            .router_data
+            .get_billing_email()
+            .or(item.router_data.request.get_email())?;
         let bill_to = build_bill_to(item.router_data.get_billing_address()?, email)?;
         let order_information = OrderInformationWithBill::from((item, bill_to));
         let payment_information = PaymentInformation::try_from(&ccard)?;
@@ -1216,7 +1224,7 @@ impl
             network_score: None,
             acs_transaction_id: None,
         });
-        
+
         Ok(Self {
             processing_information,
             payment_information,
@@ -1241,7 +1249,10 @@ impl
             GooglePayWalletData,
         ),
     ) -> Result<Self, Self::Error> {
-        let email = item.router_data.get_billing_email().or(item.router_data.request.get_email())?;
+        let email = item
+            .router_data
+            .get_billing_email()
+            .or(item.router_data.request.get_email())?;
         let bill_to = build_bill_to(item.router_data.get_billing_address()?, email)?;
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
         let payment_information = PaymentInformation::try_from(&google_pay_data)?;
@@ -1811,7 +1822,10 @@ impl<F>
         match item.response {
             BarclaycardPaymentsResponse::ClientReferenceInformation(info_response) => {
                 let status = map_barclaycard_attempt_status((
-                    info_response.status.clone().unwrap_or(BarclaycardPaymentStatus::StatusNotReceived),
+                    info_response
+                        .status
+                        .clone()
+                        .unwrap_or(BarclaycardPaymentStatus::StatusNotReceived),
                     item.data.request.is_auto_capture()?,
                 ));
                 let response = get_payment_response((&info_response, status, item.http_code))
@@ -1915,7 +1929,13 @@ impl<F>
     ) -> Result<Self, Self::Error> {
         match item.response {
             BarclaycardPaymentsResponse::ClientReferenceInformation(info_response) => {
-                let status = map_barclaycard_attempt_status((info_response.status.clone().unwrap_or(BarclaycardPaymentStatus::StatusNotReceived), true));
+                let status = map_barclaycard_attempt_status((
+                    info_response
+                        .status
+                        .clone()
+                        .unwrap_or(BarclaycardPaymentStatus::StatusNotReceived),
+                    true,
+                ));
                 let response = get_payment_response((&info_response, status, item.http_code))
                     .map_err(|err| *err);
                 Ok(Self {
@@ -1952,7 +1972,13 @@ impl<F>
     ) -> Result<Self, Self::Error> {
         match item.response {
             BarclaycardPaymentsResponse::ClientReferenceInformation(info_response) => {
-                let status = map_barclaycard_attempt_status((info_response.status.clone().unwrap_or(BarclaycardPaymentStatus::StatusNotReceived), false));
+                let status = map_barclaycard_attempt_status((
+                    info_response
+                        .status
+                        .clone()
+                        .unwrap_or(BarclaycardPaymentStatus::StatusNotReceived),
+                    false,
+                ));
                 let response = get_payment_response((&info_response, status, item.http_code))
                     .map_err(|err| *err);
                 Ok(Self {
@@ -2134,7 +2160,13 @@ impl<F>
     ) -> Result<Self, Self::Error> {
         match item.response {
             BarclaycardPaymentsResponse::ClientReferenceInformation(info_response) => {
-                let status = map_barclaycard_attempt_status((info_response.status.clone().unwrap_or(BarclaycardPaymentStatus::StatusNotReceived),item.data.request.is_auto_capture()?));
+                let status = map_barclaycard_attempt_status((
+                    info_response
+                        .status
+                        .clone()
+                        .unwrap_or(BarclaycardPaymentStatus::StatusNotReceived),
+                    item.data.request.is_auto_capture()?,
+                ));
                 let response = get_payment_response((&info_response, status, item.http_code))
                     .map_err(|err| *err);
                 let connector_response = info_response
