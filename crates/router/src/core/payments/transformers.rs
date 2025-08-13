@@ -314,7 +314,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             payment_data
                 .payment_intent
                 .request_incremental_authorization,
-            RequestIncrementalAuthorization::True | RequestIncrementalAuthorization::Default
+            RequestIncrementalAuthorization::True
         ),
         metadata: payment_data.payment_intent.metadata.expose_option(),
         authentication_data: None,
@@ -1025,7 +1025,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
             payment_data
                 .payment_intent
                 .request_incremental_authorization,
-            RequestIncrementalAuthorization::True | RequestIncrementalAuthorization::Default
+            RequestIncrementalAuthorization::True
         ),
         metadata: payment_data.payment_intent.metadata,
         minor_amount: Some(payment_data.payment_attempt.amount_details.get_net_amount()),
@@ -3935,7 +3935,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                     .payment_intent
                     .request_incremental_authorization,
                 Some(RequestIncrementalAuthorization::True)
-                    | Some(RequestIncrementalAuthorization::Default)
             ),
             metadata: additional_data.payment_data.payment_intent.metadata,
             authentication_data: payment_data
@@ -4844,7 +4843,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                     .payment_intent
                     .request_incremental_authorization,
                 Some(RequestIncrementalAuthorization::True)
-                    | Some(RequestIncrementalAuthorization::Default)
             ),
             metadata: payment_data.payment_intent.metadata.clone().map(Into::into),
             shipping_cost: payment_data.payment_intent.shipping_cost,
