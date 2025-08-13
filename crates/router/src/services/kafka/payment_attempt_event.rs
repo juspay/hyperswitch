@@ -72,11 +72,16 @@ pub struct KafkaPaymentAttemptEvent<'a> {
     pub card_discovery: Option<String>,
     pub routing_approach: Option<storage_enums::RoutingApproach>,
     pub debit_routing_savings: Option<MinorUnit>,
+    pub signature_network: Option<common_enums::CardNetwork>,
+    pub is_issuer_regulated: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
 impl<'a> KafkaPaymentAttemptEvent<'a> {
     pub fn from_storage(attempt: &'a PaymentAttempt) -> Self {
+        let card_payment_method_data = attempt
+            .get_payment_method_data()
+            .and_then(|data| data.get_additional_card_info());
         Self {
             payment_id: &attempt.payment_id,
             merchant_id: &attempt.merchant_id,
@@ -135,6 +140,10 @@ impl<'a> KafkaPaymentAttemptEvent<'a> {
                 .map(|discovery| discovery.to_string()),
             routing_approach: attempt.routing_approach.clone(),
             debit_routing_savings: attempt.debit_routing_savings,
+            signature_network: card_payment_method_data
+                .as_ref()
+                .and_then(|data| data.signature_network.clone()),
+            is_issuer_regulated: card_payment_method_data.and_then(|data| data.is_regulated),
         }
     }
 }

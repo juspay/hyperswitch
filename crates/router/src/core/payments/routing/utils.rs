@@ -420,14 +420,14 @@ pub async fn decision_engine_routing(
         return Ok(Vec::default());
     };
 
-    let de_output_conenctor = extract_de_output_connectors(de_euclid_response.output)
+    let de_output_connector = extract_de_output_connectors(de_euclid_response.output)
             .map_err(|e| {
                 logger::error!(error=?e, "decision_engine_euclid_evaluation_error: Failed to extract connector from Output");
                 e
             })?;
 
     transform_de_output_for_router(
-            de_output_conenctor.clone(),
+            de_output_connector.clone(),
             de_euclid_response.evaluated_output.clone(),
         )
         .map_err(|e| {
