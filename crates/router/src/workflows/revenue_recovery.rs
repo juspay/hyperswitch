@@ -65,6 +65,8 @@ use crate::types::storage::revenue_recovery_redis_operation::{
 #[cfg(feature = "v2")]
 use crate::workflows::revenue_recovery::payments::helpers;
 #[cfg(feature = "v2")]
+use crate::workflows::revenue_recovery::pcr::api;
+#[cfg(feature = "v2")]
 use crate::{
     core::{
         payments,
@@ -81,7 +83,7 @@ use crate::{
         },
     },
 };
-use crate::{routes::SessionState, types::storage};
+use crate::{routes::SessionState, types::storage, workflows::revenue_recovery::pcr::api};
 pub struct ExecutePcrWorkflow;
 #[cfg(feature = "v2")]
 pub const REVENUE_RECOVERY: &str = "revenue_recovery";
@@ -677,39 +679,10 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
     payment_intent: &PaymentIntent,
     connector_customer_id: &str,
 ) -> CustomResult<Option<ScheduledToken>, errors::ProcessTrackerError> {
-    let attempts_response = Box::pin(payments::payments_list_attempts_using_payment_intent_id::<
-        payments::operations::PaymentGetListAttempts,
-        api_payments::PaymentAttemptListResponse,
-        _,
-        payments::operations::payment_attempt_list::PaymentGetListAttempts,
-        hyperswitch_domain_models::payments::PaymentAttemptListData<
-            payments::operations::PaymentGetListAttempts,
-        >,
-    >(
-        state.clone(),
-        req_state.clone(),
-        merchant_context.clone(),
-        profile.clone(),
-        payments::operations::PaymentGetListAttempts,
-        api_payments::PaymentAttemptListRequest {
-            payment_intent_id: payment_intent.id.clone(),
-        },
-        payment_intent.id.clone(),
-        hyperswitch_domain_models::payments::HeaderPayload::default(),
-    ))
-    .await;
-
-    let payment_attempt_list_result = match attempts_response {
-        Ok(services::ApplicationResponse::JsonWithHeaders((pi, _))) => Ok(pi),
-        Ok(_) => Err(RevenueRecoveryError::PaymentAttemptFetchFailed)
-            .attach_printable("Unexpected response from payment intent core"),
-        error @ Err(_) => {
-            logger::error!(?error);
-            Err(RevenueRecoveryError::PaymentAttemptFetchFailed)
-                .attach_printable("failed to fetch payment attempt in recovery webhook flow")
-        }
-    }
-    .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
+    let payment_attempt_list_result =
+        api::call_list_attempt_api(state, merchant_context, req_state, profile, payment_intent)
+            .await
+            .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
 
     tracing::debug!("Fetched payment attempts",);
 
