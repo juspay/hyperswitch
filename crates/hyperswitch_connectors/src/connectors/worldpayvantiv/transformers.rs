@@ -629,10 +629,7 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
         item: &WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         if item.router_data.is_three_ds()
-            && !matches!(
-                item.router_data.request.payment_method_data,
-                PaymentMethodData::Wallet(_)
-            )
+            && matches!(item.router_data.request.payment_method_data, PaymentMethodData::Card(_))
         {
             Err(errors::ConnectorError::NotSupported {
                 message: "Card 3DS".to_string(),
