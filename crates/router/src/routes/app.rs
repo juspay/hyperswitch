@@ -565,9 +565,20 @@ impl AppState {
 
 pub struct Health;
 
+#[cfg(feature = "v1")]
 impl Health {
     pub fn server(state: AppState) -> Scope {
         web::scope("health")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::get().to(health)))
+            .service(web::resource("/ready").route(web::get().to(deep_health_check)))
+    }
+}
+
+#[cfg(feature = "v2")]
+impl Health {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/v2/health")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::get().to(health)))
             .service(web::resource("/ready").route(web::get().to(deep_health_check)))
@@ -658,6 +669,10 @@ impl Payments {
                 web::resource("/aggregate").route(web::get().to(payments::get_payments_aggregates)),
             )
             .service(
+                web::resource("/recovery")
+                    .route(web::post().to(payments::recovery_payments_create)),
+            )
+            .service(
                 web::resource("/profile/aggregate")
                     .route(web::get().to(payments::get_payments_aggregates_profile)),
             );
@@ -743,7 +758,7 @@ pub struct Proxy;
 #[cfg(all(feature = "oltp", feature = "v2"))]
 impl Proxy {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/proxy")
+        web::scope("/v2/proxy")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(proxy::proxy)))
     }
@@ -1491,11 +1506,16 @@ pub struct Tokenization;
 #[cfg(all(feature = "v2", feature = "oltp"))]
 impl Tokenization {
     pub fn server(state: AppState) -> Scope {
-        let mut token_route = web::scope("/v2/tokenize").app_data(web::Data::new(state));
-        token_route = token_route.service(
-            web::resource("").route(web::post().to(tokenization_routes::create_token_vault_api)),
-        );
-        token_route
+        web::scope("/v2/tokenize")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("")
+                    .route(web::post().to(tokenization_routes::create_token_vault_api)),
+            )
+            .service(
+                web::resource("/{id}")
+                    .route(web::delete().to(tokenization_routes::delete_tokenized_data_api)),
+            )
     }
 }
 
@@ -1867,10 +1887,25 @@ impl Webhooks {
 
 pub struct Configs;
 
-#[cfg(any(feature = "olap", feature = "oltp"))]
+#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
 impl Configs {
     pub fn server(config: AppState) -> Scope {
         web::scope("/configs")
+            .app_data(web::Data::new(config))
+            .service(web::resource("/").route(web::post().to(config_key_create)))
+            .service(
+                web::resource("/{key}")
+                    .route(web::get().to(config_key_retrieve))
+                    .route(web::post().to(config_key_update))
+                    .route(web::delete().to(config_key_delete)),
+            )
+    }
+}
+
+#[cfg(all(feature = "v2", any(feature = "olap", feature = "oltp")))]
+impl Configs {
+    pub fn server(config: AppState) -> Scope {
+        web::scope("/v2/configs")
             .app_data(web::Data::new(config))
             .service(web::resource("/").route(web::post().to(config_key_create)))
             .service(

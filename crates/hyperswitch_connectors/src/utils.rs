@@ -232,7 +232,7 @@ pub struct GooglePayWalletData {
     pub pm_type: String,
     pub description: String,
     pub info: GooglePayPaymentMethodInfo,
-    pub tokenization_data: GpayTokenizationData,
+    pub tokenization_data: common_types::payments::GpayTokenizationData,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -248,27 +248,35 @@ pub struct CardMandateInfo {
     pub card_exp_year: Secret<String>,
 }
 
-#[derive(Clone, Debug, serde::Serialize)]
-pub struct GpayTokenizationData {
-    #[serde(rename = "type")]
-    pub token_type: String,
-    pub token: Secret<String>,
-}
+impl TryFrom<payment_method_data::GooglePayWalletData> for GooglePayWalletData {
+    type Error = common_utils::errors::ValidationError;
 
-impl From<payment_method_data::GooglePayWalletData> for GooglePayWalletData {
-    fn from(data: payment_method_data::GooglePayWalletData) -> Self {
-        Self {
+    fn try_from(data: payment_method_data::GooglePayWalletData) -> Result<Self, Self::Error> {
+        let tokenization_data = match data.tokenization_data {
+            common_types::payments::GpayTokenizationData::Encrypted(encrypted_data) => {
+                common_types::payments::GpayTokenizationData::Encrypted(
+                    common_types::payments::GpayEcryptedTokenizationData {
+                        token_type: encrypted_data.token_type,
+                        token: encrypted_data.token,
+                    },
+                )
+            }
+            common_types::payments::GpayTokenizationData::Decrypted(_) => {
+                return Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "Expected encrypted tokenization data, got decrypted".to_string(),
+                });
+            }
+        };
+
+        Ok(Self {
             pm_type: data.pm_type,
             description: data.description,
             info: GooglePayPaymentMethodInfo {
                 card_network: data.info.card_network,
                 card_details: data.info.card_details,
             },
-            tokenization_data: GpayTokenizationData {
-                token_type: data.tokenization_data.token_type,
-                token: Secret::new(data.tokenization_data.token),
-            },
-        }
+            tokenization_data,
+        })
     }
 }
 pub(crate) fn get_amount_as_f64(
@@ -1688,6 +1696,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
     fn get_ip_address_as_optional(&self) -> Option<Secret<String, IpAddress>>;
+    fn get_ip_address(&self) -> Result<Secret<String, IpAddress>, Error>;
     fn get_optional_user_agent(&self) -> Option<String>;
     fn get_original_amount(&self) -> i64;
     fn get_surcharge_amount(&self) -> Option<i64>;
@@ -1809,6 +1818,16 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
                 .ip_address
                 .map(|ip| Secret::new(ip.to_string()))
         })
+    }
+    fn get_ip_address(&self) -> Result<Secret<String, IpAddress>, Error> {
+        let ip_address = self
+            .browser_info
+            .clone()
+            .and_then(|browser_info| browser_info.ip_address);
+
+        let val = ip_address.ok_or_else(missing_field_err("browser_info.ip_address"))?;
+
+        Ok(Secret::new(val.to_string()))
     }
     fn get_optional_user_agent(&self) -> Option<String> {
         self.browser_info
@@ -5753,6 +5772,22 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
         }
     }
 }
+pub trait GooglePay {
+    fn get_googlepay_encrypted_payment_data(&self) -> Result<Secret<String>, Error>;
+}
+
+impl GooglePay for payment_method_data::GooglePayWalletData {
+    fn get_googlepay_encrypted_payment_data(&self) -> Result<Secret<String>, Error> {
+        let encrypted_data = self
+            .tokenization_data
+            .get_encrypted_google_pay_payment_data_mandatory()
+            .change_context(errors::ConnectorError::InvalidWalletToken {
+                wallet_name: "Google Pay".to_string(),
+            })?;
+
+        Ok(Secret::new(encrypted_data.token.clone()))
+    }
+}
 pub trait ApplePay {
     fn get_applepay_decoded_payment_data(&self) -> Result<Secret<String>, Error>;
 }
@@ -5792,7 +5827,7 @@ pub trait WalletData {
 impl WalletData for payment_method_data::WalletData {
     fn get_wallet_token(&self) -> Result<Secret<String>, Error> {
         match self {
-            Self::GooglePay(data) => Ok(Secret::new(data.tokenization_data.token.clone())),
+            Self::GooglePay(data) => Ok(data.get_googlepay_encrypted_payment_data()?),
             Self::ApplePay(data) => Ok(data.get_applepay_decoded_payment_data()?),
             Self::PaypalSdk(data) => Ok(Secret::new(data.token.clone())),
             _ => Err(errors::ConnectorError::InvalidWallet.into()),

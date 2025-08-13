@@ -37,6 +37,7 @@ lazy_static = "1.5.0"
 mime = "0.3.17"
 num-traits = "0.2.19"
 openssl = {version = "0.10.70"}
+pem = "3.0.5"
 qrcode = "0.14.1"
 quick-xml = { version = "0.31.0", features = ["serialize"] }
 rand = "0.8.5"
