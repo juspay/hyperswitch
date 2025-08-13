@@ -352,35 +352,41 @@ pub enum WebhookEventType {
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
+pub struct Redirects {
+    cancel_url: Option<String>,
+    success_url: Option<String>,
+    will_redirect_after_success: bool,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct CoinbasePaymentResponseData {
     pub id: String,
     pub code: String,
     pub name: Option<Secret<String>>,
-    pub utxo: bool,
+    pub utxo: Option<bool>,
     pub pricing: HashMap<String, OverpaymentAbsoluteThreshold>,
-    pub fee_rate: f64,
-    pub logo_url: String,
+    pub fee_rate: Option<f64>,
+    pub logo_url: Option<String>,
     pub metadata: Option<Metadata>,
     pub payments: Vec<PaymentElement>,
-    pub resource: String,
+    pub resource: Option<String>,
     pub timeline: Vec<Timeline>,
     pub pwcb_only: bool,
-    pub cancel_url: String,
     pub created_at: String,
     pub expires_at: String,
     pub hosted_url: String,
     pub brand_color: String,
     pub description: Option<String>,
     pub confirmed_at: Option<String>,
-    pub fees_settled: bool,
+    pub fees_settled: Option<bool>,
     pub pricing_type: String,
-    pub redirect_url: String,
+    pub redirects: Redirects,
     pub support_email: pii::Email,
     pub brand_logo_url: String,
-    pub offchain_eligible: bool,
+    pub offchain_eligible: Option<bool>,
     pub organization_name: String,
-    pub payment_threshold: PaymentThreshold,
-    pub coinbase_managed_merchant: bool,
+    pub payment_threshold: Option<PaymentThreshold>,
+    pub coinbase_managed_merchant: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Default, Deserialize)]
