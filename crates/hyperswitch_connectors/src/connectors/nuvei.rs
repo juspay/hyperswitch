@@ -1,5 +1,5 @@
 pub mod transformers;
-use std::{fmt::Debug, sync::LazyLock};
+use std::sync::LazyLock;
 
 use api_models::{payments::PaymentIdType, webhooks::IncomingWebhookEvent};
 use common_enums::{enums, CallConnectorAction, PaymentAction};
@@ -9,6 +9,7 @@ use common_utils::{
     ext_traits::{ByteSliceExt, BytesExt, ValueExt},
     id_type,
     request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -57,8 +58,17 @@ use crate::{
     utils::{self, is_mandate_supported, PaymentMethodDataType, RouterData as _},
 };
 
-#[derive(Debug, Clone)]
-pub struct Nuvei;
+#[derive(Clone)]
+pub struct Nuvei {
+    amount_convertor: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+}
+impl Nuvei {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_convertor: &StringMajorUnitForConnector,
+        }
+    }
+}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Nuvei
 where

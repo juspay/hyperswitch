@@ -1,5 +1,5 @@
 use common_enums::{enums, CaptureMethod, PaymentChannel};
-use common_types::payments::{ApplePayPaymentData};
+use common_types::payments::{ApplePayPaymentData, GpayTokenizationData};
 use common_utils::{
     crypto::{self, GenerateDigest},
     date_time,
@@ -7,7 +7,7 @@ use common_utils::{
     fp_utils,
     id_type::CustomerId,
     pii::{Email, IpAddress},
-    request::Method,
+    request::Method, types::{MinorUnit, StringMajorUnit},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -35,21 +35,20 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
-    errors,
+    errors::{self},
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-    types::{
+    connectors::Nuvei, types::{
         PaymentsPreprocessingResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
-    },
-    utils::{
+    }, utils::{
         self, missing_field_err, AddressDetailsData, BrowserInformationData, ForeignTryFrom,
         PaymentsAuthorizeRequestData, PaymentsCancelRequestData, PaymentsPreProcessingRequestData,
         RouterData as _,
-    },
+    }
 };
 
 fn to_boolean(string: String) -> bool {
@@ -83,6 +82,7 @@ trait NuveiAuthorizePreprocessingCommon {
     fn get_payment_method_data_required(
         &self,
     ) -> Result<PaymentMethodData, error_stack::Report<errors::ConnectorError>>;
+    fn get_is_partial_approval(&self) -> Option<PartialApprovalFlag> ;
     fn get_order_tax_amount(
         &self,
     ) -> Result<Option<i64>, error_stack::Report<errors::ConnectorError>>;
@@ -148,9 +148,13 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsAuthorizeData {
     ) -> Result<Option<i64>, error_stack::Report<errors::ConnectorError>> {
         Ok(self.order_tax_amount.map(|tax| tax.get_amount_as_i64()))
     }
-
+    
     fn get_email_required(&self) -> Result<Email, error_stack::Report<errors::ConnectorError>> {
         self.get_email()
+    }
+    
+    fn get_is_partial_approval(&self) -> Option<PartialApprovalFlag>  {
+        self.enable_partial_authorization.map(PartialApprovalFlag::from)
     }
 }
 
@@ -219,6 +223,10 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsPreProcessingData {
     ) -> Result<Option<i64>, error_stack::Report<errors::ConnectorError>> {
         Ok(None)
     }
+      
+    fn get_is_partial_approval(&self) -> Option<PartialApprovalFlag>  {
+        None
+    }
 }
 
 #[derive(Debug, Serialize, Default, Deserialize)]
@@ -285,6 +293,26 @@ pub struct NuveiPaymentsRequest {
     pub related_transaction_id: Option<String>,
     pub url_details: Option<UrlDetails>,
     pub amount_details: Option<NuvieAmountDetails>,
+    pub is_partial_approval: Option<PartialApprovalFlag>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum PartialApprovalFlag {
+    #[serde(rename = "1")]
+    Enabled,
+    #[serde(rename = "0")]
+    Disabled,
+}
+
+impl From<bool> for PartialApprovalFlag {
+    fn from(value: bool) -> Self {
+        if value {
+            Self::Enabled
+        } else {
+            Self::Disabled
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Default)]
@@ -1211,6 +1239,7 @@ where
             }
             None => None,
         };
+      
         Ok(Self {
             is_rebilling: request_data.is_rebilling,
             user_token_id: item.customer_id.clone(),
@@ -1226,7 +1255,7 @@ where
                 pending_url: return_url.clone(),
             }),
             amount_details,
-
+            is_partial_approval:item.request.get_is_partial_approval(),
             ..request
         })
     }
@@ -1682,6 +1711,15 @@ impl From<NuveiTransactionStatus> for enums::AttemptStatus {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct NuveiPartialApproval {
+    pub requested_amount: StringMajorUnit,
+    pub requested_currency: enums::Currency,
+    pub processed_amount: StringMajorUnit,
+    pub processed_currency: enums::Currency,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NuveiPaymentsResponse {
     pub order_id: Option<String>,
     pub user_token_id: Option<Secret<String>>,
@@ -1700,6 +1738,7 @@ pub struct NuveiPaymentsResponse {
     pub fraud_details: Option<FraudDetails>,
     pub external_scheme_transaction_id: Option<Secret<String>>,
     pub session_token: Option<Secret<String>>,
+    pub partial_approval: Option<NuveiPartialApproval>,
     //The ID of the transaction in the merchant’s system.
     pub client_unique_id: Option<String>,
     pub internal_request_id: Option<i64>,
@@ -1711,6 +1750,32 @@ pub struct NuveiPaymentsResponse {
     pub version: Option<String>,
     pub client_request_id: Option<String>,
     pub merchant_advice_code: Option<String>,
+}
+impl NuveiPaymentsResponse {
+    /// returns amount_captured and minor_amount_capturable
+     pub fn get_amount_captured(&self) -> Result<(Option<i64>,Option<MinorUnit>), error_stack::Report<errors::ConnectorError>> {
+        match &self.partial_approval {
+            Some(partial_approval) => {
+                let amount = utils::convert_back_amount_to_minor_units(
+                    Nuvei::new().amount_convertor,
+                    partial_approval.processed_amount.clone(),
+                    partial_approval.processed_currency
+                )?;
+                match self.transaction_type {
+                    None=>Ok((None,None)),
+                    Some(NuveiTransactionType::Sale)=>Ok((Some(MinorUnit::get_amount_as_i64(amount)),None)),
+                    Some(NuveiTransactionType::Auth)=>Ok((None,Some(amount))),
+                    Some(NuveiTransactionType::Auth3D)=>Ok((Some(MinorUnit::get_amount_as_i64(amount)),None)),
+                    Some(NuveiTransactionType::InitAuth3D)=>Ok((None,Some(amount))),
+                    Some(NuveiTransactionType::Credit)=>Ok((None,None)),
+                    Some(NuveiTransactionType::Void)=>Ok((None,None)),
+                    Some(NuveiTransactionType::Settle)=>Ok((None,None)),
+                }
+                
+            },
+            None => Ok((None,None))
+        }
+     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -1875,12 +1940,13 @@ where
                 form_fields: std::collections::HashMap::from([("creq".to_string(), creq.expose())]),
             }),
     };
-
     let connector_response_data =
         convert_to_additional_payment_method_connector_response(&item.response)
             .map(ConnectorResponseData::with_additional_payment_method_data);
 
     let status = get_payment_status(&item.response, amount);
+
+
 
     Ok((status, redirection_data, connector_response_data))
 }
@@ -1959,6 +2025,7 @@ impl
         let (status, redirection_data, connector_response_data) =
             process_nuvei_payment_response(&item, amount)?;
 
+        let(amount_captured,minor_amount_capturable)=item.response.get_amount_captured()?;
         Ok(Self {
             status,
             response: Ok(create_transaction_response(
@@ -1966,6 +2033,8 @@ impl
                 redirection_data,
                 item.http_code,
             )?),
+            amount_captured,
+            minor_amount_capturable,
             connector_response: connector_response_data,
             ..item.data
         })
@@ -1992,6 +2061,7 @@ where
         let (status, redirection_data, connector_response_data) =
             process_nuvei_payment_response(&item, amount)?;
 
+        let(amount_captured,minor_amount_capturable)=item.response.get_amount_captured()?;
         Ok(Self {
             status,
             response: Ok(create_transaction_response(
@@ -1999,6 +2069,7 @@ where
                 redirection_data,
                 item.http_code,
             )?),
+            amount_captured,minor_amount_capturable,
             connector_response: connector_response_data,
             ..item.data
         })
@@ -2109,6 +2180,7 @@ where
             } else {
                 None
             };
+      
             Ok(Self {
                 related_transaction_id,
                 device_details: DeviceDetails::foreign_try_from(
