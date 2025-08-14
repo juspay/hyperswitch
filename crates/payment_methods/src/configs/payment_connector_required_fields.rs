@@ -9,9 +9,6 @@ use crate::configs::settings::{
     BankRedirectConfig, ConnectorFields, Mandates, RequiredFieldFinal,
     SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
     SupportedPaymentMethodsForMandate, ZeroMandates,
-    BankRedirectConfig, ConnectorFields, Mandates, RequiredFieldFinal,
-    SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
-    SupportedPaymentMethodsForMandate, ZeroMandates,
 };
 #[cfg(feature = "v1")]
 use crate::configs::settings::{PaymentMethodType, RequiredFields};
@@ -1021,8 +1018,6 @@ pub fn get_shipping_required_fields() -> HashMap<String, RequiredFieldInfo> {
 #[cfg(feature = "v1")]
 impl RequiredFields {
     pub fn new(bank_config: &BankRedirectConfig) -> Self {
-impl RequiredFields {
-    pub fn new(bank_config: &BankRedirectConfig) -> Self {
         let cards_required_fields = get_cards_required_fields();
         let mut debit_required_fields = cards_required_fields.clone();
         debit_required_fields.extend(HashMap::from([
@@ -1063,7 +1058,6 @@ impl RequiredFields {
             ),
             (
                 enums::PaymentMethod::BankRedirect,
-                PaymentMethodType(get_bank_redirect_required_fields(bank_config)),
                 PaymentMethodType(get_bank_redirect_required_fields(bank_config)),
             ),
             (
@@ -1247,13 +1241,6 @@ impl RequiredFields {
                 )])),
             ),
         ]))
-    }
-}
-
-#[cfg(feature = "v1")]
-impl Default for RequiredFields {
-    fn default() -> Self {
-        Self::new(&BankRedirectConfig::default())
     }
 }
 
@@ -1639,10 +1626,6 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
     ])
 }
 
-#[cfg(feature = "v1")]
-fn get_bank_redirect_required_fields(
-    bank_config: &BankRedirectConfig,
-) -> HashMap<enums::PaymentMethodType, ConnectorFields> {
 fn get_bank_redirect_required_fields(
     bank_config: &BankRedirectConfig,
 ) -> HashMap<enums::PaymentMethodType, ConnectorFields> {
