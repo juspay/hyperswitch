@@ -1210,7 +1210,9 @@ pub enum ConnectorAuthType {
         auth_key_map: HashMap<common_enums::Currency, pii::SecretSerdeValue>,
     },
     CertificateAuth {
+        // certificate should be base64 encoded
         certificate: Secret<String>,
+        // private_key should be base64 encoded
         private_key: Secret<String>,
     },
     #[default]
@@ -3000,7 +3002,7 @@ pub struct ProfileUpdate {
     #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
 
-    /// Inidcates the state of revenue recovery algorithm type
+    /// Indicates the state of revenue recovery algorithm type
     #[schema(value_type = Option<RevenueRecoveryAlgorithmType>, example = "cascading")]
     pub revenue_recovery_retry_algorithm_type:
         Option<common_enums::enums::RevenueRecoveryAlgorithmType>,

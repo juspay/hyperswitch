@@ -1,7 +1,7 @@
 //! Types interface
 
 use hyperswitch_domain_models::{
-    router_data::AccessToken,
+    router_data::{AccessToken, AccessTokenAuthenticationResponse},
     router_data_v2::flow_common_types,
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -24,7 +24,7 @@ use hyperswitch_domain_models::{
             ExternalVaultRetrieveFlow,
         },
         webhooks::VerifyWebhookSource,
-        BillingConnectorInvoiceSync,
+        AccessTokenAuthentication, BillingConnectorInvoiceSync,
     },
     router_request_types::{
         revenue_recovery::{
@@ -36,12 +36,12 @@ use hyperswitch_domain_models::{
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
         },
-        AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
-        CompleteAuthorizeData, ConnectorCustomerData, CreateOrderRequestData,
-        DefendDisputeRequestData, DisputeSyncData, FetchDisputesRequestData,
-        MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
+        AcceptDisputeRequestData, AccessTokenAuthenticationRequestData, AccessTokenRequestData,
+        AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
+        CreateOrderRequestData, DefendDisputeRequestData, DisputeSyncData,
+        FetchDisputesRequestData, MandateRevokeRequestData, PaymentMethodTokenizationData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
         PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsSessionData,
         PaymentsSyncData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData,
         RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
@@ -193,6 +193,12 @@ pub type PayoutQuoteType = dyn ConnectorIntegration<PoQuote, PayoutsData, Payout
 /// Type alias for `ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData>`
 #[cfg(feature = "payouts")]
 pub type PayoutSyncType = dyn ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData>;
+/// Type alias for `ConnectorIntegration<AccessTokenAuthentication, AccessTokenAuthenticationRequestData, AccessTokenAuthenticationResponse>`
+pub type AuthenticationTokenType = dyn ConnectorIntegration<
+    AccessTokenAuthentication,
+    AccessTokenAuthenticationRequestData,
+    AccessTokenAuthenticationResponse,
+>;
 /// Type alias for `ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>`
 pub type RefreshTokenType =
     dyn ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>;

@@ -3613,6 +3613,63 @@
           }
         ]
       }
+    },
+    "/v2/tokenize/{id}": {
+      "delete": {
+        "tags": [
+          "Tokenization"
+        ],
+        "summary": "Tokenization - Delete",
+        "description": "Delete a token entry with customer_id and session_id",
+        "operationId": "delete_tokenized_data_api",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteTokenDataRequest"
+              },
+              "examples": {
+                "Delete a token entry with customer_id and session_id": {
+                  "value": {
+                    "customer_id": "12345_cus_0196d94b9c207333a297cbcf31f2e8c8",
+                    "session_id": "12345_pms_01926c58bc6e77c09e809964e72af8c8"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Token deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteTokenDataResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "ephemeral_key": []
+          },
+          {
+            "api_key": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -8359,6 +8416,7 @@
           "nmi",
           "nomupay",
           "noon",
+          "nordea",
           "novalnet",
           "nuvei",
           "opennode",
@@ -10208,6 +10266,38 @@
           "challenge",
           "frictionless"
         ]
+      },
+      "DeleteTokenDataRequest": {
+        "type": "object",
+        "required": [
+          "customer_id",
+          "session_id"
+        ],
+        "properties": {
+          "customer_id": {
+            "type": "string",
+            "description": "Customer ID for which the tokenization is requested",
+            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8"
+          },
+          "session_id": {
+            "type": "string",
+            "description": "Session ID associated with the tokenization request",
+            "example": "12345_pms_01926c58bc6e77c09e809964e72af8c8"
+          }
+        }
+      },
+      "DeleteTokenDataResponse": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier returned by the tokenization service",
+            "example": "12345_tok_01926c58bc6e77c09e809964e72af8c8"
+          }
+        }
       },
       "DeviceChannel": {
         "type": "string",
@@ -22682,8 +22772,7 @@
         "type": "string",
         "enum": [
           "true",
-          "false",
-          "default"
+          "false"
         ]
       },
       "RequestPaymentMethodTypes": {
@@ -23284,6 +23373,7 @@
           "nmi",
           "nomupay",
           "noon",
+          "nordea",
           "novalnet",
           "nuvei",
           "opennode",

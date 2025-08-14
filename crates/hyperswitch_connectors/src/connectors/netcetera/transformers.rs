@@ -165,6 +165,21 @@ impl
                     .and_then(|req| req.three_ds_requestor_challenge_ind.as_ref())
                     .and_then(|v| v.first().cloned());
 
+                let message_extension = response
+                    .authentication_request
+                    .as_ref()
+                    .and_then(|req| req.message_extension.as_ref())
+                    .and_then(|v| match serde_json::to_value(v) {
+                        Ok(val) => Some(Secret::new(val)),
+                        Err(e) => {
+                            router_env::logger::error!(
+                                "Failed to serialize message_extension: {:?}",
+                                e
+                            );
+                            None
+                        }
+                    });
+
                 Ok(AuthenticationResponseData::AuthNResponse {
                     authn_flow_type,
                     authentication_value: response.authentication_value,
@@ -173,20 +188,9 @@ impl
                     ds_trans_id: response.authentication_response.ds_trans_id,
                     eci: response.eci,
                     challenge_code,
-                    challenge_cancel: response.challenge_cancel,
-                    challenge_code_reason: response.trans_status_reason,
-                    message_extension: response.message_extension.and_then(|v| {
-                        match serde_json::to_value(&v) {
-                            Ok(val) => Some(Secret::new(val)),
-                            Err(e) => {
-                                router_env::logger::error!(
-                                    "Failed to serialize message_extension: {:?}",
-                                    e
-                                );
-                                None
-                            }
-                        }
-                    }),
+                    challenge_cancel: None, // Note - challenge_cancel field is received in the RReq and updated in DB during external_authentication_incoming_webhook_flow
+                    challenge_code_reason: response.authentication_response.trans_status_reason,
+                    message_extension,
                 })
             }
             NetceteraAuthenticationResponse::Error(error_response) => Err(ErrorResponse {
@@ -664,9 +668,6 @@ pub struct NetceteraAuthenticationSuccessResponse {
     pub authentication_response: AuthenticationResponse,
     #[serde(rename = "base64EncodedChallengeRequest")]
     pub encoded_challenge_request: Option<String>,
-    pub challenge_cancel: Option<String>,
-    pub trans_status_reason: Option<String>,
-    pub message_extension: Option<Vec<MessageExtensionAttribute>>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -680,6 +681,7 @@ pub struct NetceteraAuthenticationFailureResponse {
 pub struct AuthenticationRequest {
     #[serde(rename = "threeDSRequestorChallengeInd")]
     pub three_ds_requestor_challenge_ind: Option<Vec<String>>,
+    pub message_extension: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -693,6 +695,7 @@ pub struct AuthenticationResponse {
     #[serde(rename = "dsTransID")]
     pub ds_trans_id: Option<String>,
     pub acs_signed_content: Option<String>,
+    pub trans_status_reason: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -742,6 +745,4 @@ pub struct ResultsResponseData {
 
     /// Optional object containing error details if any errors occurred during the process.
     pub error_details: Option<NetceteraErrorDetails>,
-    pub challenge_cancel: Option<String>,
-    pub trans_status_reason: Option<String>,
 }
