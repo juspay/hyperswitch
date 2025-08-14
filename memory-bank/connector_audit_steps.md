@@ -164,11 +164,19 @@ During the audit, no specific errors were made. The process involved identifying
 
 ### Steps for Dynamic Field Audit
 
-1.  **Identify Supported Payment Methods:** Examine the `ConnectorSpecifications` implementation in the connector's main file (e.g., `crates/hyperswitch_connectors/src/connectors/[connector_name].rs`). Look for the `get_supported_payment_methods` function to identify the payment methods supported by the connector.
-2.  **Check Required Field Mappings:** Examine the `crates/payment_methods/src/configs/payment_connector_required_fields.rs` file to determine if the required fields are mapped for each payment method supported by the connector.Check in the docs of payment method type if it has any required fields. If it doesn't have any then it need not be mentioned for that payment method type in payment_connector_required_fields.rs file.
-3.  **Analyze `RequiredFields::default()`:** Locate the `RequiredFields::default()` function and check if the connector has an entry for each supported payment method.
-4.  **Verify Field Mappings:** For each supported payment method, verify that the required fields are correctly mapped to the connector in the `RequiredFields::default()` function.
-5.  **Generate Audit Report:** Create a report summarizing the findings, indicating whether each payment method has the required fields mapped correctly.
+1.  **Identify Supported Payment Methods:** Examine the `ConnectorSpecifications` implementation in the connector's main file (e.g., `crates/hyperswitch_connectors/src/connectors/[connector_name].rs`) to identify all supported payment methods.
+
+2.  **Identify Required Connector Fields from the Contract:** For each supported payment method, review the `[connector_name].md` file in the `memory-bank` directory. This file serves as the contract, defining which fields are mandatory for the connector's API.
+
+3.  **Trace Field Population in the Transformer:** Open the connector's `transformers.rs` file. For each mandatory field identified in the contract, locate where it is populated in the connector's request struct. Trace the data source back to the function call that provides the value (e.g., `item.router_data.get_billing_country()`).
+
+4.  **Identify the Root Data Path from the Getter Function:** Analyze the implementation of the getter function (e.g., `get_billing_country()`) to determine the precise path of the source data within Hyperswitch's internal data structures. For example, the function `get_billing_country()` might resolve to the path `payment_method_data.billing.address.country`.
+
+5.  **Verify the Root Path in `payment_connector_required_fields.rs`:** Open the `crates/payment_methods/src/configs/payment_connector_required_fields.rs` file. In the `RequiredFields::default()` function, confirm that for the specific connector and payment method being audited, the exact root data path identified in the previous step is listed as a required field. This ensures that Hyperswitch's core logic enforces the presence of this data before it reaches the connector.
+
+6.  **Handle Fallbacks:** If a field has a fallback (e.g., using `customer_name` if available, otherwise falling back to `billing.name`), ensure that both paths or either path are considered and documented in the audit. Write in the audit as well the details.
+
+7.  **Generate Audit Report:** Create a report summarizing the findings for each payment method, confirming that the data path required by the transformer is correctly marked as a required field in the central configuration.
 
 ### Common Errors and Corrections for Dynamic Field Audit
 
@@ -332,6 +340,34 @@ By following these steps, you can effectively audit the base URL configuration i
 
                                          <!-- ----------------------------------------------------- -->
 
+## Check API Contracts Audit
+
+### 1. Understand the API Contract
+
+*   **Locate the Contract File:** Find the markdown file in the `memory-bank` directory that corresponds to the connector being audited (e.g., `memory-bank/[connector_name].md`). This file serves as the local representation of the connector's API contract.
+*   **Identify Supported Payment Methods and Required Fields:** Read the contract file to determine the payment methods the connector supports and identify all fields that are not marked as optional for each flow (e.g., Payment Intent, Confirm Intent, etc.).
+
+### 2. Verify Implementation in Transformers
+
+*   **Examine the `transformers.rs` File:** Open the `transformers.rs` file for the connector, located at `crates/hyperswitch_connectors/src/connectors/[connector_name]/transformers.rs`.
+*   **Cross-Reference with Contract:** Compare the payment methods and their required fields as documented in the markdown file with the implementation in the `transformers.rs` file.
+*   **Check for Non-Optional Fields:** For every field that is mandatory according to the contract, ensure that the corresponding field in the Rust structs is not wrapped in an `Option`. This enforces the contract at compile time.
+*   **Check Request Construction:** Ensure that for each payment flow (e.g., Authorize, Capture, Refund), the correct payment method information is being included in the outgoing request to the connector's API. This includes verifying that all required fields for each flow are correctly populated.
+*   **Detailed Analysis:** Provide a detailed analysis for each payment method, including the specific structs and fields that were audited. For example, for a payment intent, list all the fields in the request struct and verify that they are correctly implemented.
+
+### 3. Example: Airwallex Connector API Contract Audit
+
+In the Airwallex connector audit, the following steps were taken:
+
+1.  The `memory-bank/airwallex.md` file was read to identify the supported payment methods and their required fields.
+2.  The `crates/hyperswitch_connectors/src/connectors/airwallex/transformers.rs` file was examined.
+3.  The implementation of payment methods like Cards, Google Pay, and Klarna in the `transformers.rs` file was compared against the documentation in `airwallex.md`.
+4.  It was verified that all required fields are present in the request structs and are not wrapped in `Option`.
+5.  The data mapping logic was analyzed to confirm that the fields are populated correctly.
+6.  **Result:** The audit confirmed that the `airwallex` connector correctly and robustly implements the API contracts as specified in the documentation.
+
+                                         <!-- ----------------------------------------------------- -->
+
 ## Steps for Auditing MCA Metadata Handling in Connectors
 
 These steps outline the process for auditing how a connector handles MCA (Merchant Category Code) metadata. This process can be adapted for other connectors as well.
@@ -387,7 +423,7 @@ This workflow applies to any payment connector integrated with Hyperswitch. The 
 ## 3. Key Outcome Scenarios to Test for Each Flow:
 For each primary payment/refund flow, the following four outcome scenarios will be targeted:
 1.  **Case 1: 200 OK (Connector Success):** Hyperswitch receives a successful response from the connector.
-2.  **Case 2: 200 OK (Connector Failure with error_message):** Hyperswitch receives a successful response from the connector but the status for the payment is failed .
+2.  **Case 2: 200 OK (Connector Failure with error_message):** 
 3.  **Case 3: 4xx Client Error (Hyperswitch Validation/Request Error):** The request to Hyperswitch is invalid (e.g., missing fields, bad data types) and is rejected by Hyperswitch before reaching the connector.
 4.  **Case 4: 5xx Server Error (Internal Server Error):** for the 5xx server error, you just have to check in the code for the connector file and for that flow for which you are checking , if we have the function get_5xx_error_response explicitly mentioned , audit it as Yes case and if we do not have that function ,check for get_error_response function and if present audit it as Default.
 
@@ -696,6 +732,7 @@ These steps outline how to create an audit file for any connector :
     *   Endpoint Audit
     *   Response Struct Field Value Audit
     *   MCA metadata validation
+    *   Check API Contracts
     *   Response code Audit - for this refer to the section "# General Connector Audit Workflow Template for response codes." in this file
 
 4.  **For each section, create a log entry:** Create a log entry with the following information:
