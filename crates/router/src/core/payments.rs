@@ -8103,6 +8103,7 @@ where
         .attach_printable("Invalid connector name received in 'routed_through'")?;
 
         routing_data.routed_through = Some(connector_name.clone());
+        logger::debug!("euclid_routing: predetermined connector present in attempt");
         return Ok(ConnectorCallType::PreDetermined(connector_data.into()));
     }
 
@@ -8122,6 +8123,7 @@ where
             .merchant_connector_id
             .clone_from(&mandate_connector_details.merchant_connector_id);
 
+        logger::debug!("euclid_routing: predetermined mandate connector");
         return Ok(ConnectorCallType::PreDetermined(connector_data.into()));
     }
 
@@ -8206,6 +8208,8 @@ where
                 }
             }
 
+            logger::debug!("euclid_routing: pre-routing connector present");
+
             let first_pre_routing_connector_data_list = pre_routing_connector_data_list
                 .first()
                 .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
@@ -8269,6 +8273,7 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Invalid connector name received")?;
 
+        logger::debug!("euclid_routing: straight through connector present");
         return decide_multiplex_connector_for_normal_or_recurring_payment(
             &state,
             payment_data,
@@ -8313,6 +8318,7 @@ where
             .attach_printable("failed eligibility analysis and fallback")?;
         }
 
+        logger::debug!("euclid_routing: single connector present in algorithm data");
         let connector_data = connectors
             .into_iter()
             .map(|conn| {
@@ -8400,7 +8406,7 @@ where
             Some(api::MandateTransactionType::RecurringMandateTransaction),
         )
         | (None, Some(_), None, Some(true), _) => {
-            logger::debug!("performing routing for token-based MIT flow");
+            logger::debug!("euclid_routing: performing routing for token-based MIT flow");
 
             let payment_method_info = payment_data
                 .get_payment_method_info()
@@ -8513,7 +8519,9 @@ where
                     .into(),
                 ))
             } else {
-                logger::error!("no eligible connector found for the ppt_mandate payment");
+                logger::error!(
+                    "euclid_routing: no eligible connector found for the ppt_mandate payment"
+                );
                 Err(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration.into())
             }
         }
@@ -8572,7 +8580,7 @@ where
             })
             .unwrap_or(false)
         {
-            logger::info!("using connector_mandate_id for MIT flow");
+            logger::info!("euclid_routing: using connector_mandate_id for MIT flow");
             if let Some(merchant_connector_id) = connector_data.merchant_connector_id.as_ref() {
                 if let Some(mandate_reference_record) = connector_mandate_details.clone()
                         .get_required_value("connector_mandate_details")
