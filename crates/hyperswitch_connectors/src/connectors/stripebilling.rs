@@ -8,6 +8,16 @@ use common_utils::{
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
+#[cfg(any(
+    feature = "subscriptions",
+    all(feature = "v2", feature = "revenue_recovery")
+))]
+use hyperswitch_domain_models::{
+    router_flow_types::revenue_recovery::RecoveryRecordBack,
+    router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest,
+    router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
+    types::{self  as recovery_router_data_types, RevenueRecoveryRecordBackRouterData},
+};
 use error_stack::{report, ResultExt};
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::revenue_recovery;
@@ -78,7 +88,10 @@ impl api::Refund for Stripebilling {}
 impl api::RefundExecute for Stripebilling {}
 impl api::RefundSync for Stripebilling {}
 impl api::PaymentToken for Stripebilling {}
-#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+#[cfg(any(
+    feature = "subscriptions",
+    all(feature = "v2", feature = "revenue_recovery")
+))]
 impl api::revenue_recovery::RevenueRecoveryRecordBack for Stripebilling {}
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl api::revenue_recovery::BillingConnectorPaymentsSyncIntegration for Stripebilling {}
@@ -658,17 +671,20 @@ impl
     }
 }
 
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+#[cfg(any(
+    feature = "subscriptions",
+    all(feature = "v2", feature = "revenue_recovery")
+))]
 impl
     ConnectorIntegration<
-        recovery_router_flows::RecoveryRecordBack,
-        recovery_request_types::RevenueRecoveryRecordBackRequest,
-        recovery_response_types::RevenueRecoveryRecordBackResponse,
+        RecoveryRecordBack,
+        RevenueRecoveryRecordBackRequest,
+        RevenueRecoveryRecordBackResponse,
     > for Stripebilling
 {
     fn get_headers(
         &self,
-        req: &recovery_router_data_types::RevenueRecoveryRecordBackRouterData,
+        req: &RevenueRecoveryRecordBackRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
@@ -680,14 +696,12 @@ impl
 
     fn get_url(
         &self,
-        req: &recovery_router_data_types::RevenueRecoveryRecordBackRouterData,
+        req: &RevenueRecoveryRecordBackRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let invoice_id = req
             .request
-            .merchant_reference_id
-            .get_string_repr()
-            .to_string();
+            .merchant_reference_id.clone();
         match req.request.attempt_status {
             common_enums::AttemptStatus::Charged => Ok(format!(
                 "{}/v1/invoices/{invoice_id}/pay?paid_out_of_band=true",
@@ -703,7 +717,7 @@ impl
 
     fn build_request(
         &self,
-        req: &recovery_router_data_types::RevenueRecoveryRecordBackRouterData,
+        req: &RevenueRecoveryRecordBackRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
@@ -722,28 +736,14 @@ impl
 
     fn handle_response(
         &self,
-        data: &recovery_router_data_types::RevenueRecoveryRecordBackRouterData,
+        data: &RevenueRecoveryRecordBackRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<
-        recovery_router_data_types::RevenueRecoveryRecordBackRouterData,
+        RevenueRecoveryRecordBackRouterData,
         errors::ConnectorError,
     > {
-        let response = res
-            .response
-            .parse_struct::<stripebilling::StripebillingRecordBackResponse>(
-                "StripebillingRecordBackResponse",
-            )
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        recovery_router_data_types::RevenueRecoveryRecordBackRouterData::try_from(
-            ResponseRouterData {
-                response,
-                data: data.clone(),
-                http_code: res.status_code,
-            },
-        )
+        todo!("Implement handle_response for Stripebilling RecoveryRecordBack");
     }
 
     fn get_error_response(

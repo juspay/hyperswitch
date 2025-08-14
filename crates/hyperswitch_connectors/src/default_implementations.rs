@@ -8122,13 +8122,19 @@ impl<const T: u8>
 {
 }
 
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+#[cfg(any(
+    feature = "subscriptions",
+    all(feature = "v2", feature = "revenue_recovery")
+))]
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::revenue_recovery::RevenueRecoveryRecordBack
     for connectors::DummyConnector<T>
 {
 }
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+#[cfg(any(
+    feature = "subscriptions",
+    all(feature = "v2", feature = "revenue_recovery")
+))]
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     ConnectorIntegration<

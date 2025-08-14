@@ -566,10 +566,10 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Chargebee
     }
 }
 
-// #[cfg(any(
-//     feature = "subscriptions",
-//     all(feature = "v2", feature = "revenue_recovery")
-// ))]
+#[cfg(any(
+    feature = "subscriptions",
+    all(feature = "v2", feature = "revenue_recovery")
+))]
 impl
     ConnectorIntegration<
         RecoveryRecordBack,

@@ -14,17 +14,23 @@ use hyperswitch_domain_models::{
     },
 };
 
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+#[cfg(any(
+    feature = "subscriptions",
+    all(feature = "v2", feature = "revenue_recovery")
+))]
 use super::ConnectorCommon;
 use super::{Connector, ConnectorIntegration};
 
 /// trait RevenueRecovery
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+#[cfg(any(
+    feature = "subscriptions",
+    all(feature = "v2", feature = "revenue_recovery")
+))]
 pub trait RevenueRecovery:
     ConnectorCommon
-    + BillingConnectorPaymentsSyncIntegration
+    // + BillingConnectorPaymentsSyncIntegration
     + RevenueRecoveryRecordBack
-    + BillingConnectorInvoiceSyncIntegration
+    // + BillingConnectorInvoiceSyncIntegration
 {
 }
 
@@ -58,6 +64,9 @@ pub trait BillingConnectorInvoiceSyncIntegration:
 {
 }
 
-#[cfg(not(all(feature = "v2", feature = "revenue_recovery")))]
+#[cfg(not(any(
+    feature = "subscriptions",
+    all(feature = "v2", feature = "revenue_recovery")
+)))]
 /// trait RevenueRecovery
 pub trait RevenueRecovery {}
