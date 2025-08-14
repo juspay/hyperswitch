@@ -9,6 +9,9 @@ use crate::configs::settings::{
     BankRedirectConfig, ConnectorFields, Mandates, RequiredFieldFinal,
     SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
     SupportedPaymentMethodsForMandate, ZeroMandates,
+    BankRedirectConfig, ConnectorFields, Mandates, RequiredFieldFinal,
+    SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
+    SupportedPaymentMethodsForMandate, ZeroMandates,
 };
 #[cfg(feature = "v1")]
 use crate::configs::settings::{PaymentMethodType, RequiredFields};
@@ -200,6 +203,7 @@ enum RequiredField {
     DcbMsisdn,
     DcbClientUid,
     OrderDetailsProductName,
+    Description,
 }
 
 impl RequiredField {
@@ -871,6 +875,15 @@ impl RequiredField {
                     value: None,
                 },
             ),
+            Self::Description => (
+                "description".to_string(),
+                RequiredFieldInfo {
+                    required_field: "description".to_string(),
+                    display_name: "description".to_string(),
+                    field_type: FieldType::Text,
+                    value: None,
+                },
+            ),
         }
     }
 }
@@ -1008,6 +1021,8 @@ pub fn get_shipping_required_fields() -> HashMap<String, RequiredFieldInfo> {
 #[cfg(feature = "v1")]
 impl RequiredFields {
     pub fn new(bank_config: &BankRedirectConfig) -> Self {
+impl RequiredFields {
+    pub fn new(bank_config: &BankRedirectConfig) -> Self {
         let cards_required_fields = get_cards_required_fields();
         let mut debit_required_fields = cards_required_fields.clone();
         debit_required_fields.extend(HashMap::from([
@@ -1048,6 +1063,7 @@ impl RequiredFields {
             ),
             (
                 enums::PaymentMethod::BankRedirect,
+                PaymentMethodType(get_bank_redirect_required_fields(bank_config)),
                 PaymentMethodType(get_bank_redirect_required_fields(bank_config)),
             ),
             (
@@ -1231,6 +1247,13 @@ impl RequiredFields {
                 )])),
             ),
         ]))
+    }
+}
+
+#[cfg(feature = "v1")]
+impl Default for RequiredFields {
+    fn default() -> Self {
+        Self::new(&BankRedirectConfig::default())
     }
 }
 
@@ -1588,7 +1611,14 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
                 vec![],
                 [
                     card_basic(),
-                    vec![RequiredField::BillingEmail, RequiredField::BillingPhone],
+                    vec![
+                        RequiredField::BillingEmail,
+                        RequiredField::BillingPhone,
+                        RequiredField::BillingPhoneCountryCode,
+                        RequiredField::BillingUserFirstName,
+                        RequiredField::BillingUserLastName,
+                        RequiredField::BillingAddressCountries(vec!["ID,PH"]),
+                    ],
                 ]
                 .concat(),
             ),
@@ -1610,6 +1640,9 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
 }
 
 #[cfg(feature = "v1")]
+fn get_bank_redirect_required_fields(
+    bank_config: &BankRedirectConfig,
+) -> HashMap<enums::PaymentMethodType, ConnectorFields> {
 fn get_bank_redirect_required_fields(
     bank_config: &BankRedirectConfig,
 ) -> HashMap<enums::PaymentMethodType, ConnectorFields> {
@@ -3190,6 +3223,19 @@ fn get_bank_debit_required_fields() -> HashMap<enums::PaymentMethodType, Connect
                     Connector::Inespay,
                     fields(vec![], vec![], vec![RequiredField::SepaBankDebitIban]),
                 ),
+                (
+                    Connector::Nordea,
+                    RequiredFieldFinal {
+                        mandate: HashMap::new(),
+
+                        non_mandate: HashMap::new(),
+
+                        common: HashMap::from([
+                            RequiredField::BillingAddressCountries(vec!["DK,FI,NO,SE"]).to_tuple(),
+                            RequiredField::SepaBankDebitIban.to_tuple(),
+                        ]),
+                    },
+                ),
             ]),
         ),
         (
@@ -3315,8 +3361,17 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
         (
             enums::PaymentMethodType::Ach,
             connectors(vec![(
-                Connector::Stripe,
-                fields(vec![], vec![], vec![RequiredField::BillingEmail]),
+                Connector::Checkbook,
+                fields(
+                    vec![],
+                    vec![],
+                    vec![
+                        RequiredField::BillingUserFirstName,
+                        RequiredField::BillingUserLastName,
+                        RequiredField::BillingEmail,
+                        RequiredField::Description,
+                    ],
+                ),
             )]),
         ),
         (

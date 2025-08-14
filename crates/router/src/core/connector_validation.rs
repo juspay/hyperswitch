@@ -155,10 +155,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 celero::transformers::CeleroAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
-            // api_enums::Connector::Checkbook => {
-            //     checkbook::transformers::CheckbookAuthType::try_from(self.auth_type)?;
-            //     Ok(())
-            // },
+            api_enums::Connector::Checkbook => {
+                checkbook::transformers::CheckbookAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Checkout => {
                 checkout::transformers::CheckoutAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -349,10 +349,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 noon::transformers::NoonAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
-            // api_enums::Connector::Nordea => {
-            //     nordea::transformers::NordeaAuthType::try_from(self.auth_type)?;
-            //     Ok(())
-            // }
+            api_enums::Connector::Nordea => {
+                nordea::transformers::NordeaAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Novalnet => {
                 novalnet::transformers::NovalnetAuthType::try_from(self.auth_type)?;
                 Ok(())

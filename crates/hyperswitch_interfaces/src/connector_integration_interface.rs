@@ -519,6 +519,14 @@ impl ConnectorSpecifications for ConnectorEnum {
         }
     }
 
+    /// Check if connector supports authentication token
+    fn authentication_token_for_token_creation(&self) -> bool {
+        match self {
+            Self::Old(connector) => connector.authentication_token_for_token_creation(),
+            Self::New(connector) => connector.authentication_token_for_token_creation(),
+        }
+    }
+
     #[cfg(feature = "v1")]
     fn generate_connector_request_reference_id(
         &self,
