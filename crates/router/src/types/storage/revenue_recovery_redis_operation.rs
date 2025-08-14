@@ -81,9 +81,13 @@ impl RedisTokenManager {
                 ))?;
 
         let lock_key = format!("customer:{connector_customer_id}:status");
-
+        let seconds = 3888000;
         let result: bool = match redis_conn
-            .set_key_if_not_exists_with_expiry(&lock_key.into(), payment_id.get_string_repr(), None)
+            .set_key_if_not_exists_with_expiry(
+                &lock_key.into(),
+                payment_id.get_string_repr(),
+                Some(seconds),
+            )
             .await
         {
             Ok(resp) => resp == SetnxReply::KeySet,
@@ -218,13 +222,13 @@ impl RedisTokenManager {
 
             serialized_payment_processor_tokens.insert(payment_processor_token_id, serialized);
         }
-
+        let seconds = 3888000;
         // Update or add tokens
         redis_conn
             .set_hash_fields(
                 &tokens_key.into(),
                 serialized_payment_processor_tokens,
-                None,
+                Some(seconds),
             )
             .await
             .change_context(errors::StorageError::RedisError(
