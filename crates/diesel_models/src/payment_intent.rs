@@ -94,6 +94,7 @@ pub struct PaymentIntent {
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub payment_link_config: Option<PaymentLinkConfigRequestForPayments>,
     pub id: common_utils::id_type::GlobalPaymentId,
+    pub request_overcapture: Option<common_types::primitive_wrappers::RequestOvercapture>,
 }
 
 #[cfg(feature = "v1")]
@@ -176,6 +177,7 @@ pub struct PaymentIntent {
     pub duty_amount: Option<MinorUnit>,
     pub order_date: Option<PrimitiveDateTime>,
     pub enable_partial_authorization: Option<bool>,
+    pub request_overcapture: Option<common_types::primitive_wrappers::RequestOvercapture>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression, PartialEq)]
@@ -464,6 +466,7 @@ pub struct PaymentIntentNew {
     pub shipping_amount_tax: Option<MinorUnit>,
     pub duty_amount: Option<MinorUnit>,
     pub enable_partial_authorization: Option<bool>,
+    pub request_overcapture: Option<common_types::primitive_wrappers::RequestOvercapture>,
 }
 
 #[cfg(feature = "v2")]
@@ -631,6 +634,7 @@ pub struct PaymentIntentUpdateFields {
     pub shipping_amount_tax: Option<MinorUnit>,
     pub duty_amount: Option<MinorUnit>,
     pub enable_partial_authorization: Option<bool>,
+    pub request_overcapture: Option<common_types::primitive_wrappers::RequestOvercapture>,
 }
 
 // TODO: uncomment fields as necessary

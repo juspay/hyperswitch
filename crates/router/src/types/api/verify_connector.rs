@@ -68,6 +68,7 @@ impl VerifyConnectorData {
             locale: None,
             payment_channel: None,
             enable_partial_authorization: None,
+            request_overcapture: None,
         }
     }
 

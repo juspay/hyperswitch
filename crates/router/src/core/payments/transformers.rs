@@ -3095,6 +3095,7 @@ where
             whole_connector_response: payment_data.get_whole_connector_response(),
             payment_channel: payment_intent.payment_channel,
             enable_partial_authorization: payment_intent.enable_partial_authorization,
+            request_overcapture: payment_intent.request_overcapture,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -3392,6 +3393,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             payment_channel: pi.payment_channel,
             network_transaction_id: None,
             enable_partial_authorization: pi.enable_partial_authorization,
+            request_overcapture: pi.request_overcapture,
         }
     }
 }
@@ -3957,6 +3959,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             locale: Some(additional_data.state.locale.clone()),
             payment_channel: payment_data.payment_intent.payment_channel,
             enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
+            request_overcapture: payment_data
+                .payment_intent
+                .request_overcapture,
         })
     }
 }

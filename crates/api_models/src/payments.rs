@@ -13,7 +13,7 @@ use common_enums::ProductType;
 use common_types::payments as common_payments_types;
 #[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
-    ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
+    ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool, 
 };
 use common_utils::{
     consts::default_payments_list_limit,
@@ -1217,6 +1217,12 @@ pub struct PaymentsRequest {
 
     /// Allow partial authorization for this payment
     pub enable_partial_authorization: Option<bool>,
+
+    /// Bool indicating if overcapture  must be requested for all payments
+    #[remove_in(PaymentsConfirmRequest)]
+    #[schema(value_type = Option<bool>)]
+    pub request_overcapture:
+            Option<common_types::primitive_wrappers::RequestOvercapture>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1371,6 +1377,7 @@ impl PaymentsRequest {
             })
             .transpose()
     }
+    
 }
 
 #[cfg(feature = "v1")]
@@ -5278,6 +5285,14 @@ pub struct PaymentsResponse {
 
     /// Allow partial authorization for this payment
     pub enable_partial_authorization: Option<bool>,
+
+    /// Bool indicating if overcapture  must be requested for all payments
+    #[schema(value_type = Option<bool>)]
+    pub request_overcapture:
+                Option<common_types::primitive_wrappers::RequestOvercapture>,
+
+    /// Bool indicating if overcapture is applied for this payment
+    pub overcapture_applied: Option<common_types::primitive_wrappers::OvercaptureAppliedBool>,
 }
 
 #[cfg(feature = "v2")]

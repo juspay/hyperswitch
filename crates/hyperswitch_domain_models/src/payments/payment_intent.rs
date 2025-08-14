@@ -250,6 +250,7 @@ pub struct PaymentIntentUpdateFields {
     pub is_confirm_operation: bool,
     pub payment_channel: Option<common_enums::PaymentChannel>,
     pub enable_partial_authorization: Option<bool>,
+    pub request_overcapture: Option<common_types::primitive_wrappers::RequestOvercapture>,
 }
 
 #[cfg(feature = "v1")]
@@ -1087,6 +1088,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                     shipping_amount_tax: value.shipping_amount_tax,
                     duty_amount: value.duty_amount,
                     enable_partial_authorization: value.enable_partial_authorization,
+                    request_overcapture: value.request_overcapture,
                 }))
             }
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -2095,6 +2097,7 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_amount_tax: self.shipping_amount_tax,
             duty_amount: self.duty_amount,
             enable_partial_authorization: self.enable_partial_authorization,
+            request_overcapture: self.request_overcapture,
         })
     }
 
@@ -2203,6 +2206,7 @@ impl behaviour::Conversion for PaymentIntent {
                 duty_amount: storage_model.duty_amount,
                 order_date: storage_model.order_date,
                 enable_partial_authorization: storage_model.enable_partial_authorization,
+                request_overcapture: storage_model.request_overcapture,
             })
         }
         .await
@@ -2283,6 +2287,7 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_amount_tax: self.shipping_amount_tax,
             duty_amount: self.duty_amount,
             enable_partial_authorization: self.enable_partial_authorization,
+            request_overcapture: self.request_overcapture,
         })
     }
 }

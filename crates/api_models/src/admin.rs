@@ -2184,9 +2184,14 @@ pub struct ProfileCreate {
     #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
 
-    /// Time interval (in hours) for polling the connector to check dispute statuses
+    /// Time interval (in hours) for polling the connector to check  for new disputes 
     #[schema(value_type = Option<i32>, example = 2)]
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+
+    /// Bool indicating if overcapture  must be requested for all payments
+    #[schema(value_type = Option<bool>)]
+    pub always_request_overcapture:
+                Option<primitive_wrappers::AlwaysRequestOvercapture>,
 }
 
 #[nutype::nutype(
@@ -2340,6 +2345,7 @@ pub struct ProfileCreate {
     /// It is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior.
     #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+
 }
 
 #[cfg(feature = "v1")]
@@ -2523,8 +2529,14 @@ pub struct ProfileResponse {
     #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
 
+    /// Time interval (in hours) for polling the connector to check dispute statuses
     #[schema(value_type = Option<u32>, example = 2)]
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+
+    /// Bool indicating if overcapture  must be requested for all payments
+    #[schema(value_type = Option<bool>)]
+    pub always_request_overcapture:
+            Option<primitive_wrappers::AlwaysRequestOvercapture>,
 }
 
 #[cfg(feature = "v2")]
@@ -2854,8 +2866,14 @@ pub struct ProfileUpdate {
     #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
 
+    /// Time interval (in hours) for polling the connector to check for new disputes
     #[schema(value_type = Option<u32>, example = 2)]
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+
+      /// Bool indicating if overcapture  must be requested for all payments
+      #[schema(value_type = Option<bool>)]
+      pub always_request_overcapture:
+              Option<primitive_wrappers::AlwaysRequestOvercapture>,
 }
 
 #[cfg(feature = "v2")]

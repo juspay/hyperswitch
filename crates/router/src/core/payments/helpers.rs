@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::HashSet, net::IpAddr, str::FromStr};
+use std::{borrow::Cow, collections::HashSet, net::IpAddr, str::FromStr, ops::Deref};
 
 pub use ::payment_methods::helpers::{
     populate_bin_details_for_payment_method_create,
@@ -1121,6 +1121,21 @@ pub fn validate_recurring_details_and_token(
             message: "Expected one out of recurring_details and mandate_id but got both".into()
         }))
     })?;
+
+    Ok(())
+}
+
+pub fn validate_overcapture_request(
+    request_overcapture: &Option<common_types::primitive_wrappers::RequestOvercapture>,
+    capture_method: &Option<common_enums::CaptureMethod>,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    if let Some(overcapture) = request_overcapture {
+    utils::when(matches!(*overcapture.deref(), true) && matches!(*capture_method, Some(common_enums::CaptureMethod::Automatic)| None), || {
+        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+            message: "Overcapture is not supported when using automatic capture".into()
+        }))
+    })?;
+}
 
     Ok(())
 }
