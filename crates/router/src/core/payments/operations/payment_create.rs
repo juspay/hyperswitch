@@ -597,7 +597,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 val.parse_value::<BillingConnectorDetails>("BillingConnectorDetails")
                     .ok()
             })
-            .and_then(|details| details.subscription_id);
+            .map(|details| details.subscription_id);
 
         let payment_data = PaymentData {
             flow: PhantomData,

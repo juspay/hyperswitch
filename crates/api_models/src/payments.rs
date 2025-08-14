@@ -7007,8 +7007,8 @@ pub struct ConnectorMetadata {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct BillingConnectorDetails {
     pub connector: String,
-    pub subscription_id: Option<String>,
-    pub invoice_id: Option<String>,
+    pub subscription_id: String,
+    pub invoice_id: String,
 }
 
 impl ConnectorMetadata {

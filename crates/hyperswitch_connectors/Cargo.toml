@@ -8,7 +8,7 @@ license.workspace = true
 [features]
 frm = ["hyperswitch_domain_models/frm", "hyperswitch_interfaces/frm"]
 payouts = ["hyperswitch_domain_models/payouts", "api_models/payouts", "hyperswitch_interfaces/payouts"]
-v1 = ["api_models/v1", "hyperswitch_domain_models/v1", "common_utils/v1"]
+v1 = ["api_models/v1", "hyperswitch_domain_models/v1", "common_utils/v1", "subscriptions"]
 v2 = ["api_models/v2", "hyperswitch_domain_models/v2", "common_utils/v2", "hyperswitch_interfaces/v2"]
 revenue_recovery = ["hyperswitch_interfaces/revenue_recovery", "hyperswitch_domain_models/revenue_recovery"]
 default = ["dummy_connector"]
@@ -16,6 +16,7 @@ dummy_connector = [
     "hyperswitch_interfaces/dummy_connector",
     "hyperswitch_domain_models/dummy_connector",
 ]
+subscriptions = []
 
 [dependencies]
 chrono = "0.4"

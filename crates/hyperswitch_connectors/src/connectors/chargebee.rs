@@ -12,12 +12,7 @@ use common_utils::{
 use error_stack::report;
 use error_stack::ResultExt;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-use hyperswitch_domain_models::{
-    revenue_recovery, router_flow_types::revenue_recovery::RecoveryRecordBack,
-    router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest,
-    router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
-    types::RevenueRecoveryRecordBackRouterData,
-};
+use hyperswitch_domain_models::revenue_recovery;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
@@ -35,6 +30,16 @@ use hyperswitch_domain_models::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefundSyncRouterData, RefundsRouterData,
     },
+};
+#[cfg(any(
+    feature = "subscriptions",
+    all(feature = "v2", feature = "revenue_recovery")
+))]
+use hyperswitch_domain_models::{
+    router_flow_types::revenue_recovery::RecoveryRecordBack,
+    router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest,
+    router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
+    types::RevenueRecoveryRecordBackRouterData,
 };
 use hyperswitch_interfaces::{
     api::{
@@ -77,7 +82,10 @@ impl api::Refund for Chargebee {}
 impl api::RefundExecute for Chargebee {}
 impl api::RefundSync for Chargebee {}
 impl api::PaymentToken for Chargebee {}
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+#[cfg(any(
+    feature = "subscriptions",
+    all(feature = "v2", feature = "revenue_recovery")
+))]
 impl api::revenue_recovery::RevenueRecoveryRecordBack for Chargebee {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
@@ -558,7 +566,10 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Chargebee
     }
 }
 
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+// #[cfg(any(
+//     feature = "subscriptions",
+//     all(feature = "v2", feature = "revenue_recovery")
+// ))]
 impl
     ConnectorIntegration<
         RecoveryRecordBack,
@@ -584,11 +595,7 @@ impl
             .base_url(connectors)
             .to_string()
             .replace("{{merchant_endpoint_prefix}}", metadata.site.peek());
-        let invoice_id = req
-            .request
-            .merchant_reference_id
-            .get_string_repr()
-            .to_string();
+        let invoice_id = req.request.merchant_reference_id.clone();
         Ok(format!("{url}v2/invoices/{invoice_id}/record_payment"))
     }
 

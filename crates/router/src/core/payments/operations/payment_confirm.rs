@@ -446,7 +446,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 val.parse_value::<BillingConnectorDetails>("BillingConnectorDetails")
                     .ok()
             })
-            .and_then(|details| details.subscription_id);
+            .map(|details| details.subscription_id);
 
         payment_intent.shipping_address_id =
             shipping_address.as_ref().map(|i| i.address_id.clone());

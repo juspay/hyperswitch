@@ -10,6 +10,18 @@ use common_utils::errors::CustomResult;
 use hyperswitch_domain_models::router_flow_types::{
     BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, RecoveryRecordBack,
 };
+#[cfg(any(
+    feature = "subscriptions",
+    all(feature = "v2", feature = "revenue_recovery")
+))]
+use hyperswitch_domain_models::{router_flow_types::{
+     RecoveryRecordBack,
+},router_response_types::revenue_recovery::{
+    RevenueRecoveryRecordBackResponse,
+},
+router_request_types::revenue_recovery::{
+    RevenueRecoveryRecordBackRequest,
+} };
 #[cfg(feature = "dummy_connector")]
 use hyperswitch_domain_models::router_request_types::authentication::{
     ConnectorAuthenticationRequestData, ConnectorPostAuthenticationRequestData, PreAuthNRequestData,
@@ -97,7 +109,10 @@ use hyperswitch_interfaces::api::payouts::{
     PayoutCancel, PayoutCreate, PayoutEligibility, PayoutFulfill, PayoutQuote, PayoutRecipient,
     PayoutRecipientAccount, PayoutSync,
 };
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+#[cfg(any(
+    feature = "subscriptions",
+    all(feature = "v2", feature = "revenue_recovery")
+))]
 use hyperswitch_interfaces::api::revenue_recovery as recovery_traits;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_interfaces::api::revenue_recovery::{
@@ -6519,7 +6534,10 @@ default_imp_for_billing_connector_payment_sync!(
     connectors::Zsl
 );
 
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+#[cfg(any(
+    feature = "subscriptions",
+    all(feature = "v2", feature = "revenue_recovery")
+))]
 macro_rules! default_imp_for_revenue_recovery_record_back {
     ($($path:ident::$connector:ident),*) => {
         $( impl recovery_traits::RevenueRecoveryRecordBack for $path::$connector {}
@@ -6534,7 +6552,10 @@ macro_rules! default_imp_for_revenue_recovery_record_back {
     };
 }
 
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+#[cfg(any(
+    feature = "subscriptions",
+    all(feature = "v2", feature = "revenue_recovery")
+))]
 default_imp_for_revenue_recovery_record_back!(
     connectors::Vgs,
     connectors::Aci,
