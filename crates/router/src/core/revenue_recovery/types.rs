@@ -378,7 +378,6 @@ impl Action {
                     payment_intent,
                     revenue_recovery_payment_data,
                     revenue_recovery_metadata,
-                    scheduled_token,
                 )
                 .await;
 

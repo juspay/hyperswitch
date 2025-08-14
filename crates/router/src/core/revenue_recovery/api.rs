@@ -82,18 +82,12 @@ pub async fn call_proxy_api(
     payment_intent: &payments_domain::PaymentIntent,
     revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
     revenue_recovery: &payments_api::PaymentRevenueRecoveryMetadata,
-    scheduled_token: storage::revenue_recovery_redis_operation::PaymentProcessorTokenStatus,
 ) -> RouterResult<payments_domain::PaymentConfirmData<api_types::Authorize>> {
     let operation = payments::operations::proxy_payments_intent::PaymentProxyIntent;
-    let token = scheduled_token
-        .payment_processor_token_details
-        .payment_processor_token;
-    let expiry_month = scheduled_token.payment_processor_token_details.expiry_month;
-    let expiry_year = scheduled_token.payment_processor_token_details.expiry_year;
     let req = payments_api::ProxyPaymentsRequest {
         return_url: None,
         amount: payments_api::AmountDetails::new(payment_intent.amount_details.clone().into()),
-        recurring_details: revenue_recovery.get_payment_token_for_api_request(token),
+        recurring_details: revenue_recovery.get_payment_token_for_api_request(),
         shipping: None,
         browser_info: None,
         connector: revenue_recovery.connector.to_string(),
