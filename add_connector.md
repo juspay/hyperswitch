@@ -39,7 +39,7 @@ By the end, you’ll learn how to create a fully functional, production-ready co
 
 ## Prerequisites
 
-* Before you begin, ensure you’ve completed the initial setup in our [Hyperswitch Contributor Guide](https://github.com/juspay/hyperswitch/blob/main/CONTRIBUTING.md), which covers cloning, tool installation, and access.
+* Before you begin, ensure you’ve completed the initial setup in our [Hyperswitch Contributor Guide](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/docs/CONTRIBUTING.md?plain=1#L1), which covers cloning, tool installation, and access.
 * You should also understanding [connectors and payment methods](https://hyperswitch.io/pm-list).
 * Familiarity with the Connector API you’re integrating
 * A locally set up and running Router repository
@@ -63,16 +63,16 @@ Before running Hyperswitch locally, make sure your Rust environment and system d
 
 **Follow the guide**:
 
-[Configure Rust and install required dependencies based on your OS](https://github.com/juspay/hyperswitch/blob/main/docs/try_local_system.md#set-up-a-rust-environment-and-other-dependencies)
+[Configure Rust and install required dependencies based on your OS](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/docs/try_local_system.md?plain=1#L159)
 
 **Quick links by OS**:
-* [Ubuntu-based systems](https://github.com/juspay/hyperswitch/blob/main/docs/try_local_system.md#set-up-dependencies-on-ubuntu-based-systems)
-* [Windows (WSL2)](https://github.com/juspay/hyperswitch/blob/main/docs/try_local_system.md#set-up-dependencies-on-windows-ubuntu-on-wsl2)
-* [Windows (native)](https://github.com/juspay/hyperswitch/blob/main/docs/try_local_system.md#set-up-dependencies-on-windows)
-* [macOS](https://github.com/juspay/hyperswitch/blob/main/docs/try_local_system.md#set-up-dependencies-on-macos)
+* [Ubuntu-based systems](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/docs/try_local_system.md?plain=1#L164)
+* [Windows (WSL2)](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/docs/try_local_system.md?plain=1#L234)
+* [Windows (native)](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/docs/try_local_system.md?plain=1#L327)
+* [macOS](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/docs/try_local_system.md?plain=1#L363)
 
 **All OS Systems**:
-* [Set up the database](https://github.com/juspay/hyperswitch/blob/main/docs/try_local_system.md#set-up-the-database)
+* [Set up the database](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/docs/try_local_system.md?plain=1#L440)
 
 * Set up the Rust nightly toolchain installed for code formatting:
 
@@ -171,7 +171,7 @@ crates/router/tests/connectors/
 
 - `<connector_name>.rs`: The main connector implementation file where you implement the connector traits
 - `transformers.rs`: Contains data structures and conversion logic between Hyperswitch's internal format and your payment processor's API format
-- **Test file**: [Contains boilerplate test cases for your connector](https://github.com/juspay/hyperswitch/blob/main/connector-template/test.rs#L1-L36).
+- **Test file**: [Contains boilerplate test cases for your connector](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/connector-template/test.rs#L1-L36).
 
 ## Common Payment Flow Types
 
@@ -189,15 +189,15 @@ This section gives you:
 
 | Flow Name           | Description                                      | Implementation in Hyperswitch |
 |---------------------|--------------------------------------------------|--------------------------------|
-| **Access Token**      | Obtain OAuth access token                        | [crates/router/src/types.rs#L34](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L34) |
-| **Tokenization**      | Exchange credentials for a payment token         | [crates/hyperswitch_interfaces/src/types.rs#L14](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_interfaces/src/types.rs#L14) |
-| **Customer Creation** | Create or update customer records                | [crates/router/src/types.rs#L40](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L40) |
-| **Pre‑Processing**    | Validation or enrichment before auth             | [crates/router/src/types.rs#L41](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L41) |
-| **Authorization**     | Authorize and immediately capture payment        | [crates/router/src/types.rs#L39](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L39) |
-| **Authorization‑Only**| Authorize payment for later capture              | [crates/router/src/types.rs#L39](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L39) |
-| **Capture**           | Capture a previously authorized payment          | [crates/router/src/types.rs#L39](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L39) |
-| **Refund**            | Issue a refund                                   | [crates/router/src/types.rs#L44](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L44) |
-| **Webhook Handling**  | Process asynchronous events from PSP             | [crates/router/src/types.rs#L45](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L45) |
+| **Access Token**      | Obtain OAuth access token                        | [crates/hyperswitch_interfaces/src/types.rs#L7](https://github.com/juspay/hyperswitch/blob/06dc66c62e33c1c56c42aab18a7959e1648d6fae/crates/hyperswitch_interfaces/src/types.rs#L7) |
+| **Tokenization**      | Exchange credentials for a payment token         | [crates/hyperswitch_interfaces/src/types.rs#L148](https://github.com/juspay/hyperswitch/blob/06dc66c62e33c1c56c42aab18a7959e1648d6fae/crates/hyperswitch_interfaces/src/types.rs#L148) |
+| **Customer Creation** | Create or update customer records                | [crates/router/src/types.rs#L40](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/router/src/types.rs#L40) |
+| **Pre‑Processing**    | Validation or enrichment before auth             | [crates/router/src/types.rs#L41](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/router/src/types.rs#L41) |
+| **Authorization**     | Authorize and immediately capture payment        | [crates/hyperswitch_interfaces/src/types.rs#L12](https://github.com/juspay/hyperswitch/blob/06dc66c62e33c1c56c42aab18a7959e1648d6fae/crates/hyperswitch_interfaces/src/types.rs#L12) |
+| **Authorization‑Only**| Authorize payment for later capture              | [crates/router/src/types.rs#L39](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/router/src/types.rs#L39) |
+| **Capture**           | Capture a previously authorized payment          | [crates/router/src/types.rs#L39](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/router/src/types.rs#L39) |
+| **Refund**            | Issue a refund                                   | [crates/router/src/types.rs#L44](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/router/src/types.rs#L44) |
+| **Webhook Handling**  | Process asynchronous events from PSP             | [crates/router/src/types.rs#L45](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/router/src/types.rs#L45) |
 
 ---
 ### Flow Type Definitions
@@ -214,8 +214,8 @@ Some PSPs require payment data to be tokenized before it can be authorized.
 This is a **two‑step process**:  
 
 1. **Tokenization** – e.g., Billwerk’s implementation:  
-   - [Tokenization](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L178-L271)  
-   - [Authorization](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L273-L366)  
+   - [Tokenization](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L178-L271)  
+   - [Authorization](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L273-L366)  
 
 2. **Authorization** – Uses the returned token rather than raw payment details.  
 
@@ -227,13 +227,13 @@ This is a **two‑step process**:
 
 Many connectors skip tokenization and send payment data directly in the authorization request.  
 
-- **Authorize.net** – [code](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/authorizedotnet.rs#L401-L497)  
+- **Authorize.net** – [code](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/hyperswitch_connectors/src/connectors/authorizedotnet.rs#L401-L497)  
   Builds `CreateTransactionRequest` directly from payment data in `get_request_body()`.  
 
-- **Helcim** – [code](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/helcim.rs#L295-L385)  
+- **Helcim** – [code](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/hyperswitch_connectors/src/connectors/helcim.rs#L295-L385)  
   Chooses purchase (auto‑capture) or preauth endpoint in `get_url()` and processes payment data directly.  
 
-- **Deutsche Bank** – [code](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/deutschebank.rs#L330-L461)  
+- **Deutsche Bank** – [code](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/hyperswitch_connectors/src/connectors/deutschebank.rs#L330-L461)  
   Selects flow based on 3DS and payment type (card or direct debit).  
 
 **Key differences from tokenization‑first:**
@@ -615,15 +615,15 @@ message: Optional additional error message
 
 Hyperswitch uses separate methods for different HTTP error types:
 
-- **4xx Client Errors**: [`get_error_response`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L692)) handles authentication failures, validation errors, and malformed requests.
+- **4xx Client Errors**: [`get_error_response`](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L692) handles authentication failures, validation errors, and malformed requests.
 - **5xx Server Errors**: 
-[`get_5xx_error_response`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L700) handles internal server errors with potential retry logic.
+[`get_5xx_error_response`](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L700) handles internal server errors with potential retry logic.
 
-Both methods delegate to [`build_error_response`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L136) for consistent processing.
+Both methods delegate to [`build_error_response`](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L136) for consistent processing.
 
 **Error Processing Flow**
 
-The [`build_error_response`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L136) struct serves as the intermediate data structure that bridges Billwerk's API error format and Hyperswitch's standardized error format by taking the `BillwerkErrorResponse` struct as input:
+The [`build_error_response`](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L136) struct serves as the intermediate data structure that bridges Billwerk's API error format and Hyperswitch's standardized error format by taking the `BillwerkErrorResponse` struct as input:
 
 ```rs
 fn build_error_response(
@@ -672,11 +672,11 @@ The method performs these key operations:
 
 ### Automatic Error Routing
 
-Hyperswitch's core API automatically routes errors based on HTTP status codes. You can find the details here: [`crates/router/src/services/api.rs`](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/services/api.rs).
+Hyperswitch's core API automatically routes errors based on HTTP status codes. You can find the details here: [`crates/router/src/services/api.rs`](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/router/src/services/api.rs#L1).
 
-- 4xx → [`get_error_response`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L256)
-- 5xx → [`get_5xx_error_response`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L264)
-- 2xx → [`handle_response`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L332)
+- 4xx → [`get_error_response`](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L256)
+- 5xx → [`get_5xx_error_response`](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L264)
+- 2xx → [`handle_response`](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L332)
 
 
 ### Integration Pattern
@@ -692,7 +692,7 @@ The connector interface implementation follows an architectural pattern that sep
 - `mod.rs` - This file implements the standardized Hyperswitch connector interface using the transformers.
 
 ### The `mod.rs` Implementation Pattern
-The file creates the bridge between the data transformation logic (defined in `transformers.rs`) and the connector interface requirements. It serves as the main connector implementation file that brings together all the components defined in the transformers module and implements all the required traits for payment processing. Looking at the connector template structure [`connector-template/mod.rs:54-67`](https://github.com/juspay/hyperswitch/blob/main/connector-template/mod.rs#L54-L67), you can see how it:
+The file creates the bridge between the data transformation logic (defined in `transformers.rs`) and the connector interface requirements. It serves as the main connector implementation file that brings together all the components defined in the transformers module and implements all the required traits for payment processing. Looking at the connector template structure [`connector-template/mod.rs:54-67`](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/connector-template/mod.rs#L54-L67), you can see how it:
 
 - **Imports the transformers module** - Brings in your PSP-specific types and conversion logic
 ```rs
@@ -773,7 +773,7 @@ impl ConnectorCommon for {{project-name | downcase | pascal_case}} {
 ```
 
 ## ConnectorCommon: The Foundation Trait
-The `ConnectorCommon` trait defines the standardized interface required by Hyperswitch (as outlined in [`crates/hyperswitch_interfaces/src/api.rs`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_interfaces/src/api.rs#L319-L367) and acts as the bridge to your PSP-specific logic in `transformers.rs`. The `connector-template/mod.rs` file implements this trait using the data types and transformation functions from `transformers.rs`. This allows Hyperswitch to interact with your connector in a consistent, processor-agnostic manner. Every connector must implement the `ConnectorCommon` trait, which provides essential connector properties:
+The `ConnectorCommon` trait defines the standardized interface required by Hyperswitch (as outlined in [`crates/hyperswitch_interfaces/src/api.rs`](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/hyperswitch_interfaces/src/api.rs#L326-L374) and acts as the bridge to your PSP-specific logic in `transformers.rs`. The `connector-template/mod.rs` file implements this trait using the data types and transformation functions from `transformers.rs`. This allows Hyperswitch to interact with your connector in a consistent, processor-agnostic manner. Every connector must implement the `ConnectorCommon` trait, which provides essential connector properties:
 
 ### Core Methods You'll Implement
 
@@ -784,7 +784,7 @@ fn id(&self) -> &'static str {
   }
 ```
 
-- `get_currency_unit()` - Whether you handle amounts in base units (dollars) or minor units (cents). See [appendix]() for more details. 
+- `get_currency_unit()` - Whether you handle amounts in base units (dollars) or minor units (cents).
 ```rs
   fn get_currency_unit(&self) -> api::CurrencyUnit {
       api::CurrencyUnit::Minor
@@ -846,11 +846,11 @@ fn build_error_response(
 The `ConnectorIntegration` trait serves as the central coordinator that bridges three key files in Hyperswitch's connector architecture:
 
 - **Defined in `api.rs`**  
-  [`crates/hyperswitch_interfaces/src/api.rs:150–153`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_interfaces/src/api.rs#L150)  
+  [`crates/hyperswitch_interfaces/src/api.rs:150–153`](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/hyperswitch_interfaces/src/api.rs#L156-%23L159)  
   Provides the standardized interface contracts for connector integration.
 
 - **Implemented in `mod.rs`**  
-  Each connector’s main file (`mod.rs`) implements the trait methods for specific payment flows like authorize, capture, refund, etc. You can see how the Tsys connector implements [ConnectorIntegration](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/tsys.rs#L219)
+  Each connector’s main file (`mod.rs`) implements the trait methods for specific payment flows like authorize, capture, refund, etc. You can see how the Tsys connector implements [ConnectorIntegration](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/hyperswitch_connectors/src/connectors/tsys.rs#L219)
 
 - **Uses types from `transformers.rs`**  
   Contains PSP-specific request/response structs and `TryFrom` implementations that convert between Hyperswitch's internal `RouterData` format and the PSP's API format. This is where most connector-specific logic lives.
@@ -869,10 +869,10 @@ These methods work together in sequence:
 
 Here are more details around the methods:
 - **`get_url()`**  
-  Constructs API endpoints by combining base URLs (from `ConnectorCommon`) with specific paths. In the Billwerk connector, it reads the connector’s base URL from config and appends the tokenization path. You can find this implementation [here](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L193-L204).
+  Constructs API endpoints by combining base URLs (from `ConnectorCommon`) with specific paths. In the Billwerk connector, it reads the connector’s base URL from config and appends the tokenization path. You can find this implementation [here](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L193-L204).
 
 - **`get_headers()`**  
-  Delegates to [`build_headers()`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_interfaces/src/api.rs#L417-L429) in the `ConnectorCommonExt` trait, ensuring consistent header handling (auth, content-type, etc.) across all flows.  
+  Delegates to [`build_headers()`](https://github.com/juspay/hyperswitch/blob/06dc66c62e33c1c56c42aab18a7959e1648d6fae/crates/hyperswitch_interfaces/src/api.rs#L422-L430) in the `ConnectorCommonExt` trait, ensuring consistent header handling (auth, content-type, etc.) across all flows.  
 
 - **`get_request_body()`**  
   Uses the `TryFrom` implementations in [transformers.rs](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/billwerk/transformers.rs#L88-L131) to convert Hyperswitch’s internal data structures into PSP-specific request formats (e.g. `BillwerkTokenRequest::try_from(req)?`).  
@@ -888,52 +888,52 @@ Here are more details around the methods:
 
 
 ### `ConnectorCommonExt` - Generic Helper Methods
-The [`ConnectorCommonExt`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_interfaces/src/api.rs#L417-L429) trait serves as an extension layer for the core `ConnectorCommon` trait, providing generic methods that work across different payment flows. It'requires both ConnectorCommon and ConnectorIntegration to be implemented.
+The [`ConnectorCommonExt`](https://github.com/juspay/hyperswitch/blob/06dc66c6/crates/hyperswitch_interfaces/src/api.rs#L418-L441) trait serves as an extension layer for the core `ConnectorCommon` trait, providing generic methods that work across different payment flows. It'requires both ConnectorCommon and ConnectorIntegration to be implemented.
 
 ## Connector Traits Overview
 
 ### `Payment`  
 Includes several sub-traits and represents general payment functionality.  
-- **Defined in:** [`crates/hyperswitch_interfaces/src/types.rs:11-16`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_interfaces/src/types.rs#L11-L16)  
-- **Example implementation:** [`crates/hyperswitch_connectors/src/connectors/novalnet.rs:70`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/novalnet.rs#L70)  
+- **Defined in:** [`crates/hyperswitch_interfaces/src/types.rs:11-16`](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/hyperswitch_interfaces/src/types.rs#L11-L16)  
+- **Example implementation:** [`crates/hyperswitch_connectors/src/connectors/novalnet.rs:70`](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/hyperswitch_connectors/src/connectors/novalnet.rs#L70)  
 
 ### `PaymentAuthorize`  
 Extends the `api::ConnectorIntegration` trait with types for payment authorization.  
-- **Flow type defined in:** [`crates/router/src/types.rs:39`](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L39)  
-- **Example implementation:** [`crates/hyperswitch_connectors/src/connectors/novalnet.rs:74`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/novalnet.rs#L74)  
+- **Flow type defined in:** [`crates/router/src/types.rs:39`](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/router/src/types.rs#L39)  
+- **Example implementation:** [`crates/hyperswitch_connectors/src/connectors/novalnet.rs:74`](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/hyperswitch_connectors/src/connectors/novalnet.rs#L74)  
 
 ### `PaymentCapture`  
 Extends the `api::ConnectorIntegration` trait with types for manual capture of a previously authorized payment.  
-- **Flow type defined in:** [`crates/router/src/types.rs:39`](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L39)  
-- **Example implementation:** [`crates/hyperswitch_connectors/src/connectors/novalnet.rs:76`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/novalnet.rs#L76)  
+- **Flow type defined in:** [`crates/router/src/types.rs:39`](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/router/src/types.rs#L39)  
+- **Example implementation:** [`crates/hyperswitch_connectors/src/connectors/novalnet.rs:76`](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/hyperswitch_connectors/src/connectors/novalnet.rs#L76)  
 
 ### `PaymentSync`  
 Extends the `api::ConnectorIntegration` trait with types for retrieving or synchronizing payment status.  
-- **Flow type defined in:** [`crates/router/src/types.rs:41`](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L41)  
-- **Example implementation:** [`crates/hyperswitch_connectors/src/connectors/novalnet.rs:75`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/novalnet.rs#L75)  
+- **Flow type defined in:** [`crates/router/src/types.rs:41`](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/router/src/types.rs#L41)  
+- **Example implementation:** [`crates/hyperswitch_connectors/src/connectors/novalnet.rs:75`](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/hyperswitch_connectors/src/connectors/novalnet.rs#L75)  
 
 ### `Refund`  
 Includes several sub-traits and represents general refund functionality.  
-- **Defined in:** [`crates/hyperswitch_interfaces/src/types.rs:17`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_interfaces/src/types.rs#L17)  
-- **Example implementation:** [`crates/hyperswitch_connectors/src/connectors/novalnet.rs:78`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/novalnet.rs#L78)  
+- **Defined in:** [`crates/hyperswitch_interfaces/src/types.rs:17`](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/hyperswitch_interfaces/src/types.rs#L17)  
+- **Example implementation:** [`crates/hyperswitch_connectors/src/connectors/novalnet.rs:78`](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/hyperswitch_connectors/src/connectors/novalnet.rs#L78)  
 
 ### `RefundExecute`  
 Extends the `api::ConnectorIntegration` trait with types for creating a refund.  
-- **Flow type defined in:** [`crates/router/src/types.rs:44`](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L44)  
-- **Example implementation:** [`crates/hyperswitch_connectors/src/connectors/novalnet.rs:79`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/novalnet.rs#L79)  
+- **Flow type defined in:** [`crates/router/src/types.rs:44`](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/router/src/types.rs#L44)  
+- **Example implementation:** [`crates/hyperswitch_connectors/src/connectors/novalnet.rs:79`](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/hyperswitch_connectors/src/connectors/novalnet.rs#L79)  
 
 ### `RefundSync`  
 Extends the `api::ConnectorIntegration` trait with types for retrieving or synchronizing a refund.  
-- **Flow type defined in:** [`crates/router/src/types.rs:44`](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/types.rs#L44)  
-- **Example implementation:** [`crates/hyperswitch_connectors/src/connectors/novalnet.rs:80`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/novalnet.rs#L80) 
+- **Flow type defined in:** [`crates/router/src/types.rs:44`](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/router/src/types.rs#L44)  
+- **Example implementation:** [`crates/hyperswitch_connectors/src/connectors/novalnet.rs:80`](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/hyperswitch_connectors/src/connectors/novalnet.rs#L80) 
 
 ## Connector Required Fields Configuration
 
-The file [`crates/payment_methods/src/configs/payment_connector_required_fields.rs`](https://github.com/juspay/hyperswitch/blob/main/crates/payment_methods/src/configs/payment_connector_required_fields.rs) is the central configuration file that defines required fields for each connector and payment-method combination.
+The file [`crates/payment_methods/src/configs/payment_connector_required_fields.rs`](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/payment_methods/src/configs/payment_connector_required_fields.rs#L1) is the central configuration file that defines required fields for each connector and payment-method combination.
 
 ### Example: Billwerk Required Fields
 
-Based on the required-fields configuration, Billwerk requires only basic card details for card payments (see [`payment_connector_required_fields.rs:1263`](https://github.com/juspay/hyperswitch/blob/main/crates/payment_methods/src/configs/payment_connector_required_fields.rs#L1263)).
+Based on the required-fields configuration, Billwerk requires only basic card details for card payments. Please see [`payment_connector_required_fields.rs:1271`](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/payment_methods/src/configs/payment_connector_required_fields.rs#L1271).
 
 Specifically, Billwerk requires:
 - Card number  
@@ -941,14 +941,14 @@ Specifically, Billwerk requires:
 - Card expiry year  
 - Card CVC  
 
-This is defined using the `card_basic()` helper (see [`payment_connector_required_fields.rs:865–872`](https://github.com/juspay/hyperswitch/blob/main/crates/payment_methods/src/configs/payment_connector_required_fields.rs#L865-L872)), which specifies these four essential card fields as `RequiredField` enum variants.
+This is defined using the `card_basic()` helper (see [`payment_connector_required_fields.rs:876–884`](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/payment_methods/src/configs/payment_connector_required_fields.rs#L876-L884)), which specifies these four essential card fields as `RequiredField` enum variants.
 
 ### Comparison with Other Connectors
 
 Billwerk has relatively minimal requirements compared to other connectors. For example:
 
-- **Bank of America** requires card details plus email, full name, and complete billing address (see [`payment_connector_required_fields.rs:1247–1254`](https://github.com/juspay/hyperswitch/blob/main/crates/payment_methods/src/configs/payment_connector_required_fields.rs#L1247-L1254)).  
-- **Cybersource** requires card details, billing email, full name, and billing address (see [`payment_connector_required_fields.rs:1280–1285`](https://github.com/juspay/hyperswitch/blob/main/crates/payment_methods/src/configs/payment_connector_required_fields.rs#L1280-L1285)).
+- **Bank of America** requires card details plus email, full name, and complete billing address (see [`payment_connector_required_fields.rs:1256–1262`](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/payment_methods/src/configs/payment_connector_required_fields.rs#L1256-L1262)).  
+- **Cybersource** requires card details, billing email, full name, and billing address (see [`payment_connector_required_fields.rs:1288–1294`](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/payment_methods/src/configs/payment_connector_required_fields.rs#L1288-L1294)).
 
 Please review the file for your specific connector requirements.
 
@@ -956,8 +956,8 @@ Please review the file for your specific connector requirements.
 
 The derive traits are standard Rust traits that are automatically implemented:
 
-- **Debug**: Standard Rust trait for debug formatting. It's automatically derived on connector structs like [`crates/hyperswitch_connectors/src/connectors/coinbase.rs:52`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/coinbase.rs#L52)
-- **Clone**: Standard Rust trait for cloning. It's implemented on connector structs like [`crates/hyperswitch_connectors/src/connectors/novalnet.rs:57`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/novalnet.rs#L57)
+- **Debug**: Standard Rust trait for debug formatting. It's automatically derived on connector structs like [`crates/hyperswitch_connectors/src/connectors/coinbase.rs:52`](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/hyperswitch_connectors/src/connectors/coinbase.rs#L52)
+- **Clone**: Standard Rust trait for cloning. It's implemented on connector structs like [`crates/hyperswitch_connectors/src/connectors/novalnet.rs:57`](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/hyperswitch_connectors/src/connectors/novalnet.rs#L57)
 - **Copy**: Standard Rust trait for copy semantics. It's used where applicable for simple data structures
 
 These traits work together to provide a complete payment processing interface, with each trait extending `ConnectorIntegration` with specific type parameters for different operations.
@@ -965,8 +965,8 @@ These traits work together to provide a complete payment processing interface, w
 ## Connector utility functions
 Hyperswitch provides a set of standardized utility functions to streamline data extraction, validation, and formatting across all payment connectors. These are primarily defined in:
 
-- [`crates/hyperswitch_connectors/src/utils.rs`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/utils.rs)
-- [`crates/router/src/connector/utils.rs`](https://github.com/juspay/hyperswitch/blob/main/crates/router/src/connector/utils.rs)
+- [`crates/hyperswitch_connectors/src/utils.rs`](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/hyperswitch_connectors/src/utils.rs#L1)
+- [`crates/router/src/connector/utils.rs`](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/router/src/connector/utils.rs#L1)
 
 ###  Key Utilities and Traits
 
@@ -1021,9 +1021,13 @@ Install the WebAssembly build tool:
 cargo install wasm-pack
 ```
 ### Step 1: Configure Your Connector
-Add your connector configuration to the [development environment file](https://github.com/juspay/hyperswitch/blob/main/ccrates/connector_configs/toml/development.toml)
+Add your connector configuration to the [development environment file](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/connector_configs/toml/development.toml)
 
-The connector configuration system [supports multiple environments](https://github.com/juspay/hyperswitch/blob/main/crates/connector_configs/src/connector.rs#L305-L318). For development, add your connector configuration following this pattern.
+The connector configuration system does support multiple environments as you mentioned. The system automatically selects the appropriate configuration file based on feature flags:
+
+- Production: [crates/connector_configs/toml/production.toml](https://github.com/juspay/hyperswitch/blob/06dc66c62e33c1c56c42aab18a7959e1648d6fae/crates/connector_configs/toml/production.toml)
+- Sandbox: [crates/connector_configs/toml/sandbox.toml](https://github.com/juspay/hyperswitch/blob/06dc66c62e33c1c56c42aab18a7959e1648d6fae/crates/connector_configs/toml/sandbox.toml)
+- Development: [crates/connector_configs/toml/development.toml (default)](https://github.com/juspay/hyperswitch/blob/06dc66c62e33c1c56c42aab18a7959e1648d6fae/crates/connector_configs/toml/development.toml)
 
 ```rs
 # Example: Adding a new connector configuration
@@ -1050,10 +1054,10 @@ wasm-pack build \
 
 - Replace `/path/to/hyperswitch` with your Hyperswitch repository root
 
-The build process uses the [`euclid_wasm` crate](https://github.com/juspay/hyperswitch/blob/main/crates/euclid_wasm/Cargo.toml#L1-L44), which provides WebAssembly bindings for connector configuration and routing logic.
+The build process uses the [`euclid_wasm` crate](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/euclid_wasm/Cargo.toml#L1-L44), which provides WebAssembly bindings for connector configuration and routing logic.
 
 ### Step 3: Verify Integration
-The WebAssembly build includes [connector configuration functions](https://github.com/juspay/hyperswitch/blob/main/crates/euclid_wasm/src/lib.rs#L376-L382) that the Control Center uses to retrieve connector settings dynamically.
+The WebAssembly build includes [connector configuration functions](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/euclid_wasm/src/lib.rs#L376-L382) that the Control Center uses to retrieve connector settings dynamically.
 
 You can also use the Makefile target for convenience:
 
@@ -1061,12 +1065,12 @@ You can also use the Makefile target for convenience:
 make euclid-wasm
 ```
 
-This target is defined in the [Makefile:86-87](https://github.com/juspay/hyperswitch/blob/main/Makefile#L86-L87) and handles the build process with appropriate feature flags.
+This target is defined in the [Makefile:86-87](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/Makefile#L86-L87) and handles the build process with appropriate feature flags.
 
 ### Configuration Features
 The connector configuration system supports:
 
-- **Environment-specific configs**: [Development, sandbox, and production configurations](https://github.com/juspay/hyperswitch/blob/main/crates/connector_configs/src/connector.rs#L306-L312)
+- **Environment-specific configs**: [Development, sandbox, and production configurations](https://github.com/juspay/hyperswitch/blob/06dc66c6/crates/connector_configs/src/connector.rs#L323-L337)
 
 - **Authentication methods**: HeaderKey, BodyKey, SignatureKey, etc.
 
@@ -1088,34 +1092,48 @@ This section covers integrating your new connector with the Hyperswitch Control 
 ### Update Frontend Connector Configuration
 1. Add Connector to Type Definitions
 
-Update the connector enum in the [Control Center's type definitions](https://github.com/juspay/hyperswitch/blob/main/src/screens/HyperSwitch/Connectors/ConnectorTypes.res)
+Update the connector enum in the [Control Center's type definitions](https://github.com/juspay/hyperswitch-control-center/blob/e984254b68511728b6b37890fd0c7c7e90c22f57/src/screens/Connectors/ConnectorTypes.res#L29)
 
 ```rs
-type connectorName =  
-  | Stripe  
-  | DummyConnector  
-  | YourNewConnector  // Add your connector here
+type processorTypes =  
+  | BREADPAY
+  | BLUECODE 
+  | YourNewConnector  // Add your connector here at the bottom
 ```
 ### Update Connector Utilities
-Modify the [connector utilities](src/screens/HyperSwitch/Connectors/ConnectorUtils.res) to include your new connector.
+Modify the [connector utilities](https://github.com/juspay/hyperswitch-control-center/blob/e984254b68511728b6b37890fd0c7c7e90c22f57/src/screens/Connectors/ConnectorUtils.res#L46) to include your new connector.
 
 ```js
-// Add to connector list  
-let connectorList: array<connectorName> = [Stripe, YourNewConnector]  
+// Add to connector list at the bottom 
+let connectorList: array<connectorTypes> = [
+....
+  Processors(BREADPAY),
+  Processors(BLUECODE),
+  Processors(YourNewConnector)
+]  
   
-// Add display name mapping  
+// Add display name mapping at the bottom 
 let getConnectorNameString = (connectorName: connectorName) =>  
   switch connectorName {  
-  | Stripe => "Stripe"  
+  | BREADPAY => "breadpay"
+  | BLUECODE => "bluecode" 
   | YourNewConnector => "Your New Connector"  
   }  
   
-// Add connector description  
-let getConnectorInfo = (connectorName: connectorName) =>  
+// Add connector description at the bottom 
+let getProcessorInfo = (connector: ConnectorTypes.processorTypes) => { 
   switch connectorName {  
-  | Stripe => "Stripe description."  
-  | YourNewConnector => "Your New Connector description."  
+  | BREADPAY => breadpayInfo
+  | BLUECODE => bluecodeInfo
+  | YourNewConnector => YourNewConnectorInfo  
   }
+```
+After [`bluecodeinfo`](https://github.com/juspay/hyperswitch-control-center/blob/e984254b68511728b6b37890fd0c7c7e90c22f57/src/screens/Connectors/ConnectorUtils.res#L693) definition, add the definition of your connector in a similar format: 
+
+```js
+let YourNewConnectorInfo = {
+  description: "Info for the connector.",
+}
 ```
 
 ### Add Connector Icon
