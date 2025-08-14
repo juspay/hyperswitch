@@ -132,7 +132,8 @@ pub mod injector_core {
                 Value::String(s) => {
                     // Use regex to find all tokens and replace them
                     use regex::Regex;
-                    let token_regex = Regex::new(r"\{\{\$([a-zA-Z_][a-zA-Z0-9_]*)\}\}").unwrap();
+                    let token_regex = Regex::new(r"\{\{\$([a-zA-Z_][a-zA-Z0-9_]*)\}\}")
+                        .change_context(InjectorError::InvalidTemplate("Invalid regex pattern".to_string()))?;
                     let mut result = s.clone();
 
                     for captures in token_regex.captures_iter(&s) {
@@ -149,7 +150,7 @@ pub mod injector_core {
                             };
 
                             // Replace the token in the result string
-                            let token_pattern = format!("{{{{${}}}}}", field_name_str);
+                            let token_pattern = format!("{{{{${field_name_str}}}}}");
                             result = result.replace(&token_pattern, &token_str);
                         }
                     }
@@ -253,8 +254,7 @@ pub mod injector_core {
             url::Url::parse(&url).map_err(|e| {
                 logger::error!("Invalid URL format: '{}', error: {}", url, e);
                 error_stack::Report::new(InjectorError::InvalidTemplate(format!(
-                    "Invalid URL '{}': {}",
-                    url, e
+                    "Invalid URL '{url}': {e}"
                 )))
             })?;
 
@@ -530,10 +530,12 @@ pub mod injector_core {
 }
 
 #[cfg(all(test, feature = "v2"))]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::injector_core::*;
     use api_models::injector::*;
     use hyperswitch_domain_models::injector;
+    use router_env::logger;
     use std::collections::HashMap;
 
     #[test]
@@ -671,20 +673,19 @@ mod tests {
 
         // The request should succeed (httpbin.org should be accessible)
         if let Err(ref e) = result {
-            eprintln!("Error: {:?}", e);
+            logger::info!("Error: {e:?}");
         }
         assert!(
             result.is_ok(),
-            "injector_core should succeed with valid request: {:?}",
-            result
+            "injector_core should succeed with valid request: {result:?}"
         );
 
         let response = result.unwrap();
         
         // Print the actual response for demonstration
-        println!("=== HTTP RESPONSE FROM HTTPBIN.ORG ===");
-        println!("{}", serde_json::to_string_pretty(&response).unwrap_or_default());
-        println!("=======================================");
+        logger::info!("=== HTTP RESPONSE FROM HTTPBIN.ORG ===");
+        logger::info!("{}", serde_json::to_string_pretty(&response).unwrap_or_default());
+        logger::info!("=======================================");
         
         // Response should be a JSON value from httpbin.org
         assert!(
@@ -738,16 +739,15 @@ mod tests {
         // Should succeed even with insecure flag
         assert!(
             result.is_ok(),
-            "Certificate test should succeed: {:?}",
-            result
+            "Certificate test should succeed: {result:?}"
         );
 
         let response = result.unwrap();
         
         // Print the actual response for demonstration
-        println!("=== CERTIFICATE TEST RESPONSE ===");
-        println!("{}", serde_json::to_string_pretty(&response).unwrap_or_default());
-        println!("================================");
+        logger::info!("=== CERTIFICATE TEST RESPONSE ===");
+        logger::info!("{}", serde_json::to_string_pretty(&response).unwrap_or_default());
+        logger::info!("================================");
         
         // Verify the token was replaced in the JSON
         if let Some(response_str) = response.as_str() {
