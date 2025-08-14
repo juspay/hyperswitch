@@ -1,7 +1,8 @@
 #[cfg(feature = "v2")]
 pub mod types {
-    use serde::{Deserialize, Serialize};
     use std::collections::HashMap;
+
+    use serde::{Deserialize, Serialize};
     use utoipa::ToSchema;
 
     #[derive(
@@ -20,7 +21,7 @@ pub mod types {
     #[strum(serialize_all = "UPPERCASE")]
     pub enum VaultType {
         /// VGS vault - direct token replacement without modifications
-        Vgs
+        Vgs,
     }
 
     #[derive(
@@ -139,7 +140,7 @@ pub mod types {
         /// Optional proxy URL for environments without direct internet access
         /// Equivalent to curl's -x parameter (e.g., "http://proxy.company.com:8080")
         pub proxy_url: Option<String>,
-        
+
         // TLS/SSL Certificate Configuration
         /// Client certificate content (PEM format, equivalent to curl --cert)
         /// Used for mutual TLS authentication

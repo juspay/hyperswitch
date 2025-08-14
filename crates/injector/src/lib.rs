@@ -1,5 +1,7 @@
 #[cfg(feature = "v2")]
 pub mod injector_core {
+    use std::collections::HashMap;
+
     use api_models::injector::{ContentType, InjectorRequest, InjectorResponse};
     use async_trait::async_trait;
     use common_utils::request::{Method, RequestBuilder, RequestContent};
@@ -16,7 +18,6 @@ pub mod injector_core {
     };
     use router_env::{instrument, logger, tracing};
     use serde_json::Value;
-    use std::collections::HashMap;
     use thiserror::Error;
 
     #[derive(Error, Debug)]
@@ -531,10 +532,12 @@ pub mod injector_core {
 
 #[cfg(all(test, feature = "v2"))]
 mod tests {
-    use super::injector_core::*;
+    use std::collections::HashMap;
+
     use api_models::injector::*;
     use hyperswitch_domain_models::injector;
-    use std::collections::HashMap;
+
+    use super::injector_core::*;
 
     #[test]
     fn test_token_parsing() {
@@ -680,12 +683,15 @@ mod tests {
         );
 
         let response = result.unwrap();
-        
+
         // Print the actual response for demonstration
         println!("=== HTTP RESPONSE FROM HTTPBIN.ORG ===");
-        println!("{}", serde_json::to_string_pretty(&response).unwrap_or_default());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&response).unwrap_or_default()
+        );
         println!("=======================================");
-        
+
         // Response should be a JSON value from httpbin.org
         assert!(
             response.is_object() || response.is_string(),
@@ -743,12 +749,15 @@ mod tests {
         );
 
         let response = result.unwrap();
-        
+
         // Print the actual response for demonstration
         println!("=== CERTIFICATE TEST RESPONSE ===");
-        println!("{}", serde_json::to_string_pretty(&response).unwrap_or_default());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&response).unwrap_or_default()
+        );
         println!("================================");
-        
+
         // Verify the token was replaced in the JSON
         if let Some(response_str) = response.as_str() {
             assert!(
