@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fmt::Debug};
 
 use common_enums::enums::{self, CardNetwork};
-use common_utils::{ext_traits::ValueExt, id_type};
+use common_utils::{date_time, ext_traits::ValueExt, id_type};
 use error_stack::ResultExt;
 use external_services::grpc_client::{self as external_grpc_client, GrpcHeaders};
 use hyperswitch_domain_models::{
@@ -13,7 +13,10 @@ use masking::PeekInterface;
 use router_env::logger;
 use serde::{Deserialize, Serialize};
 
-use crate::{db::StorageInterface, routes::SessionState, workflows::revenue_recovery};
+use crate::{
+    db::StorageInterface, routes::SessionState, types::storage::revenue_recovery_redis_operation,
+    workflows::revenue_recovery,
+};
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub struct RevenueRecoveryWorkflowTrackingData {
     pub merchant_id: id_type::MerchantId,
@@ -40,13 +43,19 @@ impl RevenueRecoveryPaymentData {
         retry_count: i32,
         payment_attempt: &PaymentAttempt,
         payment_intent: &PaymentIntent,
+        is_hard_decline: bool,
     ) -> Option<time::PrimitiveDateTime> {
+        if is_hard_decline {
+            logger::info!("Hard Decline encountered");
+            return None;
+        }
         match self.retry_algorithm {
             enums::RevenueRecoveryAlgorithmType::Monitoring => {
                 logger::error!("Monitoring type found for Revenue Recovery retry payment");
                 None
             }
             enums::RevenueRecoveryAlgorithmType::Cascading => {
+                logger::info!("Cascading type found for Revenue Recovery retry payment");
                 revenue_recovery::get_schedule_time_to_retry_mit_payments(
                     state.store.as_ref(),
                     merchant_id,
@@ -54,7 +63,10 @@ impl RevenueRecoveryPaymentData {
                 )
                 .await
             }
-            enums::RevenueRecoveryAlgorithmType::Smart => None,
+            enums::RevenueRecoveryAlgorithmType::Smart => {
+                logger::info!("Smart type found for Revenue Recovery retry payment");
+                None
+            }
         }
     }
 }

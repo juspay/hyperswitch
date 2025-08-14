@@ -81,9 +81,13 @@ impl RedisTokenManager {
                 ))?;
 
         let lock_key = format!("customer:{connector_customer_id}:status");
-
+        let seconds = 3888000;
         let result: bool = match redis_conn
-            .set_key_if_not_exists_with_expiry(&lock_key.into(), payment_id.get_string_repr(), None)
+            .set_key_if_not_exists_with_expiry(
+                &lock_key.into(),
+                payment_id.get_string_repr(),
+                Some(seconds),
+            )
             .await
         {
             Ok(resp) => resp == SetnxReply::KeySet,
@@ -218,13 +222,13 @@ impl RedisTokenManager {
 
             serialized_payment_processor_tokens.insert(payment_processor_token_id, serialized);
         }
-
+        let seconds = 3888000;
         // Update or add tokens
         redis_conn
             .set_hash_fields(
                 &tokens_key.into(),
                 serialized_payment_processor_tokens,
-                None,
+                Some(seconds),
             )
             .await
             .change_context(errors::StorageError::RedisError(
@@ -498,7 +502,7 @@ impl RedisTokenManager {
             Self::get_connector_customer_payment_processor_tokens(state, connector_customer_id)
                 .await?
                 .values()
-                .find(|status| status.scheduled_at.is_some())
+                .find(|status| status.error_code.is_some())
                 .map(|status| PaymentProcessorTokenStatus {
                     payment_processor_token_details: status.payment_processor_token_details.clone(),
                     inserted_by_attempt_id: status.inserted_by_attempt_id.clone(),
@@ -620,7 +624,7 @@ impl RedisTokenManager {
 
         let scheduled_token = tokens
             .values()
-            .find(|status| status.scheduled_at.is_some())
+            .find(|status| status.error_code.is_some())
             .cloned();
 
         tracing::debug!(
