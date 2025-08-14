@@ -25,6 +25,7 @@ pub mod chargebee;
 pub mod checkbook;
 pub mod checkout;
 pub mod coinbase;
+pub mod computop;
 pub mod coingate;
 pub mod cryptopay;
 pub mod ctp_mastercard;
@@ -159,4 +160,5 @@ pub use self::{
     wellsfargo::Wellsfargo, wellsfargopayout::Wellsfargopayout, wise::Wise, worldline::Worldline,
     worldpay::Worldpay, worldpayvantiv::Worldpayvantiv, worldpayxml::Worldpayxml, xendit::Xendit,
     zen::Zen, zsl::Zsl,
+ computop::Computop,
 };

@@ -39,6 +39,7 @@ pub struct Connectors {
     pub checkbook: ConnectorParams,
     pub checkout: ConnectorParams,
     pub coinbase: ConnectorParams,
+    pub computop: ConnectorParams,
     pub coingate: ConnectorParams,
     pub cryptopay: ConnectorParams,
     pub ctp_mastercard: NoParams,

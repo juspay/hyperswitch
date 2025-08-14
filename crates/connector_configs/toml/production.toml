@@ -5302,3 +5302,7 @@ api_key = "API Key"
 [hyperwallet.connector_auth.BodyKey]
 api_key = "Password"
 key1 = "Username"
+
+[computop]
+[computop.connector_auth.HeaderKey]
+api_key = "API Key"
