@@ -36,7 +36,7 @@ use hyperswitch_domain_models::{
 };
 #[cfg(feature = "v2")]
 use masking::{ExposeInterface, PeekInterface, Secret};
-#[cfg(feature = "v2")]
+
 use router_env::logger;
 
 use router_env::tracing::{self, instrument};
