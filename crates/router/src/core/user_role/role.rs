@@ -63,8 +63,9 @@ fn permission_groups_to_parent_group_info(
                 .into_iter()
                 .collect();
 
-            let description = ParentGroup::get_descriptions_for_groups(entity_type)
-                .and_then(|descriptions| descriptions.get(&name).cloned());
+            let description =
+                ParentGroup::get_descriptions_for_groups(entity_type, permission_groups.to_vec())
+                    .and_then(|descriptions| descriptions.get(&name).cloned());
 
             role_api::ParentGroupInfo {
                 name,
@@ -368,27 +369,30 @@ pub async fn get_parent_info_for_role(
         return Err(UserErrors::InvalidRoleId.into());
     }
 
-    let parent_groups = ParentGroup::get_descriptions_for_groups(role_info.get_entity_type())
-        .ok_or(UserErrors::InternalServerError)
-        .attach_printable(format!(
-            "No group descriptions found for role_id: {}",
-            role.role_id
-        ))?
-        .into_iter()
-        .map(|(parent_group, description)| role_api::ParentGroupInfo {
-            name: parent_group.clone(),
-            description: Some(description),
-            scopes: role_info
-                .get_permission_groups()
-                .iter()
-                .filter_map(|group| (group.parent() == parent_group).then_some(group.scope()))
-                // TODO: Remove this hashset conversion when merhant access
-                // and organization access groups are removed
-                .collect::<HashSet<_>>()
-                .into_iter()
-                .collect(),
-        })
-        .collect();
+    let parent_groups = ParentGroup::get_descriptions_for_groups(
+        role_info.get_entity_type(),
+        role_info.get_permission_groups().to_vec(),
+    )
+    .ok_or(UserErrors::InternalServerError)
+    .attach_printable(format!(
+        "No group descriptions found for role_id: {}",
+        role.role_id
+    ))?
+    .into_iter()
+    .map(|(parent_group, description)| role_api::ParentGroupInfo {
+        name: parent_group.clone(),
+        description: Some(description),
+        scopes: role_info
+            .get_permission_groups()
+            .iter()
+            .filter_map(|group| (group.parent() == parent_group).then_some(group.scope()))
+            // TODO: Remove this hashset conversion when merhant access
+            // and organization access groups are removed
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect(),
+    })
+    .collect();
 
     Ok(ApplicationResponse::Json(role_api::RoleInfoWithParents {
         role_id: role.role_id,

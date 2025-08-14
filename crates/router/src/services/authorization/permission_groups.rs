@@ -116,8 +116,10 @@ impl PermissionGroupExt for PermissionGroup {
 
 pub trait ParentGroupExt {
     fn resources(&self) -> Vec<Resource>;
-    fn get_descriptions_for_groups(entity_type: EntityType)
-        -> Option<HashMap<ParentGroup, String>>;
+    fn get_descriptions_for_groups(
+        entity_type: EntityType,
+        groups: Vec<PermissionGroup>,
+    ) -> Option<HashMap<ParentGroup, String>>;
     fn validate_scopes(&self, scopes: &[PermissionScope]) -> Result<(), UserErrors>;
 }
 
@@ -137,9 +139,18 @@ impl ParentGroupExt for ParentGroup {
         }
     }
 
-    fn get_descriptions_for_groups(entity_type: EntityType) -> Option<HashMap<Self, String>> {
+    fn get_descriptions_for_groups(
+        entity_type: EntityType,
+        groups: Vec<PermissionGroup>,
+    ) -> Option<HashMap<Self, String>> {
         let descriptions_map = Self::iter()
             .filter_map(|parent| {
+                let _scopes = groups
+                    .iter()
+                    .filter(|group| group.parent() == parent)
+                    .map(|group| group.scope())
+                    .max()?;
+
                 let resources = parent
                     .resources()
                     .iter()
