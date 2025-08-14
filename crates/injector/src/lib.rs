@@ -533,8 +533,7 @@ pub mod injector_core {
 #[cfg(all(test, feature = "v2"))]
 #[allow(clippy::unwrap_used)]
 mod tests {
-    use std::collections::HashMap;
-
+    use super::injector_core::*;
     use api_models::injector::*;
     use hyperswitch_domain_models::injector;
     use router_env::logger;
