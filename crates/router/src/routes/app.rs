@@ -2672,10 +2672,10 @@ impl User {
         // Role information
         route = route.service(
             web::scope("/role")
-                // TODO: To be deprecated
                 .service(
                     web::resource("")
                         .route(web::get().to(user_role::get_role_from_token))
+                        // TODO: To be deprecated
                         .route(web::post().to(user_role::create_role)),
                 )
                 .service(
@@ -2691,7 +2691,6 @@ impl User {
                 )
                 .service(
                     web::scope("/list")
-                        // TODO: To be deprecated
                         .service(
                             web::resource("").route(web::get().to(user_role::list_roles_with_info)),
                         )
