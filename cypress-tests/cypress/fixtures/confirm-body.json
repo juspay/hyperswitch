@@ -20,7 +20,8 @@
       "zip": "10001",
       "line1": "123",
       "line2": "Main Street",
-      "line3": "Apt 4B"
+      "line3": "Apt 4B",
+      "origin_zip": "10001"
     }
   },
 

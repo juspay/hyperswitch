@@ -133,7 +133,8 @@ pub struct CardInformation {
     pub card_number: CardNumber,
     pub expiry_month: Secret<String>,
     pub expiry_year: Secret<String>,
-    pub cvv: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cvv: Option<Secret<String>>,
     pub cardholder_name: Secret<String>,
     pub cardholder_email: pii::Email,
     pub cardholder_phone_number: Secret<String>,
@@ -201,6 +202,16 @@ fn map_payment_response_to_attempt_status(
     }
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct XenditCaptureResponse {
+    pub id: String,
+    pub status: PaymentStatus,
+    pub actions: Option<Vec<Action>>,
+    pub payment_method: PaymentMethodInfo,
+    pub failure_code: Option<String>,
+    pub reference_id: Secret<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum MethodType {
@@ -242,7 +253,11 @@ impl TryFrom<XenditRouterData<&PaymentsAuthorizeRouterData>> for XenditPaymentsR
                             card_number: card_data.card_number.clone(),
                             expiry_month: card_data.card_exp_month.clone(),
                             expiry_year: card_data.get_expiry_year_4_digit(),
-                            cvv: card_data.card_cvc.clone(),
+                            cvv: if card_data.card_cvc.clone().expose().is_empty() {
+                                None
+                            } else {
+                                Some(card_data.card_cvc.clone())
+                            },
                             cardholder_name: card_data
                                 .get_cardholder_name()
                                 .or(item.router_data.get_billing_full_name())?,
@@ -410,7 +425,7 @@ impl<F>
 }
 
 impl<F>
-    TryFrom<ResponseRouterData<F, XenditPaymentResponse, PaymentsCaptureData, PaymentsResponseData>>
+    TryFrom<ResponseRouterData<F, XenditCaptureResponse, PaymentsCaptureData, PaymentsResponseData>>
     for RouterData<F, PaymentsCaptureData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -418,12 +433,18 @@ impl<F>
     fn try_from(
         item: ResponseRouterData<
             F,
-            XenditPaymentResponse,
+            XenditCaptureResponse,
             PaymentsCaptureData,
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let status = map_payment_response_to_attempt_status(item.response.clone(), true);
+        let status = match item.response.status {
+            PaymentStatus::Failed => enums::AttemptStatus::Failure,
+            PaymentStatus::Succeeded | PaymentStatus::Verified => enums::AttemptStatus::Charged,
+            PaymentStatus::Pending => enums::AttemptStatus::Pending,
+            PaymentStatus::RequiresAction => enums::AttemptStatus::AuthenticationPending,
+            PaymentStatus::AwaitingCapture => enums::AttemptStatus::Authorized,
+        };
         let response = if status == enums::AttemptStatus::Failure {
             Err(ErrorResponse {
                 code: item

@@ -123,6 +123,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             search_tags,
             apple_pay_recurring_details: apple_pay_recurring_details
                 .map(ApplePayRecurringDetails::convert_from),
+            gateway_system: None,
         }
     }
 
@@ -131,6 +132,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             redirect_response,
             search_tags,
             apple_pay_recurring_details,
+            ..
         } = self;
 
         ApiFeatureMetadata {
@@ -403,6 +405,13 @@ impl ApiModelToDieselModelConvertor<ApiOrderDetailsWithAmount> for OrderDetailsW
             product_tax_code,
             tax_rate,
             total_tax_amount,
+            description,
+            sku,
+            upc,
+            commodity_code,
+            unit_of_measure,
+            total_amount,
+            unit_discount_amount,
         } = from;
         Self {
             product_name,
@@ -418,6 +427,13 @@ impl ApiModelToDieselModelConvertor<ApiOrderDetailsWithAmount> for OrderDetailsW
             product_tax_code,
             tax_rate,
             total_tax_amount,
+            description,
+            sku,
+            upc,
+            commodity_code,
+            unit_of_measure,
+            total_amount,
+            unit_discount_amount,
         }
     }
 
@@ -436,6 +452,13 @@ impl ApiModelToDieselModelConvertor<ApiOrderDetailsWithAmount> for OrderDetailsW
             product_tax_code,
             tax_rate,
             total_tax_amount,
+            description,
+            sku,
+            upc,
+            commodity_code,
+            unit_of_measure,
+            total_amount,
+            unit_discount_amount,
         } = self;
         ApiOrderDetailsWithAmount {
             product_name,
@@ -451,6 +474,13 @@ impl ApiModelToDieselModelConvertor<ApiOrderDetailsWithAmount> for OrderDetailsW
             product_tax_code,
             tax_rate,
             total_tax_amount,
+            description,
+            sku,
+            upc,
+            commodity_code,
+            unit_of_measure,
+            total_amount,
+            unit_discount_amount,
         }
     }
 }

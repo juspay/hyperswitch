@@ -1465,6 +1465,7 @@ impl PaymentCreate {
                 phone: request.phone.clone(),
                 email: request.email.clone(),
                 phone_country_code: request.phone_country_code.clone(),
+                tax_registration_id: None,
             })
         } else {
             None
@@ -1621,6 +1622,13 @@ impl PaymentCreate {
                 .is_iframe_redirection_enabled
                 .or(business_profile.is_iframe_redirection_enabled),
             is_payment_id_from_merchant: Some(is_payment_id_from_merchant),
+            payment_channel: request.payment_channel.clone(),
+            order_date: request.order_date,
+            discount_amount: request.discount_amount,
+            duty_amount: request.duty_amount,
+            tax_status: request.tax_status,
+            shipping_amount_tax: request.shipping_amount_tax,
+            enable_partial_authorization: request.enable_partial_authorization,
         })
     }
 

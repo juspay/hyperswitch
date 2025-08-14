@@ -746,6 +746,23 @@ impl EventInterface for KafkaStore {
             .await
     }
 
+    async fn find_event_by_merchant_id_idempotent_event_id(
+        &self,
+        state: &KeyManagerState,
+        merchant_id: &id_type::MerchantId,
+        idempotent_event_id: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<domain::Event, errors::StorageError> {
+        self.diesel_store
+            .find_event_by_merchant_id_idempotent_event_id(
+                state,
+                merchant_id,
+                idempotent_event_id,
+                merchant_key_store,
+            )
+            .await
+    }
+
     async fn list_initial_events_by_merchant_id_primary_object_id(
         &self,
         state: &KeyManagerState,
@@ -4270,6 +4287,24 @@ impl TokenizationInterface for KafkaStore {
     {
         self.diesel_store
             .get_entity_id_vault_id_by_token_id(token, merchant_key_store, key_manager_state)
+            .await
+    }
+
+    async fn update_tokenization_record(
+        &self,
+        tokenization: hyperswitch_domain_models::tokenization::Tokenization,
+        tokenization_update: hyperswitch_domain_models::tokenization::TokenizationUpdate,
+        merchant_key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+        key_manager_state: &KeyManagerState,
+    ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
+    {
+        self.diesel_store
+            .update_tokenization_record(
+                tokenization,
+                tokenization_update,
+                merchant_key_store,
+                key_manager_state,
+            )
             .await
     }
 }

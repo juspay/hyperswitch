@@ -9,6 +9,7 @@ use common_utils::{
     types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
+use hex;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
@@ -38,7 +39,7 @@ use hyperswitch_interfaces::{
     types::{
         PaymentsAuthorizeType, PaymentsCaptureType, PaymentsCompleteAuthorizeType,
         PaymentsPreProcessingType, PaymentsSyncType, PaymentsVoidType, RefundExecuteType,
-        RefundSyncType, Response,
+        RefundSyncType, Response, SetupMandateType,
     },
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
@@ -48,7 +49,7 @@ use transformers as nmi;
 
 use crate::{
     types::ResponseRouterData,
-    utils::{construct_not_supported_error_report, convert_amount, get_header_key_value},
+    utils::{self, construct_not_supported_error_report, convert_amount, get_header_key_value},
 };
 
 #[derive(Clone)]
@@ -161,6 +162,16 @@ impl ConnectorValidation for Nmi {
         // in case we dont have transaction id, we can make psync using attempt id
         Ok(())
     }
+
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<enums::PaymentMethodType>,
+        pm_data: hyperswitch_domain_models::payment_method_data::PaymentMethodData,
+    ) -> CustomResult<(), ConnectorError> {
+        let mandate_supported_pmd =
+            std::collections::HashSet::from([utils::PaymentMethodDataType::Card]);
+        utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
+    }
 }
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
@@ -194,27 +205,23 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         req: &SetupMandateRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, ConnectorError> {
-        let connector_req = nmi::NmiPaymentsRequest::try_from(req)?;
+        let connector_req = nmi::NmiValidateRequest::try_from(req)?;
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
     fn build_request(
         &self,
-        _req: &SetupMandateRouterData,
-        _connectors: &Connectors,
+        req: &SetupMandateRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<Option<Request>, ConnectorError> {
-        Err(ConnectorError::NotImplemented("Setup Mandate flow for Nmi".to_string()).into())
-
-        // Ok(Some(
-        //     RequestBuilder::new()
-        //         .method(Method::Post)
-        //         .url(&SetupMandateType::get_url(self, req, connectors)?)
-        //         .headers(SetupMandateType::get_headers(self, req, connectors)?)
-        //         .set_body(SetupMandateType::get_request_body(
-        //             self, req, connectors,
-        //         )?)
-        //         .build(),
-        // ))
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&SetupMandateType::get_url(self, req, connectors)?)
+                .headers(SetupMandateType::get_headers(self, req, connectors)?)
+                .set_body(SetupMandateType::get_request_body(self, req, connectors)?)
+                .build(),
+        ))
     }
 
     fn handle_response(
@@ -853,13 +860,15 @@ impl IncomingWebhook for Nmi {
             .captures(sig_header)
         {
             let signature = captures
-                .get(1)
+                .get(2)
                 .ok_or(ConnectorError::WebhookSignatureNotFound)?
                 .as_str();
-            return Ok(signature.as_bytes().to_vec());
-        }
 
-        Err(report!(ConnectorError::WebhookSignatureNotFound))
+            // Decode hex signature to bytes
+            hex::decode(signature).change_context(ConnectorError::WebhookSignatureNotFound)
+        } else {
+            Err(report!(ConnectorError::WebhookSignatureNotFound))
+        }
     }
 
     fn get_webhook_source_verification_message(
@@ -877,15 +886,16 @@ impl IncomingWebhook for Nmi {
             .captures(sig_header)
         {
             let nonce = captures
-                .get(0)
+                .get(1)
                 .ok_or(ConnectorError::WebhookSignatureNotFound)?
                 .as_str();
 
             let message = format!("{}.{}", nonce, String::from_utf8_lossy(request.body));
 
-            return Ok(message.into_bytes());
+            Ok(message.into_bytes())
+        } else {
+            Err(report!(ConnectorError::WebhookSignatureNotFound))
         }
-        Err(report!(ConnectorError::WebhookSignatureNotFound))
     }
 
     fn get_webhook_object_reference_id(

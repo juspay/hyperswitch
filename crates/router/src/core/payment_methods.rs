@@ -866,7 +866,7 @@ fn get_card_network_with_us_local_debit_network_override(
                 data.co_badged_card_networks_info
                     .0
                     .iter()
-                    .find(|info| info.network.is_global_network())
+                    .find(|info| info.network.is_signature_network())
                     .cloned()
             });
         info.map(|data| data.network)
@@ -3319,6 +3319,8 @@ async fn create_single_use_tokenization_flow(
             psd2_sca_exemption_type: None,
             raw_connector_response: None,
             is_payment_id_from_merchant: None,
+            l2_l3_data: None,
+            minor_amount_capturable: None,
         };
 
     let payment_method_token_response = Box::pin(tokenization::add_token_for_payment_method(
