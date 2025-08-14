@@ -30,9 +30,10 @@ use hyperswitch_interfaces::{
 };
 use masking::Secret;
 pub use payment_methods::configs::settings::{
-    ConnectorFields, EligiblePaymentMethods, Mandates, PaymentMethodAuth, PaymentMethodType,
-    RequiredFieldFinal, RequiredFields, SupportedConnectorsForMandate,
-    SupportedPaymentMethodTypesForMandate, SupportedPaymentMethodsForMandate, ZeroMandates,
+    BankRedirectConfig, BanksVector, ConnectorBankNames, ConnectorFields, EligiblePaymentMethods,
+    Mandates, PaymentMethodAuth, PaymentMethodType, RequiredFieldFinal, RequiredFields,
+    SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
+    SupportedPaymentMethodsForMandate, ZeroMandates,
 };
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
@@ -107,6 +108,7 @@ pub struct Settings<S: SecretState> {
     pub mandates: Mandates,
     pub zero_mandates: ZeroMandates,
     pub network_transaction_id_supported_connectors: NetworkTransactionIdSupportedConnectors,
+    pub list_dispute_supported_connectors: ListDiputeSupportedConnectors,
     pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
     pub webhook_source_verification_call: WebhookSourceVerificationCall,
@@ -602,6 +604,13 @@ pub struct NetworkTransactionIdSupportedConnectors {
     pub connector_list: HashSet<enums::Connector>,
 }
 
+/// Connectors that support only dispute list API for syncing disputes with Hyperswitch
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct ListDiputeSupportedConnectors {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub connector_list: HashSet<enums::Connector>,
+}
+
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct NetworkTokenizationSupportedCardNetworks {
     #[serde(deserialize_with = "deserialize_hashset")]
@@ -665,17 +674,6 @@ pub enum PaymentMethodTypeTokenFilter {
     DisableOnly(HashSet<diesel_models::enums::PaymentMethodType>),
     #[default]
     AllAccepted,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
-pub struct BankRedirectConfig(pub HashMap<enums::PaymentMethodType, ConnectorBankNames>);
-#[derive(Debug, Deserialize, Clone)]
-pub struct ConnectorBankNames(pub HashMap<String, BanksVector>);
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct BanksVector {
-    #[serde(deserialize_with = "deserialize_hashset")]
-    pub banks: HashSet<common_enums::enums::BankNames>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -1007,9 +1005,14 @@ impl Settings<SecuredSecret> {
             .build()
             .change_context(ApplicationError::ConfigurationError)?;
 
-        serde_path_to_error::deserialize(config)
+        let mut settings: Self = serde_path_to_error::deserialize(config)
             .attach_printable("Unable to deserialize application configuration")
-            .change_context(ApplicationError::ConfigurationError)
+            .change_context(ApplicationError::ConfigurationError)?;
+        #[cfg(feature = "v1")]
+        {
+            settings.required_fields = RequiredFields::new(&settings.bank_config);
+        }
+        Ok(settings)
     }
 
     pub fn validate(&self) -> ApplicationResult<()> {
@@ -1112,6 +1115,15 @@ impl Settings<SecuredSecret> {
         self.platform.validate()?;
 
         self.open_router.validate()?;
+
+        // Validate gRPC client settings
+        #[cfg(feature = "revenue_recovery")]
+        self.grpc_client
+            .recovery_decider_client
+            .as_ref()
+            .map(|config| config.validate())
+            .transpose()
+            .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
 
         Ok(())
     }

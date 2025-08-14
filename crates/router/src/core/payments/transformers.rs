@@ -176,6 +176,7 @@ where
         raw_connector_response: None,
         is_payment_id_from_merchant: payment_data.payment_intent.is_payment_id_from_merchant,
         l2_l3_data: None,
+        minor_amount_capturable: None,
     };
     Ok(router_data)
 }
@@ -313,7 +314,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             payment_data
                 .payment_intent
                 .request_incremental_authorization,
-            RequestIncrementalAuthorization::True | RequestIncrementalAuthorization::Default
+            RequestIncrementalAuthorization::True
         ),
         metadata: payment_data.payment_intent.metadata.expose_option(),
         authentication_data: None,
@@ -329,6 +330,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         order_id: None,
         locale: None,
         payment_channel: None,
+        enable_partial_authorization: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -409,6 +411,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         raw_connector_response: None,
         is_payment_id_from_merchant: payment_data.payment_intent.is_payment_id_from_merchant,
         l2_l3_data: None,
+        minor_amount_capturable: None,
     };
 
     Ok(router_data)
@@ -575,6 +578,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
+        minor_amount_capturable: None,
     };
 
     Ok(router_data)
@@ -704,6 +708,7 @@ pub async fn construct_router_data_for_psync<'a>(
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
+        minor_amount_capturable: None,
     };
 
     Ok(router_data)
@@ -888,6 +893,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
+        minor_amount_capturable: None,
     };
 
     Ok(router_data)
@@ -1019,7 +1025,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
             payment_data
                 .payment_intent
                 .request_incremental_authorization,
-            RequestIncrementalAuthorization::True | RequestIncrementalAuthorization::Default
+            RequestIncrementalAuthorization::True
         ),
         metadata: payment_data.payment_intent.metadata,
         minor_amount: Some(payment_data.payment_attempt.amount_details.get_net_amount()),
@@ -1028,6 +1034,8 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         complete_authorize_url,
         connector_testing_data: None,
         customer_id: None,
+        enable_partial_authorization: None,
+        payment_channel: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -1108,6 +1116,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
+        minor_amount_capturable: None,
     };
 
     Ok(router_data)
@@ -1375,6 +1384,7 @@ where
         raw_connector_response: None,
         is_payment_id_from_merchant: payment_data.payment_intent.is_payment_id_from_merchant,
         l2_l3_data,
+        minor_amount_capturable: None,
     };
 
     Ok(router_data)
@@ -1569,6 +1579,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         raw_connector_response: None,
         is_payment_id_from_merchant: payment_data.payment_intent.is_payment_id_from_merchant,
         l2_l3_data: None,
+        minor_amount_capturable: None,
     };
 
     Ok(router_data)
@@ -3084,6 +3095,7 @@ where
             is_iframe_redirection_enabled: payment_intent.is_iframe_redirection_enabled,
             whole_connector_response: payment_data.get_whole_connector_response(),
             payment_channel: payment_intent.payment_channel,
+            enable_partial_authorization: payment_intent.enable_partial_authorization,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -3380,6 +3392,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             is_iframe_redirection_enabled:pi.is_iframe_redirection_enabled,
             payment_channel: pi.payment_channel,
             network_transaction_id: None,
+            enable_partial_authorization: pi.enable_partial_authorization,
         }
     }
 }
@@ -3710,6 +3723,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             order_id: None,
             locale: None,
             payment_channel: None,
+            enable_partial_authorization: None,
         })
     }
 }
@@ -3922,7 +3936,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                     .payment_intent
                     .request_incremental_authorization,
                 Some(RequestIncrementalAuthorization::True)
-                    | Some(RequestIncrementalAuthorization::Default)
             ),
             metadata: additional_data.payment_data.payment_intent.metadata,
             authentication_data: payment_data
@@ -3943,6 +3956,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             order_id: None,
             locale: Some(additional_data.state.locale.clone()),
             payment_channel: payment_data.payment_intent.payment_channel,
+            enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
         })
     }
 }
@@ -4256,6 +4270,42 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             metadata: payment_data.payment_intent.metadata,
             webhook_url,
             capture_method,
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelPostCaptureData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        todo!()
+    }
+}
+
+#[cfg(feature = "v1")]
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelPostCaptureData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        let payment_data = additional_data.payment_data;
+        let connector = api::ConnectorData::get_connector_by_name(
+            &additional_data.state.conf.connectors,
+            &additional_data.connector_name,
+            api::GetToken::Connector,
+            payment_data.payment_attempt.merchant_connector_id.clone(),
+        )?;
+        let amount = payment_data.payment_attempt.get_total_amount();
+
+        Ok(Self {
+            minor_amount: Some(amount),
+            currency: Some(payment_data.currency),
+            connector_transaction_id: connector
+                .connector
+                .connector_transaction_id(&payment_data.payment_attempt)?
+                .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
+            cancellation_reason: payment_data.payment_attempt.cancellation_reason,
+            connector_meta: payment_data.payment_attempt.connector_metadata,
         })
     }
 }
@@ -4794,7 +4844,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                     .payment_intent
                     .request_incremental_authorization,
                 Some(RequestIncrementalAuthorization::True)
-                    | Some(RequestIncrementalAuthorization::Default)
             ),
             metadata: payment_data.payment_intent.metadata.clone().map(Into::into),
             shipping_cost: payment_data.payment_intent.shipping_cost,
@@ -4803,6 +4852,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             capture_method: payment_data.payment_attempt.capture_method,
             connector_testing_data,
             customer_id: payment_data.payment_intent.customer_id,
+            enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
+            payment_channel: payment_data.payment_intent.payment_channel,
         })
     }
 }

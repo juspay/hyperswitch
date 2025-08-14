@@ -252,6 +252,7 @@ diesel::table! {
         merchant_category_code -> Nullable<Varchar>,
         #[max_length = 32]
         merchant_country_code -> Nullable<Varchar>,
+        dispute_polling_interval -> Nullable<Int4>,
     }
 }
 
@@ -1082,6 +1083,7 @@ diesel::table! {
         shipping_amount_tax -> Nullable<Int8>,
         duty_amount -> Nullable<Int8>,
         order_date -> Nullable<Timestamp>,
+        enable_partial_authorization -> Nullable<Bool>,
     }
 }
 

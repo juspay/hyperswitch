@@ -2927,6 +2927,7 @@ pub(crate) fn validate_status_with_capture_method(
     utils::when(
         status != storage_enums::IntentStatus::RequiresCapture
             && status != storage_enums::IntentStatus::PartiallyCapturedAndCapturable
+            && status != storage_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
             && status != storage_enums::IntentStatus::Processing,
         || {
             Err(report!(errors::ApiErrorResponse::PaymentUnexpectedState {
@@ -3897,6 +3898,7 @@ mod tests {
             order_date: None,
             shipping_amount_tax: None,
             duty_amount: None,
+            enable_partial_authorization: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3980,6 +3982,7 @@ mod tests {
             order_date: None,
             shipping_amount_tax: None,
             duty_amount: None,
+            enable_partial_authorization: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -4061,6 +4064,7 @@ mod tests {
             order_date: None,
             shipping_amount_tax: None,
             duty_amount: None,
+            enable_partial_authorization: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -4182,6 +4186,15 @@ impl MerchantConnectorAccountType {
         match self {
             Self::DbVal(db_val) => db_val.additional_merchant_data.clone(),
             Self::CacheVal(_) => None,
+        }
+    }
+
+    pub fn get_webhook_details(
+        &self,
+    ) -> CustomResult<Option<&masking::Secret<serde_json::Value>>, errors::ApiErrorResponse> {
+        match self {
+            Self::DbVal(db_val) => Ok(db_val.connector_webhook_details.as_ref()),
+            Self::CacheVal(_) => Ok(None),
         }
     }
 }
@@ -4397,6 +4410,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         raw_connector_response: router_data.raw_connector_response,
         is_payment_id_from_merchant: router_data.is_payment_id_from_merchant,
         l2_l3_data: router_data.l2_l3_data,
+        minor_amount_capturable: router_data.minor_amount_capturable,
     }
 }
 
@@ -4437,11 +4451,13 @@ pub fn get_attempt_type(
                     | enums::AttemptStatus::PartialCharged
                     | enums::AttemptStatus::PartialChargedAndChargeable
                     | enums::AttemptStatus::Voided
+                    | enums::AttemptStatus::VoidedPostCharge
                     | enums::AttemptStatus::AutoRefunded
                     | enums::AttemptStatus::PaymentMethodAwaited
                     | enums::AttemptStatus::DeviceDataCollectionPending
                     | enums::AttemptStatus::IntegrityFailure
-                    | enums::AttemptStatus::Expired => {
+                    | enums::AttemptStatus::Expired
+                    | enums::AttemptStatus::PartiallyAuthorized => {
                         metrics::MANUAL_RETRY_VALIDATION_FAILED.add(
                             1,
                             router_env::metric_attributes!((
@@ -4492,13 +4508,15 @@ pub fn get_attempt_type(
             }
         }
         enums::IntentStatus::Cancelled
+        | enums::IntentStatus::CancelledPostCapture
         | enums::IntentStatus::RequiresCapture
         | enums::IntentStatus::PartiallyCaptured
         | enums::IntentStatus::PartiallyCapturedAndCapturable
         | enums::IntentStatus::Processing
         | enums::IntentStatus::Succeeded
         | enums::IntentStatus::Conflicted
-        | enums::IntentStatus::Expired => {
+        | enums::IntentStatus::Expired
+        | enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => {
             Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                 message: format!(
                     "You cannot {action} this payment because it has status {}",
@@ -4742,11 +4760,13 @@ pub fn is_manual_retry_allowed(
             | enums::AttemptStatus::PartialCharged
             | enums::AttemptStatus::PartialChargedAndChargeable
             | enums::AttemptStatus::Voided
+            | enums::AttemptStatus::VoidedPostCharge
             | enums::AttemptStatus::AutoRefunded
             | enums::AttemptStatus::PaymentMethodAwaited
             | enums::AttemptStatus::DeviceDataCollectionPending
             | enums::AttemptStatus::IntegrityFailure
-            | enums::AttemptStatus::Expired => {
+            | enums::AttemptStatus::Expired
+            | enums::AttemptStatus::PartiallyAuthorized => {
                 logger::error!("Payment Attempt should not be in this state because Attempt to Intent status mapping doesn't allow it");
                 None
             }
@@ -4760,13 +4780,15 @@ pub fn is_manual_retry_allowed(
             | enums::AttemptStatus::Failure => Some(true),
         },
         enums::IntentStatus::Cancelled
+        | enums::IntentStatus::CancelledPostCapture
         | enums::IntentStatus::RequiresCapture
         | enums::IntentStatus::PartiallyCaptured
         | enums::IntentStatus::PartiallyCapturedAndCapturable
         | enums::IntentStatus::Processing
         | enums::IntentStatus::Succeeded
         | enums::IntentStatus::Conflicted
-        | enums::IntentStatus::Expired => Some(false),
+        | enums::IntentStatus::Expired
+        | enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => Some(false),
 
         enums::IntentStatus::RequiresCustomerAction
         | enums::IntentStatus::RequiresMerchantAction
@@ -4845,19 +4867,30 @@ pub async fn get_additional_payment_data(
                     "Card cobadge check failed due to an invalid card network regex",
                 )?;
 
-            let card_network = match (
-                is_cobadged_based_on_regex,
-                card_data.co_badged_card_data.is_some(),
-            ) {
-                (false, false) => {
+            let (card_network, signature_network, is_regulated) = card_data
+                .co_badged_card_data
+                .as_ref()
+                .map(|co_badged_data| {
+                    logger::debug!("Co-badged card data found");
+
+                    (
+                        card_data.card_network.clone(),
+                        co_badged_data
+                            .co_badged_card_networks_info
+                            .get_signature_network(),
+                        Some(co_badged_data.is_regulated),
+                    )
+                })
+                .or_else(|| {
+                    is_cobadged_based_on_regex.then(|| {
+                        logger::debug!("Card network is cobadged (regex-based detection)");
+                        (card_data.card_network.clone(), None, None)
+                    })
+                })
+                .unwrap_or_else(|| {
                     logger::debug!("Card network is not cobadged");
-                    None
-                }
-                _ => {
-                    logger::debug!("Card network is cobadged");
-                    card_data.card_network.clone()
-                }
-            };
+                    (None, None, None)
+                });
 
             let last4 = Some(card_data.card_number.get_last4());
             if card_data.card_issuer.is_some()
@@ -4882,6 +4915,8 @@ pub async fn get_additional_payment_data(
                         // These are filled after calling the processor / connector
                         payment_checks: None,
                         authentication_data: None,
+                        is_regulated,
+                        signature_network: signature_network.clone(),
                     }),
                 )))
             } else {
@@ -4912,6 +4947,8 @@ pub async fn get_additional_payment_data(
                                 // These are filled after calling the processor / connector
                                 payment_checks: None,
                                 authentication_data: None,
+                                is_regulated,
+                                signature_network: signature_network.clone(),
                             },
                         ))
                     });
@@ -4932,6 +4969,8 @@ pub async fn get_additional_payment_data(
                             // These are filled after calling the processor / connector
                             payment_checks: None,
                             authentication_data: None,
+                            is_regulated,
+                            signature_network: signature_network.clone(),
                         },
                     ))
                 })))
@@ -5177,6 +5216,8 @@ pub async fn get_additional_payment_data(
                         // These are filled after calling the processor / connector
                         payment_checks: None,
                         authentication_data: None,
+                        is_regulated: None,
+                        signature_network: None,
                     }),
                 )))
             } else {
@@ -5207,6 +5248,8 @@ pub async fn get_additional_payment_data(
                                 // These are filled after calling the processor / connector
                                 payment_checks: None,
                                 authentication_data: None,
+                                is_regulated: None,
+                                signature_network: None,
                             },
                         ))
                     });
@@ -5227,6 +5270,8 @@ pub async fn get_additional_payment_data(
                             // These are filled after calling the processor / connector
                             payment_checks: None,
                             authentication_data: None,
+                            is_regulated: None,
+                            signature_network: None,
                         },
                     ))
                 })))
@@ -5917,7 +5962,7 @@ impl GooglePayTokenDecryptor {
         data: String,
         should_verify_signature: bool,
     ) -> CustomResult<
-        hyperswitch_domain_models::router_data::GooglePayDecryptedData,
+        hyperswitch_domain_models::router_data::GooglePayPredecryptDataInternal,
         errors::GooglePayDecryptionError,
     > {
         // parse the encrypted data
@@ -5951,9 +5996,9 @@ impl GooglePayTokenDecryptor {
         let decrypted = self.decrypt_message(symmetric_encryption_key, encrypted_message)?;
 
         // parse the decrypted data
-        let decrypted_data: hyperswitch_domain_models::router_data::GooglePayDecryptedData =
+        let decrypted_data: hyperswitch_domain_models::router_data::GooglePayPredecryptDataInternal =
             decrypted
-                .parse_struct("GooglePayDecryptedData")
+                .parse_struct("GooglePayPredecryptDataInternal")
                 .change_context(errors::GooglePayDecryptionError::DeserializationFailed)?;
 
         // check the expiration date of the decrypted data

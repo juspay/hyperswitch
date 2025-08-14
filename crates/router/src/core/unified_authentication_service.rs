@@ -939,7 +939,7 @@ pub async fn authentication_eligibility_core(
     let notification_url = match authentication_connector {
         common_enums::AuthenticationConnectors::Juspaythreedsserver => {
             Some(url::Url::parse(&format!(
-                "{base_url}/{merchant_id}/{authentication_id}/sync",
+                "{base_url}/authentication/{merchant_id}/{authentication_id}/sync",
                 base_url = state.base_url,
                 merchant_id = merchant_id.get_string_repr(),
                 authentication_id = authentication_id.get_string_repr()
@@ -1416,29 +1416,6 @@ pub async fn authentication_sync_core(
             id: profile_id.get_string_repr().to_owned(),
         })?;
 
-    let (authentication_value, eci) = match auth_flow {
-        AuthFlow::Client => (None, None),
-        AuthFlow::Merchant => {
-            if let Some(common_enums::TransactionStatus::Success) = authentication.trans_status {
-                let tokenised_data = crate::core::payment_methods::vault::get_tokenized_data(
-                    &state,
-                    authentication_id.get_string_repr(),
-                    false,
-                    merchant_context.get_merchant_key_store().key.get_inner(),
-                )
-                .await
-                .inspect_err(|err| router_env::logger::error!(tokenized_data_result=?err))
-                .attach_printable("cavv not present after authentication status is success")?;
-                (
-                    Some(masking::Secret::new(tokenised_data.value1)),
-                    authentication.eci.clone(),
-                )
-            } else {
-                (None, None)
-            }
-        }
-    };
-
     let (authentication_connector, three_ds_connector_account) =
         auth_utils::get_authentication_connector_data(
             &state,
@@ -1448,21 +1425,20 @@ pub async fn authentication_sync_core(
         )
         .await?;
 
-    if let Some(trans_status) = authentication.trans_status.clone() {
-        if trans_status.is_pending() {
-            let post_auth_response =
-                <ExternalAuthentication as UnifiedAuthenticationService>::post_authentication(
-                    &state,
-                    &business_profile,
-                    None,
-                    &three_ds_connector_account,
-                    &authentication_connector.to_string(),
-                    &authentication_id,
-                    common_enums::PaymentMethod::Card,
-                    merchant_id,
-                    Some(&authentication),
-                )
-                .await?;
+    let updated_authentication = match authentication.trans_status.clone() {
+        Some(trans_status) if trans_status.clone().is_pending() => {
+            let post_auth_response = ExternalAuthentication::post_authentication(
+                &state,
+                &business_profile,
+                None,
+                &three_ds_connector_account,
+                &authentication_connector.to_string(),
+                &authentication_id,
+                common_enums::PaymentMethod::Card,
+                merchant_id,
+                Some(&authentication),
+            )
+            .await?;
 
             utils::external_authentication_update_trackers(
                 &state,
@@ -1475,14 +1451,41 @@ pub async fn authentication_sync_core(
                 None,
                 None,
             )
-            .await?;
+            .await?
         }
-    }
+
+        _ => authentication,
+    };
+
+    let (authentication_value, eci) = match auth_flow {
+        AuthFlow::Client => (None, None),
+        AuthFlow::Merchant => {
+            if let Some(common_enums::TransactionStatus::Success) =
+                updated_authentication.trans_status
+            {
+                let tokenised_data = crate::core::payment_methods::vault::get_tokenized_data(
+                    &state,
+                    authentication_id.get_string_repr(),
+                    false,
+                    merchant_context.get_merchant_key_store().key.get_inner(),
+                )
+                .await
+                .inspect_err(|err| router_env::logger::error!(tokenized_data_result=?err))
+                .attach_printable("cavv not present after authentication status is success")?;
+                (
+                    Some(masking::Secret::new(tokenised_data.value1)),
+                    updated_authentication.eci.clone(),
+                )
+            } else {
+                (None, None)
+            }
+        }
+    };
 
     let acquirer_details = Some(AcquirerDetails {
-        acquirer_bin: authentication.acquirer_bin.clone(),
-        acquirer_merchant_id: authentication.acquirer_merchant_id.clone(),
-        merchant_country_code: authentication.acquirer_country_code.clone(),
+        acquirer_bin: updated_authentication.acquirer_bin.clone(),
+        acquirer_merchant_id: updated_authentication.acquirer_merchant_id.clone(),
+        merchant_country_code: updated_authentication.acquirer_country_code.clone(),
     });
 
     let encrypted_data = domain::types::crypto_operation(
@@ -1491,8 +1494,8 @@ pub async fn authentication_sync_core(
         domain::types::CryptoOperation::BatchDecrypt(
             hyperswitch_domain_models::authentication::EncryptedAuthentication::to_encryptable(
                 hyperswitch_domain_models::authentication::EncryptedAuthentication {
-                    billing_address: authentication.billing_address,
-                    shipping_address: authentication.shipping_address,
+                    billing_address: updated_authentication.billing_address,
+                    shipping_address: updated_authentication.shipping_address,
                 },
             ),
         ),
@@ -1513,7 +1516,7 @@ pub async fn authentication_sync_core(
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to get encrypted data for authentication after encryption")?;
 
-    let email_decrypted = authentication
+    let email_decrypted = updated_authentication
         .email
         .clone()
         .async_lift(|inner| async {
@@ -1536,7 +1539,7 @@ pub async fn authentication_sync_core(
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to encrypt email")?;
 
-    let browser_info = authentication
+    let browser_info = updated_authentication
         .browser_info
         .clone()
         .map(|browser_info| {
@@ -1545,16 +1548,16 @@ pub async fn authentication_sync_core(
         .transpose()
         .change_context(ApiErrorResponse::InternalServerError)?;
 
-    let amount = authentication
+    let amount = updated_authentication
         .amount
         .ok_or(ApiErrorResponse::InternalServerError)
         .attach_printable("amount failed to get amount from authentication table")?;
-    let currency = authentication
+    let currency = updated_authentication
         .currency
         .ok_or(ApiErrorResponse::InternalServerError)
         .attach_printable("currency failed to get currency from authentication table")?;
 
-    let authentication_connector = authentication
+    let authentication_connector = updated_authentication
         .authentication_connector
         .map(|connector| common_enums::AuthenticationConnectors::from_str(&connector))
         .transpose()
@@ -1588,40 +1591,40 @@ pub async fn authentication_sync_core(
     let response = AuthenticationSyncResponse {
         authentication_id: authentication_id.clone(),
         merchant_id: merchant_id.clone(),
-        status: authentication.authentication_status,
-        client_secret: authentication
+        status: updated_authentication.authentication_status,
+        client_secret: updated_authentication
             .authentication_client_secret
             .map(masking::Secret::new),
         amount,
         currency,
         authentication_connector,
-        force_3ds_challenge: authentication.force_3ds_challenge,
-        return_url: authentication.return_url.clone(),
-        created_at: authentication.created_at,
-        profile_id: authentication.profile_id.clone(),
-        psd2_sca_exemption_type: authentication.psd2_sca_exemption_type,
+        force_3ds_challenge: updated_authentication.force_3ds_challenge,
+        return_url: updated_authentication.return_url.clone(),
+        created_at: updated_authentication.created_at,
+        profile_id: updated_authentication.profile_id.clone(),
+        psd2_sca_exemption_type: updated_authentication.psd2_sca_exemption_type,
         acquirer_details,
-        error_message: authentication.error_message.clone(),
-        error_code: authentication.error_code.clone(),
+        error_message: updated_authentication.error_message.clone(),
+        error_code: updated_authentication.error_code.clone(),
         authentication_value,
-        threeds_server_transaction_id: authentication.threeds_server_transaction_id.clone(),
-        maximum_supported_3ds_version: authentication.maximum_supported_version.clone(),
-        connector_authentication_id: authentication.connector_authentication_id.clone(),
-        three_ds_method_data: authentication.three_ds_method_data.clone(),
-        three_ds_method_url: authentication.three_ds_method_url.clone(),
-        message_version: authentication.message_version.clone(),
-        connector_metadata: authentication.connector_metadata.clone(),
-        directory_server_id: authentication.directory_server_id.clone(),
+        threeds_server_transaction_id: updated_authentication.threeds_server_transaction_id.clone(),
+        maximum_supported_3ds_version: updated_authentication.maximum_supported_version.clone(),
+        connector_authentication_id: updated_authentication.connector_authentication_id.clone(),
+        three_ds_method_data: updated_authentication.three_ds_method_data.clone(),
+        three_ds_method_url: updated_authentication.three_ds_method_url.clone(),
+        message_version: updated_authentication.message_version.clone(),
+        connector_metadata: updated_authentication.connector_metadata.clone(),
+        directory_server_id: updated_authentication.directory_server_id.clone(),
         billing,
         shipping,
         browser_information: browser_info,
         email: email_decrypted,
-        transaction_status: authentication.trans_status.clone(),
-        acs_url: authentication.acs_url.clone(),
-        challenge_request: authentication.challenge_request.clone(),
-        acs_reference_number: authentication.acs_reference_number.clone(),
-        acs_trans_id: authentication.acs_trans_id.clone(),
-        acs_signed_content: authentication.acs_signed_content,
+        transaction_status: updated_authentication.trans_status.clone(),
+        acs_url: updated_authentication.acs_url.clone(),
+        challenge_request: updated_authentication.challenge_request.clone(),
+        acs_reference_number: updated_authentication.acs_reference_number.clone(),
+        acs_trans_id: updated_authentication.acs_trans_id.clone(),
+        acs_signed_content: updated_authentication.acs_signed_content,
         three_ds_requestor_url: business_profile
             .authentication_connector_details
             .clone()
@@ -1629,10 +1632,9 @@ pub async fn authentication_sync_core(
         three_ds_requestor_app_url: business_profile
             .authentication_connector_details
             .and_then(|details| details.three_ds_requestor_app_url),
-        profile_acquirer_id: authentication.profile_acquirer_id.clone(),
+        profile_acquirer_id: updated_authentication.profile_acquirer_id.clone(),
         eci,
     };
-
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         response,
     ))

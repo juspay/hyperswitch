@@ -5,6 +5,7 @@ use common_utils::{
     request::Method,
     types::{FloatMajorUnit, MinorUnit},
 };
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{BankRedirectData, PayLaterData, PaymentMethodData, WalletData},
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
@@ -748,7 +749,13 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                     Some(GatewayInfo::Wallet(WalletInfo::GooglePay({
                         GpayInfo {
                             payment_token: Some(Secret::new(
-                                google_pay.tokenization_data.token.clone(),
+                                google_pay
+                                    .tokenization_data
+                                    .get_encrypted_google_pay_token()
+                                    .change_context(errors::ConnectorError::MissingRequiredField {
+                                        field_name: "google_pay_token",
+                                    })?
+                                    .clone(),
                             )),
                         }
                     })))
