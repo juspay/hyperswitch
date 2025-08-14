@@ -7,7 +7,6 @@ use api_models::payments as api_payments;
 use api_models::payments::PaymentAttemptResponse;
 #[cfg(feature = "v2")]
 use api_models::payments::PaymentsGetIntentRequest;
-
 use common_utils::errors::CustomResult;
 #[cfg(feature = "v2")]
 use common_utils::ext_traits::AsyncExt;
@@ -38,7 +37,6 @@ use hyperswitch_domain_models::{
 use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
 use router_env::logger;
-
 use router_env::tracing::{self, instrument};
 use scheduler::{
     consumer::{self, workflows::ProcessTrackerWorkflow},
