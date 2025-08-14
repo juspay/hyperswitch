@@ -333,7 +333,7 @@ pub async fn list_users_in_lineage(
     ))
     .await
 }
-// TODO: To be deprecated
+
 pub async fn list_roles_with_info(
     state: web::Data<AppState>,
     req: HttpRequest,
