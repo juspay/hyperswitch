@@ -116,13 +116,150 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
             enums::AttemptStatus::CaptureFailed,
             enums::AttemptStatus::Failure,
         ];
+
+        logger::info!("Processing Psync workflow");
+
         match &payment_data.payment_attempt.status {
             status if terminal_status.contains(status) => {
                 state
                     .store
                     .as_scheduler()
                     .finish_process_with_business_status(process, business_status::COMPLETED_BY_PT)
-                    .await?
+                    .await?;
+
+                // call to subsription connector
+                #[cfg(feature = "subscriptions")]
+                {
+                    logger::info!("Starting record back flow");
+                    let billing_connector_details = payment_data
+                        .payment_intent
+                        .metadata
+                        .clone()
+                        .map(|val| val.parse_value::<HashMap<String, serde_json::Value>>("hashMap"))
+                        .transpose()
+                        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                            field_name: "metadata",
+                        })?
+                        .and_then(|metadata| metadata.get("billing_connector_details").cloned())
+                        .and_then(|val| {
+                            val.parse_value::<BillingConnectorDetails>("BillingConnectorDetails")
+                                .ok()
+                        });
+
+                    let profile_id = payment_data
+                        .payment_intent
+                        .profile_id
+                        .to_owned()
+                        .get_required_value("profile_id")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Could not find profile_id in payment intent")?;
+
+                    if let Some(billing_connector_details) = billing_connector_details {
+                        let (connector, subscription_id, invoice_id) = (
+                            billing_connector_details.connector,
+                            billing_connector_details.subscription_id,
+                            billing_connector_details.invoice_id,
+                        );
+
+                        let billing_connector_mca = db
+                            .find_merchant_connector_account_by_profile_id_connector_name(
+                                key_manager_state,
+                                &profile_id,
+                                connector.as_str(),
+                                merchant_context.get_merchant_key_store(),
+                            )
+                            .await
+                            .to_not_found_response(
+                                errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                                    id: format!(
+                                        "profile_id {} and connector_name {connector}",
+                                        profile_id.get_string_repr()
+                                    ),
+                                },
+                            )?;
+
+                        let connector_data = api::ConnectorData::get_connector_by_name(
+                            &state.conf.connectors,
+                            &connector,
+                            api::GetToken::Connector,
+                            Some(billing_connector_mca.get_id()),
+                        )
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "invalid connector name received in billing merchant connector account",
+                        )?;
+
+                        let connector_enum =
+                            common_enums::connector_enums::Connector::from_str(connector.as_str())
+                                .change_context(
+                                    errors::RecoveryError::RecordBackToBillingConnectorFailed,
+                                )
+                                .attach_printable(
+                                    "Cannot find connector from the connector_name",
+                                )?;
+
+                        let connector_params =
+                                hyperswitch_domain_models::connector_endpoints::Connectors::get_connector_params(
+                                    &state.conf.connectors,
+                                    connector_enum,
+                                )
+                                .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
+                                .attach_printable(format!(
+                                    "cannot find connector params for this connector {connector} in this flow",
+                                ))?;
+
+                        let connector_integration: services::BoxedRevenueRecoveryRecordBackInterface<
+                                revenue_recovery_flow::RecoveryRecordBack,
+                                revenue_recovery_request::RevenueRecoveryRecordBackRequest,
+                                revenue_recovery_response::RevenueRecoveryRecordBackResponse,
+                            > = connector_data.connector.get_connector_integration();
+
+                        let request = revenue_recovery_request::RevenueRecoveryRecordBackRequest {
+                            merchant_reference_id: invoice_id,
+                            amount: payment_data.payment_attempt.get_total_amount(),
+                            currency: payment_data
+                                .payment_intent
+                                .currency
+                                .unwrap_or(common_enums::Currency::USD),
+                            payment_method_type: payment_data.payment_attempt.payment_method_type,
+
+                            attempt_status: payment_data.payment_attempt.status,
+                            connector_transaction_id: payment_data
+                                .payment_attempt
+                                .connector_transaction_id
+                                .clone()
+                                .map(|id| common_utils::types::ConnectorTransactionId::TxnId(id)),
+                            connector_params,
+                        };
+
+                        let response = Err(ErrorResponse::default());
+
+                        let router_data = conversion_impls::get_default_router_data(
+                            state.tenant.tenant_id.clone(),
+                            "subscription_record_payment",
+                            request,
+                            response,
+                        );
+
+                        let response = services::execute_connector_processing_step(
+                            state,
+                            connector_integration,
+                            &router_data,
+                            common_enums::CallConnectorAction::Trigger,
+                            None,
+                            None,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Failed while handling response of record back to billing connector",
+                        )?;
+
+                        if let Err(e) = response.response {
+                            logger::error!(?e, "Failed to record back to billing connector");
+                        }
+                    }
+                }
             }
             _ => {
                 let connector = payment_data
@@ -193,7 +330,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                     let profile_id = payment_data
                         .payment_intent
                         .profile_id
-                        .as_ref()
+                        .to_owned()
                         .get_required_value("profile_id")
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Could not find profile_id in payment intent")?;
@@ -202,7 +339,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                         .find_business_profile_by_profile_id(
                             key_manager_state,
                             &key_store,
-                            profile_id,
+                            &profile_id,
                         )
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
@@ -212,9 +349,9 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                     // Trigger the outgoing webhook to notify the merchant about failed payment
                     let operation = operations::PaymentStatus;
                     Box::pin(utils::trigger_payments_webhook(
-                        merchant_context,
+                        merchant_context.clone(),
                         business_profile,
-                        payment_data,
+                        payment_data.clone(),
                         customer,
                         state,
                         operation,
@@ -222,140 +359,6 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                     .await
                     .map_err(|error| logger::warn!(payments_outgoing_webhook_error=?error))
                     .ok();
-
-                    // call to subsription connector
-                    #[cfg(feature = "v1")]
-                    {
-                        let billing_connector_details = payment_data
-                            .payment_intent
-                            .metadata
-                            .clone()
-                            .map(|val| {
-                                val.parse_value::<HashMap<String, serde_json::Value>>("hashMap")
-                            })
-                            .transpose()
-                            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                                field_name: "metadata",
-                            })?
-                            .and_then(|metadata| metadata.get("billing_connector_details").cloned())
-                            .and_then(|val| {
-                                val.parse_value::<BillingConnectorDetails>(
-                                    "BillingConnectorDetails",
-                                )
-                                .ok()
-                            });
-
-                        if let Some(billing_connector_details) = billing_connector_details {
-                            let (connector, subscription_id, invoice_id) = (
-                                billing_connector_details.connector,
-                                billing_connector_details.subscription_id,
-                                billing_connector_details.invoice_id,
-                            );
-
-                            let billing_connector_mca = db
-                                .find_merchant_connector_account_by_profile_id_connector_name(
-                                    key_manager_state,
-                                    &profile_id,
-                                    connector.as_str(),
-                                    merchant_context.get_merchant_key_store(),
-                                )
-                                .await
-                                .to_not_found_response(
-                                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                                        id: format!(
-                                            "profile_id {} and connector_name {connector}",
-                                            profile_id.get_string_repr()
-                                        ),
-                                    },
-                                )?;
-
-                            let connector_data = api::ConnectorData::get_connector_by_name(
-                                    &state.conf.connectors,
-                                    &connector,
-                                    api::GetToken::Connector,
-                                    Some(billing_connector_mca.get_id()),
-                                )
-                                .change_context(errors::ApiErrorResponse::InternalServerError)
-                                .attach_printable("invalid connector name received in billing merchant connector account")?;
-
-                            let connector_enum =
-                                common_enums::connector_enums::Connector::from_str(
-                                    connector.as_str(),
-                                )
-                                .change_context(
-                                    errors::RecoveryError::RecordBackToBillingConnectorFailed,
-                                )
-                                .attach_printable(
-                                    "Cannot find connector from the connector_name",
-                                )?;
-
-                            let connector_params =
-                                hyperswitch_domain_models::connector_endpoints::Connectors::get_connector_params(
-                                    &state.conf.connectors,
-                                    connector_enum,
-                                )
-                                .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
-                                .attach_printable(format!(
-                                    "cannot find connector params for this connector {connector} in this flow",
-                                ))?;
-
-                            let connector_integration: services::BoxedRevenueRecoveryRecordBackInterface<
-                                revenue_recovery_flow::RecoveryRecordBack,
-                                revenue_recovery_request::RevenueRecoveryRecordBackRequest,
-                                revenue_recovery_response::RevenueRecoveryRecordBackResponse,
-                            > = connector_data.connector.get_connector_integration();
-
-                            let request =
-                                revenue_recovery_request::RevenueRecoveryRecordBackRequest {
-                                    merchant_reference_id: invoice_id,
-                                    amount: payment_data.payment_attempt.get_total_amount(),
-                                    currency: payment_data
-                                        .payment_intent
-                                        .currency
-                                        .unwrap_or(common_enums::Currency::USD),
-                                    payment_method_type: payment_data
-                                        .payment_attempt
-                                        .payment_method_type,
-
-                                    attempt_status: payment_data.payment_attempt.status,
-                                    connector_transaction_id: payment_data
-                                        .payment_attempt
-                                        .connector_transaction_id
-                                        .as_ref()
-                                        .map(|id| {
-                                            common_utils::types::ConnectorTransactionId::TxnId(
-                                                id.clone(),
-                                            )
-                                        }),
-                                    connector_params,
-                                };
-
-                            let response = Err(ErrorResponse::default());
-
-                            let router_data = conversion_impls::get_default_router_data(
-                                state.tenant.tenant_id.clone(),
-                                "subscription_record_payment",
-                                request,
-                                response,
-                            );
-
-                            let response = services::execute_connector_processing_step(
-                                state,
-                                connector_integration,
-                                &router_data,
-                                common_enums::CallConnectorAction::Trigger,
-                                None,
-                                None,
-                            )
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("Failed while handling response of record back to billing connector")?;
-
-                            if let Err(e) = response.response {
-                                logger::error!(?e, "Failed to record back to billing connector");
-                            }
-                        }
-                    }
                 }
             }
         };

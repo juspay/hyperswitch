@@ -4114,6 +4114,8 @@ default_imp_for_new_connector_integration_revenue_recovery!(
     connectors::Checkbook,
     connectors::Coinbase,
     connectors::Cryptopay,
+    connectors::Chargebee,
+    connectors::Recurly,
     connectors::CtpMastercard,
     connectors::Custombilling,
     connectors::Datatrans,

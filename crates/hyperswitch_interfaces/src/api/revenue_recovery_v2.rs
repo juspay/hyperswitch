@@ -31,7 +31,7 @@ pub trait RevenueRecoveryV2:
 
 #[cfg(not(all(feature = "v2", feature = "revenue_recovery")))]
 /// trait RevenueRecoveryV2
-pub trait RevenueRecoveryV2 {}
+pub trait RevenueRecoveryV2: RevenueRecoveryRecordBackV2 {}
 
 /// trait BillingConnectorPaymentsSyncIntegrationV2
 pub trait BillingConnectorPaymentsSyncIntegrationV2:

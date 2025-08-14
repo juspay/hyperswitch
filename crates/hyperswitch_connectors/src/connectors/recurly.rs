@@ -130,7 +130,7 @@ impl
     //TODO: implement sessions flow
 }
 
-impl api::revenue_recovery_v2::RevenueRecoveryV2 for Recurly {}
+// impl api::revenue_recovery_v2::RevenueRecoveryV2 for Recurly {}
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl api::revenue_recovery_v2::RevenueRecoveryRecordBackV2 for Recurly {}
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
