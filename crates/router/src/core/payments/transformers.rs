@@ -3096,6 +3096,7 @@ where
             payment_channel: payment_intent.payment_channel,
             enable_partial_authorization: payment_intent.enable_partial_authorization,
             request_overcapture: payment_intent.request_overcapture,
+            overcapture_applied: payment_attempt.overcapture_applied,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -3394,6 +3395,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             network_transaction_id: None,
             enable_partial_authorization: pi.enable_partial_authorization,
             request_overcapture: pi.request_overcapture,
+            overcapture_applied: pa.overcapture_applied,
         }
     }
 }

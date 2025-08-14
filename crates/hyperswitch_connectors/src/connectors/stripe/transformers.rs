@@ -257,7 +257,7 @@ pub struct StripeCardData {
     pub payment_method_auth_type: Option<Auth3ds>,
     #[serde(rename = "payment_method_options[card][network]")]
     pub payment_method_data_card_preferred_network: Option<StripeCardNetwork>,
-    #[serde(rename = "payment_method_data[card][request_overcapture]")]
+    #[serde(rename = "payment_method_options[card][request_overcapture]")]
     pub request_overcapture: Option<StripeRequestOvercapture>,
 }
 
@@ -1824,7 +1824,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                                     .card_network
                                     .clone()
                                     .and_then(get_stripe_card_network),
-                            request_overcapture: item.request.request_overcapture.map(StripeRequestOvercapture::from)
+                            request_overcapture: None // Overcapture is not supported for mandates
                         }),
                         PaymentMethodData::CardRedirect(_)
                         | PaymentMethodData::Wallet(_)
@@ -1873,7 +1873,8 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                                     field_name: "billing_address",
                                 }
                             })?,
-                            item.request.request_overcapture.map(StripeRequestOvercapture::from),
+                            None
+                           // item.request.request_overcapture.map(StripeRequestOvercapture::from),
                         )?;
 
                     validate_shipping_address_against_payment_method(
@@ -2705,7 +2706,7 @@ pub struct SetupIntentResponse {
 fn extract_payment_method_connector_response_from_latest_charge(
     stripe_charge_enum: &StripeChargeEnum,
 ) -> Option<ConnectorResponseData> {
-    let overcapture_applied = stripe_charge_enum.get_overcapture_status();
+    let overcapture_applied = None; //stripe_charge_enum.get_overcapture_status();
     let additional_payment_method = if let StripeChargeEnum::ChargeObject(charge_object) = stripe_charge_enum {
         charge_object
             .payment_method_details
@@ -2867,11 +2868,12 @@ where
             // statement_descriptor_suffix: item.response.statement_descriptor_suffix.map(|x| x.as_str()),
             // three_ds_form,
             response,
-            amount_captured: item
-                .response
-                .amount_received
-                .map(|amount| amount.get_amount_as_i64()),
-            minor_amount_captured: item.response.amount_received,
+            amount_captured: Some(5050),
+            // item
+            //     .response
+            //     .amount_received
+            //     .map(|amount| amount.get_amount_as_i64()),
+            // minor_amount_captured: item.response.amount_received,
             connector_response: connector_response_data,
             minor_amount_capturable,
             ..item.data

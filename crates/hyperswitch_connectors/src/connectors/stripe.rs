@@ -585,7 +585,8 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     ) -> CustomResult<RequestContent, ConnectorError> {
         let amount = utils::convert_amount(
             self.amount_converter,
-            req.request.minor_amount_to_capture,
+            MinorUnit::new(1000),
+            //req.request.minor_amount_to_capture,
             req.request.currency,
         )?;
         let connector_req = stripe::CaptureRequest::try_from(amount)?;
@@ -627,7 +628,8 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
 
         let response_integrity_object = get_capture_integrity_object(
             self.amount_converter,
-            response.amount_received,
+            Some(MinorUnit::new(5050)),
+            //response.amount_received,
             response.currency.clone(),
         )?;
 

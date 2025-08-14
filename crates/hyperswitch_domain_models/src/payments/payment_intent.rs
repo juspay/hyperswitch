@@ -444,6 +444,7 @@ pub struct PaymentIntentUpdateInternal {
     pub shipping_amount_tax: Option<MinorUnit>,
     pub duty_amount: Option<MinorUnit>,
     pub enable_partial_authorization: Option<bool>,
+    pub request_overcapture: Option<common_types::primitive_wrappers::RequestOvercapture>,
 }
 
 // This conversion is used in the `update_payment_intent` function
@@ -1254,6 +1255,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             shipping_amount_tax,
             duty_amount,
             enable_partial_authorization,
+            request_overcapture,
         } = value;
         Self {
             amount,
@@ -1302,6 +1304,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             shipping_amount_tax,
             duty_amount,
             enable_partial_authorization,
+            request_overcapture,
         }
     }
 }
