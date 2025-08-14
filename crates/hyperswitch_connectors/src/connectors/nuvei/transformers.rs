@@ -62,7 +62,6 @@ fn to_boolean(string: String) -> bool {
     }
 }
 
-
 // The dimensions of the challenge window foe full screen.
 const CHALLENGE_WINDOW_SIZE: &str = "05";
 // The challenge preference for the challenge flow.
