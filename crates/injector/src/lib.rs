@@ -134,7 +134,9 @@ pub mod injector_core {
                     // Use regex to find all tokens and replace them
                     use regex::Regex;
                     let token_regex = Regex::new(r"\{\{\$([a-zA-Z_][a-zA-Z0-9_]*)\}\}")
-                        .change_context(InjectorError::InvalidTemplate("Invalid regex pattern".to_string()))?;
+                        .change_context(InjectorError::InvalidTemplate(
+                            "Invalid regex pattern".to_string(),
+                        ))?;
                     let mut result = s.clone();
 
                     for captures in token_regex.captures_iter(&s) {
@@ -537,7 +539,6 @@ mod tests {
     use api_models::injector::*;
     use hyperswitch_domain_models::injector;
     use router_env::logger;
-    use std::collections::HashMap;
 
     #[test]
     fn test_token_parsing() {
@@ -685,9 +686,12 @@ mod tests {
 
         // Print the actual response for demonstration
         logger::info!("=== HTTP RESPONSE FROM HTTPBIN.ORG ===");
-        logger::info!("{}", serde_json::to_string_pretty(&response).unwrap_or_default());
+        logger::info!(
+            "{}",
+            serde_json::to_string_pretty(&response).unwrap_or_default()
+        );
         logger::info!("=======================================");
-        
+
         // Response should be a JSON value from httpbin.org
         assert!(
             response.is_object() || response.is_string(),
@@ -747,9 +751,12 @@ mod tests {
 
         // Print the actual response for demonstration
         logger::info!("=== CERTIFICATE TEST RESPONSE ===");
-        logger::info!("{}", serde_json::to_string_pretty(&response).unwrap_or_default());
+        logger::info!(
+            "{}",
+            serde_json::to_string_pretty(&response).unwrap_or_default()
+        );
         logger::info!("================================");
-        
+
         // Verify the token was replaced in the JSON
         if let Some(response_str) = response.as_str() {
             assert!(
