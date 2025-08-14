@@ -941,7 +941,7 @@ impl RevenueRecoveryAttempt {
             runner,
             tag,
             execute_workflow_tracking_data,
-            Some(intent_retry_count.into()),
+            Some((intent_retry_count + 1).into()),
             schedule_time,
             common_enums::ApiVersion::V2,
         )
