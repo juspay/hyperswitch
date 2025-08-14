@@ -867,24 +867,26 @@ These methods work together in sequence:
 4. `handle_response()` processes the PSP response back to Hyperswitch format  
 5. `get_error_response()` handles any error conditions
 
-Here are more details around the methods:
+Here are more examples around these methods in the Billwerk connector:
 - **`get_url()`**  
-  Constructs API endpoints by combining base URLs (from `ConnectorCommon`) with specific paths. In the Billwerk connector, it reads the connector’s base URL from config and appends the tokenization path. You can find this implementation [here](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L193-L204).
+  Constructs API endpoints by combining base URLs (from `ConnectorCommon`) with specific paths. In the Billwerk connector, it reads the connector’s base URL from config and appends the tokenization path. [Here's 1 example](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L193-L204).
 
 - **`get_headers()`**  
-  Delegates to [`build_headers()`](https://github.com/juspay/hyperswitch/blob/06dc66c62e33c1c56c42aab18a7959e1648d6fae/crates/hyperswitch_interfaces/src/api.rs#L422-L430) in the `ConnectorCommonExt` trait, ensuring consistent header handling (auth, content-type, etc.) across all flows.  
+  Here's an example of [get_headers](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L618). It delegates to [`build_headers()`](https://github.com/juspay/hyperswitch/blob/06dc66c62e33c1c56c42aab18a7959e1648d6fae/crates/hyperswitch_interfaces/src/api.rs#L422-L430) across all connector implementations. 
 
 - **`get_request_body()`**  
-  Uses the `TryFrom` implementations in [transformers.rs](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/billwerk/transformers.rs#L88-L131) to convert Hyperswitch’s internal data structures into PSP-specific request formats (e.g. `BillwerkTokenRequest::try_from(req)?`).  
+  Uses the `TryFrom` implementations in [billwerk.rs](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L206-L213). It creates the connector request via  `BillwerkTokenRequest::try_from(req)?` to transform the tokenization router data and it 
+returns as `RequestContent:` by wrapping it in a JSON via `RequestContent::Json(Box::new(connector_req))`  
 
 - **`build_request()`**  
-  Orchestrates `get_url()`, `get_headers()`, and `get_request_body()` to assemble the complete HTTP request via [`common_utils::request::RequestBuilder`](https://github.com/juspay/hyperswitch/blob/main/crates/common_utils/src/request.rs). For example, you can review the Billwerk connector's [`build_request()`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L215-L231) implementation. 
+  Orchestrates `get_url()`, `get_headers()`, and `get_request_body()` to assemble the complete HTTP request via a `RequestBuilder`. For example, you can review the Billwerk connector's [`build_request()`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L215-L231) implementation. 
 
 - **`handle_response()`**  
-  Parses the PSP’s raw response (e.g. into `BillwerkTokenResponse`), then applies the reverse `TryFrom` logic in [transformers.rs](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/billwerk/transformers.rs) to normalize it back into Hyperswitch’s `RouterData<…>` format.  
+  You can see an example of this here: [`billwerk.rs`](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L332). In this example, it parses the raw response into `BillwerkTokenResponse` using `res.response.parse_struct()`, logs the response with an `event_builder.map(|i| i.set_response_body(&response))`, finally it 
+transforms back to `RouterData` using `RouterData::try_from(ResponseRouterData {...}) `.
 
 - **`get_error_response()`**
-  Delegates to [`build_error_response()`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L136-L162) from the `ConnectorCommon` trait, providing uniform handling for all connector 4xx errors.  
+  Here's an example of [get_error_response](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L256) in `billewerk.rs`. It delegates to [`build_error_response()`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L136-L162) from the `ConnectorCommon` trait, providing uniform handling for all connector 4xx errors.  
 
 
 ### `ConnectorCommonExt` - Generic Helper Methods
@@ -957,7 +959,7 @@ Please review the file for your specific connector requirements.
 The derive traits are standard Rust traits that are automatically implemented:
 
 - **Debug**: Standard Rust trait for debug formatting. It's automatically derived on connector structs like [`crates/hyperswitch_connectors/src/connectors/coinbase.rs:52`](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/hyperswitch_connectors/src/connectors/coinbase.rs#L52)
-- **Clone**: Standard Rust trait for cloning. It's implemented on connector structs like [`crates/hyperswitch_connectors/src/connectors/novalnet.rs:57`](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/hyperswitch_connectors/src/connectors/novalnet.rs#L57)
+- **Clone**: Standard Rust trait for cloning. It's implemented on connector structs like [`crates/hyperswitch_connectors/src/connectors/novalnet.rs:57`](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/hyperswitch_connectors/src/connectors/novalnet.rs#L58)
 - **Copy**: Standard Rust trait for copy semantics. It's used where applicable for simple data structures
 
 These traits work together to provide a complete payment processing interface, with each trait extending `ConnectorIntegration` with specific type parameters for different operations.
