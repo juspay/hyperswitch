@@ -18,11 +18,9 @@ use crate::{
             self, access_token, customers, helpers, tokenization, transformers, PaymentData,
         },
         unified_connector_service::{
-            build_unified_connector_service_auth_metadata,
-            get_access_token_from_ucs_response,
+            build_unified_connector_service_auth_metadata, get_access_token_from_ucs_response,
             handle_unified_connector_service_response_for_payment_authorize,
-            handle_unified_connector_service_response_for_payment_repeat, ucs_logging_wrapper,
-            set_access_token_for_ucs,
+            handle_unified_connector_service_response_for_payment_repeat, ucs_logging_wrapper, set_access_token_for_ucs,
         },
     },
     logger,
@@ -839,6 +837,19 @@ async fn call_unified_connector_service_authorize(
     #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
     merchant_context: &domain::MerchantContext,
 ) -> RouterResult<()> {
+    let merchant_id = merchant_context.get_merchant_account().get_id();
+    if let Ok(Some(cached_access_token)) = state
+        .store
+        .get_access_token(merchant_id, &router_data.connector)
+        .await
+    {
+        router_data.access_token = Some(cached_access_token);
+        logger::debug!(
+            "Using cached access token for UCS call to connector: {}",
+            router_data.connector
+        );
+    }
+
     let client = state
         .grpc_client
         .unified_connector_service_client
@@ -884,16 +895,21 @@ async fn call_unified_connector_service_authorize(
                 .attach_printable("Failed to deserialize UCS response")?;
 
     // Extract and store access token if present
-    if let Some(access_token) = get_access_token_from_ucs_response(
-        payment_authorize_response.state.as_ref()
-    ) {
+    if let Some(access_token) =
+        get_access_token_from_ucs_response(payment_authorize_response.state.as_ref())
+    {
         if let Err(error) = set_access_token_for_ucs(
-            state, 
-            merchant_context, 
-            &router_data.connector, 
-            access_token
-        ).await {
-            logger::error!(?error, "Failed to store UCS access token from authorize response");
+            state,
+            merchant_context,
+            &router_data.connector,
+            access_token,
+        )
+        .await
+        {
+            logger::error!(
+                ?error,
+                "Failed to store UCS access token from authorize response"
+            );
         } else {
             logger::debug!("Successfully stored access token from UCS authorize response");
         }
@@ -973,16 +989,21 @@ async fn call_unified_connector_service_repeat_payment(
                 .attach_printable("Failed to deserialize UCS response")?;
 
     // Extract and store access token if present
-    if let Some(access_token) = get_access_token_from_ucs_response(
-        payment_repeat_response.state.as_ref()
-    ) {
+    if let Some(access_token) =
+        get_access_token_from_ucs_response(payment_repeat_response.state.as_ref())
+    {
         if let Err(error) = set_access_token_for_ucs(
-            state, 
-            merchant_context, 
-            &router_data.connector, 
-            access_token
-        ).await {
-            logger::error!(?error, "Failed to store UCS access token from repeat response");
+            state,
+            merchant_context,
+            &router_data.connector,
+            access_token,
+        )
+        .await
+        {
+            logger::error!(
+                ?error,
+                "Failed to store UCS access token from repeat response"
+            );
         } else {
             logger::debug!("Successfully stored access token from UCS repeat response");
         }

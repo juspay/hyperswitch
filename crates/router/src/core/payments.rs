@@ -4970,11 +4970,12 @@ where
                 .await?;
 
             // Update router_data with the retrieved access token
-            let should_continue_with_ucs = access_token::update_router_data_with_access_token_result(
-                &add_access_token_result,
-                &mut router_data,
-                &call_connector_action,
-            );
+            let should_continue_with_ucs =
+                access_token::update_router_data_with_access_token_result(
+                    &add_access_token_result,
+                    &mut router_data,
+                    &call_connector_action,
+                );
 
             if should_continue_with_ucs {
                 router_data
