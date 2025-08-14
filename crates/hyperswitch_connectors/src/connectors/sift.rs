@@ -602,7 +602,8 @@ static SIFT_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
 static SIFT_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Sift",
     description: "Sift connector",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: common_enums::ConnectorIntegrationStatus::Alpha,
 };
 
 static SIFT_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
