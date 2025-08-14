@@ -7,7 +7,7 @@ use api_models::payments as api_payments;
 use api_models::payments::PaymentAttemptResponse;
 #[cfg(feature = "v2")]
 use api_models::payments::PaymentsGetIntentRequest;
-#[cfg(feature = "v2")]
+
 use common_utils::errors::CustomResult;
 #[cfg(feature = "v2")]
 use common_utils::ext_traits::AsyncExt;
@@ -38,9 +38,12 @@ use hyperswitch_domain_models::{
 use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
 use router_env::logger;
-#[cfg(feature = "v2")]
-use router_env::tracing;
-use scheduler::{consumer::workflows::ProcessTrackerWorkflow, errors};
+
+use router_env::tracing::{self, instrument};
+use scheduler::{
+    consumer::{self, workflows::ProcessTrackerWorkflow},
+    errors,
+};
 #[cfg(feature = "v2")]
 use scheduler::{types::process_data, utils as scheduler_utils};
 #[cfg(feature = "v2")]
@@ -162,6 +165,16 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
 
             _ => Err(errors::ProcessTrackerError::JobNotFound),
         }
+    }
+    #[instrument(skip_all)]
+    async fn error_handler<'a>(
+        &'a self,
+        state: &'a SessionState,
+        process: storage::ProcessTracker,
+        error: errors::ProcessTrackerError,
+    ) -> CustomResult<(), errors::ProcessTrackerError> {
+        logger::error!("Encountered error");
+        consumer::consumer_error_handler(state.store.as_scheduler(), process, error).await
     }
 }
 #[cfg(feature = "v2")]

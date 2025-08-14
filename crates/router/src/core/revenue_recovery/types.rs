@@ -49,7 +49,7 @@ use crate::{
 };
 
 type RecoveryResult<T> = error_stack::Result<T, errors::RecoveryError>;
-
+pub const REVENUE_RECOVERY: &str = "revenue_recovery";
 /// The status of Passive Churn Payments
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub enum RevenueRecoveryPaymentsAttemptStatus {
@@ -581,7 +581,7 @@ impl Action {
             revenue_recovery_payment_data,
         )
         .await;
-        let db = &*state.store;
+
         match response {
             Ok(_payment_data) => match payment_attempt.status.foreign_into() {
                 RevenueRecoveryPaymentsAttemptStatus::Succeeded => {
@@ -779,7 +779,36 @@ impl Action {
         payment_attempt: &PaymentAttempt,
         payment_intent: &PaymentIntent,
     ) -> RecoveryResult<Self> {
+        logger::info!("Choose between Terminal Failure or Retryable Failure");
+        let db = &*state.store;
         let next_retry_count = pt.retry_count + 1;
+        let error_message = payment_attempt
+            .error
+            .as_ref()
+            .map(|details| details.message.clone());
+        let error_code = payment_attempt
+            .error
+            .as_ref()
+            .map(|details| details.code.clone());
+        let connector_name = payment_attempt
+            .connector
+            .clone()
+            .ok_or(errors::RecoveryError::ValueNotFound)
+            .attach_printable("unable to derive payment connector from payment attempt")?;
+        let gsm_record = helpers::get_gsm_record(
+            state,
+            error_code,
+            error_message,
+            connector_name,
+            REVENUE_RECOVERY.to_string(),
+        )
+        .await;
+        let is_hard_decline = gsm_record
+            .and_then(|gsm_record| gsm_record.error_category)
+            .map(|gsm_error_category| {
+                gsm_error_category == common_enums::ErrorCategory::HardDecline
+            })
+            .unwrap_or(false);
         let schedule_time = revenue_recovery_payment_data
             .get_schedule_time_based_on_retry_type(
                 state,
@@ -787,17 +816,26 @@ impl Action {
                 next_retry_count,
                 payment_attempt,
                 payment_intent,
+                is_hard_decline,
             )
             .await;
 
         match schedule_time {
-            Some(schedule_time) => Ok(Self::RetryPayment(schedule_time)),
+            Some(schedule_time) => {
+                logger::info!(
+                    "Chose to Retry the payment with schedule_time : {}",
+                    schedule_time,
+                );
+                Ok(Self::RetryPayment(schedule_time))
+            }
 
-            None => Ok(Self::TerminalFailure(payment_attempt.clone())),
+            None => {
+                logger::info!("Chose to Terminally fail the payments");
+                Ok(Self::TerminalFailure(payment_attempt.clone()))
+            }
         }
     }
 }
-
 // TODO: Move these to impl based functions
 async fn record_back_to_billing_connector(
     state: &SessionState,

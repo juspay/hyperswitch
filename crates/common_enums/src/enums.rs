@@ -8377,6 +8377,7 @@ pub enum ErrorCategory {
     IssueWithPaymentMethod,
     ProcessorDeclineIncorrectData,
     HardDecline,
+    SoftDecline,
 }
 
 impl ErrorCategory {
@@ -8386,7 +8387,8 @@ impl ErrorCategory {
             Self::IssueWithPaymentMethod
             | Self::ProcessorDeclineIncorrectData
             | Self::HardDecline
-            | Self::FrmDecline => false,
+            | Self::FrmDecline
+            | Self::SoftDecline => false,
         }
     }
 }

@@ -72,6 +72,7 @@ pub async fn perform_execute_payment(
             .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
                 message: "Failed to fetch token details from redis".to_string(),
             })?;
+            logger::info!("Token fetched from redis success");
             let card_info =
                 api_models::payments::AdditionalCardInfo::foreign_from(&processor_token);
 
