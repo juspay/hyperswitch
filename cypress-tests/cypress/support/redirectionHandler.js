@@ -644,23 +644,25 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
   // Special handling for Cybersource which may return JSON instead of HTML
   if (connectorId === "cybersource") {
     cy.log("Cybersource detected - checking response content-type first");
-    
+
     // First check what type of response we get from the redirect URL
     cy.request({
       url: redirectionUrl.href,
       failOnStatusCode: false,
     }).then((response) => {
       cy.log(`Response status: ${response.status}`);
-      cy.log(`Response content-type: ${response.headers['content-type']}`);
-      
+      cy.log(`Response content-type: ${response.headers["content-type"]}`);
+
       // Check if the response is JSON
-      if (response.headers['content-type']?.includes('application/json')) {
-        cy.log("Cybersource returned JSON response - handling as completed 3DS flow");
-        
+      if (response.headers["content-type"]?.includes("application/json")) {
+        cy.log(
+          "Cybersource returned JSON response - handling as completed 3DS flow"
+        );
+
         // For JSON responses, check if it contains useful info
-        if (response.body && typeof response.body === 'object') {
+        if (response.body && typeof response.body === "object") {
           cy.log("JSON response body:", response.body);
-          
+
           // If the JSON contains redirect info, use it
           if (response.body.redirect_url) {
             cy.log("Found redirect_url in JSON, visiting that instead");
