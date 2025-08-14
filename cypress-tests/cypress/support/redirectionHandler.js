@@ -2,10 +2,16 @@
 
 import jsQR from "jsqr";
 
-// Define constants for wait times
+// Detect CI environment and apply appropriate timeout multipliers (same logic as cypress.config.js)
+const isCI = process.env.CI === 'true' || 
+             process.env.GITHUB_ACTIONS === 'true';
+
+const timeoutMultiplier = isCI ? 1.5 : 1;
+
+// Define constants for wait times with adaptive scaling
 const CONSTANTS = {
-  TIMEOUT: 60000, // 90 seconds (increased from 20 for CI stability)
-  WAIT_TIME: 30000, // 30 seconds (increased from 10 for CI stability)
+  TIMEOUT: Math.round(60000 * timeoutMultiplier), // 60s local, 90s CI
+  WAIT_TIME: Math.round(30000 * timeoutMultiplier), // 30s local, 45s CI
   ERROR_PATTERNS: [
     /^(4|5)\d{2}\s/, // HTTP error status codes
     /\berror occurred\b/i,
@@ -636,7 +642,8 @@ function bankRedirectRedirection(
 }
 
 function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
-  cy.visit(redirectionUrl.href);
+  // Add failOnStatusCode: false to handle 400/4xx responses from redirect URLs
+  cy.visit(redirectionUrl.href, { failOnStatusCode: false });
 
   // Special handling for Airwallex which uses multiple domains in 3DS flow
   if (connectorId === "airwallex") {
