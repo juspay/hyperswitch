@@ -3,8 +3,7 @@
 import jsQR from "jsqr";
 
 // Detect CI environment and apply appropriate timeout multipliers (same logic as cypress.config.js)
-const isCI = process.env.CI === 'true' || 
-             process.env.GITHUB_ACTIONS === 'true';
+const isCI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true";
 
 const timeoutMultiplier = isCI ? 1.5 : 1;
 
