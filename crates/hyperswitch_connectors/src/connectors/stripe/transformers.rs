@@ -46,8 +46,12 @@ use url::Url;
 
 use crate::{
     constants::headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT,
-    utils::{convert_uppercase, ApplePay, RouterData as OtherRouterData},
+    utils::{
+        convert_uppercase, deserialize_zero_minor_amount_as_none, ApplePay,
+        RouterData as OtherRouterData,
+    },
 };
+
 #[cfg(feature = "payouts")]
 pub mod connect;
 #[cfg(feature = "payouts")]
@@ -2397,6 +2401,8 @@ pub struct PaymentIntentResponse {
     pub id: String,
     pub object: String,
     pub amount: MinorUnit,
+    #[serde(default, deserialize_with = "deserialize_zero_minor_amount_as_none")]
+    // stripe gives amount_captured as 0 for payment intents instead of 0
     pub amount_received: Option<MinorUnit>,
     pub amount_capturable: Option<MinorUnit>,
     pub currency: String,
@@ -2813,10 +2819,12 @@ where
 
         Ok(Self {
             status,
-            // client_secret: Some(item.response.client_secret.clone().as_str()),
-            // description: item.response.description.map(|x| x.as_str()),
-            // statement_descriptor_suffix: item.response.statement_descriptor_suffix.map(|x| x.as_str()),
-            // three_ds_form,
+            /* Commented out fields:
+            client_secret: Some(item.response.client_secret.clone().as_str()),
+            description: item.response.description.map(|x| x.as_str()),
+            statement_descriptor_suffix: item.response.statement_descriptor_suffix.map(|x| x.as_str()),
+            three_ds_form,
+            */
             response,
             amount_captured: item
                 .response
