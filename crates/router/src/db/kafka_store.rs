@@ -1495,7 +1495,8 @@ impl PaymentAttemptInterface for KafkaStore {
             .log_payment_attempt(&attempt, None, self.tenant_id.clone())
             .await
         {
-            logger::error!(message="Failed to log analytics event for payment attempt {attempt:?}", error_message=?er)
+            logger::error!(message="Failed to log analytics event for payment attempt {attempt:?}", error_message=?er);
+            crate::middleware::record_error_in_golden_log("analytics_error", "Failed to log analytics event for payment attempt")
         }
 
         Ok(attempt)
@@ -1524,7 +1525,8 @@ impl PaymentAttemptInterface for KafkaStore {
             .log_payment_attempt(&attempt, None, self.tenant_id.clone())
             .await
         {
-            logger::error!(message="Failed to log analytics event for payment attempt {attempt:?}", error_message=?er)
+            logger::error!(message="Failed to log analytics event for payment attempt {attempt:?}", error_message=?er);
+            crate::middleware::record_error_in_golden_log("analytics_error", "Failed to log analytics event for payment attempt")
         }
 
         Ok(attempt)
@@ -1554,7 +1556,8 @@ impl PaymentAttemptInterface for KafkaStore {
             .log_payment_attempt(&attempt, Some(this), self.tenant_id.clone())
             .await
         {
-            logger::error!(message="Failed to log analytics event for payment attempt {attempt:?}", error_message=?er)
+            logger::error!(message="Failed to log analytics event for payment attempt {attempt:?}", error_message=?er);
+            crate::middleware::record_error_in_golden_log("analytics_error", "Failed to log analytics event for payment attempt")
         }
 
         Ok(attempt)
@@ -1585,7 +1588,8 @@ impl PaymentAttemptInterface for KafkaStore {
             .log_payment_attempt(&attempt, Some(this), self.tenant_id.clone())
             .await
         {
-            logger::error!(message="Failed to log analytics event for payment attempt {attempt:?}", error_message=?er)
+            logger::error!(message="Failed to log analytics event for payment attempt {attempt:?}", error_message=?er);
+            crate::middleware::record_error_in_golden_log("analytics_error", "Failed to log analytics event for payment attempt")
         }
 
         Ok(attempt)
