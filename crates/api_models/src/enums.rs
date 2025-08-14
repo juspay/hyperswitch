@@ -258,7 +258,7 @@ pub enum FieldType {
     UserSocialSecurityNumber,
     UserBlikCode,
     UserBank,
-    UserBankOptions { options: Vec<String> },
+    UserBankOptions { options: Vec<String>, required: Option<bool> },
     UserBankAccountNumber,
     UserSourceBankAccountId,
     UserDestinationBankAccountId,

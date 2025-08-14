@@ -61,6 +61,49 @@ pub struct ReferrerData {
     version: String,
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum IdealBankNames {
+    AbnAmro,
+    Asn,
+    Bunq,
+    Ing,
+    Knab,
+    N26,
+    NationaleNederlanden,
+    Rabobank,
+    Regiobank,
+    Revolut,
+    Sns,
+    Triodos,
+    VanLanschotKempen,
+    Yoursafe,
+}
+
+impl TryFrom<common_enums::BankNames> for IdealBankNames {
+    type Error = errors::ConnectorError;
+    fn try_from(bank: common_enums::BankNames) -> Result<Self, Self::Error> {
+        match bank {
+            common_enums::BankNames::AbnAmro => Ok(Self::AbnAmro),
+            common_enums::BankNames::AsnBank => Ok(Self::Asn),
+            common_enums::BankNames::Bunq => Ok(Self::Bunq),
+            common_enums::BankNames::Ing => Ok(Self::Ing),
+            common_enums::BankNames::N26 => Ok(Self::N26),
+            common_enums::BankNames::NationaleNederlanden => Ok(Self::NationaleNederlanden),
+            common_enums::BankNames::Rabobank => Ok(Self::Rabobank),
+            common_enums::BankNames::Regiobank => Ok(Self::Regiobank),
+            common_enums::BankNames::Revolut => Ok(Self::Revolut),
+            common_enums::BankNames::SnsBank => Ok(Self::Sns),
+            common_enums::BankNames::TriodosBank => Ok(Self::Triodos),
+            common_enums::BankNames::VanLanschot => Ok(Self::VanLanschotKempen),
+            common_enums::BankNames::Yoursafe => Ok(Self::Yoursafe),
+            _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Airwallex"),
+            ))?,
+        }
+    }
+}
+
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct AirwallexIntentRequest {
     // Unique ID to be sent for each transaction/operation request to the connector
@@ -405,7 +448,7 @@ pub struct IdealData {
 
 #[derive(Debug, Serialize)]
 pub struct IdealDetails {
-    bank_name: Option<common_enums::BankNames>,
+    bank_name: Option<IdealBankNames>,
 }
 
 #[derive(Debug, Serialize)]
@@ -725,7 +768,10 @@ fn get_bankredirect_details(
         BankRedirectData::Ideal { bank_name } => {
             AirwallexPaymentMethod::BankRedirect(AirwallexBankRedirectData::Ideal(IdealData {
                 ideal: IdealDetails {
-                    bank_name: *bank_name,
+                    bank_name: bank_name
+                        .as_ref()
+                        .map(|name| IdealBankNames::try_from(*name))
+                    .transpose()?,
                 },
                 payment_method_type: AirwallexPaymentType::Ideal,
             }))

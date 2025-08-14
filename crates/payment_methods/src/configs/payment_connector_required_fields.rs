@@ -174,7 +174,8 @@ enum RequiredField {
     BanContactCardExpYear,
     IdealBankName,
     EpsBankName,
-    EpsBankOptions(HashSet<enums::BankNames>),
+    EpsBankOptions(HashSet<enums::BankNames>, Option<bool>),
+    IdealBankOptions(HashSet<enums::BankNames>, Option<bool>),
     BlikCode,
     MifinityDateOfBirth,
     MifinityLanguagePreference(Vec<&'static str>),
@@ -602,6 +603,18 @@ impl RequiredField {
                     value: None,
                 },
             ),
+            Self::IdealBankOptions(bank,required) => (
+                "payment_method_data.bank_redirect.ideal.bank_name".to_string(),
+                RequiredFieldInfo {
+                    required_field: "payment_method_data.bank_redirect.ideal.bank_name".to_string(),
+                    display_name: "bank_name".to_string(),
+                    field_type: FieldType::UserBankOptions {
+                        options: bank.iter().map(|bank| bank.to_string()).collect(),
+                        required: *required,
+                    },
+                    value: None,
+                },
+            ),
             Self::EpsBankName => (
                 "payment_method_data.bank_redirect.eps.bank_name".to_string(),
                 RequiredFieldInfo {
@@ -611,13 +624,14 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            Self::EpsBankOptions(bank) => (
+            Self::EpsBankOptions(bank, required) => (
                 "payment_method_data.bank_redirect.eps.bank_name".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.bank_redirect.eps.bank_name".to_string(),
                     display_name: "bank_name".to_string(),
                     field_type: FieldType::UserBankOptions {
                         options: bank.iter().map(|bank| bank.to_string()).collect(),
+                        required: *required,
                     },
                     value: None,
                 },
@@ -1939,6 +1953,26 @@ fn get_bank_redirect_required_fields(
                         common: HashMap::new(),
                     },
                 ),
+                (
+                    Connector::Airwallex,
+                    RequiredFieldFinal {
+                        mandate: HashMap::new(),
+                        non_mandate: HashMap::from([
+                            RequiredField::IdealBankOptions(
+                                bank_config
+                                    .0
+                                    .get(&enums::PaymentMethodType::Ideal)
+                                    .and_then(|connector_bank_names| {
+                                        connector_bank_names.0.get("airwallex")
+                                    })
+                                    .map(|bank_names| bank_names.banks.clone())
+                                    .unwrap_or_default(),
+                                Some(false),
+                            ).to_tuple(),
+                        ]),
+                        common: HashMap::new(),
+                    }
+                )
             ]),
         ),
         (
@@ -2085,6 +2119,7 @@ fn get_bank_redirect_required_fields(
                                     })
                                     .map(|bank_names| bank_names.banks.clone())
                                     .unwrap_or_default(),
+                                Some(true),
                             ),
                             RequiredField::BillingLastName("billing_name", FieldType::UserFullName),
                         ],
