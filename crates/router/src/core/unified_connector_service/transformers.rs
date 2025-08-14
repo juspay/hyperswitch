@@ -89,7 +89,10 @@ impl ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
             });
 
         // Use access token from router_data (populated by Hyperswitch access token flow)
-        let access_token = router_data.access_token.as_ref().map(convert_access_token_to_grpc);
+        let access_token = router_data
+            .access_token
+            .as_ref()
+            .map(convert_access_token_to_grpc);
 
         Ok(Self {
             transaction_id: connector_transaction_id.or(encoded_data),
@@ -145,7 +148,10 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
             .transpose()?;
 
         // Use access token from router_data (populated by Hyperswitch access token flow)
-        let access_token = router_data.access_token.as_ref().map(convert_access_token_to_grpc);
+        let access_token = router_data
+            .access_token
+            .as_ref()
+            .map(convert_access_token_to_grpc);
 
         Ok(Self {
             amount: router_data.request.amount,
@@ -426,7 +432,10 @@ impl ForeignTryFrom<&RouterData<SetupMandate, SetupMandateRequestData, PaymentsR
             return_url: router_data.request.router_return_url.clone(),
             webhook_url: router_data.request.webhook_url.clone(),
             complete_authorize_url: router_data.request.complete_authorize_url.clone(),
-            access_token: router_data.access_token.as_ref().map(convert_access_token_to_grpc),
+            access_token: router_data
+                .access_token
+                .as_ref()
+                .map(convert_access_token_to_grpc),
             session_token: None,
             order_tax_amount: None,
             order_category: None,
@@ -589,7 +598,9 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse>
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
         // Extract access token from response state - this will be handled by Hyperswitch caching
-        let _extracted_access_token = response.state.as_ref()
+        let _extracted_access_token = response
+            .state
+            .as_ref()
             .and_then(|state| state.access_token.as_ref())
             .map(convert_grpc_access_token_to_domain);
 

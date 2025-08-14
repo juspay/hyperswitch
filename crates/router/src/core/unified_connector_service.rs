@@ -53,7 +53,7 @@ use crate::{
 pub mod transformers;
 
 pub fn get_access_token_from_ucs_response(
-    state: Option<&unified_connector_service_client::payments::ConnectorState>
+    state: Option<&unified_connector_service_client::payments::ConnectorState>,
 ) -> Option<AccessToken> {
     state
         .and_then(|state| state.access_token.as_ref())
@@ -67,9 +67,10 @@ pub async fn set_access_token_for_ucs(
     access_token: AccessToken,
 ) -> Result<(), errors::StorageError> {
     let merchant_id = merchant_context.get_merchant_account().get_id();
-    
+
     let modified_access_token = AccessToken {
-        expires: access_token.expires
+        expires: access_token
+            .expires
             .saturating_sub(consts::REDUCE_ACCESS_TOKEN_EXPIRY_TIME.into()),
         ..access_token
     };
@@ -80,7 +81,8 @@ pub async fn set_access_token_for_ucs(
         connector_name = connector_name
     );
 
-    if let Err(access_token_set_error) = state.store
+    if let Err(access_token_set_error) = state
+        .store
         .set_access_token(merchant_id, connector_name, modified_access_token)
         .await
     {
@@ -89,7 +91,7 @@ pub async fn set_access_token_for_ucs(
         // The next request will create new access token, if required
         router_env::logger::error!(access_token_set_error=?access_token_set_error, "Failed to store UCS access token");
     }
-    
+
     Ok(())
 }
 
@@ -390,18 +392,17 @@ pub fn build_unified_connector_service_payment_method(
         }
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankRedirect(
             bank_redirect_data,
-        ) => {
-            match bank_redirect_data {
-                hyperswitch_domain_models::payment_method_data::BankRedirectData::OpenBankingUk {
-                    issuer,
-                    country,
-                } => {
-                    let open_banking_uk = payments_grpc::OpenBankingUk {
-                        issuer: issuer.map(|issuer| issuer.to_string()),
-                        country: country.map(|country| country.to_string()),
-                    };
-                    
-                    Ok(payments_grpc::PaymentMethod {
+        ) => match bank_redirect_data {
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::OpenBankingUk {
+                issuer,
+                country,
+            } => {
+                let open_banking_uk = payments_grpc::OpenBankingUk {
+                    issuer: issuer.map(|issuer| issuer.to_string()),
+                    country: country.map(|country| country.to_string()),
+                };
+
+                Ok(payments_grpc::PaymentMethod {
                         payment_method: Some(PaymentMethod::OnlineBanking(
                             payments_grpc::OnlineBankingPaymentMethodType {
                                 online_banking_type: Some(
@@ -410,15 +411,12 @@ pub fn build_unified_connector_service_payment_method(
                             }
                         )),
                     })
-                }
-                _ => {
-                    Err(UnifiedConnectorServiceError::NotImplemented(format!(
-                        "Unimplemented bank redirect type: {bank_redirect_data:?}"
-                    ))
-                    .into())
-                }
             }
-        }
+            _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
+                "Unimplemented bank redirect type: {bank_redirect_data:?}"
+            ))
+            .into()),
+        },
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::Reward => {
             match payment_method_type {
                 PaymentMethodType::ClassicReward => Ok(payments_grpc::PaymentMethod {
