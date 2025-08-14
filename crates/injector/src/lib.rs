@@ -1,5 +1,7 @@
 #[cfg(feature = "v2")]
 pub mod injector_core {
+    use std::collections::HashMap;
+
     use api_models::injector::{ContentType, InjectorRequest, InjectorResponse};
     use async_trait::async_trait;
     use common_utils::request::{Method, RequestBuilder, RequestContent};
@@ -16,7 +18,6 @@ pub mod injector_core {
     };
     use router_env::{instrument, logger, tracing};
     use serde_json::Value;
-    use std::collections::HashMap;
     use thiserror::Error;
 
     #[derive(Error, Debug)]
@@ -532,7 +533,8 @@ pub mod injector_core {
 #[cfg(all(test, feature = "v2"))]
 #[allow(clippy::unwrap_used)]
 mod tests {
-    use super::injector_core::*;
+    use std::collections::HashMap;
+
     use api_models::injector::*;
     use hyperswitch_domain_models::injector;
     use router_env::logger;
@@ -681,7 +683,7 @@ mod tests {
         );
 
         let response = result.unwrap();
-        
+
         // Print the actual response for demonstration
         logger::info!("=== HTTP RESPONSE FROM HTTPBIN.ORG ===");
         logger::info!("{}", serde_json::to_string_pretty(&response).unwrap_or_default());
@@ -743,7 +745,7 @@ mod tests {
         );
 
         let response = result.unwrap();
-        
+
         // Print the actual response for demonstration
         logger::info!("=== CERTIFICATE TEST RESPONSE ===");
         logger::info!("{}", serde_json::to_string_pretty(&response).unwrap_or_default());
