@@ -604,7 +604,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            Self::IdealBankOptions(bank,required) => (
+            Self::IdealBankOptions(bank, required) => (
                 "payment_method_data.bank_redirect.ideal.bank_name".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.bank_redirect.ideal.bank_name".to_string(),
@@ -1973,22 +1973,21 @@ fn get_bank_redirect_required_fields(
                     Connector::Airwallex,
                     RequiredFieldFinal {
                         mandate: HashMap::new(),
-                        non_mandate: HashMap::from([
-                            RequiredField::IdealBankOptions(
-                                bank_config
-                                    .0
-                                    .get(&enums::PaymentMethodType::Ideal)
-                                    .and_then(|connector_bank_names| {
-                                        connector_bank_names.0.get("airwallex")
-                                    })
-                                    .map(|bank_names| bank_names.banks.clone())
-                                    .unwrap_or_default(),
-                                Some(false),
-                            ).to_tuple(),
-                        ]),
+                        non_mandate: HashMap::from([RequiredField::IdealBankOptions(
+                            bank_config
+                                .0
+                                .get(&enums::PaymentMethodType::Ideal)
+                                .and_then(|connector_bank_names| {
+                                    connector_bank_names.0.get("airwallex")
+                                })
+                                .map(|bank_names| bank_names.banks.clone())
+                                .unwrap_or_default(),
+                            Some(false),
+                        )
+                        .to_tuple()]),
                         common: HashMap::new(),
-                    }
-                )
+                    },
+                ),
             ]),
         ),
         (

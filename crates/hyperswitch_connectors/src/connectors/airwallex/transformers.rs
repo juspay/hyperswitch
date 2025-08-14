@@ -771,7 +771,7 @@ fn get_bankredirect_details(
                     bank_name: bank_name
                         .as_ref()
                         .map(|name| IdealBankNames::try_from(*name))
-                    .transpose()?,
+                        .transpose()?,
                 },
                 payment_method_type: AirwallexPaymentType::Ideal,
             }))

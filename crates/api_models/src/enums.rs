@@ -237,9 +237,13 @@ pub enum FieldType {
     UserFullName,
     UserEmailAddress,
     UserPhoneNumber,
-    UserPhoneNumberCountryCode,           //phone number's country code
-    UserCountry { options: Vec<String> }, //for country inside payment method data ex- bank redirect
-    UserCurrency { options: Vec<String> },
+    UserPhoneNumberCountryCode, //phone number's country code
+    UserCountry {
+        options: Vec<String>,
+    }, //for country inside payment method data ex- bank redirect
+    UserCurrency {
+        options: Vec<String>,
+    },
     UserCryptoCurrencyNetwork, //for crypto network associated with the cryptopcurrency
     UserBillingName,
     UserAddressLine1,
@@ -247,26 +251,37 @@ pub enum FieldType {
     UserAddressCity,
     UserAddressPincode,
     UserAddressState,
-    UserAddressCountry { options: Vec<String> },
+    UserAddressCountry {
+        options: Vec<String>,
+    },
     UserShippingName,
     UserShippingAddressLine1,
     UserShippingAddressLine2,
     UserShippingAddressCity,
     UserShippingAddressPincode,
     UserShippingAddressState,
-    UserShippingAddressCountry { options: Vec<String> },
+    UserShippingAddressCountry {
+        options: Vec<String>,
+    },
     UserSocialSecurityNumber,
     UserBlikCode,
     UserBank,
-    UserBankOptions { options: Vec<String>, required: Option<bool> },
+    UserBankOptions {
+        options: Vec<String>,
+        required: Option<bool>,
+    },
     UserBankAccountNumber,
     UserSourceBankAccountId,
     UserDestinationBankAccountId,
     Text,
-    DropDown { options: Vec<String> },
+    DropDown {
+        options: Vec<String>,
+    },
     UserDateOfBirth,
     UserVpaId,
-    LanguagePreference { options: Vec<String> },
+    LanguagePreference {
+        options: Vec<String>,
+    },
     UserPixKey,
     UserCpf,
     UserCnpj,
