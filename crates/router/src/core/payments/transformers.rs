@@ -1042,6 +1042,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         connector_testing_data: None,
         customer_id: None,
         enable_partial_authorization: None,
+        payment_channel: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -4859,6 +4860,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             connector_testing_data,
             customer_id: payment_data.payment_intent.customer_id,
             enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
+            payment_channel: payment_data.payment_intent.payment_channel,
         })
     }
 }
@@ -5249,7 +5251,10 @@ impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::PaymentA
             created_at: attempt.created_at,
             modified_at: attempt.modified_at,
             cancellation_reason: attempt.cancellation_reason.clone(),
-            payment_token: attempt.payment_token.clone(),
+            payment_token: attempt
+                .connector_token_details
+                .as_ref()
+                .and_then(|details| details.connector_mandate_id.clone()),
             connector_metadata: attempt.connector_metadata.clone(),
             payment_experience: attempt.payment_experience,
             payment_method_type: attempt.payment_method_type,

@@ -1,5 +1,5 @@
 use actix_web::{web, Responder};
-use api_models::payments as payments_api;
+use api_models::{payments as payments_api, payments as api_payments};
 use common_utils::id_type;
 use error_stack::{report, FutureExt, ResultExt};
 use hyperswitch_domain_models::{
@@ -362,4 +362,49 @@ pub async fn custom_revenue_recovery_core(
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         response,
     ))
+}
+
+pub async fn call_list_attempt_api(
+    state: &SessionState,
+    merchant_context: MerchantContext,
+    req_state: &ReqState,
+    profile: &domain::Profile,
+    payment_intent: &payments_domain::PaymentIntent,
+) -> Result<payments_api::PaymentAttemptListResponse, errors::ApiErrorResponse> {
+    let attempts_response = Box::pin(payments::payments_list_attempts_using_payment_intent_id::<
+        payments::operations::PaymentGetListAttempts,
+        api_payments::PaymentAttemptListResponse,
+        _,
+        payments::operations::payment_attempt_list::PaymentGetListAttempts,
+        hyperswitch_domain_models::payments::PaymentAttemptListData<
+            payments::operations::PaymentGetListAttempts,
+        >,
+    >(
+        state.clone(),
+        req_state.clone(),
+        merchant_context.clone(),
+        profile.clone(),
+        payments::operations::PaymentGetListAttempts,
+        api_payments::PaymentAttemptListRequest {
+            payment_intent_id: payment_intent.id.clone(),
+        },
+        payment_intent.id.clone(),
+        hyperswitch_domain_models::payments::HeaderPayload::default(),
+    ))
+    .await;
+
+    let payment_attempt_list_result = match attempts_response {
+        Ok(services::ApplicationResponse::JsonWithHeaders((pi, _))) => Ok(pi),
+        Ok(_) => Err(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "Failed to fetch payment attempt list for a payment intent".to_string(),
+        }),
+        Err(error) => {
+            logger::error!(?error);
+            Err(errors::ApiErrorResponse::GenericNotFoundError {
+                message: "Failed to fetch payment attempt list for a payment intent".to_string(),
+            })
+        }
+    }?;
+
+    Ok(payment_attempt_list_result)
 }
