@@ -325,20 +325,17 @@ pub mod injector_core {
             // Add certificate configuration if provided
             if let Some(cert_content) = &config.client_cert {
                 logger::debug!("Adding client certificate content");
-                request_builder = request_builder
-                    .add_certificate(Some(cert_content.clone()));
+                request_builder = request_builder.add_certificate(Some(cert_content.clone()));
             }
 
             if let Some(key_content) = &config.client_key {
                 logger::debug!("Adding client private key content");
-                request_builder = request_builder
-                    .add_certificate_key(Some(key_content.clone()));
+                request_builder = request_builder.add_certificate_key(Some(key_content.clone()));
             }
 
             if let Some(ca_content) = &config.ca_cert {
                 logger::debug!("Adding CA certificate content");
-                request_builder = request_builder
-                    .add_ca_certificate_pem(Some(ca_content.clone()));
+                request_builder = request_builder.add_ca_certificate_pem(Some(ca_content.clone()));
             }
 
             // Log certificate configuration (but not the actual content)
@@ -442,7 +439,11 @@ pub mod injector_core {
             let domain_request: injector::InjectorRequest = request.into();
 
             // Extract token data from SecretSerdeValue for vault data lookup
-            let vault_data = domain_request.token_data.specific_token_data.expose().clone();
+            let vault_data = domain_request
+                .token_data
+                .specific_token_data
+                .expose()
+                .clone();
 
             // Validate template length to prevent potential memory issues
             if domain_request.connector_payload.template.len() > 1_000_000 {
@@ -632,7 +633,10 @@ mod tests {
             "Content-Type".to_string(),
             masking::Secret::new("application/x-www-form-urlencoded".to_string()),
         );
-        headers.insert("Authorization".to_string(), masking::Secret::new("Bearer Test".to_string()));
+        headers.insert(
+            "Authorization".to_string(),
+            masking::Secret::new("Bearer Test".to_string()),
+        );
 
         let specific_token_data = common_utils::pii::SecretSerdeValue::new(serde_json::json!({
             "card_number": "tok_sandbox_123",
@@ -699,7 +703,10 @@ mod tests {
         use std::collections::HashMap;
 
         let mut headers = HashMap::new();
-        headers.insert("Content-Type".to_string(), masking::Secret::new("application/json".to_string()));
+        headers.insert(
+            "Content-Type".to_string(),
+            masking::Secret::new("application/json".to_string()),
+        );
 
         let specific_token_data = common_utils::pii::SecretSerdeValue::new(serde_json::json!({
             "card_number": "tok_test_cert",
