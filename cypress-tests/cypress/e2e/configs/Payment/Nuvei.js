@@ -183,7 +183,7 @@ export const connectorDetails = {
         body: {
           status: "requires_customer_action",
           setup_future_usage: "on_session",
-          payment_method_data: payment_method_data_3ds,
+          // we are removing payment_method_data from the response as authentication_data is different every time.
         },
       },
     },
