@@ -25,27 +25,27 @@ pub mod types {
         VGS,
     }
 
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    Deserialize,
-    Serialize,
-    strum::Display,
-    strum::EnumString,
-    ToSchema,
-)]
-#[serde(rename_all = "UPPERCASE")]
-#[strum(serialize_all = "UPPERCASE")]
-pub enum HttpMethod {
-    GET,
-    POST,
-    PUT,
-    PATCH,
-    DELETE,
-}
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        Eq,
+        PartialEq,
+        Deserialize,
+        Serialize,
+        strum::Display,
+        strum::EnumString,
+        ToSchema,
+    )]
+    #[serde(rename_all = "UPPERCASE")]
+    #[strum(serialize_all = "UPPERCASE")]
+    pub enum HttpMethod {
+        GET,
+        POST,
+        PUT,
+        PATCH,
+        DELETE,
+    }
 
     #[derive(
         Clone,

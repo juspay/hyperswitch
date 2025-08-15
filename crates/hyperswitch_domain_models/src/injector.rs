@@ -31,48 +31,48 @@ pub mod types {
         }
     }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum HttpMethod {
-    GET,
-    POST,
-    PUT,
-    PATCH,
-    DELETE,
-}
+    #[derive(Clone, Debug, PartialEq, Eq)]
+    pub enum HttpMethod {
+        GET,
+        POST,
+        PUT,
+        PATCH,
+        DELETE,
+    }
 
-impl ApiModelToDieselModelConvertor<api_models::injector::HttpMethod> for HttpMethod {
-    fn convert_from(from: api_models::injector::HttpMethod) -> Self {
-        match from {
-            api_models::injector::HttpMethod::GET => Self::GET,
-            api_models::injector::HttpMethod::POST => Self::POST,
-            api_models::injector::HttpMethod::PUT => Self::PUT,
-            api_models::injector::HttpMethod::PATCH => Self::PATCH,
-            api_models::injector::HttpMethod::DELETE => Self::DELETE,
+    impl ApiModelToDieselModelConvertor<api_models::injector::HttpMethod> for HttpMethod {
+        fn convert_from(from: api_models::injector::HttpMethod) -> Self {
+            match from {
+                api_models::injector::HttpMethod::GET => Self::GET,
+                api_models::injector::HttpMethod::POST => Self::POST,
+                api_models::injector::HttpMethod::PUT => Self::PUT,
+                api_models::injector::HttpMethod::PATCH => Self::PATCH,
+                api_models::injector::HttpMethod::DELETE => Self::DELETE,
+            }
+        }
+
+        fn convert_back(self) -> api_models::injector::HttpMethod {
+            match self {
+                Self::GET => api_models::injector::HttpMethod::GET,
+                Self::POST => api_models::injector::HttpMethod::POST,
+                Self::PUT => api_models::injector::HttpMethod::PUT,
+                Self::PATCH => api_models::injector::HttpMethod::PATCH,
+                Self::DELETE => api_models::injector::HttpMethod::DELETE,
+            }
         }
     }
 
-    fn convert_back(self) -> api_models::injector::HttpMethod {
-        match self {
-            Self::GET => api_models::injector::HttpMethod::GET,
-            Self::POST => api_models::injector::HttpMethod::POST,
-            Self::PUT => api_models::injector::HttpMethod::PUT,
-            Self::PATCH => api_models::injector::HttpMethod::PATCH,
-            Self::DELETE => api_models::injector::HttpMethod::DELETE,
+    impl From<api_models::injector::HttpMethod> for HttpMethod {
+        fn from(method: api_models::injector::HttpMethod) -> Self {
+            match method {
+                api_models::injector::HttpMethod::GET => Self::GET,
+                api_models::injector::HttpMethod::POST => Self::POST,
+                api_models::injector::HttpMethod::PUT => Self::PUT,
+                api_models::injector::HttpMethod::PATCH => Self::PATCH,
+                api_models::injector::HttpMethod::DELETE => Self::DELETE,
+            }
         }
     }
-}
-
-impl From<api_models::injector::HttpMethod> for HttpMethod {
-    fn from(method: api_models::injector::HttpMethod) -> Self {
-        match method {
-            api_models::injector::HttpMethod::GET => Self::GET,
-            api_models::injector::HttpMethod::POST => Self::POST,
-            api_models::injector::HttpMethod::PUT => Self::PUT,
-            api_models::injector::HttpMethod::PATCH => Self::PATCH,
-            api_models::injector::HttpMethod::DELETE => Self::DELETE,
-        }
-    }
-}
 
     #[derive(Clone, Debug, PartialEq, Eq)]
     pub enum ContentType {
