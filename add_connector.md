@@ -44,7 +44,7 @@ By the end, you’ll learn how to create a fully functional, production-ready co
 * Familiarity with the Connector API you’re integrating
 * A locally set up and running Router repository
 * API credentials for testing (sign up for sandbox/UAT credentials on the connector’s website).
-* Need help? Join the [Hyperswitch Slack Channel](https://join.slack.com/t/hyperswitch-io/shared_invite/zt-39d4w0043-CgAyb75Kn0YldNyZpd8hWA). We also have weekly office hours every Thursday at 8:00 AM PT (11:00 AM ET, 4:00 PM BST, 5:00 PM CEST, and 8:30 PM IST). Link to office hours are shared in the **#general channel**.
+* Need help? Join the [Hyperswitch Slack Channel](https://inviter.co/hyperswitch-slack). We also have weekly office hours every Thursday at 8:00 AM PT (11:00 AM ET, 4:00 PM BST, 5:00 PM CEST, and 8:30 PM IST). Link to office hours are shared in the **#general channel**.
 
 ## Development Environment Setup & Configuration
 
@@ -82,9 +82,16 @@ rustup toolchain install nightly
 
 * Install [Protobuf](https://protobuf.dev/installation/)
 
+Install cargo-generate for creating project templates:
+
+```bash
+cargo install cargo-generate
+```
+
 If you've completed the setup, you should now have:
 
 * ✅ Rust & Cargo
+* ✅ `cargo-generate`
 * ✅ PostgreSQL (with a user and database created)
 * ✅ Redis
 * ✅ `diesel_cli`
@@ -879,14 +886,14 @@ Here are more examples around these methods in the Billwerk connector:
 returns as `RequestContent:` by wrapping it in a JSON via `RequestContent::Json(Box::new(connector_req))`  
 
 - **`build_request()`**  
-  Orchestrates `get_url()`, `get_headers()`, and `get_request_body()` to assemble the complete HTTP request via a `RequestBuilder`. For example, you can review the Billwerk connector's [`build_request()`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L215-L231) implementation. 
+  Orchestrates `get_url()`, `get_headers()`, and `get_request_body()` to assemble the complete HTTP request via a `RequestBuilder`. For example, you can review the Billwerk connector's [`build_request()`](https://github.com/juspay/hyperswitch/blob/b133c534fb1ce40bd6cca27fac4f2d58b0863e30/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L215-L231) implementation. 
 
 - **`handle_response()`**  
   You can see an example of this here: [`billwerk.rs`](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L332). In this example, it parses the raw response into `BillwerkTokenResponse` using `res.response.parse_struct()`, logs the response with an `event_builder.map(|i| i.set_response_body(&response))`, finally it 
 transforms back to `RouterData` using `RouterData::try_from(ResponseRouterData {...}) `.
 
 - **`get_error_response()`**
-  Here's an example of [get_error_response](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L256) in `billewerk.rs`. It delegates to [`build_error_response()`](https://github.com/juspay/hyperswitch/blob/main/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L136-L162) from the `ConnectorCommon` trait, providing uniform handling for all connector 4xx errors.  
+  Here's an example of [get_error_response](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L256) in `billewerk.rs`. It delegates to [`build_error_response()`](https://github.com/juspay/hyperswitch/blob/b133c534fb1ce40bd6cca27fac4f2d58b0863e30/crates/hyperswitch_connectors/src/connectors/billwerk.rs#L136-L162) from the `ConnectorCommon` trait, providing uniform handling for all connector 4xx errors.  
 
 
 ### `ConnectorCommonExt` - Generic Helper Methods
