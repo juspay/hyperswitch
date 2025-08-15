@@ -205,7 +205,7 @@ pub mod injector_core {
             field_name: &str,
         ) -> error_stack::Result<Value, InjectorError> {
             match vault_type {
-                injector::types::VaultType::Vgs => {
+                injector::types::VaultType::VGS => {
                     logger::debug!(
                         "VGS vault: Using direct token replacement for field '{}'",
                         field_name
@@ -267,21 +267,18 @@ pub mod injector_core {
             let headers: Vec<(String, masking::Maskable<String>)> = config
                 .headers
                 .iter()
-                .map(|(k, v)| (k.clone(), masking::Maskable::new_normal(v.clone())))
+                .map(|(k, v)| (k.clone(), masking::Maskable::new_normal(v.expose().clone())))
                 .collect();
 
             // Determine method and request content
             let method = match config.http_method {
-                injector::HttpMethod::Get => Method::Get,
-                injector::HttpMethod::Post => Method::Post,
-                injector::HttpMethod::Put => Method::Put,
-                injector::HttpMethod::Patch => Method::Patch,
-                injector::HttpMethod::Delete => Method::Delete,
-                _ => {
-                    return Err(error_stack::Report::new(InjectorError::InvalidTemplate(
-                        "Unsupported HTTP method".to_string(),
-                    )))
-                }
+                injector::HttpMethod::GET => Method::Get,
+                injector::HttpMethod::POST => Method::Post,
+                injector::HttpMethod::PUT => Method::Put,
+                injector::HttpMethod::PATCH => Method::Patch,
+                injector::HttpMethod::DELETE => Method::Delete,
+                injector::HttpMethod::HEAD => Method::Head,
+                injector::HttpMethod::OPTIONS => Method::Options,
             };
 
             // Determine request content based on content type with error handling
@@ -329,19 +326,19 @@ pub mod injector_core {
             if let Some(cert_content) = &config.client_cert {
                 logger::debug!("Adding client certificate content");
                 request_builder = request_builder
-                    .add_certificate(Some(masking::Secret::new(cert_content.clone())));
+                    .add_certificate(Some(cert_content.clone()));
             }
 
             if let Some(key_content) = &config.client_key {
                 logger::debug!("Adding client private key content");
                 request_builder = request_builder
-                    .add_certificate_key(Some(masking::Secret::new(key_content.clone())));
+                    .add_certificate_key(Some(key_content.clone()));
             }
 
             if let Some(ca_content) = &config.ca_cert {
                 logger::debug!("Adding CA certificate content");
                 request_builder = request_builder
-                    .add_ca_certificate_pem(Some(masking::Secret::new(ca_content.clone())));
+                    .add_ca_certificate_pem(Some(ca_content.clone()));
             }
 
             // Log certificate configuration (but not the actual content)
@@ -444,11 +441,8 @@ pub mod injector_core {
             // Convert API model to domain model
             let domain_request: injector::InjectorRequest = request.into();
 
-            // Convert token data to JSON for vault data lookup with validation
-            let vault_data = serde_json::to_value(&domain_request.token_data.specific_token_data)
-                .change_context(InjectorError::SerializationError(
-                "Failed to serialize token data".to_string(),
-            ))?;
+            // Extract token data from SecretSerdeValue for vault data lookup
+            let vault_data = domain_request.token_data.specific_token_data.expose().clone();
 
             // Validate template length to prevent potential memory issues
             if domain_request.connector_payload.template.len() > 1_000_000 {
@@ -496,7 +490,7 @@ pub mod injector_core {
                 .connection_config
                 .headers
                 .get("Content-Type")
-                .and_then(|ct| match ct.as_str() {
+                .and_then(|ct| match ct.expose().as_str() {
                     "application/json" => Some(ContentType::ApplicationJson),
                     "application/x-www-form-urlencoded" => {
                         Some(ContentType::ApplicationXWwwFormUrlencoded)
@@ -561,7 +555,7 @@ mod tests {
         });
 
         // Test with VGS vault (direct replacement)
-        let vault_type = injector::types::VaultType::Vgs;
+        let vault_type = injector::types::VaultType::VGS;
         let result = injector
             .interpolate_token_references_with_vault_data(template, &vault_data, &vault_type)
             .unwrap();
@@ -577,7 +571,7 @@ mod tests {
             "card_number": "4111111111111111"
         });
 
-        let vault_type = injector::types::VaultType::Vgs;
+        let vault_type = injector::types::VaultType::VGS;
         let result = injector.interpolate_token_references_with_vault_data(
             template,
             &vault_data,
@@ -618,7 +612,7 @@ mod tests {
             .interpolate_token_references_with_vault_data(
                 template.clone(),
                 &vault_data,
-                &injector::types::VaultType::Vgs,
+                &injector::types::VaultType::VGS,
             )
             .unwrap();
         assert_eq!(
@@ -635,29 +629,29 @@ mod tests {
         let mut headers = HashMap::new();
         headers.insert(
             "Content-Type".to_string(),
-            "application/x-www-form-urlencoded".to_string(),
+            masking::Secret::new("application/x-www-form-urlencoded".to_string()),
         );
-        headers.insert("Authorization".to_string(), "Bearer Test".to_string());
+        headers.insert("Authorization".to_string(), masking::Secret::new("Bearer Test".to_string()));
 
-        let specific_token_data = SpecificTokenData {
-            card_number: "tok_sandbox_123".to_string(),
-            cvv: "123".to_string(),
-            exp_month: "12".to_string(),
-            exp_year: "25".to_string(),
-        };
+        let specific_token_data = common_utils::pii::SecretSerdeValue::new(serde_json::json!({
+            "card_number": "tok_sandbox_123",
+            "cvv": "123",
+            "exp_month": "12",
+            "exp_year": "25"
+        }));
 
         let request = InjectorRequest {
             connector_payload: ConnectorPayload {
                 template: "amount=100&currency=USD&metadata[order_id]=12345_att_01974ee902f97870b61afecd4c551673&return_url=http://localhost:8080/v2/payments/12345_pay_01974ee8f1f47301a83a499977aae0f1/finish-redirection/pk_dev_d5bd3a623d714044b879d3a050ae6e68/pro_yUurSuww9vtdhfEy5mXb&confirm=true&shipping[address][city]=Karwar&shipping[address][postal_code]=581301&shipping[address][state]=Karnataka&shipping[name]=John Dough&payment_method_data[billing_details][email]=example@example.com&payment_method_data[billing_details][name]=John Dough&payment_method_data[type]=card&payment_method_data[card][number]={{$card_number}}&payment_method_data[card][exp_month]=02&payment_method_data[card][exp_year]=31&payment_method_data[card][cvc]=100&capture_method=manual&setup_future_usage=on_session&payment_method_types[0]=card&expand[0]=latest_charge".to_string(),
             },
             token_data: TokenData {
-                vault_type: VaultType::Vgs,
+                vault_type: VaultType::VGS,
                 specific_token_data,
             },
             connection_config: ConnectionConfig {
                 base_url: "https://api.stripe.com".to_string(),
                 endpoint_path: "/v1/payment_intents".to_string(),
-                http_method: HttpMethod::Post,
+                http_method: HttpMethod::POST,
                 headers,
                 proxy_url: None, // Remove proxy that was causing issues
                 // Certificate fields (None for basic test)
@@ -704,14 +698,14 @@ mod tests {
         use std::collections::HashMap;
 
         let mut headers = HashMap::new();
-        headers.insert("Content-Type".to_string(), "application/json".to_string());
+        headers.insert("Content-Type".to_string(), masking::Secret::new("application/json".to_string()));
 
-        let specific_token_data = SpecificTokenData {
-            card_number: "tok_test_cert".to_string(),
-            cvv: "123".to_string(),
-            exp_month: "12".to_string(),
-            exp_year: "25".to_string(),
-        };
+        let specific_token_data = common_utils::pii::SecretSerdeValue::new(serde_json::json!({
+            "card_number": "tok_test_cert",
+            "cvv": "123",
+            "exp_month": "12",
+            "exp_year": "25"
+        }));
 
         // Test with insecure flag (skip certificate verification)
         let request = InjectorRequest {
@@ -720,13 +714,13 @@ mod tests {
                     .to_string(),
             },
             token_data: TokenData {
-                vault_type: VaultType::Vgs,
+                vault_type: VaultType::VGS,
                 specific_token_data,
             },
             connection_config: ConnectionConfig {
                 base_url: "https://httpbin.org".to_string(),
                 endpoint_path: "/post".to_string(),
-                http_method: HttpMethod::Post,
+                http_method: HttpMethod::POST,
                 headers,
                 proxy_url: None,
                 // Certificate configuration - using insecure for testing
