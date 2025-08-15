@@ -11,6 +11,14 @@ pub struct CreateRoleRequest {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct CreateRoleV2Request {
+    pub role_name: String,
+    pub role_scope: RoleScope,
+    pub entity_type: Option<EntityType>,
+    pub parent_groups: Vec<ParentGroupInfoRequest>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct UpdateRoleRequest {
     pub groups: Option<Vec<PermissionGroup>>,
     pub role_name: Option<String>,
@@ -41,8 +49,16 @@ pub struct ParentGroupInfo {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct ParentGroupInfoRequest {
+    pub name: ParentGroup,
+    pub scopes: Vec<PermissionScope>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct ListRolesRequest {
     pub entity_type: Option<EntityType>,
+    #[serde(default)]
+    pub groups: bool,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -54,6 +70,15 @@ pub struct RoleInfoResponseNew {
     pub scope: RoleScope,
 }
 
+#[derive(Debug, serde::Serialize)]
+pub struct RoleInfoResponseWithParentsGroup {
+    pub role_id: String,
+    pub role_name: String,
+    pub entity_type: EntityType,
+    pub parent_groups: Vec<ParentGroupInfo>,
+    pub role_scope: RoleScope,
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct GetRoleRequest {
     pub role_id: String,
@@ -62,6 +87,11 @@ pub struct GetRoleRequest {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct ListRolesAtEntityLevelRequest {
     pub entity_type: EntityType,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct GetParentGroupsAtEntityLevelRequest {
+    pub entity_type: Option<EntityType>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -80,4 +110,11 @@ pub struct MinimalRoleInfo {
 pub struct GroupsAndResources {
     pub groups: Vec<PermissionGroup>,
     pub resources: Vec<Resource>,
+}
+
+#[derive(Debug, serde::Serialize)]
+#[serde(untagged)]
+pub enum ListRolesResponse {
+    WithGroups(Vec<RoleInfoResponseNew>),
+    WithParentGroups(Vec<RoleInfoResponseWithParentsGroup>),
 }

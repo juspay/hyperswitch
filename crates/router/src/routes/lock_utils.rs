@@ -316,6 +316,7 @@ impl From<Flow> for ApiIdentifier {
             Flow::GetDataFromHyperswitchAiFlow => Self::AiWorkflow,
 
             Flow::ListRolesV2
+            | Flow::ListRolesV2WithParentsGroupsInfo
             | Flow::ListInvitableRolesAtEntityLevel
             | Flow::ListUpdatableRolesAtEntityLevel
             | Flow::GetRole
@@ -330,6 +331,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::AcceptInvitationsPreAuth
             | Flow::DeleteUserRole
             | Flow::CreateRole
+            | Flow::CreateRoleV2
             | Flow::UpdateRole
             | Flow::UserFromEmail
             | Flow::ListUsersInLineage => Self::UserRole,

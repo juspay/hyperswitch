@@ -401,6 +401,8 @@ pub enum Flow {
     GetParentGroupInfo,
     /// List roles v2
     ListRolesV2,
+    /// List roles v2 with parent groups
+    ListRolesV2WithParentsGroupsInfo,
     /// List invitable roles at entity level
     ListInvitableRolesAtEntityLevel,
     /// List updatable roles at entity level
@@ -471,6 +473,8 @@ pub enum Flow {
     PaymentsAuthorize,
     /// Create Role
     CreateRole,
+    /// Create Role V2
+    CreateRoleV2,
     /// Update Role
     UpdateRole,
     /// User email flow start
