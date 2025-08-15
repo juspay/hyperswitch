@@ -268,7 +268,7 @@ impl Injector {
         let headers: Vec<(String, masking::Maskable<String>)> = config
             .headers
             .iter()
-            .map(|(k, v)| (k.clone(), masking::Maskable::new_normal(v.expose().clone())))
+            .map(|(k, v)| (k.clone(), masking::Maskable::new_normal(v.clone().expose().clone())))
             .collect();
 
         // Determine method and request content
@@ -278,8 +278,6 @@ impl Injector {
             injector::HttpMethod::PUT => Method::Put,
             injector::HttpMethod::PATCH => Method::Patch,
             injector::HttpMethod::DELETE => Method::Delete,
-            injector::HttpMethod::HEAD => Method::Get, // HEAD behaves like GET but returns no body
-            injector::HttpMethod::OPTIONS => Method::Get, // OPTIONS can be mapped to GET for basic support
         };
 
         // Determine request content based on content type with error handling
@@ -491,7 +489,7 @@ impl TokenInjector for Injector {
             .connection_config
             .headers
             .get("Content-Type")
-            .and_then(|ct| match ct.expose().as_str() {
+            .and_then(|ct| match ct.clone().expose().as_str() {
                 "application/json" => Some(ContentType::ApplicationJson),
                 "application/x-www-form-urlencoded" => {
                     Some(ContentType::ApplicationXWwwFormUrlencoded)
