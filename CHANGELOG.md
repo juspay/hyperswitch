@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.08.15.0
+
+### Features
+
+- **connector:** [Hyperwallet] template code ([#8926](https://github.com/juspay/hyperswitch/pull/8926)) ([`b797d93`](https://github.com/juspay/hyperswitch/commit/b797d93433d996e5d22269bcab1980c292b0121e))
+
+### Bug Fixes
+
+- **stripe:** Partial capture issue when fully captured on redirection flow like card3ds , eps bank redirect ([#8956](https://github.com/juspay/hyperswitch/pull/8956)) ([`2309c53`](https://github.com/juspay/hyperswitch/commit/2309c5311cb9a01ef371f3a3ef7c62c88a043696))
+
+**Full Changelog:** [`2025.08.14.0...2025.08.15.0`](https://github.com/juspay/hyperswitch/compare/2025.08.14.0...2025.08.15.0)
+
+- - -
+
 ## 2025.08.14.0
 
 ### Features
