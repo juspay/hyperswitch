@@ -1733,3 +1733,98 @@ pub async fn authentication_post_sync_core(
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::JsonForRedirection(redirect_response))
 }
+
+#[cfg(feature = "v2")]
+pub async fn authentication_create_core(
+    state: SessionState,
+    merchant_context: domain::MerchantContext,
+    req: AuthenticationCreateRequest,
+    profile: hyperswitch_domain_models::business_profile::Profile,
+) -> RouterResponse<AuthenticationResponse> {
+    let merchant_account = merchant_context.get_merchant_account();
+    let merchant_id = merchant_account.get_id();
+    let business_profile = profile;
+    let profile_id = business_profile.get_id();
+    let connector_id = if business_profile.is_click_to_pay_enabled {
+        business_profile
+            .authentication_product_ids
+            .clone()
+            .map(|ids| {
+                ids.get_click_to_pay_connector_account_id().change_context(
+                    ApiErrorResponse::MissingRequiredField {
+                        field_name: "authentication_product_ids",
+                    },
+                )
+            })
+            .transpose()?
+    } else {
+        None
+    };
+
+    let organization_id = merchant_account.organization_id.clone();
+    let authentication_id = common_utils::id_type::AuthenticationId::generate_authentication_id(
+        consts::AUTHENTICATION_ID_PREFIX,
+    );
+
+    let (acquirer_bin, acquirer_merchant_id, acquirer_country_code) = match req.acquirer_details {
+        Some(details) => (
+            details.acquirer_bin,
+            details.acquirer_merchant_id,
+            details.merchant_country_code,
+        ),
+        None => (None, None, None),
+    };
+
+    let new_authentication = create_new_authentication(
+        &state,
+        merchant_id.clone(),
+        req.authentication_connector
+            .map(|connector| connector.to_string()),
+        profile_id.clone(),
+        None,
+        connector_id,
+        &authentication_id,
+        None,
+        common_enums::AuthenticationStatus::Started,
+        None,
+        organization_id,
+        None,
+        req.psd2_sca_exemption_type,
+        acquirer_bin,
+        acquirer_merchant_id,
+        acquirer_country_code,
+        Some(req.amount),
+        Some(req.currency),
+        req.return_url,
+        req.profile_acquirer_id.clone(),
+    )
+    .await?;
+
+    let acquirer_details = Some(AcquirerDetails {
+        acquirer_bin: new_authentication.acquirer_bin.clone(),
+        acquirer_merchant_id: new_authentication.acquirer_merchant_id.clone(),
+        merchant_country_code: new_authentication.acquirer_country_code.clone(),
+    });
+
+    let amount = new_authentication
+        .amount
+        .ok_or(ApiErrorResponse::InternalServerError)
+        .attach_printable("amount failed to get amount from authentication table")?;
+    let currency = new_authentication
+        .currency
+        .ok_or(ApiErrorResponse::InternalServerError)
+        .attach_printable("currency failed to get currency from authentication table")?;
+
+    let response = AuthenticationResponse::foreign_try_from((
+        new_authentication.clone(),
+        amount,
+        currency,
+        profile_id.clone(),
+        acquirer_details,
+        new_authentication.profile_acquirer_id,
+    ))?;
+
+    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+        response,
+    ))
+}
