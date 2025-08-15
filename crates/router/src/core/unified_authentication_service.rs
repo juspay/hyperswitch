@@ -903,6 +903,9 @@ pub async fn authentication_eligibility_core(
             )
         })
         .transpose()?;
+
+    ensure_not_terminal_status(authentication.trans_status.clone())?;
+
     let key_manager_state = (&state).into();
 
     let profile_id = core_utils::get_profile_id_from_business_details(
@@ -1171,6 +1174,8 @@ pub async fn authentication_authenticate_core(
             )
         })
         .transpose()?;
+
+    ensure_not_terminal_status(authentication.trans_status.clone())?;
 
     let key_manager_state = (&state).into();
 
@@ -1656,6 +1661,9 @@ pub async fn authentication_post_sync_core(
         .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {
             id: authentication_id.get_string_repr().to_owned(),
         })?;
+
+    ensure_not_terminal_status(authentication.trans_status.clone())?;
+
     let key_manager_state = (&state).into();
     let business_profile = db
         .find_business_profile_by_profile_id(
@@ -1691,7 +1699,7 @@ pub async fn authentication_post_sync_core(
         )
         .await?;
 
-    utils::external_authentication_update_trackers(
+    let updated_authentication = utils::external_authentication_update_trackers(
         &state,
         post_auth_response,
         authentication.clone(),
@@ -1711,7 +1719,7 @@ pub async fn authentication_post_sync_core(
         .attach_printable("authentication_connector_details not configured by the merchant")?;
 
     let authentication_response = AuthenticationAuthenticateResponse::foreign_try_from((
-        &authentication,
+        &updated_authentication,
         None,
         None,
         authentication_details,
@@ -1723,13 +1731,30 @@ pub async fn authentication_post_sync_core(
         &authentication_response,
         authentication_connector.to_string(),
         authentication.return_url,
-        authentication
+        updated_authentication
             .authentication_client_secret
             .clone()
             .map(masking::Secret::new)
             .as_ref(),
-        authentication.amount,
+        updated_authentication.amount,
     )?;
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::JsonForRedirection(redirect_response))
+}
+
+fn ensure_not_terminal_status(
+    status: Option<common_enums::TransactionStatus>,
+) -> Result<(), error_stack::Report<ApiErrorResponse>> {
+    status
+        .filter(|s| s.clone().is_terminal_state())
+        .map(|s| {
+            Err(error_stack::Report::new(
+                ApiErrorResponse::UnprocessableEntity {
+                    message: format!(
+                        "authentication status for the given authentication_id is already in {s}"
+                    ),
+                },
+            ))
+        })
+        .unwrap_or(Ok(()))
 }
