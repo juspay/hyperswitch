@@ -1,5 +1,5 @@
 use common_enums::{AttemptStatus, Currency, RefundStatus};
-use common_utils::{pii, request::Method};
+use common_utils::{pii, request::Method, types::MinorUnit};
 use hyperswitch_domain_models::{
     payment_method_data::{
         Card, PayLaterData, PaymentMethodData, UpiCollectData, UpiData, WalletData,
@@ -19,6 +19,21 @@ use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::RouterData as _,
 };
+
+#[derive(Debug, Serialize)]
+pub struct DummyConnectorRouterData<T> {
+    pub amount: MinorUnit,
+    pub router_data: T,
+}
+
+impl<T> From<(MinorUnit, T)> for DummyConnectorRouterData<T> {
+    fn from((amount, router_data): (MinorUnit, T)) -> Self {
+        Self {
+            amount,
+            router_data,
+        }
+    }
+}
 
 #[derive(Debug, Serialize, strum::Display, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
@@ -70,7 +85,7 @@ impl From<u8> for DummyConnectors {
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
 pub struct DummyConnectorPaymentsRequest<const T: u8> {
-    amount: i64,
+    amount: MinorUnit,
     currency: Currency,
     payment_method_data: DummyPaymentMethodData,
     return_url: Option<String>,
@@ -176,13 +191,17 @@ impl TryFrom<PayLaterData> for DummyConnectorPayLater {
     }
 }
 
-impl<const T: u8> TryFrom<&PaymentsAuthorizeRouterData> for DummyConnectorPaymentsRequest<T> {
+impl<const T: u8> TryFrom<&DummyConnectorRouterData<&PaymentsAuthorizeRouterData>>
+    for DummyConnectorPaymentsRequest<T>
+{
     type Error = error_stack::Report<ConnectorError>;
-    fn try_from(item: &PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &DummyConnectorRouterData<&PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
         let payment_method_data: Result<DummyPaymentMethodData, Self::Error> =
-            match item.request.payment_method_data {
+            match item.router_data.request.payment_method_data {
                 PaymentMethodData::Card(ref req_card) => {
-                    let card_holder_name = item.get_optional_billing_full_name();
+                    let card_holder_name = item.router_data.get_optional_billing_full_name();
                     Ok(DummyPaymentMethodData::Card(DummyConnectorCard::try_from(
                         (req_card.clone(), card_holder_name),
                     )?))
@@ -204,10 +223,10 @@ impl<const T: u8> TryFrom<&PaymentsAuthorizeRouterData> for DummyConnectorPaymen
                 _ => Err(ConnectorError::NotImplemented("Payment methods".to_string()).into()),
             };
         Ok(Self {
-            amount: item.request.amount,
-            currency: item.request.currency,
+            amount: item.router_data.request.minor_amount,
+            currency: item.router_data.request.currency,
             payment_method_data: payment_method_data?,
-            return_url: item.request.router_return_url.clone(),
+            return_url: item.router_data.request.router_return_url.clone(),
             connector: Into::<DummyConnectors>::into(T),
         })
     }
@@ -254,7 +273,7 @@ impl From<DummyConnectorPaymentStatus> for AttemptStatus {
 pub struct PaymentsResponse {
     status: DummyConnectorPaymentStatus,
     id: String,
-    amount: i64,
+    amount: MinorUnit,
     currency: Currency,
     created: String,
     payment_method_type: PaymentMethodType,
@@ -322,14 +341,16 @@ impl DummyConnectorNextAction {
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
 pub struct DummyConnectorRefundRequest {
-    pub amount: i64,
+    pub amount: MinorUnit,
 }
 
-impl<F> TryFrom<&RefundsRouterData<F>> for DummyConnectorRefundRequest {
+impl<F> TryFrom<&DummyConnectorRouterData<&RefundsRouterData<F>>> for DummyConnectorRefundRequest {
     type Error = error_stack::Report<ConnectorError>;
-    fn try_from(item: &RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &DummyConnectorRouterData<&RefundsRouterData<F>>,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.request.refund_amount,
+            amount: item.router_data.request.minor_refund_amount,
         })
     }
 }
@@ -363,8 +384,8 @@ pub struct RefundResponse {
     status: DummyRefundStatus,
     currency: Currency,
     created: String,
-    payment_amount: i64,
-    refund_amount: i64,
+    payment_amount: MinorUnit,
+    refund_amount: MinorUnit,
 }
 
 impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
