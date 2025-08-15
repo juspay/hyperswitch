@@ -15,7 +15,7 @@ pub struct CreateRoleV2Request {
     pub role_name: String,
     pub role_scope: RoleScope,
     pub entity_type: Option<EntityType>,
-    pub parent_groups: Vec<ParentGroupInfo>,
+    pub parent_groups: Vec<ParentGroupInfoRequest>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -41,11 +41,16 @@ pub struct RoleInfoWithParents {
     pub role_scope: RoleScope,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, serde::Serialize)]
 pub struct ParentGroupInfo {
     pub name: ParentGroup,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
+    pub description: String,
+    pub scopes: Vec<PermissionScope>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct ParentGroupInfoRequest {
+    pub name: ParentGroup,
     pub scopes: Vec<PermissionScope>,
 }
 
@@ -82,6 +87,11 @@ pub struct GetRoleRequest {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct ListRolesAtEntityLevelRequest {
     pub entity_type: EntityType,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct GetParentGroupsAtEntityLevelRequest {
+    pub entity_type: Option<EntityType>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]

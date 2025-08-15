@@ -2,10 +2,11 @@ use common_utils::events::{ApiEventMetric, ApiEventsType};
 
 use crate::user_role::{
     role::{
-        CreateRoleRequest, CreateRoleV2Request, GetRoleRequest, GroupsAndResources,
-        ListRolesAtEntityLevelRequest, ListRolesRequest, ListRolesResponse, ParentGroupInfo,
-        RoleInfoResponseNew, RoleInfoResponseWithParentsGroup, RoleInfoWithGroupsResponse,
-        RoleInfoWithParents, UpdateRoleRequest,
+        CreateRoleRequest, CreateRoleV2Request, GetParentGroupsAtEntityLevelRequest,
+        GetRoleRequest, GroupsAndResources, ListRolesAtEntityLevelRequest, ListRolesRequest,
+        ListRolesResponse, ParentGroupInfoRequest, RoleInfoResponseNew,
+        RoleInfoResponseWithParentsGroup, RoleInfoWithGroupsResponse, RoleInfoWithParents,
+        UpdateRoleRequest,
     },
     AuthorizationInfoResponse, DeleteUserRoleRequest, ListUsersInEntityRequest,
     UpdateUserRoleRequest,
@@ -15,6 +16,7 @@ common_utils::impl_api_event_type!(
     Miscellaneous,
     (
         GetRoleRequest,
+        GetParentGroupsAtEntityLevelRequest,
         AuthorizationInfoResponse,
         UpdateUserRoleRequest,
         DeleteUserRoleRequest,
@@ -28,7 +30,7 @@ common_utils::impl_api_event_type!(
         ListRolesRequest,
         GroupsAndResources,
         RoleInfoWithParents,
-        ParentGroupInfo,
+        ParentGroupInfoRequest,
         RoleInfoResponseWithParentsGroup,
         ListRolesResponse
     )

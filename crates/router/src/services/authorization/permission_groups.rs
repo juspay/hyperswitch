@@ -151,15 +151,19 @@ impl ParentGroupExt for ParentGroup {
                     .map(|group| group.scope())
                     .max()?;
 
-                let resources = parent
+                let description = parent
                     .resources()
                     .iter()
                     .filter(|res| res.entities().iter().any(|entity| entity <= &entity_type))
-                    .map(|res| permissions::get_resource_name(*res, entity_type))
-                    .collect::<Option<Vec<_>>>()?
+                    .filter_map(|res| permissions::get_resource_name(*res, entity_type))
+                    .collect::<Vec<_>>()
                     .join(", ");
 
-                Some((parent, resources))
+                if description.is_empty() {
+                    return None;
+                }
+
+                Some((parent, description))
             })
             .collect::<HashMap<_, _>>();
 

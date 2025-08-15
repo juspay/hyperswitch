@@ -294,6 +294,7 @@ pub async fn get_role_information(
 pub async fn get_parent_group_info(
     state: web::Data<AppState>,
     http_req: HttpRequest,
+    query: web::Query<role_api::GetParentGroupsAtEntityLevelRequest>,
 ) -> HttpResponse {
     let flow = Flow::GetParentGroupInfo;
 
@@ -301,9 +302,9 @@ pub async fn get_parent_group_info(
         flow,
         state.clone(),
         &http_req,
-        (),
-        |state, user_from_token, _, _| async move {
-            user_role_core::get_parent_group_info(state, user_from_token).await
+        query.into_inner(),
+        |state, user_from_token, request, _| async move {
+            user_role_core::get_parent_group_info(state, user_from_token, request).await
         },
         &auth::JWTAuth {
             permission: Permission::ProfileUserRead,

@@ -1,4 +1,7 @@
-use std::{cmp, collections::HashSet};
+use std::{
+    cmp,
+    collections::{HashMap, HashSet},
+};
 
 use api_models::user_role::role as role_api;
 use common_enums::{EntityType, ParentGroup, PermissionGroup, PermissionScope};
@@ -22,8 +25,8 @@ use crate::{
     utils,
 };
 
-fn parent_group_info_to_permission_groups(
-    parent_groups: &[role_api::ParentGroupInfo],
+fn parent_group_info_request_to_permission_groups(
+    parent_groups: &[role_api::ParentGroupInfoRequest],
 ) -> Result<Vec<PermissionGroup>, UserErrors> {
     let mut permission_groups = Vec::new();
 
@@ -44,8 +47,6 @@ fn permission_groups_to_parent_group_info(
     permission_groups: &[PermissionGroup],
     entity_type: EntityType,
 ) -> Vec<role_api::ParentGroupInfo> {
-    use std::collections::HashMap;
-
     let mut parent_groups_map: HashMap<ParentGroup, Vec<PermissionScope>> = HashMap::new();
 
     for group in permission_groups {
@@ -56,7 +57,7 @@ fn permission_groups_to_parent_group_info(
 
     parent_groups_map
         .into_iter()
-        .map(|(name, scopes)| {
+        .filter_map(|(name, scopes)| {
             let unique_scopes = scopes
                 .into_iter()
                 .collect::<HashSet<_>>()
@@ -65,13 +66,13 @@ fn permission_groups_to_parent_group_info(
 
             let description =
                 ParentGroup::get_descriptions_for_groups(entity_type, permission_groups.to_vec())
-                    .and_then(|descriptions| descriptions.get(&name).cloned());
+                    .and_then(|descriptions| descriptions.get(&name).cloned())?;
 
-            role_api::ParentGroupInfo {
+            Some(role_api::ParentGroupInfo {
                 name,
                 description,
                 scopes: unique_scopes,
-            }
+            })
         })
         .collect()
 }
@@ -251,7 +252,7 @@ pub async fn create_role_v2(
 
     let role_name = RoleName::new(req.role_name.clone())?;
 
-    let permission_groups = parent_group_info_to_permission_groups(&req.parent_groups)?;
+    let permission_groups = parent_group_info_request_to_permission_groups(&req.parent_groups)?;
 
     utils::user_role::validate_role_groups(&permission_groups)?;
     utils::user_role::validate_role_name(
@@ -381,7 +382,7 @@ pub async fn get_parent_info_for_role(
     .into_iter()
     .map(|(parent_group, description)| role_api::ParentGroupInfo {
         name: parent_group.clone(),
-        description: Some(description),
+        description,
         scopes: role_info
             .get_permission_groups()
             .iter()
