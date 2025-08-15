@@ -263,21 +263,26 @@ pub mod injector_core {
 
             logger::debug!("Constructed URL: {}", url);
 
-        // Convert headers to common_utils Headers format safely
-        let headers: Vec<(String, masking::Maskable<String>)> = config
-            .headers
-            .iter()
-            .map(|(k, v)| (k.clone(), masking::Maskable::new_normal(v.clone().expose().clone())))
-            .collect();
+            // Convert headers to common_utils Headers format safely
+            let headers: Vec<(String, masking::Maskable<String>)> = config
+                .headers
+                .iter()
+                .map(|(k, v)| {
+                    (
+                        k.clone(),
+                        masking::Maskable::new_normal(v.clone().expose().clone()),
+                    )
+                })
+                .collect();
 
-        // Determine method and request content
-        let method = match config.http_method {
-            injector::HttpMethod::GET => Method::Get,
-            injector::HttpMethod::POST => Method::Post,
-            injector::HttpMethod::PUT => Method::Put,
-            injector::HttpMethod::PATCH => Method::Patch,
-            injector::HttpMethod::DELETE => Method::Delete,
-        };
+            // Determine method and request content
+            let method = match config.http_method {
+                injector::HttpMethod::GET => Method::Get,
+                injector::HttpMethod::POST => Method::Post,
+                injector::HttpMethod::PUT => Method::Put,
+                injector::HttpMethod::PATCH => Method::Patch,
+                injector::HttpMethod::DELETE => Method::Delete,
+            };
 
             // Determine request content based on content type with error handling
             let request_content = match content_type {
@@ -484,22 +489,22 @@ pub mod injector_core {
                 "Token replacement completed"
             );
 
-        // Determine content type from headers or default to form-urlencoded
-        let content_type = domain_request
-            .connection_config
-            .headers
-            .get("Content-Type")
-            .and_then(|ct| match ct.clone().expose().as_str() {
-                "application/json" => Some(ContentType::ApplicationJson),
-                "application/x-www-form-urlencoded" => {
-                    Some(ContentType::ApplicationXWwwFormUrlencoded)
-                }
-                "application/xml" => Some(ContentType::ApplicationXml),
-                "text/xml" => Some(ContentType::TextXml),
-                "text/plain" => Some(ContentType::TextPlain),
-                _ => None,
-            })
-            .unwrap_or(ContentType::ApplicationXWwwFormUrlencoded);
+            // Determine content type from headers or default to form-urlencoded
+            let content_type = domain_request
+                .connection_config
+                .headers
+                .get("Content-Type")
+                .and_then(|ct| match ct.clone().expose().as_str() {
+                    "application/json" => Some(ContentType::ApplicationJson),
+                    "application/x-www-form-urlencoded" => {
+                        Some(ContentType::ApplicationXWwwFormUrlencoded)
+                    }
+                    "application/xml" => Some(ContentType::ApplicationXml),
+                    "text/xml" => Some(ContentType::TextXml),
+                    "text/plain" => Some(ContentType::TextPlain),
+                    _ => None,
+                })
+                .unwrap_or(ContentType::ApplicationXWwwFormUrlencoded);
 
             // Make HTTP request to connector and return raw response
             let response_data = self
