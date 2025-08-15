@@ -529,10 +529,11 @@ pub mod injector_core {
 #[cfg(all(test, feature = "v2"))]
 #[allow(clippy::unwrap_used)]
 mod tests {
-    use super::injector_core::*;
     use api_models::injector::*;
     use hyperswitch_domain_models::injector;
     use router_env::logger;
+
+    use super::injector_core::*;
 
     #[test]
     fn test_token_parsing() {
