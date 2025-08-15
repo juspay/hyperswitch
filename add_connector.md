@@ -63,16 +63,16 @@ Before running Hyperswitch locally, make sure your Rust environment and system d
 
 **Follow the guide**:
 
-[Configure Rust and install required dependencies based on your OS](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/docs/try_local_system.md?plain=1#L159)
+[Configure Rust and install required dependencies based on your OS](https://github.com/juspay/hyperswitch/blob/main/docs/try_local_system.md#set-up-a-rust-environment-and-other-dependencies)
 
 **Quick links by OS**:
-* [Ubuntu-based systems](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/docs/try_local_system.md?plain=1#L164)
-* [Windows (WSL2)](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/docs/try_local_system.md?plain=1#L234)
-* [Windows (native)](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/docs/try_local_system.md?plain=1#L327)
-* [macOS](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/docs/try_local_system.md?plain=1#L363)
+* [Ubuntu-based systems](https://github.com/juspay/hyperswitch/blob/main/docs/try_local_system.md#set-up-dependencies-on-ubuntu-based-systems)
+* [Windows (WSL2)](https://github.com/juspay/hyperswitch/blob/main/docs/try_local_system.md#set-up-dependencies-on-windows-ubuntu-on-wsl2)
+* [Windows (native)](https://github.com/juspay/hyperswitch/blob/main/docs/try_local_system.md#set-up-dependencies-on-windows)
+* [macOS](https://github.com/juspay/hyperswitch/blob/main/docs/try_local_system.md#set-up-dependencies-on-macos)
 
 **All OS Systems**:
-* [Set up the database](https://github.com/juspay/hyperswitch/blob/2309c5311cb9a01ef371f3a3ef7c62c88a043696/docs/try_local_system.md?plain=1#L440)
+* [Set up the database](https://github.com/juspay/hyperswitch/blob/main/docs/try_local_system.md#set-up-the-database)
 
 * Set up the Rust nightly toolchain installed for code formatting:
 
