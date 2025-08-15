@@ -65,6 +65,7 @@ pub struct Authentication {
     pub challenge_cancel: Option<String>,
     pub challenge_code_reason: Option<String>,
     pub message_extension: Option<pii::SecretSerdeValue>,
+    pub customer_details: Option<Encryption>,
 }
 
 impl Authentication {
@@ -129,6 +130,7 @@ pub struct AuthenticationNew {
     pub challenge_cancel: Option<String>,
     pub challenge_code_reason: Option<String>,
     pub message_extension: Option<pii::SecretSerdeValue>,
+    pub customer_details: Option<Encryption>,
 }
 
 #[derive(Debug)]
@@ -245,6 +247,7 @@ pub struct AuthenticationUpdateInternal {
     pub challenge_cancel: Option<String>,
     pub challenge_code_reason: Option<String>,
     pub message_extension: Option<pii::SecretSerdeValue>,
+    pub customer_details: Option<Encryption>,
 }
 
 impl Default for AuthenticationUpdateInternal {
@@ -289,6 +292,7 @@ impl Default for AuthenticationUpdateInternal {
             challenge_cancel: Default::default(),
             challenge_code_reason: Default::default(),
             message_extension: Default::default(),
+            customer_details: Default::default(),
         }
     }
 }
@@ -335,6 +339,7 @@ impl AuthenticationUpdateInternal {
             challenge_cancel,
             challenge_code_reason,
             message_extension,
+            customer_details,
         } = self;
         Authentication {
             connector_authentication_id: connector_authentication_id
@@ -380,6 +385,7 @@ impl AuthenticationUpdateInternal {
             challenge_cancel: challenge_cancel.or(source.challenge_cancel),
             challenge_code_reason: challenge_code_reason.or(source.challenge_code_reason),
             message_extension: message_extension.or(source.message_extension),
+            customer_details: customer_details.or(source.customer_details),
             ..source
         }
     }
