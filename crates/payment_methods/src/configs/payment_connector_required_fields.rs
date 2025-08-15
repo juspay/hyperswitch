@@ -1265,7 +1265,7 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
             fields(
                 vec![],
                 vec![],
-                [card_basic(), full_name(), billing_address()].concat(),
+                [card_basic(), email(), full_name(), billing_address()].concat(),
             ),
         ),
         (Connector::Billwerk, fields(vec![], vec![], card_basic())),
