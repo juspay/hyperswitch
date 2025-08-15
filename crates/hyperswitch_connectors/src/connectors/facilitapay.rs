@@ -920,7 +920,8 @@ lazy_static! {
             "Facilitapay",
         description:
             "FacilitaPay, the best and most reliable payment provider for your international business.",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Sandbox,
     };
     static ref FACILITAPAY_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
         let facilitapay_supported_capture_methods = vec![
