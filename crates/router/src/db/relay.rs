@@ -66,7 +66,7 @@ impl RelayInterface for Store {
                 merchant_key_store.merchant_id.clone().into(),
             )
             .await
-            .change_context(errors::StorageError::DecryptionError)
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     async fn update_relay(
@@ -92,7 +92,7 @@ impl RelayInterface for Store {
                 merchant_key_store.merchant_id.clone().into(),
             )
             .await
-            .change_context(errors::StorageError::DecryptionError)
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     async fn find_relay_by_id(
@@ -111,7 +111,7 @@ impl RelayInterface for Store {
                 merchant_key_store.merchant_id.clone().into(),
             )
             .await
-            .change_context(errors::StorageError::DecryptionError)
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     async fn find_relay_by_profile_id_connector_reference_id(
@@ -135,7 +135,7 @@ impl RelayInterface for Store {
             merchant_key_store.merchant_id.clone().into(),
         )
         .await
-        .change_context(errors::StorageError::DecryptionError)
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
 

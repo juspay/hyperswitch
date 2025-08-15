@@ -82,6 +82,16 @@ impl behaviour::Conversion for CustomerAddress {
         })
     }
 
+    fn validate(
+        _item: &Self::DstType,
+        _key_manager_identifier: &Identifier,
+    ) -> CustomResult<(), ValidationError>
+    where
+        Self: Sized,
+    {
+        Ok(())
+    }
+
     async fn convert_back(
         state: &KeyManagerState,
         other: Self::DstType,
@@ -126,6 +136,16 @@ impl behaviour::Conversion for PaymentAddress {
             payment_id: Some(self.payment_id),
             ..converted_address
         })
+    }
+
+    fn validate(
+        _item: &Self::DstType,
+        _key_manager_identifier: &Identifier,
+    ) -> CustomResult<(), ValidationError>
+    where
+        Self: Sized,
+    {
+        Ok(())
     }
 
     async fn convert_back(
@@ -193,6 +213,31 @@ impl behaviour::Conversion for Address {
         })
     }
 
+    fn validate(
+        item: &Self::DstType,
+        key_manager_identifier: &Identifier,
+    ) -> CustomResult<(), ValidationError>
+    where
+        Self: Sized,
+    {
+        match key_manager_identifier {
+            Identifier::Merchant(merchant_id) => {
+                if &item.merchant_id != merchant_id {
+                    return Err(ValidationError::IncorrectValueProvided {
+                        field_name: "Address ID",
+                    }
+                    .into());
+                }
+
+                Ok(())
+            }
+            Identifier::User(_) | Identifier::UserAuth(_) => Err(ValidationError::InvalidValue {
+                message: "Key manager identifier is not a merchant".to_string(),
+            }
+            .into()),
+        }
+    }
+
     async fn convert_back(
         state: &KeyManagerState,
         other: Self::DstType,
@@ -222,12 +267,12 @@ impl behaviour::Conversion for Address {
         )
         .await
         .and_then(|val| val.try_into_batchoperation())
-        .change_context(ValidationError::InvalidValue {
-            message: "Failed while decrypting".to_string(),
+        .change_context(ValidationError::DecryptionError {
+            message: "address".to_string(),
         })?;
         let encryptable_address = EncryptedAddress::from_encryptable(decrypted).change_context(
-            ValidationError::InvalidValue {
-                message: "Failed while decrypting".to_string(),
+            ValidationError::DecryptionError {
+                message: "address".to_string(),
             },
         )?;
         Ok(Self {

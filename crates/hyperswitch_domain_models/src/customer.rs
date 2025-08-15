@@ -148,6 +148,33 @@ impl behaviour::Conversion for Customer {
         })
     }
 
+    fn validate(
+        item: &Self::DstType,
+        key_manager_identifier: &keymanager::Identifier,
+    ) -> CustomResult<(), ValidationError>
+    where
+        Self: Sized,
+    {
+        match key_manager_identifier {
+            keymanager::Identifier::Merchant(merchant_id) => {
+                if &item.merchant_id != merchant_id {
+                    return Err(ValidationError::IncorrectValueProvided {
+                        field_name: "Customer ID",
+                    }
+                    .into());
+                }
+
+                Ok(())
+            }
+            keymanager::Identifier::User(_) | keymanager::Identifier::UserAuth(_) => {
+                Err(ValidationError::InvalidValue {
+                    message: "Key manager identifier is not a merchant".to_string(),
+                }
+                .into())
+            }
+        }
+    }
+
     async fn convert_back(
         state: &KeyManagerState,
         item: Self::DstType,
@@ -173,12 +200,12 @@ impl behaviour::Conversion for Customer {
         )
         .await
         .and_then(|val| val.try_into_batchoperation())
-        .change_context(ValidationError::InvalidValue {
-            message: "Failed while decrypting customer data".to_string(),
+        .change_context(ValidationError::DecryptionError {
+            message: "customer data".to_string(),
         })?;
         let encryptable_customer = EncryptedCustomer::from_encryptable(decrypted).change_context(
-            ValidationError::InvalidValue {
-                message: "Failed while decrypting customer data".to_string(),
+            ValidationError::DecryptionError {
+                message: "customer data".to_string(),
             },
         )?;
 
@@ -259,6 +286,28 @@ impl behaviour::Conversion for Customer {
         })
     }
 
+    fn validate(
+        item: Self::DstType,
+        key_manager_identifier: keymanager::Identifier,
+    ) -> CustomResult<(), ValidationError>
+    where
+        Self: Sized,
+    {
+        match key_manager_identifier {
+            keymanager::Identifier::Merchant(merchant_id) => {
+                if item.merchant_id != merchant_id {
+                    return Err(ValidationError::IncorrectValueProvided {
+                        field_name: "Customer ID",
+                    }
+                    .into());
+                }
+
+                Ok(())
+            }
+            _ => Ok(()),
+        }
+    }
+
     async fn convert_back(
         state: &KeyManagerState,
         item: Self::DstType,
@@ -284,12 +333,12 @@ impl behaviour::Conversion for Customer {
         )
         .await
         .and_then(|val| val.try_into_batchoperation())
-        .change_context(ValidationError::InvalidValue {
-            message: "Failed while decrypting customer data".to_string(),
+        .change_context(ValidationError::DecryptionError {
+            message: "customer data".to_string(),
         })?;
         let encryptable_customer = EncryptedCustomer::from_encryptable(decrypted).change_context(
-            ValidationError::InvalidValue {
-                message: "Failed while decrypting customer data".to_string(),
+            ValidationError::DecryptionError {
+                message: "customer data".to_string(),
             },
         )?;
 

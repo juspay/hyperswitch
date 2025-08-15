@@ -30,6 +30,16 @@ impl super::behaviour::Conversion for UserKeyStore {
         })
     }
 
+    fn validate(
+        _item: &Self::DstType,
+        _key_manager_identifier: &Identifier,
+    ) -> CustomResult<(), ValidationError>
+    where
+        Self: Sized,
+    {
+        Ok(())
+    }
+
     async fn convert_back(
         state: &KeyManagerState,
         item: Self::DstType,
@@ -50,8 +60,8 @@ impl super::behaviour::Conversion for UserKeyStore {
             )
             .await
             .and_then(|val| val.try_into_operation())
-            .change_context(ValidationError::InvalidValue {
-                message: "Failed while decrypting customer data".to_string(),
+            .change_context(ValidationError::DecryptionError {
+                message: "customer data".to_string(),
             })?,
             user_id: item.user_id,
             created_at: item.created_at,
