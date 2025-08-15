@@ -1306,7 +1306,7 @@ pub struct TrustpayGooglePayResponse {
 #[serde(rename_all = "camelCase")]
 pub struct SdkSecretInfo {
     pub display: Secret<String>,
-    pub payment: Secret<String>,
+    pub payment: Option<Secret<String>>,
 }
 
 #[derive(Clone, Default, Debug, Deserialize, Serialize)]

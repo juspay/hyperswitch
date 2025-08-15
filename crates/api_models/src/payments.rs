@@ -7425,6 +7425,19 @@ pub struct KlarnaSessionTokenResponse {
     pub session_id: String,
 }
 
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct PaypalTransactionInfo {
+    /// Country code
+    #[schema(value_type = String, example = "checkout")]
+    pub flow: String,
+    /// Currency code
+    #[schema(value_type = Currency, example = "USD")]
+    pub currency_code: api_enums::Currency,
+    /// Total price
+    #[schema(value_type = String, example = "0.00")]
+    pub total_price: StringMajorUnit,
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub struct PaypalSessionTokenResponse {
@@ -7434,6 +7447,10 @@ pub struct PaypalSessionTokenResponse {
     pub session_token: String,
     /// The next action for the sdk (ex: calling confirm or sync call)
     pub sdk_next_action: SdkNextAction,
+    /// Client token
+    pub client_token: Option<String>,
+    /// Transaction information
+    pub transaction_info: Option<PaypalTransactionInfo>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
@@ -7536,7 +7553,7 @@ pub struct SecretInfoToInitiateSdk {
     pub display: Secret<String>,
     // Authorization secrets used by client for payment
     #[schema(value_type = String)]
-    pub payment: Secret<String>,
+    pub payment: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize)]
