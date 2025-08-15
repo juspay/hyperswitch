@@ -1431,7 +1431,6 @@ default_imp_for_create_customer!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
-    connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
     connectors::Fiserv,

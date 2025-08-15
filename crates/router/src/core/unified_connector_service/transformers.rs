@@ -448,6 +448,7 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
@@ -509,6 +510,7 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceGetResponse>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
@@ -571,6 +573,7 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceRegisterResponse>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
@@ -662,6 +665,7 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingResponse>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {

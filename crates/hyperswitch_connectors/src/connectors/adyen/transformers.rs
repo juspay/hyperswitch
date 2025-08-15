@@ -3954,6 +3954,7 @@ pub fn get_adyen_response(
                     .clone()
                     .or(data.merchant_advice_code.clone())
             }),
+            connector_metadata: None,
         })
     } else {
         None
@@ -4029,6 +4030,7 @@ pub fn get_webhook_response(
             network_advice_code: None,
             network_decline_code: response.refusal_code_raw.clone(),
             network_error_message: response.refusal_reason_raw.clone(),
+            connector_metadata: None,
         })
     } else {
         None
@@ -4103,6 +4105,7 @@ pub fn get_redirection_response(
                 .additional_data
                 .as_ref()
                 .and_then(|data| data.refusal_reason_raw.clone()),
+            connector_metadata: None,
         })
     } else {
         None
@@ -4182,6 +4185,7 @@ pub fn get_present_to_shopper_response(
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     } else {
         None
@@ -4250,6 +4254,7 @@ pub fn get_qr_code_response(
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     } else {
         None
@@ -4319,6 +4324,7 @@ pub fn get_redirection_error_response(
             .additional_data
             .as_ref()
             .and_then(|data| data.refusal_reason_raw.clone()),
+        connector_metadata: None,
     });
     // We don't get connector transaction id for redirections in Adyen.
     let payments_response_data = PaymentsResponseData::TransactionResponse {
@@ -5866,6 +5872,7 @@ impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for AcceptDisputeRouterData {
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..data.clone()
             })
@@ -5907,6 +5914,7 @@ impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for SubmitEvidenceRouterData 
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..data.clone()
             })
@@ -5950,6 +5958,7 @@ impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for DefendDisputeRouterData {
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..data.clone()
             })

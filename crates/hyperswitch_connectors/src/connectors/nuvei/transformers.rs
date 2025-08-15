@@ -2099,6 +2099,7 @@ fn get_error_response<T>(
         network_advice_code: network_advice_code.clone(),
         network_decline_code: network_decline_code.clone(),
         network_error_message: network_error_message.clone(),
+        connector_metadata: None,
     }))
 }
 
