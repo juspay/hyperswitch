@@ -8376,6 +8376,7 @@ pub enum ErrorCategory {
     ProcessorDeclineUnauthorized,
     IssueWithPaymentMethod,
     ProcessorDeclineIncorrectData,
+    HardDecline,
 }
 
 impl ErrorCategory {
@@ -8384,6 +8385,7 @@ impl ErrorCategory {
             Self::ProcessorDowntime | Self::ProcessorDeclineUnauthorized => true,
             Self::IssueWithPaymentMethod
             | Self::ProcessorDeclineIncorrectData
+            | Self::HardDecline
             | Self::FrmDecline => false,
         }
     }
