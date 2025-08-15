@@ -5,7 +5,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-parts.url = "github:hercules-ci/flake-parts";
 
-    rust-flake.url = "github:juspay/rust-flake";
+    rust-flake.url = "github:juspay/rust-flake/pull/40/head";
 
     nixos-unified.url = "github:srid/nixos-unified";
 
