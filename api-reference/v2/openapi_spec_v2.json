@@ -11405,6 +11405,10 @@
                     "items": {
                       "type": "string"
                     }
+                  },
+                  "required": {
+                    "type": "boolean",
+                    "nullable": true
                   }
                 }
               }
