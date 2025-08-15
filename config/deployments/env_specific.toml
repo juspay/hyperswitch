@@ -392,6 +392,7 @@ initial_timestamp_in_hours = 1        # number of hours added to start time for 
 [chat]
 enabled = false                                # Enable or disable chat features
 hyperswitch_ai_host = "http://0.0.0.0:8000"    # Hyperswitch ai workflow host
+encryption_key = ""                            # Key to encrypt and decrypt chats
 
 [proxy_status_mapping]
 proxy_connector_http_status_code = false    # If enabled, the http status code of the connector will be proxied in the response
