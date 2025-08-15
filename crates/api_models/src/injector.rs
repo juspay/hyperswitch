@@ -45,8 +45,6 @@ pub enum HttpMethod {
     PUT,
     PATCH,
     DELETE,
-    HEAD,
-    OPTIONS,
 }
 
 #[derive(

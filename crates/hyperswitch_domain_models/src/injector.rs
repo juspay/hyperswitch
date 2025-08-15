@@ -38,8 +38,6 @@ pub enum HttpMethod {
     PUT,
     PATCH,
     DELETE,
-    HEAD,
-    OPTIONS,
 }
 
 impl ApiModelToDieselModelConvertor<api_models::injector::HttpMethod> for HttpMethod {
@@ -50,8 +48,6 @@ impl ApiModelToDieselModelConvertor<api_models::injector::HttpMethod> for HttpMe
             api_models::injector::HttpMethod::PUT => Self::PUT,
             api_models::injector::HttpMethod::PATCH => Self::PATCH,
             api_models::injector::HttpMethod::DELETE => Self::DELETE,
-            api_models::injector::HttpMethod::HEAD => Self::HEAD,
-            api_models::injector::HttpMethod::OPTIONS => Self::OPTIONS,
         }
     }
 
@@ -62,8 +58,6 @@ impl ApiModelToDieselModelConvertor<api_models::injector::HttpMethod> for HttpMe
             Self::PUT => api_models::injector::HttpMethod::PUT,
             Self::PATCH => api_models::injector::HttpMethod::PATCH,
             Self::DELETE => api_models::injector::HttpMethod::DELETE,
-            Self::HEAD => api_models::injector::HttpMethod::HEAD,
-            Self::OPTIONS => api_models::injector::HttpMethod::OPTIONS,
         }
     }
 }
@@ -76,8 +70,6 @@ impl From<api_models::injector::HttpMethod> for HttpMethod {
             api_models::injector::HttpMethod::PUT => Self::PUT,
             api_models::injector::HttpMethod::PATCH => Self::PATCH,
             api_models::injector::HttpMethod::DELETE => Self::DELETE,
-            api_models::injector::HttpMethod::HEAD => Self::HEAD,
-            api_models::injector::HttpMethod::OPTIONS => Self::OPTIONS,
         }
     }
 }
