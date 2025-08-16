@@ -2646,7 +2646,7 @@ pub struct ProxyCardData {
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct VaultToken {
-    /// The CVC number for the card
+    /// The tokenized CVC number for the card
     #[schema(value_type = String, example = "242")]
     pub card_cvc: String,
 }

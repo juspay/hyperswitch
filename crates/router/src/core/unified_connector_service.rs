@@ -380,6 +380,12 @@ pub fn build_unified_connector_service_payment_method_for_external_proxy(
                 })),
             })
         }
+        hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::VaultToken(_) => {
+            Err(UnifiedConnectorServiceError::NotImplemented(format!(
+                        "Unimplemented payment method subtype: {payment_method_type:?}"
+            ))
+            .into())
+        }
     }
 }
 pub fn build_unified_connector_service_auth_metadata(

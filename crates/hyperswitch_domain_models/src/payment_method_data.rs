@@ -48,7 +48,7 @@ pub enum PaymentMethodData {
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum ExternalVaultPaymentMethodData {
-    Card(ExternalVaultCard),
+    Card(Box<ExternalVaultCard>),
     VaultToken(VaultToken),
 }
 

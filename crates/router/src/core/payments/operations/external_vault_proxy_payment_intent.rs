@@ -357,7 +357,6 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
                 let db = &*state.store;
                 let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
                 let key_manager_state = &state.into();
-
                 let payment_method_id = common_utils::id_type::GlobalPaymentMethodId::generate(
                     &state.conf.cell_information.id,
                 )
@@ -386,8 +385,6 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Unable to parse Payment method billing address")?;
-
-                let current_time = common_utils::date_time::now();
 
                 let payment_method_data = payment_data
                     .external_vault_pmd
@@ -447,46 +444,19 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Unable to parse External vault token data")?;
 
-                let response = db
-                    .insert_payment_method(
-                        key_manager_state,
-                        merchant_context.get_merchant_key_store(),
-                        domain::PaymentMethod {
-                            customer_id: customer_id.to_owned(),
-                            merchant_id: payment_data.payment_intent.merchant_id.to_owned(),
-                            id: payment_method_id,
-                            locker_id: None,
-                            payment_method_type: Some(
-                                payment_data.payment_attempt.payment_method_type,
-                            ),
-                            payment_method_subtype: Some(
-                                payment_data.payment_attempt.payment_method_subtype,
-                            ),
-                            payment_method_data: encrypted_payment_method_data,
-                            connector_mandate_details: None,
-                            customer_acceptance: None,
-                            client_secret: None,
-                            status: enums::PaymentMethodStatus::Inactive,
-                            network_transaction_id: None,
-                            created_at: current_time,
-                            last_modified: current_time,
-                            last_used_at: current_time,
-                            payment_method_billing_address:
-                                encrypted_payment_method_billing_address,
-                            updated_by: None,
-                            version: common_types::consts::API_VERSION,
-                            locker_fingerprint_id: None,
-                            network_token_locker_id: None,
-                            network_token_payment_method_data: None,
-                            network_token_requestor_reference_id: None,
-                            external_vault_source: None,
-                            external_vault_token_data: encrypted_external_vault_token_data,
-                        },
-                        storage_scheme,
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to add payment method in db")?;
+                let response = payment_methods::create_payment_method_for_confirm(
+                    state,
+                    &customer_id,
+                    payment_method_id,
+                    &payment_data.payment_intent.merchant_id,
+                    merchant_context.get_merchant_key_store(),
+                    storage_scheme,
+                    payment_data.payment_attempt.payment_method_type,
+                    payment_data.payment_attempt.payment_method_subtype,
+                    encrypted_payment_method_billing_address,
+                    encrypted_payment_method_data,
+                    encrypted_external_vault_token_data,
+                ).await?;
 
                 payment_data.payment_attempt = db.update_payment_attempt(
                     key_manager_state,
@@ -505,65 +475,15 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
             (_, None, Some(payment_token)) => {
                 match payment_data.external_vault_pmd.as_ref() {
                     Some(hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::VaultToken(vault_token)) => {
-                        let db = &*state.store;
-
-                        let pm_token_data = payment_methods::utils::retrieve_payment_token_data(
+                        payment_data.external_vault_pmd = Some(payment_methods::get_external_vault_token(
                             state,
-                            payment_token.to_string(),
-                            Some(&payment_data.payment_attempt.payment_method_type),
-                        )
-                        .await?;
-
-                        let payment_method_id = match pm_token_data {
-                            storage::PaymentTokenData::PermanentCard(card_token_data) => {
-                                card_token_data.payment_method_id
-                            }
-                            storage::PaymentTokenData::TemporaryGeneric(_) => {
-                                Err(errors::ApiErrorResponse::NotImplemented {
-                                    message: errors::NotImplementedMessage::Reason(
-                                        "TemporaryGeneric Token not implemented".to_string(),
-                                    ),
-                                })?
-                            }
-                            storage::PaymentTokenData::AuthBankDebit(_) => {
-                                Err(errors::ApiErrorResponse::NotImplemented {
-                                    message: errors::NotImplementedMessage::Reason(
-                                        "AuthBankDebit Token not implemented".to_string(),
-                                    ),
-                                })?
-                            }
-                        };
-
-                        let payment_method = db.find_payment_method(
-                            &state.into(),
                             merchant_context.get_merchant_key_store(),
-                            &payment_method_id,
                             merchant_context.get_merchant_account().storage_scheme,
+                            payment_token.clone(),
+                            vault_token.clone(),
+                            &payment_data.payment_attempt.payment_method_type
                         )
-                        .await
-                        .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
-                        .attach_printable("Payment method not found")?;
-
-                        let external_vault_token_data = payment_method.external_vault_token_data.clone().map(Encryptable::into_inner)
-                        .ok_or(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Missing vault token data")?;
-
-                        let external_vault_pmd = payment_method.payment_method_data
-                        .clone()
-                        .map(Encryptable::into_inner)
-                        .map(|data| {
-                            hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::convert_from_vault_payment_method_data(
-                                data,
-                                external_vault_token_data,
-                                vault_token.clone()
-                            )
-                        })
-                        .transpose()
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to convert payment method data")?;
-
-                        payment_data.external_vault_pmd = external_vault_pmd
-
+                        .await?);
                     }
                     Some(hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(_)) | None => {
                         return Err(report!(errors::ApiErrorResponse::MissingRequiredField {
