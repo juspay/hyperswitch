@@ -1,6 +1,8 @@
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "v1")]
+use crate::payment_attempt::PaymentAttemptUpdate;
 #[cfg(feature = "v2")]
 use crate::payment_attempt::PaymentAttemptUpdateInternal;
 #[cfg(feature = "v1")]
@@ -11,7 +13,7 @@ use crate::{
     address::{Address, AddressNew, AddressUpdateInternal},
     customers::{Customer, CustomerNew, CustomerUpdateInternal},
     errors,
-    payment_attempt::{PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate},
+    payment_attempt::{PaymentAttempt, PaymentAttemptNew},
     payment_intent::PaymentIntentNew,
     payout_attempt::{PayoutAttempt, PayoutAttemptNew, PayoutAttemptUpdate},
     payouts::{Payouts, PayoutsNew, PayoutsUpdate},
