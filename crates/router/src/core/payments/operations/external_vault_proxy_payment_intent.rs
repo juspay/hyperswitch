@@ -1,8 +1,12 @@
 use api_models::payments::ExternalVaultProxyPaymentsRequest;
 use async_trait::async_trait;
 use common_enums::enums;
-use common_utils::types::keymanager::ToEncryptable;
-use error_stack::ResultExt;
+use common_utils::{
+    crypto::Encryptable,
+    ext_traits::{AsyncExt, ValueExt},
+    types::keymanager::ToEncryptable,
+};
+use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData, payments::PaymentConfirmData,
 };
@@ -14,6 +18,7 @@ use super::{Domain, GetTracker, Operation, PostUpdateTracker, UpdateTracker, Val
 use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
+        payment_methods::{self, PaymentMethodExt},
         payments::{
             self,
             operations::{self, ValidateStatusForOperation},
@@ -336,6 +341,168 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
         Ok((Box::new(self), None, None))
     }
 
+    async fn create_or_fetch_payment_method<'a>(
+        &'a self,
+        state: &SessionState,
+        merchant_context: &domain::MerchantContext,
+        business_profile: &domain::Profile,
+        payment_data: &mut PaymentConfirmData<F>,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        match (
+            payment_data.payment_intent.customer_id.clone(),
+            payment_data.payment_attempt.customer_acceptance.clone(),
+            payment_data.payment_attempt.payment_token.clone(),
+        ) {
+            (Some(customer_id), Some(_), None) => {
+                let db = &*state.store;
+                let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
+                let key_manager_state = &state.into();
+                let payment_method_id = common_utils::id_type::GlobalPaymentMethodId::generate(
+                    &state.conf.cell_information.id,
+                )
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to generate payment_method_id")?;
+
+                let encrypted_payment_method_billing_address = payment_data
+                    .payment_address
+                    .get_payment_method_billing()
+                    .cloned()
+                    .async_map(|billing| {
+                        payment_methods::cards::create_encrypted_data(
+                            key_manager_state,
+                            merchant_context.get_merchant_key_store(),
+                            billing,
+                        )
+                    })
+                    .await
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to encrypt Payment method billing address")?
+                    .map(|encoded_address| {
+                        encoded_address
+                            .deserialize_inner_value(|value| value.parse_value("address"))
+                    })
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to parse Payment method billing address")?;
+
+                let payment_method_data = payment_data
+                    .external_vault_pmd
+                    .as_mut()
+                    .async_map(|pmd| pmd.populate_bin_details_for_payment_method(state))
+                    .await
+                    .map(|ext_vault_pmd| ext_vault_pmd.convert_to_vault_payment_method_data())
+                    .transpose()
+                    .attach_printable(
+                        "Unable to convert ExternalVaultPaymentMethodData to PaymentMethodsData",
+                    )?;
+
+                let encrypted_payment_method_data = payment_method_data
+                    .async_map(|payment_method_data| {
+                        payment_methods::cards::create_encrypted_data(
+                            key_manager_state,
+                            merchant_context.get_merchant_key_store(),
+                            payment_method_data,
+                        )
+                    })
+                    .await
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to encrypt Payment method data")?
+                    .map(|encoded_pmd| {
+                        encoded_pmd.deserialize_inner_value(|value| {
+                            value.parse_value("PaymentMethodsData")
+                        })
+                    })
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to parse Payment method data")?;
+
+                let external_vault_token_data = payment_data
+                    .external_vault_pmd
+                    .as_ref()
+                    .and_then(|ext_vault_pmd| ext_vault_pmd.get_external_vault_token_data());
+
+                let encrypted_external_vault_token_data = external_vault_token_data
+                    .async_map(|external_vault_token_data| {
+                        payment_methods::cards::create_encrypted_data(
+                            key_manager_state,
+                            merchant_context.get_merchant_key_store(),
+                            external_vault_token_data,
+                        )
+                    })
+                    .await
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to encrypt External vault token data")?
+                    .map(|encoded_data| {
+                        encoded_data.deserialize_inner_value(|value| {
+                            value.parse_value("ExternalVaultTokenData")
+                        })
+                    })
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to parse External vault token data")?;
+
+                let response = payment_methods::create_payment_method_for_confirm(
+                    state,
+                    &customer_id,
+                    payment_method_id,
+                    &payment_data.payment_intent.merchant_id,
+                    merchant_context.get_merchant_key_store(),
+                    storage_scheme,
+                    payment_data.payment_attempt.payment_method_type,
+                    payment_data.payment_attempt.payment_method_subtype,
+                    encrypted_payment_method_billing_address,
+                    encrypted_payment_method_data,
+                    encrypted_external_vault_token_data,
+                ).await?;
+
+                payment_data.payment_attempt = db.update_payment_attempt(
+                    key_manager_state,
+                    merchant_context.get_merchant_key_store(),
+                    payment_data.payment_attempt.clone(),
+                    hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::PaymentMethodIdUpdate {
+                        payment_method_id: response.id,
+                        updated_by: storage_scheme.to_string(),
+                    },
+                    storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to update payment attempt in db")?;
+            }
+            (_, None, Some(payment_token)) => {
+                match payment_data.external_vault_pmd.as_ref() {
+                    Some(hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::VaultToken(vault_token)) => {
+                        payment_data.external_vault_pmd = Some(payment_methods::get_external_vault_token(
+                            state,
+                            merchant_context.get_merchant_key_store(),
+                            merchant_context.get_merchant_account().storage_scheme,
+                            payment_token.clone(),
+                            vault_token.clone(),
+                            &payment_data.payment_attempt.payment_method_type
+                        )
+                        .await?);
+                    }
+                    Some(hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(_)) | None => {
+                        return Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+                            field_name: "vault_token in payment_method_data"
+                        })
+                        .attach_printable("Invalid external vault payment method data"));
+                    }
+                }
+            }
+            _ => {
+                router_env::logger::debug!(
+                    "No payment method to create or fetch for external vault proxy payment intent"
+                );
+            }
+        }
+
+        Ok(())
+    }
+
     #[instrument(skip_all)]
     async fn populate_payment_data<'a>(
         &'a self,
@@ -531,13 +698,30 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
             .update_payment_attempt(
                 key_manager_state,
                 key_store,
-                payment_data.payment_attempt,
+                payment_data.payment_attempt.clone(),
                 payment_attempt_update,
                 storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to update payment attempt")?;
+
+        if let (true, true, Some(payment_method_id)) = (
+            response_router_data.status.is_success(),
+            payment_data.payment_attempt.customer_acceptance.is_some(),
+            payment_data.payment_attempt.payment_method_id.clone(),
+        ) {
+            payment_methods::update_payment_method_status_internal(
+                state,
+                key_store,
+                storage_scheme,
+                common_enums::PaymentMethodStatus::Active,
+                &payment_method_id,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to update payment method")?;
+        };
 
         payment_data.payment_intent = updated_payment_intent;
         payment_data.payment_attempt = updated_payment_attempt;

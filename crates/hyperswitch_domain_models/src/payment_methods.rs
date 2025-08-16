@@ -125,6 +125,9 @@ pub struct PaymentMethod {
     #[encrypt(ty = Value)]
     pub network_token_payment_method_data:
         Option<Encryptable<domain_payment_method_data::PaymentMethodsData>>,
+    #[encrypt(ty = Value)]
+    pub external_vault_token_data:
+        Option<Encryptable<api_models::payment_methods::ExternalVaultTokenData>>,
 }
 
 impl PaymentMethod {
@@ -468,6 +471,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .network_token_payment_method_data
                 .map(|val| val.into()),
             external_vault_source: self.external_vault_source,
+            external_vault_token_data: self.external_vault_token_data.map(|val| val.into()),
         })
     }
 
@@ -493,6 +497,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                             .payment_method_billing_address,
                         network_token_payment_method_data: storage_model
                             .network_token_payment_method_data,
+                        external_vault_token_data: storage_model.external_vault_token_data,
                     },
                 )),
                 key_manager_identifier,
@@ -535,6 +540,17 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .change_context(common_utils::errors::CryptoError::DecodingFailed)
                 .attach_printable("Error while deserializing Network token Payment Method Data")?;
 
+            let external_vault_token_data = data
+                .external_vault_token_data
+                .map(|external_vault_token_data| {
+                    external_vault_token_data.deserialize_inner_value(|value| {
+                        value.parse_value("External Vault Token Data")
+                    })
+                })
+                .transpose()
+                .change_context(common_utils::errors::CryptoError::DecodingFailed)
+                .attach_printable("Error while deserializing External Vault Token Data")?;
+
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 customer_id: storage_model.customer_id,
                 merchant_id: storage_model.merchant_id,
@@ -560,6 +576,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 network_token_locker_id: storage_model.network_token_locker_id,
                 network_token_payment_method_data,
                 external_vault_source: storage_model.external_vault_source,
+                external_vault_token_data,
             })
         }
         .await
@@ -596,6 +613,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             network_token_payment_method_data: self
                 .network_token_payment_method_data
                 .map(|val| val.into()),
+            external_vault_token_data: self.external_vault_token_data.map(|val| val.into()),
         })
     }
 }

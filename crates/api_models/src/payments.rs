@@ -2612,6 +2612,7 @@ pub struct ProxyPaymentMethodDataRequest {
 pub enum ProxyPaymentMethodData {
     #[schema(title = "ProxyCardData")]
     VaultDataCard(ProxyCardData),
+    VaultToken(VaultToken),
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -2633,6 +2634,19 @@ pub struct ProxyCardData {
     pub card_holder_name: String,
 
     /// The CVC number for the card
+    #[schema(value_type = String, example = "242")]
+    pub card_cvc: String,
+
+    #[schema(value_type = String, example = "424242")]
+    pub bin_number: Option<String>,
+
+    #[schema(value_type = String, example = "4242")]
+    pub last_four: Option<String>,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct VaultToken {
+    /// The tokenized CVC number for the card
     #[schema(value_type = String, example = "242")]
     pub card_cvc: String,
 }
@@ -5581,7 +5595,7 @@ pub struct ExternalVaultProxyPaymentsRequest {
 
     /// This "CustomerAcceptance" object is passed during Payments-Confirm request, it enlists the type, time, and mode of acceptance properties related to an acceptance done by the customer. The customer_acceptance sub object is usually passed by the SDK or client.
     #[schema(value_type = Option<CustomerAcceptance>)]
-    pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
+    pub customer_acceptance: Option<Secret<common_payments_types::CustomerAcceptance>>,
 
     /// Additional details required by 3DS 2.0
     #[schema(value_type = Option<BrowserInformation>)]

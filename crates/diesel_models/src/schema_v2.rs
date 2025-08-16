@@ -1112,6 +1112,7 @@ diesel::table! {
         id -> Varchar,
         #[max_length = 64]
         external_vault_source -> Nullable<Varchar>,
+        external_vault_token_data -> Nullable<Bytea>,
     }
 }
 

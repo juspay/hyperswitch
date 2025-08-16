@@ -48,7 +48,8 @@ pub enum PaymentMethodData {
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum ExternalVaultPaymentMethodData {
-    Card(ExternalVaultCard),
+    Card(Box<ExternalVaultCard>),
+    VaultToken(VaultToken),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -144,6 +145,8 @@ pub struct ExternalVaultCard {
     pub card_exp_month: String,
     pub card_exp_year: String,
     pub card_cvc: String,
+    pub bin_number: Option<String>,
+    pub last_four: Option<String>,
     pub card_issuer: Option<String>,
     pub card_network: Option<common_enums::CardNetwork>,
     pub card_type: Option<String>,
@@ -152,6 +155,11 @@ pub struct ExternalVaultCard {
     pub nick_name: Option<Secret<String>>,
     pub card_holder_name: Option<Secret<String>>,
     pub co_badged_card_data: Option<payment_methods::CoBadgedCardData>,
+}
+
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
+pub struct VaultToken {
+    pub card_cvc: String,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
@@ -911,7 +919,10 @@ impl From<api_models::payments::ProxyPaymentMethodData> for ExternalVaultPayment
     fn from(api_model_payment_method_data: api_models::payments::ProxyPaymentMethodData) -> Self {
         match api_model_payment_method_data {
             api_models::payments::ProxyPaymentMethodData::VaultDataCard(card_data) => {
-                Self::Card(ExternalVaultCard::from(card_data))
+                Self::Card(Box::new(ExternalVaultCard::from(card_data)))
+            }
+            api_models::payments::ProxyPaymentMethodData::VaultToken(vault_data) => {
+                Self::VaultToken(VaultToken::from(vault_data))
             }
         }
     }
@@ -924,6 +935,8 @@ impl From<api_models::payments::ProxyCardData> for ExternalVaultCard {
             card_exp_year,
             card_holder_name,
             card_cvc,
+            bin_number,
+            last_four,
         } = value;
 
         Self {
@@ -931,6 +944,8 @@ impl From<api_models::payments::ProxyCardData> for ExternalVaultCard {
             card_exp_month,
             card_exp_year,
             card_cvc,
+            bin_number,
+            last_four,
             card_issuer: None,
             card_network: None,
             card_type: None,
@@ -940,6 +955,13 @@ impl From<api_models::payments::ProxyCardData> for ExternalVaultCard {
             card_holder_name: None,
             co_badged_card_data: None,
         }
+    }
+}
+impl From<api_models::payments::VaultToken> for VaultToken {
+    fn from(value: api_models::payments::VaultToken) -> Self {
+        let api_models::payments::VaultToken { card_cvc } = value;
+
+        Self { card_cvc }
     }
 }
 impl
