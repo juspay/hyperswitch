@@ -589,12 +589,12 @@ impl
         req: &RevenueRecoveryRecordBackRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let metadata: chargebee::ChargebeeMetadata =
-            utils::to_connector_meta_from_secret(req.connector_meta_data.clone())?;
+        // let metadata: chargebee::ChargebeeMetadata =
+        //     utils::to_connector_meta_from_secret(req.connector_meta_data.clone())?;
         let url = self
             .base_url(connectors)
             .to_string()
-            .replace("{{merchant_endpoint_prefix}}", metadata.site.peek());
+            .replace("$", "hyperswitch-juspay-test");
         let invoice_id = req.request.merchant_reference_id.clone();
         Ok(format!("{url}v2/invoices/{invoice_id}/record_payment"))
     }

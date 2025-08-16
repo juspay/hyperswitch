@@ -21,7 +21,7 @@ use crate::{
     consts,
     core::{
         errors::StorageErrorExt,
-        payments::{self as payment_flows, operations},
+        payments::{self as payment_flows, helpers, operations},
     },
     db::StorageInterface,
     errors,
@@ -178,6 +178,15 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                                 },
                             )?;
 
+                        let auth_type = helpers::MerchantConnectorAccountType::DbVal(Box::new(
+                            billing_connector_mca.clone(),
+                        ))
+                        .get_connector_account_details()
+                        .parse_value("ConnectorAuthType")
+                        .change_context(
+                            errors::RecoveryError::RecordBackToBillingConnectorFailed,
+                        )?;
+
                         let connector_data = api::ConnectorData::get_connector_by_name(
                             &state.conf.connectors,
                             &connector,
@@ -234,12 +243,14 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
 
                         let response = Err(ErrorResponse::default());
 
-                        let router_data = conversion_impls::get_default_router_data(
+                        let mut router_data = conversion_impls::get_default_router_data(
                             state.tenant.tenant_id.clone(),
                             "subscription_record_payment",
                             request,
                             response,
                         );
+
+                        router_data.connector_auth_type = auth_type;
 
                         let response = services::execute_connector_processing_step(
                             state,
