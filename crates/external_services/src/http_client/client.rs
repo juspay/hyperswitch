@@ -48,6 +48,7 @@ pub fn create_client(
             .change_context(HttpClientError::ClientConstructionFailed)
             .attach_printable("Failed to construct client with certificate and certificate key");
     }
+
     // Case 2: Use provided CA certificate for server authentication only (one-way TLS)
     if let Some(ca_pem) = ca_certificate {
         logger::debug!("Creating HTTP client with one-way TLS (CA certificate)");
