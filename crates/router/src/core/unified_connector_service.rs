@@ -1,5 +1,7 @@
+use std::str::FromStr;
+
 use api_models::admin;
-use common_enums::{AttemptStatus, GatewaySystem, PaymentMethodType};
+use common_enums::{connector_enums::Connector, AttemptStatus, GatewaySystem, PaymentMethodType};
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use diesel_models::types::FeatureMetadata;
 use error_stack::ResultExt;
@@ -18,7 +20,7 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::logger;
 use unified_connector_service_client::payments::{
     self as payments_grpc, payment_method::PaymentMethod, CardDetails, CardPaymentMethodType,
-    PaymentServiceAuthorizeResponse,
+    PaymentServiceAuthorizeResponse, RewardPaymentMethodType,
 };
 
 use crate::{
@@ -105,6 +107,9 @@ where
         .get_string_repr();
 
     let connector_name = router_data.connector.clone();
+    let connector_enum = Connector::from_str(&connector_name)
+        .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)?;
+
     let payment_method = router_data.payment_method.to_string();
     let flow_name = get_flow_name::<F>()?;
 
@@ -113,7 +118,7 @@ where
         .grpc_client
         .unified_connector_service
         .as_ref()
-        .is_some_and(|config| config.ucs_only_connectors.contains(&connector_name));
+        .is_some_and(|config| config.ucs_only_connectors.contains(&connector_enum));
 
     if is_ucs_only_connector {
         router_env::logger::info!(
@@ -325,6 +330,24 @@ pub fn build_unified_connector_service_payment_method(
                 payment_method: Some(upi_type),
             })
         }
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::Reward => {
+            match payment_method_type {
+                PaymentMethodType::ClassicReward => Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Reward(RewardPaymentMethodType {
+                        reward_type: 1,
+                    })),
+                }),
+                PaymentMethodType::Evoucher => Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Reward(RewardPaymentMethodType {
+                        reward_type: 2,
+                    })),
+                }),
+                _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
+                    "Unimplemented payment method subtype: {payment_method_type:?}"
+                ))
+                .into()),
+            }
+        }
         _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
             "Unimplemented payment method: {payment_method_data:?}"
         ))
@@ -435,6 +458,7 @@ pub fn build_unified_connector_service_auth_metadata(
             api_key: Some(api_key.clone()),
             key1: Some(key1.clone()),
             api_secret: Some(api_secret.clone()),
+            auth_key_map: None,
             merchant_id: Secret::new(merchant_id.to_string()),
         }),
         ConnectorAuthType::BodyKey { api_key, key1 } => Ok(ConnectorAuthMetadata {
@@ -443,6 +467,7 @@ pub fn build_unified_connector_service_auth_metadata(
             api_key: Some(api_key.clone()),
             key1: Some(key1.clone()),
             api_secret: None,
+            auth_key_map: None,
             merchant_id: Secret::new(merchant_id.to_string()),
         }),
         ConnectorAuthType::HeaderKey { api_key } => Ok(ConnectorAuthMetadata {
@@ -451,6 +476,16 @@ pub fn build_unified_connector_service_auth_metadata(
             api_key: Some(api_key.clone()),
             key1: None,
             api_secret: None,
+            auth_key_map: None,
+            merchant_id: Secret::new(merchant_id.to_string()),
+        }),
+        ConnectorAuthType::CurrencyAuthKey { auth_key_map } => Ok(ConnectorAuthMetadata {
+            connector_name,
+            auth_type: consts::UCS_AUTH_CURRENCY_AUTH_KEY.to_string(),
+            api_key: None,
+            key1: None,
+            api_secret: None,
+            auth_key_map: Some(auth_key_map.clone()),
             merchant_id: Secret::new(merchant_id.to_string()),
         }),
         _ => Err(UnifiedConnectorServiceError::FailedToObtainAuthType)
