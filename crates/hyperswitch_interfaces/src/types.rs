@@ -322,12 +322,6 @@ pub type ExternalVaultDeleteType =
 pub type ExternalVaultCreateType =
     dyn ConnectorIntegration<ExternalVaultCreateFlow, VaultRequestData, VaultResponseData>;
 
-/// Type alias for `ConnectorIntegration<ExternalVaultProxy, ExternalVaultProxyPaymentsData, PaymentsResponseData>`
-pub type ExternalProxyType = dyn ConnectorIntegration<
-    hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
-    hyperswitch_domain_models::router_request_types::ExternalVaultProxyPaymentsData,
-    PaymentsResponseData,
->;
 /// Proxy configuration structure
 #[derive(Debug, serde::Deserialize, Clone)]
 #[serde(default)]

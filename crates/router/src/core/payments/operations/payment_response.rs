@@ -2605,7 +2605,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
                 PaymentConfirmData<F>,
             >,
     {
-        println!("in_post_tracker_confirm_update");
         use hyperswitch_domain_models::router_data::TrackerPostUpdateObjects;
 
         let db = &*state.store;
@@ -2738,13 +2737,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentStatusData<F>, types::PaymentsSyncDat
         let key_manager_state = &state.into();
 
         let response_router_data = response;
-
-        println!(
-            "current_sync_status: status {:?}, ca: {:?}, payment_method_id {:?}",
-            response_router_data.status,
-            payment_data.payment_attempt.customer_acceptance.is_some(),
-            payment_data.payment_attempt.payment_method_id.clone()
-        );
 
         if let (true, true, Some(payment_method_id)) = (
             response_router_data.status.is_success(),

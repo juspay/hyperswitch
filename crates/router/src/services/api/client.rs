@@ -77,7 +77,7 @@ pub struct ProxyClient {
 
 impl ProxyClient {
     pub fn new(proxy_config: &Proxy) -> CustomResult<Self, ApiClientError> {
-        let client = client::get_client_builder(proxy_config, None)
+        let client = client::get_client_builder(proxy_config)
             .switch()?
             .build()
             .change_context(ApiClientError::InvalidProxyConfiguration)?;
@@ -95,8 +95,7 @@ impl ProxyClient {
     ) -> CustomResult<reqwest::Client, ApiClientError> {
         match (client_certificate, client_certificate_key) {
             (Some(certificate), Some(certificate_key)) => {
-                let client_builder =
-                    client::get_client_builder(&self.proxy_config, None).switch()?;
+                let client_builder = client::get_client_builder(&self.proxy_config).switch()?;
                 let identity =
                     client::create_identity_from_certificate_and_key(certificate, certificate_key)
                         .switch()?;

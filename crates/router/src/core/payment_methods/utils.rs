@@ -812,7 +812,7 @@ fn compile_accepted_currency_for_mca(
 }
 
 #[cfg(feature = "v2")]
-pub async fn retrieve_payment_token_data(
+pub(super) async fn retrieve_payment_token_data(
     state: &SessionState,
     token: String,
     payment_method: Option<&storage_enums::PaymentMethod>,
