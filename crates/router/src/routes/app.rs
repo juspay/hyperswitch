@@ -699,6 +699,10 @@ impl Payments {
                         .route(web::post().to(payments::proxy_confirm_intent)),
                 )
                 .service(
+                    web::resource("/confirm-intent/external-vault-proxy")
+                        .route(web::post().to(payments::confirm_intent_with_external_vault_proxy)),
+                )
+                .service(
                     web::resource("/get-intent")
                         .route(web::get().to(payments::payments_get_intent)),
                 )

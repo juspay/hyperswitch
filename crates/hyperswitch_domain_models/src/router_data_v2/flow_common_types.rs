@@ -166,3 +166,44 @@ pub struct BillingConnectorInvoiceSyncFlowData;
 pub struct VaultConnectorFlowData {
     pub merchant_id: common_utils::id_type::MerchantId,
 }
+
+#[derive(Debug, Clone)]
+pub struct ExternalVaultProxyFlowData {
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
+    pub connector_customer: Option<String>,
+    pub payment_id: String,
+    pub attempt_id: String,
+    pub status: common_enums::AttemptStatus,
+    pub payment_method: common_enums::PaymentMethod,
+    pub description: Option<String>,
+    pub address: PaymentAddress,
+    pub auth_type: common_enums::AuthenticationType,
+    pub connector_meta_data: Option<pii::SecretSerdeValue>,
+    pub amount_captured: Option<i64>,
+    // minor amount for amount framework
+    pub minor_amount_captured: Option<MinorUnit>,
+    pub access_token: Option<AccessToken>,
+    pub session_token: Option<String>,
+    pub reference_id: Option<String>,
+    pub payment_method_token: Option<PaymentMethodToken>,
+    pub recurring_mandate_payment_data: Option<RecurringMandatePaymentData>,
+    pub preprocessing_id: Option<String>,
+    /// This is the balance amount for gift cards or voucher
+    pub payment_method_balance: Option<PaymentMethodBalance>,
+
+    ///for switching between two different versions of the same connector
+    pub connector_api_version: Option<String>,
+    /// Contains a reference ID that should be sent in the connector request
+    pub connector_request_reference_id: String,
+
+    pub test_mode: Option<bool>,
+    pub connector_http_status_code: Option<u16>,
+    pub external_latency: Option<u128>,
+    /// Contains apple pay flow type simplified or manual
+    pub apple_pay_flow: Option<ApplePayFlow>,
+
+    /// This field is used to store various data regarding the response from connector
+    pub connector_response: Option<ConnectorResponseData>,
+    pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
+}

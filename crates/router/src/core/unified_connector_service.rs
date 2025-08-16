@@ -355,6 +355,56 @@ pub fn build_unified_connector_service_payment_method(
     }
 }
 
+pub fn build_unified_connector_service_payment_method_for_external_proxy(
+    payment_method_data: hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData,
+    payment_method_type: PaymentMethodType,
+) -> CustomResult<payments_grpc::PaymentMethod, UnifiedConnectorServiceError> {
+    match payment_method_data {
+        hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(
+            external_vault_card,
+        ) => {
+            let card_network = external_vault_card
+                .card_network
+                .clone()
+                .map(payments_grpc::CardNetwork::foreign_try_from)
+                .transpose()?;
+            let card_details = CardDetails {
+                card_number: external_vault_card.card_number.peek().to_string(),
+                card_exp_month: external_vault_card.card_exp_month.peek().to_string(),
+                card_exp_year: external_vault_card.card_exp_year.peek().to_string(),
+                card_cvc: external_vault_card.card_cvc.peek().to_string(),
+                card_holder_name: external_vault_card
+                    .card_holder_name
+                    .map(|name| name.expose()),
+                card_issuer: external_vault_card.card_issuer.clone(),
+                card_network: card_network.map(|card_network| card_network.into()),
+                card_type: external_vault_card.card_type.clone(),
+                bank_code: external_vault_card.bank_code.clone(),
+                nick_name: external_vault_card.nick_name.map(|n| n.expose()),
+                card_issuing_country_alpha2: external_vault_card.card_issuing_country.clone(),
+            };
+            let grpc_card_type = match payment_method_type {
+                PaymentMethodType::Credit => {
+                    payments_grpc::card_payment_method_type::CardType::CreditProxy(card_details)
+                }
+                PaymentMethodType::Debit => {
+                    payments_grpc::card_payment_method_type::CardType::DebitProxy(card_details)
+                }
+                _ => {
+                    return Err(UnifiedConnectorServiceError::NotImplemented(format!(
+                        "Unimplemented payment method subtype: {payment_method_type:?}"
+                    ))
+                    .into());
+                }
+            };
+            Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::Card(CardPaymentMethodType {
+                    card_type: Some(grpc_card_type),
+                })),
+            })
+        }
+    }
+}
 pub fn build_unified_connector_service_auth_metadata(
     #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: MerchantConnectorAccountTypeDetails,

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::Deref};
+use std::{collections::HashMap, fmt::Debug, ops::Deref};
 
 use api_models::{self, enums as api_enums, payments};
 use common_enums::{enums, AttemptStatus, PaymentChargeType, StripeChargeType};
@@ -2725,6 +2725,7 @@ where
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
+        //
         item: ResponseRouterData<F, PaymentIntentResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let redirect_data = item.response.next_action.clone();

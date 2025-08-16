@@ -2784,6 +2784,133 @@ impl<F: Send + Clone> Operation<F, types::SetupMandateRequestData> for PaymentRe
 }
 
 #[cfg(feature = "v2")]
+impl
+    Operation<
+        hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
+        hyperswitch_domain_models::router_request_types::ExternalVaultProxyPaymentsData,
+    > for PaymentResponse
+{
+    type Data =
+        PaymentConfirmData<hyperswitch_domain_models::router_flow_types::ExternalVaultProxy>;
+    fn to_post_update_tracker(
+        &self,
+    ) -> RouterResult<
+        &(dyn PostUpdateTracker<
+            hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
+            Self::Data,
+            hyperswitch_domain_models::router_request_types::ExternalVaultProxyPaymentsData,
+        > + Send
+              + Sync),
+    > {
+        Ok(self)
+    }
+}
+
+#[cfg(feature = "v2")]
+impl
+    Operation<
+        hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
+        hyperswitch_domain_models::router_request_types::ExternalVaultProxyPaymentsData,
+    > for &PaymentResponse
+{
+    type Data =
+        PaymentConfirmData<hyperswitch_domain_models::router_flow_types::ExternalVaultProxy>;
+    fn to_post_update_tracker(
+        &self,
+    ) -> RouterResult<
+        &(dyn PostUpdateTracker<
+            hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
+            Self::Data,
+            hyperswitch_domain_models::router_request_types::ExternalVaultProxyPaymentsData,
+        > + Send
+              + Sync),
+    > {
+        Ok(*self)
+    }
+}
+
+#[cfg(feature = "v2")]
+#[async_trait]
+impl
+    PostUpdateTracker<
+        hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
+        PaymentConfirmData<hyperswitch_domain_models::router_flow_types::ExternalVaultProxy>,
+        hyperswitch_domain_models::router_request_types::ExternalVaultProxyPaymentsData,
+    > for PaymentResponse
+{
+    async fn update_tracker<'b>(
+        &'b self,
+        state: &'b SessionState,
+        mut payment_data: PaymentConfirmData<
+            hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
+        >,
+        response: types::RouterData<
+            hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
+            hyperswitch_domain_models::router_request_types::ExternalVaultProxyPaymentsData,
+            types::PaymentsResponseData,
+        >,
+        key_store: &domain::MerchantKeyStore,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> RouterResult<
+        PaymentConfirmData<hyperswitch_domain_models::router_flow_types::ExternalVaultProxy>,
+    >
+    where
+        types::RouterData<
+            hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
+            hyperswitch_domain_models::router_request_types::ExternalVaultProxyPaymentsData,
+            types::PaymentsResponseData,
+        >: hyperswitch_domain_models::router_data::TrackerPostUpdateObjects<
+            hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
+            hyperswitch_domain_models::router_request_types::ExternalVaultProxyPaymentsData,
+            PaymentConfirmData<hyperswitch_domain_models::router_flow_types::ExternalVaultProxy>,
+        >,
+    {
+        use hyperswitch_domain_models::router_data::TrackerPostUpdateObjects;
+
+        let db = &*state.store;
+        let key_manager_state = &state.into();
+
+        let response_router_data = response;
+
+        let payment_intent_update =
+            response_router_data.get_payment_intent_update(&payment_data, storage_scheme);
+        let payment_attempt_update =
+            response_router_data.get_payment_attempt_update(&payment_data, storage_scheme);
+
+        let updated_payment_intent = db
+            .update_payment_intent(
+                key_manager_state,
+                payment_data.payment_intent,
+                payment_intent_update,
+                key_store,
+                storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to update payment intent")?;
+
+        let updated_payment_attempt = db
+            .update_payment_attempt(
+                key_manager_state,
+                key_store,
+                payment_data.payment_attempt,
+                payment_attempt_update,
+                storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to update payment attempt")?;
+
+        payment_data.payment_intent = updated_payment_intent;
+        payment_data.payment_attempt = updated_payment_attempt;
+
+        // TODO: Add external vault specific post-update logic if needed
+
+        Ok(payment_data)
+    }
+}
+
+#[cfg(feature = "v2")]
 #[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRequestData>
     for PaymentResponse
