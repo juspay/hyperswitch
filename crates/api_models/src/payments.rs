@@ -2618,23 +2618,43 @@ pub enum ProxyPaymentMethodData {
 pub struct ProxyCardData {
     /// The token which refers to the card number
     #[schema(value_type = String, example = "token_card_number")]
-    pub card_number: String,
+    pub card_number: Secret<String>,
 
     /// The card's expiry month
     #[schema(value_type = String, example = "24")]
-    pub card_exp_month: String,
+    pub card_exp_month: Secret<String>,
 
     /// The card's expiry year
     #[schema(value_type = String, example = "24")]
-    pub card_exp_year: String,
+    pub card_exp_year: Secret<String>,
 
     /// The card holder's name
     #[schema(value_type = String, example = "John Test")]
-    pub card_holder_name: String,
+    pub card_holder_name: Option<Secret<String>>,
 
     /// The CVC number for the card
     #[schema(value_type = String, example = "242")]
-    pub card_cvc: String,
+    pub card_cvc: Secret<String>,
+
+    /// The name of the issuer of card
+    #[schema(example = "chase")]
+    pub card_issuer: Option<String>,
+
+    /// The card network for the card
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    pub card_network: Option<api_enums::CardNetwork>,
+
+    #[schema(example = "CREDIT")]
+    pub card_type: Option<String>,
+
+    #[schema(example = "INDIA")]
+    pub card_issuing_country: Option<String>,
+
+    #[schema(example = "JP_AMEX")]
+    pub bank_code: Option<String>,
+    /// The card holder's nick name
+    #[schema(value_type = Option<String>, example = "John Test")]
+    pub nick_name: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]

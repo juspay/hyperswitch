@@ -164,3 +164,10 @@ pub type VaultRouterDataV2<F> = RouterDataV2<
     VaultRequestData,
     VaultResponseData,
 >;
+
+pub type ExternalVaultProxyPaymentsRouterDataV2 = RouterDataV2<
+    ExternalVaultProxy,
+    router_data_v2::flow_common_types::ExternalVaultProxyFlowData,
+    ExternalVaultProxyPaymentsData,
+    PaymentsResponseData,
+>;

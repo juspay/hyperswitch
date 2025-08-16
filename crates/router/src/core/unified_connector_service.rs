@@ -346,10 +346,10 @@ pub fn build_unified_connector_service_payment_method_for_external_proxy(
                 .map(payments_grpc::CardNetwork::foreign_try_from)
                 .transpose()?;
             let card_details = CardDetails {
-                card_number: external_vault_card.card_number.to_string(),
-                card_exp_month: external_vault_card.card_exp_month.to_string(),
-                card_exp_year: external_vault_card.card_exp_year.to_string(),
-                card_cvc: external_vault_card.card_cvc.to_string(),
+                card_number: external_vault_card.card_number.peek().to_string(),
+                card_exp_month: external_vault_card.card_exp_month.peek().to_string(),
+                card_exp_year: external_vault_card.card_exp_year.peek().to_string(),
+                card_cvc: external_vault_card.card_cvc.peek().to_string(),
                 card_holder_name: external_vault_card
                     .card_holder_name
                     .map(|name| name.expose()),
