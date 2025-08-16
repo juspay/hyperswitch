@@ -411,8 +411,8 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         self.status = status;
         self.response = router_data_response;
         self.raw_connector_response = payment_authorize_response
-        .raw_connector_response
-        .map(masking::Secret::new);
+            .raw_connector_response
+            .map(masking::Secret::new);
         self.connector_http_status_code = Some(status_code);
 
         Ok(())
