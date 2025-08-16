@@ -1,17 +1,20 @@
 pub mod address;
 pub mod api;
+pub mod authentication;
 pub mod behaviour;
 pub mod bulk_tokenization;
 pub mod business_profile;
 pub mod callback_mapper;
 pub mod card_testing_guard_data;
 pub mod cards_info;
+pub mod chat;
 pub mod connector_endpoints;
 pub mod consts;
 pub mod customer;
 pub mod disputes;
 pub mod errors;
 pub mod ext_traits;
+pub mod gsm;
 pub mod mandates;
 pub mod merchant_account;
 pub mod merchant_connector_account;
@@ -118,6 +121,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             search_tags,
             apple_pay_recurring_details: apple_pay_recurring_details
                 .map(ApplePayRecurringDetails::convert_from),
+            gateway_system: None,
         }
     }
 
@@ -126,6 +130,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             redirect_response,
             search_tags,
             apple_pay_recurring_details,
+            ..
         } = self;
 
         ApiFeatureMetadata {
@@ -145,7 +150,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             redirect_response,
             search_tags,
             apple_pay_recurring_details,
-            payment_revenue_recovery_metadata,
+            revenue_recovery: payment_revenue_recovery_metadata,
         } = from;
 
         Self {
@@ -172,8 +177,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             search_tags,
             apple_pay_recurring_details: apple_pay_recurring_details
                 .map(|value| value.convert_back()),
-            payment_revenue_recovery_metadata: payment_revenue_recovery_metadata
-                .map(|value| value.convert_back()),
+            revenue_recovery: payment_revenue_recovery_metadata.map(|value| value.convert_back()),
         }
     }
 }
@@ -334,6 +338,7 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
             first_payment_attempt_network_decline_code: from
                 .first_payment_attempt_network_decline_code,
             first_payment_attempt_pg_error_code: from.first_payment_attempt_pg_error_code,
+            invoice_billing_started_at_time: from.invoice_billing_started_at_time,
         }
     }
 
@@ -358,6 +363,7 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
             first_payment_attempt_network_decline_code: self
                 .first_payment_attempt_network_decline_code,
             first_payment_attempt_pg_error_code: self.first_payment_attempt_pg_error_code,
+            invoice_billing_started_at_time: self.invoice_billing_started_at_time,
         }
     }
 }
@@ -397,6 +403,13 @@ impl ApiModelToDieselModelConvertor<ApiOrderDetailsWithAmount> for OrderDetailsW
             product_tax_code,
             tax_rate,
             total_tax_amount,
+            description,
+            sku,
+            upc,
+            commodity_code,
+            unit_of_measure,
+            total_amount,
+            unit_discount_amount,
         } = from;
         Self {
             product_name,
@@ -412,6 +425,13 @@ impl ApiModelToDieselModelConvertor<ApiOrderDetailsWithAmount> for OrderDetailsW
             product_tax_code,
             tax_rate,
             total_tax_amount,
+            description,
+            sku,
+            upc,
+            commodity_code,
+            unit_of_measure,
+            total_amount,
+            unit_discount_amount,
         }
     }
 
@@ -430,6 +450,13 @@ impl ApiModelToDieselModelConvertor<ApiOrderDetailsWithAmount> for OrderDetailsW
             product_tax_code,
             tax_rate,
             total_tax_amount,
+            description,
+            sku,
+            upc,
+            commodity_code,
+            unit_of_measure,
+            total_amount,
+            unit_discount_amount,
         } = self;
         ApiOrderDetailsWithAmount {
             product_name,
@@ -445,6 +472,13 @@ impl ApiModelToDieselModelConvertor<ApiOrderDetailsWithAmount> for OrderDetailsW
             product_tax_code,
             tax_rate,
             total_tax_amount,
+            description,
+            sku,
+            upc,
+            commodity_code,
+            unit_of_measure,
+            total_amount,
+            unit_discount_amount,
         }
     }
 }

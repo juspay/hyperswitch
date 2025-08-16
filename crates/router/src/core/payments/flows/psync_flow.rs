@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use async_trait::async_trait;
 use error_stack::ResultExt;
+use masking::Secret;
 use unified_connector_service_client::payments as payments_grpc;
 
 use super::{ConstructFlowSpecificData, Feature};
@@ -167,8 +168,14 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         merchant_context: &domain::MerchantContext,
         creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
-        access_token::add_access_token(state, connector, merchant_context, self, creds_identifier)
-            .await
+        Box::pin(access_token::add_access_token(
+            state,
+            connector,
+            merchant_context,
+            self,
+            creds_identifier,
+        ))
+        .await
     }
 
     async fn build_flow_specific_connector_request(
@@ -249,14 +256,15 @@ impl Feature<api::PSync, types::PaymentsSyncData>
 
         let payment_get_response = response.into_inner();
 
-        let (status, router_data_response) =
+        let (status, router_data_response, status_code) =
             handle_unified_connector_service_response_for_payment_get(payment_get_response.clone())
                 .change_context(ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to deserialize UCS response")?;
 
         self.status = status;
         self.response = router_data_response;
-        self.raw_connector_response = payment_get_response.raw_connector_response;
+        self.raw_connector_response = payment_get_response.raw_connector_response.map(Secret::new);
+        self.connector_http_status_code = Some(status_code);
 
         Ok(())
     }

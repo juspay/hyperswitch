@@ -141,12 +141,14 @@ pub enum AttemptStatus {
     Authorizing,
     CodInitiated,
     Voided,
+    VoidedPostCharge,
     VoidInitiated,
     CaptureInitiated,
     CaptureFailed,
     VoidFailed,
     AutoRefunded,
     PartialCharged,
+    PartiallyAuthorized,
     PartialChargedAndChargeable,
     Unresolved,
     #[default]
@@ -156,6 +158,7 @@ pub enum AttemptStatus {
     ConfirmationAwaited,
     DeviceDataCollectionPending,
     IntegrityFailure,
+    Expired,
 }
 
 impl AttemptStatus {
@@ -165,15 +168,18 @@ impl AttemptStatus {
             | Self::Charged
             | Self::AutoRefunded
             | Self::Voided
+            | Self::VoidedPostCharge
             | Self::VoidFailed
             | Self::CaptureFailed
             | Self::Failure
-            | Self::PartialCharged => true,
+            | Self::PartialCharged
+            | Self::Expired => true,
             Self::Started
             | Self::AuthenticationFailed
             | Self::AuthenticationPending
             | Self::AuthenticationSuccessful
             | Self::Authorized
+            | Self::PartiallyAuthorized
             | Self::AuthorizationFailed
             | Self::Authorizing
             | Self::CodInitiated
@@ -192,6 +198,30 @@ impl AttemptStatus {
     pub fn is_success(self) -> bool {
         matches!(self, Self::Charged | Self::PartialCharged)
     }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Hash,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    strum::EnumIter,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ApplePayPaymentMethodType {
+    Debit,
+    Credit,
+    Prepaid,
+    Store,
 }
 
 /// Indicates the method by which a card is discovered during a payment
@@ -243,6 +273,46 @@ pub enum RevenueRecoveryAlgorithmType {
     Monitoring,
     Smart,
     Cascading,
+}
+
+#[derive(
+    Default,
+    Clone,
+    Copy,
+    Debug,
+    strum::Display,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum GsmDecision {
+    Retry,
+    #[default]
+    DoDefault,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    strum::Display,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[router_derive::diesel_enum(storage_type = "text")]
+pub enum GsmFeature {
+    Retry,
 }
 
 /// Specifies the type of cardholder authentication to be applied for a payment.
@@ -1439,8 +1509,10 @@ impl EventClass {
                 EventType::PaymentFailed,
                 EventType::PaymentProcessing,
                 EventType::PaymentCancelled,
+                EventType::PaymentCancelledPostCapture,
                 EventType::PaymentAuthorized,
                 EventType::PaymentCaptured,
+                EventType::PaymentExpired,
                 EventType::ActionRequired,
             ]),
             Self::Refunds => HashSet::from([EventType::RefundSucceeded, EventType::RefundFailed]),
@@ -1492,8 +1564,11 @@ pub enum EventType {
     PaymentFailed,
     PaymentProcessing,
     PaymentCancelled,
+    PaymentCancelledPostCapture,
     PaymentAuthorized,
+    PaymentPartiallyAuthorized,
     PaymentCaptured,
+    PaymentExpired,
     ActionRequired,
     RefundSucceeded,
     RefundFailed,
@@ -1595,6 +1670,8 @@ pub enum IntentStatus {
     Failed,
     /// This payment has been cancelled.
     Cancelled,
+    /// This payment has been cancelled post capture.
+    CancelledPostCapture,
     /// This payment is still being processed by the payment processor.
     /// The status update might happen through webhooks or polling with the connector.
     Processing,
@@ -1613,15 +1690,24 @@ pub enum IntentStatus {
     PartiallyCaptured,
     /// The payment has been captured partially and the remaining amount is capturable
     PartiallyCapturedAndCapturable,
+    /// The payment has been authorized for a partial amount and requires capture
+    PartiallyAuthorizedAndRequiresCapture,
     /// There has been a discrepancy between the amount/currency sent in the request and the amount/currency received by the processor
     Conflicted,
+    /// The payment expired before it could be captured.
+    Expired,
 }
 
 impl IntentStatus {
     /// Indicates whether the payment intent is in terminal state or not
     pub fn is_in_terminal_state(self) -> bool {
         match self {
-            Self::Succeeded | Self::Failed | Self::Cancelled | Self::PartiallyCaptured => true,
+            Self::Succeeded
+            | Self::Failed
+            | Self::Cancelled
+            | Self::CancelledPostCapture
+            | Self::PartiallyCaptured
+            | Self::Expired => true,
             Self::Processing
             | Self::RequiresCustomerAction
             | Self::RequiresMerchantAction
@@ -1629,6 +1715,7 @@ impl IntentStatus {
             | Self::RequiresConfirmation
             | Self::RequiresCapture
             | Self::PartiallyCapturedAndCapturable
+            | Self::PartiallyAuthorizedAndRequiresCapture
             | Self::Conflicted => false,
         }
     }
@@ -1643,13 +1730,14 @@ impl IntentStatus {
             | Self::Succeeded
             | Self::Failed
             | Self::Cancelled
+            | Self::CancelledPostCapture
             |  Self::PartiallyCaptured
-            |  Self::RequiresCapture | Self::Conflicted => false,
+            |  Self::RequiresCapture | Self::Conflicted | Self::Expired=> false,
             Self::Processing
             | Self::RequiresCustomerAction
             | Self::RequiresMerchantAction
             | Self::PartiallyCapturedAndCapturable
-            => true,
+            | Self::PartiallyAuthorizedAndRequiresCapture => true,
         }
     }
 }
@@ -1756,6 +1844,7 @@ impl From<AttemptStatus> for PaymentMethodStatus {
         match attempt_status {
             AttemptStatus::Failure
             | AttemptStatus::Voided
+            | AttemptStatus::VoidedPostCharge
             | AttemptStatus::Started
             | AttemptStatus::Pending
             | AttemptStatus::Unresolved
@@ -1774,9 +1863,11 @@ impl From<AttemptStatus> for PaymentMethodStatus {
             | AttemptStatus::AutoRefunded
             | AttemptStatus::PartialCharged
             | AttemptStatus::PartialChargedAndChargeable
+            | AttemptStatus::PartiallyAuthorized
             | AttemptStatus::ConfirmationAwaited
             | AttemptStatus::DeviceDataCollectionPending
-            | AttemptStatus::IntegrityFailure => Self::Inactive,
+            | AttemptStatus::IntegrityFailure
+            | AttemptStatus::Expired => Self::Inactive,
             AttemptStatus::Charged | AttemptStatus::Authorized => Self::Active,
         }
     }
@@ -1860,7 +1951,6 @@ pub enum PaymentMethodType {
     AliPayHk,
     Alma,
     AmazonPay,
-    Skrill,
     Paysera,
     ApplePay,
     Atome,
@@ -1870,9 +1960,11 @@ pub enum PaymentMethodType {
     Benefit,
     Bizum,
     Blik,
+    Bluecode,
     Boleto,
     BcaBankTransfer,
     BniVa,
+    Breadpay,
     BriVa,
     #[cfg(feature = "v2")]
     Card,
@@ -1890,6 +1982,7 @@ pub enum PaymentMethodType {
     Efecty,
     Eft,
     Eps,
+    Flexiti,
     Fps,
     Evoucher,
     Giropay,
@@ -1933,6 +2026,7 @@ pub enum PaymentMethodType {
     SamsungPay,
     Sepa,
     SepaBankTransfer,
+    Skrill,
     Sofort,
     Swish,
     TouchNGo,
@@ -1960,6 +2054,7 @@ pub enum PaymentMethodType {
     InstantBankTransferFinland,
     InstantBankTransferPoland,
     RevolutPay,
+    IndonesianBankTransfer,
 }
 
 impl PaymentMethodType {
@@ -1980,7 +2075,6 @@ impl PaymentMethodType {
             Self::AliPayHk => "AlipayHK",
             Self::Alma => "Alma",
             Self::AmazonPay => "Amazon Pay",
-            Self::Skrill => "Skrill",
             Self::Paysera => "Paysera",
             Self::ApplePay => "Apple Pay",
             Self::Atome => "Atome",
@@ -1989,9 +2083,11 @@ impl PaymentMethodType {
             Self::Benefit => "Benefit",
             Self::Bizum => "Bizum",
             Self::Blik => "BLIK",
+            Self::Bluecode => "Bluecode",
             Self::Boleto => "Boleto Bancário",
             Self::BcaBankTransfer => "BCA Bank Transfer",
             Self::BniVa => "BNI Virtual Account",
+            Self::Breadpay => "Breadpay",
             Self::BriVa => "BRI Virtual Account",
             Self::CardRedirect => "Card Redirect",
             Self::CimbVa => "CIMB Virtual Account",
@@ -2008,6 +2104,7 @@ impl PaymentMethodType {
             Self::Efecty => "Efecty",
             Self::Eft => "EFT",
             Self::Eps => "EPS",
+            Self::Flexiti => "Flexiti",
             Self::Fps => "FPS",
             Self::Evoucher => "Evoucher",
             Self::Giropay => "Giropay",
@@ -2055,6 +2152,7 @@ impl PaymentMethodType {
             Self::Sepa => "SEPA Direct Debit",
             Self::SepaBankTransfer => "SEPA Bank Transfer",
             Self::Sofort => "Sofort",
+            Self::Skrill => "Skrill",
             Self::Swish => "Swish",
             Self::TouchNGo => "Touch 'n Go",
             Self::Trustly => "Trustly",
@@ -2077,6 +2175,7 @@ impl PaymentMethodType {
             Self::OpenBankingPIS => "Open Banking PIS",
             Self::DirectCarrierBilling => "Direct Carrier Billing",
             Self::RevolutPay => "RevolutPay",
+            Self::IndonesianBankTransfer => "Indonesian Bank Transfer",
         };
         display_name.to_string()
     }
@@ -2125,6 +2224,34 @@ pub enum PaymentMethod {
     MobilePayment,
 }
 
+/// Indicates the gateway system through which the payment is processed.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum GatewaySystem {
+    #[default]
+    Direct,
+    UnifiedConnectorService,
+}
+
 /// The type of the payment that differentiates between normal and various types of mandate payments. Use 'setup_mandate' in case of zero auth flow.
 #[derive(
     Clone,
@@ -2171,6 +2298,37 @@ pub enum ScaExemptionType {
     #[default]
     LowValue,
     TransactionRiskAnalysis,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+/// Describes the channel through which the payment was initiated.
+pub enum PaymentChannel {
+    #[default]
+    Ecommerce,
+    MailOrder,
+    TelephoneOrder,
+    #[serde(untagged)]
+    #[strum(default)]
+    Other(String),
 }
 
 #[derive(
@@ -2508,6 +2666,8 @@ pub enum DisputeStage {
     #[default]
     Dispute,
     PreArbitration,
+    Arbitration,
+    DisputeReversal,
 }
 
 /// Status of the dispute
@@ -2692,9 +2852,8 @@ pub enum CountryAlpha2 {
 #[strum(serialize_all = "snake_case")]
 pub enum RequestIncrementalAuthorization {
     True,
-    False,
     #[default]
-    Default,
+    False,
 }
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Debug, Serialize, Deserialize, strum::Display, ToSchema,)]
@@ -3006,6 +3165,7 @@ pub enum FileUploadProvider {
     Router,
     Stripe,
     Checkout,
+    Worldpayvantiv,
 }
 
 #[derive(
@@ -7155,6 +7315,26 @@ pub enum MerchantDecision {
     Rejected,
     AutoRefunded,
 }
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    strum::EnumIter,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum TaxStatus {
+    Taxable,
+    Exempt,
+}
 
 #[derive(
     Clone,
@@ -7471,6 +7651,15 @@ pub enum TransactionStatus {
     InformationOnly,
 }
 
+impl TransactionStatus {
+    pub fn is_pending(self) -> bool {
+        matches!(
+            self,
+            Self::ChallengeRequired | Self::ChallengeRequiredDecoupledAuthentication
+        )
+    }
+}
+
 #[derive(
     Clone,
     Copy,
@@ -7510,6 +7699,8 @@ pub enum PermissionGroup {
     ReconOpsView,
     ReconOpsManage,
     InternalManage,
+    ThemeView,
+    ThemeManage,
 }
 
 #[derive(Clone, Debug, serde::Serialize, PartialEq, Eq, Hash, strum::EnumIter)]
@@ -7523,6 +7714,7 @@ pub enum ParentGroup {
     ReconReports,
     Account,
     Internal,
+    Theme,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, serde::Serialize)]
@@ -7553,6 +7745,7 @@ pub enum Resource {
     ReconConfig,
     RevenueRecovery,
     InternalConnector,
+    Theme,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, serde::Serialize, Hash)]
@@ -7950,6 +8143,7 @@ pub enum UIWidgetFormLayout {
     Clone,
     Copy,
     Debug,
+    Default,
     Eq,
     PartialEq,
     serde::Deserialize,
@@ -7962,6 +8156,7 @@ pub enum UIWidgetFormLayout {
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum DeleteStatus {
+    #[default]
     Active,
     Redacted,
 }
@@ -8329,7 +8524,7 @@ pub enum NetworkTokenizationToggle {
     Skip,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, ToSchema)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum GooglePayAuthMethod {
     /// Contain pan data only
@@ -8466,6 +8661,8 @@ pub enum ProcessTrackerRunner {
     AttachPayoutAccountWorkflow,
     PaymentMethodStatusUpdateWorkflow,
     PassiveRecoveryWorkflow,
+    ProcessDisputeWorkflow,
+    DisputeListWorkflow,
 }
 
 #[derive(Debug)]
@@ -8511,7 +8708,6 @@ pub enum TokenDataType {
 
 #[derive(
     Clone,
-    Copy,
     Debug,
     Default,
     Eq,
@@ -8538,6 +8734,9 @@ pub enum RoutingApproach {
     StraightThroughRouting,
     #[default]
     DefaultFallback,
+    #[serde(untagged)]
+    #[strum(default)]
+    Other(String),
 }
 
 impl RoutingApproach {

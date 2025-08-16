@@ -17,6 +17,7 @@ use crate::{
         payments::{
             self, access_token, customers, helpers, tokenization, transformers, PaymentData,
         },
+        unified_connector_service,
     },
     logger,
     routes::{metrics, SessionState},
@@ -89,8 +90,6 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
 
-        // if self.should_proceed_with_authorize() {
-        // self.decide_authentication_type();
         logger::debug!(auth_type=?self.auth_type);
         let mut auth_router_data = services::execute_connector_processing_step(
             state,
@@ -105,12 +104,9 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
 
         // External vault proxy doesn't use integrity checks
         auth_router_data.integrity_check = Ok(());
-        metrics::PAYMENT_COUNT.add(1, &[]); // Move outside of the if block
+        metrics::PAYMENT_COUNT.add(1, &[]);
 
         Ok(auth_router_data)
-        // } else {
-        //     Ok(self.clone())
-        // }
     }
 
     async fn add_access_token<'a>(
@@ -120,7 +116,8 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         merchant_context: &domain::MerchantContext,
         creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
-        todo!()
+        access_token::add_access_token(state, connector, merchant_context, self, creds_identifier)
+            .await
     }
 
     async fn add_session_token<'a>(
@@ -131,7 +128,28 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
     where
         Self: Sized,
     {
-        todo!()
+        let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
+            api::AuthorizeSessionToken,
+            types::AuthorizeSessionTokenData,
+            types::PaymentsResponseData,
+        > = connector.connector.get_connector_integration();
+        let authorize_data = &types::PaymentsAuthorizeSessionTokenRouterData::foreign_from((
+            &self,
+            types::AuthorizeSessionTokenData::foreign_from(&self),
+        ));
+        let resp = services::execute_connector_processing_step(
+            state,
+            connector_integration,
+            authorize_data,
+            payments::CallConnectorAction::Trigger,
+            None,
+            None,
+        )
+        .await
+        .to_payment_failed_response()?;
+        let mut router_data = self;
+        router_data.session_token = resp.session_token;
+        Ok(router_data)
     }
 
     async fn add_payment_method_token<'a>(
@@ -351,7 +369,52 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         merchant_context: &domain::MerchantContext,
     ) -> RouterResult<()> {
-        // External vault proxy doesn't use UCS - use standard connector processing
+        let client = state
+            .grpc_client
+            .unified_connector_service_client
+            .clone()
+            .ok_or(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to fetch Unified Connector Service client")?;
+
+        let payment_authorize_request =
+            payments_grpc::PaymentServiceAuthorizeRequest::foreign_try_from(&*self)
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to construct Payment Authorize Request")?;
+
+        let connector_auth_metadata =
+            unified_connector_service::build_unified_connector_service_auth_metadata(
+                merchant_connector_account,
+                merchant_context,
+            )
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to construct request metadata")?;
+
+        let response = client
+            .payment_authorize(
+                payment_authorize_request,
+                connector_auth_metadata,
+                state.get_grpc_headers(),
+            )
+            .await
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to authorize payment")?;
+
+        let payment_authorize_response = response.into_inner();
+
+        let (status, router_data_response, status_code) =
+            unified_connector_service::handle_unified_connector_service_response_for_payment_authorize(
+                payment_authorize_response.clone(),
+            )
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to deserialize UCS response")?;
+
+        self.status = status;
+        self.response = router_data_response;
+        self.raw_connector_response = payment_authorize_response
+            .raw_connector_response
+            .map(masking::Secret::new);
+        self.connector_http_status_code = Some(status_code);
+
         Ok(())
     }
 }

@@ -2,16 +2,16 @@ pub mod transformers;
 
 use std::sync::LazyLock;
 
-use common_enums::enums;
+use base64::Engine;
+use common_enums::{enums, CardNetwork};
 use common_utils::{
+    crypto,
     errors::CustomResult,
-    ext_traits::BytesExt,
+    ext_traits::{BytesExt, StringExt},
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -24,7 +24,8 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
@@ -48,15 +49,11 @@ use transformers as silverflow;
 use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
-pub struct Silverflow {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
-}
+pub struct Silverflow;
 
 impl Silverflow {
     pub fn new() -> &'static Self {
-        &Self {
-            amount_converter: &StringMinorUnitForConnector,
-        }
+        &Self
     }
 }
 
@@ -76,7 +73,83 @@ impl api::PaymentToken for Silverflow {}
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Silverflow
 {
-    // Not Implemented (R)
+    fn get_headers(
+        &self,
+        req: &RouterData<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &RouterData<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}/processorTokens", self.base_url(connectors)))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &RouterData<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        // Create a simplified tokenization request directly from the tokenization data
+        let connector_req = silverflow::SilverflowTokenizationRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &RouterData<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::TokenizationType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::TokenizationType::get_headers(self, req, connectors)?)
+                .set_body(types::TokenizationType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &RouterData<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<
+        RouterData<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>,
+        errors::ConnectorError,
+    > {
+        let response: silverflow::SilverflowTokenizationResponse = res
+            .response
+            .parse_struct("Silverflow TokenizationResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
 }
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Silverflow
@@ -88,10 +161,31 @@ where
         req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            self.get_content_type().to_string().into(),
-        )];
+        let mut header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                self.get_content_type().to_string().into(),
+            ),
+            (
+                headers::ACCEPT.to_string(),
+                "application/json".to_string().into(),
+            ),
+        ];
+
+        // Add Idempotency-Key for POST requests (Authorize, Capture, Execute, PaymentMethodToken, Void)
+        let flow_type = std::any::type_name::<Flow>();
+        if flow_type.contains("Authorize")
+            || flow_type.contains("Capture")
+            || flow_type.contains("Execute")
+            || flow_type.contains("PaymentMethodToken")
+            || flow_type.contains("Void")
+        {
+            header.push((
+                "Idempotency-Key".to_string(),
+                format!("hs_{}", req.payment_id).into(),
+            ));
+        }
+
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
         Ok(header)
@@ -104,11 +198,8 @@ impl ConnectorCommon for Silverflow {
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        // todo!()
+        // Silverflow processes amounts in minor units (cents)
         api::CurrencyUnit::Minor
-        //    TODO! Check connector documentation, on which unit they are processing the currency.
-        //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
-        //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -125,9 +216,11 @@ impl ConnectorCommon for Silverflow {
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = silverflow::SilverflowAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let auth_string = format!("{}:{}", auth.api_key.expose(), auth.api_secret.expose());
+        let encoded = common_utils::consts::BASE64_ENGINE.encode(auth_string.as_bytes());
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
+            format!("Basic {encoded}").into_masked(),
         )])
     }
 
@@ -146,41 +239,38 @@ impl ConnectorCommon for Silverflow {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: response.error.code,
+            message: response.error.message,
+            reason: response
+                .error
+                .details
+                .map(|d| format!("Field: {}, Issue: {}", d.field, d.issue)),
             attempt_status: None,
             connector_transaction_id: None,
-            network_advice_code: None,
             network_decline_code: None,
+            network_advice_code: None,
             network_error_message: None,
         })
     }
 }
 
 impl ConnectorValidation for Silverflow {
-    fn validate_mandate_payment(
+    fn validate_connector_against_payment_request(
         &self,
-        _pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
+        capture_method: Option<enums::CaptureMethod>,
+        _payment_method: enums::PaymentMethod,
+        _pmt: Option<enums::PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
-        match pm_data {
-            PaymentMethodData::Card(_) => Err(errors::ConnectorError::NotImplemented(
-                "validate_mandate_payment does not support cards".to_string(),
-            )
-            .into()),
-            _ => Ok(()),
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                utils::construct_not_implemented_error_report(capture_method, self.id()),
+            ),
+            enums::CaptureMethod::SequentialAutomatic => Err(
+                utils::construct_not_implemented_error_report(capture_method, self.id()),
+            ),
         }
-    }
-
-    fn validate_psync_reference_id(
-        &self,
-        _data: &PaymentsSyncData,
-        _is_three_ds: bool,
-        _status: enums::AttemptStatus,
-        _connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        Ok(())
     }
 }
 
@@ -211,9 +301,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     fn get_url(
         &self,
         _req: &PaymentsAuthorizeRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!("{}/charges", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -221,13 +311,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = utils::convert_amount(
-            self.amount_converter,
-            req.request.minor_amount,
-            req.request.currency,
-        )?;
-
-        let connector_router_data = silverflow::SilverflowRouterData::from((amount, req));
+        let connector_router_data =
+            silverflow::SilverflowRouterData::from((req.request.minor_amount, req));
         let connector_req =
             silverflow::SilverflowPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -298,10 +383,21 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Sil
 
     fn get_url(
         &self,
-        _req: &PaymentsSyncRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let connector_payment_id = req
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "connector_transaction_id for payment sync",
+            })?;
+        Ok(format!(
+            "{}/charges/{}",
+            self.base_url(connectors),
+            connector_payment_id
+        ))
     }
 
     fn build_request(
@@ -362,18 +458,24 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
 
     fn get_url(
         &self,
-        _req: &PaymentsCaptureRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsCaptureRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let connector_payment_id = &req.request.connector_transaction_id;
+        Ok(format!(
+            "{}/charges/{}/clear",
+            self.base_url(connectors),
+            connector_payment_id
+        ))
     }
 
     fn get_request_body(
         &self,
-        _req: &PaymentsCaptureRouterData,
+        req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
+        let connector_req = silverflow::SilverflowCaptureRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -402,7 +504,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: silverflow::SilverflowPaymentsResponse = res
+        let response: silverflow::SilverflowCaptureResponse = res
             .response
             .parse_struct("Silverflow PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -424,7 +526,89 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     }
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Silverflow {}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Silverflow {
+    fn get_headers(
+        &self,
+        req: &RouterData<Void, PaymentsCancelData, PaymentsResponseData>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &RouterData<Void, PaymentsCancelData, PaymentsResponseData>,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let connector_payment_id = &req.request.connector_transaction_id;
+        Ok(format!(
+            "{}/charges/{}/reverse",
+            self.base_url(connectors),
+            connector_payment_id
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &RouterData<Void, PaymentsCancelData, PaymentsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = silverflow::SilverflowVoidRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &RouterData<Void, PaymentsCancelData, PaymentsResponseData>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
+                .set_body(types::PaymentsVoidType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &RouterData<Void, PaymentsCancelData, PaymentsResponseData>,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<
+        RouterData<Void, PaymentsCancelData, PaymentsResponseData>,
+        errors::ConnectorError,
+    > {
+        let response: silverflow::SilverflowVoidResponse = res
+            .response
+            .parse_struct("Silverflow PaymentsVoidResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
 
 impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Silverflow {
     fn get_headers(
@@ -441,10 +625,15 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Silverf
 
     fn get_url(
         &self,
-        _req: &RefundsRouterData<Execute>,
-        _connectors: &Connectors,
+        req: &RefundsRouterData<Execute>,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let connector_payment_id = &req.request.connector_transaction_id;
+        Ok(format!(
+            "{}/charges/{}/refund",
+            self.base_url(connectors),
+            connector_payment_id
+        ))
     }
 
     fn get_request_body(
@@ -452,13 +641,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Silverf
         req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let refund_amount = utils::convert_amount(
-            self.amount_converter,
-            req.request.minor_refund_amount,
-            req.request.currency,
-        )?;
-
-        let connector_router_data = silverflow::SilverflowRouterData::from((refund_amount, req));
+        let connector_router_data =
+            silverflow::SilverflowRouterData::from((req.request.minor_refund_amount, req));
         let connector_req = silverflow::SilverflowRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -525,10 +709,19 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Silverflo
 
     fn get_url(
         &self,
-        _req: &RefundSyncRouterData,
-        _connectors: &Connectors,
+        req: &RefundSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        // According to Silverflow API documentation, refunds are actions on charges
+        // Endpoint: GET /charges/{chargeKey}/actions/{actionKey}
+        let charge_key = &req.request.connector_transaction_id;
+        let action_key = &req.request.refund_id;
+        Ok(format!(
+            "{}/charges/{}/actions/{}",
+            self.base_url(connectors),
+            charge_key,
+            action_key
+        ))
     }
 
     fn build_request(
@@ -581,36 +774,195 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Silverflo
 impl webhooks::IncomingWebhook for Silverflow {
     fn get_webhook_object_reference_id(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook_body = String::from_utf8(request.body.to_vec())
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+
+        let webhook_event: silverflow::SilverflowWebhookEvent = webhook_body
+            .parse_struct("SilverflowWebhookEvent")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+
+        // For payments, use charge_key; for refunds, use refund_key
+        if let Some(charge_key) = webhook_event.event_data.charge_key {
+            Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(charge_key),
+            ))
+        } else if let Some(refund_key) = webhook_event.event_data.refund_key {
+            Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                api_models::webhooks::RefundIdType::ConnectorRefundId(refund_key),
+            ))
+        } else {
+            Err(errors::ConnectorError::WebhookReferenceIdNotFound.into())
+        }
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook_body = String::from_utf8(request.body.to_vec())
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+
+        let webhook_event: silverflow::SilverflowWebhookEvent = webhook_body
+            .parse_struct("SilverflowWebhookEvent")
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+
+        match webhook_event.event_type.as_str() {
+            "charge.authorization.succeeded" => {
+                // Handle manual capture flow: check if clearing is still pending
+                if let Some(status) = webhook_event.event_data.status {
+                    match (&status.authorization, &status.clearing) {
+                        (
+                            silverflow::SilverflowAuthorizationStatus::Approved,
+                            silverflow::SilverflowClearingStatus::Pending,
+                        ) => {
+                            // Manual capture: authorization succeeded, but clearing is pending
+                            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationSuccess)
+                        }
+                        (
+                            silverflow::SilverflowAuthorizationStatus::Approved,
+                            silverflow::SilverflowClearingStatus::Cleared,
+                        ) => {
+                            // Automatic capture: authorization and clearing both completed
+                            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess)
+                        }
+                        _ => {
+                            // Fallback for other authorization states
+                            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationSuccess)
+                        }
+                    }
+                } else {
+                    // Fallback when status is not available
+                    Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationSuccess)
+                }
+            }
+            "charge.authorization.failed" => {
+                Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure)
+            }
+            "charge.clearing.succeeded" => {
+                Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess)
+            }
+            "charge.clearing.failed" => {
+                Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure)
+            }
+            "refund.succeeded" => Ok(api_models::webhooks::IncomingWebhookEvent::RefundSuccess),
+            "refund.failed" => Ok(api_models::webhooks::IncomingWebhookEvent::RefundFailure),
+            _ => Ok(api_models::webhooks::IncomingWebhookEvent::EventNotSupported),
+        }
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook_body = String::from_utf8(request.body.to_vec())
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+
+        let webhook_event: silverflow::SilverflowWebhookEvent = webhook_body
+            .parse_struct("SilverflowWebhookEvent")
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+
+        Ok(Box::new(webhook_event))
+    }
+
+    fn get_webhook_source_verification_algorithm(
+        &self,
+        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
+        Ok(Box::new(crypto::HmacSha256))
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let signature = request
+            .headers
+            .get("X-Silverflow-Signature")
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?
+            .to_str()
+            .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
+
+        hex::decode(signature).change_context(errors::ConnectorError::WebhookSignatureNotFound)
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        Ok(request.body.to_vec())
     }
 }
 
 static SILVERFLOW_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
-    LazyLock::new(SupportedPaymentMethods::new);
+    LazyLock::new(|| {
+        let supported_capture_methods = vec![
+            enums::CaptureMethod::Automatic,
+            enums::CaptureMethod::Manual,
+        ];
+
+        let supported_card_networks = vec![
+            CardNetwork::Visa,
+            CardNetwork::Mastercard,
+            CardNetwork::AmericanExpress,
+            CardNetwork::Discover,
+        ];
+
+        let mut silverflow_supported_payment_methods = SupportedPaymentMethods::new();
+
+        silverflow_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Credit,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::NotSupported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_networks.clone(),
+                        }
+                    }),
+                ),
+            },
+        );
+
+        silverflow_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Debit,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::NotSupported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_networks.clone(),
+                        }
+                    }),
+                ),
+            },
+        );
+
+        silverflow_supported_payment_methods
+    });
 
 static SILVERFLOW_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Silverflow",
-    description: "Silverflow connector",
+    description: "Silverflow is a global payment processor that provides secure and reliable payment processing services with support for multiple capture methods and 3DS authentication.",
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
 };
 
-static SILVERFLOW_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+static SILVERFLOW_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
+    [enums::EventClass::Payments, enums::EventClass::Refunds];
 
 impl ConnectorSpecifications for Silverflow {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

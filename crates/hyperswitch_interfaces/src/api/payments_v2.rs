@@ -5,16 +5,16 @@ use hyperswitch_domain_models::{
     router_flow_types::payments::{
         Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
         CreateConnectorCustomer, CreateOrder, ExternalVaultProxy, IncrementalAuthorization, PSync,
-        PaymentMethodToken, PostProcessing, PostSessionTokens, PreProcessing, Reject,
-        SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
+        PaymentMethodToken, PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing,
+        Reject, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
     },
     router_request_types::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
         CreateOrderRequestData, ExternalVaultProxyPaymentsData, PaymentMethodTokenizationData,
-        PaymentsApproveData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
-        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
+        PaymentsApproveData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
+        PaymentsRejectData, PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
         PaymentsUpdateMetadataData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
     },
     router_response_types::{PaymentsResponseData, TaxCalculationResponseData},
@@ -50,6 +50,17 @@ pub trait PaymentSyncV2:
 /// trait PaymentVoidV2
 pub trait PaymentVoidV2:
     ConnectorIntegrationV2<Void, PaymentFlowData, PaymentsCancelData, PaymentsResponseData>
+{
+}
+
+/// trait PaymentPostCaptureVoidV2
+pub trait PaymentPostCaptureVoidV2:
+    ConnectorIntegrationV2<
+    PostCaptureVoid,
+    PaymentFlowData,
+    PaymentsCancelPostCaptureData,
+    PaymentsResponseData,
+>
 {
 }
 
@@ -221,6 +232,7 @@ pub trait PaymentV2:
     + PaymentSyncV2
     + PaymentCaptureV2
     + PaymentVoidV2
+    + PaymentPostCaptureVoidV2
     + PaymentApproveV2
     + PaymentRejectV2
     + MandateSetupV2

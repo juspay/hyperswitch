@@ -1447,7 +1447,8 @@ pub struct ResponsePaymentMethodTypes {
     /// The list of card networks enabled, if applicable for a payment method type
     pub card_networks: Option<Vec<CardNetworkTypes>>,
 
-    /// The list of banks enabled, if applicable for a payment method type
+    #[schema(deprecated)]
+    /// The list of banks enabled, if applicable for a payment method type . To be deprecated soon.
     pub bank_names: Option<Vec<BankCodeResponse>>,
 
     /// The Bank debit payment method information, if applicable for a payment method type.
@@ -1783,7 +1784,7 @@ impl<'de> serde::Deserialize<'de> for PaymentMethodListRequest {
 //List Payment Method
 #[derive(Debug, Clone, serde::Serialize, Default, ToSchema)]
 #[serde(deny_unknown_fields)]
-pub struct PaymentMethodListRequest {
+pub struct ListMethodsForPaymentMethodsRequest {
     /// This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK
     #[schema(max_length = 30, min_length = 30, example = "secret_k2uj3he2893eiu2d")]
     pub client_secret: Option<String>,
@@ -1814,7 +1815,7 @@ pub struct PaymentMethodListRequest {
 }
 
 #[cfg(feature = "v2")]
-impl<'de> serde::Deserialize<'de> for PaymentMethodListRequest {
+impl<'de> serde::Deserialize<'de> for ListMethodsForPaymentMethodsRequest {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -1822,7 +1823,7 @@ impl<'de> serde::Deserialize<'de> for PaymentMethodListRequest {
         struct FieldVisitor;
 
         impl<'de> de::Visitor<'de> for FieldVisitor {
-            type Value = PaymentMethodListRequest;
+            type Value = ListMethodsForPaymentMethodsRequest;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 formatter.write_str("Failed while deserializing as map")
@@ -1832,7 +1833,7 @@ impl<'de> serde::Deserialize<'de> for PaymentMethodListRequest {
             where
                 A: de::MapAccess<'de>,
             {
-                let mut output = PaymentMethodListRequest::default();
+                let mut output = ListMethodsForPaymentMethodsRequest::default();
 
                 while let Some(key) = map.next_key()? {
                     match key {
@@ -2627,6 +2628,7 @@ impl PaymentMethodRecord {
                 zip: self.billing_address_zip.clone(),
                 first_name: self.billing_address_first_name.clone(),
                 last_name: self.billing_address_last_name.clone(),
+                origin_zip: None,
             })
         } else {
             None

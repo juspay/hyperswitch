@@ -45,7 +45,6 @@ impl ValidateStatusForOperation for ExternalVaultProxyPaymentIntent {
         intent_status: common_enums::IntentStatus,
     ) -> Result<(), errors::ApiErrorResponse> {
         match intent_status {
-            // TODO: Review and adjust valid statuses for external vault proxy operations
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Processing => Ok(()),
@@ -57,7 +56,10 @@ impl ValidateStatusForOperation for ExternalVaultProxyPaymentIntent {
             | common_enums::IntentStatus::RequiresCapture
             | common_enums::IntentStatus::PartiallyCaptured
             | common_enums::IntentStatus::RequiresConfirmation
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => {
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::CancelledPostCapture
+            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
+            | common_enums::IntentStatus::Expired => {
                 Err(errors::ApiErrorResponse::PaymentUnexpectedState {
                     current_flow: format!("{self:?}"),
                     field_name: "status".to_string(),

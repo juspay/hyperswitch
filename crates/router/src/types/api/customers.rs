@@ -39,6 +39,7 @@ impl ForeignFrom<(domain::Customer, Option<payments::AddressDetails>)> for Custo
             metadata: cust.metadata,
             address,
             default_payment_method_id: cust.default_payment_method_id,
+            tax_registration_id: cust.tax_registration_id,
         }
         .into()
     }
@@ -61,6 +62,7 @@ impl ForeignFrom<customer::Customer> for CustomerResponse {
             default_billing_address: None,
             default_shipping_address: None,
             default_payment_method_id: cust.default_payment_method_id,
+            tax_registration_id: cust.tax_registration_id,
         }
         .into()
     }

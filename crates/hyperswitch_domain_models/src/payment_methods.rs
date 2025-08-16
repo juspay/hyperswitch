@@ -1038,8 +1038,10 @@ impl TryFrom<(payment_methods::PaymentMethodRecord, id_type::MerchantId)>
                     zip: record.billing_address_zip,
                     first_name: record.billing_address_first_name,
                     last_name: record.billing_address_last_name,
+                    origin_zip: None,
                 }),
                 metadata: None,
+                tax_registration_id: None,
             },
             connector_customer_details,
         })

@@ -5,7 +5,7 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentConfirmData;
-use masking::ExposeInterface;
+use masking::{ExposeInterface, Secret};
 use unified_connector_service_client::payments as payments_grpc;
 
 // use router_env::tracing::Instrument;
@@ -20,6 +20,7 @@ use crate::{
         unified_connector_service::{
             build_unified_connector_service_auth_metadata,
             handle_unified_connector_service_response_for_payment_authorize,
+            handle_unified_connector_service_response_for_payment_repeat,
         },
     },
     logger,
@@ -247,8 +248,14 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         merchant_context: &domain::MerchantContext,
         creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
-        access_token::add_access_token(state, connector, merchant_context, self, creds_identifier)
-            .await
+        Box::pin(access_token::add_access_token(
+            state,
+            connector,
+            merchant_context,
+            self,
+            creds_identifier,
+        ))
+        .await
     }
 
     async fn add_session_token<'a>(
@@ -351,34 +358,34 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
                 // Check if the connector supports mandate payment
                 // if the payment_method_type does not support mandate for the given connector, downgrade the setup future usage to on session
-                // if self.request.setup_future_usage
-                //     == Some(diesel_models::enums::FutureUsage::OffSession)
-                //     && !self
-                //         .request
-                //         .payment_method_type
-                //         .and_then(|payment_method_type| {
-                //             state
-                //                 .conf
-                //                 .mandates
-                //                 .supported_payment_methods
-                //                 .0
-                //                 .get(&enums::PaymentMethod::from(payment_method_type))
-                //                 .and_then(|supported_pm_for_mandates| {
-                //                     supported_pm_for_mandates.0.get(&payment_method_type).map(
-                //                         |supported_connector_for_mandates| {
-                //                             supported_connector_for_mandates
-                //                                 .connector_list
-                //                                 .contains(&connector.connector_name)
-                //                         },
-                //                     )
-                //                 })
-                //         })
-                //         .unwrap_or(false)
-                // {
-                //     // downgrade the setup future usage to on session
-                //     self.request.setup_future_usage =
-                //         Some(diesel_models::enums::FutureUsage::OnSession);
-                // };
+                if self.request.setup_future_usage
+                    == Some(diesel_models::enums::FutureUsage::OffSession)
+                    && !self
+                        .request
+                        .payment_method_type
+                        .and_then(|payment_method_type| {
+                            state
+                                .conf
+                                .mandates
+                                .supported_payment_methods
+                                .0
+                                .get(&enums::PaymentMethod::from(payment_method_type))
+                                .and_then(|supported_pm_for_mandates| {
+                                    supported_pm_for_mandates.0.get(&payment_method_type).map(
+                                        |supported_connector_for_mandates| {
+                                            supported_connector_for_mandates
+                                                .connector_list
+                                                .contains(&connector.connector_name)
+                                        },
+                                    )
+                                })
+                        })
+                        .unwrap_or(false)
+                {
+                    // downgrade the setup future usage to on session
+                    self.request.setup_future_usage =
+                        Some(diesel_models::enums::FutureUsage::OnSession);
+                };
 
                 if crate::connector::utils::PaymentsAuthorizeRequestData::is_customer_initiated_mandate_payment(
                     &self.request,
@@ -515,49 +522,23 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         merchant_context: &domain::MerchantContext,
     ) -> RouterResult<()> {
-        let client = state
-            .grpc_client
-            .unified_connector_service_client
-            .clone()
-            .ok_or(ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to fetch Unified Connector Service client")?;
-
-        let payment_authorize_request =
-            payments_grpc::PaymentServiceAuthorizeRequest::foreign_try_from(self)
-                .change_context(ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to construct Payment Authorize Request")?;
-
-        let connector_auth_metadata = build_unified_connector_service_auth_metadata(
-            merchant_connector_account,
-            merchant_context,
-        )
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to construct request metadata")?;
-
-        let response = client
-            .payment_authorize(
-                payment_authorize_request,
-                connector_auth_metadata,
-                state.get_grpc_headers(),
+        if self.request.mandate_id.is_some() {
+            call_unified_connector_service_repeat_payment(
+                self,
+                state,
+                merchant_connector_account,
+                merchant_context,
             )
             .await
-            .change_context(ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to authorize payment")?;
-
-        let payment_authorize_response = response.into_inner();
-
-        let (status, router_data_response) =
-            handle_unified_connector_service_response_for_payment_authorize(
-                payment_authorize_response.clone(),
+        } else {
+            call_unified_connector_service_authorize(
+                self,
+                state,
+                merchant_connector_account,
+                merchant_context,
             )
-            .change_context(ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to deserialize UCS response")?;
-
-        self.status = status;
-        self.response = router_data_response;
-        self.raw_connector_response = payment_authorize_response.raw_connector_response;
-
-        Ok(())
+            .await
+        }
     }
 }
 
@@ -843,4 +824,118 @@ async fn process_capture_flow(
     router_data.status = updated_status;
     router_data.response = Ok(updated_response);
     Ok(router_data)
+}
+
+async fn call_unified_connector_service_authorize(
+    router_data: &mut types::RouterData<
+        api::Authorize,
+        types::PaymentsAuthorizeData,
+        types::PaymentsResponseData,
+    >,
+    state: &SessionState,
+    #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
+    #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
+    merchant_context: &domain::MerchantContext,
+) -> RouterResult<()> {
+    let client = state
+        .grpc_client
+        .unified_connector_service_client
+        .clone()
+        .ok_or(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch Unified Connector Service client")?;
+
+    let payment_authorize_request =
+        payments_grpc::PaymentServiceAuthorizeRequest::foreign_try_from(&*router_data)
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to construct Payment Authorize Request")?;
+
+    let connector_auth_metadata =
+        build_unified_connector_service_auth_metadata(merchant_connector_account, merchant_context)
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to construct request metadata")?;
+
+    let response = client
+        .payment_authorize(
+            payment_authorize_request,
+            connector_auth_metadata,
+            state.get_grpc_headers(),
+        )
+        .await
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to authorize payment")?;
+
+    let payment_authorize_response = response.into_inner();
+
+    let (status, router_data_response, status_code) =
+        handle_unified_connector_service_response_for_payment_authorize(
+            payment_authorize_response.clone(),
+        )
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to deserialize UCS response")?;
+
+    router_data.status = status;
+    router_data.response = router_data_response;
+    router_data.raw_connector_response = payment_authorize_response
+        .raw_connector_response
+        .map(Secret::new);
+    router_data.connector_http_status_code = Some(status_code);
+
+    Ok(())
+}
+
+async fn call_unified_connector_service_repeat_payment(
+    router_data: &mut types::RouterData<
+        api::Authorize,
+        types::PaymentsAuthorizeData,
+        types::PaymentsResponseData,
+    >,
+    state: &SessionState,
+    #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
+    #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
+    merchant_context: &domain::MerchantContext,
+) -> RouterResult<()> {
+    let client = state
+        .grpc_client
+        .unified_connector_service_client
+        .clone()
+        .ok_or(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch Unified Connector Service client")?;
+
+    let payment_repeat_request =
+        payments_grpc::PaymentServiceRepeatEverythingRequest::foreign_try_from(router_data)
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to construct Payment Authorize Request")?;
+
+    let connector_auth_metadata =
+        build_unified_connector_service_auth_metadata(merchant_connector_account, merchant_context)
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to construct request metadata")?;
+
+    let response = client
+        .payment_repeat(
+            payment_repeat_request,
+            connector_auth_metadata,
+            state.get_grpc_headers(),
+        )
+        .await
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to authorize payment")?;
+
+    let payment_repeat_response = response.into_inner();
+
+    let (status, router_data_response, status_code) =
+        handle_unified_connector_service_response_for_payment_repeat(
+            payment_repeat_response.clone(),
+        )
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to deserialize UCS response")?;
+
+    router_data.status = status;
+    router_data.response = router_data_response;
+    router_data.raw_connector_response = payment_repeat_response
+        .raw_connector_response
+        .map(Secret::new);
+    router_data.connector_http_status_code = Some(status_code);
+
+    Ok(())
 }

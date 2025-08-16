@@ -1,12 +1,13 @@
 // This file is the default. To override, add to connector.js
-import { getCustomExchange, getCurrency } from "./Modifiers";
+import { getCurrency, getCustomExchange } from "./Modifiers";
 
 export const customerAcceptance = {
   acceptance_type: "offline",
   accepted_at: "1963-05-03T04:07:52.723Z",
   online: {
     ip_address: "127.0.0.1",
-    user_agent: "amet irure esse",
+    user_agent:
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/22F76 [FBAN/FBIOS;FBAV/520.0.0.38.101;FBBV/756351453;FBDV/iPhone14,7;FBMD/iPhone;FBSN/iOS;FBSV/18.5;FBSS/3;FBID/phone;FBLC/fr_FR;FBOP/5;FBRV/760683563;IABMV/1]",
   },
 };
 
@@ -33,7 +34,7 @@ const PaymentMethodCardDetails = {
   card_holder_name: "Joseph Doe",
 };
 
-const singleUseMandateData = {
+export const singleUseMandateData = {
   customer_acceptance: customerAcceptance,
   mandate_type: {
     single_use: {
@@ -43,7 +44,7 @@ const singleUseMandateData = {
   },
 };
 
-const multiUseMandateData = {
+export const multiUseMandateData = {
   customer_acceptance: customerAcceptance,
   mandate_type: {
     multi_use: {
@@ -191,6 +192,12 @@ export const payment_methods_enabled = [
         installment_payment_enabled: true,
       },
       {
+        payment_method_type: "ach",
+        minimum_amount: 0,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+      },
+      {
         payment_method_type: "instant_bank_transfer_finland",
         minimum_amount: 1,
         maximum_amount: 68607706,
@@ -324,6 +331,14 @@ export const payment_methods_enabled = [
         installment_payment_enabled: true,
         payment_experience: "invoke_sdk_client",
       },
+      {
+        payment_method_type: "skrill",
+        payment_experience: "redirect_to_url",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
     ],
   },
 ];
@@ -342,6 +357,7 @@ export const connectorDetails = {
           },
         },
       }),
+
     Pix: getCustomExchange({
       Request: {
         payment_method: "bank_transfer",
@@ -349,6 +365,31 @@ export const connectorDetails = {
         payment_method_data: {
           bank_transfer: {
             pix: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "BR",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
+        currency: "BRL",
+      },
+    }),
+    Ach: getCustomExchange({
+      Request: {
+        payment_method: "bank_transfer",
+        payment_method_type: "ach",
+        payment_method_data: {
+          bank_transfer: {
+            ach_bank_transfer: {},
           },
         },
         billing: {
@@ -1523,6 +1564,110 @@ export const connectorDetails = {
         },
       },
     },
+    DDCRaceConditionServerSide: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+      DDCConfig: {
+        completeUrlPath: "/redirect/complete/default",
+        collectionReferenceParam: "collectionReference",
+        firstSubmissionValue: "",
+        secondSubmissionValue: "race_condition_test_ddc_123",
+        expectedError: {
+          status: 400,
+          body: {
+            error: {
+              code: "IR_07",
+              type: "invalid_request",
+              message:
+                "Invalid value provided: collection_reference not allowed in AuthenticationPending state",
+            },
+          },
+        },
+      },
+    }),
+    DDCRaceConditionClientSide: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+      DDCConfig: {
+        redirectUrlPath: "/payments/redirect",
+        collectionReferenceParam: "collectionReference",
+        delayBeforeSubmission: 2000,
+        raceConditionScript: `
+          <script>
+            console.log("INJECTING_RACE_CONDITION_TEST");
+            
+            // Track submission attempts and ddcProcessed flag behavior
+            window.testResults = {
+              submissionAttempts: 0,
+              actualSubmissions: 0,
+              blockedSubmissions: 0
+            };
+            
+            // Override the submitCollectionReference function to test race conditions
+            var originalSubmit = window.submitCollectionReference;
+            
+            window.submitCollectionReference = function(collectionReference) {
+              window.testResults.submissionAttempts++;
+              console.log("SUBMISSION_ATTEMPT_" + window.testResults.submissionAttempts + ": " + collectionReference);
+              
+              // Check if ddcProcessed flag would block this
+              if (window.ddcProcessed) {
+                window.testResults.blockedSubmissions++;
+                console.log("SUBMISSION_BLOCKED_BY_DDC_PROCESSED_FLAG");
+                return;
+              }
+              
+              window.testResults.actualSubmissions++;
+              console.log("SUBMISSION_PROCEEDING: " + collectionReference);
+              
+              if (originalSubmit) {
+                return originalSubmit(collectionReference);
+              }
+            };
+            
+            // Submit first value at configured timing
+            setTimeout(function() {
+              console.log("FIRST_SUBMISSION_TRIGGERED_AT_100MS");
+              window.submitCollectionReference("");
+            }, 100);
+            
+            // Submit second value at configured timing (should be blocked)
+            setTimeout(function() {
+              console.log("SECOND_SUBMISSION_ATTEMPTED_AT_200MS");
+              window.submitCollectionReference("test_ddc_123");
+            }, 200);
+          </script>
+        `,
+      },
+    }),
   },
   upi_pm: {
     PaymentIntent: getCustomExchange({

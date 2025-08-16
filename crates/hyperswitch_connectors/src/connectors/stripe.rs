@@ -22,23 +22,24 @@ use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
-        AccessTokenAuth, Authorize, Capture, CreateConnectorCustomer, Evidence, Execute, PSync,
-        PaymentMethodToken, RSync, Retrieve, Session, SetupMandate, UpdateMetadata, Upload, Void,
+        AccessTokenAuth, Authorize, Capture, CreateConnectorCustomer, Evidence, Execute,
+        IncrementalAuthorization, PSync, PaymentMethodToken, RSync, Retrieve, Session,
+        SetupMandate, UpdateMetadata, Upload, Void,
     },
     router_request_types::{
         AccessTokenRequestData, ConnectorCustomerData, PaymentMethodTokenizationData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
-        PaymentsSyncData, PaymentsUpdateMetadataData, RefundsData, RetrieveFileRequestData,
-        SetupMandateRequestData, SplitRefundsRequest, SubmitEvidenceRequestData,
-        UploadFileRequestData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        PaymentsIncrementalAuthorizationData, PaymentsSessionData, PaymentsSyncData,
+        PaymentsUpdateMetadataData, RefundsData, RetrieveFileRequestData, SetupMandateRequestData,
+        SplitRefundsRequest, SubmitEvidenceRequestData, UploadFileRequestData,
     },
     router_response_types::{
         PaymentsResponseData, RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
         UploadFileResponse,
     },
     types::{
-        ConnectorCustomerRouterData, ExternalVaultProxyPaymentsRouterData,
-        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
+        PaymentsCaptureRouterData, PaymentsIncrementalAuthorizationRouterData,
         PaymentsSyncRouterData, PaymentsUpdateMetadataRouterData, RefundsRouterData,
         TokenizationRouterData,
     },
@@ -59,7 +60,7 @@ use hyperswitch_interfaces::{
         disputes::SubmitEvidence,
         files::{FilePurpose, FileUpload, RetrieveFile, UploadFile},
         ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse,
-        ConnectorSpecifications, ConnectorValidation,
+        ConnectorSpecifications, ConnectorValidation, PaymentIncrementalAuthorization,
     },
     configs::Connectors,
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
@@ -67,10 +68,10 @@ use hyperswitch_interfaces::{
     errors::ConnectorError,
     events::connector_api_logs::ConnectorEvent,
     types::{
-        ConnectorCustomerType, ExternalProxyType, PaymentsAuthorizeType, PaymentsCaptureType,
-        PaymentsSyncType, PaymentsUpdateMetadataType, PaymentsVoidType, RefundExecuteType,
-        RefundSyncType, Response, RetrieveFileType, SubmitEvidenceType, TokenizationType,
-        UploadFileType,
+        ConnectorCustomerType, IncrementalAuthorizationType, PaymentsAuthorizeType,
+        PaymentsCaptureType, PaymentsSyncType, PaymentsUpdateMetadataType, PaymentsVoidType,
+        RefundExecuteType, RefundSyncType, Response, RetrieveFileType, SubmitEvidenceType,
+        TokenizationType, UploadFileType,
     },
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
@@ -240,8 +241,6 @@ impl api::PaymentVoid for Stripe {}
 impl api::PaymentCapture for Stripe {}
 impl api::PaymentSession for Stripe {}
 impl api::ConnectorAccessToken for Stripe {}
-// impl api::ExternalVaultProxy for Stripe {}
-impl api::ExternalVaultProxyPaymentsCreateV1 for Stripe {}
 
 impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Stripe {
     // Not Implemented (R)
@@ -991,6 +990,150 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             router_data.request.integrity_object = Some(response_integrity_object);
             router_data
         })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
+        let response: stripe::ErrorResponse = res
+            .response
+            .parse_struct("ErrorResponse")
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_error_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: response
+                .error
+                .code
+                .clone()
+                .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+            message: response
+                .error
+                .code
+                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+            reason: response.error.message.map(|message| {
+                response
+                    .error
+                    .decline_code
+                    .clone()
+                    .map(|decline_code| {
+                        format!("message - {message}, decline_code - {decline_code}")
+                    })
+                    .unwrap_or(message)
+            }),
+            attempt_status: None,
+            connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            network_advice_code: response.error.network_advice_code,
+            network_decline_code: response.error.network_decline_code,
+            network_error_message: response.error.decline_code.or(response.error.advice_code),
+        })
+    }
+}
+
+impl PaymentIncrementalAuthorization for Stripe {}
+
+impl
+    ConnectorIntegration<
+        IncrementalAuthorization,
+        PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData,
+    > for Stripe
+{
+    fn get_headers(
+        &self,
+        req: &PaymentsIncrementalAuthorizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_http_method(&self) -> Method {
+        Method::Post
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &PaymentsIncrementalAuthorizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, ConnectorError> {
+        Ok(format!(
+            "{}v1/payment_intents/{}/increment_authorization",
+            self.base_url(connectors),
+            req.request.connector_transaction_id,
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsIncrementalAuthorizationRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, ConnectorError> {
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            MinorUnit::new(req.request.total_amount),
+            req.request.currency,
+        )?;
+        let connector_req = stripe::StripeIncrementalAuthRequest { amount };
+
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsIncrementalAuthorizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&IncrementalAuthorizationType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(IncrementalAuthorizationType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(IncrementalAuthorizationType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsIncrementalAuthorizationRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<
+        RouterData<
+            IncrementalAuthorization,
+            PaymentsIncrementalAuthorizationData,
+            PaymentsResponseData,
+        >,
+        ConnectorError,
+    > {
+        let response: stripe::PaymentIntentResponse = res
+            .response
+            .parse_struct("PaymentIntentResponse")
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -2765,173 +2908,6 @@ impl ConnectorIntegration<PoRecipientAccount, PayoutsData, PayoutsResponseData> 
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
         self.build_error_response(res, event_builder)
-    }
-}
-
-// ExternalVaultProxy implementation for Stripe
-impl
-    ConnectorIntegration<
-        hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
-        hyperswitch_domain_models::router_request_types::ExternalVaultProxyPaymentsData,
-        PaymentsResponseData,
-    > for Stripe
-{
-    fn get_headers(
-        &self,
-        req: &ExternalVaultProxyPaymentsRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
-        let mut header = vec![(
-            CONTENT_TYPE.to_string(),
-            self.common_get_content_type().to_string().into(),
-        )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
-        Ok(header)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &ExternalVaultProxyPaymentsRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<String, ConnectorError> {
-        Ok(format!(
-            "{}{}",
-            self.base_url(connectors),
-            "v1/payment_intents"
-        ))
-    }
-
-    fn get_request_body(
-        &self,
-        req: &ExternalVaultProxyPaymentsRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, ConnectorError> {
-        let amount = utils::convert_amount(
-            self.amount_converter,
-            req.request.minor_amount,
-            req.request.currency,
-        )?;
-        let connector_req = stripe::PaymentIntentRequest::try_from((req, amount))?;
-
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
-    }
-
-    fn build_request(
-        &self,
-        req: &ExternalVaultProxyPaymentsRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, ConnectorError> {
-        let mut request_builder = RequestBuilder::new()
-            .method(Method::Post)
-            .url(&ExternalProxyType::get_url(self, req, connectors)?)
-            .attach_default_headers()
-            .headers(ExternalProxyType::get_headers(self, req, connectors)?)
-            .set_body(ExternalProxyType::get_request_body(self, req, connectors)?);
-
-        // Add proxy and certificate handling for ExternalProxyCardData
-
-        if let Some(connector_metadata) = &req.connector_meta_data {
-            let metadata_value = connector_metadata.clone().expose();
-
-            // Add certificate configuration
-            if let Some(cert_value) = metadata_value.get("certificate_path") {
-                if let Some(cert_path) = cert_value.as_str() {
-                    // Add CA certificate
-                    request_builder =
-                        request_builder.add_ca_certificate_pem(Some(cert_path.to_string().into()));
-                }
-            }
-
-            if let Some(proxy_url) = metadata_value.get("external_proxy_url") {
-                if let Some(proxy_url) = proxy_url.as_str() {
-                    // Add Proxy URL
-                    request_builder =
-                        request_builder.add_merchant_proxy_url(Some(proxy_url.to_string().into()));
-                }
-            }
-        }
-
-        Ok(Some(request_builder.build()))
-    }
-
-    fn handle_response(
-        &self,
-        data: &ExternalVaultProxyPaymentsRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<ExternalVaultProxyPaymentsRouterData, ConnectorError> {
-        let response: stripe::PaymentIntentResponse = res
-            .response
-            .parse_struct("PaymentIntentResponse")
-            .change_context(ConnectorError::ResponseDeserializationFailed)?;
-
-        let response_integrity_object = get_authorise_integrity_object(
-            self.amount_converter,
-            response.amount,
-            response.currency.clone(),
-        )?;
-
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-
-        let new_router_data = RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(ConnectorError::ResponseHandlingFailed);
-
-        new_router_data.map(|mut router_data| {
-            router_data.request.integrity_object = Some(response_integrity_object);
-            router_data
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, ConnectorError> {
-        let response: stripe::ErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(ConnectorError::ResponseDeserializationFailed)?;
-
-        event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response
-                .error
-                .code
-                .clone()
-                .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
-            message: response
-                .error
-                .code
-                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message.map(|message| {
-                response
-                    .error
-                    .decline_code
-                    .clone()
-                    .map(|decline_code| {
-                        format!("message - {message}, decline_code - {decline_code}")
-                    })
-                    .unwrap_or(message)
-            }),
-            attempt_status: None,
-            connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            network_advice_code: response.error.network_advice_code,
-            network_decline_code: response.error.network_decline_code,
-            network_error_message: response.error.decline_code.or(response.error.advice_code),
-        })
     }
 }
 

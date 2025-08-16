@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 #[cfg(feature = "payouts")]
 use api_models::payouts::{self, PayoutMethodData};
 use api_models::{
@@ -57,10 +59,9 @@ use crate::{
         SubmitEvidenceRouterData,
     },
     utils::{
-        self, is_manual_capture, missing_field_err, AddressDetailsData, ApplePayDecrypt,
-        BrowserInformationData, CardData, ForeignTryFrom,
-        NetworkTokenData as UtilsNetworkTokenData, PaymentsAuthorizeRequestData, PhoneDetailsData,
-        RouterData as OtherRouterData,
+        self, is_manual_capture, missing_field_err, AddressDetailsData, BrowserInformationData,
+        CardData, ForeignTryFrom, NetworkTokenData as UtilsNetworkTokenData,
+        PaymentsAuthorizeRequestData, PhoneDetailsData, RouterData as OtherRouterData,
     },
 };
 
@@ -291,6 +292,9 @@ pub struct AdyenPaymentRequest<'a> {
     splits: Option<Vec<AdyenSplitData>>,
     store: Option<String>,
     device_fingerprint: Option<Secret<String>>,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    session_validity: Option<PrimitiveDateTime>,
+    metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -426,6 +430,7 @@ impl ForeignTryFrom<(bool, AdyenWebhookStatus)> for storage_enums::AttemptStatus
             AdyenWebhookStatus::CancelFailed => Ok(Self::VoidFailed),
             AdyenWebhookStatus::Captured => Ok(Self::Charged),
             AdyenWebhookStatus::CaptureFailed => Ok(Self::CaptureFailed),
+            AdyenWebhookStatus::Expired => Ok(Self::Expired),
             //If Unexpected Event is received, need to understand how it reached this point
             //Webhooks with Payment Events only should try to conume this resource object.
             AdyenWebhookStatus::UnexpectedEvent | AdyenWebhookStatus::Reversed => {
@@ -511,6 +516,7 @@ pub enum AdyenWebhookStatus {
     CaptureFailed,
     Reversed,
     UnexpectedEvent,
+    Expired,
 }
 
 //Creating custom struct which can be consumed in Psync Handler triggered from Webhooks
@@ -1260,7 +1266,7 @@ pub struct AdyenPazeData {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenApplePayDecryptData {
-    number: Secret<String>,
+    number: CardNumber,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
     brand: String,
@@ -1387,10 +1393,35 @@ pub struct DokuBankData {
 pub struct AdyenRefundRequest {
     merchant_account: Secret<String>,
     amount: Amount,
-    merchant_refund_reason: Option<String>,
+    merchant_refund_reason: Option<AdyenRefundRequestReason>,
     reference: String,
     splits: Option<Vec<AdyenSplitData>>,
     store: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum AdyenRefundRequestReason {
+    FRAUD,
+    #[serde(rename = "CUSTOMER REQUEST")]
+    CUSTOMERREQUEST,
+    RETURN,
+    DUPLICATE,
+    OTHER,
+}
+
+impl FromStr for AdyenRefundRequestReason {
+    type Err = error_stack::Report<errors::ConnectorError>;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_uppercase().as_str() {
+            "FRAUD" => Ok(Self::FRAUD),
+            "CUSTOMER REQUEST" => Ok(Self::CUSTOMERREQUEST),
+            "RETURN" => Ok(Self::RETURN),
+            "DUPLICATE" => Ok(Self::DUPLICATE),
+            "OTHER" => Ok(Self::OTHER),
+            _ => Ok(Self::OTHER),
+        }
+    }
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -2204,7 +2235,14 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod
         match wallet_data {
             WalletData::GooglePay(data) => {
                 let gpay_data = AdyenGPay {
-                    google_pay_token: Secret::new(data.tokenization_data.token.to_owned()),
+                    google_pay_token: Secret::new(
+                        data.tokenization_data
+                            .get_encrypted_google_pay_token()
+                            .change_context(errors::ConnectorError::MissingRequiredField {
+                                field_name: "gpay wallet_token",
+                            })?
+                            .to_owned(),
+                    ),
                 };
                 Ok(AdyenPaymentMethod::Gpay(Box::new(gpay_data)))
             }
@@ -2212,21 +2250,31 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod
                 if let Some(PaymentMethodToken::ApplePayDecrypt(apple_pay_decrypte)) =
                     item.payment_method_token.clone()
                 {
-                    let expiry_year_4_digit = apple_pay_decrypte.get_four_digit_expiry_year()?;
-                    let exp_month = apple_pay_decrypte.get_expiry_month()?;
+                    let expiry_year_4_digit = apple_pay_decrypte.get_four_digit_expiry_year();
+                    let exp_month = apple_pay_decrypte.get_expiry_month().change_context(
+                        errors::ConnectorError::InvalidDataFormat {
+                            field_name: "expiration_month",
+                        },
+                    )?;
                     let apple_pay_decrypted_data = AdyenApplePayDecryptData {
                         number: apple_pay_decrypte.application_primary_account_number,
                         expiry_month: exp_month,
                         expiry_year: expiry_year_4_digit,
-                        brand: "applepay".to_string(),
+                        brand: data.payment_method.network.clone(),
                         payment_type: PaymentType::Scheme,
                     };
                     Ok(AdyenPaymentMethod::ApplePayDecrypt(Box::new(
                         apple_pay_decrypted_data,
                     )))
                 } else {
+                    let apple_pay_encrypted_data = data
+                        .payment_data
+                        .get_encrypted_apple_pay_payment_data_mandatory()
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "Apple pay encrypted data",
+                        })?;
                     let apple_pay_data = AdyenApplePay {
-                        apple_pay_token: Secret::new(data.payment_data.to_string()),
+                        apple_pay_token: Secret::new(apple_pay_encrypted_data.to_string()),
                     };
                     Ok(AdyenPaymentMethod::ApplePay(Box::new(apple_pay_data)))
                 }
@@ -2303,6 +2351,7 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod
             | WalletData::ApplePayThirdPartySdk(_)
             | WalletData::GooglePayRedirect(_)
             | WalletData::GooglePayThirdPartySdk(_)
+            | WalletData::BluecodeRedirect {}
             | WalletData::PaypalSdk(_)
             | WalletData::WeChatPayQr(_)
             | WalletData::CashappQr(_)
@@ -2426,7 +2475,9 @@ impl
                 check_required_field(billing_address, "billing")?;
                 Ok(AdyenPaymentMethod::Atome)
             }
-            PayLaterData::KlarnaSdk { .. } => Err(errors::ConnectorError::NotImplemented(
+            PayLaterData::KlarnaSdk { .. }
+            | PayLaterData::BreadpayRedirect {}
+            | PayLaterData::FlexitiRedirect {} => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             )
             .into()),
@@ -2589,6 +2640,7 @@ impl TryFrom<(&BankTransferData, &PaymentsAuthorizeRouterData)> for AdyenPayment
             | BankTransferData::InstantBankTransfer {}
             | BankTransferData::InstantBankTransferFinland {}
             | BankTransferData::InstantBankTransferPoland {}
+            | BankTransferData::IndonesianBankTransfer { .. }
             | BankTransferData::Pse {} => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             )
@@ -2907,7 +2959,7 @@ impl
             telephone_number,
             shopper_name: None,
             shopper_email: None,
-            shopper_locale: None,
+            shopper_locale: item.router_data.request.locale.clone(),
             social_security_number: None,
             billing_address,
             delivery_address,
@@ -2922,6 +2974,8 @@ impl
             store,
             splits,
             device_fingerprint,
+            session_validity: None,
+            metadata: item.router_data.request.metadata.clone(),
         })
     }
 }
@@ -2990,7 +3044,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
             telephone_number,
             shopper_name,
             shopper_email,
-            shopper_locale: None,
+            shopper_locale: item.router_data.request.locale.clone(),
             social_security_number: None,
             billing_address,
             delivery_address,
@@ -3005,6 +3059,8 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
             store,
             splits,
             device_fingerprint,
+            session_validity: None,
+            metadata: item.router_data.request.metadata.clone(),
         })
     }
 }
@@ -3075,7 +3131,7 @@ impl
             additional_data,
             mpi_data: None,
             shopper_name: None,
-            shopper_locale: None,
+            shopper_locale: item.router_data.request.locale.clone(),
             shopper_email: item.router_data.get_optional_billing_email(),
             social_security_number: None,
             telephone_number,
@@ -3092,6 +3148,8 @@ impl
             store,
             splits,
             device_fingerprint,
+            session_validity: None,
+            metadata: item.router_data.request.metadata.clone(),
         };
         Ok(request)
     }
@@ -3149,7 +3207,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &VoucherData)>
             recurring_processing_model,
             additional_data,
             shopper_name,
-            shopper_locale: None,
+            shopper_locale: item.router_data.request.locale.clone(),
             shopper_email: item.router_data.get_optional_billing_email(),
             social_security_number,
             mpi_data: None,
@@ -3167,6 +3225,8 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &VoucherData)>
             store,
             splits,
             device_fingerprint,
+            session_validity: None,
+            metadata: item.router_data.request.metadata.clone(),
         };
         Ok(request)
     }
@@ -3213,6 +3273,47 @@ impl
         let delivery_address =
             get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
         let telephone_number = item.router_data.get_optional_billing_phone_number();
+        let (session_validity, social_security_number) = match bank_transfer_data {
+            BankTransferData::Pix {
+                cpf,
+                cnpj,
+                expiry_date,
+                ..
+            } => {
+                // Validate expiry_date doesn't exceed 5 days from now
+                if let Some(expiry) = expiry_date {
+                    let now = OffsetDateTime::now_utc();
+                    let max_expiry = now + Duration::days(5);
+                    let max_expiry_primitive =
+                        PrimitiveDateTime::new(max_expiry.date(), max_expiry.time());
+
+                    if *expiry > max_expiry_primitive {
+                        return Err(report!(errors::ConnectorError::InvalidDataFormat {
+                            field_name: "expiry_date cannot be more than 5 days from now",
+                        }));
+                    }
+                }
+
+                (*expiry_date, cpf.as_ref().or(cnpj.as_ref()).cloned())
+            }
+            BankTransferData::LocalBankTransfer { .. } => (None, None),
+            BankTransferData::AchBankTransfer {}
+            | BankTransferData::SepaBankTransfer {}
+            | BankTransferData::BacsBankTransfer {}
+            | BankTransferData::MultibancoBankTransfer {}
+            | BankTransferData::PermataBankTransfer {}
+            | BankTransferData::BcaBankTransfer {}
+            | BankTransferData::BniVaBankTransfer {}
+            | BankTransferData::BriVaBankTransfer {}
+            | BankTransferData::CimbVaBankTransfer {}
+            | BankTransferData::DanamonVaBankTransfer {}
+            | BankTransferData::MandiriVaBankTransfer {}
+            | BankTransferData::Pse {}
+            | BankTransferData::InstantBankTransfer {}
+            | BankTransferData::InstantBankTransferFinland {}
+            | BankTransferData::InstantBankTransferPoland {}
+            | BankTransferData::IndonesianBankTransfer { .. } => (None, None),
+        };
 
         let request = AdyenPaymentRequest {
             amount,
@@ -3226,9 +3327,9 @@ impl
             additional_data: None,
             mpi_data: None,
             shopper_name: None,
-            shopper_locale: None,
+            shopper_locale: item.router_data.request.locale.clone(),
             shopper_email: item.router_data.get_optional_billing_email(),
-            social_security_number: None,
+            social_security_number,
             telephone_number,
             billing_address,
             delivery_address,
@@ -3243,6 +3344,8 @@ impl
             store,
             splits,
             device_fingerprint,
+            session_validity,
+            metadata: item.router_data.request.metadata.clone(),
         };
         Ok(request)
     }
@@ -3302,7 +3405,7 @@ impl
             additional_data: None,
             mpi_data: None,
             shopper_name: None,
-            shopper_locale: None,
+            shopper_locale: item.router_data.request.locale.clone(),
             shopper_email: item.router_data.get_optional_billing_email(),
             telephone_number,
             billing_address,
@@ -3319,6 +3422,8 @@ impl
             store,
             splits,
             device_fingerprint,
+            session_validity: None,
+            metadata: item.router_data.request.metadata.clone(),
         };
         Ok(request)
     }
@@ -3399,6 +3504,8 @@ impl
             store,
             splits,
             device_fingerprint,
+            session_validity: None,
+            metadata: item.router_data.request.metadata.clone(),
         })
     }
 }
@@ -3411,7 +3518,7 @@ fn get_redirect_extra_details(
             BankRedirectData::Trustly { .. } | BankRedirectData::OpenBankingUk { .. },
         ) => {
             let country = item.get_optional_billing_country();
-            Ok((None, country))
+            Ok((item.request.locale.clone(), country))
         }
         _ => Ok((None, None)),
     }
@@ -3514,7 +3621,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &WalletData)>
             telephone_number,
             shopper_name: None,
             shopper_email,
-            shopper_locale: None,
+            shopper_locale: item.router_data.request.locale.clone(),
             social_security_number: None,
             billing_address,
             delivery_address,
@@ -3529,6 +3636,8 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &WalletData)>
             store,
             splits,
             device_fingerprint,
+            session_validity: None,
+            metadata: item.router_data.request.metadata.clone(),
         })
     }
 }
@@ -3603,7 +3712,7 @@ impl
             shopper_name,
             shopper_email,
             mpi_data: None,
-            shopper_locale: None,
+            shopper_locale: item.router_data.request.locale.clone(),
             social_security_number: None,
             billing_address,
             delivery_address,
@@ -3618,6 +3727,8 @@ impl
             store,
             splits,
             device_fingerprint,
+            session_validity: None,
+            metadata: item.router_data.request.metadata.clone(),
         })
     }
 }
@@ -3684,7 +3795,7 @@ impl
             telephone_number,
             shopper_name,
             shopper_email,
-            shopper_locale: None,
+            shopper_locale: item.router_data.request.locale.clone(),
             billing_address,
             delivery_address,
             country_code: None,
@@ -3699,6 +3810,8 @@ impl
             store,
             splits,
             device_fingerprint,
+            session_validity: None,
+            metadata: item.router_data.request.metadata.clone(),
         })
     }
 }
@@ -4634,7 +4747,13 @@ impl<F> TryFrom<&AdyenRouterData<&RefundsRouterData<F>>> for AdyenRefundRequest 
                 currency: item.router_data.request.currency,
                 value: item.amount,
             },
-            merchant_refund_reason: item.router_data.request.reason.clone(),
+            merchant_refund_reason: item
+                .router_data
+                .request
+                .reason
+                .as_ref()
+                .map(|reason| AdyenRefundRequestReason::from_str(reason))
+                .transpose()?,
             reference: item.router_data.request.refund_id.clone(),
             store,
             splits,
@@ -4742,6 +4861,7 @@ pub enum WebhookEventCode {
     SecondChargeback,
     PrearbitrationWon,
     PrearbitrationLost,
+    OfferClosed,
     #[cfg(feature = "payouts")]
     PayoutThirdparty,
     #[cfg(feature = "payouts")]
@@ -4755,7 +4875,10 @@ pub enum WebhookEventCode {
 }
 
 pub fn is_transaction_event(event_code: &WebhookEventCode) -> bool {
-    matches!(event_code, WebhookEventCode::Authorisation)
+    matches!(
+        event_code,
+        WebhookEventCode::Authorisation | WebhookEventCode::OfferClosed
+    )
 }
 
 pub fn is_capture_or_cancel_event(event_code: &WebhookEventCode) -> bool {
@@ -4872,6 +4995,9 @@ pub(crate) fn get_adyen_webhook_event(
         WebhookEventCode::CaptureFailed => {
             api_models::webhooks::IncomingWebhookEvent::PaymentIntentCaptureFailure
         }
+        WebhookEventCode::OfferClosed => {
+            api_models::webhooks::IncomingWebhookEvent::PaymentIntentExpired
+        }
         #[cfg(feature = "payouts")]
         WebhookEventCode::PayoutThirdparty => {
             api_models::webhooks::IncomingWebhookEvent::PayoutCreated
@@ -4959,6 +5085,7 @@ impl From<AdyenNotificationRequestItemWH> for AdyenWebhookResponse {
                         AdyenWebhookStatus::CancelFailed
                     }
                 }
+                WebhookEventCode::OfferClosed => AdyenWebhookStatus::Expired,
                 WebhookEventCode::Capture => {
                     if is_success_scenario(notif.success) {
                         AdyenWebhookStatus::Captured
@@ -5929,7 +6056,7 @@ impl
             telephone_number,
             shopper_name,
             shopper_email,
-            shopper_locale: None,
+            shopper_locale: item.router_data.request.locale.clone(),
             social_security_number: None,
             billing_address,
             delivery_address,
@@ -5945,6 +6072,8 @@ impl
             store,
             splits,
             device_fingerprint,
+            session_validity: None,
+            metadata: item.router_data.request.metadata.clone(),
         })
     }
 }
