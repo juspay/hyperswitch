@@ -791,7 +791,7 @@ impl PaymentAttempt {
             organization_id: payment_intent.organization_id.clone(),
             payment_method_type: payment_method_type_data
                 .unwrap_or(common_enums::PaymentMethod::Card),
-            payment_method_id:  request.payment_method_id.clone(),
+            payment_method_id: request.payment_method_id.clone(),
             connector_payment_id: None,
             payment_method_subtype: payment_method_subtype_data
                 .unwrap_or(common_enums::PaymentMethodType::Credit),

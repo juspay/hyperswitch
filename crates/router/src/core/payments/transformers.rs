@@ -186,7 +186,8 @@ where
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
-pub async fn construct_external_vault_proxy_router_data_v2<'a>( //////
+pub async fn construct_external_vault_proxy_router_data_v2<'a>(
+    //////
     state: &'a SessionState,
     merchant_account: &domain::MerchantAccount,
     merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
@@ -196,8 +197,15 @@ pub async fn construct_external_vault_proxy_router_data_v2<'a>( //////
     connector_customer_id: Option<String>,
     customer_id: Option<common_utils::id_type::CustomerId>,
     header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
-) -> RouterResult<hyperswitch_domain_models::router_data_v2::RouterDataV2<api::ExternalVaultProxy, hyperswitch_domain_models::router_data_v2::ExternalVaultProxyFlowData, types::ExternalVaultProxyPaymentsData, types::PaymentsResponseData>> {
-    use hyperswitch_domain_models::router_data_v2::{RouterDataV2, ExternalVaultProxyFlowData};
+) -> RouterResult<
+    hyperswitch_domain_models::router_data_v2::RouterDataV2<
+        api::ExternalVaultProxy,
+        hyperswitch_domain_models::router_data_v2::ExternalVaultProxyFlowData,
+        types::ExternalVaultProxyPaymentsData,
+        types::PaymentsResponseData,
+    >,
+> {
+    use hyperswitch_domain_models::router_data_v2::{ExternalVaultProxyFlowData, RouterDataV2};
 
     let auth_type = merchant_connector_account
         .get_connector_account_details()
@@ -262,7 +270,12 @@ pub async fn construct_external_vault_proxy_router_data_v2<'a>( //////
 
 #[cfg(feature = "v2")]
 pub fn convert_payment_router_data_v2_to_v1<Flow, Request, Response>(
-    router_data_v2: hyperswitch_domain_models::router_data_v2::RouterDataV2<Flow, hyperswitch_domain_models::router_data_v2::PaymentFlowData, Request, Response>,
+    router_data_v2: hyperswitch_domain_models::router_data_v2::RouterDataV2<
+        Flow,
+        hyperswitch_domain_models::router_data_v2::PaymentFlowData,
+        Request,
+        Response,
+    >,
     connector_id: &str,
     payment_method: common_enums::PaymentMethod,
     payment_data: &hyperswitch_domain_models::payments::PaymentConfirmData<Flow>,
@@ -271,7 +284,7 @@ where
     Flow: Clone,
 {
     let resource_data = &router_data_v2.resource_common_data;
-    
+
     types::RouterData {
         flow: router_data_v2.flow,
         merchant_id: resource_data.merchant_id.clone(),
@@ -732,7 +745,8 @@ pub async fn construct_external_vault_proxy_payment_router_data<'a>(
         connector_customer_id.clone(),
         customer_id.clone(),
         header_payload.clone(),
-    ).await?;
+    )
+    .await?;
 
     // Convert RouterDataV2 to old RouterData (v1) using the existing RouterDataConversion trait
     let router_data = hyperswitch_domain_models::router_data_v2::flow_common_types::ExternalVaultProxyFlowData::to_old_router_data(router_data_v2)
