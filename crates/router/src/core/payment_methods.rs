@@ -866,7 +866,7 @@ fn get_card_network_with_us_local_debit_network_override(
                 data.co_badged_card_networks_info
                     .0
                     .iter()
-                    .find(|info| info.network.is_global_network())
+                    .find(|info| info.network.is_signature_network())
                     .cloned()
             });
         info.map(|data| data.network)

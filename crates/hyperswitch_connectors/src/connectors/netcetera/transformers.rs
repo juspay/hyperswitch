@@ -188,7 +188,7 @@ impl
                     ds_trans_id: response.authentication_response.ds_trans_id,
                     eci: response.eci,
                     challenge_code,
-                    challenge_cancel: None, // Note - challenge_cancel field is recieved in the RReq and updated in DB during external_authentication_incoming_webhook_flow
+                    challenge_cancel: None, // Note - challenge_cancel field is received in the RReq and updated in DB during external_authentication_incoming_webhook_flow
                     challenge_code_reason: response.authentication_response.trans_status_reason,
                     message_extension,
                 })

@@ -141,10 +141,10 @@ pub struct Card {
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
 pub struct ExternalVaultCard {
-    pub card_number: String,
-    pub card_exp_month: String,
-    pub card_exp_year: String,
-    pub card_cvc: String,
+    pub card_number: Secret<String>,
+    pub card_exp_month: Secret<String>,
+    pub card_exp_year: Secret<String>,
+    pub card_cvc: Secret<String>,
     pub bin_number: Option<String>,
     pub last_four: Option<String>,
     pub card_issuer: Option<String>,
@@ -937,6 +937,12 @@ impl From<api_models::payments::ProxyCardData> for ExternalVaultCard {
             card_cvc,
             bin_number,
             last_four,
+            card_issuer,
+            card_network,
+            card_type,
+            card_issuing_country,
+            bank_code,
+            nick_name,
         } = value;
 
         Self {
@@ -946,13 +952,13 @@ impl From<api_models::payments::ProxyCardData> for ExternalVaultCard {
             card_cvc,
             bin_number,
             last_four,
-            card_issuer: None,
-            card_network: None,
-            card_type: None,
-            card_issuing_country: None,
-            bank_code: None,
-            nick_name: None,
-            card_holder_name: None,
+            card_issuer,
+            card_network,
+            card_type,
+            card_issuing_country,
+            bank_code,
+            nick_name,
+            card_holder_name,
             co_badged_card_data: None,
         }
     }

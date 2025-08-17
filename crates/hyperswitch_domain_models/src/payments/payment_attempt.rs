@@ -37,6 +37,8 @@ use error_stack::ResultExt;
 #[cfg(feature = "v2")]
 use masking::PeekInterface;
 use masking::Secret;
+#[cfg(feature = "v1")]
+use router_env::logger;
 #[cfg(feature = "v2")]
 use rustc_hash::FxHashMap;
 #[cfg(feature = "v1")]
@@ -784,12 +786,12 @@ impl PaymentAttempt {
             charges: None,
             client_source: None,
             client_version: None,
-            customer_acceptance: request.customer_acceptance.clone(),
+            customer_acceptance: request.customer_acceptance.clone().map(Secret::new),
             profile_id: payment_intent.profile_id.clone(),
             organization_id: payment_intent.organization_id.clone(),
             payment_method_type: payment_method_type_data
                 .unwrap_or(common_enums::PaymentMethod::Card),
-            payment_method_id: None,
+            payment_method_id: request.payment_method_id.clone(),
             connector_payment_id: None,
             payment_method_subtype: payment_method_subtype_data
                 .unwrap_or(common_enums::PaymentMethodType::Credit),
@@ -1203,6 +1205,19 @@ impl PaymentAttempt {
             })
             .and_then(|data| data.get_additional_card_info())
             .and_then(|card_info| card_info.card_network)
+    }
+
+    pub fn get_payment_method_data(&self) -> Option<api_models::payments::AdditionalPaymentData> {
+        self.payment_method_data
+            .clone()
+            .and_then(|data| match data {
+                serde_json::Value::Null => None,
+                _ => Some(data.parse_value("AdditionalPaymentData")),
+            })
+            .transpose()
+            .map_err(|err| logger::error!("Failed to parse AdditionalPaymentData {err:?}"))
+            .ok()
+            .flatten()
     }
 }
 

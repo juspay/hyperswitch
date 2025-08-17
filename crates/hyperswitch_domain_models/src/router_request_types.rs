@@ -1217,6 +1217,7 @@ pub struct SetupMandateRequestData {
     pub connector_testing_data: Option<pii::SecretSerdeValue>,
     pub customer_id: Option<id_type::CustomerId>,
     pub enable_partial_authorization: Option<bool>,
+    pub payment_channel: Option<storage_enums::PaymentChannel>,
 }
 
 #[derive(Debug, Clone)]

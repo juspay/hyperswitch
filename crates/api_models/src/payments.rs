@@ -2619,27 +2619,49 @@ pub enum ProxyPaymentMethodData {
 pub struct ProxyCardData {
     /// The token which refers to the card number
     #[schema(value_type = String, example = "token_card_number")]
-    pub card_number: String,
+    pub card_number: Secret<String>,
 
     /// The card's expiry month
     #[schema(value_type = String, example = "24")]
-    pub card_exp_month: String,
+    pub card_exp_month: Secret<String>,
 
     /// The card's expiry year
     #[schema(value_type = String, example = "24")]
-    pub card_exp_year: String,
+    pub card_exp_year: Secret<String>,
 
     /// The card holder's name
     #[schema(value_type = String, example = "John Test")]
-    pub card_holder_name: String,
+    pub card_holder_name: Option<Secret<String>>,
 
     /// The CVC number for the card
     #[schema(value_type = String, example = "242")]
-    pub card_cvc: String,
+    pub card_cvc: Secret<String>,
 
+    /// The name of the issuer of card
+    #[schema(example = "chase")]
+    pub card_issuer: Option<String>,
+
+    /// The card network for the card
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    pub card_network: Option<api_enums::CardNetwork>,
+
+    #[schema(example = "CREDIT")]
+    pub card_type: Option<String>,
+
+    #[schema(example = "INDIA")]
+    pub card_issuing_country: Option<String>,
+
+    #[schema(example = "JP_AMEX")]
+    pub bank_code: Option<String>,
+    /// The card holder's nick name
+    #[schema(value_type = Option<String>, example = "John Test")]
+    pub nick_name: Option<Secret<String>>,
+
+    /// The first six digit of the card number
     #[schema(value_type = String, example = "424242")]
     pub bin_number: Option<String>,
 
+    /// The last four digit of the card number
     #[schema(value_type = String, example = "4242")]
     pub last_four: Option<String>,
 }
@@ -3027,6 +3049,15 @@ pub struct AdditionalCardInfo {
     /// Details about the threeds environment.
     /// This is a free form field and the structure varies from processor to processor
     pub authentication_data: Option<serde_json::Value>,
+
+    /// Indicates if the card issuer is regulated under government-imposed interchange fee caps.
+    /// In the United States, this includes debit cards that fall under the Durbin Amendment,
+    /// which imposes capped interchange fees.
+    pub is_regulated: Option<bool>,
+
+    /// The global signature network under which the card is issued.
+    /// This represents the primary global card brand, even if the transaction uses a local network
+    pub signature_network: Option<api_enums::CardNetwork>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]

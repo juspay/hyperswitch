@@ -55,6 +55,16 @@ impl ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
             })
             .ok();
 
+        let encoded_data = router_data
+            .request
+            .encoded_data
+            .as_ref()
+            .map(|data| Identifier {
+                id_type: Some(payments_grpc::identifier::IdType::EncodedData(
+                    data.to_string(),
+                )),
+            });
+
         let connector_ref_id = router_data
             .request
             .connector_reference_id
@@ -64,7 +74,7 @@ impl ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
             });
 
         Ok(Self {
-            transaction_id: connector_transaction_id,
+            transaction_id: connector_transaction_id.or(encoded_data),
             request_ref_id: connector_ref_id,
         })
     }
@@ -457,6 +467,19 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
             }
         };
 
+        let capture_method = router_data
+            .request
+            .capture_method
+            .map(payments_grpc::CaptureMethod::foreign_try_from)
+            .transpose()?;
+
+        let browser_info = router_data
+            .request
+            .browser_info
+            .clone()
+            .map(payments_grpc::BrowserInformation::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
@@ -515,13 +538,11 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse>
                     })
             });
 
-        let transaction_id = response.transaction_id.as_ref().and_then(|id| {
-            id.id_type.clone().and_then(|id_type| match id_type {
-                payments_grpc::identifier::IdType::Id(id) => Some(id),
-                payments_grpc::identifier::IdType::EncodedData(encoded_data) => Some(encoded_data),
-                payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
-            })
-        });
+        let resource_id: hyperswitch_domain_models::router_request_types::ResponseId = match response.transaction_id.as_ref().and_then(|id| id.id_type.clone()) {
+            Some(payments_grpc::identifier::IdType::Id(id)) => hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(id),
+            Some(payments_grpc::identifier::IdType::EncodedData(encoded_data)) => hyperswitch_domain_models::router_request_types::ResponseId::EncodedData(encoded_data),
+            Some(payments_grpc::identifier::IdType::NoResponseIdMarker(_)) | None => hyperswitch_domain_models::router_request_types::ResponseId::NoResponseId,
+        };
 
         let (connector_metadata, redirection_data) = match response.redirection_data.clone() {
             Some(redirection_data) => match redirection_data.form_type {
@@ -568,13 +589,8 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse>
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: match transaction_id.as_ref() {
-                    Some(transaction_id) => hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(transaction_id.clone()),
-                    None => hyperswitch_domain_models::router_request_types::ResponseId::NoResponseId,
-                },
-                redirection_data: Box::new(
-                    redirection_data
-                ),
+                resource_id,
+                redirection_data: Box::new(redirection_data),
                 mandate_reference: Box::new(None),
                 connector_metadata,
                 network_txn_id: response.network_txn_id.clone(),
@@ -614,6 +630,12 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceGetResponse>
 
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
+        let resource_id: hyperswitch_domain_models::router_request_types::ResponseId = match response.transaction_id.as_ref().and_then(|id| id.id_type.clone()) {
+            Some(payments_grpc::identifier::IdType::Id(id)) => hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(id),
+            Some(payments_grpc::identifier::IdType::EncodedData(encoded_data)) => hyperswitch_domain_models::router_request_types::ResponseId::EncodedData(encoded_data),
+            Some(payments_grpc::identifier::IdType::NoResponseIdMarker(_)) | None => hyperswitch_domain_models::router_request_types::ResponseId::NoResponseId,
+        };
+
         let response = if response.error_code.is_some() {
             Err(ErrorResponse {
                 code: response.error_code().to_owned(),
@@ -628,21 +650,22 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceGetResponse>
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: match connector_response_reference_id.as_ref() {
-                    Some(connector_response_reference_id) => hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(connector_response_reference_id.clone()),
-                    None => hyperswitch_domain_models::router_request_types::ResponseId::NoResponseId,
-                },
-                redirection_data: Box::new(
-                    None
-                ),
-                mandate_reference: Box::new(None),
+                resource_id,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(response.mandate_reference.map(|grpc_mandate| {
+                    hyperswitch_domain_models::router_response_types::MandateReference {
+                        connector_mandate_id: grpc_mandate.mandate_id,
+                        payment_method_id: None,
+                        mandate_metadata: None,
+                        connector_mandate_request_reference_id: None,
+                    }
+                })),
                 connector_metadata: None,
                 network_txn_id: response.network_txn_id.clone(),
                 connector_response_reference_id,
                 incremental_authorization_allowed: None,
                 charges: None,
-                }
-            )
+            })
         };
 
         Ok(response)

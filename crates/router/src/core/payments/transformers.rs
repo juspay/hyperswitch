@@ -24,6 +24,8 @@ use hyperswitch_domain_models::{payments::payment_intent::CustomerData, router_r
 #[cfg(feature = "v2")]
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 #[cfg(feature = "v2")]
+use hyperswitch_interfaces::connector_integration_interface::RouterDataConversion;
+#[cfg(feature = "v2")]
 use masking::PeekInterface;
 use masking::{ExposeInterface, Maskable, Secret};
 use router_env::{instrument, tracing};
@@ -179,6 +181,168 @@ where
         minor_amount_capturable: None,
     };
     Ok(router_data)
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
+pub async fn construct_external_vault_proxy_router_data_v2<'a>(
+    //////
+    state: &'a SessionState,
+    merchant_account: &domain::MerchantAccount,
+    merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
+    payment_data: &hyperswitch_domain_models::payments::PaymentConfirmData<api::ExternalVaultProxy>,
+    request: types::ExternalVaultProxyPaymentsData,
+    connector_request_reference_id: String,
+    connector_customer_id: Option<String>,
+    customer_id: Option<common_utils::id_type::CustomerId>,
+    header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+) -> RouterResult<
+    hyperswitch_domain_models::router_data_v2::RouterDataV2<
+        api::ExternalVaultProxy,
+        hyperswitch_domain_models::router_data_v2::ExternalVaultProxyFlowData,
+        types::ExternalVaultProxyPaymentsData,
+        types::PaymentsResponseData,
+    >,
+> {
+    use hyperswitch_domain_models::router_data_v2::{ExternalVaultProxyFlowData, RouterDataV2};
+
+    let auth_type = merchant_connector_account
+        .get_connector_account_details()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while parsing value for ConnectorAuthType")?;
+
+    let external_vault_proxy_flow_data = ExternalVaultProxyFlowData {
+        merchant_id: merchant_account.get_id().clone(),
+        customer_id,
+        connector_customer: connector_customer_id,
+        payment_id: payment_data
+            .payment_attempt
+            .payment_id
+            .get_string_repr()
+            .to_owned(),
+        attempt_id: payment_data
+            .payment_attempt
+            .get_id()
+            .get_string_repr()
+            .to_owned(),
+        status: payment_data.payment_attempt.status,
+        payment_method: payment_data.payment_attempt.payment_method_type,
+        description: payment_data
+            .payment_intent
+            .description
+            .as_ref()
+            .map(|description| description.get_string_repr())
+            .map(ToOwned::to_owned),
+        address: payment_data.payment_address.clone(),
+        auth_type: payment_data.payment_attempt.authentication_type,
+        connector_meta_data: merchant_connector_account.get_metadata(),
+        amount_captured: None,
+        minor_amount_captured: None,
+        access_token: None,
+        session_token: None,
+        reference_id: None,
+        payment_method_token: None,
+        recurring_mandate_payment_data: None,
+        preprocessing_id: payment_data.payment_attempt.preprocessing_step_id.clone(),
+        payment_method_balance: None,
+        connector_api_version: None,
+        connector_request_reference_id,
+        test_mode: Some(true),
+        connector_http_status_code: None,
+        external_latency: None,
+        apple_pay_flow: None,
+        connector_response: None,
+        payment_method_status: None,
+    };
+
+    let router_data_v2 = RouterDataV2 {
+        flow: PhantomData,
+        tenant_id: state.tenant.tenant_id.clone(),
+        resource_common_data: external_vault_proxy_flow_data,
+        connector_auth_type: auth_type,
+        request,
+        response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
+    };
+
+    Ok(router_data_v2)
+}
+
+#[cfg(feature = "v2")]
+pub fn convert_payment_router_data_v2_to_v1<Flow, Request, Response>(
+    router_data_v2: hyperswitch_domain_models::router_data_v2::RouterDataV2<
+        Flow,
+        hyperswitch_domain_models::router_data_v2::PaymentFlowData,
+        Request,
+        Response,
+    >,
+    connector_id: &str,
+    payment_method: common_enums::PaymentMethod,
+    payment_data: &hyperswitch_domain_models::payments::PaymentConfirmData<Flow>,
+) -> types::RouterData<Flow, Request, Response>
+where
+    Flow: Clone,
+{
+    let resource_data = &router_data_v2.resource_common_data;
+
+    types::RouterData {
+        flow: router_data_v2.flow,
+        merchant_id: resource_data.merchant_id.clone(),
+        customer_id: resource_data.customer_id.clone(),
+        connector: connector_id.to_owned(),
+        payment_id: resource_data.payment_id.clone(),
+        tenant_id: router_data_v2.tenant_id,
+        attempt_id: resource_data.attempt_id.clone(),
+        status: resource_data.status,
+        payment_method,
+        connector_auth_type: router_data_v2.connector_auth_type,
+        description: resource_data.description.clone(),
+        address: resource_data.address.clone(),
+        auth_type: resource_data.auth_type,
+        connector_meta_data: resource_data.connector_meta_data.clone(),
+        connector_wallets_details: None,
+        request: router_data_v2.request,
+        response: router_data_v2.response,
+        amount_captured: resource_data.amount_captured,
+        minor_amount_captured: resource_data.minor_amount_captured,
+        access_token: resource_data.access_token.clone(),
+        session_token: resource_data.session_token.clone(),
+        reference_id: resource_data.reference_id.clone(),
+        payment_method_status: resource_data.payment_method_status,
+        payment_method_token: resource_data.payment_method_token.clone(),
+        connector_customer: resource_data.connector_customer.clone(),
+        recurring_mandate_payment_data: resource_data.recurring_mandate_payment_data.clone(),
+        connector_request_reference_id: resource_data.connector_request_reference_id.clone(),
+        preprocessing_id: resource_data.preprocessing_id.clone(),
+        #[cfg(feature = "payouts")]
+        payout_method_data: None,
+        #[cfg(feature = "payouts")]
+        quote_id: None,
+        test_mode: resource_data.test_mode,
+        payment_method_balance: resource_data.payment_method_balance.clone(),
+        connector_api_version: resource_data.connector_api_version.clone(),
+        connector_http_status_code: resource_data.connector_http_status_code,
+        external_latency: resource_data.external_latency,
+        apple_pay_flow: resource_data.apple_pay_flow.clone(),
+        frm_metadata: None,
+        refund_id: None,
+        dispute_id: None,
+        connector_response: resource_data.connector_response.clone(),
+        integrity_check: Ok(()),
+        additional_merchant_data: None,
+        header_payload: None,
+        connector_mandate_request_reference_id: payment_data
+            .payment_attempt
+            .connector_token_details
+            .as_ref()
+            .and_then(|detail| detail.get_connector_token_request_reference_id()),
+        authentication_id: None,
+        psd2_sca_exemption_type: None,
+        raw_connector_response: None,
+        is_payment_id_from_merchant: payment_data.payment_intent.is_payment_id_from_merchant,
+        l2_l3_data: None,
+        minor_amount_capturable: None,
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -511,6 +675,7 @@ pub async fn construct_external_vault_proxy_payment_router_data<'a>(
     let request = types::ExternalVaultProxyPaymentsData {
         payment_method_data: payment_data
             .external_vault_pmd
+            .clone()
             .get_required_value("external vault proxy payment_method_data")?,
         setup_future_usage: Some(payment_data.payment_intent.setup_future_usage),
         mandate_id: payment_data.mandate_data.clone(),
@@ -550,7 +715,7 @@ pub async fn construct_external_vault_proxy_payment_router_data<'a>(
                 .request_incremental_authorization,
             RequestIncrementalAuthorization::True
         ),
-        metadata: payment_data.payment_intent.metadata.expose_option(),
+        metadata: payment_data.payment_intent.metadata.clone().expose_option(),
         authentication_data: None,
         customer_acceptance: None,
         split_payments: None,
@@ -569,81 +734,26 @@ pub async fn construct_external_vault_proxy_payment_router_data<'a>(
         .as_ref()
         .and_then(|detail| detail.get_connector_token_request_reference_id());
 
-    // TODO: evaluate the fields in router data, if they are required or not
-    let router_data = types::RouterData {
-        flow: PhantomData,
-        merchant_id: merchant_context.get_merchant_account().get_id().clone(),
-        tenant_id: state.tenant.tenant_id.clone(),
-        // TODO: evaluate why we need customer id at the connector level. We already have connector customer id.
-        customer_id,
-        connector: connector_id.to_owned(),
-        // TODO: evaluate why we need payment id at the connector level. We already have connector reference id
-        payment_id: payment_data
-            .payment_attempt
-            .payment_id
-            .get_string_repr()
-            .to_owned(),
-        // TODO: evaluate why we need attempt id at the connector level. We already have connector reference id
-        attempt_id: payment_data
-            .payment_attempt
-            .get_id()
-            .get_string_repr()
-            .to_owned(),
-        status: payment_data.payment_attempt.status,
-        payment_method,
-        connector_auth_type: auth_type,
-        description: payment_data
-            .payment_intent
-            .description
-            .as_ref()
-            .map(|description| description.get_string_repr())
-            .map(ToOwned::to_owned),
-        // TODO: Create unified address
-        address: payment_data.payment_address.clone(),
-        auth_type: payment_data.payment_attempt.authentication_type,
-        connector_meta_data: merchant_connector_account.get_metadata(),
-        connector_wallets_details: None,
+    // Construct RouterDataV2 for external vault proxy
+    let router_data_v2 = construct_external_vault_proxy_router_data_v2(
+        state,
+        merchant_context.get_merchant_account(),
+        merchant_connector_account,
+        &payment_data,
         request,
-        response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
-        amount_captured: None,
-        minor_amount_captured: None,
-        access_token: None,
-        session_token: None,
-        reference_id: None,
-        payment_method_status: None,
-        payment_method_token: None,
-        connector_customer: connector_customer_id,
-        recurring_mandate_payment_data: None,
-        // TODO: This has to be generated as the reference id based on the connector configuration
-        // Some connectros might not accept accept the global id. This has to be done when generating the reference id
-        connector_request_reference_id,
-        preprocessing_id: payment_data.payment_attempt.preprocessing_step_id,
-        #[cfg(feature = "payouts")]
-        payout_method_data: None,
-        #[cfg(feature = "payouts")]
-        quote_id: None,
-        // TODO: take this based on the env
-        test_mode: Some(true),
-        payment_method_balance: None,
-        connector_api_version: None,
-        connector_http_status_code: None,
-        external_latency: None,
-        apple_pay_flow: None,
-        frm_metadata: None,
-        refund_id: None,
-        dispute_id: None,
-        connector_response: None,
-        integrity_check: Ok(()),
-        additional_merchant_data: None,
-        header_payload,
-        connector_mandate_request_reference_id,
-        authentication_id: None,
-        psd2_sca_exemption_type: None,
-        raw_connector_response: None,
-        is_payment_id_from_merchant: payment_data.payment_intent.is_payment_id_from_merchant,
-        l2_l3_data: None,
-        minor_amount_capturable: None,
-    };
+        connector_request_reference_id.clone(),
+        connector_customer_id.clone(),
+        customer_id.clone(),
+        header_payload.clone(),
+    )
+    .await?;
+
+    // Convert RouterDataV2 to old RouterData (v1) using the existing RouterDataConversion trait
+    let router_data = hyperswitch_domain_models::router_data_v2::flow_common_types::ExternalVaultProxyFlowData::to_old_router_data(router_data_v2)
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "Cannot construct router data for making the unified connector service call",
+        )?;
 
     Ok(router_data)
 }
@@ -1265,6 +1375,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         connector_testing_data: None,
         customer_id: None,
         enable_partial_authorization: None,
+        payment_channel: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -5082,6 +5193,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             connector_testing_data,
             customer_id: payment_data.payment_intent.customer_id,
             enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
+            payment_channel: payment_data.payment_intent.payment_channel,
         })
     }
 }
