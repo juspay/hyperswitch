@@ -169,7 +169,6 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
             PaymentMethodData::Card(ccard) => {
                 let card_type = match ccard
                     .card_network
-                    .clone()
                     .and_then(get_cybersource_card_type)
                 {
                     Some(card_network) => Some(card_network.to_string()),
@@ -1365,9 +1364,9 @@ impl
             })
             .ok();
 
-        let raw_card_type = ccard.card_network.clone().or(additional_card_network);
+        let raw_card_type = ccard.card_network.or(additional_card_network);
 
-        let card_type = match raw_card_type.clone().and_then(get_cybersource_card_type) {
+        let card_type = match raw_card_type.and_then(get_cybersource_card_type) {
             Some(card_network) => Some(card_network.to_string()),
             None => ccard.get_card_issuer().ok().map(String::from),
         };
@@ -1854,7 +1853,6 @@ impl
 
         let card_type = match ccard
             .card_network
-            .clone()
             .and_then(get_cybersource_card_type)
         {
             Some(card_network) => Some(card_network.to_string()),
@@ -2133,10 +2131,11 @@ impl
                         })?,
                 },
             }));
+        let card_network = google_pay_data.info.card_network.clone();
         let processing_information = ProcessingInformation::try_from((
             item,
             Some(PaymentSolution::GooglePay),
-            Some(google_pay_data.info.card_network.clone()),
+            Some(card_network.clone()),
         ))?;
         let client_reference_information = ClientReferenceInformation::from(item);
         let merchant_defined_information = item
@@ -2147,7 +2146,7 @@ impl
             .map(convert_metadata_to_merchant_defined_info);
 
         let ucaf_collection_indicator =
-            match google_pay_data.info.card_network.to_lowercase().as_str() {
+            match card_network.to_lowercase().as_str() {
                 "mastercard" => Some("2".to_string()),
                 _ => None,
             };
@@ -2577,7 +2576,6 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
             PaymentMethodData::Card(ccard) => {
                 let card_type = match ccard
                     .card_network
-                    .clone()
                     .and_then(get_cybersource_card_type)
                 {
                     Some(card_network) => Some(card_network.to_string()),
@@ -3268,7 +3266,6 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPreProcessingRouterData>>
             PaymentMethodData::Card(ccard) => {
                 let card_type = match ccard
                     .card_network
-                    .clone()
                     .and_then(get_cybersource_card_type)
                 {
                     Some(card_network) => Some(card_network.to_string()),

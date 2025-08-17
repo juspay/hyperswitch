@@ -34,7 +34,7 @@ pub async fn create_profile_acquirer(
     let incoming_acquirer_config = common_types::domain::AcquirerConfig {
         acquirer_assigned_merchant_id: request.acquirer_assigned_merchant_id.clone(),
         merchant_name: request.merchant_name.clone(),
-        network: request.network.clone(),
+        network: request.network,
         acquirer_bin: request.acquirer_bin.clone(),
         acquirer_ica: request.acquirer_ica.clone(),
         acquirer_fraud_rate: request.acquirer_fraud_rate,

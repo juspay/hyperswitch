@@ -265,7 +265,7 @@ pub fn make_dsl_input(
             .payment_method_data
             .as_ref()
             .and_then(|pm_data| match pm_data {
-                domain::PaymentMethodData::Card(card) => card.card_network.clone(),
+                domain::PaymentMethodData::Card(card) => card.card_network,
 
                 _ => None,
             }),
@@ -377,7 +377,7 @@ pub fn make_dsl_input(
             .payment_method_data
             .as_ref()
             .and_then(|pm_data| match pm_data {
-                domain::PaymentMethodData::Card(card) => card.card_network.clone(),
+                domain::PaymentMethodData::Card(card) => card.card_network,
 
                 _ => None,
             }),

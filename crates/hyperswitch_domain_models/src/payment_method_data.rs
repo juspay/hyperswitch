@@ -2172,7 +2172,7 @@ impl CardDetailsPaymentMethod {
             card_number: None,
             card_holder_name: self.card_holder_name.clone(),
             card_issuer: self.card_issuer.clone(),
-            card_network: self.card_network.clone(),
+            card_network: self.card_network,
             card_type: self.card_type.clone(),
             issuer_country: self.clone().get_issuer_country_alpha2(),
             last4_digits: self.last4_digits,
@@ -2317,7 +2317,7 @@ impl From<Card> for payment_methods::CardDetail {
             card_holder_name: None,
             nick_name: None,
             card_issuing_country: None,
-            card_network: card_data.card_network.clone(),
+            card_network: card_data.card_network,
             card_issuer: None,
             card_type: None,
         }
@@ -2334,7 +2334,7 @@ impl From<NetworkTokenData> for payment_methods::CardDetail {
             card_holder_name: None,
             nick_name: None,
             card_issuing_country: None,
-            card_network: network_token_data.card_network.clone(),
+            card_network: network_token_data.card_network,
             card_issuer: None,
             card_type: None,
         }

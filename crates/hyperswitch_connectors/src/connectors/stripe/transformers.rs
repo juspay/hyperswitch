@@ -1509,7 +1509,6 @@ impl TryFrom<(&Card, Auth3ds, bool)> for StripePaymentMethodData {
             payment_method_auth_type: Some(payment_method_auth_type),
             payment_method_data_card_preferred_network: card
                 .card_network
-                .clone()
                 .and_then(get_stripe_card_network),
             request_incremental_authorization: if request_incremental_authorization {
                 Some(StripeRequestIncrementalAuthorization::IfAvailable)
@@ -1862,7 +1861,6 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                             payment_method_data_card_preferred_network:
                                 card_details_for_network_transaction_id
                                     .card_network
-                                    .clone()
                                     .and_then(get_stripe_card_network),
                             request_incremental_authorization: None,
                         }),

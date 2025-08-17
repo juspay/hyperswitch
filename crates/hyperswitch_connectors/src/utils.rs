@@ -1948,7 +1948,6 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
         match &self.additional_payment_method_data {
             Some(payments::AdditionalPaymentData::Card(card_data)) => Ok(card_data
                 .card_network
-                .clone()
                 .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
                     field_name: "card_network",
                 })?),

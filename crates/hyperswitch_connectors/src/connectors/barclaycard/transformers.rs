@@ -1658,7 +1658,6 @@ impl TryFrom<&hyperswitch_domain_models::payment_method_data::Card> for PaymentI
     ) -> Result<Self, Self::Error> {
         let card_type = match ccard
             .card_network
-            .clone()
             .and_then(get_barclaycard_card_type)
         {
             Some(card_network) => Some(card_network.to_string()),

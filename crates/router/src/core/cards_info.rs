@@ -212,7 +212,7 @@ impl<'a> CardInfoMigrateExecutor<'a> {
             self.record.card_iin.clone(),
             card_info_models::UpdateCardInfo {
                 card_issuer: self.record.card_issuer.clone(),
-                card_network: self.record.card_network.clone(),
+                card_network: self.record.card_network,
                 card_type: self.record.card_type.clone(),
                 card_subtype: self.record.card_subtype.clone(),
                 card_issuing_country: self.record.card_issuing_country.clone(),

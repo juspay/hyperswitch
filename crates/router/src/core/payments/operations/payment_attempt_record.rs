@@ -202,7 +202,7 @@ impl<F: Send + Clone + Sync>
             retry_count: request.retry_count,
             invoice_next_billing_time: request.invoice_next_billing_time,
             triggered_by: request.triggered_by,
-            card_network: request.card_network.clone(),
+            card_network: request.card_network,
             card_issuer: request.card_issuer.clone(),
         };
         let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(

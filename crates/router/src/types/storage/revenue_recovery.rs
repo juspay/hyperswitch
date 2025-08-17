@@ -67,14 +67,14 @@ impl RevenueRecoveryPaymentData {
 
 #[derive(Debug, serde::Deserialize, Clone, Default)]
 pub struct RevenueRecoverySettings {
-    pub monitoring_threshold_in_seconds: i64,
+    pub monitoring_threshold_in_seconds: u32,
     pub retry_algorithm_type: enums::RevenueRecoveryAlgorithmType,
     pub recovery_timestamp: RecoveryTimestamp,
 }
 
 #[derive(Debug, serde::Deserialize, Clone)]
 pub struct RecoveryTimestamp {
-    pub initial_timestamp_in_hours: i64,
+    pub initial_timestamp_in_hours: u32,
 }
 
 impl Default for RecoveryTimestamp {

@@ -79,10 +79,9 @@ impl RecoveryDeciderClientConfig {
             .base_url
             .parse::<tonic::transport::Uri>()
             .map_err(Report::from)
-            .change_context(RecoveryDeciderError::ConfigError(format!(
-                "Invalid URI: {}",
-                self.base_url
-            )))?;
+            .change_context_lazy(|| {
+                RecoveryDeciderError::ConfigError(format!("Invalid URI: {}", self.base_url))
+            })?;
 
         let service_client = DeciderClient::with_origin(hyper_client, uri);
 

@@ -458,7 +458,6 @@ pub fn mk_add_card_response_hs(
     let card = api::CardDetailFromLocker {
         scheme: card
             .card_network
-            .clone()
             .map(|card_network| card_network.to_string()),
         last4_digits: Some(last4_digits),
         issuer_country: card.card_issuing_country,

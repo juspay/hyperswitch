@@ -392,7 +392,6 @@ impl From<(&api::payment_methods::CardDetail, &domain::PaymentMethod)>
             card: Some(data.clone()),
             card_network: data
                 .card_network
-                .clone()
                 .map(|card_network| card_network.to_string()),
             bank_transfer: None,
             wallet: None,

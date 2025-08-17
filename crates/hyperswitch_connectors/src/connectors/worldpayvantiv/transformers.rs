@@ -3837,7 +3837,7 @@ fn get_vantiv_card_data(
 > {
     match payment_method_data {
         PaymentMethodData::Card(card) => {
-            let card_type = match card.card_network.clone() {
+            let card_type = match card.card_network {
                 Some(card_type) => WorldpayvativCardType::try_from(card_type)?,
                 None => WorldpayvativCardType::try_from(&card.get_card_issuer()?)?,
             };
@@ -3855,7 +3855,7 @@ fn get_vantiv_card_data(
             ))
         }
         PaymentMethodData::CardDetailsForNetworkTransactionId(card_data) => {
-            let card_type = match card_data.card_network.clone() {
+            let card_type = match card_data.card_network {
                 Some(card_type) => WorldpayvativCardType::try_from(card_type)?,
                 None => WorldpayvativCardType::try_from(&card_data.get_card_issuer()?)?,
             };

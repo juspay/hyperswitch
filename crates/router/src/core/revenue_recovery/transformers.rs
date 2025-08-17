@@ -109,7 +109,7 @@ impl ForeignFrom<&api_models::payments::RecoveryPaymentsCreate>
             invoice_billing_started_at_time: data.billing_started_at,
             card_network: card_info
                 .as_ref()
-                .and_then(|info| info.card_network.clone()),
+                .and_then(|info| info.card_network),
             card_isin: card_info.as_ref().and_then(|info| info.card_isin.clone()),
             charge_id: None,
         }

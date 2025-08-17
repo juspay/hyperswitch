@@ -246,7 +246,7 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
         logger::debug!(
             payment_intent_id = ?payment_intent.get_id(),
             attempt_id = ?payment_attempt.get_id(),
-            message = "payment_attempt.payment_method_data is None"
+            "payment_attempt.payment_method_data is None"
         );
     }
 
@@ -271,7 +271,7 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
 
     let card_network_str = billing_connector_payment_method_details
         .and_then(|details| match details {
-            BillingConnectorPaymentMethodDetails::Card(card_info) => card_info.card_network.clone(),
+            BillingConnectorPaymentMethodDetails::Card(card_info) => card_info.card_network,
         })
         .map(|cn| cn.to_string());
 
@@ -280,7 +280,7 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
             BillingConnectorPaymentMethodDetails::Card(card_info) => card_info.card_issuer.clone(),
         });
 
-    let card_funding_str = payment_intent
+    let payment_method_subtype_str = payment_intent
         .feature_metadata
         .as_ref()
         .and_then(|revenue_recovery_data| {
@@ -294,7 +294,7 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
     let recovery_timestamp_config = &state.conf.revenue_recovery.recovery_timestamp;
 
     let modified_start_time_primitive = start_time_primitive.saturating_add(time::Duration::hours(
-        recovery_timestamp_config.initial_timestamp_in_hours,
+        recovery_timestamp_config.initial_timestamp_in_hours.into(),
     ));
     let start_time_proto = date_time::convert_to_prost_timestamp(modified_start_time_primitive);
 
@@ -362,7 +362,7 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
     let decider_request = InternalDeciderRequest {
         first_error_message,
         billing_state,
-        card_funding: card_funding_str,
+        card_funding: payment_method_subtype_str,
         card_network: card_network_str,
         card_issuer: card_issuer_str,
         invoice_start_time: start_time_proto,
