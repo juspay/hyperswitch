@@ -467,19 +467,6 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
             }
         };
 
-        let capture_method = router_data
-            .request
-            .capture_method
-            .map(payments_grpc::CaptureMethod::foreign_try_from)
-            .transpose()?;
-
-        let browser_info = router_data
-            .request
-            .browser_info
-            .clone()
-            .map(payments_grpc::BrowserInformation::foreign_try_from)
-            .transpose()?;
-
         Ok(Self {
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
