@@ -117,9 +117,7 @@ impl<'a> NetworkTokenizationBuilder<'a, CardRequestValidated> {
                 }),
             card_network: optional_card_info
                 .as_ref()
-                .map_or(card_req.card_network, |card_info| {
-                    card_info.card_network
-                }),
+                .map_or(card_req.card_network, |card_info| card_info.card_network),
             card_type: optional_card_info.as_ref().map_or(
                 card_req
                     .card_type

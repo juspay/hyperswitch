@@ -248,9 +248,7 @@ impl
                     .card_issuer
                     .clone()
                     .or(card_bin_info.card_issuer),
-                card_network: card_details
-                    .card_network
-                    .or(card_bin_info.card_network),
+                card_network: card_details.card_network.or(card_bin_info.card_network),
                 card_type: card_details.card_type.clone().or(card_bin_info.card_type),
                 saved_to_locker: false,
             })
@@ -325,9 +323,7 @@ impl
                     .card_issuer
                     .clone()
                     .or(card_bin_info.card_issuer),
-                card_network: card_details
-                    .card_network
-                    .or(card_bin_info.card_network),
+                card_network: card_details.card_network.or(card_bin_info.card_network),
                 card_type: card_details.card_type.clone().or(card_bin_info.card_type),
                 saved_to_locker: false,
             })

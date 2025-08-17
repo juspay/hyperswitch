@@ -2186,9 +2186,7 @@ impl Card {
                 .card_issuer
                 .clone()
                 .or(additional_card_info.card_issuer),
-            card_network: self
-                .card_network
-                .or(additional_card_info.card_network),
+            card_network: self.card_network.or(additional_card_info.card_network),
             card_type: self.card_type.clone().or(additional_card_info.card_type),
             card_issuing_country: self
                 .card_issuing_country

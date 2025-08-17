@@ -167,10 +167,7 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
 
         let (payment_information, solution) = match item.request.payment_method_data.clone() {
             PaymentMethodData::Card(ccard) => {
-                let card_type = match ccard
-                    .card_network
-                    .and_then(get_cybersource_card_type)
-                {
+                let card_type = match ccard.card_network.and_then(get_cybersource_card_type) {
                     Some(card_network) => Some(card_network.to_string()),
                     None => ccard.get_card_issuer().ok().map(String::from),
                 };
@@ -1851,10 +1848,7 @@ impl
         let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
         let order_information = OrderInformationWithBill::from((item, bill_to));
 
-        let card_type = match ccard
-            .card_network
-            .and_then(get_cybersource_card_type)
-        {
+        let card_type = match ccard.card_network.and_then(get_cybersource_card_type) {
             Some(card_network) => Some(card_network.to_string()),
             None => ccard.get_card_issuer().ok().map(String::from),
         };
@@ -2145,11 +2139,10 @@ impl
             .clone()
             .map(convert_metadata_to_merchant_defined_info);
 
-        let ucaf_collection_indicator =
-            match card_network.to_lowercase().as_str() {
-                "mastercard" => Some("2".to_string()),
-                _ => None,
-            };
+        let ucaf_collection_indicator = match card_network.to_lowercase().as_str() {
+            "mastercard" => Some("2".to_string()),
+            _ => None,
+        };
 
         Ok(Self {
             processing_information,
@@ -2574,10 +2567,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(ccard) => {
-                let card_type = match ccard
-                    .card_network
-                    .and_then(get_cybersource_card_type)
-                {
+                let card_type = match ccard.card_network.and_then(get_cybersource_card_type) {
                     Some(card_network) => Some(card_network.to_string()),
                     None => ccard.get_card_issuer().ok().map(String::from),
                 };
@@ -3264,10 +3254,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPreProcessingRouterData>>
         )?;
         let payment_information = match payment_method_data {
             PaymentMethodData::Card(ccard) => {
-                let card_type = match ccard
-                    .card_network
-                    .and_then(get_cybersource_card_type)
-                {
+                let card_type = match ccard.card_network.and_then(get_cybersource_card_type) {
                     Some(card_network) => Some(card_network.to_string()),
                     None => ccard.get_card_issuer().ok().map(String::from),
                 };
