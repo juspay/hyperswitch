@@ -3173,7 +3173,7 @@ pub async fn payment_status(
     };
 
     let internal_payload = internal_payload_types::PaymentsGenericRequestWithResourceId {
-        global_payment_id: global_payment_id.clone(),
+        global_payment_id,
         payload,
     };
 
