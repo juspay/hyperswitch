@@ -7767,6 +7767,7 @@ default_imp_for_external_vault_proxy_payments_create!(
     connectors::Hipay,
     connectors::Helcim,
     connectors::HyperswitchVault,
+    connectors::Hyperwallet,
     connectors::Iatapay,
     connectors::Inespay,
     connectors::Itaubank,

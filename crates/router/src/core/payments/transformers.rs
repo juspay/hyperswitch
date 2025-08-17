@@ -187,7 +187,6 @@ where
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn construct_external_vault_proxy_router_data_v2<'a>(
-    //////
     state: &'a SessionState,
     merchant_account: &domain::MerchantAccount,
     merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
@@ -266,83 +265,6 @@ pub async fn construct_external_vault_proxy_router_data_v2<'a>(
     };
 
     Ok(router_data_v2)
-}
-
-#[cfg(feature = "v2")]
-pub fn convert_payment_router_data_v2_to_v1<Flow, Request, Response>(
-    router_data_v2: hyperswitch_domain_models::router_data_v2::RouterDataV2<
-        Flow,
-        hyperswitch_domain_models::router_data_v2::PaymentFlowData,
-        Request,
-        Response,
-    >,
-    connector_id: &str,
-    payment_method: common_enums::PaymentMethod,
-    payment_data: &hyperswitch_domain_models::payments::PaymentConfirmData<Flow>,
-) -> types::RouterData<Flow, Request, Response>
-where
-    Flow: Clone,
-{
-    let resource_data = &router_data_v2.resource_common_data;
-
-    types::RouterData {
-        flow: router_data_v2.flow,
-        merchant_id: resource_data.merchant_id.clone(),
-        customer_id: resource_data.customer_id.clone(),
-        connector: connector_id.to_owned(),
-        payment_id: resource_data.payment_id.clone(),
-        tenant_id: router_data_v2.tenant_id,
-        attempt_id: resource_data.attempt_id.clone(),
-        status: resource_data.status,
-        payment_method,
-        connector_auth_type: router_data_v2.connector_auth_type,
-        description: resource_data.description.clone(),
-        address: resource_data.address.clone(),
-        auth_type: resource_data.auth_type,
-        connector_meta_data: resource_data.connector_meta_data.clone(),
-        connector_wallets_details: None,
-        request: router_data_v2.request,
-        response: router_data_v2.response,
-        amount_captured: resource_data.amount_captured,
-        minor_amount_captured: resource_data.minor_amount_captured,
-        access_token: resource_data.access_token.clone(),
-        session_token: resource_data.session_token.clone(),
-        reference_id: resource_data.reference_id.clone(),
-        payment_method_status: resource_data.payment_method_status,
-        payment_method_token: resource_data.payment_method_token.clone(),
-        connector_customer: resource_data.connector_customer.clone(),
-        recurring_mandate_payment_data: resource_data.recurring_mandate_payment_data.clone(),
-        connector_request_reference_id: resource_data.connector_request_reference_id.clone(),
-        preprocessing_id: resource_data.preprocessing_id.clone(),
-        #[cfg(feature = "payouts")]
-        payout_method_data: None,
-        #[cfg(feature = "payouts")]
-        quote_id: None,
-        test_mode: resource_data.test_mode,
-        payment_method_balance: resource_data.payment_method_balance.clone(),
-        connector_api_version: resource_data.connector_api_version.clone(),
-        connector_http_status_code: resource_data.connector_http_status_code,
-        external_latency: resource_data.external_latency,
-        apple_pay_flow: resource_data.apple_pay_flow.clone(),
-        frm_metadata: None,
-        refund_id: None,
-        dispute_id: None,
-        connector_response: resource_data.connector_response.clone(),
-        integrity_check: Ok(()),
-        additional_merchant_data: None,
-        header_payload: None,
-        connector_mandate_request_reference_id: payment_data
-            .payment_attempt
-            .connector_token_details
-            .as_ref()
-            .and_then(|detail| detail.get_connector_token_request_reference_id()),
-        authentication_id: None,
-        psd2_sca_exemption_type: None,
-        raw_connector_response: None,
-        is_payment_id_from_merchant: payment_data.payment_intent.is_payment_id_from_merchant,
-        l2_l3_data: None,
-        minor_amount_capturable: None,
-    }
 }
 
 #[cfg(feature = "v2")]
