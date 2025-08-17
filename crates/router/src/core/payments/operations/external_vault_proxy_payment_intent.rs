@@ -363,6 +363,11 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to generate payment_method_id")?;
 
+                let external_vault_source = business_profile
+                    .external_vault_connector_details
+                    .clone()
+                    .map(|details| details.vault_connector_id);
+
                 let encrypted_payment_method_billing_address = payment_data
                     .payment_address
                     .get_payment_method_billing()
@@ -444,10 +449,11 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Unable to parse External vault token data")?;
 
-                let response = payment_methods::create_payment_method_for_confirm(
+                let payment_method_response = payment_methods::create_payment_method_for_confirm(
                     state,
                     &customer_id,
                     payment_method_id,
+                    external_vault_source,
                     &payment_data.payment_intent.merchant_id,
                     merchant_context.get_merchant_key_store(),
                     storage_scheme,
@@ -458,19 +464,7 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
                     encrypted_external_vault_token_data,
                 ).await?;
 
-                payment_data.payment_attempt = db.update_payment_attempt(
-                    key_manager_state,
-                    merchant_context.get_merchant_key_store(),
-                    payment_data.payment_attempt.clone(),
-                    hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::PaymentMethodIdUpdate {
-                        payment_method_id: response.id,
-                        updated_by: storage_scheme.to_string(),
-                    },
-                    storage_scheme,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to update payment attempt in db")?;
+                payment_data.payment_method = Some(payment_method_response);
             }
             (_, None, Some(payment_token)) => {
                 match payment_data.external_vault_pmd.as_ref() {
@@ -694,18 +688,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to update payment intent")?;
 
-        let updated_payment_attempt = db
-            .update_payment_attempt(
-                key_manager_state,
-                key_store,
-                payment_data.payment_attempt.clone(),
-                payment_attempt_update,
-                storage_scheme,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to update payment attempt")?;
-
         if let (true, true, Some(payment_method_id)) = (
             response_router_data.status.is_success(),
             payment_data.payment_attempt.customer_acceptance.is_some(),
@@ -722,6 +704,18 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to update payment method")?;
         };
+
+        let updated_payment_attempt = db
+            .update_payment_attempt(
+                key_manager_state,
+                key_store,
+                payment_data.payment_attempt,
+                payment_attempt_update,
+                storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to update payment attempt")?;
 
         payment_data.payment_intent = updated_payment_intent;
         payment_data.payment_attempt = updated_payment_attempt;

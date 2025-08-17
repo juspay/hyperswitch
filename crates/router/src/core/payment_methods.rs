@@ -1254,6 +1254,7 @@ impl PaymentMethodExt for domain::PaymentMethodVaultingData {
         }
     }
 
+    // Not implement because it is saved in locker and not in payment method table
     fn convert_to_vault_payment_method_data(
         &self,
     ) -> RouterResult<payment_methods::PaymentMethodsData> {
@@ -1263,6 +1264,7 @@ impl PaymentMethodExt for domain::PaymentMethodVaultingData {
         .attach_printable("Payment method data is not supported for vaulting"))
     }
 
+    // Not implement because it is saved in locker and not in payment method table
     fn convert_from_vault_payment_method_data(
         vault_additional_data: payment_methods::PaymentMethodsData,
         external_vault_token_data: payment_methods::ExternalVaultTokenData,
@@ -1334,8 +1336,8 @@ impl PaymentMethodExt for domain::ExternalVaultPaymentMethodData {
             Self::Card(card_details) => Ok(payment_methods::PaymentMethodsData::Card(
                 payment_methods::CardDetailsPaymentMethod {
                     last4_digits: card_details.last_four,
-                    expiry_month: Some(Secret::new(card_details.card_exp_month)),
-                    expiry_year: Some(Secret::new(card_details.card_exp_year)),
+                    expiry_month: Some(card_details.card_exp_month),
+                    expiry_year: Some(card_details.card_exp_year),
                     card_holder_name: card_details.card_holder_name,
                     nick_name: card_details.nick_name,
                     issuer_country: card_details.card_issuing_country,
@@ -1363,11 +1365,16 @@ impl PaymentMethodExt for domain::ExternalVaultPaymentMethodData {
             payment_methods::PaymentMethodsData::Card(card_details) => {
                 Ok(Self::Card(Box::new(domain::ExternalVaultCard {
                     card_number: external_vault_token_data.tokenized_card_number,
-                    card_exp_month: card_details
-                        .expiry_month
-                        .expose_option()
-                        .unwrap_or_default(),
-                    card_exp_year: card_details.expiry_year.expose_option().unwrap_or_default(),
+                    card_exp_month: card_details.expiry_month.ok_or(
+                        errors::ApiErrorResponse::MissingRequiredField {
+                            field_name: "card_details.expiry_month",
+                        },
+                    )?,
+                    card_exp_year: card_details.expiry_year.ok_or(
+                        errors::ApiErrorResponse::MissingRequiredField {
+                            field_name: "card_details.expiry_year",
+                        },
+                    )?,
                     card_holder_name: card_details.card_holder_name,
                     bin_number: card_details.card_isin,
                     last_four: card_details.last4_digits,
@@ -1863,6 +1870,7 @@ pub async fn create_payment_method_for_confirm(
     state: &SessionState,
     customer_id: &id_type::GlobalCustomerId,
     payment_method_id: id_type::GlobalPaymentMethodId,
+    external_vault_source: Option<id_type::MerchantConnectorAccountId>,
     merchant_id: &id_type::MerchantId,
     key_store: &domain::MerchantKeyStore,
     storage_scheme: enums::MerchantStorageScheme,
@@ -1907,7 +1915,7 @@ pub async fn create_payment_method_for_confirm(
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
                 network_token_requestor_reference_id: None,
-                external_vault_source: None,
+                external_vault_source,
                 external_vault_token_data: encrypted_external_vault_token_data,
             },
             storage_scheme,

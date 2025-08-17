@@ -945,7 +945,8 @@ pub enum PaymentMethodsData {
 
 #[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct ExternalVaultTokenData {
-    pub tokenized_card_number: String,
+    /// Tokenized reference for Card Number
+    pub tokenized_card_number: masking::Secret<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]

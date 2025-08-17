@@ -159,7 +159,8 @@ pub struct ExternalVaultCard {
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
 pub struct VaultToken {
-    pub card_cvc: String,
+    pub card_cvc: Secret<String>,
+    pub card_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
@@ -965,9 +966,15 @@ impl From<api_models::payments::ProxyCardData> for ExternalVaultCard {
 }
 impl From<api_models::payments::VaultToken> for VaultToken {
     fn from(value: api_models::payments::VaultToken) -> Self {
-        let api_models::payments::VaultToken { card_cvc } = value;
+        let api_models::payments::VaultToken {
+            card_cvc,
+            card_holder_name,
+        } = value;
 
-        Self { card_cvc }
+        Self {
+            card_cvc,
+            card_holder_name,
+        }
     }
 }
 impl
