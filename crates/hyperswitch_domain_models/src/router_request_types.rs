@@ -457,7 +457,9 @@ impl TryFrom<ExternalVaultProxyPaymentsData> for PaymentMethodTokenizationData {
         // TODO: External vault proxy payments should not use regular payment method tokenization
         // This needs to be implemented separately for external vault flows
         Err(ApiErrorResponse::NotImplemented {
-            message: NotImplementedMessage::Reason("External vault proxy tokenization not implemented".to_string()),
+            message: NotImplementedMessage::Reason(
+                "External vault proxy tokenization not implemented".to_string(),
+            ),
         }
         .into())
     }
