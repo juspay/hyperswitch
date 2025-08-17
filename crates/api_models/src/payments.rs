@@ -2611,7 +2611,7 @@ pub struct ProxyPaymentMethodDataRequest {
 #[serde(rename_all = "snake_case")]
 pub enum ProxyPaymentMethodData {
     #[schema(title = "ProxyCardData")]
-    VaultDataCard(ProxyCardData),
+    VaultDataCard(Box<ProxyCardData>),
     VaultToken(VaultToken),
 }
 

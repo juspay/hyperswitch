@@ -919,7 +919,7 @@ impl From<api_models::payments::ProxyPaymentMethodData> for ExternalVaultPayment
     fn from(api_model_payment_method_data: api_models::payments::ProxyPaymentMethodData) -> Self {
         match api_model_payment_method_data {
             api_models::payments::ProxyPaymentMethodData::VaultDataCard(card_data) => {
-                Self::Card(Box::new(ExternalVaultCard::from(card_data)))
+                Self::Card(Box::new(ExternalVaultCard::from(*card_data)))
             }
             api_models::payments::ProxyPaymentMethodData::VaultToken(vault_data) => {
                 Self::VaultToken(VaultToken::from(vault_data))
