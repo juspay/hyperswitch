@@ -196,8 +196,15 @@ pub async fn construct_external_vault_proxy_router_data_v2<'a>(
     connector_customer_id: Option<String>,
     customer_id: Option<common_utils::id_type::CustomerId>,
     header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
-) -> RouterResult<hyperswitch_domain_models::router_data_v2::RouterDataV2<api::ExternalVaultProxy, hyperswitch_domain_models::router_data_v2::ExternalVaultProxyFlowData, types::ExternalVaultProxyPaymentsData, types::PaymentsResponseData>> {
-    use hyperswitch_domain_models::router_data_v2::{RouterDataV2, ExternalVaultProxyFlowData};
+) -> RouterResult<
+    hyperswitch_domain_models::router_data_v2::RouterDataV2<
+        api::ExternalVaultProxy,
+        hyperswitch_domain_models::router_data_v2::ExternalVaultProxyFlowData,
+        types::ExternalVaultProxyPaymentsData,
+        types::PaymentsResponseData,
+    >,
+> {
+    use hyperswitch_domain_models::router_data_v2::{ExternalVaultProxyFlowData, RouterDataV2};
 
     let auth_type = merchant_connector_account
         .get_connector_account_details()
@@ -660,7 +667,8 @@ pub async fn construct_external_vault_proxy_payment_router_data<'a>(
         connector_customer_id.clone(),
         customer_id.clone(),
         header_payload.clone(),
-    ).await?;
+    )
+    .await?;
 
     // Convert RouterDataV2 to old RouterData (v1) using the existing RouterDataConversion trait
     let router_data = hyperswitch_domain_models::router_data_v2::flow_common_types::ExternalVaultProxyFlowData::to_old_router_data(router_data_v2)
