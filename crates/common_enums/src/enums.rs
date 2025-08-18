@@ -2854,6 +2854,7 @@ pub enum RequestIncrementalAuthorization {
     True,
     #[default]
     False,
+    Default,
 }
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Debug, Serialize, Deserialize, strum::Display, ToSchema,)]
@@ -7657,6 +7658,10 @@ impl TransactionStatus {
             self,
             Self::ChallengeRequired | Self::ChallengeRequiredDecoupledAuthentication
         )
+    }
+
+    pub fn is_terminal_state(self) -> bool {
+        matches!(self, Self::Success | Self::Failure)
     }
 }
 

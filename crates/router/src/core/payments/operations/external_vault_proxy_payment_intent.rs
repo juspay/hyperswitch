@@ -1,12 +1,8 @@
 use api_models::payments::ExternalVaultProxyPaymentsRequest;
 use async_trait::async_trait;
 use common_enums::enums;
-use common_utils::{
-    crypto::Encryptable,
-    ext_traits::{AsyncExt, ValueExt},
-    types::keymanager::ToEncryptable,
-};
-use error_stack::{report, ResultExt};
+use common_utils::types::keymanager::ToEncryptable;
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData, payments::PaymentConfirmData,
 };
@@ -18,7 +14,6 @@ use super::{Domain, GetTracker, Operation, PostUpdateTracker, UpdateTracker, Val
 use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        payment_methods::{self, PaymentMethodExt},
         payments::{
             self,
             operations::{self, ValidateStatusForOperation},
@@ -687,23 +682,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to update payment intent")?;
-
-        if let (true, true, Some(payment_method_id)) = (
-            response_router_data.status.is_success(),
-            payment_data.payment_attempt.customer_acceptance.is_some(),
-            payment_data.payment_attempt.payment_method_id.clone(),
-        ) {
-            payment_methods::update_payment_method_status_internal(
-                state,
-                key_store,
-                storage_scheme,
-                common_enums::PaymentMethodStatus::Active,
-                &payment_method_id,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to update payment method")?;
-        };
 
         let updated_payment_attempt = db
             .update_payment_attempt(

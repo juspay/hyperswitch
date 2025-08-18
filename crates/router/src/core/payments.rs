@@ -1563,13 +1563,12 @@ where
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;
 
-    // consume the req merchant_connector_id and set it in the payment_data
-
     operation
         .to_domain()?
         .create_or_fetch_payment_method(state, &merchant_context, &profile, &mut payment_data)
         .await?;
 
+    // consume the req merchant_connector_id and set it in the payment_data
     let connector = operation
         .to_domain()?
         .perform_routing(&merchant_context, &profile, state, &mut payment_data)
