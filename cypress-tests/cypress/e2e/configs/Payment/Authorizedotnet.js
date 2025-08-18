@@ -15,7 +15,7 @@ const successfulNo3DSCardDetails = {
 };
 
 const successfulThreeDSTestCardDetails = {
-  card_number: "4111111111111111",  // Visa test card (approved in Authorize.Net sandbox)
+  card_number: "4111111111111111", // Visa test card (approved in Authorize.Net sandbox)
   card_exp_month: "12",
   card_exp_year: "2029",
   card_holder_name: "John Doe",
@@ -716,14 +716,14 @@ export const connectorDetails = {
         confirm: false,
         currency: "USD",
         customer_id: "Customer123_UCS",
-        setup_future_usage: "off_session"
+        setup_future_usage: "off_session",
       },
       Response: {
         status: 200,
         body: {
-          status: "requires_payment_method"
-        }
-      }
+          status: "requires_payment_method",
+        },
+      },
     },
 
     UCSConfirmMandate: {
@@ -736,8 +736,8 @@ export const connectorDetails = {
           accepted_at: "1963-05-03T04:07:52.723Z",
           online: {
             ip_address: "127.0.0.1",
-            user_agent: "amet irure esse"
-          }
+            user_agent: "amet irure esse",
+          },
         },
         payment_method: "card",
         payment_method_type: "credit",
@@ -749,7 +749,7 @@ export const connectorDetails = {
             card_exp_year: "30",
             card_holder_name: "joseph Doe",
             card_cvc: "396",
-            card_network: "VISA"
+            card_network: "VISA",
           },
           billing: {
             address: {
@@ -757,27 +757,27 @@ export const connectorDetails = {
               line2: "Harrison Street",
               line3: "Harrison Street",
               city: "San Fransico",
-              state: "California", 
+              state: "California",
               zip: "94122",
               country: "IT",
               first_name: "joseph",
-              last_name: "Doe"
+              last_name: "Doe",
             },
             email: generateRandomEmail(),
             phone: {
               number: "8056594427",
-              country_code: "+91"
-            }
-          }
+              country_code: "+91",
+            },
+          },
         },
-        all_keys_required: true
+        all_keys_required: true,
       },
       Response: {
         status: 200,
         body: {
-          status: "succeeded"
-        }
-      }
+          status: "succeeded",
+        },
+      },
     },
 
     UCSRecurringPayment: {
@@ -790,20 +790,20 @@ export const connectorDetails = {
         off_session: true,
         recurring_details: {
           type: "payment_method_id",
-          data: "pm_placeholder" // Will be dynamically set in tests
+          data: "pm_placeholder", // Will be dynamically set in tests
         },
         all_keys_required: true,
         metadata: {
           ucs_test: "recurring_payment",
-          payment_sequence: "recurring"
-        }
+          payment_sequence: "recurring",
+        },
       },
       Response: {
         status: 200,
         body: {
-          status: "succeeded"
-        }
-      }
+          status: "succeeded",
+        },
+      },
     },
   },
 };
