@@ -69,10 +69,10 @@ common_merchant_identifier = "COMMON MERCHANT IDENTIFIER"
 applepay_endpoint = "DOMAIN SPECIFIC ENDPOINT"
 
 [locker]
-host = "http://127.0.0.1:3000"
-host_rs = "http://127.0.0.1:3000"
-mock_locker = true
-basilisk_host = ""
+host = "http://127.0.0.1:3009"
+host_rs = "http://127.0.0.1:3009"
+mock_locker = false
+basilisk_host = "http://127.0.0.1:3009"
 locker_enabled = true
 ttl_for_storage_in_secs = 220752000
 
@@ -84,9 +84,58 @@ redis_lock_timeout_in_seconds = 100
 redis_ttl_in_seconds = 172800
 
 [jwekey]
-vault_encryption_key = ""
-rust_locker_encryption_key = ""
-vault_private_key = ""
+vault_encryption_key = """
+-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvCOckjZBl2+KxTDv9Zwz
+sIb4IwGosgBnDRvDxlDGimCYhq04qBEr4Voyw22DWBJoMbTy3zK9mmwXpuEoeliI
+pwCQcpvFvjxCjQTjqI9KnM033Lwm26TY9jq4Eo1Jkq6lz7P+phcSn+UbmkyXBXbV
+nh7DBy+RD3hFuzX3XRR6UzJtjZLFBAwW+3q3tNgCeKTbFLyHEAo6EFxhF51XSCde
+AoeoZe2/nH+Wd5wOAjSHW1IUsVOmFTL4oSS/K04+VxR9x9gQRXPRun+3ueMcu++R
+wDSjCt8YU2ps6p+Bw4S3Hg2a6Ugck01WJyfKQAKTUqnZeQw+CPvx5fuh2CvfyFXh
+twIDAQAB
+-----END PUBLIC KEY-----
+"""
+rust_locker_encryption_key = """
+-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvCOckjZBl2+KxTDv9Zwz
+sIb4IwGosgBnDRvDxlDGimCYhq04qBEr4Voyw22DWBJoMbTy3zK9mmwXpuEoeliI
+pwCQcpvFvjxCjQTjqI9KnM033Lwm26TY9jq4Eo1Jkq6lz7P+phcSn+UbmkyXBXbV
+nh7DBy+RD3hFuzX3XRR6UzJtjZLFBAwW+3q3tNgCeKTbFLyHEAo6EFxhF51XSCde
+AoeoZe2/nH+Wd5wOAjSHW1IUsVOmFTL4oSS/K04+VxR9x9gQRXPRun+3ueMcu++R
+wDSjCt8YU2ps6p+Bw4S3Hg2a6Ugck01WJyfKQAKTUqnZeQw+CPvx5fuh2CvfyFXh
+twIDAQAB
+-----END PUBLIC KEY-----
+"""
+vault_private_key = """
+-----BEGIN PRIVATE KEY-----
+MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCQtK6JpETOh3xr
+iuIpgiaBU/nNPL//evwZGXQRCvrwKPRpV4cIezDnqRVB7aAf83FLsWAVbo2SpVks
+uVfT6OQbgMN363rMpWDUeSzGZqlfbHrmOjb4g1NByHQuaGCjgSGreSpGaqvllWup
+0gLoFETP1R5dLxBP22YlDD6GgfqhLXsiTHfmhKGa8XoOxq3HY+t6LEKMRlEmJSHj
+QRuuH0ZGJi41a3OeUHphRyGrB6iG72VjaJ5+iUS2/xRMaS41Ozc5m38LkR5ONZn9
+ybF3xdFx2fLQ6c6loGUZvnj4d2BQYrWOyU3YiNQBwUGQ7b+aUnorRKhgaYMgXDEk
+k+cvcV+TAgMBAAECggEAQSCQzXIZZbqkzOIdGAFzwxFAhJaq8xkvDTzfeCww9JX6
+Ks8x/ycyw5Dd+GYygy7V9vNGA19WaIHyuKZSWRWgVKCHWRmqkyB7jCVdeY4K/N+e
+ELByvTad6iWF5L0lgXFE7iACXt7zrsipRC05EarNrZyFpfrgpJBiUJpKKc+mNZPN
+SRM/osreCJPBof3dKkHK9A2cGGP8c2ai5vjNiMijFwT2T2HFe5+6tQXsD+B+AMTk
+wX4svaajYCEuqubJ1XusRXl8zDBAvZ3G8wRiNC2D58JEh+snKd7hhS4XxXxK16hW
+lznxbrZ9HNaWh9NEifIaYTfDZlfTAAnnRIgnbL73wQKBgQDIn2ScEAe+Syq0+gsw
+5N7I91Y3/1wIfpLyumTxqEoQSNhWStaNoSfLnLsE7KK38z8R/t4THK3Mv8ayeXqK
+ro1p3a3AjF5NyxanwU9ziXnT+6jqn2EtquAlPUcDltqfLjTMjG4UtRbDBub3D0/G
+5Jtr1Fca/f3t3m63anlB9yQtjwKBgQC4pgjDjaF41zmX1ILWc9pIt88G9RBuFZiE
+cbuPlvbIbUyd5ual/oCZet+Pvn5e5S2ayLUxFgHJa+XWKJC5XEbjFOsEOliupbYh
+yoJAN57kfUohK6J3RqiLF2syAAYDIVGLasd2uE+YIylG1xLb61RI18b6EFKBiio8
+Ss7KQTPzvQKBgDH2R/b5owQH8iXJ03mktbq0pfsiFAhlhTD/rF3mPDOcAIxU7OOu
+i5uQd569U7Sd1koj/6ggz0ObSt9tk0/wMnV36Gp4So/zELxMTv4F8ZoSJTnw4SGf
+WVzMyt+g9OcJecqq+ksb4gRFtsU2QfbVPcN3yQ2GzXMsnsP8tx/vbUoPAoGAH/eO
+uNxCQjtwmxqNdDcmaUR5MQkoSQawGu3dvOQz4Usa4pNhBwfil6+wGKCwHBmtJYjt
+5Yubz5VAey0WsSCKnTG35kl7pPDHcV4v4pI+jewq80csn126PCpXwpZCdDRGe86G
+rcUG8p3TvZHqj+xT8TB6IDzHK+oRmdKRrm5PYjkCgYBwfrk8ngA4SXw8DZPiAU0h
+UbhTSArCQcFIo96438TXUBELl7PEOqDCzeMN5XWjFL1t1ui3AC15UEUtqdANLutH
+8i55Pb1tb4OoO8IZIqUFR3kkTAuEgzCQel8wljACqGJj2KuoQBrNI3sOJW6aalDm
+0MociX/uafnE/lr0tz8zXA==
+-----END PRIVATE KEY-----
+"""
 tunnel_private_key = ""
 
 [connectors.supported]

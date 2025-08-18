@@ -2340,6 +2340,16 @@ impl PaymentMethodInterface for KafkaStore {
             .find_payment_method_by_fingerprint_id(state, key_store, fingerprint_id)
             .await
     }
+
+    #[cfg(feature = "v1")]
+    async fn find_payment_method_ids_by_billing_connector_subscription_id(
+        &self,
+        subscription_id: &str,
+    ) -> CustomResult<Vec<String>, errors::StorageError> {
+        self.diesel_store
+            .find_payment_method_ids_by_billing_connector_subscription_id(subscription_id)
+            .await
+    }
 }
 
 #[cfg(not(feature = "payouts"))]

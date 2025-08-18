@@ -849,6 +849,12 @@ pub trait PaymentMethodInterface {
         merchant_id: &id_type::MerchantId,
         payment_method_id: &str,
     ) -> CustomResult<PaymentMethod, Self::Error>;
+
+    #[cfg(feature = "v1")]
+    async fn find_payment_method_ids_by_billing_connector_subscription_id(
+        &self,
+        subscription_id: &str,
+    ) -> CustomResult<Vec<String>, Self::Error>;
 }
 
 #[cfg(feature = "v2")]

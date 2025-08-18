@@ -175,6 +175,27 @@ impl PaymentMethod {
         .await
     }
 
+    pub async fn find_payment_method_ids_by_billing_connector_subscription_id(
+        conn: &PgPooledConn,
+        subscription_id: &str,
+    ) -> StorageResult<Vec<String>> {
+        let query = <Self as HasTable>::table()
+            .select(dsl::payment_method_id)
+            .filter(dsl::billing_connector_subscription_id.eq(subscription_id.to_owned()))
+            .order(dsl::last_used_at.desc())
+            .into_boxed();
+
+        router_env::logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
+
+        generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
+            query.load_async::<String>(conn),
+            generics::db_metrics::DatabaseOperation::Filter,
+        )
+        .await
+        .change_context(errors::DatabaseError::Others)
+        .attach_printable("Failed to find payment method IDs by billing connector subscription ID")
+    }
+
     pub async fn update_with_payment_method_id(
         self,
         conn: &PgPooledConn,

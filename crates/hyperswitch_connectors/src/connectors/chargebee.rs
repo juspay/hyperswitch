@@ -722,7 +722,6 @@ impl webhooks::IncomingWebhook for Chargebee {
         Ok(signature_auth == secret_auth)
     }
 
-    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     fn get_webhook_object_reference_id(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
@@ -730,18 +729,28 @@ impl webhooks::IncomingWebhook for Chargebee {
         let webhook =
             chargebee::ChargebeeInvoiceBody::get_invoice_webhook_data_from_body(request.body)
                 .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-        Ok(api_models::webhooks::ObjectReferenceId::InvoiceId(
-            api_models::webhooks::InvoiceIdType::ConnectorInvoiceId(webhook.content.invoice.id),
-        ))
+        
+        #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+        {
+            Ok(api_models::webhooks::ObjectReferenceId::InvoiceId(
+                api_models::webhooks::InvoiceIdType::ConnectorInvoiceId(webhook.content.invoice.id),
+            ))
+        }
+        
+        #[cfg(any(feature = "v1", not(all(feature = "revenue_recovery", feature = "v2"))))]
+        {
+            // For v1 or non-revenue recovery, use subscription ID as object reference
+            // This allows the webhook to be processed without errors
+            let subscription_id = webhook.content.invoice.subscription_id
+                .unwrap_or_else(|| webhook.content.invoice.id.clone());
+            Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::PaymentIntentId(
+                    common_utils::id_type::PaymentId::wrap(subscription_id)
+                        .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?
+                )
+            ))
+        }
     }
-    #[cfg(any(feature = "v1", not(all(feature = "revenue_recovery", feature = "v2"))))]
-    fn get_webhook_object_reference_id(
-        &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
-    }
-    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
@@ -751,13 +760,6 @@ impl webhooks::IncomingWebhook for Chargebee {
                 .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
         let event = api_models::webhooks::IncomingWebhookEvent::from(webhook.event_type);
         Ok(event)
-    }
-    #[cfg(any(feature = "v1", not(all(feature = "revenue_recovery", feature = "v2"))))]
-    fn get_webhook_event_type(
-        &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_resource_object(
