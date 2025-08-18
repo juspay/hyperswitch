@@ -953,6 +953,11 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         .is_iframe_redirection_enabled,
                     is_confirm_operation: false, // this is not a confirm operation
                     payment_channel: payment_data.payment_intent.payment_channel,
+                    feature_metadata: payment_data
+                        .payment_intent
+                        .feature_metadata
+                        .clone()
+                        .map(masking::Secret::new),
                     tax_status: payment_data.payment_intent.tax_status,
                     discount_amount: payment_data.payment_intent.discount_amount,
                     order_date: payment_data.payment_intent.order_date,

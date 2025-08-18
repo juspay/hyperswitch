@@ -119,7 +119,7 @@ pub enum RoutableConnectors {
     Nmi,
     Nomupay,
     Noon,
-    // Nordea,
+    Nordea,
     Novalnet,
     Nuvei,
     // Opayo, added as template code for future usage
@@ -276,6 +276,7 @@ pub enum Connector {
     Hipay,
     Helcim,
     HyperswitchVault,
+    // Hyperwallet, added as template code for future usage
     Inespay,
     Iatapay,
     Itaubank,
@@ -292,7 +293,7 @@ pub enum Connector {
     Nmi,
     Nomupay,
     Noon,
-    // Nordea,
+    Nordea,
     Novalnet,
     Nuvei,
     // Opayo, added as template code for future usage
@@ -385,6 +386,7 @@ impl Connector {
                 | (Self::Globalpay, _)
                 | (Self::Jpmorgan, _)
                 | (Self::Moneris, _)
+                | (Self::Nordea, _)
                 | (Self::Paypal, _)
                 | (Self::Payu, _)
                 | (
@@ -478,7 +480,7 @@ impl Connector {
             | Self::Nexinets
             | Self::Nexixpay
             | Self::Nomupay
-            // | Self::Nordea
+            | Self::Nordea
             | Self::Novalnet
             | Self::Nuvei
             | Self::Opennode
@@ -649,7 +651,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Nmi => Self::Nmi,
             RoutableConnectors::Nomupay => Self::Nomupay,
             RoutableConnectors::Noon => Self::Noon,
-            // RoutableConnectors::Nordea => Self::Nordea,
+            RoutableConnectors::Nordea => Self::Nordea,
             RoutableConnectors::Novalnet => Self::Novalnet,
             RoutableConnectors::Nuvei => Self::Nuvei,
             RoutableConnectors::Opennode => Self::Opennode,
@@ -779,7 +781,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Nmi => Ok(Self::Nmi),
             Connector::Nomupay => Ok(Self::Nomupay),
             Connector::Noon => Ok(Self::Noon),
-            // Connector::Nordea => Ok(Self::Nordea),
+            Connector::Nordea => Ok(Self::Nordea),
             Connector::Novalnet => Ok(Self::Novalnet),
             Connector::Nuvei => Ok(Self::Nuvei),
             Connector::Opennode => Ok(Self::Opennode),
