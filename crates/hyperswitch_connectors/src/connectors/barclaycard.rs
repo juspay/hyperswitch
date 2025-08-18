@@ -384,18 +384,6 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         req: &PaymentsPreProcessingRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        // let currency = req.request.currency.ok_or(errors::ConnectorError::MissingRequiredField {
-        //     field_name: "currency",
-        // })?;
-        // let amount = req.request.amount.ok_or(errors::ConnectorError::MissingRequiredField {
-        //     field_name: "amount",
-        // })?;
-        // let connector_router_data = barclaycard::BarclaycardRouterData::try_from((
-        //     &self.get_currency_unit(),
-        //     currency,
-        //     amount,
-        //     req,
-        // ))?;
         let amount_in_minor_unit = MinorUnit::new(req.request.amount.ok_or(
             errors::ConnectorError::MissingRequiredField {
                 field_name: "amount",
