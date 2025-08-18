@@ -1507,11 +1507,16 @@ pub struct Tokenization;
 #[cfg(all(feature = "v2", feature = "oltp"))]
 impl Tokenization {
     pub fn server(state: AppState) -> Scope {
-        let mut token_route = web::scope("/v2/tokenize").app_data(web::Data::new(state));
-        token_route = token_route.service(
-            web::resource("").route(web::post().to(tokenization_routes::create_token_vault_api)),
-        );
-        token_route
+        web::scope("/v2/tokenize")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("")
+                    .route(web::post().to(tokenization_routes::create_token_vault_api)),
+            )
+            .service(
+                web::resource("/{id}")
+                    .route(web::delete().to(tokenization_routes::delete_tokenized_data_api)),
+            )
     }
 }
 
