@@ -47,7 +47,7 @@ use hyperswitch_domain_models::{
     router_data_v2::flow_common_types::VaultConnectorFlowData,
     router_flow_types::ExternalVaultInsertFlow, types::VaultRouterData,
 };
-use masking::{ExposeOptionInterface, PeekInterface, Secret};
+use masking::{PeekInterface, Secret};
 use router_env::{instrument, tracing};
 use time::Duration;
 
