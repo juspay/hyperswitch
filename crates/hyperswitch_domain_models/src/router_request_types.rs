@@ -14,7 +14,7 @@ use serde_with::serde_as;
 use super::payment_method_data::PaymentMethodData;
 use crate::{
     address,
-    errors::api_error_response::ApiErrorResponse,
+    errors::api_error_response::{ApiErrorResponse, NotImplementedMessage},
     mandates,
     payment_method_data::ExternalVaultPaymentMethodData,
     payments,
@@ -456,7 +456,12 @@ impl TryFrom<ExternalVaultProxyPaymentsData> for PaymentMethodTokenizationData {
     fn try_from(_data: ExternalVaultProxyPaymentsData) -> Result<Self, Self::Error> {
         // TODO: External vault proxy payments should not use regular payment method tokenization
         // This needs to be implemented separately for external vault flows
-        todo!("External vault proxy tokenization not implemented")
+        Err(ApiErrorResponse::NotImplemented {
+            message: NotImplementedMessage::Reason(
+                "External vault proxy tokenization not implemented".to_string(),
+            ),
+        }
+        .into())
     }
 }
 

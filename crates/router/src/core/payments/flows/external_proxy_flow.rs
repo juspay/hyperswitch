@@ -1,6 +1,5 @@
 use async_trait::async_trait;
 use common_enums as enums;
-use common_types::payments as common_payments_types;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
 #[cfg(feature = "v2")]
@@ -8,7 +7,6 @@ use hyperswitch_domain_models::payments::PaymentConfirmData;
 use masking::ExposeInterface;
 use unified_connector_service_client::payments as payments_grpc;
 
-// use router_env::tracing::Instrument;
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
