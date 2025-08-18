@@ -858,6 +858,12 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodData {
                 card_holder_name,
                 co_badged_card_data: None,
             })),
+            payment_methods::PaymentMethodCreateData::ProxyCard(_) => Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "Payment method data",
+                }
+                .into(),
+            ),
         }
     }
 }
@@ -1066,6 +1072,26 @@ impl From<Card> for payment_methods::CardDetail {
             card_issuer: card.card_issuer,
             card_type: None,
             card_cvc: Some(card.card_cvc),
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl From<ExternalVaultCard> for payment_methods::ProxyCardDetails {
+    fn from(card: ExternalVaultCard) -> Self {
+        Self {
+            card_number: card.card_number,
+            card_exp_month: card.card_exp_month,
+            card_exp_year: card.card_exp_year,
+            card_holder_name: card.card_holder_name,
+            nick_name: card.nick_name,
+            card_issuing_country: card.card_issuing_country,
+            card_network: card.card_network,
+            card_issuer: card.card_issuer,
+            card_type: card.card_type,
+            card_cvc: Some(card.card_cvc),
+            bin_number: card.bin_number,
+            last_four: card.last_four,
         }
     }
 }

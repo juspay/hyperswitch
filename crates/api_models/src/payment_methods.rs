@@ -497,6 +497,7 @@ pub enum PaymentMethodUpdateData {
 #[serde(rename = "payment_method_data")]
 pub enum PaymentMethodCreateData {
     Card(CardDetail),
+    ProxyCard(ProxyCardDetails),
 }
 
 #[cfg(feature = "v1")]
@@ -605,6 +606,57 @@ pub struct CardDetail {
 
     /// Card Type
     pub card_type: Option<CardType>,
+
+    /// The CVC number for the card
+    /// This is optional in case the card needs to be vaulted
+    #[schema(value_type = String, example = "242")]
+    pub card_cvc: Option<masking::Secret<String>>,
+}
+
+// This struct is for collecting Proxy Card Data
+// All card related data present in this struct are tokenzied
+// No strict type is present to accept tokenized data
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct ProxyCardDetails {
+    /// Tokenized Card Number
+    #[schema(value_type = String,example = "4111111145551142")]
+    pub card_number: masking::Secret<String>,
+
+    /// Card Expiry Month
+    #[schema(value_type = String,example = "10")]
+    pub card_exp_month: masking::Secret<String>,
+
+    /// Card Expiry Year
+    #[schema(value_type = String,example = "25")]
+    pub card_exp_year: masking::Secret<String>,
+
+    /// First Six Digit of Card Number
+    pub bin_number: Option<String>,
+
+    ///Last Four Digit of Card Number
+    pub last_four: Option<String>,
+
+    /// Issuer Bank for Card
+    pub card_issuer: Option<String>,
+
+    /// Card's Network
+    #[schema(value_type = Option<CardNetwork>)]
+    pub card_network: Option<common_enums::CardNetwork>,
+
+    /// Card Type
+    pub card_type: Option<String>,
+
+    /// Issuing Country of the Card
+    pub card_issuing_country: Option<String>,
+
+    /// Card Holder's Nick Name
+    #[schema(value_type = Option<String>,example = "John Doe")]
+    pub nick_name: Option<masking::Secret<String>>,
+
+    /// Card Holder Name
+    #[schema(value_type = String,example = "John Doe")]
+    pub card_holder_name: Option<masking::Secret<String>>,
 
     /// The CVC number for the card
     /// This is optional in case the card needs to be vaulted

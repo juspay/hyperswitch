@@ -1,7 +1,8 @@
 use api_models::payment_methods;
+use error_stack;
 use serde::{Deserialize, Serialize};
 
-use crate::payment_method_data;
+use crate::{errors, payment_method_data};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum PaymentMethodVaultingData {
@@ -49,10 +50,17 @@ impl VaultingDataInterface for PaymentMethodVaultingData {
     }
 }
 
-impl From<payment_methods::PaymentMethodCreateData> for PaymentMethodVaultingData {
-    fn from(item: payment_methods::PaymentMethodCreateData) -> Self {
+impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodVaultingData {
+    type Error = error_stack::Report<errors::api_error_response::ApiErrorResponse>;
+    fn try_from(item: payment_methods::PaymentMethodCreateData) -> Result<Self, Self::Error> {
         match item {
-            payment_methods::PaymentMethodCreateData::Card(card) => Self::Card(card),
+            payment_methods::PaymentMethodCreateData::Card(card) => Ok(Self::Card(card)),
+            payment_methods::PaymentMethodCreateData::ProxyCard(card) => Err(
+                errors::api_error_response::ApiErrorResponse::UnprocessableEntity {
+                    message: "Proxy Card for PaymentMethodCreateData".to_string(),
+                }
+                .into(),
+            ),
         }
     }
 }
