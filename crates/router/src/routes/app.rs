@@ -1348,6 +1348,17 @@ impl Payouts {
 impl PaymentMethods {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/v2/payment-methods").app_data(web::Data::new(state));
+
+        #[cfg(feature = "olap")]
+        {
+            route =
+                route.service(web::resource("/filter").route(
+                    web::get().to(
+                        payment_methods::list_countries_currencies_for_connector_payment_method,
+                    ),
+                ));
+        }
+
         route = route
             .service(
                 web::resource("").route(web::post().to(payment_methods::create_payment_method_api)),
