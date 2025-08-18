@@ -43,7 +43,6 @@ impl
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
-        payment_method_type: Option<common_enums::PaymentMethodType>,
     ) -> RouterResult<types::PaymentsSessionRouterData> {
         Box::pin(transformers::construct_payment_router_data_for_sdk_session(
             state,
@@ -54,7 +53,6 @@ impl
             merchant_connector_account,
             merchant_recipient_data,
             header_payload,
-            payment_method_type,
         ))
         .await
     }
@@ -78,15 +76,6 @@ impl
         payment_method: Option<common_enums::PaymentMethod>,
         payment_method_type: Option<common_enums::PaymentMethodType>,
     ) -> RouterResult<types::PaymentsSessionRouterData> {
-        println!(
-            "$$$ construct_router_data payment_method {:?}",
-            payment_method
-        );
-        println!(
-            "$$$ construct_router_data payment_method_type {:?}",
-            payment_method_type
-        );
-
         Box::pin(transformers::construct_payment_router_data::<
             api::Session,
             types::PaymentsSessionData,
@@ -959,8 +948,7 @@ fn create_gpay_session_token(
         })
         .ok()
         .and_then(|connector_wallets_details| connector_wallets_details.google_pay);
-    let connector_metadata: Option<masking::Secret<tera::Value>> =
-        router_data.connector_meta_data.clone();
+    let connector_metadata = router_data.connector_meta_data.clone();
     let delayed_response = is_session_response_delayed(state, connector);
 
     if delayed_response {
@@ -1262,8 +1250,6 @@ fn create_paypal_sdk_session_token(
                     sdk_next_action: payment_types::SdkNextAction {
                         next_action: payment_types::NextActionCall::PostSessionTokens,
                     },
-                    client_token: None,
-                    transaction_info: None,
                 },
             )),
         }),
@@ -1425,7 +1411,6 @@ impl RouterDataSession for types::PaymentsSessionRouterData {
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
-        println!("$$$ in decide_flow");
         match connector.get_token {
             api::GetToken::GpayMetadata => {
                 create_gpay_session_token(state, self, connector, business_profile)
@@ -1451,11 +1436,7 @@ impl RouterDataSession for types::PaymentsSessionRouterData {
                 create_paypal_sdk_session_token(state, self, connector, business_profile)
             }
             api::GetToken::PazeMetadata => create_paze_session_token(self, header_payload),
-
             api::GetToken::Connector => {
-                // For connector-specific session token flows, the payment_method_type field
-                // in the router data contains the specific payment method type being processed
-                // This allows connectors like Braintree to handle each payment method individually
                 let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
                     api::Session,
                     types::PaymentsSessionData,

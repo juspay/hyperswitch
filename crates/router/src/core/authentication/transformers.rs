@@ -167,7 +167,7 @@ pub fn construct_router_data<F: Clone, Req, Res>(
         attempt_id: IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW.to_owned(),
         status: common_enums::AttemptStatus::default(),
         payment_method,
-        payment_method_type: common_enums::PaymentMethodType::default(),
+        payment_method_type: None,
         connector_auth_type: auth_type,
         description: None,
         address,

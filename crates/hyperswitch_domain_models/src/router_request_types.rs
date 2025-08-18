@@ -1382,7 +1382,6 @@ pub struct PaymentsSessionData {
     pub shipping_cost: Option<MinorUnit>,
     pub metadata: Option<Secret<serde_json::Value>>,
     /// The specific payment method type for which the session token is being generated
-    /// This allows connector-specific session token flows to handle each payment method individually
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
     pub payment_method: Option<common_enums::PaymentMethod>,
 }
