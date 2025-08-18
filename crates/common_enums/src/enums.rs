@@ -7655,6 +7655,10 @@ impl TransactionStatus {
             Self::ChallengeRequired | Self::ChallengeRequiredDecoupledAuthentication
         )
     }
+
+    pub fn is_terminal_state(self) -> bool {
+        matches!(self, Self::Success | Self::Failure)
+    }
 }
 
 #[derive(
