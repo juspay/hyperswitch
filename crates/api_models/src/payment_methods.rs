@@ -620,7 +620,7 @@ pub struct CardDetail {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct ProxyCardDetails {
     /// Tokenized Card Number
-    #[schema(value_type = String,example = "4111111145551142")]
+    #[schema(value_type = String,example = "tok_sjfowhoejsldj")]
     pub card_number: masking::Secret<String>,
 
     /// Card Expiry Month
