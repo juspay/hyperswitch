@@ -37,6 +37,8 @@ use error_stack::ResultExt;
 #[cfg(feature = "v2")]
 use masking::PeekInterface;
 use masking::Secret;
+#[cfg(feature = "v1")]
+use router_env::logger;
 #[cfg(feature = "v2")]
 use rustc_hash::FxHashMap;
 #[cfg(feature = "v1")]
@@ -1109,6 +1111,19 @@ impl PaymentAttempt {
             })
             .and_then(|data| data.get_additional_card_info())
             .and_then(|card_info| card_info.card_network)
+    }
+
+    pub fn get_payment_method_data(&self) -> Option<api_models::payments::AdditionalPaymentData> {
+        self.payment_method_data
+            .clone()
+            .and_then(|data| match data {
+                serde_json::Value::Null => None,
+                _ => Some(data.parse_value("AdditionalPaymentData")),
+            })
+            .transpose()
+            .map_err(|err| logger::error!("Failed to parse AdditionalPaymentData {err:?}"))
+            .ok()
+            .flatten()
     }
 }
 

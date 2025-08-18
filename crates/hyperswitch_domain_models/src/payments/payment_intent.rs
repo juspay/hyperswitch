@@ -249,6 +249,7 @@ pub struct PaymentIntentUpdateFields {
     pub duty_amount: Option<MinorUnit>,
     pub is_confirm_operation: bool,
     pub payment_channel: Option<common_enums::PaymentChannel>,
+    pub feature_metadata: Option<Secret<serde_json::Value>>,
     pub enable_partial_authorization: Option<bool>,
     pub request_overcapture: Option<common_types::primitive_wrappers::RequestOvercapture>,
 }
@@ -262,6 +263,7 @@ pub enum PaymentIntentUpdate {
         updated_by: String,
         fingerprint_id: Option<String>,
         incremental_authorization_allowed: Option<bool>,
+        feature_metadata: Option<Secret<serde_json::Value>>,
     },
     MetadataUpdate {
         metadata: serde_json::Value,
@@ -287,6 +289,7 @@ pub enum PaymentIntentUpdate {
         status: common_enums::IntentStatus,
         incremental_authorization_allowed: Option<bool>,
         updated_by: String,
+        feature_metadata: Option<Secret<serde_json::Value>>,
     },
     PaymentAttemptAndAttemptCountUpdate {
         active_attempt_id: String,
@@ -438,6 +441,7 @@ pub struct PaymentIntentUpdateInternal {
     pub force_3ds_challenge: Option<bool>,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub payment_channel: Option<common_enums::PaymentChannel>,
+    pub feature_metadata: Option<Secret<serde_json::Value>>,
     pub tax_status: Option<common_enums::TaxStatus>,
     pub discount_amount: Option<MinorUnit>,
     pub order_date: Option<PrimitiveDateTime>,
@@ -876,11 +880,13 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 status,
                 updated_by,
                 incremental_authorization_allowed,
+                feature_metadata,
             } => Self {
                 status: Some(status),
                 modified_at: Some(common_utils::date_time::now()),
                 updated_by,
                 incremental_authorization_allowed,
+                feature_metadata,
                 ..Default::default()
             },
             PaymentIntentUpdate::MerchantStatusUpdate {
@@ -905,6 +911,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 // customer_id,
                 updated_by,
                 incremental_authorization_allowed,
+                feature_metadata,
             } => Self {
                 // amount,
                 // currency: Some(currency),
@@ -915,6 +922,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 modified_at: Some(common_utils::date_time::now()),
                 updated_by,
                 incremental_authorization_allowed,
+                feature_metadata,
                 ..Default::default()
             },
             PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
@@ -1036,12 +1044,14 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 fingerprint_id,
                 updated_by,
                 incremental_authorization_allowed,
+                feature_metadata,
             } => Self::ResponseUpdate {
                 status,
                 amount_captured,
                 fingerprint_id,
                 updated_by,
                 incremental_authorization_allowed,
+                feature_metadata,
             },
             PaymentIntentUpdate::MetadataUpdate {
                 metadata,
@@ -1083,6 +1093,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                     force_3ds_challenge: value.force_3ds_challenge,
                     is_iframe_redirection_enabled: value.is_iframe_redirection_enabled,
                     payment_channel: value.payment_channel,
+                    feature_metadata: value.feature_metadata,
                     tax_status: value.tax_status,
                     discount_amount: value.discount_amount,
                     order_date: value.order_date,
@@ -1124,10 +1135,12 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 status,
                 updated_by,
                 incremental_authorization_allowed,
+                feature_metadata,
             } => Self::PGStatusUpdate {
                 status,
                 updated_by,
                 incremental_authorization_allowed,
+                feature_metadata,
             },
             PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id,
@@ -1249,6 +1262,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             force_3ds_challenge,
             is_iframe_redirection_enabled,
             payment_channel,
+            feature_metadata,
             tax_status,
             discount_amount,
             order_date,
@@ -1298,6 +1312,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             is_iframe_redirection_enabled,
             extended_return_url: return_url,
             payment_channel,
+            feature_metadata,
             tax_status,
             discount_amount,
             order_date,

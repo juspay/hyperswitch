@@ -598,7 +598,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, WiseFulfillResponse>> for PayoutsRo
 impl From<WiseStatus> for PayoutStatus {
     fn from(wise_status: WiseStatus) -> Self {
         match wise_status {
-            WiseStatus::Completed => Self::Success,
+            WiseStatus::Completed => Self::Initiated,
             WiseStatus::Rejected => Self::Failed,
             WiseStatus::Cancelled => Self::Cancelled,
             WiseStatus::Pending | WiseStatus::Processing | WiseStatus::IncomingPaymentWaiting => {
@@ -636,5 +636,121 @@ impl TryFrom<PayoutMethodData> for RecipientType {
             )
             .into()),
         }
+    }
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Deserialize, Serialize)]
+pub struct WisePayoutSyncResponse {
+    id: u64,
+    status: WiseSyncStatus,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WiseSyncStatus {
+    IncomingPaymentWaiting,
+    IncomingPaymentInitiated,
+    Processing,
+    FundsConverted,
+    OutgoingPaymentSent,
+    Cancelled,
+    FundsRefunded,
+    BouncedBack,
+    ChargedBack,
+    Unknown,
+}
+
+#[cfg(feature = "payouts")]
+impl<F> TryFrom<PayoutsResponseRouterData<F, WisePayoutSyncResponse>> for PayoutsRouterData<F> {
+    type Error = Error;
+    fn try_from(
+        item: PayoutsResponseRouterData<F, WisePayoutSyncResponse>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(PayoutsResponseData {
+                status: Some(PayoutStatus::from(item.response.status)),
+                connector_payout_id: Some(item.response.id.to_string()),
+                payout_eligible: None,
+                should_add_next_step_to_process_tracker: false,
+                error_code: None,
+                error_message: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl From<WiseSyncStatus> for PayoutStatus {
+    fn from(status: WiseSyncStatus) -> Self {
+        match status {
+            WiseSyncStatus::IncomingPaymentWaiting => Self::Pending,
+            WiseSyncStatus::IncomingPaymentInitiated => Self::Pending,
+            WiseSyncStatus::Processing => Self::Pending,
+            WiseSyncStatus::FundsConverted => Self::Pending,
+            WiseSyncStatus::OutgoingPaymentSent => Self::Success,
+            WiseSyncStatus::Cancelled => Self::Cancelled,
+            WiseSyncStatus::FundsRefunded => Self::Reversed,
+            WiseSyncStatus::BouncedBack => Self::Pending,
+            WiseSyncStatus::ChargedBack => Self::Reversed,
+            WiseSyncStatus::Unknown => Self::Ineligible,
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Deserialize, Serialize)]
+pub struct WisePayoutsWebhookBody {
+    pub data: WisePayoutsWebhookData,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Deserialize, Serialize)]
+pub struct WisePayoutsWebhookData {
+    pub resource: WisePayoutsWebhookResource,
+    pub current_state: WiseSyncStatus,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Deserialize, Serialize)]
+pub struct WisePayoutsWebhookResource {
+    pub id: u64,
+}
+
+#[cfg(feature = "payouts")]
+impl From<WisePayoutsWebhookData> for WisePayoutSyncResponse {
+    fn from(data: WisePayoutsWebhookData) -> Self {
+        Self {
+            id: data.resource.id,
+            status: data.current_state,
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+pub fn get_wise_webhooks_event(
+    state: WiseSyncStatus,
+) -> api_models::webhooks::IncomingWebhookEvent {
+    match state {
+        WiseSyncStatus::IncomingPaymentWaiting => {
+            api_models::webhooks::IncomingWebhookEvent::PayoutProcessing
+        }
+        WiseSyncStatus::IncomingPaymentInitiated => {
+            api_models::webhooks::IncomingWebhookEvent::PayoutProcessing
+        }
+        WiseSyncStatus::Processing => api_models::webhooks::IncomingWebhookEvent::PayoutProcessing,
+        WiseSyncStatus::FundsConverted => {
+            api_models::webhooks::IncomingWebhookEvent::PayoutProcessing
+        }
+        WiseSyncStatus::OutgoingPaymentSent => {
+            api_models::webhooks::IncomingWebhookEvent::PayoutSuccess
+        }
+        WiseSyncStatus::Cancelled => api_models::webhooks::IncomingWebhookEvent::PayoutCancelled,
+        WiseSyncStatus::FundsRefunded => api_models::webhooks::IncomingWebhookEvent::PayoutReversed,
+        WiseSyncStatus::BouncedBack => api_models::webhooks::IncomingWebhookEvent::PayoutProcessing,
+        WiseSyncStatus::ChargedBack => api_models::webhooks::IncomingWebhookEvent::PayoutReversed,
+        WiseSyncStatus::Unknown => api_models::webhooks::IncomingWebhookEvent::EventNotSupported,
     }
 }

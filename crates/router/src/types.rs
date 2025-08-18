@@ -47,15 +47,15 @@ use hyperswitch_domain_models::router_flow_types::{
 pub use hyperswitch_domain_models::{
     payment_address::PaymentAddress,
     router_data::{
-        AccessToken, AdditionalPaymentMethodConnectorResponse, ConnectorAuthType,
-        ConnectorResponseData, ErrorResponse, GooglePayDecryptedData,
-        GooglePayPaymentMethodDetails, L2L3Data, PaymentMethodBalance, PaymentMethodToken,
+        AccessToken, AccessTokenAuthenticationResponse, AdditionalPaymentMethodConnectorResponse,
+        ConnectorAuthType, ConnectorResponseData, ErrorResponse, GooglePayPaymentMethodDetails,
+        GooglePayPredecryptDataInternal, L2L3Data, PaymentMethodBalance, PaymentMethodToken,
         RecurringMandatePaymentData, RouterData,
     },
     router_data_v2::{
-        AccessTokenFlowData, DisputesFlowData, ExternalAuthenticationFlowData, FilesFlowData,
-        MandateRevokeFlowData, PaymentFlowData, RefundFlowData, RouterDataV2, UasFlowData,
-        WebhookSourceVerifyData,
+        AccessTokenFlowData, AuthenticationTokenFlowData, DisputesFlowData,
+        ExternalAuthenticationFlowData, FilesFlowData, MandateRevokeFlowData, PaymentFlowData,
+        RefundFlowData, RouterDataV2, UasFlowData, WebhookSourceVerifyData,
     },
     router_request_types::{
         revenue_recovery::{
@@ -67,14 +67,14 @@ pub use hyperswitch_domain_models::{
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
         },
-        AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
-        BrowserInformation, ChargeRefunds, ChargeRefundsOptions, CompleteAuthorizeData,
-        CompleteAuthorizeRedirectResponse, ConnectorCustomerData, CreateOrderRequestData,
-        DefendDisputeRequestData, DestinationChargeRefund, DirectChargeRefund, DisputeSyncData,
-        FetchDisputesRequestData, MandateRevokeRequestData, MultipleCaptureRequestData,
-        PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
+        AcceptDisputeRequestData, AccessTokenAuthenticationRequestData, AccessTokenRequestData,
+        AuthorizeSessionTokenData, BrowserInformation, ChargeRefunds, ChargeRefundsOptions,
+        CompleteAuthorizeData, CompleteAuthorizeRedirectResponse, ConnectorCustomerData,
+        CreateOrderRequestData, DefendDisputeRequestData, DestinationChargeRefund,
+        DirectChargeRefund, DisputeSyncData, FetchDisputesRequestData, MandateRevokeRequestData,
+        MultipleCaptureRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
         PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
         PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
         PaymentsUpdateMetadataData, RefundsData, ResponseId, RetrieveFileRequestData,
@@ -118,15 +118,14 @@ pub use hyperswitch_interfaces::{
     },
 };
 
+#[cfg(feature = "v2")]
+use crate::core::errors;
 pub use crate::core::payments::CustomerDetails;
 #[cfg(feature = "payouts")]
 use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLOW;
 use crate::{
     consts,
-    core::{
-        errors::{self},
-        payments::{OperationSessionGetters, PaymentData},
-    },
+    core::payments::{OperationSessionGetters, PaymentData},
     services,
     types::transformers::{ForeignFrom, ForeignTryFrom},
 };
@@ -1131,34 +1130,6 @@ impl ForeignFrom<ConnectorAuthType> for api_models::admin::ConnectorAuthType {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ConnectorsList {
     pub connectors: Vec<String>,
-}
-
-impl ForeignTryFrom<ConnectorAuthType> for AccessTokenRequestData {
-    type Error = errors::ApiErrorResponse;
-    fn foreign_try_from(connector_auth: ConnectorAuthType) -> Result<Self, Self::Error> {
-        match connector_auth {
-            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                app_id: api_key,
-                id: None,
-            }),
-            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
-                app_id: api_key,
-                id: Some(key1),
-            }),
-            ConnectorAuthType::SignatureKey { api_key, key1, .. } => Ok(Self {
-                app_id: api_key,
-                id: Some(key1),
-            }),
-            ConnectorAuthType::MultiAuthKey { api_key, key1, .. } => Ok(Self {
-                app_id: api_key,
-                id: Some(key1),
-            }),
-
-            _ => Err(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "connector_account_details",
-            }),
-        }
-    }
 }
 
 impl ForeignFrom<&PaymentsAuthorizeRouterData> for AuthorizeSessionTokenData {

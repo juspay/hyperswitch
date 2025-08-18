@@ -259,6 +259,12 @@ impl ConnectorAuthType {
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
+pub struct AccessTokenAuthenticationResponse {
+    pub code: Secret<String>,
+    pub expires: i64,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
 pub struct AccessToken {
     pub token: Secret<String>,
     pub expires: i64,
@@ -268,7 +274,7 @@ pub struct AccessToken {
 pub enum PaymentMethodToken {
     Token(Secret<String>),
     ApplePayDecrypt(Box<common_payment_types::ApplePayPredecryptData>),
-    GooglePayDecrypt(Box<GooglePayDecryptedData>),
+    GooglePayDecrypt(Box<common_payment_types::GPayPredecryptData>),
     PazeDecrypt(Box<PazeDecryptedData>),
 }
 
@@ -303,6 +309,18 @@ impl TryFrom<ApplePayPredecryptDataInternal> for common_payment_types::ApplePayP
             application_expiration_year,
             payment_data: data.payment_data.into(),
         })
+    }
+}
+
+impl From<GooglePayPredecryptDataInternal> for common_payment_types::GPayPredecryptData {
+    fn from(data: GooglePayPredecryptDataInternal) -> Self {
+        Self {
+            card_exp_month: Secret::new(data.payment_method_details.expiration_month.two_digits()),
+            card_exp_year: Secret::new(data.payment_method_details.expiration_year.four_digits()),
+            application_primary_account_number: data.payment_method_details.pan.clone(),
+            cryptogram: data.payment_method_details.cryptogram.clone(),
+            eci_indicator: data.payment_method_details.eci_indicator.clone(),
+        }
     }
 }
 
@@ -344,7 +362,7 @@ impl ApplePayPredecryptDataInternal {
 
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct GooglePayDecryptedData {
+pub struct GooglePayPredecryptDataInternal {
     pub message_expiration: String,
     pub message_id: String,
     #[serde(rename = "paymentMethod")]
@@ -361,6 +379,7 @@ pub struct GooglePayPaymentMethodDetails {
     pub pan: cards::CardNumber,
     pub cryptogram: Option<Secret<String>>,
     pub eci_indicator: Option<String>,
+    pub card_network: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
