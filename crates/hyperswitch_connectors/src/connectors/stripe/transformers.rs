@@ -299,6 +299,13 @@ pub enum StripeRequestIncrementalAuthorization {
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StripeRequestOvercapture {
+    IfAvailable,
+    Never,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripePayLaterData {
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_data_type: StripePaymentMethodType,
@@ -1280,7 +1287,7 @@ fn create_stripe_payment_method(
                     card_details,
                     payment_method_auth_type,
                     request_incremental_authorization,
-                , request_overcapture))?,
+                    request_overcapture))?,
                 Some(StripePaymentMethodType::Card),
                 billing_address,
             ))
@@ -1501,7 +1508,7 @@ fn get_stripe_card_network(card_network: common_enums::CardNetwork) -> Option<St
 impl TryFrom<(&Card, Auth3ds, bool, Option<StripeRequestOvercapture>)> for StripePaymentMethodData {
     type Error = ConnectorError;
     fn try_from(
-        (card, payment_method_auth_type, request_incremental_authorization, request_overcapture): (&Card, Auth3ds, Option<StripeRequestOvercapture>, bool),
+        (card, payment_method_auth_type, request_incremental_authorization, request_overcapture): (&Card, Auth3ds, bool, Option<StripeRequestOvercapture>),
     ) -> Result<Self, Self::Error> {
         Ok(Self::Card(StripeCardData {
             payment_method_data_type: StripePaymentMethodType::Card,
@@ -4262,7 +4269,8 @@ impl
                     ccard,
                     payment_method_auth_type,
                     item.request.request_incremental_authorization,
-                , None))?)
+                    None
+                ))?)
             }
             PaymentMethodData::PayLater(_) => Ok(Self::PayLater(StripePayLaterData {
                 payment_method_data_type: pm_type,
