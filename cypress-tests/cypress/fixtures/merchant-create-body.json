@@ -9,7 +9,7 @@
     "secondary_contact_person": "John Test2",
     "secondary_email": "JohnTest2@test.com",
     "secondary_phone": "cillum do dolor id",
-    "website": "www.example.com",
+    "website": "https://www.example.com",
     "about_business": "Online Retail with a wide selection of organic products for North America",
     "address": {
       "line1": "1467",
@@ -18,19 +18,23 @@
       "city": "San Francisco",
       "state": "California",
       "zip": "94122",
-      "country": "US"
+      "country": "US",
+      "first_name": "john",
+      "last_name": "Doe"
     }
   },
-  "return_url": "https://example.com",
+  "return_url": "https://google.com/success",
   "webhook_details": {
     "webhook_version": "1.0.1",
     "webhook_username": "ekart_retail",
     "webhook_password": "password_ekart@123",
+    "webhook_url": "https://integ.hyperswitch.io/api/webhooks/cypress_merchant_GHAction_6dcfed64-ec62-46a2-9961-cafa3c1faa01/authorizedotnet",
     "payment_created_enabled": true,
     "payment_succeeded_enabled": true,
     "payment_failed_enabled": true
   },
   "sub_merchants_enabled": false,
+  "parent_merchant_id": "merchant_123",
   "metadata": {
     "city": "NY",
     "unit": "245"
