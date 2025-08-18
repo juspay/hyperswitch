@@ -1,8 +1,12 @@
 use api_models::payments::ExternalVaultProxyPaymentsRequest;
 use async_trait::async_trait;
 use common_enums::enums;
-use common_utils::types::keymanager::ToEncryptable;
-use error_stack::ResultExt;
+use common_utils::{
+    crypto::Encryptable,
+    ext_traits::{AsyncExt, ValueExt},
+    types::keymanager::ToEncryptable,
+};
+use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData, payments::PaymentConfirmData,
 };
@@ -14,6 +18,7 @@ use super::{Domain, GetTracker, Operation, PostUpdateTracker, UpdateTracker, Val
 use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
+        payment_methods::{self, PaymentMethodExt},
         payments::{
             self,
             operations::{self, ValidateStatusForOperation},
