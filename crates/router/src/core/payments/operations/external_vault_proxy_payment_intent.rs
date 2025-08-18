@@ -480,10 +480,10 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
                         .await?);
                     }
                     Some(hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(_)) | None => {
-                        return Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+                        Err(report!(errors::ApiErrorResponse::MissingRequiredField {
                             field_name: "vault_token in payment_method_data"
                         })
-                        .attach_printable("Invalid external vault payment method data"));
+                        .attach_printable("Invalid external vault payment method data"))?;
                     }
                 }
             }
