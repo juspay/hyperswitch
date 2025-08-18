@@ -90,12 +90,44 @@ async fn execute_proxy_request(
     req_wrapper: &utils::ProxyRequestWrapper,
     processed_body: Value,
 ) -> RouterResult<Response> {
+    // Determine the appropriate RequestContent variant based on content-type header
+    let headers = req_wrapper.get_headers();
+    let content_type_string = headers
+        .iter()
+        .find(|(key, _)| key.to_lowercase() == "content-type")
+        .map(|(_, value)| {
+            match value {
+                masking::Maskable::Normal(s) => s.clone(),
+                masking::Maskable::Masked(secret) => {
+                    use masking::ExposeInterface;
+                    secret.clone().expose()
+                }
+            }
+        })
+        .unwrap_or_else(|| "application/json".to_string());
+
+    let request_content = match content_type_string.to_lowercase().as_str() {
+        ct if ct.contains("application/json") => {
+            request::RequestContent::Json(Box::new(processed_body))
+        }
+        ct if ct.contains("application/x-www-form-urlencoded") => {
+            request::RequestContent::FormUrlEncoded(Box::new(processed_body))
+        }
+        ct if ct.contains("application/xml") || ct.contains("text/xml") => {
+            request::RequestContent::Xml(Box::new(processed_body))
+        }
+        _ => {
+            // Default to JSON for unknown content types
+            request::RequestContent::Json(Box::new(processed_body))
+        }
+    };
+
     let request = RequestBuilder::new()
         .method(req_wrapper.get_method())
         .attach_default_headers()
         .headers(req_wrapper.get_headers())
         .url(req_wrapper.get_destination_url())
-        .set_body(request::RequestContent::Json(Box::new(processed_body)))
+        .set_body(request_content)
         .build();
 
     let response = services::call_connector_api(state, request, "proxy")
@@ -122,11 +154,44 @@ impl TryFrom<ProxyResponseWrapper> for proxy_api_models::ProxyResponse {
 
     fn try_from(wrapper: ProxyResponseWrapper) -> Result<Self, Self::Error> {
         let res = wrapper.0;
-        let response_body: Value = res
-            .response
-            .parse_struct("ProxyResponse")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse the response")?;
+        
+        let response_body: Value = if res.response.is_empty() {
+            // Handle empty response
+            Value::Null
+        } else {
+            // Check content-type header to determine parsing strategy
+            let content_type = res.headers
+                .as_ref()
+                .and_then(|h| h.get("content-type"))
+                .and_then(|v| v.to_str().ok())
+                .unwrap_or("");
+            
+            if content_type.contains("application/json") {
+                // Try to parse as JSON for JSON content type
+                match serde_json::from_slice::<Value>(&res.response) {
+                    Ok(json_value) => json_value,
+                    Err(_) => {
+                        Err(error_stack::Report::new(errors::ApiErrorResponse::InternalServerError))
+                            .attach_printable("Failed to parse JSON response")?
+                    }
+                }
+            } else {
+                // Try to parse as JSON first, fallback to string if it fails
+                match serde_json::from_slice::<Value>(&res.response) {
+                    Ok(json_value) => json_value,
+                    Err(_) => {
+                        // If JSON parsing fails, treat as string
+                        match std::str::from_utf8(&res.response) {
+                            Ok(string_value) => Value::String(string_value.to_string()),
+                            Err(_) => {
+                                return Err(error_stack::Report::new(errors::ApiErrorResponse::InternalServerError))
+                                    .attach_printable("Response is neither valid JSON nor valid UTF-8 string");
+                            }
+                        }
+                    }
+                }
+            }
+        };
 
         let status_code = res.status_code;
         let response_headers = proxy_api_models::Headers::from_header_map(res.headers.as_ref());
