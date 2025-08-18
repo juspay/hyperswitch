@@ -422,7 +422,7 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Trustpay::new())))
                 }
                 enums::Connector::Trustpayments => Ok(ConnectorEnum::Old(Box::new(
-                    hyperswitch_connectors::connectors::trustpayments::Trustpayments::new(),
+                    connector::Trustpayments::new(),
                 ))),
                 enums::Connector::Tsys => Ok(ConnectorEnum::Old(Box::new(connector::Tsys::new()))),
                 // enums::Connector::UnifiedAuthenticationService => Ok(ConnectorEnum::Old(Box::new(
