@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.08.18.0
+
+### Bug Fixes
+
+- **core:** Add Default Enum Variant in RequestIncrementalAuthorization ([#8948](https://github.com/juspay/hyperswitch/pull/8948)) ([`176e1cc`](https://github.com/juspay/hyperswitch/commit/176e1ccc74c5822658da585f325ed54519878d64))
+
+**Full Changelog:** [`2025.08.15.0...2025.08.18.0`](https://github.com/juspay/hyperswitch/compare/2025.08.15.0...2025.08.18.0)
+
+- - -
+
 ## 2025.08.15.0
 
 ### Features
