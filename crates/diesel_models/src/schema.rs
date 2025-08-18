@@ -142,6 +142,7 @@ diesel::table! {
         challenge_cancel -> Nullable<Varchar>,
         challenge_code_reason -> Nullable<Varchar>,
         message_extension -> Nullable<Jsonb>,
+        customer_details -> Nullable<Bytea>,
     }
 }
 

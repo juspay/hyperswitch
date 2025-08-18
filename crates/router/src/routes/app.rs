@@ -2879,6 +2879,19 @@ impl Authentication {
     }
 }
 
+#[cfg(feature = "v2")]
+impl Authentication {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/v2/authentication")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::post().to(authentication::authentication_create)))
+            .service(
+                web::resource("/{authentication_id}/enabled_authn_methods_token")
+                    .route(web::post().to(authentication::authentication_session_token)),
+            )
+    }
+}
+
 #[cfg(feature = "olap")]
 pub struct ProfileAcquirer;
 
