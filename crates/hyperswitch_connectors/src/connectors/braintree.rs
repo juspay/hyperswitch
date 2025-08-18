@@ -1439,7 +1439,6 @@ impl ConnectorSpecifications for Braintree {
         vec![
             enums::PaymentMethodType::ApplePay,
             enums::PaymentMethodType::GooglePay,
-            enums::PaymentMethodType::Paypal,
         ]
     }
 }

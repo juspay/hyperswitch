@@ -11,7 +11,6 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    ext_traits::OptionExt,
     payment_method_data::{PaymentMethodData, WalletData},
     router_data::{ConnectorAuthType, PaymentMethodToken, RouterData},
     router_flow_types::refunds::{Execute, RSync},
@@ -1566,14 +1565,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, BraintreeTokenResponse, T, PaymentsResp
 #[derive(Debug, Clone, Display, Deserialize, Serialize)]
 #[serde(untagged)]
 #[serde(rename_all = "snake_case")]
-pub enum PaypalFlow {
-    #[strum(serialize = "checkout")]
-    Checkout,
-}
-
-#[derive(Debug, Clone, Display, Deserialize, Serialize)]
-#[serde(untagged)]
-#[serde(rename_all = "snake_case")]
 pub enum GooglePayPriceStatus {
     #[strum(serialize = "FINAL")]
     Final,
@@ -1597,7 +1588,7 @@ impl
         match response {
             BraintreeSessionResponse::SessionTokenResponse(res) => {
                 let session_token = match data.payment_method_type {
-                    Some(common_enums::PaymentMethodType::ApplePay) => {
+                    common_enums::PaymentMethodType::ApplePay => {
                         let payment_request_data: payment_types::PaymentRequestMetadata =
                             if let Some(connector_meta) = data.connector_meta_data.clone() {
                                 let meta_value: serde_json::Value = connector_meta.expose();
@@ -1731,47 +1722,6 @@ impl
                                     },
                                 },
                             ),
-                        ))
-                    }
-                    common_enums::PaymentMethodType::Paypal => {
-                        let metadata = data.connector_meta_data.clone();
-
-                        let paypal_sdk_data = data
-                            .connector_meta_data
-                            .clone()
-                            .parse_value::<payment_types::PaypalSdkSessionTokenData>(
-                                "PaypalSdkSessionTokenData",
-                            )
-                            .change_context(errors::ConnectorError::NoConnectorMetaData)
-                            .attach_printable(format!(
-                                "cannot parse paypal_sdk metadata from the given value {metadata:?}"
-                            ))?;
-
-                        SessionToken::Paypal(Box::new(
-                            api_models::payments::PaypalSessionTokenResponse {
-                                connector: "braintree".to_string(),
-                                session_token: paypal_sdk_data.data.client_id,
-                                sdk_next_action: api_models::payments::SdkNextAction {
-                                    next_action: api_models::payments::NextActionCall::Confirm,
-                                },
-                                client_token: Some(
-                                    res.data.create_client_token.client_token.clone().expose(),
-                                ),
-                                transaction_info: Some(
-                                    api_models::payments::PaypalTransactionInfo {
-                                        flow: PaypalFlow::Checkout.to_string(),
-                                        currency_code: data.request.currency,
-                                        total_price: StringMajorUnitForConnector
-                                            .convert(
-                                                MinorUnit::new(data.request.amount),
-                                                data.request.currency,
-                                            )
-                                            .change_context(
-                                                errors::ConnectorError::AmountConversionFailed,
-                                            )?,
-                                    },
-                                ),
-                            },
                         ))
                     }
                     _ => {
