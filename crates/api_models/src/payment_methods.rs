@@ -1229,6 +1229,8 @@ impl From<CardDetailFromLocker> for payments::AdditionalCardInfo {
             card_holder_name: item.card_holder_name,
             payment_checks: None,
             authentication_data: None,
+            is_regulated: None,
+            signature_network: None,
         }
     }
 }
@@ -1252,6 +1254,8 @@ impl From<CardDetailFromLocker> for payments::AdditionalCardInfo {
             card_holder_name: item.card_holder_name,
             payment_checks: None,
             authentication_data: None,
+            is_regulated: None,
+            signature_network: None,
         }
     }
 }

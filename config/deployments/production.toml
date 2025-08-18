@@ -84,6 +84,7 @@ helcim.base_url = "https://api.helcim.com/"
 hipay.base_url = "https://secure-gateway.hipay-tpp.com/rest/"
 hipay.secondary_base_url = "https://secure2-vault.hipay-tpp.com/rest/"
 hipay.third_base_url = "https://api-gateway.hipay.com/"
+hyperwallet.base_url = "https://uat-api.paylution.com"
 iatapay.base_url = "https://iata-pay.iata.org/api/v1"
 inespay.base_url = "https://apiflow.inespay.com/san/v21"
 itaubank.base_url = "https://secure.api.itau/"
@@ -847,3 +848,6 @@ click_to_pay = {connector_list = "adyen, cybersource, trustpay"}
 [revenue_recovery]
 monitoring_threshold_in_seconds = 60
 retry_algorithm_type = "cascading"
+
+[grpc_client.unified_connector_service]
+ucs_only_connectors = "paytm, phonepe"    # Comma-separated list of connectors that use UCS only
