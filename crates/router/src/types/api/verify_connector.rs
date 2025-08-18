@@ -96,7 +96,7 @@ impl VerifyConnectorData {
             access_token,
             session_token: None,
             payment_method: storage_enums::PaymentMethod::Card,
-            payment_method_type: storage_enums::PaymentMethodType::Debit,
+            payment_method_type: None,
             amount_captured: None,
             minor_amount_captured: None,
             preprocessing_id: None,

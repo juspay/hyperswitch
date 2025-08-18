@@ -1827,7 +1827,7 @@ impl
         match response {
             BraintreeSessionResponse::SessionTokenResponse(res) => {
                 let session_token = match data.payment_method_type {
-                    common_enums::PaymentMethodType::ApplePay => {
+                    Some(common_enums::PaymentMethodType::ApplePay) => {
                         let apple_pay_metadata = if let Some(connector_meta) =
                             data.connector_meta_data.clone()
                         {
@@ -1934,7 +1934,7 @@ impl
                             },
                         ))
                     }
-                    common_enums::PaymentMethodType::GooglePay => {
+                    Some(common_enums::PaymentMethodType::GooglePay) => {
                         SessionToken::GooglePay(Box::new(
                             api_models::payments::GpaySessionTokenResponse::GooglePaySession(
                                 api_models::payments::GooglePaySessionResponse {
@@ -1979,7 +1979,7 @@ impl
                             ),
                         ))
                     }
-                    common_enums::PaymentMethodType::Paypal => {
+                    Some(common_enums::PaymentMethodType::Paypal) => {
                         let metadata = data.connector_meta_data.clone();
 
                         let paypal_sdk_data = data

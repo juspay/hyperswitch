@@ -111,7 +111,6 @@ pub struct Settings<S: SecretState> {
     pub list_dispute_supported_connectors: ListDiputeSupportedConnectors,
     pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
-    pub session_token: SessionTokenConfig,
     pub webhook_source_verification_call: WebhookSourceVerificationCall,
     pub billing_connectors_payment_sync: BillingConnectorPaymentsSyncCall,
     pub billing_connectors_invoice_sync: BillingConnectorInvoiceSyncCall,
@@ -895,18 +894,6 @@ pub struct ApiKeys {
 pub struct DelayedSessionConfig {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub connectors_with_delayed_session_response: HashSet<enums::Connector>,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
-pub struct SessionTokenConfig {
-    pub wallet: WalletSessionTokenConfig,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
-pub struct WalletSessionTokenConfig {
-    pub apple_pay: Option<String>,
-    pub google_pay: Option<String>,
-    pub paypal: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

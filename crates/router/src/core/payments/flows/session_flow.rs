@@ -43,7 +43,6 @@ impl
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
-        payment_method_type: Option<common_enums::PaymentMethodType>,
     ) -> RouterResult<types::PaymentsSessionRouterData> {
         Box::pin(transformers::construct_payment_router_data_for_sdk_session(
             state,
@@ -54,7 +53,6 @@ impl
             merchant_connector_account,
             merchant_recipient_data,
             header_payload,
-            payment_method_type,
         ))
         .await
     }
@@ -1282,7 +1280,6 @@ impl RouterDataSession for types::PaymentsSessionRouterData {
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
-        println!("$$$ in decide_flow");
         match connector.get_token {
             api::GetToken::GpayMetadata => {
                 create_gpay_session_token(state, self, connector, business_profile)

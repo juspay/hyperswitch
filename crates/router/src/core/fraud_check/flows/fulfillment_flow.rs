@@ -68,10 +68,7 @@ pub async fn construct_fulfillment_router_data<'a>(
         payment_attempt.payment_method,
         "payment_method_type",
     )?;
-    let payment_method_type = utils::OptionExt::get_required_value(
-        payment_attempt.payment_method_type,
-        "payment_method_type",
-    )?;
+
     let router_data = RouterData {
         flow: std::marker::PhantomData,
         merchant_id: merchant_context.get_merchant_account().get_id().clone(),
@@ -81,7 +78,7 @@ pub async fn construct_fulfillment_router_data<'a>(
         attempt_id: payment_attempt.attempt_id.clone(),
         status: payment_attempt.status,
         payment_method,
-        payment_method_type,
+        payment_method_type: None,
         connector_auth_type: auth_type,
         description: None,
         address: PaymentAddress::default(),

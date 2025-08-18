@@ -1921,7 +1921,6 @@ pub enum SamsungPayCardBrand {
 #[derive(
     Clone,
     Copy,
-    Default,
     Debug,
     Eq,
     Ord,
@@ -1974,7 +1973,6 @@ pub enum PaymentMethodType {
     Cashapp,
     Dana,
     DanamonVa,
-    #[default]
     Debit,
     DuitNow,
     Efecty,
