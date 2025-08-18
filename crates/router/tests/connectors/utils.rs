@@ -506,7 +506,7 @@ pub trait ConnectorActions: Connector {
                         .map_or(enums::AuthenticationType::NoThreeDs, |a| a)
                 }),
             payment_method: enums::PaymentMethod::Card,
-            payment_method_type: enums::PaymentMethodType::Credit,
+            payment_method_type: None,
             connector_auth_type: self.get_auth_token(),
             description: Some("This is a test".to_string()),
             payment_method_status: None,
