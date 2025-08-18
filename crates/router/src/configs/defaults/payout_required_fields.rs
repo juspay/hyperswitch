@@ -420,15 +420,6 @@ fn get_billing_details(connector: PayoutConnectors) -> HashMap<String, RequiredF
                 },
             ),
             (
-                "billing.address.line2".to_string(),
-                RequiredFieldInfo {
-                    required_field: "billing.address.line2".to_string(),
-                    display_name: "billing_address_line2".to_string(),
-                    field_type: FieldType::Text,
-                    value: None,
-                },
-            ),
-            (
                 "billing.address.city".to_string(),
                 RequiredFieldInfo {
                     required_field: "billing.address.city".to_string(),

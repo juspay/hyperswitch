@@ -83,7 +83,7 @@ pub struct AdyenAccountHolder {
 #[serde(rename_all = "camelCase")]
 pub struct AdyenAddress {
     line1: Secret<String>,
-    line2: Secret<String>,
+    line2: Option<Secret<String>>,
     postal_code: Option<Secret<String>>,
     state_or_province: Option<Secret<String>>,
     city: String,
@@ -234,12 +234,7 @@ impl TryFrom<&hyperswitch_domain_models::address::AddressDetails> for AdyenAddre
                 field_name: "billing.address.line1",
             })?
             .clone();
-        let line2 = address
-            .get_line2()
-            .change_context(ConnectorError::MissingRequiredField {
-                field_name: "billing.address.line2",
-            })?
-            .clone();
+        let line2 = address.get_optional_line2();
         Ok(Self {
             line1,
             line2,
