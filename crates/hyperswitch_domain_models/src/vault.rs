@@ -1,8 +1,11 @@
 use api_models::payment_methods;
+#[cfg(feature = "v2")]
 use error_stack;
 use serde::{Deserialize, Serialize};
 
-use crate::{errors, payment_method_data};
+#[cfg(feature = "v2")]
+use crate::errors;
+use crate::payment_method_data;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum PaymentMethodVaultingData {
@@ -50,6 +53,7 @@ impl VaultingDataInterface for PaymentMethodVaultingData {
     }
 }
 
+#[cfg(feature = "v2")]
 impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodVaultingData {
     type Error = error_stack::Report<errors::api_error_response::ApiErrorResponse>;
     fn try_from(item: payment_methods::PaymentMethodCreateData) -> Result<Self, Self::Error> {
