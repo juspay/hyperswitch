@@ -411,7 +411,8 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         state: &SessionState,
         merchant_context: &domain::MerchantContext,
         payment_data: &mut D,
-    ) {}
+    ) {
+    }
 
     /// This function is used to apply the 3DS authentication strategy
     async fn apply_three_ds_authentication_strategy<'a>(

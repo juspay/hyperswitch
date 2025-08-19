@@ -426,9 +426,7 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
                 &payment_method_id,
             )
             .await
-            .map_err(|err| {
-                router_env::logger::error!(err=?err)
-            });
+            .map_err(|err| router_env::logger::error!(err=?err));
         };
     }
 
