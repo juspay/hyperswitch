@@ -295,7 +295,7 @@ pub struct NuveiPaymentsRequest {
     pub device_details: DeviceDetails,
     pub checksum: Secret<String>,
     pub billing_address: Option<BillingAddress>,
-    pub shipping_address: Option<BillingAddress>,
+    pub shipping_address: Option<ShippingAddress>,
     pub related_transaction_id: Option<String>,
     pub url_details: Option<UrlDetails>,
     pub amount_details: Option<NuvieAmountDetails>,
@@ -458,6 +458,31 @@ pub struct BillingAddress {
     pub work_phone: Option<Secret<String>>,
 }
 
+/// Shipping address struct for Nuvei
+/// Contains all the fields required for shipping address with their maximum length constraints
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShippingAddress {
+    pub salutation: Option<Secret<String>>,
+    pub first_name: Option<Secret<String>>,
+    pub last_name: Option<Secret<String>>,
+    pub address: Option<Secret<String>>,
+    pub cell: Option<Secret<String>>,
+    pub phone: Option<Secret<String>>,
+    pub zip: Option<Secret<String>>,
+    pub city: Option<Secret<String>>,
+    pub country: api_models::enums::CountryAlpha2,
+    pub state: Option<Secret<String>>,
+    pub email: Email,
+    pub county: Option<Secret<String>>,
+    pub address_line2: Option<Secret<String>>,
+    pub address_line3: Option<Secret<String>>,
+    pub street_number: Option<Secret<String>>,
+    pub company_name: Option<Secret<String>>,
+    pub care_of: Option<Secret<String>>,
+}
+
 impl From<&Address> for BillingAddress {
     fn from(address: &Address) -> Self {
         let address_details = address.address.as_ref();
@@ -477,13 +502,47 @@ impl From<&Address> for BillingAddress {
             address: address_details.and_then(|details| details.line1.clone()),
             street_number: None,
             zip: address_details.and_then(|details| details.zip.clone()),
-            state: address_details.and_then(|details| details.state.clone()),
+            state: None,
             cell: None,
             address_match: None,
             address_line2: address_details.and_then(|details| details.line2.clone()),
             address_line3: address_details.and_then(|details| details.line3.clone()),
             home_phone: None,
             work_phone: None,
+        }
+    }
+}
+
+impl From<&Address> for ShippingAddress {
+    fn from(address: &Address) -> Self {
+        let address_details = address.address.as_ref();
+
+        Self {
+            email: address.email.clone().unwrap_or_default(),
+            first_name: address_details.and_then(|details| details.first_name.clone()),
+            last_name: address_details.and_then(|details| details.last_name.clone()),
+            country: address_details
+                .and_then(|details| details.country)
+                .unwrap_or_default(),
+            phone: address
+                .phone
+                .as_ref()
+                .and_then(|phone| phone.number.clone()),
+            city: address_details.and_then(|details| details.city.clone().map(Secret::new)),
+            address: address_details.and_then(|details| details.line1.clone()),
+            street_number: None,
+            zip: address_details.and_then(|details| details.zip.clone()),
+            state: None, // state need
+            cell: address
+                .phone
+                .as_ref()
+                .and_then(|phone| phone.number.clone()),
+            address_line2: address_details.and_then(|details| details.line2.clone()),
+            address_line3: address_details.and_then(|details| details.line3.clone()),
+            county: None,
+            company_name: None,
+            care_of: None,
+            salutation: None,
         }
     }
 }
@@ -763,7 +822,6 @@ impl From<&GooglePayWalletData> for GooglePayCamelCase {
             GpayTokenizationData::Decrypted(_) => ("PAYMENT_GATEWAY".to_string(), "".to_string()),
         };
 
-        // Create the camelCase structure directly from the fields
         Self {
             pm_type: gpay_data.pm_type.clone(),
             description: gpay_data.description.clone(),
@@ -1302,7 +1360,7 @@ where
 
             ..Default::default()
         })?;
-        let return_url = item.request.get_return_url_required()?;
+        let return_url = item.request.get_return_url_required()?; 
 
         let amount_details = match item.request.get_order_tax_amount()? {
             Some(tax) => Some(NuvieAmountDetails {
@@ -1310,19 +1368,26 @@ where
             }),
             None => None,
         };
-        let address = item.get_optional_billing();
-        if let Some(billing_address) = address {
-            if let Some(ref address) = billing_address.address {
-                address.get_first_name()?;
-            };
-            item.get_billing_email()?; //email is required
-            item.get_billing_country()?;
+        let address = {
+            if let Some( billing_address) =  item.get_optional_billing() {
+                let mut billing_address=billing_address.clone();
+                item.get_billing_first_name()?;
+                billing_address.email = match item.get_billing_email() {
+                    Ok(email) => Some(email),
+                    Err(_) => Some(item.request.get_email_required()?),
+                };
+                item.get_billing_country()?;
+
+               Some(billing_address)
+            } else {
+                None
+            }
         };
 
-        let shipping_address: Option<BillingAddress> =
+        let shipping_address: Option<ShippingAddress> =
             item.get_optional_shipping().map(|address| address.into());
 
-        let billing_address: Option<BillingAddress> = address.map(|address| address.into());
+        let billing_address: Option<BillingAddress> = address.map(|ref address| address.into());
         Ok(Self {
             is_rebilling: request_data.is_rebilling,
             user_token_id: item.customer_id.clone(),
@@ -1367,7 +1432,7 @@ where
         Some(address) => {
             // fields check
             address.get_first_name()?;
-            item.get_billing_email()?;
+                       item.request.get_email_required()?;
             item.get_billing_country()?;
         }
         None => (),
