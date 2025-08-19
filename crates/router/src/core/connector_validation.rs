@@ -351,6 +351,9 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Nordea => {
                 nordea::transformers::NordeaAuthType::try_from(self.auth_type)?;
+                nordea::transformers::NordeaConnectorMetadataObject::try_from(
+                    self.connector_meta_data,
+                )?;
                 Ok(())
             }
             api_enums::Connector::Novalnet => {

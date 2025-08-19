@@ -6676,3 +6676,8 @@ key1 = "Client secret"
 [[flexiti.pay_later]]
 payment_method_type = "flexiti"
 payment_experience = "redirect_to_url"
+
+[hyperwallet]
+[hyperwallet.connector_auth.BodyKey]
+api_key = "Password"
+key1 = "Username"

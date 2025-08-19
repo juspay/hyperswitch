@@ -1610,7 +1610,14 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
                 vec![],
                 [
                     card_basic(),
-                    vec![RequiredField::BillingEmail, RequiredField::BillingPhone],
+                    vec![
+                        RequiredField::BillingEmail,
+                        RequiredField::BillingPhone,
+                        RequiredField::BillingPhoneCountryCode,
+                        RequiredField::BillingUserFirstName,
+                        RequiredField::BillingUserLastName,
+                        RequiredField::BillingAddressCountries(vec!["ID,PH"]),
+                    ],
                 ]
                 .concat(),
             ),

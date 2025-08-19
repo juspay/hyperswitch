@@ -37,10 +37,10 @@ pub use common_types::payments::{AcceptanceType, CustomerAcceptance, OnlineManda
 use error_stack::ResultExt;
 pub use hyperswitch_domain_models::router_flow_types::payments::{
     Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture, CompleteAuthorize,
-    CreateConnectorCustomer, CreateOrder, IncrementalAuthorization, InitPayment, PSync,
-    PaymentCreateIntent, PaymentGetIntent, PaymentMethodToken, PaymentUpdateIntent,
-    PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing, RecordAttempt, Reject,
-    SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
+    CreateConnectorCustomer, CreateOrder, ExternalVaultProxy, IncrementalAuthorization,
+    InitPayment, PSync, PaymentCreateIntent, PaymentGetIntent, PaymentMethodToken,
+    PaymentUpdateIntent, PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing,
+    RecordAttempt, Reject, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
 };
 pub use hyperswitch_interfaces::api::payments::{
     ConnectorCustomer, MandateSetup, Payment, PaymentApprove, PaymentAuthorize,

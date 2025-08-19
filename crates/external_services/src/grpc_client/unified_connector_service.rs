@@ -1,3 +1,6 @@
+use std::collections::{HashMap, HashSet};
+
+use common_enums::connector_enums::Connector;
 use common_utils::{consts as common_utils_consts, errors::CustomResult, types::Url};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
@@ -16,6 +19,7 @@ use unified_connector_service_client::payments::{
 use crate::{
     consts,
     grpc_client::{GrpcClientSettings, GrpcHeaders},
+    utils::deserialize_hashset,
 };
 
 /// Unified Connector Service error variants
@@ -121,9 +125,9 @@ pub struct UnifiedConnectorServiceClientConfig {
     /// Contains the connection timeout duration in seconds
     pub connection_timeout: u64,
 
-    /// List of connectors to use with the unified connector service
-    #[serde(default)]
-    pub ucs_only_connectors: Vec<String>,
+    /// Set of external services/connectors available for the unified connector service
+    #[serde(default, deserialize_with = "deserialize_hashset")]
+    pub ucs_only_connectors: HashSet<Connector>,
 }
 
 /// Contains the Connector Auth Type and related authentication data.
@@ -143,6 +147,10 @@ pub struct ConnectorAuthMetadata {
 
     /// Optional API secret used for signature or secure authentication.
     pub api_secret: Option<Secret<String>>,
+
+    /// Optional auth_key_map used for authentication.
+    pub auth_key_map:
+        Option<HashMap<common_enums::enums::Currency, common_utils::pii::SecretSerdeValue>>,
 
     /// Id of the merchant.
     pub merchant_id: Secret<String>,
@@ -379,6 +387,16 @@ pub fn build_unified_connector_service_grpc_headers(
         metadata.append(
             consts::UCS_HEADER_API_SECRET,
             parse("api_secret", api_secret.peek())?,
+        );
+    }
+    if let Some(auth_key_map) = meta.auth_key_map {
+        let auth_key_map_str = serde_json::to_string(&auth_key_map).map_err(|error| {
+            logger::error!(?error);
+            UnifiedConnectorServiceError::ParsingFailed
+        })?;
+        metadata.append(
+            consts::UCS_HEADER_AUTH_KEY_MAP,
+            parse("auth_key_map", &auth_key_map_str)?,
         );
     }
 
