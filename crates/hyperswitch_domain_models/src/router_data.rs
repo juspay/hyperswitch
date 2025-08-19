@@ -1461,7 +1461,7 @@ impl
                     network_decline_code,
                     network_advice_code,
                     network_error_message,
-                    connector_metadata
+                    connector_metadata,
                 } = error_response.clone();
 
                 let attempt_status = match error_response.attempt_status {
