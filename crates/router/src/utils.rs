@@ -134,7 +134,10 @@ impl<E> ConnectorResponseExt
             .and_then(|inner| match inner {
                 Ok(res) => {
                     logger::error!(response=?res);
-                    crate::middleware::record_error_in_golden_log("response_error", "Expecting error response, received success response");
+                    crate::middleware::record_error_in_golden_log(
+                        "response_error",
+                        "Expecting error response, received success response",
+                    );
                     Err(errors::ApiErrorResponse::InternalServerError).attach_printable(format!(
                         "Expecting error response, received response: {res:?}"
                     ))
@@ -149,7 +152,10 @@ impl<E> ConnectorResponseExt
             .and_then(|inner| match inner {
                 Err(err_res) => {
                     logger::error!(error_response=?err_res);
-                    crate::middleware::record_error_in_golden_log("response_error", "Expecting success response, received error response");
+                    crate::middleware::record_error_in_golden_log(
+                        "response_error",
+                        "Expecting success response, received error response",
+                    );
                     Err(errors::ApiErrorResponse::InternalServerError).attach_printable(format!(
                         "Expecting response, received error response: {err_res:?}"
                     ))
