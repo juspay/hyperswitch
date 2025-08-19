@@ -55,10 +55,9 @@ pub struct ParentGroupInfoRequest {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct ListRolesRequest {
+pub struct ListRolesQueryParams {
     pub entity_type: Option<EntityType>,
-    #[serde(default)]
-    pub groups: bool,
+    pub groups: Option<bool>,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -90,7 +89,7 @@ pub struct ListRolesAtEntityLevelRequest {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct GetParentGroupsAtEntityLevelRequest {
+pub struct GetParentGroupsInfoQueryParams {
     pub entity_type: Option<EntityType>,
 }
 

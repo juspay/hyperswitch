@@ -294,7 +294,7 @@ pub async fn get_role_information(
 pub async fn get_parent_group_info(
     state: web::Data<AppState>,
     http_req: HttpRequest,
-    query: web::Query<role_api::GetParentGroupsAtEntityLevelRequest>,
+    query: web::Query<role_api::GetParentGroupsInfoQueryParams>,
 ) -> HttpResponse {
     let flow = Flow::GetParentGroupInfo;
 
@@ -338,13 +338,9 @@ pub async fn list_users_in_lineage(
 pub async fn list_roles_with_info(
     state: web::Data<AppState>,
     req: HttpRequest,
-    query: web::Query<role_api::ListRolesRequest>,
+    query: web::Query<role_api::ListRolesQueryParams>,
 ) -> HttpResponse {
-    let flow = if query.groups {
-        Flow::ListRolesV2WithParentsGroupsInfo
-    } else {
-        Flow::ListRolesV2
-    };
+    let flow = Flow::ListRolesV2;
 
     Box::pin(api::server_wrap(
         flow,

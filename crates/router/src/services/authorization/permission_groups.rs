@@ -4,7 +4,6 @@ use common_enums::{EntityType, ParentGroup, PermissionGroup, PermissionScope, Re
 use strum::IntoEnumIterator;
 
 use super::permissions::{self, ResourceExt};
-use crate::core::errors::UserErrors;
 
 pub trait PermissionGroupExt {
     fn scope(&self) -> PermissionScope;
@@ -120,7 +119,7 @@ pub trait ParentGroupExt {
         entity_type: EntityType,
         groups: Vec<PermissionGroup>,
     ) -> Option<HashMap<ParentGroup, String>>;
-    fn validate_scopes(&self, scopes: &[PermissionScope]) -> Result<(), UserErrors>;
+    fn get_available_scopes(&self) -> Vec<PermissionScope>;
 }
 
 impl ParentGroupExt for ParentGroup {
@@ -145,12 +144,10 @@ impl ParentGroupExt for ParentGroup {
     ) -> Option<HashMap<Self, String>> {
         let descriptions_map = Self::iter()
             .filter_map(|parent| {
-                let _scopes = groups
-                    .iter()
-                    .filter(|group| group.parent() == parent)
-                    .map(|group| group.scope())
-                    .max()?;
-
+              let has_groups = groups.iter().any(|group| group.parent() == parent);
+                if !has_groups {
+                    return None;
+                }
                 let description = parent
                     .resources()
                     .iter()
@@ -173,22 +170,11 @@ impl ParentGroupExt for ParentGroup {
             .then_some(descriptions_map)
     }
 
-    fn validate_scopes(&self, scopes: &[PermissionScope]) -> Result<(), UserErrors> {
-        if scopes.is_empty() {
-            return Err(UserErrors::InvalidRoleOperation);
-        }
-
-        let valid_scopes: Vec<PermissionScope> = PermissionGroup::iter()
+    fn get_available_scopes(&self) -> Vec<PermissionScope> {
+        PermissionGroup::iter()
             .filter(|group| group.parent() == *self)
             .map(|group| group.scope())
-            .collect();
-
-        for scope in scopes {
-            if !valid_scopes.contains(scope) {
-                return Err(UserErrors::InvalidRoleOperation);
-            }
-        }
-        Ok(())
+            .collect()
     }
 }
 

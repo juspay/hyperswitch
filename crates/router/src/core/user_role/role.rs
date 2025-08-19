@@ -32,7 +32,18 @@ fn parent_group_info_request_to_permission_groups(
 
     for parent_group in parent_groups {
         let scopes = &parent_group.scopes;
-        parent_group.name.validate_scopes(scopes)?;
+        
+        if scopes.is_empty() {
+            return Err(UserErrors::InvalidRoleOperation);
+        }
+
+        let available_scopes = parent_group.name.get_available_scopes();
+        
+        for scope in scopes {
+            if !available_scopes.contains(scope) {
+                return Err(UserErrors::InvalidRoleOperation);
+            }
+        }
 
         let groups = PermissionGroup::iter()
             .filter(|group| group.parent() == parent_group.name && scopes.contains(&group.scope()))
@@ -387,7 +398,7 @@ pub async fn get_parent_info_for_role(
             .get_permission_groups()
             .iter()
             .filter_map(|group| (group.parent() == parent_group).then_some(group.scope()))
-            // TODO: Remove this hashset conversion when merhant access
+            // TODO: Remove this hashset conversion when merchant access
             // and organization access groups are removed
             .collect::<HashSet<_>>()
             .into_iter()
@@ -491,7 +502,7 @@ pub async fn update_role(
 pub async fn list_roles_with_info(
     state: SessionState,
     user_from_token: UserFromToken,
-    request: role_api::ListRolesRequest,
+    request: role_api::ListRolesQueryParams,
 ) -> UserResponse<role_api::ListRolesResponse> {
     let user_role_info = user_from_token
         .get_role_info_from_db(&state)
@@ -557,7 +568,7 @@ pub async fn list_roles_with_info(
 
     role_info_vec.extend(custom_roles.into_iter().map(roles::RoleInfo::from));
 
-    if request.groups {
+    if request.groups == Some(true) {
         let list_role_info_response = role_info_vec
             .into_iter()
             .filter_map(|role_info| {
@@ -587,7 +598,9 @@ pub async fn list_roles_with_info(
         Ok(ApplicationResponse::Json(
             role_api::ListRolesResponse::WithParentGroups(list_role_info_response),
         ))
-    } else {
+    }
+    // TODO: To be deprecated 
+    else {
         let list_role_info_response = role_info_vec
             .into_iter()
             .filter_map(|role_info| {

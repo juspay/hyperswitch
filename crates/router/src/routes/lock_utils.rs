@@ -316,7 +316,6 @@ impl From<Flow> for ApiIdentifier {
             Flow::GetDataFromHyperswitchAiFlow => Self::AiWorkflow,
 
             Flow::ListRolesV2
-            | Flow::ListRolesV2WithParentsGroupsInfo
             | Flow::ListInvitableRolesAtEntityLevel
             | Flow::ListUpdatableRolesAtEntityLevel
             | Flow::GetRole
