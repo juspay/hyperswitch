@@ -9,7 +9,7 @@ use common_types::primitive_wrappers::{
 };
 #[cfg(feature = "v2")]
 use common_utils::{
-    crypto::Encryptable, encryption::Encryption, ext_traits::Encode,
+    crypto::Encryptable, encryption::Encryption,
     types::keymanager::ToEncryptable,
 };
 use common_utils::{

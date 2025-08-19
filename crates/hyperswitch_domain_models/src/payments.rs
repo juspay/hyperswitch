@@ -37,9 +37,11 @@ use self::payment_attempt::PaymentAttempt;
 use crate::{
     address::Address, business_profile, customer, errors, merchant_connector_account,
     merchant_connector_account::MerchantConnectorAccountTypeDetails, merchant_context,
-    payment_address, payment_method_data, payment_methods, revenue_recovery, routing,
+    payment_address, payment_method_data, payment_methods, routing,
     ApiModelToDieselModelConvertor,
 };
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use crate::revenue_recovery;
 #[cfg(feature = "v1")]
 use crate::{payment_method_data, RemoteStorageObject};
 
@@ -696,6 +698,7 @@ impl PaymentIntent {
         self.feature_metadata.clone()
     }
 
+    #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
     pub fn create_revenue_recovery_attempt_data(
         &self,
         revenue_recovery_metadata: api_models::payments::PaymentRevenueRecoveryMetadata,
