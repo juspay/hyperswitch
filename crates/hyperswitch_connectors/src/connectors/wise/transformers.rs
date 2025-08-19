@@ -64,11 +64,34 @@ impl TryFrom<&ConnectorAuthType> for WiseAuthType {
 pub struct ErrorResponse {
     pub timestamp: Option<String>,
     pub errors: Option<Vec<SubError>>,
-    pub status: Option<String>,
+    pub status: Option<WiseHttpStatus>,
     pub error: Option<String>,
     pub error_description: Option<String>,
     pub message: Option<String>,
     pub path: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(untagged)]
+
+pub enum WiseHttpStatus {
+    String(String),
+    Number(u16),
+}
+
+impl Default for WiseHttpStatus {
+    fn default() -> Self {
+        Self::String("".to_string())
+    }
+}
+
+impl WiseHttpStatus {
+    pub fn to_string(&self) -> String {
+        match self {
+            Self::String(val) => val.clone(),
+            Self::Number(val) => val.to_string(),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
