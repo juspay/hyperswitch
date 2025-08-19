@@ -275,6 +275,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             mandate_data: None,
             payment_method: None,
             merchant_connector_details,
+            external_vault_pmd: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };

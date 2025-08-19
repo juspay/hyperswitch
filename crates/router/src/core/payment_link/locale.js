@@ -586,7 +586,7 @@ const locales = {
     },
     zh_hant: {
       expiresOn: "連結到期日期：",
-      refId: "參考編號：",
+      refId: "參考編號",
       requestedBy: "請求者 ",
       payNow: "立即付款",
       addPaymentMethod: "新增付款方式",
@@ -600,7 +600,7 @@ const locales = {
       paymentTakingLonger: "抱歉！您的付款處理時間比預期長。請稍後再查看。",
       paymentLinkExpired: "付款連結已過期",
       paymentReceived: "我們已成功收到您的付款",
-      paymentLinkExpiredMessage: "抱歉，此付款連結已過期。請使用以下參考進行進一步調查。",
+      paymentLinkExpiredMessage: "抱歉，此支付链接已过期。 请使用以下参考进行进一步调查。",
       paidSuccessfully: "付款成功",
       paymentPending: "付款待處理",
       paymentFailed: "付款失敗！",
