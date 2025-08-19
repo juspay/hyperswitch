@@ -37,10 +37,12 @@ use self::payment_attempt::PaymentAttempt;
 use crate::revenue_recovery;
 #[cfg(feature = "v2")]
 use crate::{
-    address::Address, business_profile, customer, errors, merchant_connector_account,
+    address::Address, business_profile, customer, errors,
     merchant_connector_account::MerchantConnectorAccountTypeDetails, merchant_context,
     payment_address, payment_method_data, payment_methods, routing, ApiModelToDieselModelConvertor,
 };
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use crate::merchant_connector_account;
 #[cfg(feature = "v1")]
 use crate::{payment_method_data, RemoteStorageObject};
 
