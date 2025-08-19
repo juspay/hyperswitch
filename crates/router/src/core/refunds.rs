@@ -1645,7 +1645,8 @@ pub async fn add_refund_sync_task(
     let schedule_time =
         get_refund_sync_process_schedule_time(db, &refund.connector, &refund.merchant_id, 0)
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to fetch schedule time for refund sync process")?
             .unwrap_or_else(common_utils::date_time::now);
     let refund_workflow_tracking_data = refund_to_refund_core_workflow_model(refund);
     let tag = ["REFUND"];
