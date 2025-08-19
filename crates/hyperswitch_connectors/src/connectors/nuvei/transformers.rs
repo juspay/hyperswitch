@@ -718,7 +718,7 @@ pub struct NuveiCardDetails {
 }
 
 // Define new structs with camelCase serialization
-#[derive(Serialize,Debug)]
+#[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct GooglePayCamelCase {
     pm_type: String,
@@ -727,7 +727,7 @@ struct GooglePayCamelCase {
     tokenization_data: GooglePayTokenizationDataCamelCase,
 }
 
-#[derive(Serialize,Debug)]
+#[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct GooglePayInfoCamelCase {
     card_network: String,
@@ -735,16 +735,15 @@ struct GooglePayInfoCamelCase {
     assurance_details: Option<GooglePayAssuranceDetailsCamelCase>,
 }
 
-#[derive(Serialize,Debug)]
+#[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct GooglePayAssuranceDetailsCamelCase {
     card_holder_authenticated: bool,
     account_verified: bool,
 }
 
-#[derive(Serialize,Debug)]
+#[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
-
 struct GooglePayTokenizationDataCamelCase {
     #[serde(rename = "type")]
     token_type: String,
@@ -756,15 +755,14 @@ impl From<&GooglePayWalletData> for GooglePayCamelCase {
     fn from(gpay_data: &GooglePayWalletData) -> Self {
         // Extract tokenization data
         let (token_type, token) = match &gpay_data.tokenization_data {
-           GpayTokenizationData::Encrypted(encrypted_data) => {
-                (encrypted_data.token_type.clone(), encrypted_data.token.clone())
-            },
+            GpayTokenizationData::Encrypted(encrypted_data) => (
+                encrypted_data.token_type.clone(),
+                encrypted_data.token.clone(),
+            ),
             // This branch shouldn't be reached in this context, but providing a fallback
-          GpayTokenizationData::Decrypted(_) => {
-                ("PAYMENT_GATEWAY".to_string(), "".to_string())
-            }
+            GpayTokenizationData::Decrypted(_) => ("PAYMENT_GATEWAY".to_string(), "".to_string()),
         };
-        
+
         // Create the camelCase structure directly from the fields
         Self {
             pm_type: gpay_data.pm_type.clone(),
@@ -779,14 +777,10 @@ impl From<&GooglePayWalletData> for GooglePayCamelCase {
                     }
                 }),
             },
-            tokenization_data: GooglePayTokenizationDataCamelCase {
-                token_type,
-                token,
-            },
+            tokenization_data: GooglePayTokenizationDataCamelCase { token_type, token },
         }
     }
 }
-
 
 impl TryFrom<GooglePayWalletData> for NuveiPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -827,17 +821,14 @@ impl TryFrom<GooglePayWalletData> for NuveiPaymentsRequest {
                         external_token: Some(ExternalToken {
                             external_token_provider: ExternalTokenProvider::GooglePay,
 
-
-                            mobile_token:{ 
-                                 let google_pay: GooglePayCamelCase=(&gpay_data).into();
-                                Some(
-                                
-                               
-                                Secret::new(
-                                google_pay.encode_to_string_of_json().change_context(
-                                    errors::ConnectorError::RequestEncodingFailed,
-                                )?,
-                            ))},
+                            mobile_token: {
+                                let google_pay: GooglePayCamelCase = (&gpay_data).into();
+                                Some(Secret::new(
+                                    google_pay.encode_to_string_of_json().change_context(
+                                        errors::ConnectorError::RequestEncodingFailed,
+                                    )?,
+                                ))
+                            },
                             cryptogram: None,
                             eci_provider: None,
                         }),
@@ -1101,9 +1092,9 @@ where
             (AlternativePaymentMethodType::Giropay, _) => None,
             (AlternativePaymentMethodType::Sofort, _) | (AlternativePaymentMethodType::Eps, _) => {
                 let address = item.get_billing_address()?;
-                let _first_name = address.get_first_name()?;
-                let _email_check = item.request.get_email_required()?;
-                let _country = item.get_billing_country()?;
+                address.get_first_name()?;
+                item.request.get_email_required()?;
+                item.get_billing_country()?;
                 None
             }
             (
@@ -1111,7 +1102,7 @@ where
                 Some(BankRedirectData::Ideal { bank_name, .. }),
             ) => {
                 let address = item.get_billing_address()?;
-                let _first_name = address.get_first_name()?.clone();
+                address.get_first_name()?;
                 item.request.get_email_required()?;
                 item.get_billing_country()?;
                 bank_name.map(NuveiBIC::try_from).transpose()?
@@ -1148,7 +1139,7 @@ where
         .address
         .as_ref()
         .ok_or_else(missing_field_err("billing.address"))?;
-    let _first_name = address.get_first_name()?;
+    address.get_first_name()?;
     let payment_method = payment_method_type;
     address.get_country()?; //country is necessary check
     item.request.get_email_required()?;
@@ -1311,8 +1302,7 @@ where
 
             ..Default::default()
         })?;
-        // let return_url = item.request.get_return_url_required()?;
-        let return_url = "https://google.com".to_string();
+        let return_url = item.request.get_return_url_required()?;
 
         let amount_details = match item.request.get_order_tax_amount()? {
             Some(tax) => Some(NuvieAmountDetails {
@@ -1320,22 +1310,18 @@ where
             }),
             None => None,
         };
-        let address = item
-            .get_optional_billing()
-            .and_then(|billing_details| billing_details.address.as_ref());
+        let address = item.get_optional_billing().and_then(|billing_details| {
+            billing_details.get_first_name()?;
+            item.get_billing_email()?; //email is required
+            item.get_billing_country()?;
 
-        match address {
-            Some(address) => {
-                address.get_first_name()?;
-                item.request.get_email_required()?; //email & address is needed
-                item.get_billing_country()?;
-            }
-            None => (),
-        };
-        let billing_address: Option<BillingAddress> =
-            item.get_optional_billing().map(|address| address.into());
+            billing_address
+        });
+
         let shipping_address: Option<BillingAddress> =
             item.get_optional_shipping().map(|address| address.into());
+
+        let billing_address: Option<BillingAddress> = address.into();
         Ok(Self {
             is_rebilling: request_data.is_rebilling,
             user_token_id: item.customer_id.clone(),
