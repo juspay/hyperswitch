@@ -738,6 +738,8 @@ payment_method_type = "UnionPay"
   payment_method_type = "apple_pay"
 [[braintree.wallet]]
   payment_method_type = "google_pay"
+[[braintree.wallet]]
+  payment_method_type = "paypal"
 
 [braintree.connector_auth.SignatureKey]
 api_key = "Public Key"
@@ -786,6 +788,9 @@ label="Display Name"
 placeholder="Enter Display Name"
 required=true
 type="Text"
+
+[braintree.metadata.paypal_sdk]
+client_id="Client ID"
 
 [bambora]
 [[bambora.credit]]
