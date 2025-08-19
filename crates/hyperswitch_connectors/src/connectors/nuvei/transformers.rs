@@ -1310,18 +1310,17 @@ where
             }),
             None => None,
         };
-        let address = item.get_optional_billing().and_then(|billing_details| {
-            billing_details.get_first_name()?;
+        let address = item.get_optional_billing();
+        if let Some(billing_address) = address {
+            billing_address.get_first_name()?;
             item.get_billing_email()?; //email is required
             item.get_billing_country()?;
-
-            billing_address
-        });
+        };
 
         let shipping_address: Option<BillingAddress> =
             item.get_optional_shipping().map(|address| address.into());
 
-        let billing_address: Option<BillingAddress> = address.into();
+        let billing_address: Option<BillingAddress> = address.map(|address| address.into());
         Ok(Self {
             is_rebilling: request_data.is_rebilling,
             user_token_id: item.customer_id.clone(),
