@@ -37,7 +37,8 @@ pub enum ConnectorCallType {
 pub struct ConnectorRoutingData {
     pub connector_data: ConnectorData,
     pub network: Option<common_enums::CardNetwork>,
-    pub action_type: Option<ActionType>, // action_type is used for mandates currently
+    // action_type is used for mandates currently
+    pub action_type: Option<ActionType>,
 }
 
 impl FraudCheckConnectorData {
