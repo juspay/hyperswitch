@@ -1,10 +1,11 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import { payment_methods_enabled } from "../../configs/Payment/Commons";
+import getConnectorDetails from "../../configs/Payment/Utils";
 
 describe("UCS Comprehensive Testing", () => {
   let globalState;
-  let testResults = {
+  const testResults = {
     totalAvailable: 0,
     totalEnabled: 0,
     totalTested: 0,
@@ -15,39 +16,7 @@ describe("UCS Comprehensive Testing", () => {
     endTime: null,
   };
 
-  const UCS_SUPPORTED_CONNECTORS = [
-    {
-      name: "authorizedotnet",
-      import: () =>
-        import("../../configs/Payment/Authorizedotnet").then(
-          (module) => module.connectorDetails
-        ),
-    },
-  ];
-
-  const UCS_COMPATIBLE_REQUESTS = [
-    "No3DSAutoCapture",
-    "No3DSManualCapture",
-    "SaveCardUseNo3DSAutoCapture",
-    "SaveCardUseNo3DSManualCapture",
-    // "MandateSingleUseNo3DSAutoCapture",
-    // "MandateSingleUseNo3DSManualCapture",
-    // Skip 3DS requests - they need special authentication flow handling
-    // "3DSAutoCapture",
-    // "3DSManualCapture",
-    // Skip complex requests that need special setup
-    // "PaymentMethodIdMandateNo3DSAutoCapture",
-    // "PaymentMethodIdMandateNo3DSManualCapture",
-    // "PaymentMethodIdMandate3DSAutoCapture",
-    // "MandateMultiUseNo3DSAutoCapture",
-    // "MandateMultiUseNo3DSManualCapture",
-    // "ZeroAuthConfirmPayment",
-    // "MITAutoCapture",
-    // "MITManualCapture"
-    "UCSZeroAuthMandate",
-    // "UCSConfirmMandate",
-    // "UCSRecurringPayment",
-  ];
+  const UCS_SUPPORTED_CONNECTORS = ["authorizedotnet"];
 
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
@@ -57,7 +26,10 @@ describe("UCS Comprehensive Testing", () => {
     testResults.totalEnabled = 5;
 
     cy.task("cli_log", "=== UCS Comprehensive Testing Started ===");
-    cy.task("cli_log", `Testing ${UCS_SUPPORTED_CONNECTORS.length} connectors`);
+    cy.task(
+      "cli_log",
+      `Testing connector: ${Cypress.env("CYPRESS_CONNECTOR")}`
+    );
     cy.task(
       "cli_log",
       `UCS Compatible Requests will be determined from connector config`
@@ -67,76 +39,73 @@ describe("UCS Comprehensive Testing", () => {
   after("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
   });
+  const currentConnector = Cypress.env("CYPRESS_CONNECTOR");
+  const isUCSSupported = UCS_SUPPORTED_CONNECTORS.includes(currentConnector);
 
-  UCS_SUPPORTED_CONNECTORS.forEach((connectorInfo) => {
-    describe(`UCS Tests for ${connectorInfo.name.toUpperCase()}`, () => {
+  if (isUCSSupported) {
+    describe(`UCS Tests for ${currentConnector.toUpperCase()}`, () => {
       let connectorConfig;
       let testableRequests;
 
       before("load connector config", () => {
         cy.task(
           "cli_log",
-          `\nLoading connector configuration for: ${connectorInfo.name}`
+          `\nLoading connector configuration for: ${currentConnector}`
         );
 
-        cy.wrap(connectorInfo.import()).then((config) => {
-          connectorConfig = config;
+        const config = getConnectorDetails(currentConnector).card_pm;
+        connectorConfig = { card_pm: config };
 
-          if (!connectorConfig || !connectorConfig.card_pm) {
-            throw new Error(
-              ` Failed to load configuration for connector: ${connectorInfo.name}`
-            );
-          }
-
-          const allRequests = Object.keys(connectorConfig.card_pm);
-          testResults.totalAvailable = allRequests.length;
-
-          cy.task(
-            "cli_log",
-            `Total requests available in ${connectorInfo.name}.js: ${allRequests.length}`
+        if (!connectorConfig || !connectorConfig.card_pm) {
+          throw new Error(
+            ` Failed to load configuration for connector: ${currentConnector}`
           );
+        }
 
-          const ucsRequestNames = [
-            "UCSZeroAuthMandate",
-            "UCSConfirmMandate",
-            "UCSRecurringPayment",
-            "No3DSAutoCapture",
-            "No3DSManualCapture",
-          ];
-          testableRequests = allRequests.filter((requestType) =>
-            ucsRequestNames.includes(requestType)
-          );
+        const allRequests = Object.keys(connectorConfig.card_pm);
+        testResults.totalAvailable = allRequests.length;
 
-          testResults.totalEnabled = testableRequests.length;
+        cy.task(
+          "cli_log",
+          `Total requests available in ${currentConnector}.js: ${allRequests.length}`
+        );
 
-          cy.task(
-            "cli_log",
-            `UCS-compatible requests found: ${testableRequests.length}`
-          );
-          cy.task(
-            "cli_log",
-            `Testable requests: ${testableRequests.join(", ")}`
-          );
-          cy.task(
-            "cli_log",
-            `Test Coverage: ${testableRequests.length}/${allRequests.length} (${((testableRequests.length / allRequests.length) * 100).toFixed(1)}%)`
-          );
+        const ucsRequestNames = [
+          "UCSZeroAuthMandate",
+          "UCSConfirmMandate",
+          "UCSRecurringPayment",
+          "No3DSAutoCapture",
+          "No3DSManualCapture",
+        ];
+        testableRequests = allRequests.filter((requestType) =>
+          ucsRequestNames.includes(requestType)
+        );
 
-          if (testableRequests.length === 0) {
-            throw new Error(
-              ` No UCS-compatible requests found for connector: ${connectorInfo.name}`
-            );
-          }
+        testResults.totalEnabled = testableRequests.length;
 
-          cy.task(
-            "cli_log",
-            ` Setting up merchant account for ${connectorInfo.name}...`
+        cy.task(
+          "cli_log",
+          `UCS-compatible requests found: ${testableRequests.length}`
+        );
+        cy.task("cli_log", `Testable requests: ${testableRequests.join(", ")}`);
+        cy.task(
+          "cli_log",
+          `Test Coverage: ${testableRequests.length}/${allRequests.length} (${((testableRequests.length / allRequests.length) * 100).toFixed(1)}%)`
+        );
+
+        if (testableRequests.length === 0) {
+          throw new Error(
+            ` No UCS-compatible requests found for connector: ${currentConnector}`
           );
-        });
+        }
+
+        cy.task(
+          "cli_log",
+          ` Setting up merchant account for ${currentConnector}...`
+        );
       });
 
       it("should setup merchant account and connector", () => {
-        globalState.set("connectorId", connectorInfo.name);
 
         cy.merchantCreateCallTest(fixtures.merchantCreateBody, globalState);
 
@@ -149,7 +118,7 @@ describe("UCS Comprehensive Testing", () => {
           globalState
         );
 
-        cy.task("cli_log", ` Setup completed for ${connectorInfo.name}`);
+        cy.task("cli_log", ` Setup completed for ${currentConnector}`);
       });
 
       it("should enable UCS configuration", () => {
@@ -189,15 +158,15 @@ describe("UCS Comprehensive Testing", () => {
         const merchantId = globalState.get("merchantId");
         const rolloutConfigs = [
           {
-            key: `ucs_rollout_config_${merchantId}_${connectorInfo.name}_card_Authorize`,
+            key: `ucs_rollout_config_${merchantId}_${currentConnector}_card_Authorize`,
             operation: "Authorize",
           },
           {
-            key: `ucs_rollout_config_${merchantId}_${connectorInfo.name}_card_SetupMandate`,
+            key: `ucs_rollout_config_${merchantId}_${currentConnector}_card_SetupMandate`,
             operation: "SetupMandate",
           },
           {
-            key: `ucs_rollout_config_${merchantId}_${connectorInfo.name}_card_PaymentSync`,
+            key: `ucs_rollout_config_${merchantId}_${currentConnector}_card_PaymentSync`,
             operation: "PaymentSync",
           },
         ];
@@ -245,7 +214,7 @@ describe("UCS Comprehensive Testing", () => {
       it("should verify UCS configuration", () => {
         cy.task(
           "cli_log",
-          ` Verifying UCS configuration for ${connectorInfo.name}...`
+          ` Verifying UCS configuration for ${currentConnector}...`
         );
 
         cy.request({
@@ -273,9 +242,9 @@ describe("UCS Comprehensive Testing", () => {
 
         const merchantId = globalState.get("merchantId");
         const rolloutConfigs = [
-          `ucs_rollout_config_${merchantId}_${connectorInfo.name}_card_Authorize`,
-          `ucs_rollout_config_${merchantId}_${connectorInfo.name}_card_SetupMandate`,
-          `ucs_rollout_config_${merchantId}_${connectorInfo.name}_card_PaymentSync`,
+          `ucs_rollout_config_${merchantId}_${currentConnector}_card_Authorize`,
+          `ucs_rollout_config_${merchantId}_${currentConnector}_card_SetupMandate`,
+          `ucs_rollout_config_${merchantId}_${currentConnector}_card_PaymentSync`,
         ];
 
         rolloutConfigs.forEach((rolloutConfigKey) => {
@@ -308,7 +277,7 @@ describe("UCS Comprehensive Testing", () => {
 
         cy.task(
           "cli_log",
-          ` UCS configuration verification completed for ${connectorInfo.name}`
+          ` UCS configuration verification completed for ${currentConnector}`
         );
       });
 
@@ -373,7 +342,7 @@ describe("UCS Comprehensive Testing", () => {
           const requestConfig = connectorConfig.card_pm[requestType];
 
           if (!requestConfig) {
-            const errorMsg = ` Request configuration not found: ${requestType} in ${connectorInfo.name}.js`;
+            const errorMsg = ` Request configuration not found: ${requestType} in ${currentConnector}.js`;
             cy.task("cli_log", errorMsg);
             throw new Error(`UCS Test Failed - ${errorMsg}`);
           }
@@ -539,7 +508,7 @@ describe("UCS Comprehensive Testing", () => {
               });
             } else {
               throw new Error(
-                `UCS Flows not found for connector: ${connectorInfo.name} - ensure all UCS requests are defined in the config`
+                `UCS Flows not found for connector: ${currentConnector} - ensure all UCS requests are defined in the config`
               );
             }
           } else {
@@ -623,7 +592,7 @@ describe("UCS Comprehensive Testing", () => {
               phone_country_code: "+1",
               routing: {
                 type: "single",
-                data: connectorInfo.name,
+                data: currentConnector,
               },
               description: `UCS ${requestType} test payment`,
               return_url: "https://google.com",
@@ -829,15 +798,15 @@ describe("UCS Comprehensive Testing", () => {
       });
 
       after(() => {
-        cy.task("cli_log", `\n Starting cleanup for ${connectorInfo.name}...`);
+        cy.task("cli_log", `\n Starting cleanup for ${currentConnector}...`);
 
         cy.task("cli_log", ` Cleaning up UCS configurations...`);
 
         const merchantId = globalState.get("merchantId");
         const rolloutConfigs = [
-          `ucs_rollout_config_${merchantId}_${connectorInfo.name}_card_Authorize`,
-          `ucs_rollout_config_${merchantId}_${connectorInfo.name}_card_SetupMandate`,
-          `ucs_rollout_config_${merchantId}_${connectorInfo.name}_card_PaymentSync`,
+          `ucs_rollout_config_${merchantId}_${currentConnector}_card_Authorize`,
+          `ucs_rollout_config_${merchantId}_${currentConnector}_card_SetupMandate`,
+          `ucs_rollout_config_${merchantId}_${currentConnector}_card_PaymentSync`,
         ];
 
         rolloutConfigs.forEach((rolloutConfigKey) => {
@@ -883,23 +852,40 @@ describe("UCS Comprehensive Testing", () => {
           }
         });
 
-        cy.task("cli_log", ` Cleanup for ${connectorInfo.name} completed`);
+        cy.task("cli_log", ` Cleanup for ${currentConnector} completed`);
         if (testableRequests && testableRequests.length > 0) {
           cy.task(
             "cli_log",
-            ` All ${testableRequests.length} requests passed for ${connectorInfo.name}!`
+            ` All ${testableRequests.length} requests passed for ${currentConnector}!`
           );
         }
       });
     });
-  });
+  } else {
+    describe(`UCS Tests - Skipped for ${currentConnector}`, () => {
+      it("should skip UCS tests for unsupported connector", () => {
+        cy.task(
+          "cli_log",
+          `Connector ${currentConnector} is not supported for UCS tests`
+        );
+        cy.task(
+          "cli_log",
+          `Supported UCS connectors: ${UCS_SUPPORTED_CONNECTORS.join(", ")}`
+        );
+      });
+    });
+  }
 
   after(() => {
     cy.task("cli_log", "\n=== UCS Comprehensive Testing Completed ===");
-    cy.task(
-      "cli_log",
-      ` Successfully tested ${UCS_SUPPORTED_CONNECTORS.length} connector(s)`
-    );
-    cy.task("cli_log", " All UCS integrations are working correctly!");
+    if (isUCSSupported) {
+      cy.task(
+        "cli_log",
+        ` Successfully tested UCS integration for ${currentConnector}`
+      );
+      cy.task("cli_log", " UCS integration is working correctly!");
+    } else {
+      cy.task("cli_log", ` UCS tests were skipped for ${currentConnector}`);
+    }
   });
 });
