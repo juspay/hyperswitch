@@ -1312,7 +1312,9 @@ where
         };
         let address = item.get_optional_billing();
         if let Some(billing_address) = address {
-            billing_address.get_first_name()?;
+            if let Some(ref address) = billing_address.address {
+                address.get_first_name()?;
+            };
             item.get_billing_email()?; //email is required
             item.get_billing_country()?;
         };
@@ -1365,7 +1367,7 @@ where
         Some(address) => {
             // fields check
             address.get_first_name()?;
-            item.request.get_email_required()?;
+            item.get_billing_email()?;
             item.get_billing_country()?;
         }
         None => (),
