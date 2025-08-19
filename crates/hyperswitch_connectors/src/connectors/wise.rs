@@ -4,7 +4,7 @@ use api_models::webhooks::IncomingWebhookEvent;
 #[cfg(feature = "payouts")]
 use common_utils::request::{Method, RequestBuilder, RequestContent};
 #[cfg(feature = "payouts")]
-use common_utils::types::{AmountConvertor, MinorUnit, MinorUnitForConnector};
+use common_utils::types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector};
 use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt, request::Request};
 #[cfg(not(feature = "payouts"))]
 use error_stack::report;
@@ -60,14 +60,14 @@ use crate::{types::ResponseRouterData, utils::convert_amount};
 #[derive(Clone)]
 pub struct Wise {
     #[cfg(feature = "payouts")]
-    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+    amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
 }
 
 impl Wise {
     pub fn new() -> &'static Self {
         &Self {
             #[cfg(feature = "payouts")]
-            amount_converter: &MinorUnitForConnector,
+            amount_converter: &FloatMajorUnitForConnector,
         }
     }
 }

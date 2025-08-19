@@ -8,7 +8,7 @@ use common_enums::PayoutEntityType;
 use common_enums::{CountryAlpha2, PayoutStatus, PayoutType};
 #[cfg(feature = "payouts")]
 use common_utils::pii::Email;
-use common_utils::types::MinorUnit;
+use common_utils::types::FloatMajorUnit;
 use hyperswitch_domain_models::router_data::ConnectorAuthType;
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::types::{PayoutsResponseData, PayoutsRouterData};
@@ -27,12 +27,12 @@ type Error = error_stack::Report<ConnectorError>;
 
 #[derive(Debug, Serialize)]
 pub struct WiseRouterData<T> {
-    pub amount: MinorUnit,
+    pub amount: FloatMajorUnit,
     pub router_data: T,
 }
 
-impl<T> From<(MinorUnit, T)> for WiseRouterData<T> {
-    fn from((amount, router_data): (MinorUnit, T)) -> Self {
+impl<T> From<(FloatMajorUnit, T)> for WiseRouterData<T> {
+    fn from((amount, router_data): (FloatMajorUnit, T)) -> Self {
         Self {
             amount,
             router_data,
@@ -179,8 +179,8 @@ pub struct WiseRecipientCreateResponse {
 pub struct WisePayoutQuoteRequest {
     source_currency: String,
     target_currency: String,
-    source_amount: Option<MinorUnit>,
-    target_amount: Option<MinorUnit>,
+    source_amount: Option<FloatMajorUnit>,
+    target_amount: Option<FloatMajorUnit>,
     pay_out: WisePayOutOption,
 }
 
