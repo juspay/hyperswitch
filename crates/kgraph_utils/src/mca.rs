@@ -45,9 +45,12 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::Paypal => Ok(dirval!(WalletType = Paypal)),
         api_enums::PaymentMethodType::CryptoCurrency => Ok(dirval!(CryptoType = CryptoCurrency)),
         api_enums::PaymentMethodType::Ach => Ok(dirval!(BankDebitType = Ach)),
+
         api_enums::PaymentMethodType::Bacs => Ok(dirval!(BankDebitType = Bacs)),
+
         api_enums::PaymentMethodType::Becs => Ok(dirval!(BankDebitType = Becs)),
         api_enums::PaymentMethodType::Sepa => Ok(dirval!(BankDebitType = Sepa)),
+
         api_enums::PaymentMethodType::AliPay => Ok(dirval!(WalletType = AliPay)),
         api_enums::PaymentMethodType::AliPayHk => Ok(dirval!(WalletType = AliPayHk)),
         api_enums::PaymentMethodType::BancontactCard => {
@@ -76,10 +79,12 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::Swish => Ok(dirval!(WalletType = Swish)),
         api_enums::PaymentMethodType::Trustly => Ok(dirval!(BankRedirectType = Trustly)),
         api_enums::PaymentMethodType::Bizum => Ok(dirval!(BankRedirectType = Bizum)),
+
         api_enums::PaymentMethodType::PayBright => Ok(dirval!(PayLaterType = PayBright)),
         api_enums::PaymentMethodType::Walley => Ok(dirval!(PayLaterType = Walley)),
         api_enums::PaymentMethodType::Przelewy24 => Ok(dirval!(BankRedirectType = Przelewy24)),
         api_enums::PaymentMethodType::WeChatPay => Ok(dirval!(WalletType = WeChatPay)),
+
         api_enums::PaymentMethodType::ClassicReward => Ok(dirval!(RewardType = ClassicReward)),
         api_enums::PaymentMethodType::Evoucher => Ok(dirval!(RewardType = Evoucher)),
         api_enums::PaymentMethodType::SamsungPay => Ok(dirval!(WalletType = SamsungPay)),

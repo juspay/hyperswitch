@@ -58,7 +58,9 @@ pub const DELETE_PAYMENT_METHOD_FROM_VAULT_MUTATION: &str = "mutation deletePaym
 pub const TRANSACTION_QUERY: &str = "query($input: TransactionSearchInput!) { search { transactions(input: $input) { edges { node { id status } } } } }";
 pub const REFUND_QUERY: &str = "query($input: RefundSearchInput!) { search { refunds(input: $input, first: 1) { edges { node { id status createdAt amount { value currencyCode } orderId } } } } }";
 pub const CHARGE_GOOGLE_PAY_MUTATION: &str = "mutation ChargeGPay($input: ChargePaymentMethodInput!) { chargePaymentMethod(input: $input) { transaction { id status amount { value currencyCode } } } }";
-pub const CHARGE_APPLE_PAY_MUTATION: &str = "mutation Charge($input: ChargePaymentMethodInput!) { chargePaymentMethod(input: $input) { transaction { id status amount { value currencyCode } } } }";
+pub const AUTHORIZE_GOOGLE_PAY_MUTATION: &str = "mutation authorizeGPay($input: AuthorizePaymentMethodInput!) { authorizePaymentMethod(input: $input) { transaction { id legacyId amount { value currencyCode } status } } }";
+pub const CHARGE_APPLE_PAY_MUTATION: &str = "mutation ChargeApplepay($input: ChargePaymentMethodInput!) { chargePaymentMethod(input: $input) { transaction { id status amount { value currencyCode } } } }";
+pub const AUTHORIZE_APPLE_PAY_MUTATION: &str = "mutation authorizeApplepay($input: AuthorizePaymentMethodInput!) { authorizePaymentMethod(input: $input) { transaction { id legacyId amount { value currencyCode } status } } }";
 
 pub type CardPaymentRequest = GenericBraintreeRequest<VariablePaymentInput>;
 pub type MandatePaymentRequest = GenericBraintreeRequest<VariablePaymentInput>;
@@ -404,9 +406,13 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
                                 .attach_printable("Expected encrypted GPay tokenization data")?;
                         }
                     };
+                    let query = match item.router_data.request.is_auto_capture()? {
+                        true => CHARGE_GOOGLE_PAY_MUTATION.to_string(),
+                        false => AUTHORIZE_GOOGLE_PAY_MUTATION.to_string(),
+                    };
 
                     Ok(Self::GooglePay(BraintreeGooglePayRequest {
-                        query: CHARGE_GOOGLE_PAY_MUTATION.to_string(),
+                        query,
                         variables: GenericVariableInput {
                             input: GooglePayPaymentInput {
                                 payment_method_id,
@@ -438,9 +444,13 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
                                 )?;
                         }
                     };
+                    let query = match item.router_data.request.is_auto_capture()? {
+                        true => CHARGE_APPLE_PAY_MUTATION.to_string(),
+                        false => AUTHORIZE_APPLE_PAY_MUTATION.to_string(),
+                    };
 
                     Ok(Self::ApplePay(BraintreeApplePayRequest {
-                        query: CHARGE_APPLE_PAY_MUTATION.to_string(),
+                        query,
                         variables: GenericVariableInput {
                             input: ApplePayPaymentInput {
                                 payment_method_id,
@@ -533,8 +543,8 @@ pub enum BraintreeAuthResponse {
     AuthResponse(Box<AuthResponse>),
     ClientTokenResponse(Box<ClientTokenResponse>),
     ErrorResponse(Box<ErrorResponse>),
-    GooglePayResponse(Box<GooglePayPaymentsResponse>),
-    ApplePayResponse(Box<ApplePayPaymentsResponse>),
+    GooglePayAuthResponse(Box<GooglePayAuthResponse>),
+    ApplePayAuthResponse(Box<ApplePayAuthResponse>),
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -574,7 +584,6 @@ impl<F>
     > for RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
-
     fn try_from(
         item: ResponseRouterData<
             F,
@@ -589,7 +598,6 @@ impl<F>
                     .map_err(|err| *err),
                 ..item.data
             }),
-
             BraintreeAuthResponse::AuthResponse(auth_response) => {
                 let transaction_data = auth_response.data.authorize_credit_card.transaction;
                 let status = enums::AttemptStatus::from(transaction_data.status.clone());
@@ -632,7 +640,6 @@ impl<F>
                     ..item.data
                 })
             }
-
             BraintreeAuthResponse::ClientTokenResponse(client_token_data) => Ok(Self {
                 status: enums::AttemptStatus::AuthenticationPending,
                 response: Ok(PaymentsResponseData::TransactionResponse {
@@ -652,9 +659,8 @@ impl<F>
                 }),
                 ..item.data
             }),
-
-            BraintreeAuthResponse::GooglePayResponse(gpay_response) => {
-                let txn = &gpay_response.data.charge_payment_method.transaction;
+            BraintreeAuthResponse::GooglePayAuthResponse(gpay_response) => {
+                let txn = &gpay_response.data.authorize_payment_method.transaction;
                 let status = enums::AttemptStatus::from(txn.status.clone());
 
                 let response = if utils::is_payment_failure(status) {
@@ -676,7 +682,7 @@ impl<F>
                         mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
-                        connector_response_reference_id: None,
+                        connector_response_reference_id: txn.legacy_id.clone(),
                         incremental_authorization_allowed: None,
                         charges: None,
                     })
@@ -688,8 +694,8 @@ impl<F>
                     ..item.data
                 })
             }
-            BraintreeAuthResponse::ApplePayResponse(applepay_response) => {
-                let txn = &applepay_response.data.charge_payment_method.transaction;
+            BraintreeAuthResponse::ApplePayAuthResponse(applepay_response) => {
+                let txn = &applepay_response.data.authorize_payment_method.transaction;
                 let status = enums::AttemptStatus::from(txn.status.clone());
 
                 let response = if utils::is_payment_failure(status) {
@@ -711,7 +717,7 @@ impl<F>
                         mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
-                        connector_response_reference_id: None,
+                        connector_response_reference_id: txn.legacy_id.clone(),
                         incremental_authorization_allowed: None,
                         charges: None,
                     })
@@ -1156,6 +1162,8 @@ pub struct GooglePayTransactionWrapper {
 #[serde(rename_all = "camelCase")]
 pub struct GooglePayTransaction {
     pub id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub legacy_id: Option<String>,
     pub status: BraintreePaymentStatus,
     pub amount: GooglePayAmount,
 }
@@ -1165,6 +1173,28 @@ pub struct GooglePayTransaction {
 pub struct GooglePayAmount {
     pub value: String,
     pub currency_code: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct GooglePayAuthResponse {
+    pub data: GooglePayAuthDataResponse,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GooglePayAuthDataResponse {
+    pub authorize_payment_method: GooglePayTransactionWrapper,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ApplePayAuthResponse {
+    pub data: ApplePayAuthDataResponse,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplePayAuthDataResponse {
+    pub authorize_payment_method: ApplePayTransactionWrapper,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -1187,6 +1217,8 @@ pub struct ApplePayTransactionWrapper {
 #[serde(rename_all = "camelCase")]
 pub struct ApplePayTransaction {
     pub id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub legacy_id: Option<String>,
     pub status: BraintreePaymentStatus,
     pub amount: ApplePayAmount,
 }

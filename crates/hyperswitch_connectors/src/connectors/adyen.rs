@@ -244,6 +244,7 @@ impl ConnectorValidation for Adyen {
                         )
                     }
                 },
+
                 PaymentMethodType::AliPay
                 | PaymentMethodType::AliPayHk
                 | PaymentMethodType::Atome
