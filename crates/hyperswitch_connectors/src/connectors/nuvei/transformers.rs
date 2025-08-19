@@ -1360,7 +1360,7 @@ where
 
             ..Default::default()
         })?;
-        let return_url = item.request.get_return_url_required()?; 
+        let return_url = item.request.get_return_url_required()?;
 
         let amount_details = match item.request.get_order_tax_amount()? {
             Some(tax) => Some(NuvieAmountDetails {
@@ -1369,8 +1369,8 @@ where
             None => None,
         };
         let address = {
-            if let Some( billing_address) =  item.get_optional_billing() {
-                let mut billing_address=billing_address.clone();
+            if let Some(billing_address) = item.get_optional_billing() {
+                let mut billing_address = billing_address.clone();
                 item.get_billing_first_name()?;
                 billing_address.email = match item.get_billing_email() {
                     Ok(email) => Some(email),
@@ -1378,7 +1378,7 @@ where
                 };
                 item.get_billing_country()?;
 
-               Some(billing_address)
+                Some(billing_address)
             } else {
                 None
             }
@@ -1432,7 +1432,7 @@ where
         Some(address) => {
             // fields check
             address.get_first_name()?;
-                       item.request.get_email_required()?;
+            item.request.get_email_required()?;
             item.get_billing_country()?;
         }
         None => (),
