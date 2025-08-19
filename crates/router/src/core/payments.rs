@@ -9088,22 +9088,6 @@ where
     }
 }
 
-#[cfg(feature = "v2")]
-#[allow(clippy::too_many_arguments)]
-pub async fn decide_connector_for_normal_or_recurring_payment<F: Clone, D>(
-    state: &SessionState,
-    payment_data: &mut D,
-    routing_data: &mut storage::RoutingData,
-    connectors: Vec<api::ConnectorData>,
-    is_connector_agnostic_mit_enabled: Option<bool>,
-    payment_method_info: &domain::PaymentMethod,
-) -> RouterResult<ConnectorCallType>
-where
-    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
-{
-    todo!()
-}
-
 #[cfg(feature = "v1")]
 pub fn get_mandate_reference_id<F: Clone, D>(
     action_type: Option<ActionType>,
@@ -9144,13 +9128,7 @@ where
                         .attach_printable("No eligible connector found for token-based MIT flow: no connector mandate details")
                 })?;
 
-            let connector_details = connector_mandate_details
-                .clone()
-                .get_required_value("connector_mandate_details")
-                .change_context(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
-                .attach_printable("No eligible connector found for token-based MIT flow: no connector mandate details")?;
-
-            let mandate_reference_record = connector_details
+            let mandate_reference_record = connector_mandate_details
                 .get(merchant_connector_id)
                 .ok_or_else(|| {
                     report!(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
@@ -9348,7 +9326,7 @@ pub enum ActionType {
     NetworkTokenWithNetworkTransactionId(NTWithNTIRef),
     CardWithNetworkTransactionId(String), // Network Transaction Id
     #[cfg(feature = "v1")]
-    ConnectorMandate(Option<diesel_models::PaymentsMandateReference>),
+    ConnectorMandate(hyperswitch_domain_models::mandates::PaymentsMandateReference),
 }
 
 pub fn filter_network_tokenization_supported_connectors(
@@ -9369,6 +9347,13 @@ pub struct ActionTypesBuilder {
 }
 
 #[cfg(feature = "v1")]
+impl Default for ActionTypesBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(feature = "v1")]
 impl ActionTypesBuilder {
     pub fn new() -> Self {
         Self {
@@ -9379,16 +9364,13 @@ impl ActionTypesBuilder {
     pub fn with_mandate_flow(
         mut self,
         is_mandate_flow: bool,
-        connector_mandate_details: &Result<
-            Option<diesel_models::PaymentsMandateReference>,
-            error_stack::Report<common_utils::errors::ParsingError>,
+        connector_mandate_details: Option<
+            hyperswitch_domain_models::mandates::PaymentsMandateReference,
         >,
     ) -> Self {
         if is_mandate_flow {
             self.action_types.extend(
                 connector_mandate_details
-                    .as_ref()
-                    .ok()
                     .map(|details| ActionType::ConnectorMandate(details.to_owned())),
             );
         }
@@ -9481,20 +9463,19 @@ pub async fn get_all_action_types(
         connector.connector_name,
         payment_method_info,
     );
-    let connector_mandate_details = &payment_method_info
-        .connector_mandate_details
-        .clone()
-        .map(|details| {
-            details
-                .parse_value::<diesel_models::PaymentsMandateReference>("connector_mandate_details")
+    let payments_mandate_reference = payment_method_info
+        .get_common_mandate_reference()
+        .map_err(|err| {
+            logger::warn!("Error getting connector mandate details: {:?}", err);
+            err
         })
-        .transpose();
-
-    let is_mandate_flow = connector_mandate_details
-        .as_ref()
         .ok()
+        .and_then(|details| details.payments);
+
+    let is_mandate_flow = payments_mandate_reference
+        .clone()
         .zip(merchant_connector_id)
-        .and_then(|(details, merchant_id)| details.clone().map(|d| d.contains_key(merchant_id)))
+        .map(|(details, merchant_connector_id)| details.contains_key(merchant_connector_id))
         .unwrap_or(false);
 
     let is_nt_with_ntid_supported_connector = ntid_supported_connectors
@@ -9502,7 +9483,7 @@ pub async fn get_all_action_types(
         && network_tokenization_supported_connectors.contains(&connector.connector_name);
 
     ActionTypesBuilder::new()
-        .with_mandate_flow(is_mandate_flow, connector_mandate_details)
+        .with_mandate_flow(is_mandate_flow, payments_mandate_reference)
         .with_network_tokenization(
             state,
             is_network_token_with_ntid_flow,
