@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.08.11.0-hotfix1
+
+### Bug Fixes
+
+- **connector:** [Wise] change amount conversion unit ([#8995](https://github.com/juspay/hyperswitch/pull/8995)) ([`167ec85`](https://github.com/juspay/hyperswitch/commit/167ec853b5f9d29e6150ebb1f177b8e3cc329fab))
+
+**Full Changelog:** [`2025.08.11.0...2025.08.11.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.08.11.0...2025.08.11.0-hotfix1)
+
+- - -
+
 ## 2025.08.11.0
 
 ### Features
