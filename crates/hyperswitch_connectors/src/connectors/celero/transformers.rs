@@ -792,7 +792,13 @@ impl CeleroErrorDetails {
                 "78" => Some("INVALID_CARD_DATA".to_string()),
                 "91" => Some("PROCESSING_ERROR".to_string()),
                 "96" => Some("PROCESSING_ERROR".to_string()),
-                _ => Some("Transaction failed".to_string()),
+                _ => {
+                    router_env::logger::info!(
+                        "Celero response error code ({:?}) is not mapped to any error state ",
+                        code
+                    );
+                    Some("Transaction failed".to_string())
+                }
             }
         } else {
             Some(message_lower)
@@ -829,7 +835,14 @@ pub fn get_avs_definition(code: &str) -> Option<&'static str> {
         "6" => Some("Cardholder name incorrect, address and zip match"),
         "7" => Some("Cardholder name incorrect, address matches"),
         "8" => Some("Cardholder name, address, and ZIP do not match"),
-        _ => None, // No definition found for the given code
+        _ => {
+            router_env::logger::info!(
+                "Celero avs response code ({:?}) is not mapped to any defination.",
+                code
+            );
+
+            None
+        } // No definition found for the given code
     }
 }
 fn convert_to_additional_payment_method_connector_response(
