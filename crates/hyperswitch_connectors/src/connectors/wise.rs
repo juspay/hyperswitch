@@ -133,7 +133,7 @@ impl ConnectorCommon for Wise {
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        let default_status = response.status.unwrap_or_default().to_string();
+        let default_status = response.status.unwrap_or_default().get_status();
         match response.errors {
             Some(errs) => {
                 if let Some(e) = errs.first() {
@@ -308,7 +308,7 @@ impl ConnectorIntegration<PoCancel, PayoutsData, PayoutsResponseData> for Wise {
         event_builder.map(|i| i.set_error_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        let def_res = response.status.unwrap_or_default().to_string();
+        let def_res = response.status.unwrap_or_default().get_status();
         let errors = response.errors.unwrap_or_default();
         let (code, message) = if let Some(e) = errors.first() {
             (e.code.clone(), e.message.clone())

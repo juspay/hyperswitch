@@ -73,7 +73,6 @@ pub struct ErrorResponse {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
-
 pub enum WiseHttpStatus {
     String(String),
     Number(u16),
@@ -86,7 +85,7 @@ impl Default for WiseHttpStatus {
 }
 
 impl WiseHttpStatus {
-    pub fn to_string(&self) -> String {
+    pub fn get_status(&self) -> String {
         match self {
             Self::String(val) => val.clone(),
             Self::Number(val) => val.to_string(),
