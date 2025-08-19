@@ -407,14 +407,7 @@ pub trait ConnectorSpecifications {
         if is_config_enabled_to_send_payment_id_as_connector_request_id {
             payment_attempt.payment_id.get_string_repr().to_owned()
         } else {
-            #[cfg(feature = "v2")]
-            {
-                payment_attempt.get_id().get_string_repr().to_owned()
-            }
-            #[cfg(feature = "v1")]
-            {
-                payment_attempt.get_id().to_owned()
-            }
+            payment_attempt.attempt_id.to_owned()
         }
     }
 
