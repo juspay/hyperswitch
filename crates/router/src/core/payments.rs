@@ -1618,6 +1618,15 @@ where
                 updated_customer,
             )
             .await?;
+
+            // update payment method if its a successful transaction
+            if router_data.status.is_success() {
+                operation
+                    .to_domain()?
+                    .update_payment_method(state, &merchant_context, &mut payment_data)
+                    .await;
+            }
+
             let payments_response_operation = Box::new(PaymentResponse);
 
             payments_response_operation

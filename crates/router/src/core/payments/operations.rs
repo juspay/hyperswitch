@@ -403,6 +403,16 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         Ok(())
     }
 
+    // does not propagate error to not affect the payment flow
+    // must add debugger in case of internal error
+    #[cfg(feature = "v2")]
+    async fn update_payment_method<'a>(
+        &'a self,
+        state: &SessionState,
+        merchant_context: &domain::MerchantContext,
+        payment_data: &mut D,
+    ) {}
+
     /// This function is used to apply the 3DS authentication strategy
     async fn apply_three_ds_authentication_strategy<'a>(
         &'a self,
