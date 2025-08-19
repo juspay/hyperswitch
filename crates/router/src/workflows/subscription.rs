@@ -4,6 +4,7 @@ use diesel_models::process_tracker::business_status;
 use error_stack::ResultExt;
 use router_env::logger;
 use scheduler::{consumer::workflows::ProcessTrackerWorkflow, errors};
+use api_models::payments::BillingConnectorDetails;
 
 use crate::{
     core::{errors::RecoveryError::ProcessTrackerFailure, payments},
@@ -82,6 +83,24 @@ async fn perform_subscription_mit_payment(
 
     let profile_id = profile.get_id().clone();
 
+    let billing_connector_details = BillingConnectorDetails {
+        connector: tracking_data.connector_name.clone(),
+        subscription_id: tracking_data.subscription_id.clone().ok_or_else(|| {
+            errors::ProcessTrackerError::SerializationFailed
+        })?, 
+        invoice_id: tracking_data.invoice_id.clone(), 
+    };
+
+    logger::debug!(
+        "Executing subscription MIT payment for process: {:?}, tracking_data: {:?}",
+        process.id,
+        tracking_data
+    );
+
+    let metadata_value = serde_json::json!({
+        "billing_connector_details": billing_connector_details
+    });
+
     // Create MIT payment request with the determined payment_method_id
     let mut payment_request = api_types::PaymentsRequest {
         amount: Some(api_types::Amount::from(tracking_data.amount)),
@@ -91,10 +110,18 @@ async fn perform_subscription_mit_payment(
             tracking_data.payment_method_id.clone(),
         )),
         merchant_id: Some(tracking_data.merchant_id.clone()),
+        metadata: Some(metadata_value),
         confirm: Some(true),
         off_session: Some(true),
         ..Default::default()
     };
+
+    logger::debug!(
+        "payment_request for subscription MIT payment: {:?}, process_id: {:?}, tracking_data: {:?}",
+        payment_request,
+        process.id,
+        payment_request
+    );
 
     if let Err(err) = get_or_generate_payment_id(&mut payment_request) {
         return Err(err.into());

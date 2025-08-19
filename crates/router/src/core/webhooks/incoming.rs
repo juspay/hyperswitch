@@ -2565,6 +2565,10 @@ async fn subscription_incoming_webhook_flow(
         "Received invoice_generated webhook for MIT payment"
     );
 
+    if mit_payment_data.first_invoice {
+        return Ok(WebhookResponseTracker::NoEffect)
+    }
+
     // For now, we need a payment_method_id to create the subscription workflow
     // TODO: Implement proper payment method retrieval from subscription/customer data
     //

@@ -143,6 +143,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                         .and_then(|metadata| metadata.get("billing_connector_details").cloned())
                         .and_then(|val| {
                             val.parse_value::<BillingConnectorDetails>("BillingConnectorDetails")
+                            .inspect_err(|e| {logger::error!(?e, "Failed to parse billing connector details from metadata")})
                                 .ok()
                         });
 
