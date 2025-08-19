@@ -809,6 +809,45 @@ struct GooglePayTokenizationDataCamelCase {
     token: String,
 }
 
+// Define ApplePay structs with camelCase serialization
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct ApplePayCamelCase {
+    payment_data: String,
+    payment_method: ApplePayPaymentMethodCamelCase,
+    transaction_identifier: String,
+}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct ApplePayPaymentMethodCamelCase {
+    display_name: String,
+    network: String,
+    #[serde(rename = "type")]
+    pm_type: String,
+}
+
+// Implement From trait to convert directly from ApplePayWalletData
+impl From<&ApplePayWalletData> for ApplePayCamelCase {
+    fn from(apple_pay_data: &ApplePayWalletData) -> Self {
+        // Extract payment data
+        let payment_data = match &apple_pay_data.payment_data {
+            ApplePayPaymentData::Encrypted(encrypted_data) => encrypted_data.clone(),
+            ApplePayPaymentData::Decrypted(_) => "".to_string(),
+        };
+
+        Self {
+            payment_data,
+            payment_method: ApplePayPaymentMethodCamelCase {
+                display_name: apple_pay_data.payment_method.display_name.clone(),
+                network: apple_pay_data.payment_method.network.clone(),
+                pm_type: apple_pay_data.payment_method.pm_type.clone(),
+            },
+            transaction_identifier: apple_pay_data.transaction_identifier.clone(),
+        }
+    }
+}
+
 // Implement From trait to convert directly from GooglePayWalletData
 impl From<&GooglePayWalletData> for GooglePayCamelCase {
     fn from(gpay_data: &GooglePayWalletData) -> Self {
@@ -818,8 +857,7 @@ impl From<&GooglePayWalletData> for GooglePayCamelCase {
                 encrypted_data.token_type.clone(),
                 encrypted_data.token.clone(),
             ),
-            // This branch shouldn't be reached in this context, but providing a fallback
-            GpayTokenizationData::Decrypted(_) => ("PAYMENT_GATEWAY".to_string(), "".to_string()),
+            GpayTokenizationData::Decrypted(_) => ("".to_string(), "".to_string()),
         };
 
         Self {
@@ -953,10 +991,14 @@ impl TryFrom<ApplePayWalletData> for NuveiPaymentsRequest {
                     card: Some(Card {
                         external_token: Some(ExternalToken {
                             external_token_provider: ExternalTokenProvider::ApplePay,
-                            mobile_token: Some(Secret::new(apple_pay_data.clone().encode_to_string_of_json().change_context(
-                                    errors::ConnectorError::RequestEncodingFailed,
-                                )?,               
-                        )),
+                            mobile_token: {
+                                let apple_pay: ApplePayCamelCase = (&apple_pay_data).into();
+                                Some(Secret::new(
+                                    apple_pay.encode_to_string_of_json().change_context(
+                                        errors::ConnectorError::RequestEncodingFailed,
+                                    )?,
+                                ))
+                            },
                             cryptogram: None,
                             eci_provider: None,
                         }),
