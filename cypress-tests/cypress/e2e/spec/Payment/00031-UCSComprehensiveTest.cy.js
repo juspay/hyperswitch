@@ -106,7 +106,6 @@ describe("UCS Comprehensive Testing", () => {
       });
 
       it("should setup merchant account and connector", () => {
-
         cy.merchantCreateCallTest(fixtures.merchantCreateBody, globalState);
 
         cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
