@@ -148,17 +148,21 @@ impl ParentGroupExt for ParentGroup {
                 if !has_groups {
                     return None;
                 }
-                let description = parent
+                let filtered_resources: Vec<_> = parent
                     .resources()
-                    .iter()
+                    .into_iter()
                     .filter(|res| res.entities().iter().any(|entity| entity <= &entity_type))
-                    .filter_map(|res| permissions::get_resource_name(*res, entity_type))
-                    .collect::<Vec<_>>()
-                    .join(", ");
+                    .collect();
 
-                if description.is_empty() {
+                if filtered_resources.is_empty() {
                     return None;
                 }
+
+                let description = filtered_resources
+                    .iter()
+                    .map(|res| permissions::get_resource_name(*res, entity_type))
+                    .collect::<Option<Vec<_>>>()?
+                    .join(", ");
 
                 Some((parent, description))
             })
