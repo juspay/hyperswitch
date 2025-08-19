@@ -1,1 +1,1 @@
-ALTER TABLE payment_methods ADD COLUMN IF NOT EXISTS external_vault_token_data BYTEA DEFAULT NULL;
+ALTER TABLE payment_methods ADD COLUMN IF NOT EXISTS external_vault_token_data BYTEA;
