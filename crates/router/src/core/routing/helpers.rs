@@ -2049,19 +2049,6 @@ where
         )
         .await;
     }
-    //Check for payload
-    if let Some(payload) = payload {
-        return create_specific_dynamic_routing_setup(
-            state,
-            key_store,
-            business_profile,
-            feature_to_enable,
-            dynamic_routing_algo_ref,
-            dynamic_routing_type,
-            payload,
-        )
-        .await;
-    }
     // Algorithm wasn't created yet
     let Some(mut algo_type) = algo_type else {
         return default_specific_dynamic_routing_setup(
@@ -2144,7 +2131,6 @@ pub async fn default_specific_dynamic_routing_setup(
     let algorithm_id = common_utils::generate_routing_id_of_default_length();
     let timestamp = common_utils::date_time::now();
 
-
     let algo = match dynamic_routing_type {
         routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
             let default_success_based_routing_config =
@@ -2175,7 +2161,6 @@ pub async fn default_specific_dynamic_routing_setup(
                 } else {
                     routing_types::EliminationRoutingConfig::default()
                 };
-
 
             routing_algorithm::RoutingAlgorithm {
                 algorithm_id: algorithm_id.clone(),
