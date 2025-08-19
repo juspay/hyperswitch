@@ -144,7 +144,7 @@ impl ParentGroupExt for ParentGroup {
     ) -> Option<HashMap<Self, String>> {
         let descriptions_map = Self::iter()
             .filter_map(|parent| {
-              let has_groups = groups.iter().any(|group| group.parent() == parent);
+                let has_groups = groups.iter().any(|group| group.parent() == parent);
                 if !has_groups {
                     return None;
                 }

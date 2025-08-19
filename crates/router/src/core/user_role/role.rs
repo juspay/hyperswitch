@@ -32,13 +32,13 @@ fn parent_group_info_request_to_permission_groups(
 
     for parent_group in parent_groups {
         let scopes = &parent_group.scopes;
-        
+
         if scopes.is_empty() {
             return Err(UserErrors::InvalidRoleOperation);
         }
 
         let available_scopes = parent_group.name.get_available_scopes();
-        
+
         for scope in scopes {
             if !available_scopes.contains(scope) {
                 return Err(UserErrors::InvalidRoleOperation);
@@ -599,7 +599,7 @@ pub async fn list_roles_with_info(
             role_api::ListRolesResponse::WithParentGroups(list_role_info_response),
         ))
     }
-    // TODO: To be deprecated 
+    // TODO: To be deprecated
     else {
         let list_role_info_response = role_info_vec
             .into_iter()
