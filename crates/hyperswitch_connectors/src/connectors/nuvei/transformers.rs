@@ -1476,15 +1476,13 @@ where
         .get_optional_billing()
         .and_then(|billing_details| billing_details.address.as_ref());
 
-    match address {
-        Some(address) => {
-            // mandatory feilds check
-            address.get_first_name()?;
-            item.request.get_email_required()?;
-            item.get_billing_country()?;
-        }
-        None => (),
-    };
+    if let Some(address) = address {
+        // mandatory feilds check
+        address.get_first_name()?;
+        item.request.get_email_required()?;
+        item.get_billing_country()?;
+    }
+
     let (is_rebilling, additional_params, user_token_id) =
         match item.request.get_setup_mandate_details().clone() {
             Some(mandate_data) => {
