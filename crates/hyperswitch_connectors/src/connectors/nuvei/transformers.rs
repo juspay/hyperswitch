@@ -1430,7 +1430,7 @@ where
 
     match address {
         Some(address) => {
-            // fields check
+            // mandatory feilds check
             address.get_first_name()?;
             item.request.get_email_required()?;
             item.get_billing_country()?;
