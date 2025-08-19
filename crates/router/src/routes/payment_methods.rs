@@ -934,9 +934,20 @@ pub async fn list_countries_currencies_for_connector_payment_method(
                 Some(auth.profile.get_id().clone()),
             )
         },
-        &auth::V2ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(
+            &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
+            &auth::JWTAuth {
+                permission: Permission::ProfileConnectorRead,
+            },
+            req.headers(),
+        ),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth {
+            permission: Permission::ProfileConnectorRead,
         },
         api_locking::LockAction::NotApplicable,
     ))
