@@ -46,15 +46,6 @@ pub mod injector_core {
         pub field: String,
     }
 
-    // Utility function to safely mask tokens for logging
-    fn mask_token(token: &str) -> String {
-        if token.len() <= 8 {
-            "*".repeat(token.len())
-        } else {
-            format!("{}***{}", &token[..4], &token[token.len() - 4..])
-        }
-    }
-
     pub fn parse_token(input: &str) -> IResult<&str, TokenReference> {
         let (input, field) = delimited(
             tag("{{"),
