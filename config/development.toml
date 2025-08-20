@@ -953,7 +953,7 @@ nexixpay = { payment_method = "card" }
 redsys = { payment_method = "card" }
 
 [connector_customer]
-connector_list = "adyen,authorizedotnet,facilitapay,gocardless,hyperswitch_vault,stax,stripe"
+connector_list = "authorizedotnet,facilitapay,gocardless,hyperswitch_vault,stax,stripe"
 payout_connector_list = "nomupay,stripe,wise"
 
 [dummy_connector]
