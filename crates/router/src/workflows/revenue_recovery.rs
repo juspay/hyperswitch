@@ -2,6 +2,8 @@
 use std::collections::HashMap;
 
 #[cfg(feature = "v2")]
+use api_models::enums::RevenueRecoveryAlgorithmType;
+#[cfg(feature = "v2")]
 use api_models::payments as api_payments;
 #[cfg(feature = "v2")]
 use api_models::payments::PaymentAttemptResponse;
@@ -36,8 +38,6 @@ use hyperswitch_domain_models::{
 };
 #[cfg(feature = "v2")]
 use masking::{ExposeInterface, PeekInterface, Secret};
-#[cfg(feature = "v2")]
-use api_models::enums::RevenueRecoveryAlgorithmType;
 #[cfg(feature = "v2")]
 use router_env::logger;
 #[cfg(feature = "v2")]
@@ -696,10 +696,10 @@ pub struct ScheduledToken {
 
 #[cfg(feature = "v2")]
 pub async fn get_token_with_schedule_time_based_on_retry_alogrithm_type(
-    state: &SessionState, 
-     connector_customer_id: &str,
+    state: &SessionState,
+    connector_customer_id: &str,
     payment_intent: &PaymentIntent,
-    retry_count: i32
+    retry_count: i32,
 ) -> CustomResult<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
     let retry_algorithm_type = state.conf.revenue_recovery.retry_algorithm_type;
 
@@ -709,7 +709,6 @@ pub async fn get_token_with_schedule_time_based_on_retry_alogrithm_type(
             Ok(None)
         }
         RevenueRecoveryAlgorithmType::Cascading => {
-
             let scheduled_time = get_schedule_time_to_retry_mit_payments(
                 state.store.as_ref(),
                 &payment_intent.merchant_id,
@@ -719,8 +718,6 @@ pub async fn get_token_with_schedule_time_based_on_retry_alogrithm_type(
             .ok_or(errors::ProcessTrackerError::EApiErrorResponse)?;
 
             Ok(Some(scheduled_time))
-
-            
         }
         RevenueRecoveryAlgorithmType::Smart => {
             let scheduled_time = get_best_psp_token_available_for_smart_retry(
@@ -735,7 +732,6 @@ pub async fn get_token_with_schedule_time_based_on_retry_alogrithm_type(
         }
     }
 }
-
 
 #[cfg(feature = "v2")]
 pub async fn get_best_psp_token_available_for_smart_retry(
@@ -753,7 +749,7 @@ pub async fn get_best_psp_token_available_for_smart_retry(
     .change_context(errors::ProcessTrackerError::ERedisError(
         errors::RedisError::RedisConnectionError.into(),
     ))?;
-    
+
     match !locked {
         true => Ok(None),
 
@@ -850,7 +846,6 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
     payment_intent: &PaymentIntent,
     connector_customer_id: &str,
 ) -> CustomResult<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
-
     tracing::debug!("Filtered  payment attempts based on payment tokens",);
     let mut tokens_with_schedule_time: Vec<ScheduledToken> = Vec::new();
 
