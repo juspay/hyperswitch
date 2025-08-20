@@ -194,6 +194,10 @@ impl AttemptStatus {
             | Self::IntegrityFailure => false,
         }
     }
+
+    pub fn is_success(self) -> bool {
+        matches!(self, Self::Charged | Self::PartialCharged)
+    }
 }
 
 #[derive(
@@ -2220,6 +2224,34 @@ pub enum PaymentMethod {
     MobilePayment,
 }
 
+/// Indicates the gateway system through which the payment is processed.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum GatewaySystem {
+    #[default]
+    Direct,
+    UnifiedConnectorService,
+}
+
 /// The type of the payment that differentiates between normal and various types of mandate payments. Use 'setup_mandate' in case of zero auth flow.
 #[derive(
     Clone,
@@ -2571,7 +2603,7 @@ pub enum DecisionEngineMerchantCategoryCode {
 }
 
 impl CardNetwork {
-    pub fn is_global_network(&self) -> bool {
+    pub fn is_signature_network(&self) -> bool {
         match self {
             Self::Interac
             | Self::Star
@@ -2820,8 +2852,8 @@ pub enum CountryAlpha2 {
 #[strum(serialize_all = "snake_case")]
 pub enum RequestIncrementalAuthorization {
     True,
-    False,
     #[default]
+    False,
     Default,
 }
 
@@ -7626,6 +7658,10 @@ impl TransactionStatus {
             self,
             Self::ChallengeRequired | Self::ChallengeRequiredDecoupledAuthentication
         )
+    }
+
+    pub fn is_terminal_state(self) -> bool {
+        matches!(self, Self::Success | Self::Failure)
     }
 }
 

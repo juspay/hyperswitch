@@ -953,6 +953,7 @@ impl<F>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 });
                 Ok(Self {
                     response,
@@ -1432,6 +1433,7 @@ impl<F>
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     }),
                     status: enums::AttemptStatus::AuthenticationFailed,
                     ..item.data
@@ -1735,6 +1737,7 @@ fn map_error_response<F, T>(
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        connector_metadata: None,
     });
 
     match transaction_status {
@@ -2621,6 +2624,7 @@ fn get_error_response(
         network_advice_code,
         network_decline_code,
         network_error_message: None,
+        connector_metadata: None,
     }
 }
 
