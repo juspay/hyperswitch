@@ -40,7 +40,7 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Authorizedotnet => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Authorizedotnet)))
                 }
-                enums::Connector::Bambora => Ok(ConnectorEnum::Old(Box::new(&connector::Bambora))),
+                enums::Connector::Bambora => Ok(ConnectorEnum::Old(Box::new(connector::Bambora::new()))),
                 enums::Connector::Bamboraapac => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Bamboraapac::new())))
                 }
@@ -81,14 +81,14 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Chargebee => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Chargebee::new())))
                 }
-                // enums::Connector::Checkbook => {
-                //     Ok(ConnectorEnum::Old(Box::new(connector::Checkbook)))
-                // }
+                enums::Connector::Checkbook => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Checkbook::new())))
+                }
                 enums::Connector::Checkout => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Checkout::new())))
                 }
                 enums::Connector::Coinbase => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Coinbase)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Coinbase::new())))
                 }
                 enums::Connector::Coingate => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Coingate::new())))
@@ -117,38 +117,38 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Digitalvirgo => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Digitalvirgo::new())))
                 }
-                enums::Connector::Dlocal => Ok(ConnectorEnum::Old(Box::new(&connector::Dlocal))),
+                enums::Connector::Dlocal => Ok(ConnectorEnum::Old(Box::new(connector::Dlocal::new()))),
                 #[cfg(feature = "dummy_connector")]
                 enums::Connector::DummyConnector1 => Ok(ConnectorEnum::Old(Box::new(
-                    &connector::DummyConnector::<1>,
+                    connector::DummyConnector::<1>::new(),
                 ))),
                 #[cfg(feature = "dummy_connector")]
                 enums::Connector::DummyConnector2 => Ok(ConnectorEnum::Old(Box::new(
-                    &connector::DummyConnector::<2>,
+                    connector::DummyConnector::<2>::new(),
                 ))),
                 #[cfg(feature = "dummy_connector")]
                 enums::Connector::DummyConnector3 => Ok(ConnectorEnum::Old(Box::new(
-                    &connector::DummyConnector::<3>,
+                    connector::DummyConnector::<3>::new(),
                 ))),
                 #[cfg(feature = "dummy_connector")]
                 enums::Connector::DummyConnector4 => Ok(ConnectorEnum::Old(Box::new(
-                    &connector::DummyConnector::<4>,
+                    connector::DummyConnector::<4>::new(),
                 ))),
                 #[cfg(feature = "dummy_connector")]
                 enums::Connector::DummyConnector5 => Ok(ConnectorEnum::Old(Box::new(
-                    &connector::DummyConnector::<5>,
+                    connector::DummyConnector::<5>::new(),
                 ))),
                 #[cfg(feature = "dummy_connector")]
                 enums::Connector::DummyConnector6 => Ok(ConnectorEnum::Old(Box::new(
-                    &connector::DummyConnector::<6>,
+                    connector::DummyConnector::<6>::new(),
                 ))),
                 #[cfg(feature = "dummy_connector")]
                 enums::Connector::DummyConnector7 => Ok(ConnectorEnum::Old(Box::new(
-                    &connector::DummyConnector::<7>,
+                    connector::DummyConnector::<7>::new(),
                 ))),
                 #[cfg(feature = "dummy_connector")]
                 enums::Connector::DummyBillingConnector => Ok(ConnectorEnum::Old(Box::new(
-                    &connector::DummyConnector::<8>,
+                    connector::DummyConnector::<8>::new(),
                 ))),
                 // enums::Connector::Dwolla => {
                 //     Ok(ConnectorEnum::Old(Box::new(connector::Dwolla::new())))
@@ -185,7 +185,7 @@ impl FeatureMatrixConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Globepay::new())))
                 }
                 enums::Connector::Gocardless => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Gocardless)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Gocardless::new())))
                 }
                 enums::Connector::Hipay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Hipay::new())))
@@ -229,13 +229,13 @@ impl FeatureMatrixConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Nomupay::new())))
                 }
                 enums::Connector::Noon => Ok(ConnectorEnum::Old(Box::new(connector::Noon::new()))),
-                // enums::Connector::Nordea => Ok(ConnectorEnum::Old(Box::new(connector::Nordea::new()))),
+                enums::Connector::Nordea => Ok(ConnectorEnum::Old(Box::new(connector::Nordea::new()))),
                 enums::Connector::Novalnet => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Novalnet::new())))
                 }
                 enums::Connector::Nuvei => Ok(ConnectorEnum::Old(Box::new(&connector::Nuvei))),
                 enums::Connector::Opennode => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Opennode)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Opennode::new())))
                 }
                 enums::Connector::Phonepe => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Phonepe::new())))
