@@ -163,7 +163,10 @@ impl
                     .authentication_request
                     .as_ref()
                     .and_then(|req| req.three_ds_requestor_challenge_ind.as_ref())
-                    .and_then(|v| v.first().cloned());
+                    .and_then(|ind| match ind {
+                        ThreedsRequestorChallengeInd::Single(s) => Some(s.clone()),
+                        ThreedsRequestorChallengeInd::Multiple(v) => v.first().cloned(),
+                    });
 
                 Ok(AuthenticationResponseData::AuthNResponse {
                     authn_flow_type,
@@ -679,7 +682,14 @@ pub struct NetceteraAuthenticationFailureResponse {
 #[serde(rename_all = "camelCase")]
 pub struct AuthenticationRequest {
     #[serde(rename = "threeDSRequestorChallengeInd")]
-    pub three_ds_requestor_challenge_ind: Option<Vec<String>>,
+    pub three_ds_requestor_challenge_ind: Option<ThreedsRequestorChallengeInd>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ThreedsRequestorChallengeInd {
+    Single(String),
+    Multiple(Vec<String>),
 }
 
 #[derive(Debug, Deserialize, Serialize)]
