@@ -218,7 +218,9 @@ impl PaymentIntent {
             && is_overcapture_supported_by_connector
         {
             self.request_overcapture.or_else(|| {
-                always_request_overcapture.map(|should_request_overcapture| RequestOvercapture::from(*should_request_overcapture.deref()))
+                always_request_overcapture.map(|should_request_overcapture| {
+                    RequestOvercapture::from(*should_request_overcapture.deref())
+                })
             })
         } else {
             None
