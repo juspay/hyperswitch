@@ -4652,7 +4652,7 @@ impl<F, Req>
         let minor_amount_captured = match status {
             enums::AttemptStatus::Charged 
             |enums::AttemptStatus::PartialCharged 
-            |enums::AttemptStatus::PartialChargedAndChargeable => Some(MinorUnit::new(5000)),
+            |enums::AttemptStatus::PartialChargedAndChargeable => amount,
             _ => None,
         };
 

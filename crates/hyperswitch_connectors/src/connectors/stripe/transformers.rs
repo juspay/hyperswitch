@@ -2936,7 +2936,7 @@ where
             three_ds_form,
             */
             response,
-            amount_captured: Some(5050),
+            amount_captured,
             // item
             //     .response
             //     .amount_received
