@@ -86,11 +86,5 @@ export default defineConfig({
     videoCompression: 32,
     videosFolder: `cypress/videos/${connectorId}`,
     chromeWebSecurity: false,
-
-    // Add retry configuration for flaky tests, especially in CI
-    retries: {
-      runMode: isCI ? 3 : 1, // Retry 3 times in CI, 1 time locally
-      openMode: 1,
-    },
   },
 });
