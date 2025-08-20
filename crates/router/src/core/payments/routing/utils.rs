@@ -21,7 +21,10 @@ use diesel_models::{enums, routing_algorithm};
 use error_stack::ResultExt;
 use euclid::{
     backend::BackendInput,
-    frontend::ast::{self},
+    frontend::{
+        ast::{self},
+        dir::{self, transformers::IntoDirValue},
+    },
 };
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use external_services::grpc_client::dynamic_routing as ir_client;
@@ -420,14 +423,14 @@ pub async fn decision_engine_routing(
         return Ok(Vec::default());
     };
 
-    let de_output_conenctor = extract_de_output_connectors(de_euclid_response.output)
+    let de_output_connector = extract_de_output_connectors(de_euclid_response.output)
             .map_err(|e| {
                 logger::error!(error=?e, "decision_engine_euclid_evaluation_error: Failed to extract connector from Output");
                 e
             })?;
 
     transform_de_output_for_router(
-            de_output_conenctor.clone(),
+            de_output_connector.clone(),
             de_euclid_response.evaluated_output.clone(),
         )
         .map_err(|e| {
@@ -839,6 +842,17 @@ pub fn convert_backend_input_to_routing_eval(
             "payment_method".to_string(),
             Some(ValueType::EnumVariant(pm.to_string())),
         );
+        if let Some(pmt) = input.payment_method.payment_method_type {
+            match (pmt, pm).into_dir_value() {
+                Ok(dv) => insert_dirvalue_param(&mut params, dv),
+                Err(e) => logger::debug!(
+                    ?e,
+                    ?pmt,
+                    ?pm,
+                    "decision_engine_euclid: into_dir_value failed; skipping subset param"
+                ),
+            }
+        }
     }
     if let Some(pmt) = input.payment_method.payment_method_type {
         params.insert(
@@ -891,6 +905,110 @@ pub fn convert_backend_input_to_routing_eval(
         parameters: params,
         fallback_output,
     })
+}
+
+// All the independent variants of payment method types, configured via dashboard
+fn insert_dirvalue_param(params: &mut HashMap<String, Option<ValueType>>, dv: dir::DirValue) {
+    match dv {
+        dir::DirValue::RewardType(v) => {
+            params.insert(
+                "reward".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::CardType(v) => {
+            params.insert(
+                "card".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::PayLaterType(v) => {
+            params.insert(
+                "pay_later".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::WalletType(v) => {
+            params.insert(
+                "wallet".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::VoucherType(v) => {
+            params.insert(
+                "voucher".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::BankRedirectType(v) => {
+            params.insert(
+                "bank_redirect".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::BankDebitType(v) => {
+            params.insert(
+                "bank_debit".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::BankTransferType(v) => {
+            params.insert(
+                "bank_transfer".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::RealTimePaymentType(v) => {
+            params.insert(
+                "real_time_payment".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::UpiType(v) => {
+            params.insert(
+                "upi".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::GiftCardType(v) => {
+            params.insert(
+                "gift_card".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::CardRedirectType(v) => {
+            params.insert(
+                "card_redirect".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::OpenBankingType(v) => {
+            params.insert(
+                "open_banking".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::MobilePaymentType(v) => {
+            params.insert(
+                "mobile_payment".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::CryptoType(v) => {
+            params.insert(
+                "crypto".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        other => {
+            // all other values can be ignored for now as they don't converge with
+            // payment method type
+            logger::warn!(
+                ?other,
+                "decision_engine_euclid: unmapped dir::DirValue; add a mapping here"
+            );
+        }
+    }
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]

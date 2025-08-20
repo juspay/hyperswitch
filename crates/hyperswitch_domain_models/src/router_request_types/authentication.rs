@@ -75,7 +75,7 @@ pub struct MessageExtensionAttribute {
     pub id: String,
     pub name: String,
     pub criticality_indicator: bool,
-    pub data: String,
+    pub data: serde_json::Value,
 }
 
 #[derive(Clone, Default, Debug)]

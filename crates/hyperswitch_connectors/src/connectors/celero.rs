@@ -155,6 +155,7 @@ impl ConnectorCommon for Celero {
             network_decline_code: error_details.processor_response_code.clone(),
             network_advice_code: None,
             network_error_message: error_details.processor_response_code,
+            connector_metadata: None,
         })
     }
 }

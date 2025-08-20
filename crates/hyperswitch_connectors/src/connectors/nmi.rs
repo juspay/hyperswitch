@@ -9,6 +9,7 @@ use common_utils::{
     types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
+use hex;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
@@ -129,6 +130,7 @@ impl ConnectorCommon for Nmi {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -859,13 +861,15 @@ impl IncomingWebhook for Nmi {
             .captures(sig_header)
         {
             let signature = captures
-                .get(1)
+                .get(2)
                 .ok_or(ConnectorError::WebhookSignatureNotFound)?
                 .as_str();
-            return Ok(signature.as_bytes().to_vec());
-        }
 
-        Err(report!(ConnectorError::WebhookSignatureNotFound))
+            // Decode hex signature to bytes
+            hex::decode(signature).change_context(ConnectorError::WebhookSignatureNotFound)
+        } else {
+            Err(report!(ConnectorError::WebhookSignatureNotFound))
+        }
     }
 
     fn get_webhook_source_verification_message(
@@ -883,15 +887,16 @@ impl IncomingWebhook for Nmi {
             .captures(sig_header)
         {
             let nonce = captures
-                .get(0)
+                .get(1)
                 .ok_or(ConnectorError::WebhookSignatureNotFound)?
                 .as_str();
 
             let message = format!("{}.{}", nonce, String::from_utf8_lossy(request.body));
 
-            return Ok(message.into_bytes());
+            Ok(message.into_bytes())
+        } else {
+            Err(report!(ConnectorError::WebhookSignatureNotFound))
         }
-        Err(report!(ConnectorError::WebhookSignatureNotFound))
     }
 
     fn get_webhook_object_reference_id(

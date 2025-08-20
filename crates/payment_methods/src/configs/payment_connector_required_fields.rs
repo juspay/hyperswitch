@@ -184,6 +184,8 @@ enum RequiredField {
     UpiCollectVpaId,
     AchBankDebitAccountNumber,
     AchBankDebitRoutingNumber,
+    AchBankDebitBankType(Vec<enums::BankType>),
+    AchBankDebitBankAccountHolderName,
     SepaBankDebitIban,
     BacsBankDebitAccountNumber,
     BacsBankDebitSortCode,
@@ -709,6 +711,30 @@ impl RequiredField {
                         .to_string(),
                     display_name: "bank_routing_number".to_string(),
                     field_type: FieldType::UserBankRoutingNumber,
+                    value: None,
+                },
+            ),
+            Self::AchBankDebitBankType(bank_type) => (
+                "payment_method_data.bank_debit.ach_bank_debit.bank_type".to_string(),
+                RequiredFieldInfo {
+                    required_field: "payment_method_data.bank_debit.ach_bank_debit.bank_type"
+                        .to_string(),
+                    display_name: "bank_type".to_string(),
+                    field_type: FieldType::UserBankType {
+                        options: bank_type.iter().map(|bt| bt.to_string()).collect(),
+                    },
+                    value: None,
+                },
+            ),
+            Self::AchBankDebitBankAccountHolderName => (
+                "payment_method_data.bank_debit.ach_bank_debit.bank_account_holder_name"
+                    .to_string(),
+                RequiredFieldInfo {
+                    required_field:
+                        "payment_method_data.bank_debit.ach_bank_debit.bank_account_holder_name"
+                            .to_string(),
+                    display_name: "bank_account_holder_name".to_string(),
+                    field_type: FieldType::UserBankAccountHolderName,
                     value: None,
                 },
             ),
@@ -1585,7 +1611,14 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
                 vec![],
                 [
                     card_basic(),
-                    vec![RequiredField::BillingEmail, RequiredField::BillingPhone],
+                    vec![
+                        RequiredField::BillingEmail,
+                        RequiredField::BillingPhone,
+                        RequiredField::BillingPhoneCountryCode,
+                        RequiredField::BillingUserFirstName,
+                        RequiredField::BillingUserLastName,
+                        RequiredField::BillingAddressCountries(vec!["ID,PH"]),
+                    ],
                 ]
                 .concat(),
             ),
@@ -3093,6 +3126,30 @@ fn get_bank_debit_required_fields() -> HashMap<enums::PaymentMethodType, Connect
                             RequiredField::AchBankDebitAccountNumber.to_tuple(),
                             RequiredField::AchBankDebitRoutingNumber.to_tuple(),
                         ]),
+                    },
+                ),
+                (
+                    Connector::Dwolla,
+                    RequiredFieldFinal {
+                        mandate: HashMap::new(),
+                        non_mandate: HashMap::from([
+                            RequiredField::BillingFirstName(
+                                "first_name",
+                                FieldType::UserBillingName,
+                            )
+                            .to_tuple(),
+                            RequiredField::BillingLastName("last_name", FieldType::UserBillingName)
+                                .to_tuple(),
+                            RequiredField::AchBankDebitAccountNumber.to_tuple(),
+                            RequiredField::AchBankDebitRoutingNumber.to_tuple(),
+                            RequiredField::AchBankDebitBankAccountHolderName.to_tuple(),
+                            RequiredField::AchBankDebitBankType(vec![
+                                enums::BankType::Checking,
+                                enums::BankType::Savings,
+                            ])
+                            .to_tuple(),
+                        ]),
+                        common: HashMap::new(),
                     },
                 ),
             ]),

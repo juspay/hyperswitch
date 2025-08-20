@@ -1,7 +1,5 @@
 pub mod transformers;
 
-use std::fmt::Debug;
-
 use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::enums;
 use common_utils::{
@@ -10,6 +8,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::ByteSliceExt,
     request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hex::encode;
@@ -49,9 +48,23 @@ use lazy_static::lazy_static;
 use masking::{Mask, Maskable, PeekInterface};
 use transformers as dlocal;
 
-use crate::{constants::headers, types::ResponseRouterData};
-#[derive(Debug, Clone)]
-pub struct Dlocal;
+use crate::{
+    connectors::dlocal::transformers::DlocalRouterData, constants::headers,
+    types::ResponseRouterData, utils::convert_amount,
+};
+
+#[derive(Clone)]
+pub struct Dlocal {
+    amount_convertor: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+}
+
+impl Dlocal {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_convertor: &MinorUnitForConnector,
+        }
+    }
+}
 
 impl api::Payment for Dlocal {}
 impl api::PaymentToken for Dlocal {}
@@ -108,7 +121,7 @@ where
             (headers::X_DATE.to_string(), date.into()),
             (
                 headers::CONTENT_TYPE.to_string(),
-                Self.get_content_type().to_string().into(),
+                self.get_content_type().to_string().into(),
             ),
         ];
         Ok(headers)
@@ -155,6 +168,7 @@ impl ConnectorCommon for Dlocal {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -212,12 +226,14 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = dlocal::DlocalRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = convert_amount(
+            self.amount_convertor,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = DlocalRouterData::try_from((amount, req))?;
+
         let connector_req = dlocal::DlocalPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -525,12 +541,13 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Dlocal 
         req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = dlocal::DlocalRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = convert_amount(
+            self.amount_convertor,
+            req.request.minor_refund_amount,
             req.request.currency,
-            req.request.refund_amount,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = DlocalRouterData::try_from((amount, req))?;
         let connector_req = dlocal::DlocalRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }

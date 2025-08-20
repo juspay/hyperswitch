@@ -2599,7 +2599,7 @@ pub enum DecisionEngineMerchantCategoryCode {
 }
 
 impl CardNetwork {
-    pub fn is_global_network(&self) -> bool {
+    pub fn is_signature_network(&self) -> bool {
         match self {
             Self::Interac
             | Self::Star
@@ -2848,8 +2848,8 @@ pub enum CountryAlpha2 {
 #[strum(serialize_all = "snake_case")]
 pub enum RequestIncrementalAuthorization {
     True,
-    False,
     #[default]
+    False,
     Default,
 }
 
@@ -7654,6 +7654,10 @@ impl TransactionStatus {
             self,
             Self::ChallengeRequired | Self::ChallengeRequiredDecoupledAuthentication
         )
+    }
+
+    pub fn is_terminal_state(self) -> bool {
+        matches!(self, Self::Success | Self::Failure)
     }
 }
 
