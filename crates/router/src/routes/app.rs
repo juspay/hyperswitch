@@ -56,7 +56,7 @@ use super::refunds;
 use super::routing;
 #[cfg(all(feature = "oltp", feature = "v2"))]
 use super::tokenization as tokenization_routes;
-#[cfg(all(feature = "olap", feature = "v1"))]
+#[cfg(all(feature = "olap", any(feature = "v1", feature = "v2")))]
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "oltp")]
 use super::webhooks::*;
@@ -2325,7 +2325,6 @@ impl ThreeDsDecisionRule {
 
 #[cfg(feature = "olap")]
 pub struct Verify;
-
 #[cfg(all(feature = "olap", feature = "v1"))]
 impl Verify {
     pub fn server(state: AppState) -> Scope {
@@ -2337,6 +2336,22 @@ impl Verify {
             )
             .service(
                 web::resource("/applepay_verified_domains")
+                    .route(web::get().to(retrieve_apple_pay_verified_domains)),
+            )
+    }
+}
+
+#[cfg(all(feature = "olap", feature = "v2"))]
+impl Verify {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/v2/verify")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/apple-pay/{merchant_id}")
+                    .route(web::post().to(apple_pay_merchant_registration)),
+            )
+            .service(
+                web::resource("/applepay-verified-domains")
                     .route(web::get().to(retrieve_apple_pay_verified_domains)),
             )
     }
