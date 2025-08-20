@@ -24,11 +24,7 @@ use std::sync::{atomic, Arc};
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 pub use fred::interfaces::PubsubInterface;
-use fred::{
-    clients::Transaction,
-    interfaces::ClientLike,
-    prelude::{EventInterface, TransactionInterface},
-};
+use fred::{interfaces::ClientLike, prelude::EventInterface};
 
 pub use self::types::*;
 
@@ -226,10 +222,6 @@ impl RedisConnectionPool {
                 Ok(())
             })
         });
-    }
-
-    pub fn get_transaction(&self) -> Transaction {
-        self.pool.next().multi()
     }
 }
 
