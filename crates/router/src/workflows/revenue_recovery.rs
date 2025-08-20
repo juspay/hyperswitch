@@ -33,7 +33,7 @@ use hyperswitch_domain_models::router_flow_types;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
-    payments::{PaymentConfirmData, PaymentIntent, PaymentIntentData},
+    payments::{payment_attempt, PaymentConfirmData, PaymentIntent, PaymentIntentData},
     router_flow_types::Authorize,
 };
 #[cfg(feature = "v2")]
@@ -64,8 +64,6 @@ use crate::types::storage::revenue_recovery::RetryLimitsConfig;
 use crate::types::storage::revenue_recovery_redis_operation::{
     PaymentProcessorTokenStatus, PaymentProcessorTokenWithRetryInfo, RedisTokenManager,
 };
-#[cfg(feature = "v2")]
-use crate::workflows::revenue_recovery::payments::helpers;
 #[cfg(feature = "v2")]
 use crate::workflows::revenue_recovery::pcr::api;
 #[cfg(feature = "v2")]
@@ -927,7 +925,7 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
 #[cfg(feature = "v2")]
 pub async fn decide_retry_failure_action(
     state: &SessionState,
-    payment_attempt: &PaymentAttemptResponse,
+    payment_attempt: &payment_attempt::PaymentAttempt,
 ) -> Result<bool, error_stack::Report<storage_impl::errors::RecoveryError>> {
     let error_message = payment_attempt
         .error
@@ -945,7 +943,7 @@ pub async fn decide_retry_failure_action(
         .ok_or(storage_impl::errors::RecoveryError::ValueNotFound)
         .attach_printable("unable to derive payment connector from payment attempt")?;
 
-    let gsm_record = helpers::get_gsm_record(
+    let gsm_record = payments::helpers::get_gsm_record(
         state,
         error_code,
         error_message,
