@@ -14,14 +14,14 @@ pub mod types {
         /// The specific token data retrieved from the vault, containing sensitive PII
         pub specific_token_data: common_utils::pii::SecretSerdeValue,
         /// The type of vault connector being used for token retrieval
-        pub vault_type: VaultConnectors,
+        pub vault_connector: VaultConnectors,
     }
 
     impl From<api_models::injector::TokenData> for TokenData {
         fn from(token_data: api_models::injector::TokenData) -> Self {
             Self {
                 specific_token_data: token_data.specific_token_data,
-                vault_type: token_data.vault_type,
+                vault_connector: token_data.vault_connector,
             }
         }
     }

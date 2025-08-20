@@ -142,15 +142,18 @@ pub mod core {
             &self,
             template: String,
             vault_data: &Value,
-            vault_type: &injector::types::VaultConnectors,
+            vault_connector: &injector::types::VaultConnectors,
         ) -> error_stack::Result<String, InjectorError> {
             // Find all tokens using nom parser
             let tokens = find_all_tokens(&template);
             let mut result = template;
 
             for token_ref in tokens {
-                let extracted_field_value =
-                    self.extract_field_from_vault_data(vault_data, &token_ref.field, vault_type)?;
+                let extracted_field_value = self.extract_field_from_vault_data(
+                    vault_data,
+                    &token_ref.field,
+                    vault_connector,
+                )?;
                 let token_str = match extracted_field_value {
                     Value::String(token_value) => token_value,
                     _ => serde_json::to_string(&extracted_field_value).unwrap_or_default(),
@@ -169,7 +172,7 @@ pub mod core {
             &self,
             value: Value,
             vault_data: &Value,
-            vault_type: &injector::types::VaultConnectors,
+            vault_connector: &injector::types::VaultConnectors,
         ) -> error_stack::Result<Value, InjectorError> {
             match value {
                 Value::Object(obj) => {
@@ -177,7 +180,9 @@ pub mod core {
                         .into_iter()
                         .map(|(key, val)| {
                             self.interpolate_token_references_with_vault_data(
-                                val, vault_data, vault_type,
+                                val,
+                                vault_data,
+                                vault_connector,
                             )
                             .map(|processed| (key, processed))
                         })
@@ -185,8 +190,11 @@ pub mod core {
                     Ok(Value::Object(new_obj))
                 }
                 Value::String(s) => {
-                    let processed_string = self
-                        .interpolate_string_template_with_vault_data(s, vault_data, vault_type)?;
+                    let processed_string = self.interpolate_string_template_with_vault_data(
+                        s,
+                        vault_data,
+                        vault_connector,
+                    )?;
                     Ok(Value::String(processed_string))
                 }
                 _ => Ok(value),
@@ -198,12 +206,12 @@ pub mod core {
             &self,
             vault_data: &Value,
             field_name: &str,
-            vault_type: &injector::types::VaultConnectors,
+            vault_connector: &injector::types::VaultConnectors,
         ) -> error_stack::Result<Value, InjectorError> {
             logger::debug!(
                 "Extracting field '{}' from vault data using vault type {:?}",
                 field_name,
-                vault_type
+                vault_connector
             );
 
             match vault_data {
@@ -216,7 +224,7 @@ pub mod core {
                         })?;
 
                     // Apply vault-specific token transformation
-                    self.apply_vault_specific_transformation(raw_value, vault_type, field_name)
+                    self.apply_vault_specific_transformation(raw_value, vault_connector, field_name)
                 }
                 _ => Err(error_stack::Report::new(
                     InjectorError::TokenReplacementFailed(
@@ -230,10 +238,10 @@ pub mod core {
         fn apply_vault_specific_transformation(
             &self,
             extracted_field_value: Value,
-            vault_type: &injector::types::VaultConnectors,
+            vault_connector: &injector::types::VaultConnectors,
             field_name: &str,
         ) -> error_stack::Result<Value, InjectorError> {
-            match vault_type {
+            match vault_connector {
                 injector::types::VaultConnectors::VGS => {
                     logger::debug!(
                         "VGS vault: Using direct token replacement for field '{}'",
@@ -245,7 +253,7 @@ pub mod core {
         }
 
         /// Makes an HTTP request to the connector endpoint
-        /// 
+        ///
         /// Note: We cannot reuse the existing `call_connector_api` function from router services
         /// because it requires `SessionState` and is tightly coupled to the router's infrastructure.
         /// The injector crate is designed to be lightweight and independent, operating with
@@ -482,7 +490,7 @@ pub mod core {
 
             logger::debug!(
                 template_length = domain_request.connector_payload.template.len(),
-                vault_type = ?domain_request.token_data.vault_type,
+                vault_connector = ?domain_request.token_data.vault_connector,
                 "Processing token injection request"
             );
 
@@ -490,7 +498,7 @@ pub mod core {
             let processed_payload = self.interpolate_string_template_with_vault_data(
                 domain_request.connector_payload.template,
                 &vault_data,
-                &domain_request.token_data.vault_type,
+                &domain_request.token_data.vault_connector,
             )?;
 
             logger::debug!(
@@ -568,9 +576,9 @@ mod tests {
         });
 
         // Test with VGS vault (direct replacement)
-        let vault_type = VaultConnectors::VGS;
+        let vault_connector = VaultConnectors::VGS;
         let result = injector
-            .interpolate_token_references_with_vault_data(template, &vault_data, &vault_type)
+            .interpolate_token_references_with_vault_data(template, &vault_data, &vault_connector)
             .unwrap();
         assert_eq!(result, serde_json::Value::String("card_number=tok_sandbox_card123&cvv=tok_sandbox_cvv456&expiry=tok_sandbox_12/tok_sandbox_2026&amount=50&currency=USD&transaction_type=purchase".to_string()));
     }
@@ -584,11 +592,11 @@ mod tests {
             "card_number": "4111111111111111"
         });
 
-        let vault_type = VaultConnectors::VGS;
+        let vault_connector = VaultConnectors::VGS;
         let result = injector.interpolate_token_references_with_vault_data(
             template,
             &vault_data,
-            &vault_type,
+            &vault_connector,
         );
         assert!(result.is_err());
     }
@@ -657,27 +665,27 @@ mod tests {
         }));
 
         let request = InjectorRequest {
-    connector_payload: ConnectorPayload {
-        template: "amount=100&currency=USD&metadata[order_id]=12345_att_01974ee902f97870b61afecd4c551673&return_url=http://localhost:8080/v2/payments/12345_pay_01974ee8f1f47301a83a499977aae0f1/finish-redirection/pk_dev_d5bd3a623d714044b879d3a050ae6e68/pro_yUurSuww9vtdhfEy5mXb&confirm=true&shipping[address][city]=Karwar&shipping[address][postal_code]=581301&shipping[address][state]=Karnataka&shipping[name]=John Dough&payment_method_data[billing_details][email]=example@example.com&payment_method_data[billing_details][name]=John Dough&payment_method_data[type]=card&payment_method_data[card][number]={{$card_number}}&payment_method_data[card][exp_month]=02&payment_method_data[card][exp_year]=31&payment_method_data[card][cvc]=100&capture_method=manual&setup_future_usage=on_session&payment_method_types[0]=card&expand[0]=latest_charge".to_string(),
-    },
-    token_data: TokenData {
-        vault_type: VaultConnectors::VGS,
-        specific_token_data,
-    },
-    connection_config: ConnectionConfig {
-        base_url: "https://api.stripe.com".parse().unwrap(),
-        endpoint_path: "/v1/payment_intents".to_string(),
-        http_method: HttpMethod::POST,
-        headers,
-        proxy_url: None, // Remove proxy that was causing issues
-        // Certificate fields (None for basic test)
-        client_cert: None,
-        client_key: None,
-        ca_cert: None, // Empty CA cert for testing
-        insecure: None,
-        cert_password: None,
-        cert_format: None,
-    },
+connector_payload: ConnectorPayload {
+    template: "amount=100&currency=USD&metadata[order_id]=12345_att_01974ee902f97870b61afecd4c551673&return_url=http://localhost:8080/v2/payments/12345_pay_01974ee8f1f47301a83a499977aae0f1/finish-redirection/pk_dev_d5bd3a623d714044b879d3a050ae6e68/pro_yUurSuww9vtdhfEy5mXb&confirm=true&shipping[address][city]=Karwar&shipping[address][postal_code]=581301&shipping[address][state]=Karnataka&shipping[name]=John Dough&payment_method_data[billing_details][email]=example@example.com&payment_method_data[billing_details][name]=John Dough&payment_method_data[type]=card&payment_method_data[card][number]={{$card_number}}&payment_method_data[card][exp_month]=02&payment_method_data[card][exp_year]=31&payment_method_data[card][cvc]=100&capture_method=manual&setup_future_usage=on_session&payment_method_types[0]=card&expand[0]=latest_charge".to_string(),
+},
+token_data: TokenData {
+    vault_connector: VaultConnectors::VGS,
+    specific_token_data,
+},
+connection_config: ConnectionConfig {
+    base_url: "https://api.stripe.com".parse().unwrap(),
+    endpoint_path: "/v1/payment_intents".to_string(),
+    http_method: HttpMethod::POST,
+    headers,
+    proxy_url: None, // Remove proxy that was causing issues
+    // Certificate fields (None for basic test)
+    client_cert: None,
+    client_key: None,
+    ca_cert: None, // Empty CA cert for testing
+    insecure: None,
+    cert_password: None,
+    cert_format: None,
+},
 };
 
         // Test the core function - this will make a real HTTP request to httpbin.org
@@ -733,7 +741,7 @@ mod tests {
                     .to_string(),
             },
             token_data: TokenData {
-                vault_type: VaultConnectors::VGS,
+                vault_connector: VaultConnectors::VGS,
                 specific_token_data,
             },
             connection_config: ConnectionConfig {
@@ -781,7 +789,7 @@ mod tests {
         } else {
             false
         };
-        
+
         assert!(
             response_contains_token,
             "Response should contain replaced token: {}",
