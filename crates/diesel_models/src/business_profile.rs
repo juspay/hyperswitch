@@ -704,6 +704,7 @@ impl ProfileUpdateInternal {
             merchant_category_code: merchant_category_code.or(source.merchant_category_code),
             merchant_country_code: merchant_country_code.or(source.merchant_country_code),
             dispute_polling_interval: None,
+            always_request_overcapture: None,
         }
     }
 }

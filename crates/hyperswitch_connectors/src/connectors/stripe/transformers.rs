@@ -2530,7 +2530,7 @@ impl StripeChargeEnum {
         &self,
     ) -> Option<common_types::primitive_wrappers::OvercaptureAppliedBool> {
         match self {
-            StripeChargeEnum::ChargeObject(charge_object) => charge_object
+            Self::ChargeObject(charge_object) => charge_object
                 .payment_method_details
                 .as_ref()
                 .and_then(|payment_method_details| match payment_method_details {
@@ -2556,7 +2556,7 @@ impl StripeChargeEnum {
 
     pub fn get_maximum_capturable_amount(&self) -> Option<MinorUnit> {
         match self {
-            StripeChargeEnum::ChargeObject(charge_object) => {
+            Self::ChargeObject(charge_object) => {
                 if let Some(payment_method_details) = charge_object.payment_method_details.as_ref()
                 {
                     match payment_method_details {
@@ -2805,8 +2805,8 @@ fn extract_payment_method_connector_response_from_latest_charge(
 impl From<common_types::primitive_wrappers::RequestOvercapture> for StripeRequestOvercapture {
     fn from(request_overcapture: common_types::primitive_wrappers::RequestOvercapture) -> Self {
         match request_overcapture.deref() {
-            true => StripeRequestOvercapture::IfAvailable,
-            false => StripeRequestOvercapture::Never,
+            true => Self::IfAvailable,
+            false => Self::Never,
         }
     }
 }

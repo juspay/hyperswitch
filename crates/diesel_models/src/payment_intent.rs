@@ -804,6 +804,7 @@ impl PaymentIntentUpdateInternal {
             duty_amount: source.duty_amount,
             order_date: source.order_date,
             enable_partial_authorization: None,
+            request_overcapture: None,
         }
     }
 }

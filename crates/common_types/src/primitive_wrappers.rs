@@ -334,7 +334,7 @@ mod u32_wrappers {
     }
 
     impl Default for DisputePollingIntervalInHours {
-        /// Default for `ShouldCollectCvvDuringPayment` is `true`
+        /// Default for `DisputePollingIntervalInHours` is `24`
         fn default() -> Self {
             Self(DEFAULT_DISPUTE_POLLING_INTERVAL_IN_HOURS)
         }

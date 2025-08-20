@@ -995,6 +995,7 @@ impl PaymentAttemptUpdateInternal {
             network_error_message: network_error_message.or(source.network_error_message),
             connector_request_reference_id: connector_request_reference_id
                 .or(source.connector_request_reference_id),
+            overcapture_applied: overcapture_applied.or(source.overcapture_applied),
         }
     }
 }
