@@ -47,7 +47,10 @@ use crate::{
         self, api as api_types, api::payments as payments_types, domain, storage,
         transformers::ForeignInto,
     },
-    workflows::{payment_sync, revenue_recovery::get_schedule_time_to_retry_mit_payments},
+    workflows::{
+        payment_sync,
+        revenue_recovery::{self, get_schedule_time_to_retry_mit_payments},
+    },
 };
 
 type RecoveryResult<T> = error_stack::Result<T, errors::RecoveryError>;
@@ -153,11 +156,17 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                     );
                 };
 
+                let is_hard_decline =
+                    revenue_recovery::decide_retry_failure_action(state, &payment_attempt)
+                        .await
+                        .ok();
+
                 // update the status of token in redis
                 let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
                     state,
                     &connector_customer_id,
-                    Some("-1".to_string())
+                    &None,
+                    &is_hard_decline
                 )
                 .await;
 
@@ -202,11 +211,17 @@ impl RevenueRecoveryPaymentsAttemptStatus {
 
                 let error_code = recovery_payment_attempt.error_code;
 
+                let is_hard_decline =
+                    revenue_recovery::decide_retry_failure_action(state, &payment_attempt)
+                        .await
+                        .ok();
+
                 // update the status of token in redis
                 let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
                     state,
                     &connector_customer_id,
-                    Some("-1".to_string())
+                    &error_code,
+                    &is_hard_decline
                 )
                 .await;
 
@@ -378,7 +393,6 @@ impl Action {
                     payment_intent,
                     revenue_recovery_payment_data,
                     revenue_recovery_metadata,
-                    scheduled_token,
                 )
                 .await;
 
@@ -415,13 +429,21 @@ impl Action {
                             );
                         };
 
+                            let is_hard_decline = revenue_recovery::decide_retry_failure_action(
+                                state,
+                                &payment_data.payment_attempt,
+                            )
+                            .await
+                            .ok();
+
                             // update the status of token in redis
                             let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
-                    state,
-                    &connector_customer_id,
-                    Some("-1".to_string())
-                )
-                .await;
+                                state,
+                                &connector_customer_id,
+                                &None,
+                                &is_hard_decline
+                            )
+                            .await;
 
                             // unlocking the token
                             let _unlock_the_connector_customer_id = storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
@@ -465,10 +487,18 @@ impl Action {
                                 .error
                                 .map(|error| error.code);
 
+                            let is_hard_decline = revenue_recovery::decide_retry_failure_action(
+                                state,
+                                &payment_data.payment_attempt,
+                            )
+                            .await
+                            .ok();
+
                             let _update_connector_customer_id = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
                                 state,
                                 &connector_customer_id,
-                                error_code
+                                &error_code,
+                                &is_hard_decline
                             )
                             .await;
 
@@ -627,6 +657,36 @@ impl Action {
                 Ok(())
             }
             Self::TerminalFailure(payment_attempt) => {
+                // update the connector payment transmission field to Unsuccessful and unset active attempt id
+                revenue_recovery_metadata.set_payment_transmission_field_for_api_request(
+                    enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful,
+                );
+
+                let payment_update_req =
+                PaymentsUpdateIntentRequest::update_feature_metadata_and_active_attempt_with_api(
+                    payment_intent
+                        .feature_metadata
+                        .clone()
+                        .unwrap_or_default()
+                        .convert_back()
+                        .set_payment_revenue_recovery_metadata_using_api(
+                            revenue_recovery_metadata.clone(),
+                        ),
+                    api_enums::UpdateActiveAttempt::Unset,
+                );
+                logger::info!(
+                    "Call made to payments update intent api , with the request body {:?}",
+                    payment_update_req
+                );
+                revenue_recovery_core::api::update_payment_intent_api(
+                    state,
+                    payment_intent.id.clone(),
+                    revenue_recovery_payment_data,
+                    payment_update_req,
+                )
+                .await
+                .change_context(errors::RecoveryError::PaymentCallFailed)?;
+
                 db.as_scheduler()
                     .finish_process_with_business_status(
                         execute_task_process.clone(),
@@ -710,11 +770,17 @@ impl Action {
                         .change_context(errors::RecoveryError::ValueNotFound)
                         .attach_printable("Failed to extract customer ID from payment intent")?;
 
+                    let is_hard_decline =
+                        revenue_recovery::decide_retry_failure_action(state, &payment_attempt)
+                            .await
+                            .ok();
+
                     // update the status of token in redis
                     let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
                     state,
                     &connector_customer_id,
-                    Some("-1".to_string())
+                    &None,
+                    &is_hard_decline
                 )
                 .await;
 
@@ -735,10 +801,16 @@ impl Action {
 
                     let error_code = payment_attempt.clone().error.map(|error| error.code);
 
+                    let is_hard_decline =
+                        revenue_recovery::decide_retry_failure_action(state, &payment_attempt)
+                            .await
+                            .ok();
+
                     let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
                             state,
                             &connector_customer_id,
-                            error_code,
+                            &error_code,
+                            &is_hard_decline
                         )
                         .await;
 
@@ -870,6 +942,37 @@ impl Action {
             }
 
             Self::TerminalFailure(payment_attempt) => {
+                // update the connector payment transmission field to Unsuccessful and unset active attempt id
+                revenue_recovery_metadata.set_payment_transmission_field_for_api_request(
+                    enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful,
+                );
+
+                let payment_update_req =
+                PaymentsUpdateIntentRequest::update_feature_metadata_and_active_attempt_with_api(
+                    payment_intent
+                        .feature_metadata
+                        .clone()
+                        .unwrap_or_default()
+                        .convert_back()
+                        .set_payment_revenue_recovery_metadata_using_api(
+                            revenue_recovery_metadata.clone(),
+                        ),
+                    api_enums::UpdateActiveAttempt::Unset,
+                );
+                logger::info!(
+                    "Call made to payments update intent api , with the request body {:?}",
+                    payment_update_req
+                );
+
+                revenue_recovery_core::api::update_payment_intent_api(
+                    state,
+                    payment_intent.id.clone(),
+                    revenue_recovery_payment_data,
+                    payment_update_req,
+                )
+                .await
+                .change_context(errors::RecoveryError::PaymentCallFailed)?;
+
                 // TODO: Add support for retrying failed outgoing recordback webhooks
                 // finish the current psync task
                 db.as_scheduler()
@@ -1015,7 +1118,7 @@ pub async fn reopen_calculate_workflow_on_payment_failure(
                 retry_count: Some(new_retry_count),
                 schedule_time: Some(new_schedule_time),
                 tracking_data: Some(process.clone().tracking_data),
-                business_status: Some(String::from(business_status::CALCULATE_WORKFLOW_QUEUED)),
+                business_status: Some(String::from(business_status::PENDING)),
                 status: Some(common_enums::ProcessTrackerStatus::Pending),
                 updated_at: Some(common_utils::date_time::now()),
             };

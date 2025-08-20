@@ -2970,6 +2970,15 @@ pub struct AdditionalCardInfo {
     /// Details about the threeds environment.
     /// This is a free form field and the structure varies from processor to processor
     pub authentication_data: Option<serde_json::Value>,
+
+    /// Indicates if the card issuer is regulated under government-imposed interchange fee caps.
+    /// In the United States, this includes debit cards that fall under the Durbin Amendment,
+    /// which imposes capped interchange fees.
+    pub is_regulated: Option<bool>,
+
+    /// The global signature network under which the card is issued.
+    /// This represents the primary global card brand, even if the transaction uses a local network
+    pub signature_network: Option<api_enums::CardNetwork>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -9004,15 +9013,12 @@ impl PaymentRevenueRecoveryMetadata {
     ) {
         self.payment_connector_transmission = Some(payment_connector_transmission);
     }
-    pub fn get_payment_token_for_api_request(
-        &self,
-        active_token: String,
-    ) -> mandates::ProcessorPaymentToken {
+    pub fn get_payment_token_for_api_request(&self) -> mandates::ProcessorPaymentToken {
         mandates::ProcessorPaymentToken {
-            processor_payment_token: active_token,
-            // .billing_connector_payment_details
-            // .payment_processor_token
-            // .clone(),
+            processor_payment_token: self
+                .billing_connector_payment_details
+                .payment_processor_token
+                .clone(),
             merchant_connector_id: Some(self.active_attempt_payment_connector_id.clone()),
         }
     }

@@ -1035,6 +1035,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         connector_testing_data: None,
         customer_id: None,
         enable_partial_authorization: None,
+        payment_channel: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -4852,6 +4853,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             connector_testing_data,
             customer_id: payment_data.payment_intent.customer_id,
             enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
+            payment_channel: payment_data.payment_intent.payment_channel,
         })
     }
 }

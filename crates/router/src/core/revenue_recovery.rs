@@ -77,7 +77,7 @@ pub async fn upsert_calculate_pcr_task(
 
     match existing_entry {
         Some(existing_process)
-            if existing_process.business_status == business_status::CALCULATE_WORKFLOW_QUEUED =>
+            if existing_process.status == common_enums::enums::ProcessTrackerStatus::Finish =>
         {
             // Entry exists - update the status to New and scheduled time to 1 hour from now
             router_env::logger::info!(
@@ -90,7 +90,7 @@ pub async fn upsert_calculate_pcr_task(
                 retry_count: Some(intent_retry_count.into()),
                 schedule_time: Some(schedule_time),
                 tracking_data: Some(existing_process.clone().tracking_data),
-                business_status: Some(business_status::CALCULATE_WORKFLOW_QUEUED.to_string()),
+                business_status: Some(business_status::PENDING.to_string()),
                 status: Some(enums::ProcessTrackerStatus::Pending),
                 updated_at: Some(common_utils::date_time::now()),
             };
@@ -475,14 +475,11 @@ pub async fn perform_calculate_workflow(
         )));
 
     // 2. Get best available token
-    let best_token_result = match workflows::revenue_recovery::get_best_psp_token_available(
+    let best_time_to_schedule = match workflows::revenue_recovery::get_token_with_schedule_time_based_on_retry_alogrithm_type(
         state,
-        merchant_id,
         &connector_customer_id,
-        &state.get_req_state(),
-        profile,
-        &payment_intent,
-        merchant_context_from_revenue_recovery_payment_data,
+        payment_intent,
+        process.retry_count,
     )
     .await
     {
@@ -497,8 +494,8 @@ pub async fn perform_calculate_workflow(
         }
     };
 
-    match best_token_result {
-        Some(scheduled_token) => {
+    match best_time_to_schedule {
+        Some(scheduled_time) => {
             logger::info!(
                 process_id = %process.id,
                 connector_customer_id = %connector_customer_id,
@@ -515,7 +512,7 @@ pub async fn perform_calculate_workflow(
                 &tracking_data.payment_attempt_id,
                 storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
                 tracking_data.revenue_recovery_retry,
-                scheduled_token,
+                scheduled_time,
             )
             .await?;
 
@@ -559,81 +556,127 @@ pub async fn perform_calculate_workflow(
             match scheduled_token {
                 Some(scheduled_token) => {
                     // Update scheduled time to scheduled time + 15 minutes
-                    // here scheduled_time is the wait time 15 mintutes is a buffer time that we are adding
+                    // here scheduled_time is the wait time 15 minutes is a buffer time that we are adding
                     logger::info!(
                         process_id = %process.id,
                         connector_customer_id = %connector_customer_id,
                         "No token but time available, rescheduling for scheduled time + 15 mins"
                     );
 
-                    let new_schedule_time = scheduled_token
-                        .scheduled_at
-                        .unwrap_or(common_utils::date_time::now())
-                        + time::Duration::minutes(15);
-
-                    let pt_update = storage::ProcessTrackerUpdate::Update {
-                        name: Some("CALCULATE_WORKFLOW".to_string()),
-                        retry_count: Some(process.clone().retry_count),
-                        schedule_time: Some(new_schedule_time),
-                        tracking_data: Some(process.clone().tracking_data),
-                        business_status: Some(String::from(
-                            business_status::CALCULATE_WORKFLOW_QUEUED,
-                        )),
-                        status: Some(common_enums::ProcessTrackerStatus::Pending),
-                        updated_at: Some(common_utils::date_time::now()),
-                    };
-
-                    db.as_scheduler()
-                        .update_process(process.clone(), pt_update)
-                        .await
-                        .map_err(|e| {
-                            logger::error!(
-                                process_id = %process.id,
-                                error = ?e,
-                                "Failed to reschedule CALCULATE_WORKFLOW"
-                            );
-                            sch_errors::ProcessTrackerError::ProcessUpdateFailed
-                        })?;
-
-                    logger::info!(
-                        process_id = %process.id,
-                        connector_customer_id = %connector_customer_id,
-                        new_schedule_time = %new_schedule_time,
-                        "CALCULATE_WORKFLOW rescheduled successfully for time + 15 mins"
-                    );
+                    update_calculate_job_schedule_time(
+                        db,
+                        process,
+                        time::Duration::minutes(15),
+                        scheduled_token.scheduled_at,
+                        &connector_customer_id,
+                    )
+                    .await?;
                 }
                 None => {
-                    // Finish calculate workflow with CALCULATE_WORKFLOW_FINISH
-                    logger::info!(
-                        process_id = %process.id,
-                        connector_customer_id = %connector_customer_id,
-                        "No token available, finishing CALCULATE_WORKFLOW"
-                    );
-
-                    db.as_scheduler()
-                        .finish_process_with_business_status(
-                            process.clone(),
-                            business_status::CALCULATE_WORKFLOW_FINISH,
+                    let hard_decline_flag = storage::revenue_recovery_redis_operation::
+                        RedisTokenManager::are_all_tokens_hard_declined(
+                            state,
+                            &connector_customer_id
                         )
                         .await
-                        .map_err(|e| {
-                            logger::error!(
-                                process_id = %process.id,
-                                error = ?e,
-                                "Failed to finish CALCULATE_WORKFLOW"
-                            );
-                            sch_errors::ProcessTrackerError::ProcessUpdateFailed
-                        })?;
+                        .ok()
+                        .unwrap_or(false);
 
-                    logger::info!(
-                        process_id = %process.id,
-                        connector_customer_id = %connector_customer_id,
-                        "CALCULATE_WORKFLOW finished successfully"
-                    );
+                    match hard_decline_flag {
+                        false => {
+                            logger::info!(
+                                process_id = %process.id,
+                                connector_customer_id = %connector_customer_id,
+                                "Hard decline flag is false, rescheduling for scheduled time + 15 mins"
+                            );
+
+                            update_calculate_job_schedule_time(
+                                db,
+                                process,
+                                time::Duration::minutes(15),
+                                Some(common_utils::date_time::now()),
+                                &connector_customer_id,
+                            )
+                            .await?;
+                        }
+                        true => {
+                            // Finish calculate workflow with CALCULATE_WORKFLOW_FINISH
+                            logger::info!(
+                                process_id = %process.id,
+                                connector_customer_id = %connector_customer_id,
+                                "No token available, finishing CALCULATE_WORKFLOW"
+                            );
+
+                            db.as_scheduler()
+                                .finish_process_with_business_status(
+                                    process.clone(),
+                                    business_status::CALCULATE_WORKFLOW_FINISH,
+                                )
+                                .await
+                                .map_err(|e| {
+                                    logger::error!(
+                                        process_id = %process.id,
+                                        error = ?e,
+                                        "Failed to finish CALCULATE_WORKFLOW"
+                                    );
+                                    sch_errors::ProcessTrackerError::ProcessUpdateFailed
+                                })?;
+
+                            logger::info!(
+                                process_id = %process.id,
+                                connector_customer_id = %connector_customer_id,
+                                "CALCULATE_WORKFLOW finished successfully"
+                            );
+                        }
+                    }
                 }
             }
         }
     }
+    Ok(())
+}
+
+/// Update the schedule time for a CALCULATE_WORKFLOW process tracker
+async fn update_calculate_job_schedule_time(
+    db: &dyn StorageInterface,
+    process: &storage::ProcessTracker,
+    additional_time: time::Duration,
+    base_time: Option<time::PrimitiveDateTime>,
+    connector_customer_id: &str,
+) -> Result<(), sch_errors::ProcessTrackerError> {
+    let new_schedule_time =
+        base_time.unwrap_or_else(common_utils::date_time::now) + additional_time;
+
+    let pt_update = storage::ProcessTrackerUpdate::Update {
+        name: Some("CALCULATE_WORKFLOW".to_string()),
+        retry_count: Some(process.clone().retry_count),
+        schedule_time: Some(new_schedule_time),
+        tracking_data: Some(process.clone().tracking_data),
+        business_status: Some(String::from(business_status::PENDING)),
+        status: Some(common_enums::ProcessTrackerStatus::Pending),
+        updated_at: Some(common_utils::date_time::now()),
+    };
+
+    db.as_scheduler()
+        .update_process(process.clone(), pt_update)
+        .await
+        .map_err(|e| {
+            logger::error!(
+                process_id = %process.id,
+                error = ?e,
+                "Failed to reschedule CALCULATE_WORKFLOW"
+            );
+            sch_errors::ProcessTrackerError::ProcessUpdateFailed
+        })?;
+
+    logger::info!(
+        process_id = %process.id,
+        connector_customer_id = %connector_customer_id,
+        new_schedule_time = %new_schedule_time,
+        additional_time = ?additional_time,
+        "CALCULATE_WORKFLOW rescheduled successfully"
+    );
+
     Ok(())
 }
 
@@ -648,7 +691,7 @@ async fn insert_execute_pcr_task_to_pt(
     payment_attempt_id: &id_type::GlobalAttemptId,
     runner: storage::ProcessTrackerRunner,
     revenue_recovery_retry: diesel_enum::RevenueRecoveryAlgorithmType,
-    scheduled_token: workflows::revenue_recovery::ScheduledToken,
+    schedule_time: time::PrimitiveDateTime,
 ) -> Result<storage::ProcessTracker, sch_errors::ProcessTrackerError> {
     let task = "EXECUTE_WORKFLOW";
 
@@ -671,8 +714,6 @@ async fn insert_execute_pcr_task_to_pt(
             sch_errors::ProcessTrackerError::ProcessUpdateFailed
         })?;
 
-    let schedule_time = scheduled_token.schedule_time;
-
     match existing_entry {
         Some(existing_process)
             if existing_process.business_status == business_status::EXECUTE_WORKFLOW_FAILURE =>
@@ -691,7 +732,7 @@ async fn insert_execute_pcr_task_to_pt(
                 schedule_time: Some(schedule_time),
                 tracking_data: Some(existing_process.clone().tracking_data),
                 business_status: Some(String::from(business_status::PENDING)),
-                status: Some(enums::ProcessTrackerStatus::New),
+                status: Some(enums::ProcessTrackerStatus::Pending),
                 updated_at: Some(common_utils::date_time::now()),
             };
 
