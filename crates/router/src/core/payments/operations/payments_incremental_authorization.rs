@@ -101,7 +101,8 @@ impl<F: Send + Clone + Sync>
 
         // Incremental authorization should be performed on an amount greater than the original authorized amount (in this case, greater than the net_amount which is sent for authorization)
         // request.amount is the total amount that should be authorized in incremental authorization which should be greater than the original authorized amount
-        if payment_attempt.get_total_amount() > request.amount {
+        if payment_attempt.get_total_amount() > request.amount
+        || payment_attempt.get_total_amount() == request.amount {
             Err(errors::ApiErrorResponse::PreconditionFailed {
                 message: "Amount should be greater than original authorized amount".to_owned(),
             })?
