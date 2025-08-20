@@ -2,6 +2,7 @@ use std::{
     collections::{HashMap, HashSet},
     str::FromStr,
     sync::LazyLock,
+    ops::Deref,
 };
 
 #[cfg(feature = "payouts")]
@@ -184,11 +185,6 @@ where
                     .as_deref()
                     .unwrap_or(&false);
 
-                router_env::logger::debug!(
-                    "Captured amount: {:?}, Total capturable amount: {:?}, Is overcapture applied: {}",
-                    captured_amount, total_capturable_amount, is_overcapture_applied
-                );
-
                 if Some(total_capturable_amount) == captured_amount.map(MinorUnit::new)
                     || (is_overcapture_applied
                         && captured_amount.is_some_and(|captured_amount| {
@@ -215,8 +211,7 @@ where
                 let is_overcapture_applied = *payment_data
                     .payment_attempt
                     .overcapture_applied
-                    .as_deref()
-                    .unwrap_or(&false);
+                    .unwrap_or_default().deref();
 
                 if Some(total_capturable_amount) == capturable_amount.map(MinorUnit::new)
                     || (capturable_amount.is_some_and(|capturable_amount| {
