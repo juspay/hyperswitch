@@ -10,6 +10,7 @@ import { connectorDetails as authipayConnectorDetails } from "./Authipay.js";
 import { connectorDetails as authorizedotnetConnectorDetails } from "./Authorizedotnet.js";
 import { connectorDetails as bamboraConnectorDetails } from "./Bambora.js";
 import { connectorDetails as bamboraapacConnectorDetails } from "./Bamboraapac.js";
+import { connectorDetails as barclaycardConnectorDetails } from "./Barclaycard.js";
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
 import { connectorDetails as billwerkConnectorDetails } from "./Billwerk.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
@@ -69,6 +70,7 @@ const connectorDetails = {
   authorizedotnet: authorizedotnetConnectorDetails,
   bambora: bamboraConnectorDetails,
   bamboraapac: bamboraapacConnectorDetails,
+  barclaycard: barclaycardConnectorDetails,
   bankofamerica: bankOfAmericaConnectorDetails,
   billwerk: billwerkConnectorDetails,
   bluesnap: bluesnapConnectorDetails,
