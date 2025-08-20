@@ -49,7 +49,7 @@ use crate::{
 };
 
 type RecoveryResult<T> = error_stack::Result<T, errors::RecoveryError>;
-
+pub const REVENUE_RECOVERY: &str = "revenue_recovery";
 /// The status of Passive Churn Payments
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub enum RevenueRecoveryPaymentsAttemptStatus {
@@ -417,8 +417,15 @@ impl Action {
         execute_task_process: &storage::ProcessTracker,
         revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
         revenue_recovery_metadata: &mut PaymentRevenueRecoveryMetadata,
+        redis_token: storage::revenue_recovery_redis_operation::PaymentProcessorTokenStatus,
     ) -> Result<(), errors::ProcessTrackerError> {
         let db = &*state.store;
+        let connector_customer_id = payment_intent
+            .extract_connector_customer_id_from_payment_intent()
+            .change_context(errors::RecoveryError::ValueNotFound)
+            .attach_printable("Failed to extract customer ID from payment intent")?;
+
+        let error_code = redis_token.clone().error_code;
         match self {
             Self::SyncPayment(payment_attempt) => {
                 revenue_recovery_core::insert_psync_pcr_task_to_pt(
@@ -471,6 +478,12 @@ impl Action {
                         ),
                     api_enums::UpdateActiveAttempt::Unset,
                 );
+
+                storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
+                        state,
+                        &connector_customer_id,
+                        error_code,
+                    ).await?;
                 logger::info!(
                     "Call made to payments update intent api , with the request body {:?}",
                     payment_update_req
@@ -486,6 +499,15 @@ impl Action {
                 Ok(())
             }
             Self::TerminalFailure(payment_attempt) => {
+                let last_attempt_error_code = payment_attempt
+                    .error
+                    .as_ref()
+                    .map(|error| error.code.clone());
+                storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
+                        state,
+                        &connector_customer_id,
+                        last_attempt_error_code,
+                    ).await?;
                 db.as_scheduler()
                     .finish_process_with_business_status(
                         execute_task_process.clone(),
@@ -559,7 +581,7 @@ impl Action {
             revenue_recovery_payment_data,
         )
         .await;
-        let db = &*state.store;
+
         match response {
             Ok(_payment_data) => match payment_attempt.status.foreign_into() {
                 RevenueRecoveryPaymentsAttemptStatus::Succeeded => {
@@ -757,7 +779,36 @@ impl Action {
         payment_attempt: &PaymentAttempt,
         payment_intent: &PaymentIntent,
     ) -> RecoveryResult<Self> {
+        logger::info!("Choose between Terminal Failure or Retryable Failure");
+        let db = &*state.store;
         let next_retry_count = pt.retry_count + 1;
+        let error_message = payment_attempt
+            .error
+            .as_ref()
+            .map(|details| details.message.clone());
+        let error_code = payment_attempt
+            .error
+            .as_ref()
+            .map(|details| details.code.clone());
+        let connector_name = payment_attempt
+            .connector
+            .clone()
+            .ok_or(errors::RecoveryError::ValueNotFound)
+            .attach_printable("unable to derive payment connector from payment attempt")?;
+        let gsm_record = helpers::get_gsm_record(
+            state,
+            error_code,
+            error_message,
+            connector_name,
+            REVENUE_RECOVERY.to_string(),
+        )
+        .await;
+        let is_hard_decline = gsm_record
+            .and_then(|gsm_record| gsm_record.error_category)
+            .map(|gsm_error_category| {
+                gsm_error_category == common_enums::ErrorCategory::HardDecline
+            })
+            .unwrap_or(false);
         let schedule_time = revenue_recovery_payment_data
             .get_schedule_time_based_on_retry_type(
                 state,
@@ -765,17 +816,26 @@ impl Action {
                 next_retry_count,
                 payment_attempt,
                 payment_intent,
+                is_hard_decline,
             )
             .await;
 
         match schedule_time {
-            Some(schedule_time) => Ok(Self::RetryPayment(schedule_time)),
+            Some(schedule_time) => {
+                logger::info!(
+                    "Chose to Retry the payment with schedule_time : {}",
+                    schedule_time,
+                );
+                Ok(Self::RetryPayment(schedule_time))
+            }
 
-            None => Ok(Self::TerminalFailure(payment_attempt.clone())),
+            None => {
+                logger::info!("Chose to Terminally fail the payments");
+                Ok(Self::TerminalFailure(payment_attempt.clone()))
+            }
         }
     }
 }
-
 // TODO: Move these to impl based functions
 async fn record_back_to_billing_connector(
     state: &SessionState,
