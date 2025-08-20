@@ -513,6 +513,7 @@ pub struct AdyenplatformIncomingWebhookData {
     pub status: AdyenplatformWebhookStatus,
     pub reference: String,
     pub tracking: Option<AdyenplatformInstantStatus>,
+    pub category: Option<AdyenPayoutMethod>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -551,6 +552,7 @@ pub fn get_adyen_webhook_event(
     event_type: AdyenplatformWebhookEventType,
     status: AdyenplatformWebhookStatus,
     instant_status: Option<AdyenplatformInstantStatus>,
+    category: Option<&AdyenPayoutMethod>,
 ) -> webhooks::IncomingWebhookEvent {
     match (event_type, status, instant_status) {
         (AdyenplatformWebhookEventType::PayoutCreated, _, _) => {
@@ -566,8 +568,23 @@ pub fn get_adyen_webhook_event(
         }
         (AdyenplatformWebhookEventType::PayoutUpdated, status, _) => match status {
             AdyenplatformWebhookStatus::Authorised
-            | AdyenplatformWebhookStatus::Booked
             | AdyenplatformWebhookStatus::Received => webhooks::IncomingWebhookEvent::PayoutCreated,
+            AdyenplatformWebhookStatus::Booked => {
+                match category {
+                    Some(AdyenPayoutMethod::Card) => {
+                        // For card payouts, "booked" is the final success state
+                        webhooks::IncomingWebhookEvent::PayoutSuccess
+                    }
+                    Some(AdyenPayoutMethod::Bank) => {
+                        // For bank payouts, "booked" is intermediate - wait for final confirmation
+                        webhooks::IncomingWebhookEvent::PayoutProcessing
+                    }
+                    None => {
+                        // Default to processing if category is unknown
+                        webhooks::IncomingWebhookEvent::PayoutProcessing
+                    }
+                }
+            }
             AdyenplatformWebhookStatus::Pending => webhooks::IncomingWebhookEvent::PayoutProcessing,
             AdyenplatformWebhookStatus::Failed => webhooks::IncomingWebhookEvent::PayoutFailure,
             AdyenplatformWebhookStatus::Returned => webhooks::IncomingWebhookEvent::PayoutReversed,
