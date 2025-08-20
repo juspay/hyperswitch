@@ -524,6 +524,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::GooglePayThirdPartySdkData,
         api_models::payments::KlarnaSessionTokenResponse,
         api_models::payments::PaypalSessionTokenResponse,
+        api_models::payments::PaypalTransactionInfo,
         api_models::payments::ApplepaySessionTokenResponse,
         api_models::payments::SdkNextAction,
         api_models::payments::NextActionCall,

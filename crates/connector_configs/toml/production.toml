@@ -714,6 +714,12 @@ payment_method_type = "CartesBancaires"
 payment_method_type = "UnionPay"
 [[braintree.debit]]
 payment_method_type = "UnionPay"
+[[braintree.wallet]]
+  payment_method_type = "apple_pay"
+[[braintree.wallet]]
+  payment_method_type = "google_pay"
+[[braintree.wallet]]
+  payment_method_type = "paypal"
 
 [braintree.connector_auth.SignatureKey]
 api_key = "Public Key"

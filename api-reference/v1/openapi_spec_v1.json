@@ -27445,6 +27445,42 @@
           },
           "sdk_next_action": {
             "$ref": "#/components/schemas/SdkNextAction"
+          },
+          "client_token": {
+            "type": "string",
+            "description": "Client token",
+            "nullable": true
+          },
+          "transaction_info": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaypalTransactionInfo"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "PaypalTransactionInfo": {
+        "type": "object",
+        "required": [
+          "flow",
+          "currency_code",
+          "total_price"
+        ],
+        "properties": {
+          "flow": {
+            "type": "string",
+            "description": "Country code",
+            "example": "checkout"
+          },
+          "currency_code": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "total_price": {
+            "type": "string",
+            "description": "Total price",
+            "example": "0.00"
           }
         }
       },
