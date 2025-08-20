@@ -535,7 +535,7 @@ impl From<&Address> for ShippingAddress {
             address: address_details.and_then(|details| details.line1.clone()),
             street_number: None,
             zip: address_details.and_then(|details| details.zip.clone()),
-            state: None, // state need
+            state: None,
             cell: address
                 .phone
                 .as_ref()
@@ -831,10 +831,8 @@ struct ApplePayPaymentMethodCamelCase {
     pm_type: String,
 }
 
-// Implement From trait to convert directly from ApplePayWalletData
 impl From<&ApplePayWalletData> for ApplePayCamelCase {
     fn from(apple_pay_data: &ApplePayWalletData) -> Self {
-        // Extract payment data
         let payment_data = match &apple_pay_data.payment_data {
             ApplePayPaymentData::Encrypted(encrypted_data) => encrypted_data.clone(),
             ApplePayPaymentData::Decrypted(_) => "".to_string(),
@@ -852,10 +850,8 @@ impl From<&ApplePayWalletData> for ApplePayCamelCase {
     }
 }
 
-// Implement From trait to convert directly from GooglePayWalletData
 impl From<&GooglePayWalletData> for GooglePayCamelCase {
     fn from(gpay_data: &GooglePayWalletData) -> Self {
-        // Extract tokenization data
         let (token_type, token) = match &gpay_data.tokenization_data {
             GpayTokenizationData::Encrypted(encrypted_data) => (
                 encrypted_data.token_type.clone(),
