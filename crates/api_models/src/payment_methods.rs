@@ -2110,19 +2110,24 @@ pub struct PaymentMethodDeleteResponse {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug, serde::Serialize, ToSchema)]
+#[derive(Debug, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct CustomerDefaultPaymentMethodResponse {
     /// The unique identifier of the Payment method
     #[schema(example = "card_rGK4Vi5iSW70MY7J2mIg")]
+    #[smithy(value_type = "Option<String>")]
     pub default_payment_method_id: Option<String>,
     /// The unique identifier of the customer.
     #[schema(value_type = String, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    #[smithy(value_type = "String")]
     pub customer_id: id_type::CustomerId,
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethod,example = "card")]
+    #[smithy(value_type = "PaymentMethod")]
     pub payment_method: api_enums::PaymentMethod,
     /// This is a sub-category of payment method.
     #[schema(value_type = Option<PaymentMethodType>,example = "credit")]
+    #[smithy(value_type = "Option<PaymentMethodType>")]
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
 }
 
@@ -2345,6 +2350,7 @@ pub struct CustomerPaymentMethod {
     pub bank: Option<MaskedBankDetails>,
 
     /// Surcharge details for this saved card
+    #[smithy(value_type = "Option<SurchargeDetailsResponse>")]
     pub surcharge_details: Option<SurchargeDetailsResponse>,
 
     /// Whether this payment method requires CVV to be collected
@@ -2479,10 +2485,13 @@ pub struct PaymentMethodId {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct DefaultPaymentMethod {
     #[schema(value_type = String, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    #[smithy(value_type = "String")]
     pub customer_id: id_type::CustomerId,
+    #[smithy(value_type = "String")]
     pub payment_method_id: String,
 }
 
