@@ -1344,7 +1344,7 @@ impl Payouts {
     }
 }
 
-#[cfg(all(feature = "oltp", feature = "v2"))]
+#[cfg(all(feature = "v2", any(feature = "olap", feature = "oltp")))]
 impl PaymentMethods {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/v2/payment-methods").app_data(web::Data::new(state));
