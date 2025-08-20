@@ -1130,7 +1130,8 @@ pub fn validate_overcapture_request(
     capture_method: &Option<common_enums::CaptureMethod>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     if let Some(overcapture) = request_overcapture {
-        utils::when(*overcapture.deref()
+        utils::when(
+            *overcapture.deref()
                 && matches!(
                     *capture_method,
                     Some(common_enums::CaptureMethod::Automatic) | None
