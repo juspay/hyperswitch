@@ -5312,6 +5312,20 @@ api_key = "API Key"
 [sift.connector_auth.HeaderKey]
 api_key = "API Key"
 
+[juspaythreedsserver.metadata.three_ds_requestor_name]
+name = "three_ds_requestor_name"
+label = "ThreeDS requestor name"
+placeholder = "Enter ThreeDS requestor name"
+required = false
+type = "Text"
+[juspaythreedsserver.metadata.three_ds_requestor_id]
+name = "three_ds_requestor_id"
+label = "ThreeDS request id"
+placeholder = "Enter ThreeDS request id"
+required = false
+type = "Text"
+[juspaythreedsserver.connector_auth.NoKey]
+
 [hyperwallet]
 [hyperwallet.connector_auth.BodyKey]
 api_key = "Password"
