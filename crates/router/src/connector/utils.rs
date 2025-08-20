@@ -1,8 +1,8 @@
 use std::{
     collections::{HashMap, HashSet},
+    ops::Deref,
     str::FromStr,
     sync::LazyLock,
-    ops::Deref,
 };
 
 #[cfg(feature = "payouts")]
@@ -211,7 +211,8 @@ where
                 let is_overcapture_applied = *payment_data
                     .payment_attempt
                     .overcapture_applied
-                    .unwrap_or_default().deref();
+                    .unwrap_or_default()
+                    .deref();
 
                 if Some(total_capturable_amount) == capturable_amount.map(MinorUnit::new)
                     || (capturable_amount.is_some_and(|capturable_amount| {
