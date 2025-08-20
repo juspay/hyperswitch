@@ -1733,6 +1733,7 @@ impl FutureUsage {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::EnumString,
     ToSchema,
@@ -1740,6 +1741,7 @@ impl FutureUsage {
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum PaymentMethodIssuerCode {
     JpHdfc,
     JpIcici,

@@ -8,7 +8,7 @@ build = "build.rs"
 
 [dependencies]
 smithy-core = { path = "../smithy-core" }
-api_models = { version = "0.1.0", path = "../api_models", features = ["v1"] }
+api_models = { version = "0.1.0", path = "../api_models", features = ["v1", "payouts"] }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 common_types = { version = "0.1.0", path = "../common_types" }
 

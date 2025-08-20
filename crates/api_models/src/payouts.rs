@@ -11,6 +11,7 @@ use common_utils::{
 use masking::Secret;
 use router_derive::FlatStruct;
 use serde::{Deserialize, Serialize};
+use smithy::SmithyModel;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
@@ -261,105 +262,134 @@ pub struct CardPayout {
     pub card_holder_name: Option<Secret<String>>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema, SmithyModel)]
 #[serde(untagged)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum Bank {
+    #[smithy(value_type = "AchBankTransfer")]
     Ach(AchBankTransfer),
+    #[smithy(value_type = "BacsBankTransfer")]
     Bacs(BacsBankTransfer),
+    #[smithy(value_type = "SepaBankTransfer")]
     Sepa(SepaBankTransfer),
+    #[smithy(value_type = "PixBankTransfer")]
     Pix(PixBankTransfer),
 }
 
-#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct AchBankTransfer {
     /// Bank name
     #[schema(value_type = Option<String>, example = "Deutsche Bank")]
+    #[smithy(value_type = "Option<String>")]
     pub bank_name: Option<String>,
 
     /// Bank country code
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    #[smithy(value_type = "Option<CountryAlpha2>")]
     pub bank_country_code: Option<api_enums::CountryAlpha2>,
 
     /// Bank city
     #[schema(value_type = Option<String>, example = "California")]
+    #[smithy(value_type = "Option<String>")]
     pub bank_city: Option<String>,
 
     /// Bank account number is an unique identifier assigned by a bank to a customer.
     #[schema(value_type = String, example = "000123456")]
+    #[smithy(value_type = "String")]
     pub bank_account_number: Secret<String>,
 
     /// [9 digits] Routing number - used in USA for identifying a specific bank.
     #[schema(value_type = String, example = "110000000")]
+    #[smithy(value_type = "String")]
     pub bank_routing_number: Secret<String>,
 }
 
-#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct BacsBankTransfer {
     /// Bank name
     #[schema(value_type = Option<String>, example = "Deutsche Bank")]
+    #[smithy(value_type = "Option<String>")]
     pub bank_name: Option<String>,
 
     /// Bank country code
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    #[smithy(value_type = "Option<CountryAlpha2>")]
     pub bank_country_code: Option<api_enums::CountryAlpha2>,
 
     /// Bank city
     #[schema(value_type = Option<String>, example = "California")]
+    #[smithy(value_type = "Option<String>")]
     pub bank_city: Option<String>,
 
     /// Bank account number is an unique identifier assigned by a bank to a customer.
     #[schema(value_type = String, example = "000123456")]
+    #[smithy(value_type = "String")]
     pub bank_account_number: Secret<String>,
 
     /// [6 digits] Sort Code - used in UK and Ireland for identifying a bank and it's branches.
     #[schema(value_type = String, example = "98-76-54")]
+    #[smithy(value_type = "String")]
     pub bank_sort_code: Secret<String>,
 }
 
-#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 // The SEPA (Single Euro Payments Area) is a pan-European network that allows you to send and receive payments in euros between two cross-border bank accounts in the eurozone.
 pub struct SepaBankTransfer {
     /// Bank name
     #[schema(value_type = Option<String>, example = "Deutsche Bank")]
+    #[smithy(value_type = "Option<String>")]
     pub bank_name: Option<String>,
 
     /// Bank country code
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    #[smithy(value_type = "Option<CountryAlpha2>")]
     pub bank_country_code: Option<api_enums::CountryAlpha2>,
 
     /// Bank city
     #[schema(value_type = Option<String>, example = "California")]
+    #[smithy(value_type = "Option<String>")]
     pub bank_city: Option<String>,
 
     /// International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.
     #[schema(value_type = String, example = "DE89370400440532013000")]
+    #[smithy(value_type = "String")]
     pub iban: Secret<String>,
 
     /// [8 / 11 digits] Bank Identifier Code (bic) / Swift Code - used in many countries for identifying a bank and it's branches
     #[schema(value_type = String, example = "HSBCGB2LXXX")]
+    #[smithy(value_type = "String")]
     pub bic: Option<Secret<String>>,
 }
 
-#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PixBankTransfer {
     /// Bank name
     #[schema(value_type = Option<String>, example = "Deutsche Bank")]
+    #[smithy(value_type = "Option<String>")]
     pub bank_name: Option<String>,
 
     /// Bank branch
     #[schema(value_type = Option<String>, example = "3707")]
+    #[smithy(value_type = "Option<String>")]
     pub bank_branch: Option<String>,
 
     /// Bank account number is an unique identifier assigned by a bank to a customer.
     #[schema(value_type = String, example = "000123456")]
+    #[smithy(value_type = "String")]
     pub bank_account_number: Secret<String>,
 
     /// Unique key for pix customer
     #[schema(value_type = String, example = "000123456")]
+    #[smithy(value_type = "String")]
     pub pix_key: Secret<String>,
 
     /// Individual taxpayer identification number
     #[schema(value_type = Option<String>, example = "000123456")]
+    #[smithy(value_type = "Option<String>")]
     pub tax_id: Option<Secret<String>>,
 }
 

@@ -14,6 +14,7 @@ use common_utils::{
 };
 use masking::PeekInterface;
 use serde::de;
+use smithy::SmithyModel;
 use utoipa::{schema, ToSchema};
 
 #[cfg(feature = "v1")]
@@ -1130,39 +1131,54 @@ impl From<(Card, Option<common_enums::CardNetwork>)> for CardDetail {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct CardDetailFromLocker {
+    #[smithy(value_type = "Option<String>")]
     pub scheme: Option<String>,
+    #[smithy(value_type = "Option<String>")]
     pub issuer_country: Option<String>,
+    #[smithy(value_type = "Option<String>")]
     pub last4_digits: Option<String>,
     #[serde(skip)]
     #[schema(value_type=Option<String>)]
     pub card_number: Option<CardNumber>,
 
     #[schema(value_type=Option<String>)]
+    #[smithy(value_type = "Option<String>")]
     pub expiry_month: Option<masking::Secret<String>>,
 
     #[schema(value_type=Option<String>)]
+    #[smithy(value_type = "Option<String>")]
     pub expiry_year: Option<masking::Secret<String>>,
 
     #[schema(value_type=Option<String>)]
+    #[smithy(value_type = "Option<String>")]
     pub card_token: Option<masking::Secret<String>>,
 
     #[schema(value_type=Option<String>)]
+    #[smithy(value_type = "Option<String>")]
     pub card_holder_name: Option<masking::Secret<String>>,
 
     #[schema(value_type=Option<String>)]
+    #[smithy(value_type = "Option<String>")]
     pub card_fingerprint: Option<masking::Secret<String>>,
 
     #[schema(value_type=Option<String>)]
+    #[smithy(value_type = "Option<String>")]
     pub nick_name: Option<masking::Secret<String>>,
 
     #[schema(value_type = Option<CardNetwork>)]
+    #[smithy(value_type = "Option<CardNetwork>")]
     pub card_network: Option<api_enums::CardNetwork>,
 
+    #[smithy(value_type = "Option<String>")]
     pub card_isin: Option<String>,
+    #[smithy(value_type = "Option<String>")]
     pub card_issuer: Option<String>,
+    #[smithy(value_type = "Option<String>")]
     pub card_type: Option<String>,
+    #[smithy(value_type = "bool")]
     pub saved_to_locker: bool,
 }
 
@@ -1496,27 +1512,36 @@ pub struct ResponsePaymentMethodTypes {
     pub required_fields: Vec<RequiredFieldInfo>,
 }
 
-#[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SurchargeDetailsResponse {
     /// surcharge value
+    #[smithy(value_type = "SurchargeResponse")]
     pub surcharge: SurchargeResponse,
     /// tax on surcharge value
+    #[smithy(value_type = "Option<SurchargePercentage>")]
     pub tax_on_surcharge: Option<SurchargePercentage>,
     /// surcharge amount for this payment
+    #[smithy(value_type = "f64")]
     pub display_surcharge_amount: f64,
     /// tax on surcharge amount for this payment
+    #[smithy(value_type = "f64")]
     pub display_tax_on_surcharge_amount: f64,
     /// sum of display_surcharge_amount and display_tax_on_surcharge_amount
+    #[smithy(value_type = "f64")]
     pub display_total_surcharge_amount: f64,
 }
 
-#[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "snake_case", tag = "type", content = "value")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum SurchargeResponse {
     /// Fixed Surcharge value
+    #[smithy(value_type = "i64")]
     Fixed(MinorUnit),
     /// Surcharge percentage
+    #[smithy(value_type = "SurchargePercentage")]
     Rate(SurchargePercentage),
 }
 
@@ -1529,8 +1554,10 @@ impl From<Surcharge> for SurchargeResponse {
     }
 }
 
-#[derive(Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SurchargePercentage {
+    #[smithy(value_type = "f32")]
     percentage: f32,
 }
 
@@ -1656,39 +1683,48 @@ impl RequestPaymentMethodTypes {
 
 #[cfg(feature = "v1")]
 //List Payment Method
-#[derive(Debug, Clone, serde::Serialize, Default, ToSchema)]
+#[derive(Debug, Clone, serde::Serialize, Default, ToSchema, SmithyModel)]
 #[serde(deny_unknown_fields)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PaymentMethodListRequest {
     /// This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK
     #[schema(max_length = 30, min_length = 30, example = "secret_k2uj3he2893eiu2d")]
+    #[smithy(value_type = "Option<String>")]
     pub client_secret: Option<String>,
 
     /// The two-letter ISO currency code
     #[schema(value_type = Option<Vec<CountryAlpha2>>, example = json!(["US", "UK", "IN"]))]
+    #[smithy(value_type = "Option<Vec<CountryAlpha2>>")]
     pub accepted_countries: Option<Vec<api_enums::CountryAlpha2>>,
 
     /// The three-letter ISO currency code
     #[schema(value_type = Option<Vec<Currency>>,example = json!(["USD", "EUR"]))]
+    #[smithy(value_type = "Option<Vec<Currency>>")]
     pub accepted_currencies: Option<Vec<api_enums::Currency>>,
 
     /// Filter by amount
     #[schema(example = 60)]
+    #[smithy(value_type = "Option<i64>")]
     pub amount: Option<MinorUnit>,
 
     /// Indicates whether the payment method supports recurring payments. Optional.
     #[schema(example = true)]
+    #[smithy(value_type = "Option<bool>")]
     pub recurring_enabled: Option<bool>,
 
     /// Indicates whether the payment method is eligible for installment payments (e.g., EMI, BNPL). Optional.
     #[schema(example = true)]
+    #[smithy(value_type = "Option<bool>")]
     pub installment_payment_enabled: Option<bool>,
 
     /// Indicates whether the payment method is eligible for card netwotks
     #[schema(value_type = Option<Vec<CardNetwork>>, example = json!(["visa", "mastercard"]))]
+    #[smithy(value_type = "Option<Vec<CardNetwork>>")]
     pub card_networks: Option<Vec<api_enums::CardNetwork>>,
 
     /// Indicates the limit of last used payment methods
     #[schema(example = 1)]
+    #[smithy(value_type = "Option<i64>")]
     pub limit: Option<i64>,
 }
 
@@ -1940,11 +1976,14 @@ pub struct PaymentMethodListResponse {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug, serde::Serialize, ToSchema)]
+#[derive(Debug, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct CustomerPaymentMethodsListResponse {
     /// List of payment methods for customer
+    #[smithy(value_type = "Vec<CustomerPaymentMethod>")]
     pub customer_payment_methods: Vec<CustomerPaymentMethod>,
     /// Returns whether a customer id is not tied to a payment intent (only when the request is made against a client secret)
+    #[smithy(value_type = "Option<bool>")]
     pub is_guest_customer: Option<bool>,
 }
 
@@ -2225,68 +2264,84 @@ pub enum PaymentMethodListData {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct CustomerPaymentMethod {
     /// Token for payment method in temporary card locker which gets refreshed often
     #[schema(example = "7ebf443f-a050-4067-84e5-e6f6d4800aef")]
+    #[smithy(value_type = "String")]
     pub payment_token: String,
     /// The unique identifier of the customer.
     #[schema(example = "pm_iouuy468iyuowqs")]
+    #[smithy(value_type = "String")]
     pub payment_method_id: String,
 
     /// The unique identifier of the customer.
     #[schema(value_type = String, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    #[smithy(value_type = "String")]
     pub customer_id: id_type::CustomerId,
 
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethod,example = "card")]
+    #[smithy(value_type = "PaymentMethod")]
     pub payment_method: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
     #[schema(value_type = Option<PaymentMethodType>,example = "credit_card")]
+    #[smithy(value_type = "Option<PaymentMethodType>")]
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
 
     /// The name of the bank/ provider issuing the payment method to the end user
     #[schema(example = "Citibank")]
+    #[smithy(value_type = "Option<String>")]
     pub payment_method_issuer: Option<String>,
 
     /// A standard code representing the issuer of payment method
     #[schema(value_type = Option<PaymentMethodIssuerCode>,example = "jp_applepay")]
+    #[smithy(value_type = "Option<PaymentMethodIssuerCode>")]
     pub payment_method_issuer_code: Option<api_enums::PaymentMethodIssuerCode>,
 
     /// Indicates whether the payment method supports recurring payments. Optional.
     #[schema(example = true)]
+    #[smithy(value_type = "Option<bool>")]
     pub recurring_enabled: Option<bool>,
 
     /// Indicates whether the payment method is eligible for installment payments (e.g., EMI, BNPL). Optional.
     #[schema(example = true)]
+    #[smithy(value_type = "Option<bool>")]
     pub installment_payment_enabled: Option<bool>,
 
     /// Type of payment experience enabled with the connector
     #[schema(value_type = Option<Vec<PaymentExperience>>,example = json!(["redirect_to_url"]))]
+    #[smithy(value_type = "Option<Vec<PaymentExperience>>")]
     pub payment_experience: Option<Vec<api_enums::PaymentExperience>>,
 
     /// Card details from card locker
     #[schema(example = json!({"last4": "1142","exp_month": "03","exp_year": "2030"}))]
+    #[smithy(value_type = "Option<CardDetailFromLocker>")]
     pub card: Option<CardDetailFromLocker>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
+    #[smithy(value_type = "Option<Object>")]
     pub metadata: Option<pii::SecretSerdeValue>,
 
     /// A timestamp (ISO 8601 code) that determines when the payment method was created
     #[schema(value_type = Option<PrimitiveDateTime>,example = "2023-01-18T11:04:09.922Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    #[smithy(value_type = "Option<PrimitiveDateTime>")]
     pub created: Option<time::PrimitiveDateTime>,
 
     /// Payment method details from locker
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<Bank>)]
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[smithy(value_type = "Option<Bank>")]
     pub bank_transfer: Option<payouts::Bank>,
 
     /// Masked bank details from PM auth services
     #[schema(example = json!({"mask": "0000"}))]
+    #[smithy(value_type = "Option<MaskedBankDetails>")]
     pub bank: Option<MaskedBankDetails>,
 
     /// Surcharge details for this saved card
@@ -2294,18 +2349,22 @@ pub struct CustomerPaymentMethod {
 
     /// Whether this payment method requires CVV to be collected
     #[schema(example = true)]
+    #[smithy(value_type = "bool")]
     pub requires_cvv: bool,
 
     ///  A timestamp (ISO 8601 code) that determines when the payment method was last used
     #[schema(value_type = Option<PrimitiveDateTime>,example = "2024-02-24T11:04:09.922Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    #[smithy(value_type = "Option<PrimitiveDateTime>")]
     pub last_used_at: Option<time::PrimitiveDateTime>,
     /// Indicates if the payment method has been set to default or not
     #[schema(example = true)]
+    #[smithy(value_type = "bool")]
     pub default_payment_method_set: bool,
 
     /// The billing details of the payment method
     #[schema(value_type = Option<Address>)]
+    #[smithy(value_type = "Option<Address>")]
     pub billing: Option<payments::Address>,
 }
 
@@ -2407,8 +2466,10 @@ pub struct PaymentMethodCollectLinkStatusDetails {
     pub ui_config: link_utils::GenericLinkUiConfigFormData,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct MaskedBankDetails {
+    #[smithy(value_type = "String")]
     pub mask: String,
 }
 

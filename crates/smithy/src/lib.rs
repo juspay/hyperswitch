@@ -622,6 +622,12 @@ fn parse_serde_enum_attributes(attrs: &[Attribute]) -> syn::Result<SerdeEnumAttr
                     if let Ok(value) = meta.value() {
                         let _ = value.parse::<Lit>();
                     }
+                } else if meta.path.is_ident("content") {
+                    // Parse and ignore the content attribute for now
+                    // This prevents parsing errors when content is present
+                    if let Ok(value) = meta.value() {
+                        let _ = value.parse::<Lit>();
+                    }
                 }
                 // Ignore other serde attributes to prevent parsing errors
                 Ok(())
