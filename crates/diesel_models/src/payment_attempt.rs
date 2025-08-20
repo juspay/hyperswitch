@@ -96,6 +96,7 @@ pub struct PaymentAttempt {
     pub processor_merchant_id: Option<id_type::MerchantId>,
     pub created_by: Option<String>,
     pub connector_request_reference_id: Option<String>,
+    pub overcapture_applied: Option<OvercaptureAppliedBool>,
     #[diesel(deserialize_as = RequiredFromNullable<storage_enums::PaymentMethod>)]
     pub payment_method_type_v2: storage_enums::PaymentMethod,
     pub connector_payment_id: Option<ConnectorTransactionId>,
@@ -118,7 +119,6 @@ pub struct PaymentAttempt {
     pub network_decline_code: Option<String>,
     /// A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.
     pub network_error_message: Option<String>,
-    pub overcapture_applied: Option<OvercaptureAppliedBool>,
 }
 
 #[cfg(feature = "v1")]
@@ -995,7 +995,7 @@ impl PaymentAttemptUpdateInternal {
             network_error_message: network_error_message.or(source.network_error_message),
             connector_request_reference_id: connector_request_reference_id
                 .or(source.connector_request_reference_id),
-            overcapture_applied: overcapture_applied.or(source.overcapture_applied),
+            overcapture_applied: source.overcapture_applied,
         }
     }
 }

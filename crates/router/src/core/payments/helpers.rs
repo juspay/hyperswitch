@@ -1130,8 +1130,7 @@ pub fn validate_overcapture_request(
     capture_method: &Option<common_enums::CaptureMethod>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     if let Some(overcapture) = request_overcapture {
-        utils::when(
-            matches!(*overcapture.deref(), true)
+        utils::when(*overcapture.deref()
                 && matches!(
                     *capture_method,
                     Some(common_enums::CaptureMethod::Automatic) | None
@@ -3921,6 +3920,7 @@ mod tests {
             shipping_amount_tax: None,
             duty_amount: None,
             enable_partial_authorization: None,
+            request_overcapture: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -4005,6 +4005,7 @@ mod tests {
             shipping_amount_tax: None,
             duty_amount: None,
             enable_partial_authorization: None,
+            request_overcapture: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -4087,6 +4088,7 @@ mod tests {
             shipping_amount_tax: None,
             duty_amount: None,
             enable_partial_authorization: None,
+            request_overcapture: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())

@@ -2097,6 +2097,7 @@ impl super::behaviour::Conversion for Profile {
             merchant_category_code: self.merchant_category_code,
             merchant_country_code: self.merchant_country_code,
             dispute_polling_interval: None,
+            always_request_overcapture: None,
         })
     }
 

@@ -1289,6 +1289,7 @@ mod tests {
             is_pre_network_tokenization_enabled: false,
             merchant_category_code: None,
             dispute_polling_interval: None,
+            always_request_overcapture: None,
         });
 
         let business_profile = state
@@ -1404,6 +1405,9 @@ mod tests {
             payment_channel: None,
             network_transaction_id: None,
             enable_partial_authorization: None,
+            overcapture_applied: None,
+            request_overcapture: None,
+            
         };
         let content =
             api_webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(expected_response));

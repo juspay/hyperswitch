@@ -1796,6 +1796,7 @@ impl behaviour::Conversion for PaymentIntent {
             duty_amount: None,
             order_date: None,
             enable_partial_authorization: None,
+            request_overcapture: None,
         })
     }
     async fn convert_back(
