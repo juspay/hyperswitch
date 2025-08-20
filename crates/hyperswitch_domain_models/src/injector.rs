@@ -6,6 +6,7 @@ pub mod types {
         InjectorAcceptType as AcceptType, InjectorContentType as ContentType,
         InjectorHttpMethod as HttpMethod, InjectorVaultConnectors as VaultConnectors,
     };
+    use url::Url;
 
     /// Domain model for token data containing vault-specific information
     #[derive(Clone, Debug)]
@@ -44,7 +45,7 @@ pub mod types {
     #[derive(Clone, Debug)]
     pub struct ConnectionConfig {
         /// Base URL of the connector endpoint
-        pub base_url: String,
+        pub base_url: Url,
         /// Path to append to the base URL for the specific endpoint
         pub endpoint_path: String,
         /// HTTP method to use for the request
@@ -52,7 +53,7 @@ pub mod types {
         /// HTTP headers to include in the request (values are masked for security)
         pub headers: HashMap<String, masking::Secret<String>>,
         /// Optional proxy URL for routing the request through a proxy server
-        pub proxy_url: Option<String>,
+        pub proxy_url: Option<Url>,
         /// Optional client certificate for mutual TLS authentication (masked)
         pub client_cert: Option<masking::Secret<String>>,
         /// Optional client private key for mutual TLS authentication (masked)

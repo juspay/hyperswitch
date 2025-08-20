@@ -155,7 +155,7 @@ pub mod core {
                     vault_type,
                 )?;
                 let token_str = match extracted_field_value {
-                    Value::String(s) => s,
+                    Value::String(token_value) => token_value,
                     _ => serde_json::to_string(&extracted_field_value).unwrap_or_default(),
                 };
 
@@ -248,6 +248,12 @@ pub mod core {
             }
         }
 
+        /// Makes an HTTP request to the connector endpoint
+        /// 
+        /// Note: We cannot reuse the existing `call_connector_api` function from router services
+        /// because it requires `SessionState` and is tightly coupled to the router's infrastructure.
+        /// The injector crate is designed to be lightweight and independent, operating with
+        /// minimal dependencies and without router-specific state management.
         #[instrument(skip_all)]
         async fn make_http_request(
             &self,
@@ -265,13 +271,6 @@ pub mod core {
                 "Making HTTP request to connector"
             );
             // Validate inputs first
-            if config.base_url.is_empty() {
-                logger::error!("Base URL is empty");
-                return Err(error_stack::Report::new(InjectorError::InvalidTemplate(
-                    "Base URL cannot be empty".to_string(),
-                )));
-            }
-
             if config.endpoint_path.is_empty() {
                 logger::error!("Endpoint path is empty");
                 return Err(error_stack::Report::new(InjectorError::InvalidTemplate(
@@ -279,18 +278,11 @@ pub mod core {
                 )));
             }
 
-            // Validate and construct URL safely
-            let url = format!(
-                "{}{}",
-                config.base_url.trim_end_matches('/'),
-                config.endpoint_path
-            );
-
-            // Validate URL format
-            url::Url::parse(&url).map_err(|e| {
-                logger::error!("Invalid URL format: '{}', error: {}", url, e);
+            // Construct URL safely by joining base URL with endpoint path
+            let url = config.base_url.join(&config.endpoint_path).map_err(|e| {
+                logger::error!("Failed to join base URL with endpoint path: {}", e);
                 error_stack::Report::new(InjectorError::InvalidTemplate(format!(
-                    "Invalid URL '{url}': {e}"
+                    "Invalid URL construction: {e}"
                 )))
             })?;
 
@@ -352,7 +344,7 @@ pub mod core {
             // Build request safely
             let mut request_builder = RequestBuilder::new()
                 .method(method)
-                .url(&url)
+                .url(url.as_str())
                 .headers(headers);
 
             if let Some(content) = request_content {
@@ -390,16 +382,16 @@ pub mod core {
             let proxy = if let Some(proxy_url) = &config.proxy_url {
                 logger::debug!("Using proxy: {}", proxy_url);
                 // Determine if it's HTTP or HTTPS proxy based on URL scheme
-                if proxy_url.starts_with("https://") {
+                if proxy_url.scheme() == "https" {
                     Proxy {
                         http_url: None,
-                        https_url: Some(proxy_url.clone()),
+                        https_url: Some(proxy_url.to_string()),
                         idle_pool_connection_timeout: Some(90),
                         bypass_proxy_hosts: None,
                     }
                 } else {
                     Proxy {
-                        http_url: Some(proxy_url.clone()),
+                        http_url: Some(proxy_url.to_string()),
                         https_url: None,
                         idle_pool_connection_timeout: Some(90),
                         bypass_proxy_hosts: None,
@@ -682,7 +674,7 @@ mod tests {
         specific_token_data,
     },
     connection_config: ConnectionConfig {
-        base_url: "https://api.stripe.com".to_string(),
+        base_url: "https://api.stripe.com".parse().unwrap(),
         endpoint_path: "/v1/payment_intents".to_string(),
         http_method: HttpMethod::POST,
         headers,
@@ -754,7 +746,7 @@ mod tests {
                 specific_token_data,
             },
             connection_config: ConnectionConfig {
-                base_url: "https://httpbin.org".to_string(),
+                base_url: "https://httpbin.org".parse().unwrap(),
                 endpoint_path: "/post".to_string(),
                 http_method: HttpMethod::POST,
                 headers,
@@ -788,18 +780,22 @@ mod tests {
         logger::info!("================================");
 
         // Verify the token was replaced in the JSON
-        if let Some(response_str) = response.as_str() {
-            assert!(
-                response_str.contains("tok_test_cert"),
-                "Response should contain replaced token"
-            );
+        // httpbin.org returns the request data in the 'data' or 'json' field
+        let response_contains_token = if let Some(response_str) = response.as_str() {
+            response_str.contains("tok_test_cert")
         } else if response.is_object() {
-            // If it's a JSON object (parsed response), check the structure
-            assert!(
-                response.is_object(),
-                "Response should be a valid JSON object"
-            );
-        }
+            // Check if the response contains our token in the request data
+            let response_str = serde_json::to_string(&response).unwrap_or_default();
+            response_str.contains("tok_test_cert")
+        } else {
+            false
+        };
+        
+        assert!(
+            response_contains_token,
+            "Response should contain replaced token: {}",
+            serde_json::to_string_pretty(&response).unwrap_or_default()
+        );
     }
 }
 

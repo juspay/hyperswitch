@@ -36,10 +36,9 @@ v2 = [
 ]
 
 # Individual features that might be enabled by workspace commands
-# These all just delegate to v2 since injector is v2-only
-serde = ["v2"]
-tokio = ["v2"] 
-tracing-actix-web = ["v2"]
+# Note: These are no-op features for v1 compatibility since injector is v2-only
+serde = []
+tracing-actix-web = []
 
 [dependencies]
 # First party crates (only available with v2 feature)

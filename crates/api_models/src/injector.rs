@@ -9,6 +9,7 @@ pub mod types {
     use common_utils::pii::SecretSerdeValue;
     use masking::Secret;
     use serde::{Deserialize, Serialize};
+    use url::Url;
     use utoipa::ToSchema;
 
     /// Token data containing vault-specific information for token replacement
@@ -31,15 +32,20 @@ pub mod types {
     #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
     pub struct ConnectionConfig {
         /// Base URL of the connector endpoint
-        pub base_url: String,
+        pub base_url: Url,
         /// Path to append to the base URL for the specific endpoint
         pub endpoint_path: String,
         /// HTTP method to use for the request
         pub http_method: HttpMethod,
         /// HTTP headers to include in the request
         pub headers: HashMap<String, Secret<String>>,
-        /// Optional proxy URL for routing the request
-        pub proxy_url: Option<String>,
+        /// Optional proxy URL for routing the request through a proxy server
+        /// 
+        /// This field allows the injector to route HTTP requests through a proxy when needed.
+        /// It can be provided by the UCS (Unified Checkout Service) or Payments service
+        /// based on the merchant's network configuration requirements.
+        /// If None, the request will be made directly to the connector.
+        pub proxy_url: Option<Url>,
         /// Optional client certificate for mutual TLS authentication
         pub client_cert: Option<Secret<String>>,
         /// Optional client private key for mutual TLS authentication
