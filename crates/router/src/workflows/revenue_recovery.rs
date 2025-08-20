@@ -37,6 +37,8 @@ use hyperswitch_domain_models::{
 #[cfg(feature = "v2")]
 use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
+use api_models::enums::RevenueRecoveryAlgorithmType;
+#[cfg(feature = "v2")]
 use router_env::logger;
 #[cfg(feature = "v2")]
 use router_env::tracing;
@@ -693,12 +695,54 @@ pub struct ScheduledToken {
 }
 
 #[cfg(feature = "v2")]
-pub async fn get_best_psp_token_available(
+pub async fn get_token_with_schedule_time_based_on_retry_alogrithm_type(
+    state: &SessionState, 
+     connector_customer_id: &str,
+    payment_intent: &PaymentIntent,
+    retry_count: i32
+) -> CustomResult<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
+    let retry_algorithm_type = state.conf.revenue_recovery.retry_algorithm_type;
+
+    match retry_algorithm_type {
+        RevenueRecoveryAlgorithmType::Monitoring => {
+            logger::error!("Monitoring type found for Revenue Recovery retry payment");
+            Ok(None)
+        }
+        RevenueRecoveryAlgorithmType::Cascading => {
+
+            let scheduled_time = get_schedule_time_to_retry_mit_payments(
+                state.store.as_ref(),
+                &payment_intent.merchant_id,
+                retry_count,
+            )
+            .await
+            .ok_or(errors::ProcessTrackerError::EApiErrorResponse)?;
+
+            Ok(Some(scheduled_time))
+
+            
+        }
+        RevenueRecoveryAlgorithmType::Smart => {
+            let scheduled_time = get_best_psp_token_available_for_smart_retry(
+                state,
+                connector_customer_id,
+                payment_intent,
+            )
+            .await
+            .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
+
+            Ok(scheduled_time)
+        }
+    }
+}
+
+
+#[cfg(feature = "v2")]
+pub async fn get_best_psp_token_available_for_smart_retry(
     state: &SessionState,
     connector_customer_id: &str,
     payment_intent: &PaymentIntent,
-    merchant_context: domain::MerchantContext,
-) -> CustomResult<Option<ScheduledToken>, errors::ProcessTrackerError> {
+) -> CustomResult<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
     //  Lock using payment_id
     let locked = RedisTokenManager::lock_connector_customer_status(
         state,
@@ -709,7 +753,7 @@ pub async fn get_best_psp_token_available(
     .change_context(errors::ProcessTrackerError::ERedisError(
         errors::RedisError::RedisConnectionError.into(),
     ))?;
-
+    
     match !locked {
         true => Ok(None),
 
@@ -729,7 +773,7 @@ pub async fn get_best_psp_token_available(
 
             let result = RedisTokenManager::get_tokens_with_retry_metadata(state, &existing_tokens);
 
-            let best_token_and_time = call_decider_for_payment_processor_tokens_select_closet_time(
+            let best_token_time = call_decider_for_payment_processor_tokens_select_closet_time(
                 state,
                 &result,
                 payment_intent,
@@ -738,7 +782,7 @@ pub async fn get_best_psp_token_available(
             .await
             .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
 
-            Ok(best_token_and_time)
+            Ok(best_token_time)
         }
     }
 }
@@ -805,7 +849,8 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
     processor_tokens: &HashMap<String, PaymentProcessorTokenWithRetryInfo>,
     payment_intent: &PaymentIntent,
     connector_customer_id: &str,
-) -> CustomResult<Option<ScheduledToken>, errors::ProcessTrackerError> {
+) -> CustomResult<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
+
     tracing::debug!("Filtered  payment attempts based on payment tokens",);
     let mut tokens_with_schedule_time: Vec<ScheduledToken> = Vec::new();
 
@@ -862,7 +907,7 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
             )
             .await
             .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
-            Ok(token)
+            Ok(token.schedule_time)
         })
         .await
         .transpose()
