@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.08.11.0-hotfix2
+
+### Bug Fixes
+
+- **stripe:** Partial capture issue when fully captured on redirection flow like card3ds , eps bank redirect ([#8976](https://github.com/juspay/hyperswitch/pull/8976)) ([`318401a`](https://github.com/juspay/hyperswitch/commit/318401a2eae005aacd8773417ab7bdae96781d55))
+
+### Refactors
+
+- [Netcetera] Handle response deserialization error ([#8975](https://github.com/juspay/hyperswitch/pull/8975)) ([`560d4da`](https://github.com/juspay/hyperswitch/commit/560d4da17340f4d47f2c8e62e9ef5790e9c885e5))
+
+**Full Changelog:** [`2025.08.11.0-hotfix1...2025.08.11.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2025.08.11.0-hotfix1...2025.08.11.0-hotfix2)
+
+- - -
+
 ## 2025.08.11.0-hotfix1
 
 ### Bug Fixes
