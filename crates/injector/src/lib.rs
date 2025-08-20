@@ -49,7 +49,7 @@ pub mod injector_core {
     }
 
     /// Parses a single token reference from a string using nom parser combinators
-    /// 
+    ///
     /// Expects tokens in the format `{{$field_name}}` where field_name contains
     /// only alphanumeric characters and underscores.
     pub fn parse_token(input: &str) -> IResult<&str, TokenReference> {
@@ -76,7 +76,7 @@ pub mod injector_core {
     }
 
     /// Finds all token references in a string using nom parser
-    /// 
+    ///
     /// Scans through the entire input string and extracts all valid token references.
     /// Returns a vector of TokenReference structs containing the field names.
     pub fn find_all_tokens(input: &str) -> Vec<TokenReference> {
@@ -101,7 +101,7 @@ pub mod injector_core {
     }
 
     /// Recursively searches for a field in vault data JSON structure
-    /// 
+    ///
     /// Performs a depth-first search through the JSON object hierarchy to find
     /// a field with the specified name. Returns the first matching value found.
     pub fn find_field_recursively_in_vault_data(
@@ -149,11 +149,8 @@ pub mod injector_core {
             let mut result = template;
 
             for token_ref in tokens {
-                let extracted_field_value = self.extract_field_from_vault_data(
-                    vault_data,
-                    &token_ref.field,
-                    vault_type,
-                )?;
+                let extracted_field_value =
+                    self.extract_field_from_vault_data(vault_data, &token_ref.field, vault_type)?;
                 let token_str = match extracted_field_value {
                     Value::String(s) => s,
                     _ => serde_json::to_string(&extracted_field_value).unwrap_or_default(),
@@ -188,9 +185,8 @@ pub mod injector_core {
                     Ok(Value::Object(new_obj))
                 }
                 Value::String(s) => {
-                    let processed_string = self.interpolate_string_template_with_vault_data(
-                        s, vault_data, vault_type,
-                    )?;
+                    let processed_string = self
+                        .interpolate_string_template_with_vault_data(s, vault_data, vault_type)?;
                     Ok(Value::String(processed_string))
                 }
                 _ => Ok(value),
@@ -301,12 +297,7 @@ pub mod injector_core {
                 .headers
                 .clone()
                 .into_iter()
-                .map(|(k, v)| {
-                    (
-                        k,
-                        masking::Maskable::new_normal(v.expose().clone()),
-                    )
-                })
+                .map(|(k, v)| (k, masking::Maskable::new_normal(v.expose().clone())))
                 .collect();
 
             // Determine method and request content

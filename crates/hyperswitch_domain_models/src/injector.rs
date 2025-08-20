@@ -2,7 +2,6 @@
 pub mod types {
     use std::collections::HashMap;
 
-
     pub use common_enums::{
         InjectorAcceptType as AcceptType, InjectorContentType as ContentType,
         InjectorHttpMethod as HttpMethod, InjectorVaultConnectors as VaultConnectors,
@@ -16,7 +15,6 @@ pub mod types {
         /// The type of vault connector being used for token retrieval
         pub vault_type: VaultConnectors,
     }
-
 
     impl From<api_models::injector::TokenData> for TokenData {
         fn from(token_data: api_models::injector::TokenData) -> Self {
@@ -33,7 +31,6 @@ pub mod types {
         /// Template string containing token references in the format {{$field_name}}
         pub template: String,
     }
-
 
     impl From<api_models::injector::ConnectorPayload> for ConnectorPayload {
         fn from(payload: api_models::injector::ConnectorPayload) -> Self {
@@ -70,7 +67,6 @@ pub mod types {
         pub cert_format: Option<String>,
     }
 
-
     impl From<api_models::injector::ConnectionConfig> for ConnectionConfig {
         fn from(config: api_models::injector::ConnectionConfig) -> Self {
             Self {
@@ -99,7 +95,6 @@ pub mod types {
         /// HTTP connection configuration for making the external request
         pub connection_config: ConnectionConfig,
     }
-
 
     impl From<api_models::injector::InjectorRequest> for InjectorRequest {
         fn from(request: api_models::injector::InjectorRequest) -> Self {
