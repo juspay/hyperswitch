@@ -567,8 +567,9 @@ pub fn get_adyen_webhook_event(
             }
         }
         (AdyenplatformWebhookEventType::PayoutUpdated, status, _) => match status {
-            AdyenplatformWebhookStatus::Authorised
-            | AdyenplatformWebhookStatus::Received => webhooks::IncomingWebhookEvent::PayoutCreated,
+            AdyenplatformWebhookStatus::Authorised | AdyenplatformWebhookStatus::Received => {
+                webhooks::IncomingWebhookEvent::PayoutCreated
+            }
             AdyenplatformWebhookStatus::Booked => {
                 match category {
                     Some(AdyenPayoutMethod::Card) => {
