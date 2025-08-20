@@ -7248,8 +7248,7 @@
             "type": "string",
             "nullable": true
           }
-        },
-        "additionalProperties": false
+        }
       },
       "AddressDetails": {
         "type": "object",
@@ -7325,8 +7324,7 @@
             "nullable": true,
             "maxLength": 50
           }
-        },
-        "additionalProperties": false
+        }
       },
       "AdyenConnectorMetadata": {
         "type": "object",
