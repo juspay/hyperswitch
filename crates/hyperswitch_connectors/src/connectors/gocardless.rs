@@ -1,7 +1,5 @@
 pub mod transformers;
 
-use std::fmt::Debug;
-
 use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
 use common_enums::enums;
 use common_utils::{
@@ -9,6 +7,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, BytesExt},
     request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -52,11 +51,21 @@ use transformers as gocardless;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{is_mandate_supported, PaymentMethodDataType},
+    utils::{self, is_mandate_supported, PaymentMethodDataType},
 };
 
-#[derive(Debug, Clone)]
-pub struct Gocardless;
+#[derive(Clone)]
+pub struct Gocardless {
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+}
+
+impl Gocardless {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &MinorUnitForConnector,
+        }
+    }
+}
 
 impl api::Payment for Gocardless {}
 impl api::PaymentSession for Gocardless {}
@@ -161,6 +170,7 @@ impl ConnectorCommon for Gocardless {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -471,12 +481,13 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = gocardless::GocardlessRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = gocardless::GocardlessRouterData::from((amount, req));
         let connector_req =
             gocardless::GocardlessPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -637,12 +648,14 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Gocardl
         req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = gocardless::GocardlessRouterData::try_from((
-            &self.get_currency_unit(),
+        let refund_amount = utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
             req.request.currency,
-            req.request.refund_amount,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = gocardless::GocardlessRouterData::from((refund_amount, req));
+
         let connector_req = gocardless::GocardlessRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }

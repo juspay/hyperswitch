@@ -358,6 +358,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ZslPaymentsResponse, T, PaymentsRespons
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     }),
                     ..item.data
                 })
@@ -377,6 +378,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ZslPaymentsResponse, T, PaymentsRespons
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..item.data
             })
@@ -458,6 +460,7 @@ impl<F> TryFrom<ResponseRouterData<F, ZslWebhookResponse, PaymentsSyncData, Paym
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..item.data
             })
