@@ -463,8 +463,6 @@ pub struct BillingAddress {
     pub work_phone: Option<Secret<String>>,
 }
 
-/// Shipping address struct for Nuvei
-/// Contains all the fields required for shipping address with their maximum length constraints
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
