@@ -214,24 +214,6 @@ pub trait ValueExt {
         T: serde::de::DeserializeOwned;
 }
 
-fn mask_values(value: &serde_json::Value) -> Result<serde_json::Value, serde_json::Error> {
-    match value {
-        serde_json::Value::Object(map) => {
-            let masked_map: Result<_, _> = map
-                .iter()
-                .map(|(k, v)| {
-                    masking::masked_serialize(&Secret::<_, masking::JsonMaskStrategy>::new(
-                        v.clone(),
-                    ))
-                    .map(|masked_value| (k.clone(), masked_value))
-                })
-                .collect();
-            masked_map.map(serde_json::Value::Object)
-        }
-        _ => masking::masked_serialize(&Secret::<_, masking::JsonMaskStrategy>::new(value.clone())),
-    }
-}
-
 impl ValueExt for serde_json::Value {
     fn parse_value<T>(self, type_name: &'static str) -> CustomResult<T, errors::ParsingError>
     where
@@ -240,7 +222,7 @@ impl ValueExt for serde_json::Value {
         let debug = format!(
             "Unable to parse {type_name} from serde_json::Value: {:?}",
             // Required to prevent logging sensitive data in case of deserialization failure
-            mask_values(&self).unwrap_or_else(|_| Self::String(String::new()))
+            Secret::<_, masking::JsonMaskStrategy>::new(self.clone())
         );
         serde_json::from_value::<T>(self)
             .change_context(errors::ParsingError::StructParseFailure(type_name))
