@@ -50,6 +50,9 @@ pub mod payment_update_intent;
 pub mod proxy_payments_intent;
 
 #[cfg(feature = "v2")]
+pub mod external_vault_proxy_payment_intent;
+
+#[cfg(feature = "v2")]
 pub mod payment_get;
 
 #[cfg(feature = "v2")]

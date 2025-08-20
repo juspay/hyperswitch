@@ -1,4 +1,4 @@
-use api_models::payments::ProxyPaymentsRequest;
+use api_models::payments::ExternalVaultProxyPaymentsRequest;
 use async_trait::async_trait;
 use common_enums::enums;
 use common_utils::types::keymanager::ToEncryptable;
@@ -15,6 +15,7 @@ use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::{
+            self,
             operations::{self, ValidateStatusForOperation},
             OperationSessionGetters, OperationSessionSetters,
         },
@@ -30,101 +31,117 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy)]
-pub struct PaymentProxyIntent;
+pub struct ExternalVaultProxyPaymentIntent;
 
-impl ValidateStatusForOperation for PaymentProxyIntent {
+impl ValidateStatusForOperation for ExternalVaultProxyPaymentIntent {
     /// Validate if the current operation can be performed on the current status of the payment intent
     fn validate_status_for_operation(
         &self,
         intent_status: common_enums::IntentStatus,
     ) -> Result<(), errors::ApiErrorResponse> {
         match intent_status {
-            //Failed state is included here so that in PCR, retries can be done for failed payments, otherwise for a failed attempt it was asking for new payment_intent
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Processing => Ok(()),
-            //Failed state is included here so that in PCR, retries can be done for failed payments, otherwise for a failed attempt it was asking for new payment_intent
-            common_enums::IntentStatus::RequiresPaymentMethod
-            | common_enums::IntentStatus::Failed => Ok(()),
             common_enums::IntentStatus::Conflicted
             | common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Cancelled
-            | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::RequiresCapture
-            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
             | common_enums::IntentStatus::PartiallyCaptured
             | common_enums::IntentStatus::RequiresConfirmation
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::CancelledPostCapture
+            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
             | common_enums::IntentStatus::Expired => {
                 Err(errors::ApiErrorResponse::PaymentUnexpectedState {
                     current_flow: format!("{self:?}"),
                     field_name: "status".to_string(),
                     current_value: intent_status.to_string(),
-                    states: ["requires_payment_method".to_string()].join(", "),
+                    states: ["requires_payment_method", "failed", "processing"].join(", "),
                 })
             }
         }
     }
 }
-type BoxedConfirmOperation<'b, F> =
-    super::BoxedOperation<'b, F, ProxyPaymentsRequest, PaymentConfirmData<F>>;
 
-impl<F: Send + Clone + Sync> Operation<F, ProxyPaymentsRequest> for &PaymentProxyIntent {
+type BoxedConfirmOperation<'b, F> =
+    super::BoxedOperation<'b, F, ExternalVaultProxyPaymentsRequest, PaymentConfirmData<F>>;
+
+impl<F: Send + Clone + Sync> Operation<F, ExternalVaultProxyPaymentsRequest>
+    for &ExternalVaultProxyPaymentIntent
+{
     type Data = PaymentConfirmData<F>;
     fn to_validate_request(
         &self,
-    ) -> RouterResult<&(dyn ValidateRequest<F, ProxyPaymentsRequest, Self::Data> + Send + Sync)>
-    {
+    ) -> RouterResult<
+        &(dyn ValidateRequest<F, ExternalVaultProxyPaymentsRequest, Self::Data> + Send + Sync),
+    > {
         Ok(*self)
     }
     fn to_get_tracker(
         &self,
-    ) -> RouterResult<&(dyn GetTracker<F, Self::Data, ProxyPaymentsRequest> + Send + Sync)> {
+    ) -> RouterResult<
+        &(dyn GetTracker<F, Self::Data, ExternalVaultProxyPaymentsRequest> + Send + Sync),
+    > {
         Ok(*self)
     }
-    fn to_domain(&self) -> RouterResult<&(dyn Domain<F, ProxyPaymentsRequest, Self::Data>)> {
+    fn to_domain(
+        &self,
+    ) -> RouterResult<&(dyn Domain<F, ExternalVaultProxyPaymentsRequest, Self::Data>)> {
         Ok(*self)
     }
     fn to_update_tracker(
         &self,
-    ) -> RouterResult<&(dyn UpdateTracker<F, Self::Data, ProxyPaymentsRequest> + Send + Sync)> {
+    ) -> RouterResult<
+        &(dyn UpdateTracker<F, Self::Data, ExternalVaultProxyPaymentsRequest> + Send + Sync),
+    > {
         Ok(*self)
     }
 }
 
 #[automatically_derived]
-impl<F: Send + Clone + Sync> Operation<F, ProxyPaymentsRequest> for PaymentProxyIntent {
+impl<F: Send + Clone + Sync> Operation<F, ExternalVaultProxyPaymentsRequest>
+    for ExternalVaultProxyPaymentIntent
+{
     type Data = PaymentConfirmData<F>;
     fn to_validate_request(
         &self,
-    ) -> RouterResult<&(dyn ValidateRequest<F, ProxyPaymentsRequest, Self::Data> + Send + Sync)>
-    {
+    ) -> RouterResult<
+        &(dyn ValidateRequest<F, ExternalVaultProxyPaymentsRequest, Self::Data> + Send + Sync),
+    > {
         Ok(self)
     }
     fn to_get_tracker(
         &self,
-    ) -> RouterResult<&(dyn GetTracker<F, Self::Data, ProxyPaymentsRequest> + Send + Sync)> {
+    ) -> RouterResult<
+        &(dyn GetTracker<F, Self::Data, ExternalVaultProxyPaymentsRequest> + Send + Sync),
+    > {
         Ok(self)
     }
-    fn to_domain(&self) -> RouterResult<&dyn Domain<F, ProxyPaymentsRequest, Self::Data>> {
+    fn to_domain(
+        &self,
+    ) -> RouterResult<&dyn Domain<F, ExternalVaultProxyPaymentsRequest, Self::Data>> {
         Ok(self)
     }
     fn to_update_tracker(
         &self,
-    ) -> RouterResult<&(dyn UpdateTracker<F, Self::Data, ProxyPaymentsRequest> + Send + Sync)> {
+    ) -> RouterResult<
+        &(dyn UpdateTracker<F, Self::Data, ExternalVaultProxyPaymentsRequest> + Send + Sync),
+    > {
         Ok(self)
     }
 }
 
-impl<F: Send + Clone + Sync> ValidateRequest<F, ProxyPaymentsRequest, PaymentConfirmData<F>>
-    for PaymentProxyIntent
+impl<F: Send + Clone + Sync>
+    ValidateRequest<F, ExternalVaultProxyPaymentsRequest, PaymentConfirmData<F>>
+    for ExternalVaultProxyPaymentIntent
 {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
-        _request: &ProxyPaymentsRequest,
+        _request: &ExternalVaultProxyPaymentsRequest,
         merchant_context: &'a domain::MerchantContext,
     ) -> RouterResult<operations::ValidateResult> {
         let validate_result = operations::ValidateResult {
@@ -138,15 +155,15 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, ProxyPaymentsRequest, PaymentCon
 }
 
 #[async_trait]
-impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsRequest>
-    for PaymentProxyIntent
+impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ExternalVaultProxyPaymentsRequest>
+    for ExternalVaultProxyPaymentIntent
 {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
         state: &'a SessionState,
         payment_id: &common_utils::id_type::GlobalPaymentId,
-        request: &ProxyPaymentsRequest,
+        request: &ExternalVaultProxyPaymentsRequest,
         merchant_context: &domain::MerchantContext,
         _profile: &domain::Profile,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
@@ -206,8 +223,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsR
                 .attach_printable("Could not find payment attempt")?,
 
             None => {
+                // TODO: Implement external vault specific payment attempt creation logic
                 let payment_attempt_domain_model: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt =
-                hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt::proxy_create_domain_model(
+                hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt::external_vault_proxy_create_domain_model(
                     &payment_intent,
                     cell_id,
                     storage_scheme,
@@ -227,7 +245,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsR
             }
         };
 
-        let processor_payment_token = request.recurring_details.processor_payment_token.clone();
+        // TODO: Extract external vault specific token/credentials from request
+        let processor_payment_token = None; // request.external_vault_details.processor_payment_token.clone();
 
         let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
             payment_intent
@@ -244,31 +263,36 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsR
                 .map(|address| address.into_inner()),
             Some(true),
         );
+
+        // TODO: Implement external vault specific mandate data handling
         let mandate_data_input = api_models::payments::MandateIds {
             mandate_id: None,
-            mandate_reference_id: Some(
+            mandate_reference_id: processor_payment_token.map(|token| {
                 api_models::payments::MandateReferenceId::ConnectorMandateId(
                     api_models::payments::ConnectorMandateReferenceId::new(
-                        Some(processor_payment_token),
+                        Some(token),
                         None,
                         None,
                         None,
                         None,
                     ),
-                ),
-            ),
+                )
+            }),
         };
+        let payment_method_data = request.payment_method_data.payment_method_data.clone().map(
+            hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::from,
+        );
 
         let payment_data = PaymentConfirmData {
             flow: std::marker::PhantomData,
             payment_intent,
             payment_attempt,
-            payment_method_data: Some(PaymentMethodData::MandatePayment),
+            payment_method_data: None, // TODO: Review for external vault
             payment_address,
             mandate_data: Some(mandate_data_input),
             payment_method: None,
             merchant_connector_details: None,
-            external_vault_pmd: None,
+            external_vault_pmd: payment_method_data,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };
@@ -278,8 +302,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsR
 }
 
 #[async_trait]
-impl<F: Clone + Send + Sync> Domain<F, ProxyPaymentsRequest, PaymentConfirmData<F>>
-    for PaymentProxyIntent
+impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, PaymentConfirmData<F>>
+    for ExternalVaultProxyPaymentIntent
 {
     async fn get_customer_details<'a>(
         &'a self,
@@ -289,6 +313,7 @@ impl<F: Clone + Send + Sync> Domain<F, ProxyPaymentsRequest, PaymentConfirmData<
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<(BoxedConfirmOperation<'a, F>, Option<domain::Customer>), errors::StorageError>
     {
+        // TODO: Implement external vault specific customer details retrieval
         Ok((Box::new(self), None))
     }
 
@@ -307,8 +332,10 @@ impl<F: Clone + Send + Sync> Domain<F, ProxyPaymentsRequest, PaymentConfirmData<
         Option<PaymentMethodData>,
         Option<String>,
     )> {
+        // TODO: Implement external vault specific payment method data creation
         Ok((Box::new(self), None, None))
     }
+
     #[instrument(skip_all)]
     async fn populate_payment_data<'a>(
         &'a self,
@@ -330,32 +357,25 @@ impl<F: Clone + Send + Sync> Domain<F, ProxyPaymentsRequest, PaymentConfirmData<
 
     async fn perform_routing<'a>(
         &'a self,
-        _merchant_context: &domain::MerchantContext,
-        _business_profile: &domain::Profile,
+        merchant_context: &domain::MerchantContext,
+        business_profile: &domain::Profile,
         state: &SessionState,
         payment_data: &mut PaymentConfirmData<F>,
     ) -> CustomResult<ConnectorCallType, errors::ApiErrorResponse> {
-        let connector_name = payment_data.get_payment_attempt_connector();
-        if let Some(connector_name) = connector_name {
-            let merchant_connector_id = payment_data.get_merchant_connector_id_in_attempt();
-            let connector_data = api::ConnectorData::get_connector_by_name(
-                &state.conf.connectors,
-                connector_name,
-                api::GetToken::Connector,
-                merchant_connector_id,
-            )?;
-
-            Ok(ConnectorCallType::PreDetermined(connector_data.into()))
-        } else {
-            Err(error_stack::Report::new(
-                errors::ApiErrorResponse::InternalServerError,
-            ))
-        }
+        payments::connector_selection(
+            state,
+            merchant_context,
+            business_profile,
+            payment_data,
+            None,
+        )
+        .await
     }
 }
+
 #[async_trait]
-impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ProxyPaymentsRequest>
-    for PaymentProxyIntent
+impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ExternalVaultProxyPaymentsRequest>
+    for ExternalVaultProxyPaymentIntent
 {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
@@ -464,7 +484,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ProxyPaymentsReque
 #[cfg(feature = "v2")]
 #[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthorizeData>
-    for PaymentProxyIntent
+    for ExternalVaultProxyPaymentIntent
 {
     async fn update_tracker<'b>(
         &'b self,
@@ -521,6 +541,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
 
         payment_data.payment_intent = updated_payment_intent;
         payment_data.payment_attempt = updated_payment_attempt;
+
+        // TODO: Add external vault specific post-update logic
 
         Ok(payment_data)
     }

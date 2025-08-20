@@ -55,11 +55,11 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         AuthenticationData, AuthoriseIntegrityObject, BrowserInformation, CaptureIntegrityObject,
-        CompleteAuthorizeData, ConnectorCustomerData, MandateRevokeRequestData,
-        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCaptureData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
-        PaymentsSyncData, RefundIntegrityObject, RefundsData, ResponseId, SetupMandateRequestData,
-        SyncIntegrityObject,
+        CompleteAuthorizeData, ConnectorCustomerData, ExternalVaultProxyPaymentsData,
+        MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsPostSessionTokensData,
+        PaymentsPreProcessingData, PaymentsSyncData, RefundIntegrityObject, RefundsData,
+        ResponseId, SetupMandateRequestData, SyncIntegrityObject,
     },
     router_response_types::{CaptureSyncResponse, PaymentsResponseData},
     types::{OrderDetailsWithAmount, SetupMandateRouterData},
@@ -6621,6 +6621,11 @@ impl SplitPaymentData for SetupMandateRequestData {
         None
     }
 }
+impl SplitPaymentData for ExternalVaultProxyPaymentsData {
+    fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
+        None
+    }
+}
 
 pub struct XmlSerializer;
 impl XmlSerializer {
@@ -6660,5 +6665,18 @@ impl XmlSerializer {
             .attach_printable("Failed to serialize the XML body")?;
 
         Ok(xml_bytes)
+    }
+}
+
+pub fn deserialize_zero_minor_amount_as_none<'de, D>(
+    deserializer: D,
+) -> Result<Option<MinorUnit>, D::Error>
+where
+    D: serde::de::Deserializer<'de>,
+{
+    let amount = Option::<MinorUnit>::deserialize(deserializer)?;
+    match amount {
+        Some(value) if value.get_amount_as_i64() == 0 => Ok(None),
+        _ => Ok(amount),
     }
 }
