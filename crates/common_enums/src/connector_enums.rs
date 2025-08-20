@@ -553,7 +553,7 @@ impl Connector {
     }
 
     pub fn is_overcapture_supported_by_connector(self) -> bool {
-        matches!(self, Self::Stripe)
+        matches!(self, Self::Stripe | Self::Adyen)
     }
 
 

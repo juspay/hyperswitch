@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::Deref};
 
 use api_models::payments::{ConnectorMandateReferenceId, MandateReferenceId};
 #[cfg(feature = "dynamic_routing")]
@@ -1849,7 +1849,12 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 .as_ref()
                                 .and_then(|connector_response| {
                                     connector_response.is_overcapture_applied()
-                                });
+                                }).or_else(|| {
+                                    payment_data.payment_intent
+                                                    .request_overcapture
+                                                    .as_ref()
+                                                    .map(|request_overcapture| common_types::primitive_wrappers::OvercaptureAppliedBool::new(*request_overcapture.deref()))
+                                            });
 
                             let (capture_before, extended_authorization_applied) = router_data
                                 .connector_response

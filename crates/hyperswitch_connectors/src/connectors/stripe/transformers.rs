@@ -2417,7 +2417,7 @@ pub struct PaymentIntentResponse {
     pub object: String,
     pub amount: MinorUnit,
     #[serde(default, deserialize_with = "deserialize_zero_minor_amount_as_none")]
-    // stripe gives amount_captured as 0 for payment intents instead of 0
+    // stripe gives amount_captured as 0 for payment intents instead of null
     pub amount_received: Option<MinorUnit>,
     pub amount_capturable: Option<MinorUnit>,
     pub currency: String,
@@ -2602,6 +2602,8 @@ pub struct StripeAdditionalCardDetails {
 #[derive(Deserialize, Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct StripeOvercaptureResponse {
     status: Option<StripeOvercaptureStatus>,
+    #[serde(default, deserialize_with = "deserialize_zero_minor_amount_as_none")]
+    // stripe gives amount_captured as 0 for payment intents instead of null
     maximum_amount_capturable: Option<MinorUnit>,
 }
 
