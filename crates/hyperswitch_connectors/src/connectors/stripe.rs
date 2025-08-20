@@ -1231,7 +1231,7 @@ impl
             MinorUnit::new(req.request.total_amount),
             req.request.currency,
         )?;
-        let connector_req = stripe::StripeIncrementalAuthRequest { amount };  // Incremental authorization can be done a maximum of 10 times in Stripe
+        let connector_req = stripe::StripeIncrementalAuthRequest { amount }; // Incremental authorization can be done a maximum of 10 times in Stripe
 
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
