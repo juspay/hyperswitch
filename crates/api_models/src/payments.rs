@@ -1214,6 +1214,9 @@ pub struct PaymentsRequest {
     /// Date the payer placed the order.
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub order_date: Option<PrimitiveDateTime>,
+
+    /// Allow partial authorization for this payment
+    pub enable_partial_authorization: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1691,6 +1694,32 @@ pub struct PaymentAttemptRecordResponse {
     pub payment_attempt_feature_metadata: Option<PaymentAttemptFeatureMetadata>,
     /// attempt created at timestamp
     pub created_at: PrimitiveDateTime,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct RecoveryPaymentsResponse {
+    /// Unique identifier for the payment.
+    #[schema(
+        min_length = 30,
+        max_length = 30,
+        example = "pay_mbabizu24mvu3mela5njyhpit4",
+        value_type = String,
+    )]
+    pub id: id_type::GlobalPaymentId,
+
+    #[schema(value_type = IntentStatus, example = "failed", default = "requires_confirmation")]
+    pub intent_status: api_enums::IntentStatus,
+
+    /// Unique identifier for the payment. This ensures idempotency for multiple payments
+    /// that have been done by a single merchant.
+    #[schema(
+        value_type = Option<String>,
+        min_length = 30,
+        max_length = 30,
+        example = "pay_mbabizu24mvu3mela5njyhpit4"
+    )]
+    pub merchant_reference_id: Option<id_type::PaymentReferenceId>,
 }
 
 #[cfg(feature = "v2")]
@@ -2566,6 +2595,69 @@ pub struct PaymentMethodDataRequest {
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
+pub struct ProxyPaymentMethodDataRequest {
+    /// This field is optional because, in case of saved cards we pass the payment_token
+    /// There might be cases where we don't need to pass the payment_method_data and pass only payment method billing details
+    /// We have flattened it because to maintain backwards compatibility with the old API contract
+    #[serde(flatten)]
+    pub payment_method_data: Option<ProxyPaymentMethodData>,
+    /// billing details for the payment method.
+    /// This billing details will be passed to the processor as billing address.
+    /// If not passed, then payment.billing will be considered
+    pub billing: Option<Address>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum ProxyPaymentMethodData {
+    #[schema(title = "ProxyCardData")]
+    VaultDataCard(ProxyCardData),
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct ProxyCardData {
+    /// The token which refers to the card number
+    #[schema(value_type = String, example = "token_card_number")]
+    pub card_number: Secret<String>,
+
+    /// The card's expiry month
+    #[schema(value_type = String, example = "24")]
+    pub card_exp_month: Secret<String>,
+
+    /// The card's expiry year
+    #[schema(value_type = String, example = "24")]
+    pub card_exp_year: Secret<String>,
+
+    /// The card holder's name
+    #[schema(value_type = String, example = "John Test")]
+    pub card_holder_name: Option<Secret<String>>,
+
+    /// The CVC number for the card
+    #[schema(value_type = String, example = "242")]
+    pub card_cvc: Secret<String>,
+
+    /// The name of the issuer of card
+    #[schema(example = "chase")]
+    pub card_issuer: Option<String>,
+
+    /// The card network for the card
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    pub card_network: Option<api_enums::CardNetwork>,
+
+    #[schema(example = "CREDIT")]
+    pub card_type: Option<String>,
+
+    #[schema(example = "INDIA")]
+    pub card_issuing_country: Option<String>,
+
+    #[schema(example = "JP_AMEX")]
+    pub bank_code: Option<String>,
+    /// The card holder's nick name
+    #[schema(value_type = Option<String>, example = "John Test")]
+    pub nick_name: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodData {
     #[schema(title = "Card")]
@@ -2941,6 +3033,15 @@ pub struct AdditionalCardInfo {
     /// Details about the threeds environment.
     /// This is a free form field and the structure varies from processor to processor
     pub authentication_data: Option<serde_json::Value>,
+
+    /// Indicates if the card issuer is regulated under government-imposed interchange fee caps.
+    /// In the United States, this includes debit cards that fall under the Durbin Amendment,
+    /// which imposes capped interchange fees.
+    pub is_regulated: Option<bool>,
+
+    /// The global signature network under which the card is issued.
+    /// This represents the primary global card brand, even if the transaction uses a local network
+    pub signature_network: Option<api_enums::CardNetwork>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -3882,7 +3983,8 @@ pub struct GooglePayWalletData {
     /// The information of the payment method
     pub info: GooglePayPaymentMethodInfo,
     /// The tokenization data of Google pay
-    pub tokenization_data: GpayTokenizationData,
+    #[schema(value_type = GpayTokenizationData)]
+    pub tokenization_data: common_types::payments::GpayTokenizationData,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -3999,15 +4101,6 @@ pub struct MifinityData {
     #[schema(value_type = Date)]
     pub date_of_birth: Secret<Date>,
     pub language_preference: Option<String>,
-}
-
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct GpayTokenizationData {
-    /// The type of the token
-    #[serde(rename = "type")]
-    pub token_type: String,
-    /// Token generated for the wallet
-    pub token: String,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -4315,6 +4408,12 @@ pub struct PaymentMethodDataResponseWithBilling {
     pub billing: Option<Address>,
 }
 
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, ToSchema, serde::Serialize)]
+pub struct CustomRecoveryPaymentMethodData {
+    #[serde(flatten)]
+    pub units: HashMap<String, AdditionalCardInfo>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[cfg(feature = "v1")]
 pub enum PaymentIdType {
@@ -4374,7 +4473,7 @@ impl Default for PaymentIdType {
 }
 
 #[derive(Default, Clone, Debug, Eq, PartialEq, ToSchema, serde::Deserialize, serde::Serialize)]
-#[serde(deny_unknown_fields)]
+// #[serde(deny_unknown_fields)]
 pub struct Address {
     /// Provide the address details
     pub address: Option<AddressDetails>,
@@ -4405,7 +4504,7 @@ impl Address {
 // used by customers also, could be moved outside
 /// Address details
 #[derive(Clone, Default, Debug, Eq, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
-#[serde(deny_unknown_fields)]
+// #[serde(deny_unknown_fields)]
 pub struct AddressDetails {
     /// The city, district, suburb, town, or village of the address.
     #[schema(max_length = 50, example = "New York")]
@@ -5272,6 +5371,9 @@ pub struct PaymentsResponse {
     /// Contains whole connector response
     #[schema(value_type = Option<String>)]
     pub whole_connector_response: Option<Secret<String>>,
+
+    /// Allow partial authorization for this payment
+    pub enable_partial_authorization: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -5481,6 +5583,52 @@ pub struct ProxyPaymentsRequest {
 
     #[schema(value_type = String)]
     pub merchant_connector_id: id_type::MerchantConnectorAccountId,
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+#[cfg(feature = "v2")]
+pub struct ExternalVaultProxyPaymentsRequest {
+    /// The URL to which you want the user to be redirected after the completion of the payment operation
+    /// If this url is not passed, the url configured in the business profile will be used
+    #[schema(value_type = Option<String>, example = "https://hyperswitch.io")]
+    pub return_url: Option<common_utils::types::Url>,
+
+    /// The payment instrument data to be used for the payment
+    pub payment_method_data: ProxyPaymentMethodDataRequest,
+
+    /// The payment method type to be used for the payment. This should match with the `payment_method_data` provided
+    #[schema(value_type = PaymentMethod, example = "card")]
+    pub payment_method_type: api_enums::PaymentMethod,
+
+    /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
+    #[schema(value_type = PaymentMethodType, example = "apple_pay")]
+    pub payment_method_subtype: api_enums::PaymentMethodType,
+
+    /// The shipping address for the payment. This will override the shipping address provided in the create-intent request
+    pub shipping: Option<Address>,
+
+    /// This "CustomerAcceptance" object is passed during Payments-Confirm request, it enlists the type, time, and mode of acceptance properties related to an acceptance done by the customer. The customer_acceptance sub object is usually passed by the SDK or client.
+    #[schema(value_type = Option<CustomerAcceptance>)]
+    pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
+
+    /// Additional details required by 3DS 2.0
+    #[schema(value_type = Option<BrowserInformation>)]
+    pub browser_info: Option<common_utils::types::BrowserInformation>,
+
+    /// The payment_method_id to be associated with the payment
+    #[schema(value_type = Option<String>)]
+    pub payment_method_id: Option<id_type::GlobalPaymentMethodId>,
+
+    #[schema(example = "187282ab-40ef-47a9-9206-5099ba31e432")]
+    pub payment_token: Option<String>,
+
+    /// Merchant connector details used to make payments.
+    #[schema(value_type = Option<MerchantConnectorAuthDetails>)]
+    pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
+
+    /// If true, returns stringified connector raw response body
+    pub return_raw_connector_response: Option<bool>,
 }
 
 // This struct contains the union of fields in `PaymentsCreateIntentRequest` and
@@ -7689,6 +7837,16 @@ pub struct PaymentsCancelRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
+/// Request to cancel a payment when the payment is already captured
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentsCancelPostCaptureRequest {
+    /// The identifier for the payment
+    #[serde(skip)]
+    pub payment_id: id_type::PaymentId,
+    /// The reason for the payment cancel
+    pub cancellation_reason: Option<String>,
+}
+
 #[derive(Default, Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 pub struct PaymentsIncrementalAuthorizationRequest {
     /// The identifier for the payment
@@ -9082,6 +9240,78 @@ pub struct PaymentsAttemptRecordRequest {
     #[schema(example = "Chase")]
     /// Card Issuer
     pub card_issuer: Option<String>,
+}
+
+// Serialize is required because the api event requires Serialize to be implemented
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+#[cfg(feature = "v2")]
+pub struct RecoveryPaymentsCreate {
+    /// The amount details for the payment
+    pub amount_details: AmountDetails,
+
+    /// Unique identifier for the payment. This ensures idempotency for multiple payments
+    /// that have been done by a single merchant.
+    #[schema(
+        value_type = Option<String>,
+        min_length = 30,
+        max_length = 30,
+        example = "pay_mbabizu24mvu3mela5njyhpit4"
+    )]
+    pub merchant_reference_id: id_type::PaymentReferenceId,
+
+    /// Error details for the payment if any
+    pub error: Option<ErrorDetails>,
+
+    /// Billing connector id to update the invoices.
+    #[schema(value_type = String, example = "mca_1234567890")]
+    pub billing_merchant_connector_id: id_type::MerchantConnectorAccountId,
+
+    /// Payments connector id to update the invoices.
+    #[schema(value_type = String, example = "mca_1234567890")]
+    pub payment_merchant_connector_id: id_type::MerchantConnectorAccountId,
+
+    #[schema(value_type = AttemptStatus, example = "charged")]
+    pub attempt_status: enums::AttemptStatus,
+
+    /// The billing details of the payment attempt.
+    pub billing: Option<Address>,
+
+    /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
+    #[schema(value_type = PaymentMethodType, example = "apple_pay")]
+    pub payment_method_sub_type: api_enums::PaymentMethodType,
+
+    /// primary payment method token at payment processor end.
+    #[schema(value_type = String, example = "token_1234")]
+    pub primary_processor_payment_method_token: Secret<String>,
+
+    /// The time at which payment attempt was created.
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub transaction_created_at: Option<PrimitiveDateTime>,
+
+    /// Payment method type for the payment attempt
+    #[schema(value_type = Option<PaymentMethod>, example = "wallet")]
+    pub payment_method_type: common_enums::PaymentMethod,
+
+    /// customer id at payment connector for which mandate is attached.
+    #[schema(value_type = String, example = "cust_12345")]
+    pub connector_customer_id: Secret<String>,
+
+    /// Invoice billing started at billing connector end.
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub billing_started_at: Option<PrimitiveDateTime>,
+
+    /// A unique identifier for a payment provided by the payment connector
+    #[schema(value_type = Option<String>, example = "993672945374576J")]
+    pub connector_transaction_id: Option<Secret<String>>,
+
+    /// payment method token units at payment processor end.
+    pub payment_method_units: CustomRecoveryPaymentMethodData,
+
+    /// Type of action that needs to be taken after consuming the recovery payload. For example: scheduling a failed payment or stopping the invoice.
+    pub action: common_payments_types::RecoveryAction,
 }
 
 /// Error details for the payment

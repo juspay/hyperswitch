@@ -3,6 +3,8 @@ pub mod payment_approve;
 #[cfg(feature = "v1")]
 pub mod payment_cancel;
 #[cfg(feature = "v1")]
+pub mod payment_cancel_post_capture;
+#[cfg(feature = "v1")]
 pub mod payment_capture;
 #[cfg(feature = "v1")]
 pub mod payment_complete_authorize;
@@ -48,6 +50,9 @@ pub mod payment_update_intent;
 pub mod proxy_payments_intent;
 
 #[cfg(feature = "v2")]
+pub mod external_vault_proxy_payment_intent;
+
+#[cfg(feature = "v2")]
 pub mod payment_get;
 
 #[cfg(feature = "v2")]
@@ -72,11 +77,11 @@ pub use self::payment_update_intent::PaymentUpdateIntent;
 #[cfg(feature = "v1")]
 pub use self::{
     payment_approve::PaymentApprove, payment_cancel::PaymentCancel,
-    payment_capture::PaymentCapture, payment_confirm::PaymentConfirm,
-    payment_create::PaymentCreate, payment_post_session_tokens::PaymentPostSessionTokens,
-    payment_reject::PaymentReject, payment_session::PaymentSession, payment_start::PaymentStart,
-    payment_status::PaymentStatus, payment_update::PaymentUpdate,
-    payment_update_metadata::PaymentUpdateMetadata,
+    payment_cancel_post_capture::PaymentCancelPostCapture, payment_capture::PaymentCapture,
+    payment_confirm::PaymentConfirm, payment_create::PaymentCreate,
+    payment_post_session_tokens::PaymentPostSessionTokens, payment_reject::PaymentReject,
+    payment_session::PaymentSession, payment_start::PaymentStart, payment_status::PaymentStatus,
+    payment_update::PaymentUpdate, payment_update_metadata::PaymentUpdateMetadata,
     payments_incremental_authorization::PaymentIncrementalAuthorization,
     tax_calculation::PaymentSessionUpdate,
 };

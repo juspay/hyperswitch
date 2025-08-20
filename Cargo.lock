@@ -3041,6 +3041,7 @@ dependencies = [
  "aws-sdk-sts",
  "aws-smithy-runtime",
  "base64 0.22.1",
+ "common_enums",
  "common_utils",
  "dyn-clone",
  "error-stack 0.4.1",
@@ -3055,12 +3056,15 @@ dependencies = [
  "masking",
  "once_cell",
  "prost",
+ "prost-types",
  "quick-xml",
  "reqwest 0.11.27",
  "router_env",
  "rust-grpc-client",
  "serde",
+ "serde_json",
  "thiserror 1.0.69",
+ "time",
  "tokio 1.45.1",
  "tonic 0.13.1",
  "tonic-build",
@@ -3536,7 +3540,7 @@ dependencies = [
 [[package]]
 name = "grpc-api-types"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=4387a6310dc9c2693b453b455a8032623f3d6a81#4387a6310dc9c2693b453b455a8032623f3d6a81"
+source = "git+https://github.com/juspay/connector-service?rev=aae51574fed25b0a7849e3832cff8904bc310cf5#aae51574fed25b0a7849e3832cff8904bc310cf5"
 dependencies = [
  "axum 0.8.4",
  "error-stack 0.5.0",
@@ -4046,6 +4050,7 @@ dependencies = [
  "mime",
  "num-traits",
  "openssl",
+ "pem",
  "qrcode",
  "quick-xml",
  "rand 0.8.5",
@@ -5690,9 +5695,9 @@ dependencies = [
 
 [[package]]
 name = "pem"
-version = "3.0.4"
+version = "3.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e459365e590736a54c3fa561947c84837534b8e9af6fc5bf781307e82658fae"
+checksum = "38af38e8470ac9dee3ce1bae1af9c1671fffc44ddfd8bd1d0a3445bf349a8ef3"
 dependencies = [
  "base64 0.22.1",
  "serde",
@@ -6793,6 +6798,7 @@ dependencies = [
  "openssl",
  "payment_methods",
  "pm_auth",
+ "prost-types",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "rdkafka",
@@ -6910,7 +6916,7 @@ dependencies = [
 [[package]]
 name = "rust-grpc-client"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=4387a6310dc9c2693b453b455a8032623f3d6a81#4387a6310dc9c2693b453b455a8032623f3d6a81"
+source = "git+https://github.com/juspay/connector-service?rev=aae51574fed25b0a7849e3832cff8904bc310cf5#aae51574fed25b0a7849e3832cff8904bc310cf5"
 dependencies = [
  "grpc-api-types",
 ]

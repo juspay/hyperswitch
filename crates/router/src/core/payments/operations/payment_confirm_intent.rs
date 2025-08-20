@@ -47,10 +47,12 @@ impl ValidateStatusForOperation for PaymentIntentConfirm {
             | common_enums::IntentStatus::Conflicted
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Processing
             | common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
             | common_enums::IntentStatus::PartiallyCaptured
             | common_enums::IntentStatus::RequiresConfirmation
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable
@@ -273,6 +275,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             mandate_data: None,
             payment_method: None,
             merchant_connector_details,
+            external_vault_pmd: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };

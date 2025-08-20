@@ -122,6 +122,7 @@ pub struct PaymentIntent {
     pub order_date: Option<PrimitiveDateTime>,
     pub shipping_amount_tax: Option<MinorUnit>,
     pub duty_amount: Option<MinorUnit>,
+    pub enable_partial_authorization: Option<bool>,
 }
 
 impl PaymentIntent {
@@ -879,6 +880,7 @@ where
     pub mandate_data: Option<api_models::payments::MandateIds>,
     pub payment_method: Option<payment_methods::PaymentMethod>,
     pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
+    pub external_vault_pmd: Option<payment_method_data::ExternalVaultPaymentMethodData>,
 }
 
 #[cfg(feature = "v2")]

@@ -79,6 +79,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::DecisionManagerDeleteConfig
             | Flow::DecisionManagerRetrieveConfig
             | Flow::ToggleDynamicRouting
+            | Flow::CreateDynamicRoutingConfig
             | Flow::UpdateDynamicRoutingConfigs
             | Flow::DecisionManagerUpsertConfig
             | Flow::RoutingEvaluateRule
@@ -142,6 +143,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsConfirm
             | Flow::PaymentsCapture
             | Flow::PaymentsCancel
+            | Flow::PaymentsCancelPostCapture
             | Flow::PaymentsApprove
             | Flow::PaymentsReject
             | Flow::PaymentsSessionToken
@@ -167,7 +169,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentStartRedirection
             | Flow::ProxyConfirmIntent
             | Flow::PaymentsRetrieveUsingMerchantReferenceId
-            | Flow::PaymentAttemptsList => Self::Payments,
+            | Flow::PaymentAttemptsList
+            | Flow::RecoveryPaymentsCreate => Self::Payments,
 
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve
@@ -371,7 +374,9 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::ProfileAcquirerCreate | Flow::ProfileAcquirerUpdate => Self::ProfileAcquirer,
             Flow::ThreeDsDecisionRuleExecute => Self::ThreeDsDecisionRule,
-            Flow::TokenizationCreate | Flow::TokenizationRetrieve => Self::GenericTokenization,
+            Flow::TokenizationCreate | Flow::TokenizationRetrieve | Flow::TokenizationDelete => {
+                Self::GenericTokenization
+            }
         }
     }
 }

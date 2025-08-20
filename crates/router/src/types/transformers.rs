@@ -161,6 +161,7 @@ impl ForeignTryFrom<storage_enums::AttemptStatus> for storage_enums::CaptureStat
             | storage_enums::AttemptStatus::Authorizing
             | storage_enums::AttemptStatus::CodInitiated
             | storage_enums::AttemptStatus::Voided
+            | storage_enums::AttemptStatus::VoidedPostCharge
             | storage_enums::AttemptStatus::VoidInitiated
             | storage_enums::AttemptStatus::VoidFailed
             | storage_enums::AttemptStatus::AutoRefunded
@@ -168,6 +169,7 @@ impl ForeignTryFrom<storage_enums::AttemptStatus> for storage_enums::CaptureStat
             | storage_enums::AttemptStatus::PaymentMethodAwaited
             | storage_enums::AttemptStatus::ConfirmationAwaited
             | storage_enums::AttemptStatus::DeviceDataCollectionPending
+            | storage_enums::AttemptStatus::PartiallyAuthorized
             | storage_enums::AttemptStatus::PartialChargedAndChargeable | storage_enums::AttemptStatus::Expired => {
                 Err(errors::ApiErrorResponse::PreconditionFailed {
                     message: "AttemptStatus must be one of these for multiple partial captures [Charged, PartialCharged, Pending, CaptureInitiated, Failure, CaptureFailed]".into(),
@@ -1643,7 +1645,7 @@ impl
             hyperswitch_domain_models::gsm::GatewayStatusMap,
         ),
     ) -> Self {
-        let gsm_db_record_infered_feature = match gsm_db_record.feature_data.get_decision() {
+        let gsm_db_record_inferred_feature = match gsm_db_record.feature_data.get_decision() {
             api_enums::GsmDecision::Retry | api_enums::GsmDecision::DoDefault => {
                 api_enums::GsmFeature::Retry
             }
@@ -1651,7 +1653,7 @@ impl
 
         let gsm_feature = gsm_update_request
             .feature
-            .unwrap_or(gsm_db_record_infered_feature);
+            .unwrap_or(gsm_db_record_inferred_feature);
 
         match gsm_feature {
             api_enums::GsmFeature::Retry => {

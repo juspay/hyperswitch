@@ -15,7 +15,7 @@ impl utils::Connector for CoinbaseTest {
     fn get_data(&self) -> api::ConnectorData {
         use router::connector::Coinbase;
         utils::construct_connector_data_old(
-            Box::new(&Coinbase),
+            Box::new(Coinbase::new()),
             types::Connector::Coinbase,
             api::GetToken::Connector,
             None,

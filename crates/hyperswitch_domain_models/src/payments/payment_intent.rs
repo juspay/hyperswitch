@@ -249,6 +249,8 @@ pub struct PaymentIntentUpdateFields {
     pub duty_amount: Option<MinorUnit>,
     pub is_confirm_operation: bool,
     pub payment_channel: Option<common_enums::PaymentChannel>,
+    pub feature_metadata: Option<Secret<serde_json::Value>>,
+    pub enable_partial_authorization: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -260,6 +262,7 @@ pub enum PaymentIntentUpdate {
         updated_by: String,
         fingerprint_id: Option<String>,
         incremental_authorization_allowed: Option<bool>,
+        feature_metadata: Option<Secret<serde_json::Value>>,
     },
     MetadataUpdate {
         metadata: serde_json::Value,
@@ -285,6 +288,7 @@ pub enum PaymentIntentUpdate {
         status: common_enums::IntentStatus,
         incremental_authorization_allowed: Option<bool>,
         updated_by: String,
+        feature_metadata: Option<Secret<serde_json::Value>>,
     },
     PaymentAttemptAndAttemptCountUpdate {
         active_attempt_id: String,
@@ -436,11 +440,13 @@ pub struct PaymentIntentUpdateInternal {
     pub force_3ds_challenge: Option<bool>,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub payment_channel: Option<common_enums::PaymentChannel>,
+    pub feature_metadata: Option<Secret<serde_json::Value>>,
     pub tax_status: Option<common_enums::TaxStatus>,
     pub discount_amount: Option<MinorUnit>,
     pub order_date: Option<PrimitiveDateTime>,
     pub shipping_amount_tax: Option<MinorUnit>,
     pub duty_amount: Option<MinorUnit>,
+    pub enable_partial_authorization: Option<bool>,
 }
 
 // This conversion is used in the `update_payment_intent` function
@@ -872,11 +878,13 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 status,
                 updated_by,
                 incremental_authorization_allowed,
+                feature_metadata,
             } => Self {
                 status: Some(status),
                 modified_at: Some(common_utils::date_time::now()),
                 updated_by,
                 incremental_authorization_allowed,
+                feature_metadata,
                 ..Default::default()
             },
             PaymentIntentUpdate::MerchantStatusUpdate {
@@ -901,6 +909,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 // customer_id,
                 updated_by,
                 incremental_authorization_allowed,
+                feature_metadata,
             } => Self {
                 // amount,
                 // currency: Some(currency),
@@ -911,6 +920,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 modified_at: Some(common_utils::date_time::now()),
                 updated_by,
                 incremental_authorization_allowed,
+                feature_metadata,
                 ..Default::default()
             },
             PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
@@ -1032,12 +1042,14 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 fingerprint_id,
                 updated_by,
                 incremental_authorization_allowed,
+                feature_metadata,
             } => Self::ResponseUpdate {
                 status,
                 amount_captured,
                 fingerprint_id,
                 updated_by,
                 incremental_authorization_allowed,
+                feature_metadata,
             },
             PaymentIntentUpdate::MetadataUpdate {
                 metadata,
@@ -1079,11 +1091,13 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                     force_3ds_challenge: value.force_3ds_challenge,
                     is_iframe_redirection_enabled: value.is_iframe_redirection_enabled,
                     payment_channel: value.payment_channel,
+                    feature_metadata: value.feature_metadata,
                     tax_status: value.tax_status,
                     discount_amount: value.discount_amount,
                     order_date: value.order_date,
                     shipping_amount_tax: value.shipping_amount_tax,
                     duty_amount: value.duty_amount,
+                    enable_partial_authorization: value.enable_partial_authorization,
                 }))
             }
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -1118,10 +1132,12 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 status,
                 updated_by,
                 incremental_authorization_allowed,
+                feature_metadata,
             } => Self::PGStatusUpdate {
                 status,
                 updated_by,
                 incremental_authorization_allowed,
+                feature_metadata,
             },
             PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id,
@@ -1243,11 +1259,13 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             force_3ds_challenge,
             is_iframe_redirection_enabled,
             payment_channel,
+            feature_metadata,
             tax_status,
             discount_amount,
             order_date,
             shipping_amount_tax,
             duty_amount,
+            enable_partial_authorization,
         } = value;
         Self {
             amount,
@@ -1290,11 +1308,13 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             is_iframe_redirection_enabled,
             extended_return_url: return_url,
             payment_channel,
+            feature_metadata,
             tax_status,
             discount_amount,
             order_date,
             shipping_amount_tax,
             duty_amount,
+            enable_partial_authorization,
         }
     }
 }
@@ -1770,6 +1790,7 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_amount_tax: None,
             duty_amount: None,
             order_date: None,
+            enable_partial_authorization: None,
         })
     }
     async fn convert_back(
@@ -2006,6 +2027,7 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_amount_tax: None,
             duty_amount: None,
             order_date: None,
+            enable_partial_authorization: None,
         })
     }
 }
@@ -2087,6 +2109,7 @@ impl behaviour::Conversion for PaymentIntent {
             order_date: self.order_date,
             shipping_amount_tax: self.shipping_amount_tax,
             duty_amount: self.duty_amount,
+            enable_partial_authorization: self.enable_partial_authorization,
         })
     }
 
@@ -2194,6 +2217,7 @@ impl behaviour::Conversion for PaymentIntent {
                 shipping_amount_tax: storage_model.shipping_amount_tax,
                 duty_amount: storage_model.duty_amount,
                 order_date: storage_model.order_date,
+                enable_partial_authorization: storage_model.enable_partial_authorization,
             })
         }
         .await
@@ -2273,6 +2297,7 @@ impl behaviour::Conversion for PaymentIntent {
             order_date: self.order_date,
             shipping_amount_tax: self.shipping_amount_tax,
             duty_amount: self.duty_amount,
+            enable_partial_authorization: self.enable_partial_authorization,
         })
     }
 }
