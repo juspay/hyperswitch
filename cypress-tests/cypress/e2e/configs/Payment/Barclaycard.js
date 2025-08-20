@@ -1,4 +1,4 @@
-import { customerAcceptance, connectorDetails } from "./Commons";
+import { customerAcceptance } from "./Commons";
 
 const successfulNo3DSCardDetails = {
   card_number: "4000000000001091",
