@@ -657,6 +657,7 @@ impl RedisTokenManager {
         // Find the token with max retry remaining
         let max_retry_token = tokens_with_retry
             .into_iter()
+            .filter(|(_, token_info)| !token_info.token_status.is_hard_decline.unwrap_or(false))
             .max_by_key(|(_, token_info)| token_info.monthly_retry_remaining)
             .map(|(_, token_info)| token_info);
 
