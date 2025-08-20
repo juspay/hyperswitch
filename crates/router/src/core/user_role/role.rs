@@ -1,14 +1,13 @@
 use std::{
     cmp,
-    collections::{HashMap, HashSet},
+    collections::HashSet,
 };
 
 use api_models::user_role::role as role_api;
-use common_enums::{EntityType, ParentGroup, PermissionGroup, PermissionScope};
+use common_enums::{EntityType, ParentGroup, PermissionGroup};
 use common_utils::generate_id_with_default_len;
 use diesel_models::role::{ListRolesByEntityPayload, RoleNew, RoleUpdate};
 use error_stack::{report, ResultExt};
-use strum::IntoEnumIterator;
 
 use crate::{
     core::errors::{StorageErrorExt, UserErrors, UserResponse},
@@ -24,69 +23,6 @@ use crate::{
     types::domain::user::RoleName,
     utils,
 };
-
-fn parent_group_info_request_to_permission_groups(
-    parent_groups: &[role_api::ParentGroupInfoRequest],
-) -> Result<Vec<PermissionGroup>, UserErrors> {
-    let mut permission_groups = Vec::new();
-
-    for parent_group in parent_groups {
-        let scopes = &parent_group.scopes;
-
-        if scopes.is_empty() {
-            return Err(UserErrors::InvalidRoleOperation);
-        }
-
-        let available_scopes = parent_group.name.get_available_scopes();
-
-        for scope in scopes {
-            if !available_scopes.contains(scope) {
-                return Err(UserErrors::InvalidRoleOperation);
-            }
-        }
-
-        let groups = PermissionGroup::iter()
-            .filter(|group| group.parent() == parent_group.name && scopes.contains(&group.scope()))
-            .collect::<Vec<_>>();
-        permission_groups.extend(groups);
-    }
-
-    Ok(permission_groups)
-}
-
-fn permission_groups_to_parent_group_info(
-    permission_groups: &[PermissionGroup],
-    entity_type: EntityType,
-) -> Vec<role_api::ParentGroupInfo> {
-    let mut parent_groups_map: HashMap<ParentGroup, Vec<PermissionScope>> = HashMap::new();
-
-    for group in permission_groups {
-        let parent = group.parent();
-        let scope = group.scope();
-        parent_groups_map.entry(parent).or_default().push(scope);
-    }
-
-    parent_groups_map
-        .into_iter()
-        .filter_map(|(name, scopes)| {
-            let unique_scopes = scopes
-                .into_iter()
-                .collect::<HashSet<_>>()
-                .into_iter()
-                .collect();
-
-            let description =
-                ParentGroup::get_descriptions_for_groups(entity_type, permission_groups.to_vec())
-                    .and_then(|descriptions| descriptions.get(&name).cloned())?;
-
-            Some(role_api::ParentGroupInfo {
-                name,
-                description,
-                scopes: unique_scopes,
-            })
-        })
-        .collect()
-}
 
 pub async fn get_role_from_token_with_groups(
     state: SessionState,
@@ -263,7 +199,7 @@ pub async fn create_role_v2(
 
     let role_name = RoleName::new(req.role_name.clone())?;
 
-    let permission_groups = parent_group_info_request_to_permission_groups(&req.parent_groups)?;
+    let permission_groups = utils::user_role::parent_group_info_request_to_permission_groups(&req.parent_groups)?;
 
     utils::user_role::validate_role_groups(&permission_groups)?;
     utils::user_role::validate_role_name(
@@ -315,7 +251,7 @@ pub async fn create_role_v2(
         .to_duplicate_response(UserErrors::RoleNameAlreadyExists)?;
 
     let response_parent_groups =
-        permission_groups_to_parent_group_info(&role.groups, role.entity_type);
+        utils::user_role::permission_groups_to_parent_group_info(&role.groups, role.entity_type);
 
     Ok(ApplicationResponse::Json(
         role_api::RoleInfoResponseWithParentsGroup {
@@ -579,7 +515,7 @@ pub async fn list_roles_with_info(
 
                 (is_lower_entity && request_filter).then_some({
                     let permission_groups = role_info.get_permission_groups();
-                    let parent_groups = permission_groups_to_parent_group_info(
+                    let parent_groups = utils::user_role::permission_groups_to_parent_group_info(
                         &permission_groups,
                         role_info.get_entity_type(),
                     );
