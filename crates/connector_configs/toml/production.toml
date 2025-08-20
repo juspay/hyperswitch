@@ -1684,6 +1684,20 @@ api_secret = "Secret Key"
 [dlocal.connector_webhook_details]
 merchant_secret = "Source verification key"
 
+[[dwolla.bank_debit]]
+  payment_method_type = "ach"
+[dwolla.connector_auth.BodyKey]
+api_key="Client ID"
+key1="Client Secret"
+[dwolla.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[dwolla.metadata.merchant_funding_source]
+name = "merchant_funding_source"
+label = "Funding Source ID"
+placeholder = "Enter your funding source ID"
+required = true
+type = "Text"
 
 [fiserv]
 [[fiserv.credit]]
