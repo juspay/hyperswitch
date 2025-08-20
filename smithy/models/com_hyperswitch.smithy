@@ -7,6 +7,9 @@ use com.hyperswitch.smithy.types#PaymentsResponse
 use com.hyperswitch.smithy.types#RefundRequest
 use com.hyperswitch.smithy.types#RefundResponse
 use com.hyperswitch.smithy.types#PaymentsCaptureRequest
+use com.hyperswitch.smithy.types#CustomerRequest
+use com.hyperswitch.smithy.types#CustomerResponse
+use com.hyperswitch.smithy.types#CustomerDeleteResponse
 
 use aws.protocols#restJson1
 
@@ -20,7 +23,7 @@ use aws.protocols#restJson1
 )
 service Hyperswitch {
     version: "2024-07-31",
-    operations: [PaymentsCreate, PaymentsRetrieve, RefundsCreate, RefundsRetrieve, PaymentsCapture]
+    operations: [PaymentsCreate, PaymentsRetrieve, RefundsCreate, RefundsRetrieve, PaymentsCapture, CustomersCreate, CustomersRetrieve, CustomersUpdate, CustomersDelete]
 }
 
 /// Input structure for capturing a payment
@@ -99,4 +102,67 @@ structure PaymentsCreateRequest {
 operation PaymentsCreate {
     input: PaymentsCreateRequest,
     output: PaymentsResponse,
+}
+
+/// Structure for creating a customer
+structure CustomersCreateRequest {
+    /// The customer request details
+    @required
+    @httpPayload
+    payload: CustomerRequest
+}
+
+@documentation("Create a customer with the specified details.")
+@http(method: "POST", uri: "/customers")
+operation CustomersCreate {
+    input: CustomersCreateRequest,
+    output: CustomerResponse,
+}
+
+@documentation("Retrieve a customer using the customer_id.")
+@http(method: "GET", uri: "/customers/{customer_id}")
+operation CustomersRetrieve {
+    input: CustomersRetrieveRequest,
+    output: CustomerResponse,
+}
+
+structure CustomersRetrieveRequest {
+    /// The unique identifier for the customer to retrieve
+    @required
+    @httpLabel
+    customer_id: smithy.api#String
+}
+
+/// Structure for updating a customer
+structure CustomersUpdateRequest {
+    /// The unique identifier for the customer to update
+    @required
+    @httpLabel
+    customer_id: smithy.api#String
+
+    /// The customer update request details
+    @required
+    @httpPayload
+    payload: CustomerRequest
+}
+
+@documentation("Update a customer using the customer_id.")
+@http(method: "POST", uri: "/customers/{customer_id}")
+operation CustomersUpdate {
+    input: CustomersUpdateRequest,
+    output: CustomerResponse,
+}
+
+@documentation("Delete a customer using the customer_id.")
+@http(method: "DELETE", uri: "/customers/{customer_id}")
+operation CustomersDelete {
+    input: CustomersDeleteRequest,
+    output: CustomerDeleteResponse,
+}
+
+structure CustomersDeleteRequest {
+    /// The unique identifier for the customer to delete
+    @required
+    @httpLabel
+    customer_id: smithy.api#String
 }
