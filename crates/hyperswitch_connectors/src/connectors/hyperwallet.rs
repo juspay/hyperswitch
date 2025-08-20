@@ -604,7 +604,8 @@ static HYPERWALLET_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> 
 static HYPERWALLET_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Hyperwallet",
     description: "Hyperwallet connector",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PayoutProcessor,
+    integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 
 static HYPERWALLET_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
