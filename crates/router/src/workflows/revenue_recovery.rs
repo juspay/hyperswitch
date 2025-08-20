@@ -460,25 +460,24 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
     }
 }
 
-
 #[cfg(feature = "v2")]
 pub(crate) async fn get_schedule_time_without_attempt(
     state: &SessionState,
     payment_intent: &PaymentIntent,
     retry_after_time: Option<prost_types::Timestamp>,
     token_with_retry_info: &PaymentProcessorTokenWithRetryInfo,
-
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
     let card_config = &state.conf.revenue_recovery.card_config;
-    
-    // Not populating it right now 
+
+    // Not populating it right now
     let first_error_message = "None".to_string();
     let retry_count_left = token_with_retry_info.monthly_retry_remaining;
     let pg_error_code = token_with_retry_info.token_status.error_code.clone();
 
     let card_info = token_with_retry_info
         .token_status
-        .payment_processor_token_details.clone();
+        .payment_processor_token_details
+        .clone();
 
     let billing_state = payment_intent
         .billing_address
@@ -486,7 +485,6 @@ pub(crate) async fn get_schedule_time_without_attempt(
         .and_then(|addr_enc| addr_enc.get_inner().address.as_ref())
         .and_then(|details| details.state.as_ref())
         .cloned();
-
 
     let revenue_recovery_metadata = payment_intent
         .feature_metadata
@@ -533,8 +531,6 @@ pub(crate) async fn get_schedule_time_without_attempt(
         .and_then(|addr_enc| addr_enc.get_inner().address.as_ref())
         .and_then(|details| details.city.as_ref())
         .cloned();
-
-
 
     let first_pg_error_code = revenue_recovery_metadata
         .and_then(|metadata| metadata.first_payment_attempt_pg_error_code.clone());
@@ -792,12 +788,8 @@ async fn process_token_for_retry(
             Ok(None)
         }
         false => {
-            let schedule_time = calculate_smart_retry_time(
-                state,
-                payment_intent,
-                token_with_retry_info,
-            )
-            .await?;
+            let schedule_time =
+                calculate_smart_retry_time(state, payment_intent, token_with_retry_info).await?;
             Ok(schedule_time.map(|schedule_time| ScheduledToken {
                 token_details: token_status.payment_processor_token_details.clone(),
                 schedule_time,
@@ -814,7 +806,6 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
     payment_intent: &PaymentIntent,
     connector_customer_id: &str,
 ) -> CustomResult<Option<ScheduledToken>, errors::ProcessTrackerError> {
-
     tracing::debug!("Filtered  payment attempts based on payment tokens",);
     let mut tokens_with_schedule_time: Vec<ScheduledToken> = Vec::new();
 
@@ -842,13 +833,11 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
                 break;
             }
             Some(_) => {
-                process_token_for_retry(
-                    state,
-                    token_with_retry_info,
-                    payment_intent,
-                )
-                .await?
-                .map(|token_with_schedule_time| tokens_with_schedule_time.push(token_with_schedule_time));
+                process_token_for_retry(state, token_with_retry_info, payment_intent)
+                    .await?
+                    .map(|token_with_schedule_time| {
+                        tokens_with_schedule_time.push(token_with_schedule_time)
+                    });
             }
         }
     }

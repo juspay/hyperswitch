@@ -625,9 +625,9 @@ impl RevenueRecoveryAttempt {
         errors::RevenueRecoveryError,
     > {
         let payment_connector_id =   payment_connector_account.as_ref().map(|account: &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount| account.id.clone());
-        let payment_connector_name=payment_connector_account
-                .as_ref()
-                .map(|account| account.connector_name);
+        let payment_connector_name = payment_connector_account
+            .as_ref()
+            .map(|account| account.connector_name);
         let request_payload: api_payments::PaymentsAttemptRecordRequest = self
             .create_payment_record_request(
                 state,
@@ -694,7 +694,7 @@ impl RevenueRecoveryAttempt {
 
         let response = (recovery_attempt, updated_recovery_intent);
 
-        self.store_payment_processor_tokens_in_redis(state, &response.0,payment_connector_name)
+        self.store_payment_processor_tokens_in_redis(state, &response.0, payment_connector_name)
             .await
             .map_err(|e| {
                 router_env::logger::error!(
@@ -963,8 +963,8 @@ impl RevenueRecoveryAttempt {
         payment_connector_name: Option<common_enums::connector_enums::Connector>,
     ) -> CustomResult<(), errors::RevenueRecoveryError> {
         let revenue_recovery_attempt_data = &self.0;
-        let error_code=revenue_recovery_attempt_data.error_code.clone();
-        let error_message= revenue_recovery_attempt_data.error_message.clone();
+        let error_code = revenue_recovery_attempt_data.error_code.clone();
+        let error_message = revenue_recovery_attempt_data.error_message.clone();
         let connector_name = payment_connector_name
             .ok_or(errors::RevenueRecoveryError::TransactionWebhookProcessingFailed)
             .attach_printable("unable to derive payment connector")?
@@ -978,7 +978,7 @@ impl RevenueRecoveryAttempt {
             REVENUE_RECOVERY.to_string(),
         )
         .await;
-    
+
         let is_hard_decline = gsm_record
             .and_then(|record| record.error_category)
             .map(|category| category == common_enums::ErrorCategory::HardDecline)

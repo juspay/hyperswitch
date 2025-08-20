@@ -265,7 +265,7 @@ impl RedisTokenManager {
                 .get(&date)
                 .map(|&retry_count| {
                     normalized_retry_history.insert(date, retry_count);
-            });
+                });
         }
 
         payment_processor_token.daily_retry_history = normalized_retry_history;
@@ -465,12 +465,12 @@ impl RedisTokenManager {
                 //     .unwrap_or(INITIAL_RETRY_COUNT);
 
                 for (date, &value) in &token_data.daily_retry_history {
-                    existing_token.daily_retry_history
+                    existing_token
+                        .daily_retry_history
                         .entry(*date)
                         .and_modify(|v| *v += value)
                         .or_insert(value);
                 }
-                
 
                 // existing_token
                 //     .daily_retry_history
@@ -675,19 +675,18 @@ impl RedisTokenManager {
         let tokens_map =
             Self::get_connector_customer_payment_processor_tokens(state, connector_customer_id)
                 .await?;
-    
+
         let all_hard_declined = !tokens_map.is_empty()
             && tokens_map
                 .values()
                 .all(|token| token.is_hard_decline.unwrap_or(false));
-    
+
         tracing::debug!(
             connector_customer_id = connector_customer_id,
             all_hard_declined,
             "Checked if all tokens are hard declined"
         );
-    
+
         Ok(all_hard_declined)
     }
-    
 }
