@@ -1,7 +1,5 @@
 pub mod transformers;
 
-use std::sync::LazyLock;
-
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
@@ -24,7 +22,8 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
@@ -42,6 +41,7 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
+use lazy_static::lazy_static;
 use transformers as paytm;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
@@ -145,6 +145,7 @@ impl ConnectorCommon for Paytm {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -588,20 +589,50 @@ impl webhooks::IncomingWebhook for Paytm {
     }
 }
 
-static PAYTM_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
-    LazyLock::new(SupportedPaymentMethods::new);
+lazy_static! {
+    static ref PAYTM_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+        let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
 
-static PAYTM_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-    display_name: "Paytm",
-    description: "Paytm connector",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-};
+        let mut paytm_supported_payment_methods = SupportedPaymentMethods::new();
+        paytm_supported_payment_methods.add(
+            enums::PaymentMethod::Upi,
+            enums::PaymentMethodType::UpiCollect,
+            PaymentMethodDetails{
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::NotSupported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
 
-static PAYTM_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+        paytm_supported_payment_methods.add(
+            enums::PaymentMethod::Upi,
+            enums::PaymentMethodType::UpiIntent,
+            PaymentMethodDetails{
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::NotSupported,
+                supported_capture_methods,
+                specific_features: None,
+            },
+        );
+
+        paytm_supported_payment_methods
+    };
+
+    static ref PAYTM_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        display_name: "PAYTM",
+        description:
+            "Paytm is an Indian multinational fintech company specializing in digital payments and financial services. Initially known for its mobile wallet, it has expanded to include a payment bank, e-commerce, ticketing, and wealth management services.",
+        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    };
+
+    static ref PAYTM_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
+
+}
 
 impl ConnectorSpecifications for Paytm {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&PAYTM_CONNECTOR_INFO)
+        Some(&*PAYTM_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
@@ -609,6 +640,6 @@ impl ConnectorSpecifications for Paytm {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&PAYTM_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&*PAYTM_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

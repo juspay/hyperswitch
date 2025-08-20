@@ -160,6 +160,7 @@ Never share your secret api keys. Keep them guarded and secure.
 
         // Route for tokenization
         routes::tokenization::create_token_vault_api,
+        routes::tokenization::delete_tokenized_data_api,
     ),
     components(schemas(
         common_utils::types::MinorUnit,
@@ -179,6 +180,13 @@ Never share your secret api keys. Keep them guarded and secure.
         common_utils::payout_method_utils::PaypalAdditionalData,
         common_utils::payout_method_utils::VenmoAdditionalData,
         common_types::payments::SplitPaymentsRequest,
+        common_types::payments::GpayTokenizationData,
+        common_types::payments::GPayPredecryptData,
+        common_types::payments::GpayEcryptedTokenizationData,
+        common_types::payments::ApplePayPaymentData,
+        common_types::payments::ApplePayPredecryptData,
+        common_types::payments::ApplePayCryptogramData,
+        common_types::payments::ApplePayPaymentData,
         common_types::payments::StripeSplitPaymentRequest,
         common_types::domain::AdyenSplitData,
         common_types::payments::AcceptanceType,
@@ -240,7 +248,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::PaymentMethodResponseData,
         api_models::payment_methods::CustomerPaymentMethodResponseItem,
         api_models::payment_methods::PaymentMethodResponseItem,
-        api_models::payment_methods::PaymentMethodListRequest,
+        api_models::payment_methods::ListMethodsForPaymentMethodsRequest,
         api_models::payment_methods::PaymentMethodListResponseForSession,
         api_models::payment_methods::CustomerPaymentMethodsListResponse,
         api_models::payment_methods::ResponsePaymentMethodsEnabled,
@@ -255,6 +263,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::PaymentMethodUpdateData,
         api_models::payment_methods::CardDetailFromLocker,
         api_models::payment_methods::PaymentMethodCreateData,
+        api_models::payment_methods::ProxyCardDetails,
         api_models::payment_methods::CardDetail,
         api_models::payment_methods::CardDetailUpdate,
         api_models::payment_methods::CardType,
@@ -308,6 +317,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::AuthorizationStatus,
         api_models::enums::ElementPosition,
         api_models::enums::ElementSize,
+        api_models::enums::TaxStatus,
         api_models::enums::SizeVariants,
         api_models::enums::MerchantProductType,
         api_models::enums::PaymentLinkDetailsLayout,
@@ -482,7 +492,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::SdkNextActionData,
         api_models::payments::SamsungPayWalletData,
         api_models::payments::WeChatPay,
-        api_models::payments::GpayTokenizationData,
         api_models::payments::GooglePayPaymentMethodInfo,
         api_models::payments::ApplePayWalletData,
         api_models::payments::ApplepayPaymentMethod,
@@ -787,6 +796,8 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payments::ForceSync,
         api_models::tokenization::GenericTokenizationRequest,
         api_models::tokenization::GenericTokenizationResponse,
+        api_models::tokenization::DeleteTokenDataRequest,
+        api_models::tokenization::DeleteTokenDataResponse,
     )),
     modifiers(&SecurityAddon)
 )]

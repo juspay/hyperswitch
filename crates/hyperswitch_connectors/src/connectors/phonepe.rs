@@ -1,7 +1,5 @@
 pub mod transformers;
 
-use std::sync::LazyLock;
-
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
@@ -24,7 +22,8 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
@@ -42,6 +41,7 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
+use lazy_static::lazy_static;
 use transformers as phonepe;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
@@ -145,6 +145,7 @@ impl ConnectorCommon for Phonepe {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -588,20 +589,50 @@ impl webhooks::IncomingWebhook for Phonepe {
     }
 }
 
-static PHONEPE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
-    LazyLock::new(SupportedPaymentMethods::new);
+lazy_static! {
+    static ref PHONEPE_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+        let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
 
-static PHONEPE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-    display_name: "Phonepe",
-    description: "Phonepe connector",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-};
+        let mut phonepe_supported_payment_methods = SupportedPaymentMethods::new();
+        phonepe_supported_payment_methods.add(
+            enums::PaymentMethod::Upi,
+            enums::PaymentMethodType::UpiCollect,
+            PaymentMethodDetails{
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::NotSupported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
 
-static PHONEPE_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+        phonepe_supported_payment_methods.add(
+            enums::PaymentMethod::Upi,
+            enums::PaymentMethodType::UpiIntent,
+            PaymentMethodDetails{
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::NotSupported,
+                supported_capture_methods,
+                specific_features: None,
+            },
+        );
+
+        phonepe_supported_payment_methods
+    };
+
+    static ref PHONEPE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        display_name: "PHONEPE",
+        description:
+            "PhonePe is a digital payments and financial services platform built on the UPI system. It allows users to make instant payments, recharge mobiles, pay bills, and access financial services like investments and insurance.",
+        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    };
+
+    static ref PHONEPE_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
+
+}
 
 impl ConnectorSpecifications for Phonepe {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&PHONEPE_CONNECTOR_INFO)
+        Some(&*PHONEPE_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
@@ -609,6 +640,6 @@ impl ConnectorSpecifications for Phonepe {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&PHONEPE_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&*PHONEPE_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

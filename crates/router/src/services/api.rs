@@ -98,6 +98,8 @@ pub type BoxedWebhookSourceVerificationConnectorIntegrationInterface<T, Req, Res
     BoxedConnectorIntegrationInterface<T, common_types::WebhookSourceVerifyData, Req, Resp>;
 pub type BoxedExternalAuthenticationConnectorIntegrationInterface<T, Req, Resp> =
     BoxedConnectorIntegrationInterface<T, common_types::ExternalAuthenticationFlowData, Req, Resp>;
+pub type BoxedAuthenticationTokenConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::AuthenticationTokenFlowData, Req, Resp>;
 pub type BoxedAccessTokenConnectorIntegrationInterface<T, Req, Resp> =
     BoxedConnectorIntegrationInterface<T, common_types::AccessTokenFlowData, Req, Resp>;
 pub type BoxedFilesConnectorIntegrationInterface<T, Req, Resp> =
@@ -181,6 +183,7 @@ where
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 })
             } else {
                 None
@@ -384,6 +387,7 @@ where
                                     network_advice_code: None,
                                     network_decline_code: None,
                                     network_error_message: None,
+                                    connector_metadata: None,
                                 };
                                 router_data.response = Err(error_response);
                                 router_data.connector_http_status_code = Some(504);
@@ -452,7 +456,6 @@ async fn handle_response(
             logger::info!(?response);
             let status_code = response.status().as_u16();
             let headers = Some(response.headers().to_owned());
-
             match status_code {
                 200..=202 | 302 | 204 => {
                     // If needed add log line
@@ -898,8 +901,45 @@ where
                     None
                 }
             });
+            let proxy_connector_http_status_code = if state
+                .conf
+                .proxy_status_mapping
+                .proxy_connector_http_status_code
+            {
+                headers
+                    .iter()
+                    .find(|(key, _)| key == headers::X_CONNECTOR_HTTP_STATUS_CODE)
+                    .and_then(|(_, value)| {
+                        match value.clone().into_inner().parse::<u16>() {
+                            Ok(code) => match http::StatusCode::from_u16(code) {
+                                Ok(status_code) => Some(status_code),
+                                Err(err) => {
+                                    logger::error!(
+                                        "Invalid HTTP status code parsed from connector_http_status_code: {:?}",
+                                        err
+                                    );
+                                    None
+                                }
+                            },
+                            Err(err) => {
+                                logger::error!(
+                                    "Failed to parse connector_http_status_code from header: {:?}",
+                                    err
+                                );
+                                None
+                            }
+                        }
+                    })
+            } else {
+                None
+            };
             match serde_json::to_string(&response) {
-                Ok(res) => http_response_json_with_headers(res, headers, request_elapsed_time),
+                Ok(res) => http_response_json_with_headers(
+                    res,
+                    headers,
+                    request_elapsed_time,
+                    proxy_connector_http_status_code,
+                ),
                 Err(_) => http_response_err(
                     r#"{
                         "error": {
@@ -991,8 +1031,9 @@ pub fn http_response_json_with_headers<T: body::MessageBody + 'static>(
     response: T,
     headers: Vec<(String, Maskable<String>)>,
     request_duration: Option<Duration>,
+    status_code: Option<http::StatusCode>,
 ) -> HttpResponse {
-    let mut response_builder = HttpResponse::Ok();
+    let mut response_builder = HttpResponse::build(status_code.unwrap_or(http::StatusCode::OK));
     for (header_name, header_value) in headers {
         let is_sensitive_header = header_value.is_masked();
         let mut header_value = header_value.into_inner();
@@ -1095,6 +1136,9 @@ impl Authenticate for api_models::payments::PaymentsConfirmIntentRequest {
 #[cfg(feature = "v2")]
 impl Authenticate for api_models::payments::ProxyPaymentsRequest {}
 
+#[cfg(feature = "v2")]
+impl Authenticate for api_models::payments::ExternalVaultProxyPaymentsRequest {}
+
 #[cfg(feature = "v1")]
 impl Authenticate for api_models::payments::PaymentsRequest {
     fn get_client_secret(&self) -> Option<&String> {
@@ -1108,6 +1152,7 @@ impl Authenticate for api_models::payments::PaymentsRequest {
     }
 }
 
+#[cfg(feature = "v1")]
 impl Authenticate for api_models::payment_methods::PaymentMethodListRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
@@ -1147,6 +1192,7 @@ impl Authenticate for api_models::payments::PaymentsRetrieveRequest {
     }
 }
 impl Authenticate for api_models::payments::PaymentsCancelRequest {}
+impl Authenticate for api_models::payments::PaymentsCancelPostCaptureRequest {}
 impl Authenticate for api_models::payments::PaymentsCaptureRequest {}
 impl Authenticate for api_models::payments::PaymentsIncrementalAuthorizationRequest {}
 impl Authenticate for api_models::payments::PaymentsStartRequest {}
