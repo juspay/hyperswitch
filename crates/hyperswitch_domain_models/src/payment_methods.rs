@@ -1,6 +1,6 @@
+use api_models::customers;
 #[cfg(feature = "v2")]
 use api_models::payment_methods::PaymentMethodsData;
-use api_models::customers;
 #[cfg(feature = "v1")]
 use api_models::{payment_methods, payments};
 // specific imports because of using the macro
@@ -31,14 +31,14 @@ use time::PrimitiveDateTime;
 use crate::address::Address;
 #[cfg(feature = "v1")]
 use crate::type_encryption::AsyncLift;
+#[cfg(feature = "v1")]
+use crate::{mandates, transformers::ForeignTryFrom};
 use crate::{
     mandates::CommonMandateReference,
     merchant_key_store::MerchantKeyStore,
     payment_method_data as domain_payment_method_data,
     type_encryption::{crypto_operation, CryptoOperation},
 };
-#[cfg(feature = "v1")]
-use crate::{mandates, transformers::ForeignTryFrom};
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
