@@ -212,16 +212,7 @@ impl PaymentIntent {
         >,
         capture_method: &Option<common_enums::CaptureMethod>,
     ) -> Option<RequestOvercapture> {
-        let is_overcapture_supported_by_connector =
-            connector.is_overcapture_supported_by_connector();
-        println!(
-            "sssssssss Overcapture Connector:{:?}, is_overcapture_supported_by_connector: {:?}
-            always_request_overcapture: {:?}, capture_method: {:?}",
-            connector,
-            is_overcapture_supported_by_connector,
-            always_request_overcapture,
-            capture_method,
-        );
+        let is_overcapture_supported_by_connector = connector.is_overcapture_supported_by_connector();
         if matches!(capture_method, Some(common_enums::CaptureMethod::Manual))
             && is_overcapture_supported_by_connector
         {

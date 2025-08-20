@@ -1932,7 +1932,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                                 }
                             })?,
                             item.request.request_incremental_authorization,
-                            None, // item.request.request_overcapture.map(StripeRequestOvercapture::from),
+                           item.request.request_overcapture.map(StripeRequestOvercapture::from),
                         )?;
 
                     validate_shipping_address_against_payment_method(
@@ -2777,18 +2777,17 @@ pub struct SetupIntentResponse {
 fn extract_payment_method_connector_response_from_latest_charge(
     stripe_charge_enum: &StripeChargeEnum,
 ) -> Option<ConnectorResponseData> {
-    let overcapture_applied = None; //stripe_charge_enum.get_overcapture_status();
-    let additional_payment_method =
-        if let StripeChargeEnum::ChargeObject(charge_object) = stripe_charge_enum {
-            charge_object
-                .payment_method_details
-                .as_ref()
-                .and_then(StripePaymentMethodDetailsResponse::get_additional_payment_method_data)
-        } else {
-            None
-        }
-        .map(AdditionalPaymentMethodConnectorResponse::from);
-
+    let overcapture_applied = stripe_charge_enum.get_overcapture_status();
+    let additional_payment_method = if let StripeChargeEnum::ChargeObject(charge_object) = stripe_charge_enum {
+        charge_object
+            .payment_method_details
+            .as_ref()
+            .and_then(StripePaymentMethodDetailsResponse::get_additional_payment_method_data)
+    } else {
+        None
+    }
+    .map(AdditionalPaymentMethodConnectorResponse::from);
+    
     if additional_payment_method.is_some() || overcapture_applied.is_some() {
         Some(ConnectorResponseData::new(
             additional_payment_method,
@@ -2939,7 +2938,10 @@ where
             three_ds_form,
             */
             response,
-            amount_captured,
+            amount_captured: item
+            .response
+            .amount_received
+            .map(|amount| amount.get_amount_as_i64()),
             // item
             //     .response
             //     .amount_received

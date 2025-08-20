@@ -214,9 +214,9 @@ mod bool_wrappers {
     }
 
     impl Default for RequestOvercapture {
-        /// Default for `AlwaysRequestOvercapture` is `false`
+        /// Default for `RequestOvercapture` is `false`
         fn default() -> Self {
-            Self(true)
+            Self(false)
         }
     }
 
@@ -260,6 +260,13 @@ mod bool_wrappers {
     {
         fn from_sql(value: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
             bool::from_sql(value).map(Self)
+        }
+    }
+
+    impl Default for OvercaptureAppliedBool {
+        /// Default for `OvercaptureAppliedBool` is `false`
+        fn default() -> Self {
+            Self(false)
         }
     }
 }
