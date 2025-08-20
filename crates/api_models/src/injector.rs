@@ -7,96 +7,62 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-#[derive( Clone, Copy, Debug, Eq, PartialEq, Deserialize, Serialize, strum::Display, strum::EnumString, ToSchema, )]
-#[serde(rename_all = "UPPERCASE")]
-#[strum(serialize_all = "UPPERCASE")]
-pub enum VaultType {
-    VGS,
-}
+pub use common_enums::{
+    InjectorAcceptType as AcceptType, InjectorContentType as ContentType,
+    InjectorHttpMethod as HttpMethod, InjectorVaultConnectors as VaultConnectors,
+};
 
-#[derive( Clone, Copy, Debug, Eq, PartialEq, Deserialize, Serialize, strum::Display, strum::EnumString, ToSchema, )]
-#[serde(rename_all = "UPPERCASE")]
-#[strum(serialize_all = "UPPERCASE")]
-pub enum HttpMethod {
-    GET,
-    POST,
-    PUT,
-    PATCH,
-    DELETE,
-}
-
-#[derive( Clone, Copy, Debug, Eq, PartialEq, Deserialize, Serialize, strum::Display, strum::EnumString, ToSchema, )]
-#[serde(rename_all = "kebab-case")]
-#[strum(serialize_all = "kebab-case")]
-pub enum ContentType {
-    #[serde(rename = "application/json")]
-    #[strum(serialize = "application/json")]
-    ApplicationJson,
-    #[serde(rename = "application/x-www-form-urlencoded")]
-    #[strum(serialize = "application/x-www-form-urlencoded")]
-    ApplicationXWwwFormUrlencoded,
-    #[serde(rename = "application/xml")]
-    #[strum(serialize = "application/xml")]
-    ApplicationXml,
-    #[serde(rename = "text/xml")]
-    #[strum(serialize = "text/xml")]
-    TextXml,
-    #[serde(rename = "text/plain")]
-    #[strum(serialize = "text/plain")]
-    TextPlain,
-}
-
-#[derive( Clone, Copy, Debug, Eq, PartialEq, Deserialize, Serialize, strum::Display, strum::EnumString, ToSchema, )]
-#[serde(rename_all = "kebab-case")]
-#[strum(serialize_all = "kebab-case")]
-pub enum AcceptType {
-    #[serde(rename = "application/json")]
-    #[strum(serialize = "application/json")]
-    ApplicationJson,
-    #[serde(rename = "application/xml")]
-    #[strum(serialize = "application/xml")]
-    ApplicationXml,
-    #[serde(rename = "text/xml")]
-    #[strum(serialize = "text/xml")]
-    TextXml,
-    #[serde(rename = "text/plain")]
-    #[strum(serialize = "text/plain")]
-    TextPlain,
-    #[serde(rename = "*/*")]
-    #[strum(serialize = "*/*")]
-    Any,
-}
-
+/// Token data containing vault-specific information for token replacement
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct TokenData {
+    /// The specific token data retrieved from the vault
     pub specific_token_data: SecretSerdeValue,
-    pub vault_type: VaultType,
+    /// The type of vault connector being used (e.g., VGS)
+    pub vault_type: VaultConnectors,
 }
 
+/// Connector payload containing the template to be processed
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct ConnectorPayload {
+    /// Template string containing token references in the format {{$field_name}}
     pub template: String,
 }
 
+/// Configuration for HTTP connection to the external connector
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct ConnectionConfig {
+    /// Base URL of the connector endpoint
     pub base_url: String,
+    /// Path to append to the base URL for the specific endpoint
     pub endpoint_path: String,
+    /// HTTP method to use for the request
     pub http_method: HttpMethod,
+    /// HTTP headers to include in the request
     pub headers: HashMap<String, Secret<String>>,
+    /// Optional proxy URL for routing the request
     pub proxy_url: Option<String>,
+    /// Optional client certificate for mutual TLS authentication
     pub client_cert: Option<Secret<String>>,
+    /// Optional client private key for mutual TLS authentication
     pub client_key: Option<Secret<String>>,
+    /// Optional CA certificate for verifying the server certificate
     pub ca_cert: Option<Secret<String>>,
+    /// Whether to skip certificate verification (for testing only)
     pub insecure: Option<bool>,
+    /// Optional password for encrypted client certificate
     pub cert_password: Option<Secret<String>>,
+    /// Format of the client certificate (e.g., "PEM")
     pub cert_format: Option<String>,
 }
 
+/// Complete request structure for the injector service
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct InjectorRequest {
+    /// Token data from the vault
     pub token_data: TokenData,
+    /// Payload template to process
     pub connector_payload: ConnectorPayload,
+    /// HTTP connection configuration
     pub connection_config: ConnectionConfig,
 }
 

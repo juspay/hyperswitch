@@ -41,11 +41,17 @@ pub mod injector_core {
         injector.injector_core(request).await
     }
 
+    /// Represents a token reference found in a template string
     #[derive(Debug)]
     pub struct TokenReference {
+        /// The field name to be replaced (without the {{$}} wrapper)
         pub field: String,
     }
 
+    /// Parses a single token reference from a string using nom parser combinators
+    /// 
+    /// Expects tokens in the format `{{$field_name}}` where field_name contains
+    /// only alphanumeric characters and underscores.
     pub fn parse_token(input: &str) -> IResult<&str, TokenReference> {
         let (input, field) = delimited(
             tag("{{"),
@@ -69,6 +75,35 @@ pub mod injector_core {
         ))
     }
 
+    /// Finds all token references in a string using nom parser
+    /// 
+    /// Scans through the entire input string and extracts all valid token references.
+    /// Returns a vector of TokenReference structs containing the field names.
+    pub fn find_all_tokens(input: &str) -> Vec<TokenReference> {
+        let mut tokens = Vec::new();
+        let mut current_input = input;
+
+        while !current_input.is_empty() {
+            if let Ok((remaining, token_ref)) = parse_token(current_input) {
+                tokens.push(token_ref);
+                current_input = remaining;
+            } else {
+                // Move forward one character if no token found
+                if let Some((_, rest)) = current_input.split_at_checked(1) {
+                    current_input = rest;
+                } else {
+                    break;
+                }
+            }
+        }
+
+        tokens
+    }
+
+    /// Recursively searches for a field in vault data JSON structure
+    /// 
+    /// Performs a depth-first search through the JSON object hierarchy to find
+    /// a field with the specified name. Returns the first matching value found.
     pub fn find_field_recursively_in_vault_data(
         obj: &serde_json::Map<String, Value>,
         field_name: &str,
@@ -101,12 +136,43 @@ pub mod injector_core {
             Self
         }
 
+        /// Processes a string template and replaces token references with vault data
+        #[instrument(skip_all)]
+        pub fn interpolate_string_template_with_vault_data(
+            &self,
+            template: String,
+            vault_data: &Value,
+            vault_type: &injector::types::VaultConnectors,
+        ) -> error_stack::Result<String, InjectorError> {
+            // Find all tokens using nom parser
+            let tokens = find_all_tokens(&template);
+            let mut result = template;
+
+            for token_ref in tokens {
+                let extracted_field_value = self.extract_field_from_vault_data(
+                    vault_data,
+                    &token_ref.field,
+                    vault_type,
+                )?;
+                let token_str = match extracted_field_value {
+                    Value::String(s) => s,
+                    _ => serde_json::to_string(&extracted_field_value).unwrap_or_default(),
+                };
+
+                // Replace the token in the result string
+                let token_pattern = format!("{{{{${}}}}}", token_ref.field);
+                result = result.replace(&token_pattern, &token_str);
+            }
+
+            Ok(result)
+        }
+
         #[instrument(skip_all)]
         pub fn interpolate_token_references_with_vault_data(
             &self,
             value: Value,
             vault_data: &Value,
-            vault_type: &injector::types::VaultType,
+            vault_type: &injector::types::VaultConnectors,
         ) -> error_stack::Result<Value, InjectorError> {
             match value {
                 Value::Object(obj) => {
@@ -122,34 +188,10 @@ pub mod injector_core {
                     Ok(Value::Object(new_obj))
                 }
                 Value::String(s) => {
-                    // Use regex to find all tokens and replace them
-                    use regex::Regex;
-                    let token_regex = Regex::new(r"\{\{\$([a-zA-Z_][a-zA-Z0-9_]*)\}\}")
-                        .change_context(InjectorError::InvalidTemplate(
-                            "Invalid regex pattern".to_string(),
-                        ))?;
-                    let mut result = s.clone();
-
-                    for captures in token_regex.captures_iter(&s) {
-                        if let Some(field_name) = captures.get(1) {
-                            let field_name_str = field_name.as_str();
-                            let token_value = self.extract_field_from_vault_data(
-                                vault_data,
-                                field_name_str,
-                                vault_type,
-                            )?;
-                            let token_str = match token_value {
-                                Value::String(s) => s,
-                                _ => serde_json::to_string(&token_value).unwrap_or_default(),
-                            };
-
-                            // Replace the token in the result string
-                            let token_pattern = format!("{{{{${field_name_str}}}}}");
-                            result = result.replace(&token_pattern, &token_str);
-                        }
-                    }
-
-                    Ok(Value::String(result))
+                    let processed_string = self.interpolate_string_template_with_vault_data(
+                        s, vault_data, vault_type,
+                    )?;
+                    Ok(Value::String(processed_string))
                 }
                 _ => Ok(value),
             }
@@ -160,7 +202,7 @@ pub mod injector_core {
             &self,
             vault_data: &Value,
             field_name: &str,
-            vault_type: &injector::types::VaultType,
+            vault_type: &injector::types::VaultConnectors,
         ) -> error_stack::Result<Value, InjectorError> {
             logger::debug!(
                 "Extracting field '{}' from vault data using vault type {:?}",
@@ -191,17 +233,17 @@ pub mod injector_core {
         #[instrument(skip_all)]
         fn apply_vault_specific_transformation(
             &self,
-            token_value: Value,
-            vault_type: &injector::types::VaultType,
+            extracted_field_value: Value,
+            vault_type: &injector::types::VaultConnectors,
             field_name: &str,
         ) -> error_stack::Result<Value, InjectorError> {
             match vault_type {
-                injector::types::VaultType::VGS => {
+                injector::types::VaultConnectors::VGS => {
                     logger::debug!(
                         "VGS vault: Using direct token replacement for field '{}'",
                         field_name
                     );
-                    Ok(token_value)
+                    Ok(extracted_field_value)
                 }
             }
         }
@@ -257,11 +299,12 @@ pub mod injector_core {
             // Convert headers to common_utils Headers format safely
             let headers: Vec<(String, masking::Maskable<String>)> = config
                 .headers
-                .iter()
+                .clone()
+                .into_iter()
                 .map(|(k, v)| {
                     (
-                        k.clone(),
-                        masking::Maskable::new_normal(v.clone().expose().clone()),
+                        k,
+                        masking::Maskable::new_normal(v.expose().clone()),
                     )
                 })
                 .collect();
@@ -386,8 +429,11 @@ pub mod injector_core {
             // Validate response text length to prevent potential memory issues
             if response_text.len() > 10_000_000 {
                 // 10MB limit
-                logger::warn!("Response text is very large: {} bytes", response_text.len());
-                return Ok(Value::String("Response too large".to_string()));
+                logger::error!(
+                    response_length = response_text.len(),
+                    "Response from connector is too large, potential DoS or memory exhaustion"
+                );
+                return Err(error_stack::Report::new(InjectorError::HttpRequestFailed));
             }
 
             logger::debug!(
@@ -458,22 +504,11 @@ pub mod injector_core {
             );
 
             // Process template string directly with vault-specific logic
-            let template_value = Value::String(domain_request.connector_payload.template);
-            let processed_value = self.interpolate_token_references_with_vault_data(
-                template_value,
+            let processed_payload = self.interpolate_string_template_with_vault_data(
+                domain_request.connector_payload.template,
                 &vault_data,
                 &domain_request.token_data.vault_type,
             )?;
-
-            let processed_payload = match processed_value {
-                Value::String(s) => s,
-                _ => {
-                    // This shouldn't happen since we started with a string
-                    return Err(error_stack::Report::new(InjectorError::InvalidTemplate(
-                        "Template processing resulted in non-string value".to_string(),
-                    )));
-                }
-            };
 
             logger::debug!(
                 processed_payload_length = processed_payload.len(),
@@ -525,7 +560,6 @@ pub mod injector_core {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use api_models::injector::*;
-    use hyperswitch_domain_models::injector;
     use router_env::logger;
 
     use super::injector_core::*;
@@ -551,7 +585,7 @@ mod tests {
         });
 
         // Test with VGS vault (direct replacement)
-        let vault_type = injector::types::VaultType::VGS;
+        let vault_type = VaultConnectors::VGS;
         let result = injector
             .interpolate_token_references_with_vault_data(template, &vault_data, &vault_type)
             .unwrap();
@@ -567,7 +601,7 @@ mod tests {
             "card_number": "4111111111111111"
         });
 
-        let vault_type = injector::types::VaultType::VGS;
+        let vault_type = VaultConnectors::VGS;
         let result = injector.interpolate_token_references_with_vault_data(
             template,
             &vault_data,
@@ -608,7 +642,7 @@ mod tests {
             .interpolate_token_references_with_vault_data(
                 template.clone(),
                 &vault_data,
-                &injector::types::VaultType::VGS,
+                &VaultConnectors::VGS,
             )
             .unwrap();
         assert_eq!(
@@ -644,7 +678,7 @@ mod tests {
         template: "amount=100&currency=USD&metadata[order_id]=12345_att_01974ee902f97870b61afecd4c551673&return_url=http://localhost:8080/v2/payments/12345_pay_01974ee8f1f47301a83a499977aae0f1/finish-redirection/pk_dev_d5bd3a623d714044b879d3a050ae6e68/pro_yUurSuww9vtdhfEy5mXb&confirm=true&shipping[address][city]=Karwar&shipping[address][postal_code]=581301&shipping[address][state]=Karnataka&shipping[name]=John Dough&payment_method_data[billing_details][email]=example@example.com&payment_method_data[billing_details][name]=John Dough&payment_method_data[type]=card&payment_method_data[card][number]={{$card_number}}&payment_method_data[card][exp_month]=02&payment_method_data[card][exp_year]=31&payment_method_data[card][cvc]=100&capture_method=manual&setup_future_usage=on_session&payment_method_types[0]=card&expand[0]=latest_charge".to_string(),
     },
     token_data: TokenData {
-        vault_type: VaultType::VGS,
+        vault_type: VaultConnectors::VGS,
         specific_token_data,
     },
     connection_config: ConnectionConfig {
@@ -716,7 +750,7 @@ mod tests {
                     .to_string(),
             },
             token_data: TokenData {
-                vault_type: VaultType::VGS,
+                vault_type: VaultConnectors::VGS,
                 specific_token_data,
             },
             connection_config: ConnectionConfig {
