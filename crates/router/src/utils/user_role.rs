@@ -1,5 +1,9 @@
-use std::{cmp, collections::{HashMap, HashSet}};
+use std::{
+    cmp,
+    collections::{HashMap, HashSet},
+};
 
+use api_models::user_role::role as role_api;
 use common_enums::{EntityType, ParentGroup, PermissionGroup};
 use common_utils::id_type;
 use diesel_models::{
@@ -11,7 +15,6 @@ use error_stack::{report, Report, ResultExt};
 use router_env::logger;
 use storage_impl::errors::StorageError;
 use strum::IntoEnumIterator;
-use api_models::user_role::role as role_api;
 
 use crate::{
     consts,
@@ -21,10 +24,13 @@ use crate::{
         user_role::{ListUserRolesByOrgIdPayload, ListUserRolesByUserIdPayload},
     },
     routes::SessionState,
-    services::authorization::{self as authz, roles, permission_groups::PermissionGroupExt},
+    services::authorization::{
+        self as authz,
+        permission_groups::{ParentGroupExt, PermissionGroupExt},
+        roles,
+    },
     types::domain,
 };
-use crate::services::authorization::permission_groups::ParentGroupExt;
 
 pub fn validate_role_groups(groups: &[PermissionGroup]) -> UserResult<()> {
     if groups.is_empty() {
@@ -545,14 +551,15 @@ pub fn permission_groups_to_parent_group_info(
     permission_groups: &[PermissionGroup],
     entity_type: EntityType,
 ) -> Vec<role_api::ParentGroupInfo> {
-    let parent_groups_map: HashMap<ParentGroup, Vec<common_enums::PermissionScope>> = permission_groups
-        .iter()
-        .fold(HashMap::new(), |mut acc, group| {
-            let parent = group.parent();
-            let scope = group.scope();
-            acc.entry(parent).or_default().push(scope);
-            acc
-        });
+    let parent_groups_map: HashMap<ParentGroup, Vec<common_enums::PermissionScope>> =
+        permission_groups
+            .iter()
+            .fold(HashMap::new(), |mut acc, group| {
+                let parent = group.parent();
+                let scope = group.scope();
+                acc.entry(parent).or_default().push(scope);
+                acc
+            });
 
     parent_groups_map
         .into_iter()

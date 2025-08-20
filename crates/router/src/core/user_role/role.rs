@@ -1,7 +1,4 @@
-use std::{
-    cmp,
-    collections::HashSet,
-};
+use std::{cmp, collections::HashSet};
 
 use api_models::user_role::role as role_api;
 use common_enums::{EntityType, ParentGroup, PermissionGroup};
@@ -199,7 +196,8 @@ pub async fn create_role_v2(
 
     let role_name = RoleName::new(req.role_name.clone())?;
 
-    let permission_groups = utils::user_role::parent_group_info_request_to_permission_groups(&req.parent_groups)?;
+    let permission_groups =
+        utils::user_role::parent_group_info_request_to_permission_groups(&req.parent_groups)?;
 
     utils::user_role::validate_role_groups(&permission_groups)?;
     utils::user_role::validate_role_name(
