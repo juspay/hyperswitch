@@ -1,8 +1,4 @@
-import {
-  customerAcceptance,
-  connectorDetails as commonConnectorDetails,
-} from "./Commons";
-import { getCustomExchange } from "./Modifiers";
+import { customerAcceptance, connectorDetails } from "./Commons";
 
 const successfulNo3DSCardDetails = {
   card_number: "4000000000001091",
@@ -39,30 +35,6 @@ const multiUseMandateData = {
       currency: "USD",
     },
   },
-};
-
-const payment_method_data_no3ds = {
-  card: {
-    last4: "1091",
-    card_type: "CREDIT",
-    card_network: "Visa",
-    card_issuer: "STRIPE PAYMENTS UK LIMITED",
-    card_issuing_country: "UNITEDKINGDOM",
-    card_isin: "400000",
-    card_extended_bin: null,
-    card_exp_month: "01",
-    card_exp_year: "27",
-    card_holder_name: "joseph Doe",
-    payment_checks: {
-      avs_response: {
-        code: "Y",
-        codeRaw: "Y",
-      },
-      card_verification: null,
-    },
-    authentication_data: null,
-  },
-  billing: null,
 };
 
 const payment_method_data_3ds = {
