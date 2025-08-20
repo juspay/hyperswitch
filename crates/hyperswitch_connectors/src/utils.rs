@@ -6662,3 +6662,16 @@ impl XmlSerializer {
         Ok(xml_bytes)
     }
 }
+
+pub fn deserialize_zero_minor_amount_as_none<'de, D>(
+    deserializer: D,
+) -> Result<Option<MinorUnit>, D::Error>
+where
+    D: serde::de::Deserializer<'de>,
+{
+    let amount = Option::<MinorUnit>::deserialize(deserializer)?;
+    match amount {
+        Some(value) if value.get_amount_as_i64() == 0 => Ok(None),
+        _ => Ok(amount),
+    }
+}
