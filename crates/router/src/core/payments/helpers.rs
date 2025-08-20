@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::HashSet, net::IpAddr, str::FromStr, ops::Deref};
+use std::{borrow::Cow, collections::HashSet, net::IpAddr, ops::Deref, str::FromStr};
 
 pub use ::payment_methods::helpers::{
     populate_bin_details_for_payment_method_create,
@@ -1130,12 +1130,19 @@ pub fn validate_overcapture_request(
     capture_method: &Option<common_enums::CaptureMethod>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     if let Some(overcapture) = request_overcapture {
-    utils::when(matches!(*overcapture.deref(), true) && matches!(*capture_method, Some(common_enums::CaptureMethod::Automatic)| None), || {
-        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-            message: "Overcapture is not supported when using automatic capture".into()
-        }))
-    })?;
-}
+        utils::when(
+            matches!(*overcapture.deref(), true)
+                && matches!(
+                    *capture_method,
+                    Some(common_enums::CaptureMethod::Automatic) | None
+                ),
+            || {
+                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "Overcapture is not supported when using automatic capture".into()
+                }))
+            },
+        )?;
+    }
 
     Ok(())
 }

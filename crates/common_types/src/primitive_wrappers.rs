@@ -129,7 +129,6 @@ mod bool_wrappers {
         }
     }
 
-   
     /// Bool that represents if overcapture should always be requested
     #[derive(
         Clone, Copy, Debug, Eq, PartialEq, diesel::expression::AsExpression, Serialize, Deserialize,
@@ -172,9 +171,8 @@ mod bool_wrappers {
         }
     }
 
-
-     /// Bool that represents if overcapture is requested for this payment
-     #[derive(
+    /// Bool that represents if overcapture is requested for this payment
+    #[derive(
         Clone, Copy, Debug, Eq, PartialEq, diesel::expression::AsExpression, Serialize, Deserialize,
     )]
     #[diesel(sql_type = diesel::sql_types::Bool)]
@@ -235,7 +233,7 @@ mod bool_wrappers {
             Self(value)
         }
     }
-    
+
     impl Deref for OvercaptureAppliedBool {
         type Target = bool;
 

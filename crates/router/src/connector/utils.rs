@@ -178,17 +178,27 @@ where
                     payment_data,
                 );
                 let total_capturable_amount = payment_data.payment_attempt.get_total_amount();
-                let is_overcapture_applied = *payment_data.payment_attempt.overcapture_applied.as_deref().unwrap_or(&false);
+                let is_overcapture_applied = *payment_data
+                    .payment_attempt
+                    .overcapture_applied
+                    .as_deref()
+                    .unwrap_or(&false);
 
                 router_env::logger::debug!(
                     "Captured amount: {:?}, Total capturable amount: {:?}, Is overcapture applied: {}",
                     captured_amount, total_capturable_amount, is_overcapture_applied
                 );
 
-                if Some(total_capturable_amount) == captured_amount.map(MinorUnit::new) || 
-                (is_overcapture_applied && captured_amount.is_some_and(|captured_amount| MinorUnit::new(captured_amount) > total_capturable_amount))  {
+                if Some(total_capturable_amount) == captured_amount.map(MinorUnit::new)
+                    || (is_overcapture_applied
+                        && captured_amount.is_some_and(|captured_amount| {
+                            MinorUnit::new(captured_amount) > total_capturable_amount
+                        }))
+                {
                     Ok(enums::AttemptStatus::Charged)
-                } else if captured_amount.is_some_and(|captured_amount| MinorUnit::new(captured_amount) < total_capturable_amount) {
+                } else if captured_amount.is_some_and(|captured_amount| {
+                    MinorUnit::new(captured_amount) < total_capturable_amount
+                }) {
                     Ok(enums::AttemptStatus::PartialCharged)
                 } else {
                     Ok(self.status)
@@ -202,27 +212,35 @@ where
                     payment_data.payment_attempt.status,
                 );
                 let total_capturable_amount = payment_data.payment_attempt.get_total_amount();
-                let is_overcapture_applied = *payment_data.payment_attempt.overcapture_applied.as_deref().unwrap_or(&false);
+                let is_overcapture_applied = *payment_data
+                    .payment_attempt
+                    .overcapture_applied
+                    .as_deref()
+                    .unwrap_or(&false);
 
-                if Some(total_capturable_amount)
-                    == capturable_amount.map(MinorUnit::new) || 
-                    (capturable_amount.is_some_and(|capturable_amount| MinorUnit::new(capturable_amount) > total_capturable_amount)
-                && is_overcapture_applied)
+                if Some(total_capturable_amount) == capturable_amount.map(MinorUnit::new)
+                    || (capturable_amount.is_some_and(|capturable_amount| {
+                        MinorUnit::new(capturable_amount) > total_capturable_amount
+                    }) && is_overcapture_applied)
                 {
                     Ok(enums::AttemptStatus::Authorized)
-                } else if capturable_amount.is_some_and(|capturable_amount| MinorUnit::new(capturable_amount) < total_capturable_amount)
-                    && payment_data
-                        .payment_intent
-                        .enable_partial_authorization
-                        .is_some_and(|val| val)
+                } else if capturable_amount.is_some_and(|capturable_amount| {
+                    MinorUnit::new(capturable_amount) < total_capturable_amount
+                }) && payment_data
+                    .payment_intent
+                    .enable_partial_authorization
+                    .is_some_and(|val| val)
                 {
                     Ok(enums::AttemptStatus::PartiallyAuthorized)
-                } else if (capturable_amount.is_some_and(|capturable_amount| MinorUnit::new(capturable_amount) < total_capturable_amount)
-                    && !payment_data
-                        .payment_intent
-                        .enable_partial_authorization
-                        .is_some_and(|val| val)) || (capturable_amount.is_some_and(|capturable_amount| MinorUnit::new(capturable_amount) > total_capturable_amount)
-                        && !is_overcapture_applied)
+                } else if (capturable_amount.is_some_and(|capturable_amount| {
+                    MinorUnit::new(capturable_amount) < total_capturable_amount
+                }) && !payment_data
+                    .payment_intent
+                    .enable_partial_authorization
+                    .is_some_and(|val| val))
+                    || (capturable_amount.is_some_and(|capturable_amount| {
+                        MinorUnit::new(capturable_amount) > total_capturable_amount
+                    }) && !is_overcapture_applied)
                 {
                     Err(ApiErrorResponse::IntegrityCheckFailed {
                         reason: "capturable_amount is less than the total attempt amount"
@@ -233,8 +251,7 @@ where
                             .connector_transaction_id
                             .clone(),
                     })?
-                }
-            else {
+                } else {
                     Ok(self.status)
                 }
             }

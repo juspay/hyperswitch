@@ -3994,9 +3994,7 @@ pub fn get_adyen_response(
         charges,
     };
 
-    let txn_amount = response
-        .amount
-        .map(|amount| amount.value.clone()); 
+    let txn_amount = response.amount.map(|amount| amount.value.clone());
 
     Ok((status, error, payments_response_data, txn_amount))
 }
@@ -4044,10 +4042,7 @@ pub fn get_webhook_response(
         None
     };
 
-    let txn_amount = response
-        .amount
-        .as_ref()
-        .map(|amount| amount.value.clone()); 
+    let txn_amount = response.amount.as_ref().map(|amount| amount.value.clone());
 
     if is_multiple_capture_psync_flow {
         let capture_sync_response_list =
@@ -4058,7 +4053,7 @@ pub fn get_webhook_response(
             PaymentsResponseData::MultipleCaptureResponse {
                 capture_sync_response_list,
             },
-            txn_amount
+            txn_amount,
         ))
     } else {
         let payments_response_data = PaymentsResponseData::TransactionResponse {
@@ -4075,7 +4070,7 @@ pub fn get_webhook_response(
             incremental_authorization_allowed: None,
             charges: None,
         };
-        
+
         Ok((status, error, payments_response_data, txn_amount))
     }
 }
@@ -4164,9 +4159,7 @@ pub fn get_redirection_response(
         charges,
     };
 
-    let txn_amount = response
-    .amount
-    .map(|amount| amount.value.clone()); 
+    let txn_amount = response.amount.map(|amount| amount.value.clone());
 
     Ok((status, error, payments_response_data, txn_amount))
 }
@@ -4237,9 +4230,7 @@ pub fn get_present_to_shopper_response(
         incremental_authorization_allowed: None,
         charges,
     };
-    let txn_amount = response
-    .amount
-    .map(|amount| amount.value.clone()); 
+    let txn_amount = response.amount.map(|amount| amount.value.clone());
 
     Ok((status, error, payments_response_data, txn_amount))
 }
@@ -4310,9 +4301,7 @@ pub fn get_qr_code_response(
         charges,
     };
 
-    let txn_amount = response
-    .amount
-    .map(|amount| amount.value.clone()); 
+    let txn_amount = response.amount.map(|amount| amount.value.clone());
 
     Ok((status, error, payments_response_data, txn_amount))
 }
@@ -4650,9 +4639,9 @@ impl<F, Req>
         };
 
         let minor_amount_captured = match status {
-            enums::AttemptStatus::Charged 
-            |enums::AttemptStatus::PartialCharged 
-            |enums::AttemptStatus::PartialChargedAndChargeable => amount,
+            enums::AttemptStatus::Charged
+            | enums::AttemptStatus::PartialCharged
+            | enums::AttemptStatus::PartialChargedAndChargeable => amount,
             _ => None,
         };
 

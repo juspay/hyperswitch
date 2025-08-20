@@ -2971,7 +2971,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     setup_future_usage_applied,
                     routing_approach: None,
                     connector_request_reference_id: None,
-                    overcapture_applied
+                    overcapture_applied,
                 }
             }
             PaymentAttemptUpdate::ErrorUpdate {

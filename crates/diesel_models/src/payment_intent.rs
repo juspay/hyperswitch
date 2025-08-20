@@ -975,8 +975,7 @@ impl PaymentIntentUpdate {
             duty_amount: duty_amount.or(source.duty_amount),
             enable_partial_authorization: enable_partial_authorization
                 .or(source.enable_partial_authorization),
-                request_overcapture: request_overcapture
-                    .or(source.request_overcapture),
+            request_overcapture: request_overcapture.or(source.request_overcapture),
             ..source
         }
     }

@@ -1,5 +1,7 @@
 #[cfg(feature = "v2")]
 use std::marker::PhantomData;
+#[cfg(feature = "v1")]
+use std::ops::Deref;
 
 #[cfg(feature = "v2")]
 use api_models::payments::{SessionToken, VaultSessionDetails};
@@ -7,8 +9,6 @@ use api_models::payments::{SessionToken, VaultSessionDetails};
 use common_types::primitive_wrappers::{
     AlwaysRequestExtendedAuthorization, RequestExtendedAuthorizationBool, RequestOvercapture,
 };
-#[cfg(feature = "v1")]
-use std::ops::Deref;
 use common_utils::{
     self,
     crypto::Encryptable,
@@ -207,10 +207,13 @@ impl PaymentIntent {
     pub fn get_request_overcapture_bool_if_connector_supports(
         &self,
         connector: common_enums::connector_enums::Connector,
-        always_request_overcapture: Option<common_types::primitive_wrappers::AlwaysRequestOvercapture>,
+        always_request_overcapture: Option<
+            common_types::primitive_wrappers::AlwaysRequestOvercapture,
+        >,
         capture_method: &Option<common_enums::CaptureMethod>,
     ) -> Option<RequestOvercapture> {
-        let is_overcapture_supported_by_connector = connector.is_overcapture_supported_by_connector();
+        let is_overcapture_supported_by_connector =
+            connector.is_overcapture_supported_by_connector();
         println!(
             "sssssssss Overcapture Connector:{:?}, is_overcapture_supported_by_connector: {:?}
             always_request_overcapture: {:?}, capture_method: {:?}",
@@ -224,7 +227,9 @@ impl PaymentIntent {
         {
             self.request_overcapture.or_else(|| {
                 always_request_overcapture.and_then(|should_request_overcapture| {
-                        Some(RequestOvercapture::from(*should_request_overcapture.deref()))
+                    Some(RequestOvercapture::from(
+                        *should_request_overcapture.deref(),
+                    ))
                 })
             })
         } else {

@@ -5,7 +5,7 @@ use common_enums as storage_enums;
 use common_types::payments as common_payments_types;
 #[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
-    ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool, OvercaptureAppliedBool
+    ExtendedAuthorizationAppliedBool, OvercaptureAppliedBool, RequestExtendedAuthorizationBool,
 };
 #[cfg(feature = "v2")]
 use common_utils::{
@@ -1631,7 +1631,7 @@ impl PaymentAttemptUpdate {
                 charges,
                 setup_future_usage_applied,
                 debit_routing_savings: _,
-                overcapture_applied
+                overcapture_applied,
             } => DieselPaymentAttemptUpdate::ResponseUpdate {
                 status,
                 connector,

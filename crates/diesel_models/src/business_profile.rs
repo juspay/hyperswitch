@@ -338,7 +338,8 @@ impl ProfileUpdateInternal {
             merchant_category_code: merchant_category_code.or(source.merchant_category_code),
             merchant_country_code: merchant_country_code.or(source.merchant_country_code),
             dispute_polling_interval: dispute_polling_interval.or(source.dispute_polling_interval),
-            always_request_overcapture: always_request_overcapture.or(source.always_request_overcapture),
+            always_request_overcapture: always_request_overcapture
+                .or(source.always_request_overcapture),
         }
     }
 }

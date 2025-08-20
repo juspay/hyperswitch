@@ -996,13 +996,13 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 payment_data.payment_attempt.payment_method,
                 payment_data.payment_attempt.payment_method_type,
             );
-        payment_data.payment_intent.request_overcapture =  payment_data
-        .payment_intent
-        .get_request_overcapture_bool_if_connector_supports(
-            connector_data.connector_name,
-            business_profile.always_request_overcapture,
-            &payment_data.payment_attempt.capture_method,
-        );
+        payment_data.payment_intent.request_overcapture = payment_data
+            .payment_intent
+            .get_request_overcapture_bool_if_connector_supports(
+                connector_data.connector_name,
+                business_profile.always_request_overcapture,
+                &payment_data.payment_attempt.capture_method,
+            );
         Ok(())
     }
 
@@ -2023,9 +2023,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let key_manager_state = state.into();
         let is_payment_processor_token_flow =
             payment_data.payment_intent.is_payment_processor_token_flow;
-        println!("ssssssss update tracker {:?}", payment_data
-        .payment_intent
-        .request_overcapture);
+        println!(
+            "ssssssss update tracker {:?}",
+            payment_data.payment_intent.request_overcapture
+        );
         let payment_intent_fut = tokio::spawn(
             async move {
                 m_db.update_payment_intent(
@@ -2078,9 +2079,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         enable_partial_authorization: payment_data
                             .payment_intent
                             .enable_partial_authorization,
-                        request_overcapture: payment_data
-                            .payment_intent
-                            .request_overcapture,
+                        request_overcapture: payment_data.payment_intent.request_overcapture,
                     })),
                     &m_key_store,
                     storage_scheme,

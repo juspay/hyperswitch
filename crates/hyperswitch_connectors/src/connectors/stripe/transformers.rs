@@ -1287,7 +1287,8 @@ fn create_stripe_payment_method(
                     card_details,
                     payment_method_auth_type,
                     request_incremental_authorization,
-                    request_overcapture))?,
+                    request_overcapture,
+                ))?,
                 Some(StripePaymentMethodType::Card),
                 billing_address,
             ))
@@ -1508,7 +1509,12 @@ fn get_stripe_card_network(card_network: common_enums::CardNetwork) -> Option<St
 impl TryFrom<(&Card, Auth3ds, bool, Option<StripeRequestOvercapture>)> for StripePaymentMethodData {
     type Error = ConnectorError;
     fn try_from(
-        (card, payment_method_auth_type, request_incremental_authorization, request_overcapture): (&Card, Auth3ds, bool, Option<StripeRequestOvercapture>),
+        (card, payment_method_auth_type, request_incremental_authorization, request_overcapture): (
+            &Card,
+            Auth3ds,
+            bool,
+            Option<StripeRequestOvercapture>,
+        ),
     ) -> Result<Self, Self::Error> {
         Ok(Self::Card(StripeCardData {
             payment_method_data_type: StripePaymentMethodType::Card,
@@ -1876,7 +1882,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                                     .clone()
                                     .and_then(get_stripe_card_network),
                             request_incremental_authorization: None,
-                            request_overcapture: None // Overcapture is not supported for mandates
+                            request_overcapture: None, // Overcapture is not supported for mandates
                         }),
                         PaymentMethodData::CardRedirect(_)
                         | PaymentMethodData::Wallet(_)
@@ -1926,8 +1932,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                                 }
                             })?,
                             item.request.request_incremental_authorization,
-                            None
-                           // item.request.request_overcapture.map(StripeRequestOvercapture::from),
+                            None, // item.request.request_overcapture.map(StripeRequestOvercapture::from),
                         )?;
 
                     validate_shipping_address_against_payment_method(
@@ -2521,7 +2526,7 @@ pub enum StripeChargeEnum {
 impl StripeChargeEnum {
     pub fn get_overcapture_status(
         &self,
-    ) -> Option<common_types::primitive_wrappers::OvercaptureAppliedBool>{
+    ) -> Option<common_types::primitive_wrappers::OvercaptureAppliedBool> {
         match self {
             StripeChargeEnum::ChargeObject(charge_object) => charge_object
                 .payment_method_details
@@ -2531,12 +2536,14 @@ impl StripeChargeEnum {
                         .overcapture
                         .as_ref()
                         .and_then(|overcapture| match overcapture.status {
-                            Some(StripeOvercaptureStatus::Available) => {
-                                Some(common_types::primitive_wrappers::OvercaptureAppliedBool::new(true))
-                            }
-                            Some(StripeOvercaptureStatus::Unavailable) => {
-                                Some(common_types::primitive_wrappers::OvercaptureAppliedBool::new(false))
-                            }
+                            Some(StripeOvercaptureStatus::Available) => Some(
+                                common_types::primitive_wrappers::OvercaptureAppliedBool::new(true),
+                            ),
+                            Some(StripeOvercaptureStatus::Unavailable) => Some(
+                                common_types::primitive_wrappers::OvercaptureAppliedBool::new(
+                                    false,
+                                ),
+                            ),
                             None => None,
                         }),
                     _ => None,
@@ -2545,22 +2552,23 @@ impl StripeChargeEnum {
         }
     }
 
-    pub fn get_maximum_capturable_amount(
-        &self,
-    ) -> Option<MinorUnit>{
+    pub fn get_maximum_capturable_amount(&self) -> Option<MinorUnit> {
         match self {
             StripeChargeEnum::ChargeObject(charge_object) => {
-                if let Some(payment_method_details) = charge_object.payment_method_details.as_ref() {
+                if let Some(payment_method_details) = charge_object.payment_method_details.as_ref()
+                {
                     match payment_method_details {
-                        StripePaymentMethodDetailsResponse::Card { card } => 
-                            card.overcapture.as_ref().and_then(|overcapture| overcapture.maximum_amount_capturable),
+                        StripePaymentMethodDetailsResponse::Card { card } => card
+                            .overcapture
+                            .as_ref()
+                            .and_then(|overcapture| overcapture.maximum_amount_capturable),
                         _ => None,
                     }
                 } else {
                     None
                 }
             }
-            _ =>  None
+            _ => None,
         }
     }
 }
@@ -2770,16 +2778,17 @@ fn extract_payment_method_connector_response_from_latest_charge(
     stripe_charge_enum: &StripeChargeEnum,
 ) -> Option<ConnectorResponseData> {
     let overcapture_applied = None; //stripe_charge_enum.get_overcapture_status();
-    let additional_payment_method = if let StripeChargeEnum::ChargeObject(charge_object) = stripe_charge_enum {
-        charge_object
-            .payment_method_details
-            .as_ref()
-            .and_then(StripePaymentMethodDetailsResponse::get_additional_payment_method_data)
-    } else {
-        None
-    }
-    .map(AdditionalPaymentMethodConnectorResponse::from);
-    
+    let additional_payment_method =
+        if let StripeChargeEnum::ChargeObject(charge_object) = stripe_charge_enum {
+            charge_object
+                .payment_method_details
+                .as_ref()
+                .and_then(StripePaymentMethodDetailsResponse::get_additional_payment_method_data)
+        } else {
+            None
+        }
+        .map(AdditionalPaymentMethodConnectorResponse::from);
+
     if additional_payment_method.is_some() || overcapture_applied.is_some() {
         Some(ConnectorResponseData::new(
             additional_payment_method,
@@ -2791,19 +2800,12 @@ fn extract_payment_method_connector_response_from_latest_charge(
     }
 }
 
-
-
-impl From<common_types::primitive_wrappers::RequestOvercapture>
-    for StripeRequestOvercapture
-{
-    fn from(
-        request_overcapture: common_types::primitive_wrappers::RequestOvercapture,
-    ) -> Self {
+impl From<common_types::primitive_wrappers::RequestOvercapture> for StripeRequestOvercapture {
+    fn from(request_overcapture: common_types::primitive_wrappers::RequestOvercapture) -> Self {
         match request_overcapture.deref() {
             true => StripeRequestOvercapture::IfAvailable,
             false => StripeRequestOvercapture::Never,
         }
-
     }
 }
 
@@ -2922,10 +2924,10 @@ where
             .and_then(extract_payment_method_connector_response_from_latest_charge);
 
         let minor_amount_capturable = item
-        .response
-        .latest_charge
-        .as_ref()
-        .and_then(StripeChargeEnum::get_maximum_capturable_amount);
+            .response
+            .latest_charge
+            .as_ref()
+            .and_then(StripeChargeEnum::get_maximum_capturable_amount);
 
         Ok(Self {
             status,
@@ -4271,7 +4273,7 @@ impl
                     ccard,
                     payment_method_auth_type,
                     item.request.request_incremental_authorization,
-                    None
+                    None,
                 ))?)
             }
             PaymentMethodData::PayLater(_) => Ok(Self::PayLater(StripePayLaterData {
