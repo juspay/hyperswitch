@@ -113,7 +113,7 @@ where
         HeaderValue::from_str("application/json")
             .change_context(errors::KeyManagerClientError::FailedtoConstructHeader)?,
     )];
-    
+
     #[cfg(feature = "km_forward_x_request_id")]
     if let Some(request_id) = state.request_id {
         header.push((

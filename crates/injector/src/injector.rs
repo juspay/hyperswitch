@@ -1,5 +1,5 @@
 #[cfg(feature = "v2")]
-pub mod injector_core {
+pub mod core {
     use std::collections::HashMap;
 
     use api_models::injector::{ContentType, InjectorRequest, InjectorResponse};
@@ -562,7 +562,7 @@ mod tests {
     use api_models::injector::*;
     use router_env::logger;
 
-    use super::injector_core::*;
+    use super::core::*;
 
     #[test]
     fn test_token_parsing() {
@@ -802,3 +802,7 @@ mod tests {
         }
     }
 }
+
+// Re-export all items when v2 feature is enabled
+#[cfg(feature = "v2")]
+pub use core::*;

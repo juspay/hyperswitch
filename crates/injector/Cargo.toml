@@ -8,31 +8,62 @@ license.workspace = true
 
 [features]
 default = []
-v2 = ["api_models/v2", "hyperswitch_domain_models/v2", "common_utils/v2"]
+
+# Main v2 feature that enables all functionality
+v2 = [
+    "dep:api_models",
+    "dep:hyperswitch_domain_models", 
+    "dep:hyperswitch_interfaces",
+    "dep:common_utils",
+    "dep:common_enums",
+    "dep:external_services",
+    "dep:masking",
+    "dep:router_env",
+    "dep:async-trait",
+    "dep:error-stack",
+    "dep:nom",
+    "dep:regex",
+    "dep:reqwest",
+    "dep:serde",
+    "dep:serde_json",
+    "dep:thiserror",
+    "dep:tokio",
+    "dep:tracing",
+    "dep:url",
+    "api_models?/v2", 
+    "hyperswitch_domain_models?/v2", 
+    "common_utils?/v2"
+]
+
+# Individual features that might be enabled by workspace commands
+# These all just delegate to v2 since injector is v2-only
+serde = ["v2"]
+tokio = ["v2"] 
+tracing-actix-web = ["v2"]
 
 [dependencies]
-# First party crates
-api_models = { version = "0.1.0", path = "../api_models" }
-hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models" }
-hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces" }
-common_utils = { version = "0.1.0", path = "../common_utils" }
-common_enums = { version = "0.1.0", path = "../common_enums" }
-external_services = { version = "0.1.0", path = "../external_services" }
-masking = { version = "0.1.0", path = "../masking" }
-router_env = { version = "0.1.0", path = "../router_env" }
+# First party crates (only available with v2 feature)
+api_models = { version = "0.1.0", path = "../api_models", optional = true }
+hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models", optional = true }
+hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces", optional = true }
+common_utils = { version = "0.1.0", path = "../common_utils", optional = true }
+common_enums = { version = "0.1.0", path = "../common_enums", optional = true }
+external_services = { version = "0.1.0", path = "../external_services", optional = true }
+masking = { version = "0.1.0", path = "../masking", optional = true }
+router_env = { version = "0.1.0", path = "../router_env", optional = true }
 
-# Third party dependencies
-async-trait = "0.1.88"
-error-stack = "0.4.1"
-nom = "7.1.3"
-regex = "1.11.1"
-reqwest = { version = "0.11.27", features = ["json"] }
-serde = { version = "1.0.219", features = ["derive"] }
-serde_json = "1.0.140"
-thiserror = "1.0.69"
-tokio = { version = "1.42.0", features = ["macros", "rt-multi-thread"] }
-tracing = { workspace = true }
-url = { version = "2.5.4", features = ["serde"] }
+# Third party dependencies (only available with v2 feature)
+async-trait = { version = "0.1.88", optional = true }
+error-stack = { version = "0.4.1", optional = true }
+nom = { version = "7.1.3", optional = true }
+regex = { version = "1.11.1", optional = true }
+reqwest = { version = "0.11.27", features = ["json"], optional = true }
+serde = { version = "1.0.219", features = ["derive"], optional = true }
+serde_json = { version = "1.0.140", optional = true }
+thiserror = { version = "1.0.69", optional = true }
+tokio = { version = "1.42.0", features = ["macros", "rt-multi-thread"], optional = true }
+tracing = { workspace = true, optional = true }
+url = { version = "2.5.4", features = ["serde"], optional = true }
 
 [lints]
 workspace = true
