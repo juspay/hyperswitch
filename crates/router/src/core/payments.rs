@@ -1563,6 +1563,11 @@ where
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;
 
+    operation
+        .to_domain()?
+        .create_or_fetch_payment_method(state, &merchant_context, &profile, &mut payment_data)
+        .await?;
+
     // consume the req merchant_connector_id and set it in the payment_data
     let connector = operation
         .to_domain()?
@@ -1613,6 +1618,15 @@ where
                 updated_customer,
             )
             .await?;
+
+            // update payment method if its a successful transaction
+            if router_data.status.is_success() {
+                operation
+                    .to_domain()?
+                    .update_payment_method(state, &merchant_context, &mut payment_data)
+                    .await;
+            }
+
             let payments_response_operation = Box::new(PaymentResponse);
 
             payments_response_operation

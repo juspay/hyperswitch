@@ -767,7 +767,7 @@ impl PaymentAttempt {
             last_synced: None,
             cancellation_reason: None,
             browser_info: request.browser_info.clone(),
-            payment_token: None,
+            payment_token: request.payment_token.clone(),
             connector_metadata: None,
             payment_experience: None,
             payment_method_data: None,
