@@ -94,8 +94,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
 
         helpers::validate_status_with_capture_method(payment_intent.status, capture_method)?;
 
-
-        if !*payment_attempt.overcapture_applied.unwrap_or_default().deref()
+        if !*payment_attempt
+            .overcapture_applied
+            .unwrap_or_default()
+            .deref()
         {
             helpers::validate_amount_to_capture(
                 payment_attempt.amount_capturable.get_amount_as_i64(),
