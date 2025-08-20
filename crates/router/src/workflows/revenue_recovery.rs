@@ -460,6 +460,164 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
     }
 }
 
+
+#[cfg(feature = "v2")]
+pub(crate) async fn get_schedule_time_without_attempt(
+    state: &SessionState,
+    payment_intent: &PaymentIntent,
+    retry_after_time: Option<prost_types::Timestamp>,
+    token_with_retry_info: &PaymentProcessorTokenWithRetryInfo,
+
+) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
+    let card_config = &state.conf.revenue_recovery.card_config;
+    
+    // Not populating it right now 
+    let first_error_message = "None".to_string();
+    let retry_count_left = token_with_retry_info.monthly_retry_remaining;
+    let pg_error_code = token_with_retry_info.token_status.error_code.clone();
+
+    let card_info = token_with_retry_info
+        .token_status
+        .payment_processor_token_details.clone();
+
+    let billing_state = payment_intent
+        .billing_address
+        .as_ref()
+        .and_then(|addr_enc| addr_enc.get_inner().address.as_ref())
+        .and_then(|details| details.state.as_ref())
+        .cloned();
+
+
+    let revenue_recovery_metadata = payment_intent
+        .feature_metadata
+        .as_ref()
+        .and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref());
+
+    let card_network = card_info.card_network.clone();
+    let total_retry_count_within_network = card_config.get_network_config(card_network.clone());
+
+    let card_network_str = card_network.map(|network| network.to_string());
+
+    let card_issuer_str = card_info.card_issuer.clone();
+
+    let card_funding_str = card_info.card_type.clone();
+
+    let start_time_primitive = payment_intent.created_at;
+    let recovery_timestamp_config = &state.conf.revenue_recovery.recovery_timestamp;
+
+    let modified_start_time_primitive = start_time_primitive.saturating_add(time::Duration::hours(
+        recovery_timestamp_config.initial_timestamp_in_hours,
+    ));
+
+    let start_time_proto = date_time::convert_to_prost_timestamp(modified_start_time_primitive);
+
+    let merchant_id = Some(payment_intent.merchant_id.get_string_repr().to_string());
+    let invoice_amount = Some(
+        payment_intent
+            .amount_details
+            .order_amount
+            .get_amount_as_i64(),
+    );
+    let invoice_currency = Some(payment_intent.amount_details.currency.to_string());
+
+    let billing_country = payment_intent
+        .billing_address
+        .as_ref()
+        .and_then(|addr_enc| addr_enc.get_inner().address.as_ref())
+        .and_then(|details| details.country.as_ref())
+        .map(|country| country.to_string());
+
+    let billing_city = payment_intent
+        .billing_address
+        .as_ref()
+        .and_then(|addr_enc| addr_enc.get_inner().address.as_ref())
+        .and_then(|details| details.city.as_ref())
+        .cloned();
+
+
+
+    let first_pg_error_code = revenue_recovery_metadata
+        .and_then(|metadata| metadata.first_payment_attempt_pg_error_code.clone());
+    let first_network_advice_code = revenue_recovery_metadata
+        .and_then(|metadata| metadata.first_payment_attempt_network_advice_code.clone());
+    let first_network_error_code = revenue_recovery_metadata
+        .and_then(|metadata| metadata.first_payment_attempt_network_decline_code.clone());
+
+    let invoice_due_date = revenue_recovery_metadata
+        .and_then(|metadata| metadata.invoice_next_billing_time)
+        .map(date_time::convert_to_prost_timestamp);
+
+    let decider_request = InternalDeciderRequest {
+        first_error_message,
+        billing_state,
+        card_funding: card_funding_str,
+        card_network: card_network_str,
+        card_issuer: card_issuer_str,
+        invoice_start_time: Some(start_time_proto),
+        retry_count: Some(
+            (total_retry_count_within_network.max_retry_count_for_thirty_day - retry_count_left)
+                .into(),
+        ),
+        merchant_id,
+        invoice_amount,
+        invoice_currency,
+        invoice_due_date,
+        billing_country,
+        billing_city,
+        attempt_currency: None,
+        attempt_status: None,
+        attempt_amount: None,
+        pg_error_code,
+        network_advice_code: None,
+        network_error_code: None,
+        first_pg_error_code,
+        first_network_advice_code,
+        first_network_error_code,
+        attempt_response_time: None,
+        payment_method_type: None,
+        payment_gateway: None,
+        retry_count_left: Some(retry_count_left.into()),
+        total_retry_count_within_network: Some(
+            total_retry_count_within_network
+                .max_retry_count_for_thirty_day
+                .into(),
+        ),
+        first_error_msg_time: None,
+        wait_time: retry_after_time,
+    };
+
+    if let Some(mut client) = state.grpc_client.recovery_decider_client.clone() {
+        match client
+            .decide_on_retry(decider_request.into(), state.get_recovery_grpc_headers())
+            .await
+        {
+            Ok(grpc_response) => Ok(grpc_response
+                .retry_flag
+                .then_some(())
+                .and(grpc_response.retry_time)
+                .and_then(|prost_ts| {
+                    match date_time::convert_from_prost_timestamp(&prost_ts) {
+                        Ok(pdt) => Some(pdt),
+                        Err(e) => {
+                            logger::error!(
+                                "Failed to convert retry_time from prost::Timestamp: {e:?}"
+                            );
+                            None // If conversion fails, treat as no valid retry time
+                        }
+                    }
+                })),
+
+            Err(e) => {
+                logger::error!("Recovery decider gRPC call failed: {e:?}");
+                Ok(None)
+            }
+        }
+    } else {
+        logger::debug!("Recovery decider client is not configured");
+        Ok(None)
+    }
+}
+
 #[cfg(feature = "v2")]
 #[derive(Debug)]
 struct InternalDeciderRequest {
@@ -541,10 +699,7 @@ pub struct ScheduledToken {
 #[cfg(feature = "v2")]
 pub async fn get_best_psp_token_available(
     state: &SessionState,
-    merchant_id: &id_type::MerchantId,
     connector_customer_id: &str,
-    req_state: &ReqState,
-    profile: &domain::Profile,
     payment_intent: &PaymentIntent,
     merchant_context: domain::MerchantContext,
 ) -> CustomResult<Option<ScheduledToken>, errors::ProcessTrackerError> {
@@ -580,9 +735,6 @@ pub async fn get_best_psp_token_available(
 
             let best_token_and_time = call_decider_for_payment_processor_tokens_select_closet_time(
                 state,
-                merchant_context,
-                req_state,
-                profile,
                 &result,
                 payment_intent,
                 connector_customer_id,
@@ -598,27 +750,24 @@ pub async fn get_best_psp_token_available(
 #[cfg(feature = "v2")]
 pub async fn calculate_smart_retry_time(
     state: &SessionState,
-    payment_attempt: &PaymentAttemptResponse,
     payment_intent: &PaymentIntent,
     token_with_retry_info: &PaymentProcessorTokenWithRetryInfo,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
     let wait_hours = token_with_retry_info.retry_wait_time_hours;
-    let monthly_retry_remaining = token_with_retry_info.monthly_retry_remaining;
     let current_time = time::OffsetDateTime::now_utc();
     let future_time = current_time + time::Duration::hours(wait_hours);
 
+    // Timestamp after which retry can be done without penalty
     let future_timestamp = Some(prost_types::Timestamp {
         seconds: future_time.unix_timestamp(),
         nanos: 0,
     });
 
-    get_schedule_time_for_smart_retry(
+    get_schedule_time_without_attempt(
         state,
-        payment_attempt,
         payment_intent,
-        monthly_retry_remaining,
         future_timestamp,
-        token_with_retry_info.token_status.error_code.clone(),
+        token_with_retry_info,
     )
     .await
 }
@@ -628,12 +777,11 @@ async fn process_token_for_retry(
     state: &SessionState,
     token_with_retry_info: &PaymentProcessorTokenWithRetryInfo,
     payment_intent: &PaymentIntent,
-    payment_attempt: &PaymentAttemptResponse,
 ) -> Result<Option<ScheduledToken>, errors::ProcessTrackerError> {
-    let token_status = &token_with_retry_info.token_status;
+    let token_status: &PaymentProcessorTokenStatus = &token_with_retry_info.token_status;
     let inserted_by_attempt_id = &token_status.inserted_by_attempt_id;
 
-    let skip = decide_retry_failure_action(state, payment_attempt).await?;
+    let skip = token_status.is_hard_decline.unwrap_or(false);
 
     match skip {
         true => {
@@ -646,7 +794,6 @@ async fn process_token_for_retry(
         false => {
             let schedule_time = calculate_smart_retry_time(
                 state,
-                payment_attempt,
                 payment_intent,
                 token_with_retry_info,
             )
@@ -663,53 +810,15 @@ async fn process_token_for_retry(
 #[allow(clippy::too_many_arguments)]
 pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
     state: &SessionState,
-    merchant_context: domain::MerchantContext,
-    req_state: &ReqState,
-    profile: &domain::Profile,
     processor_tokens: &HashMap<String, PaymentProcessorTokenWithRetryInfo>,
     payment_intent: &PaymentIntent,
     connector_customer_id: &str,
 ) -> CustomResult<Option<ScheduledToken>, errors::ProcessTrackerError> {
-    let payment_attempt_list_result =
-        api::call_list_attempt_api(state, merchant_context, req_state, profile, payment_intent)
-            .await
-            .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
-
-    tracing::debug!("Fetched payment attempts",);
-
-    let mut latest_map_with_attempt: HashMap<String, PaymentAttemptResponse> = HashMap::new();
-
-    payment_attempt_list_result
-        .payment_attempt_list
-        .into_iter()
-        .filter_map(|attempt| attempt.payment_token.clone().map(|token| (token, attempt)))
-        .for_each(|(token, attempt)| {
-            latest_map_with_attempt
-                .entry(token)
-                .and_modify(|existing| {
-                    if attempt.created_at > existing.created_at {
-                        *existing = attempt.clone();
-                    }
-                })
-                .or_insert(attempt);
-        });
-
-    let filterd_token_with_attempt: HashMap<
-        String,
-        (PaymentProcessorTokenWithRetryInfo, PaymentAttemptResponse),
-    > = processor_tokens
-        .iter()
-        .filter_map(|(key, token_info)| {
-            latest_map_with_attempt
-                .get(key)
-                .map(|attempt| (key.clone(), (token_info.clone(), attempt.clone())))
-        })
-        .collect();
 
     tracing::debug!("Filtered  payment attempts based on payment tokens",);
-    let mut scheduled_tokens: Vec<ScheduledToken> = Vec::new();
+    let mut tokens_with_schedule_time: Vec<ScheduledToken> = Vec::new();
 
-    for (token_with_retry_info, payment_attempt_response) in filterd_token_with_attempt.values() {
+    for token_with_retry_info in processor_tokens.values() {
         let token_details = &token_with_retry_info
             .token_status
             .payment_processor_token_details;
@@ -723,7 +832,7 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
                     utc_schedule_time.date(),
                     utc_schedule_time.time(),
                 );
-                scheduled_tokens = vec![ScheduledToken {
+                tokens_with_schedule_time = vec![ScheduledToken {
                     token_details: token_details.clone(),
                     schedule_time,
                 }];
@@ -737,22 +846,25 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
                     state,
                     token_with_retry_info,
                     payment_intent,
-                    payment_attempt_response,
                 )
                 .await?
-                .map(|scheduled_token| scheduled_tokens.push(scheduled_token));
+                .map(|token_with_schedule_time| tokens_with_schedule_time.push(token_with_schedule_time));
             }
         }
     }
 
-    let best_token = scheduled_tokens
+    let best_token = tokens_with_schedule_time
         .iter()
         .min_by_key(|token| token.schedule_time)
         .cloned();
 
-    tracing::debug!("Found payment processor token with least schedule time",);
+    best_token
+        .is_none()
+        .then(|| tracing::debug!("No payment processor tokens available for scheduling"));
+
     best_token
         .async_map(|token| async move {
+            tracing::debug!("Found payment processor token with least schedule time");
             RedisTokenManager::update_payment_processor_token_schedule_time(
                 state,
                 connector_customer_id,

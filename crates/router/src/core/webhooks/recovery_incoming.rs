@@ -41,6 +41,8 @@ use crate::{
     },
     workflows::revenue_recovery as revenue_recovery_flow,
 };
+#[cfg(feature = "v2")]
+pub const REVENUE_RECOVERY: &str = "revenue_recovery";
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
@@ -623,14 +625,15 @@ impl RevenueRecoveryAttempt {
         errors::RevenueRecoveryError,
     > {
         let payment_connector_id =   payment_connector_account.as_ref().map(|account: &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount| account.id.clone());
+        let payment_connector_name=payment_connector_account
+                .as_ref()
+                .map(|account| account.connector_name);
         let request_payload: api_payments::PaymentsAttemptRecordRequest = self
             .create_payment_record_request(
                 state,
                 billing_connector_account_id,
                 payment_connector_id,
-                payment_connector_account
-                    .as_ref()
-                    .map(|account| account.connector_name),
+                payment_connector_name,
                 common_enums::TriggeredBy::External,
             )
             .await?;
@@ -691,7 +694,7 @@ impl RevenueRecoveryAttempt {
 
         let response = (recovery_attempt, updated_recovery_intent);
 
-        self.store_payment_processor_tokens_in_redis(state, &response.0)
+        self.store_payment_processor_tokens_in_redis(state, &response.0,payment_connector_name)
             .await
             .map_err(|e| {
                 router_env::logger::error!(
@@ -957,19 +960,40 @@ impl RevenueRecoveryAttempt {
         &self,
         state: &SessionState,
         recovery_attempt: &revenue_recovery::RecoveryPaymentAttempt,
+        payment_connector_name: Option<common_enums::connector_enums::Connector>,
     ) -> CustomResult<(), errors::RevenueRecoveryError> {
         let revenue_recovery_attempt_data = &self.0;
+        let error_code=revenue_recovery_attempt_data.error_code.clone();
+        let error_message= revenue_recovery_attempt_data.error_message.clone();
+        let connector_name = payment_connector_name
+            .ok_or(errors::RevenueRecoveryError::TransactionWebhookProcessingFailed)
+            .attach_printable("unable to derive payment connector")?
+            .to_string();
+
+        let gsm_record = helpers::get_gsm_record(
+            state,
+            error_code.clone(),
+            error_message,
+            connector_name,
+            REVENUE_RECOVERY.to_string(),
+        )
+        .await;
+    
+        let is_hard_decline = gsm_record
+            .and_then(|record| record.error_category)
+            .map(|category| category == common_enums::ErrorCategory::HardDecline)
+            .unwrap_or(false);
 
         // Extract required fields from the revenue recovery attempt data
         let connector_customer_id = revenue_recovery_attempt_data.connector_customer_id.clone();
 
         let attempt_id = recovery_attempt.attempt_id.clone();
-        let today = time::OffsetDateTime::now_utc().date();
         let token_unit = PaymentProcessorTokenStatus {
-            error_code: recovery_attempt.error_code.clone(),
+            error_code,
             inserted_by_attempt_id: attempt_id.clone(),
             daily_retry_history: HashMap::from([(recovery_attempt.created_at.date(), 1)]),
             scheduled_at: None,
+            is_hard_decline: Some(is_hard_decline),
             payment_processor_token_details: PaymentProcessorTokenDetails {
                 payment_processor_token: revenue_recovery_attempt_data
                     .processor_payment_method_token
