@@ -40,7 +40,7 @@ pub mod types {
         /// HTTP headers to include in the request
         pub headers: HashMap<String, Secret<String>>,
         /// Optional proxy URL for routing the request through a proxy server
-        /// 
+        ///
         /// This field allows the injector to route HTTP requests through a proxy when needed.
         /// It can be provided by the UCS (Unified Checkout Service) or Payments service
         /// based on the merchant's network configuration requirements.

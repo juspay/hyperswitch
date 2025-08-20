@@ -245,7 +245,7 @@ pub mod core {
         }
 
         /// Makes an HTTP request to the connector endpoint
-        /// 
+        ///
         /// Note: We cannot reuse the existing `call_connector_api` function from router services
         /// because it requires `SessionState` and is tightly coupled to the router's infrastructure.
         /// The injector crate is designed to be lightweight and independent, operating with
@@ -781,7 +781,7 @@ mod tests {
         } else {
             false
         };
-        
+
         assert!(
             response_contains_token,
             "Response should contain replaced token: {}",
