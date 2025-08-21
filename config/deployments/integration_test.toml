@@ -194,7 +194,7 @@ force_cookies = true
 enabled = true
 
 [connector_customer]
-connector_list = "adyen,authorizedotnet,facilitapay,gocardless,hyperswitch_vault,stax,stripe"
+connector_list = "authorizedotnet,dwolla,facilitapay,gocardless,hyperswitch_vault,stax,stripe"
 payout_connector_list = "nomupay,stripe,wise"
 
 [delayed_session_response]
@@ -402,6 +402,9 @@ debit = {currency = "CAD,USD"}
 google_pay = {currency = "CHF,DKK,EUR,GBP,NOK,PLN,SEK,USD,AUD,NZD,CAD"}
 apple_pay = {currency = "EUR,GBP,ISK,USD,AUD,CAD,BRL,CLP,COP,CRC,CZK,DKK,EGP,GEL,GHS,GTQ,HNL,HKD,HUF,ILS,INR,JPY,KZT,KRW,KWD,MAD,MXN,MYR,NOK,NZD,PEN,PLN,PYG,QAR,RON,SAR,SEK,SGD,THB,TWD,UAH,AED,VND,ZAR"}
 paypal = {currency = "AUD,BRL,CAD,CHF,CNY,CZK,DKK,EUR,GBP,HKD,HUF,ILS,JPY,MXN,MYR,NOK,NZD,PHP,PLN,SEK,SGD,THB,TWD,USD"}
+
+[pm_filters.dwolla]
+ach = { country = "US", currency = "USD" }
 
 [pm_filters.bambora]
 credit = { country = "US,CA", currency = "USD" }
@@ -775,6 +778,7 @@ shift4.payment_method = "card"
 stripe.payment_method = "bank_transfer"
 bankofamerica = { payment_method = "card" }
 cybersource = { payment_method = "card" }
+barclaycard = { payment_method = "card" }
 nmi.payment_method = "card"
 payme.payment_method = "card"
 deutschebank = { payment_method = "bank_debit" }
@@ -795,6 +799,7 @@ stax = { long_lived_token = true, payment_method = "card,bank_debit" }
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { list = "google_pay", type = "disable_only" } }
 billwerk = {long_lived_token = false, payment_method = "card"}
 globalpay = { long_lived_token = false, payment_method = "card", flow = "mandates" }
+dwolla = { long_lived_token = true, payment_method = "bank_debit" }
 
 [webhooks]
 outgoing_enabled = true

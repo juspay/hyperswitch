@@ -401,6 +401,7 @@ braintree = { long_lived_token = false, payment_method = "card" }
 gocardless = { long_lived_token = true, payment_method = "bank_debit" }
 billwerk = { long_lived_token = false, payment_method = "card" }
 globalpay = { long_lived_token = false, payment_method = "card", flow = "mandates" }
+dwolla = { long_lived_token = true, payment_method = "bank_debit" }
 
 [temp_locker_enable_config]
 stripe = { payment_method = "bank_transfer" }
@@ -409,6 +410,7 @@ shift4 = { payment_method = "card" }
 bluesnap = { payment_method = "card" }
 bankofamerica = { payment_method = "card" }
 cybersource = { payment_method = "card" }
+barclaycard = { payment_method = "card" }
 nmi = { payment_method = "card" }
 payme = { payment_method = "card" }
 deutschebank = { payment_method = "bank_debit" }
@@ -863,6 +865,9 @@ google_pay = {currency = "CHF,DKK,EUR,GBP,NOK,PLN,SEK,USD,AUD,NZD,CAD"}
 apple_pay = {currency = "EUR,GBP,ISK,USD,AUD,CAD,BRL,CLP,COP,CRC,CZK,DKK,EGP,GEL,GHS,GTQ,HNL,HKD,HUF,ILS,INR,JPY,KZT,KRW,KWD,MAD,MXN,MYR,NOK,NZD,PEN,PLN,PYG,QAR,RON,SAR,SEK,SGD,THB,TWD,UAH,AED,VND,ZAR"}
 paypal = {currency = "AUD,BRL,CAD,CHF,CNY,CZK,DKK,EUR,GBP,HKD,HUF,ILS,JPY,MXN,MYR,NOK,NZD,PHP,PLN,SEK,SGD,THB,TWD,USD"}
 
+[pm_filters.dwolla]
+ach = { country = "US", currency = "USD" }
+
 [pm_filters.braintree]
 credit = { country = "AD,AT,AU,BE,BG,CA,CH,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GG,GI,GR,HK,HR,HU,IE,IM,IT,JE,LI,LT,LU,LV,MT,MC,MY,NL,NO,NZ,PL,PT,RO,SE,SG,SI,SK,SM,US", currency = "AED,AMD,AOA,ARS,AUD,AWG,AZN,BAM,BBD,BDT,BGN,BIF,BMD,BND,BOB,BRL,BSD,BWP,BYN,BZD,CAD,CHF,CLP,CNY,COP,CRC,CVE,CZK,DJF,DKK,DOP,DZD,EGP,ETB,EUR,FJD,FKP,GBP,GEL,GHS,GIP,GMD,GNF,GTQ,GYD,HKD,HNL,HRK,HTG,HUF,IDR,ILS,INR,ISK,JMD,JPY,KES,KGS,KHR,KMF,KRW,KYD,KZT,LAK,LBP,LKR,LRD,LSL,MAD,MDL,MKD,MNT,MOP,MUR,MVR,MWK,MXN,MYR,MZN,NAD,NGN,NIO,NOK,NPR,NZD,PAB,PEN,PGK,PHP,PKR,PLN,PYG,QAR,RON,RSD,RUB,RWF,SAR,SBD,SCR,SEK,SGD,SHP,SLL,SOS,SRD,STD,SVC,SYP,SZL,THB,TJS,TOP,TRY,TTD,TWD,TZS,UAH,UGX,USD,UYU,UZS,VES,VND,VUV,WST,XAF,XCD,XOF,XPF,YER,ZAR,ZMW,ZWL"}
 debit = { country = "AD,AT,AU,BE,BG,CA,CH,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GG,GI,GR,HK,HR,HU,IE,IM,IT,JE,LI,LT,LU,LV,MT,MC,MY,NL,NO,NZ,PL,PT,RO,SE,SG,SI,SK,SM,US", currency = "AED,AMD,AOA,ARS,AUD,AWG,AZN,BAM,BBD,BDT,BGN,BIF,BMD,BND,BOB,BRL,BSD,BWP,BYN,BZD,CAD,CHF,CLP,CNY,COP,CRC,CVE,CZK,DJF,DKK,DOP,DZD,EGP,ETB,EUR,FJD,FKP,GBP,GEL,GHS,GIP,GMD,GNF,GTQ,GYD,HKD,HNL,HRK,HTG,HUF,IDR,ILS,INR,ISK,JMD,JPY,KES,KGS,KHR,KMF,KRW,KYD,KZT,LAK,LBP,LKR,LRD,LSL,MAD,MDL,MKD,MNT,MOP,MUR,MVR,MWK,MXN,MYR,MZN,NAD,NGN,NIO,NOK,NPR,NZD,PAB,PEN,PGK,PHP,PKR,PLN,PYG,QAR,RON,RSD,RUB,RWF,SAR,SBD,SCR,SEK,SGD,SHP,SLL,SOS,SRD,STD,SVC,SYP,SZL,THB,TJS,TOP,TRY,TTD,TWD,TZS,UAH,UGX,USD,UYU,UZS,VES,VND,VUV,WST,XAF,XCD,XOF,XPF,YER,ZAR,ZMW,ZWL"}
@@ -959,7 +964,7 @@ card.debit = { connector_list = "cybersource" }
 connector_list = "adyen,archipel,cybersource,novalnet,stripe,worldpay,worldpayvantiv"
 
 [connector_customer]
-connector_list = "adyen,authorizedotnet,facilitapay,gocardless,hyperswitch_vault,stax,stripe"
+connector_list = "authorizedotnet,dwolla,facilitapay,gocardless,hyperswitch_vault,stax,stripe"
 payout_connector_list = "nomupay,stripe,wise"
 
 
