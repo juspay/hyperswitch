@@ -19,11 +19,11 @@ pub fn derive_smithy_model(input: TokenStream) -> TokenStream {
 
 fn generate_smithy_impl(input: &DeriveInput) -> syn::Result<TokenStream2> {
     let name = &input.ident;
-    let namespace = extract_namespace(&input.attrs)?;
+    let (namespace, is_mixin) = extract_namespace_and_mixin(&input.attrs)?;
 
     match &input.data {
         syn::Data::Struct(data_struct) => {
-            generate_struct_impl(name, &namespace, data_struct, &input.attrs)
+            generate_struct_impl(name, &namespace, data_struct, &input.attrs, is_mixin)
         }
         syn::Data::Enum(data_enum) => {
             generate_enum_impl(name, &namespace, data_enum, &input.attrs)
@@ -42,6 +42,7 @@ fn generate_struct_impl(
     namespace: &str,
     data_struct: &syn::DataStruct,
     attrs: &[Attribute],
+    is_mixin: bool,
 ) -> syn::Result<TokenStream2> {
     let fields = extract_fields(&data_struct.fields)?;
 
@@ -167,6 +168,12 @@ fn generate_struct_impl(
         }
     });
 
+    let traits_expr = if is_mixin {
+        quote! { vec![smithy_core::SmithyTrait::Mixin] }
+    } else {
+        quote! { vec![] }
+    };
+
     let expanded = quote! {
         impl smithy_core::SmithyModelGenerator for #name {
             fn generate_smithy_model() -> smithy_core::SmithyModel {
@@ -178,7 +185,7 @@ fn generate_struct_impl(
                 let shape = smithy_core::SmithyShape::Structure {
                     members,
                     documentation: #struct_doc_expr,
-                    traits: vec![]
+                    traits: #traits_expr
                 };
 
                 shapes.insert(stringify!(#name).to_string(), shape);
@@ -441,10 +448,11 @@ fn generate_enum_impl(
     }
 }
 
-fn extract_namespace(attrs: &[Attribute]) -> syn::Result<String> {
+fn extract_namespace_and_mixin(attrs: &[Attribute]) -> syn::Result<(String, bool)> {
     for attr in attrs {
         if attr.path().is_ident("smithy") {
             let mut namespace = None;
+            let mut mixin = false;
             attr.parse_nested_meta(|meta| {
                 if meta.path.is_ident("namespace") {
                     if let Ok(value) = meta.value() {
@@ -454,17 +462,27 @@ fn extract_namespace(attrs: &[Attribute]) -> syn::Result<String> {
                             }
                         }
                     }
+                } else if meta.path.is_ident("mixin") {
+                    if let Ok(value) = meta.value() {
+                        if let Ok(lit) = value.parse::<Lit>() {
+                            if let Lit::Bool(lit_bool) = lit {
+                                mixin = lit_bool.value;
+                            }
+                        }
+                    }
                 }
                 Ok(())
             })?; // Propagate parsing errors
 
-            if let Some(ns) = namespace {
-                return Ok(ns);
-            }
+            return Ok((
+                namespace.unwrap_or_else(|| "com.hyperswitch.default".to_string()),
+                mixin,
+            ));
         }
     }
-    Ok("com.hyperswitch.default".to_string())
+    Ok(("com.hyperswitch.default".to_string(), false))
 }
+
 
 fn extract_fields(fields: &Fields) -> syn::Result<Vec<SmithyField>> {
     let mut smithy_fields = Vec::new();

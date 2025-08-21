@@ -1685,46 +1685,46 @@ impl RequestPaymentMethodTypes {
 //List Payment Method
 #[derive(Debug, Clone, serde::Serialize, Default, ToSchema, SmithyModel)]
 #[serde(deny_unknown_fields)]
-#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[smithy(namespace = "com.hyperswitch.smithy.types", mixin = true)]
 pub struct PaymentMethodListRequest {
     /// This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK
     #[schema(max_length = 30, min_length = 30, example = "secret_k2uj3he2893eiu2d")]
-    #[smithy(value_type = "Option<String>")]
+    #[smithy(value_type = "Option<String>", http_query = "client_secret")]
     pub client_secret: Option<String>,
 
     /// The two-letter ISO currency code
     #[schema(value_type = Option<Vec<CountryAlpha2>>, example = json!(["US", "UK", "IN"]))]
-    #[smithy(value_type = "Option<Vec<CountryAlpha2>>")]
+    #[smithy(value_type = "Option<Vec<CountryAlpha2>>", http_query = "accepted_countries")]
     pub accepted_countries: Option<Vec<api_enums::CountryAlpha2>>,
 
     /// The three-letter ISO currency code
     #[schema(value_type = Option<Vec<Currency>>,example = json!(["USD", "EUR"]))]
-    #[smithy(value_type = "Option<Vec<Currency>>")]
+    #[smithy(value_type = "Option<Vec<Currency>>", http_query = "accepted_currencies")]
     pub accepted_currencies: Option<Vec<api_enums::Currency>>,
 
     /// Filter by amount
     #[schema(example = 60)]
-    #[smithy(value_type = "Option<i64>")]
+    #[smithy(value_type = "Option<i64>", http_query = "amount")]
     pub amount: Option<MinorUnit>,
 
     /// Indicates whether the payment method supports recurring payments. Optional.
     #[schema(example = true)]
-    #[smithy(value_type = "Option<bool>")]
+    #[smithy(value_type = "Option<bool>", http_query = "recurring_enabled")]
     pub recurring_enabled: Option<bool>,
 
     /// Indicates whether the payment method is eligible for installment payments (e.g., EMI, BNPL). Optional.
     #[schema(example = true)]
-    #[smithy(value_type = "Option<bool>")]
+    #[smithy(value_type = "Option<bool>", http_query = "installment_payment_enabled")]
     pub installment_payment_enabled: Option<bool>,
 
     /// Indicates whether the payment method is eligible for card netwotks
     #[schema(value_type = Option<Vec<CardNetwork>>, example = json!(["visa", "mastercard"]))]
-    #[smithy(value_type = "Option<Vec<CardNetwork>>")]
+    #[smithy(value_type = "Option<Vec<CardNetwork>>", http_query = "card_networks")]
     pub card_networks: Option<Vec<api_enums::CardNetwork>>,
 
     /// Indicates the limit of last used payment methods
     #[schema(example = 1)]
-    #[smithy(value_type = "Option<i64>")]
+    #[smithy(value_type = "Option<i64>", http_query = "limit")]
     pub limit: Option<i64>,
 }
 

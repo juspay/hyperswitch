@@ -10,6 +10,9 @@ use com.hyperswitch.smithy.types#PaymentsCaptureRequest
 use com.hyperswitch.smithy.types#CustomerRequest
 use com.hyperswitch.smithy.types#CustomerResponse
 use com.hyperswitch.smithy.types#CustomerDeleteResponse
+use com.hyperswitch.smithy.types#CustomerPaymentMethodsListResponse
+use com.hyperswitch.smithy.types#PaymentMethodListRequest
+use com.hyperswitch.smithy.types#CustomerListRequest
 
 use aws.protocols#restJson1
 
@@ -23,7 +26,7 @@ use aws.protocols#restJson1
 )
 service Hyperswitch {
     version: "2024-07-31",
-    operations: [PaymentsCreate, PaymentsRetrieve, RefundsCreate, RefundsRetrieve, PaymentsCapture, CustomersCreate, CustomersRetrieve, CustomersUpdate, CustomersDelete]
+    operations: [PaymentsCreate, PaymentsRetrieve, RefundsCreate, RefundsRetrieve, PaymentsCapture, CustomersCreate, CustomersRetrieve, CustomersUpdate, CustomersDelete, CustomersList, CustomersPaymentMethods, CustomersRetrievePaymentMethods]
 }
 
 /// Input structure for capturing a payment
@@ -162,6 +165,46 @@ operation CustomersDelete {
 
 structure CustomersDeleteRequest {
     /// The unique identifier for the customer to delete
+    @required
+    @httpLabel
+    customer_id: smithy.api#String
+}
+
+@documentation("List customers with pagination support.")
+@http(method: "GET", uri: "/customers/list")
+operation CustomersList {
+    input: CustomerListRequest,
+    output: CustomersListResponse,
+}
+
+structure CustomersListResponse {
+    customers: CustomerResponseList
+}
+
+list CustomerResponseList {
+    member: CustomerResponse
+}
+
+@documentation("List payment methods for the authenticated customer.")
+@http(method: "GET", uri: "/customers/payment_methods")
+operation CustomersPaymentMethods {
+    input: CustomersPaymentMethodsRequest,
+    output: CustomerPaymentMethodsListResponse,
+}
+
+structure CustomersPaymentMethodsRequest with [PaymentMethodListRequest] {
+
+}
+
+@documentation("List payment methods for a specific customer.")
+@http(method: "GET", uri: "/customers/{customer_id}/payment_methods")
+operation CustomersRetrievePaymentMethods {
+    input: CustomersRetrievePaymentMethodsRequest,
+    output: CustomerPaymentMethodsListResponse,
+}
+
+structure CustomersRetrievePaymentMethodsRequest with [PaymentMethodListRequest] {
+    /// The unique identifier for the customer
     @required
     @httpLabel
     customer_id: smithy.api#String

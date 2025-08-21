@@ -57,11 +57,11 @@ pub struct CustomerRequest {
 pub struct CustomerListRequest {
     /// Offset
     #[schema(example = 32)]
-    #[smithy(value_type = "Option<u32>")]
+    #[smithy(value_type = "Option<u32>", http_query = "offset")]
     pub offset: Option<u32>,
     /// Limit
     #[schema(example = 32)]
-    #[smithy(value_type = "Option<u16>")]
+    #[smithy(value_type = "Option<u16>", http_query = "limit")]
     pub limit: Option<u16>,
 }
 

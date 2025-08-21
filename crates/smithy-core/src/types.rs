@@ -99,6 +99,8 @@ pub enum SmithyTrait {
     HttpLabel,
     #[serde(rename = "smithy.api#httpQuery")]
     HttpQuery { name: String },
+    #[serde(rename = "smithy.api#mixin")]
+    Mixin,
 }
 
 #[derive(Debug, Clone)]

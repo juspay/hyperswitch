@@ -285,6 +285,7 @@ impl SmithyGenerator {
             crate::types::SmithyTrait::HttpQuery { name } => {
                 format!("httpQuery(\"{}\")", name)
             },
+            crate::types::SmithyTrait::Mixin => "mixin".to_string(),
         }
     }
 }
