@@ -1506,7 +1506,9 @@ fn get_stripe_card_network(card_network: common_enums::CardNetwork) -> Option<St
     }
 }
 
-impl TryFrom<(&Card, Auth3ds, bool, Option<StripeRequestOvercaptureBool>)> for StripePaymentMethodData {
+impl TryFrom<(&Card, Auth3ds, bool, Option<StripeRequestOvercaptureBool>)>
+    for StripePaymentMethodData
+{
     type Error = ConnectorError;
     fn try_from(
         (card, payment_method_auth_type, request_incremental_authorization, request_overcapture): (
@@ -2802,7 +2804,9 @@ fn extract_payment_method_connector_response_from_latest_charge(
     }
 }
 
-impl From<common_types::primitive_wrappers::EnableOvercaptureBool> for StripeRequestOvercaptureBool {
+impl From<common_types::primitive_wrappers::EnableOvercaptureBool>
+    for StripeRequestOvercaptureBool
+{
     fn from(enable_overcapture: common_types::primitive_wrappers::EnableOvercaptureBool) -> Self {
         match enable_overcapture.deref() {
             true => Self::IfAvailable,
