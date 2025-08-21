@@ -16,6 +16,7 @@ use common_utils::{
         MaskedBankAccount, MaskedIban, MaskedRoutingNumber, MaskedSortCode, MaskedUpiVpaId,
     },
     pii::{self, Email},
+    types::{FloatMajorUnit, MinorUnit},
 };
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -647,6 +648,13 @@ pub enum VoucherData {
 pub struct BoletoVoucherData {
     /// The shopper's social security number
     pub social_security_number: Option<Secret<String>>,
+    pub bank_number: Option<String>,
+    pub document_type: Option<common_enums::DocumentType>,
+    pub fine_percentage: Option<FloatMajorUnit>,
+    pub fine_quantity_days: Option<MinorUnit>,
+    pub interest_percentage: Option<FloatMajorUnit>,
+    pub write_off_quantity_days: Option<MinorUnit>,
+    pub messages: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -1397,6 +1405,13 @@ impl From<api_models::payments::VoucherData> for VoucherData {
             api_models::payments::VoucherData::Boleto(boleto_data) => {
                 Self::Boleto(Box::new(BoletoVoucherData {
                     social_security_number: boleto_data.social_security_number,
+                    bank_number: boleto_data.bank_number,
+                    document_type: boleto_data.document_type,
+                    fine_percentage: boleto_data.fine_percentage,
+                    fine_quantity_days: boleto_data.fine_quantity_days,
+                    interest_percentage: boleto_data.interest_percentage,
+                    write_off_quantity_days: boleto_data.write_off_quantity_days,
+                    messages: boleto_data.messages,
                 }))
             }
             api_models::payments::VoucherData::Alfamart(_) => {
@@ -1426,6 +1441,13 @@ impl From<Box<BoletoVoucherData>> for Box<api_models::payments::BoletoVoucherDat
     fn from(value: Box<BoletoVoucherData>) -> Self {
         Self::new(api_models::payments::BoletoVoucherData {
             social_security_number: value.social_security_number,
+            bank_number: value.bank_number,
+            document_type: value.document_type,
+            fine_percentage: value.fine_percentage,
+            fine_quantity_days: value.fine_quantity_days,
+            interest_percentage: value.interest_percentage,
+            write_off_quantity_days: value.write_off_quantity_days,
+            messages: value.messages,
         })
     }
 }

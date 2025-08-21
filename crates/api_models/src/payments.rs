@@ -24,7 +24,7 @@ use common_utils::{
     id_type,
     new_type::MaskedBankAccount,
     pii::{self, Email},
-    types::{MinorUnit, StringMajorUnit},
+    types::{FloatMajorUnit, MinorUnit, StringMajorUnit},
 };
 #[cfg(feature = "v2")]
 use deserialize_form_style_query_parameter::option_form_vec_deserialize;
@@ -4153,11 +4153,39 @@ pub struct RewardData {
     pub merchant_id: id_type::MerchantId,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct BoletoVoucherData {
-    /// The shopper's social security number
+    /// The shopper's social security number (CPF or CNPJ)
     #[schema(value_type = Option<String>)]
     pub social_security_number: Option<Secret<String>>,
+
+    /// The shopper's bank account number associated with the boleto
+    #[schema(value_type = Option<String>)]
+    pub bank_number: Option<String>,
+
+    /// The type of identification document used (e.g., CPF or CNPJ)
+    #[schema(value_type = Option<common_enums::DocumentType>, example = "Cpf", default = "Cnpj")]
+    pub document_type: Option<common_enums::DocumentType>,
+
+    /// The fine percentage charged if payment is overdue
+    #[schema(value_type = Option<f64>)]
+    pub fine_percentage: Option<FloatMajorUnit>,
+
+    /// The number of days after the due date when the fine is applied
+    #[schema(value_type = Option<i64>)]
+    pub fine_quantity_days: Option<MinorUnit>,
+
+    /// The interest percentage charged on late payments
+    #[schema(value_type = Option<f64>)]
+    pub interest_percentage: Option<FloatMajorUnit>,
+
+    /// The number of days after which the boleto is written off (canceled)
+    #[schema(value_type = Option<i64>)]
+    pub write_off_quantity_days: Option<MinorUnit>,
+
+    /// Custom messages or instructions to display on the boleto
+    #[schema(value_type = Option<Vec<String>>)]
+    pub messages: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -4864,6 +4892,8 @@ pub struct BankTransferNextStepsData {
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct VoucherNextStepData {
+    /// Voucher entry date
+    pub entry_date: Option<i64>,
     /// Voucher expiry date and time
     pub expires_at: Option<i64>,
     /// Reference number required for the transaction
@@ -4872,6 +4902,8 @@ pub struct VoucherNextStepData {
     pub download_url: Option<Url>,
     /// Url to payment instruction page
     pub instructions_url: Option<Url>,
+    /// Human-readable numeric version of the barcode.
+    pub digitable_line: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]

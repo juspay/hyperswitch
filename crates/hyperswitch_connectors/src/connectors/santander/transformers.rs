@@ -1,15 +1,18 @@
-use api_models::payments::QrCodeInformation;
+use api_models::payments::{QrCodeInformation, VoucherNextStepData};
 use chrono::Utc;
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
-    ext_traits::Encode,
-    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
+    ext_traits::{ByteSliceExt, Encode},
+    id_type,
+    types::{
+        AmountConvertor, FloatMajorUnit, MinorUnit, StringMajorUnit, StringMajorUnitForConnector,
+    },
 };
 use crc::{Algorithm, Crc};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::{BankTransferData, PaymentMethodData},
+    payment_method_data::{BankTransferData, PaymentMethodData, VoucherData},
     router_data::{AccessToken, ConnectorAuthType, RouterData},
     router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RefundsResponseData},
@@ -54,12 +57,15 @@ impl<T> From<(StringMajorUnit, T)> for SantanderRouterData<T> {
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all="camelCase")]
 pub struct SantanderMetadataObject {
     pub pix_key: Secret<String>,
     pub expiration_time: i32,
     pub cpf: Secret<String>,
     pub merchant_city: String,
     pub merchant_name: String,
+    pub workspace_id: String,
+    pub covenant_code: String,
 }
 
 impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for SantanderMetadataObject {
@@ -204,10 +210,110 @@ impl TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>> for SantanderPa
             PaymentMethodData::BankTransfer(ref bank_transfer_data) => {
                 Self::try_from((item, bank_transfer_data.as_ref()))
             }
+            PaymentMethodData::Voucher(ref voucher_data) => Self::try_from((item, voucher_data)),
             _ => Err(errors::ConnectorError::NotImplemented(
                 crate::utils::get_unimplemented_payment_method_error_message("Santander"),
             ))?,
         }
+    }
+}
+
+impl
+    TryFrom<(
+        &SantanderRouterData<&PaymentsAuthorizeRouterData>,
+        &VoucherData,
+    )> for SantanderPaymentRequest
+{
+    type Error = Error;
+    fn try_from(
+        value: (
+            &SantanderRouterData<&PaymentsAuthorizeRouterData>,
+            &VoucherData,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let santander_mca_metadata =
+            SantanderMetadataObject::try_from(&value.0.router_data.connector_meta_data)?;
+
+        let voucher_data = match &value.0.router_data.request.payment_method_data {
+            PaymentMethodData::Voucher(VoucherData::Boleto(boleto_data)) => boleto_data,
+            _ => {
+                return Err(errors::ConnectorError::NotImplemented(
+                    crate::utils::get_unimplemented_payment_method_error_message("Santander"),
+                )
+                .into());
+            }
+        };
+
+        Ok(Self::Boleto(Box::new(SantanderBoletoPaymentRequest {
+            workspace_id: santander_mca_metadata.workspace_id.clone(),
+            environment: Environment::Teste, // to change
+            nsu_code: value.0.router_data.payment_id.clone(), // size: 20
+            nsu_date: Utc::now().format("%Y-%m-%d").to_string(),
+            covenant_code: santander_mca_metadata.covenant_code.clone(), // size: 9
+            bank_number: voucher_data.bank_number.clone().ok_or_else(|| {
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "document_type",
+                }
+            })?, // size: 13
+            client_number: Some(value.0.router_data.get_customer_id()?),
+            due_date: Utc::now().format("%Y-%m-%d").to_string(), // hardcoded as of now - what to map it with?
+            issue_date: Utc::now().format("%Y-%m-%d").to_string(),
+            currency: Some(value.0.router_data.request.currency),
+            nominal_value: value.0.amount.to_owned(),
+            participant_code: value
+                .0
+                .router_data
+                .request
+                .merchant_order_reference_id
+                .clone(),
+            payer: Payer {
+                name: value.0.router_data.get_billing_full_name()?,
+                document_type: voucher_data.document_type.clone().ok_or_else(|| {
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "document_type",
+                    }
+                })?,
+                document_number: voucher_data.social_security_number.clone(),
+                address: value.0.router_data.get_billing_line1()?,
+                neighborhood: value.0.router_data.get_billing_line1()?,
+                city: value.0.router_data.get_billing_city()?,
+                state: value.0.router_data.get_billing_state()?,
+                zipcode: value.0.router_data.get_billing_zip()?,
+            },
+            beneficiary: Some(Beneficiary {
+                name: value.0.router_data.get_optional_billing_full_name(),
+                document_type: voucher_data.document_type.clone(),
+                document_number: voucher_data
+                    .social_security_number
+                    .clone()
+                    .map(|s| s.expose()),
+            }),
+            document_kind: DocumentKind::BoletoProposta, // to change
+            discount: DiscountType::Isento,              // to change
+            discount_one: None,
+            discount_two: None,
+            discount_three: None,
+            fine_percentage: voucher_data.fine_percentage,
+            fine_quantity_days: voucher_data.fine_quantity_days,
+            interest_percentage: voucher_data.interest_percentage,
+            deduction_value: None,
+            protest_type: None,          // to change
+            protest_quantity_days: None, // to change
+            write_off_quantity_days: voucher_data.write_off_quantity_days,
+            payment_type: PaymentType::Registro, // to change
+            parcels_quantity: None,
+            value_type: None,
+            min_value_or_percentage: None,
+            max_value_or_percentage: None,
+            iof_percentage: None, // to change
+            sharing: None,
+            key: Some(Key {
+                key_type: None, // to change
+                dict_key: None, // to change
+            }),
+            tx_id: None,
+            messages: voucher_data.messages.clone(),
+        })))
     }
 }
 
@@ -227,12 +333,12 @@ impl
         let santander_mca_metadata =
             SantanderMetadataObject::try_from(&value.0.router_data.connector_meta_data)?;
 
-        let debtor = SantanderDebtor {
+        let debtor = Some(SantanderDebtor {
             cpf: santander_mca_metadata.cpf.clone(),
             name: value.0.router_data.get_billing_full_name()?,
-        };
+        });
 
-        Ok(Self {
+        Ok(Self::PixQR(Box::new(SantanderPixQRPaymentRequest {
             calender: SantanderCalendar {
                 creation: Utc::now().to_rfc3339(),
                 expiration: santander_mca_metadata.expiration_time,
@@ -244,13 +350,161 @@ impl
             key: santander_mca_metadata.pix_key.clone(),
             request_payer: value.0.router_data.request.statement_descriptor.clone(),
             additional_info: None,
-        })
+        })))
     }
 }
 
 #[derive(Debug, Serialize)]
+pub enum SantanderPaymentRequest {
+    PixQR(Box<SantanderPixQRPaymentRequest>),
+    Boleto(Box<SantanderBoletoPaymentRequest>),
+}
+
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SantanderPaymentRequest {
+pub struct SantanderBoletoPaymentRequest {
+    pub workspace_id: String,
+    pub environment: Environment,
+    pub nsu_code: String,
+    pub nsu_date: String, // YYYY-MM-DD
+    pub covenant_code: String,
+    pub bank_number: String,
+    pub client_number: Option<id_type::CustomerId>,
+    pub due_date: String,
+    pub issue_date: String,
+    pub currency: Option<enums::Currency>,
+    pub nominal_value: StringMajorUnit,
+    pub participant_code: Option<String>,
+    pub payer: Payer,
+    pub beneficiary: Option<Beneficiary>,
+    pub document_kind: DocumentKind,
+    pub discount: DiscountType,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub discount_one: Option<Discount>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub discount_two: Option<Discount>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub discount_three: Option<Discount>,
+    pub fine_percentage: Option<FloatMajorUnit>,
+    pub fine_quantity_days: Option<MinorUnit>,
+    pub interest_percentage: Option<FloatMajorUnit>,
+    pub deduction_value: Option<FloatMajorUnit>,
+    pub protest_type: Option<ProtestType>,
+    pub protest_quantity_days: Option<MinorUnit>,
+    pub write_off_quantity_days: Option<MinorUnit>,
+    pub payment_type: PaymentType,
+    pub parcels_quantity: Option<MinorUnit>,
+    pub value_type: Option<String>,
+    pub min_value_or_percentage: Option<FloatMajorUnit>,
+    pub max_value_or_percentage: Option<FloatMajorUnit>,
+    pub iof_percentage: Option<FloatMajorUnit>,
+    pub sharing: Option<Sharing>,
+    pub key: Option<Key>,
+    pub tx_id: Option<String>,
+    pub messages: Option<Vec<String>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Payer {
+    pub name: Secret<String>,
+    pub document_type: enums::DocumentType,
+    pub document_number: Option<Secret<String>>,
+    pub address: Secret<String>,
+    pub neighborhood: Secret<String>,
+    pub city: String,
+    pub state: Secret<String>,
+    pub zipcode: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Beneficiary {
+    pub name: Option<Secret<String>>,
+    pub document_type: Option<enums::DocumentType>,
+    pub document_number: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum Environment {
+    Teste,
+    Producao,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum DocumentType {
+    Cpf,
+    Cnpj,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum DocumentKind {
+    DuplicataMercantil,
+    DuplicataServico,
+    NotaPromissoria,
+    NotaPromissoriaRural,
+    Recibo,
+    ApoliceSeguro,
+    BoletoCartaoCredito,
+    BoletoProposta,
+    BoletoDepositoAporte,
+    Cheque,
+    NotaPromissoriaDireta,
+    Outros,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum DiscountType {
+    Isento,
+    ValorDataFixa,
+    ValorDiaCorrido,
+    ValorDiaUtil,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub struct Discount {
+    pub value: StringMajorUnit, // Changed from f64 → String for API safety
+    pub limit_date: String,     // YYYY-MM-DD
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ProtestType {
+    SemProtesto,
+    DiasCorridos,
+    DiasUteis,
+    CadastroConvenio,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum PaymentType {
+    Registro,
+    Divergente,
+    Parcial,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Sharing {
+    pub code: String,
+    pub value: FloatMajorUnit, // Changed from f64 → String for monetary precision
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Key {
+    #[serde(rename = "type")]
+    pub key_type: Option<String>,
+    pub dict_key: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixQRCodeRequest {
     #[serde(rename = "calendario")]
     pub calender: SantanderCalendar,
     #[serde(rename = "devedor")]
@@ -332,7 +586,22 @@ impl From<SantanderPaymentStatus> for common_enums::AttemptStatus {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct SantanderPaymentsResponse {
+pub enum SantanderPaymentsResponse {
+    PixQRCode(SantanderPixQRCodePaymentsResponse),
+    Boleto(SantanderBoletoPaymentsResponse),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SantanderBoletoPaymentsResponse {
+    barcode: String,
+    digitable_line: String,
+    entry_date: i64,
+    qr_code_pix: Option<String>,
+    qr_code_url: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SantanderPixQRCodePaymentsResponse {
     #[serde(rename = "calendario")]
     pub calendar: SantanderCalendar,
     #[serde(rename = "txid")]
@@ -465,20 +734,54 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
         item: ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let response = item.response.clone();
-        Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.status.clone()),
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(response.transaction_id.clone()),
-                redirection_data: Box::new(None),
-                mandate_reference: Box::new(None),
-                connector_metadata: get_qr_code_data(&item)?,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
-                charges: None,
+
+        match response {
+            SantanderPaymentsResponse::PixQRCode(pix_data) => Ok(Self {
+                status: common_enums::AttemptStatus::from(pix_data.status.clone()),
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(
+                        pix_data.transaction_id.clone(),
+                    ),
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
+                    connector_metadata: get_qr_code_data(&item, &pix_data)?,
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                    charges: None,
+                }),
+                ..item.data
             }),
-            ..item.data
-        })
+            SantanderPaymentsResponse::Boleto(boleto_data) => {
+                let voucher_data = VoucherNextStepData {
+                    expires_at: None,
+                    digitable_line: Some(boleto_data.digitable_line),
+                    reference: boleto_data.barcode,
+                    entry_date: Some(boleto_data.entry_date),
+                    download_url: None,
+                    instructions_url: None,
+                };
+
+                let connector_metadata = Some(voucher_data.encode_to_value())
+                    .transpose()
+                    .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+
+                Ok(Self {
+                    status: common_enums::AttemptStatus::AuthenticationPending,
+                    response: Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::NoResponseId,
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
+                        connector_metadata,
+                        network_txn_id: None,
+                        connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
+                        charges: None,
+                    }),
+                    ..item.data
+                })
+            }
+        }
     }
 }
 
@@ -518,11 +821,12 @@ impl TryFrom<&PaymentsCancelRouterData> for SantanderPaymentsCancelRequest {
 
 fn get_qr_code_data<F, T>(
     item: &ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsResponseData>,
+    pix_data: &SantanderPixQRCodePaymentsResponse,
 ) -> CustomResult<Option<Value>, errors::ConnectorError> {
     let santander_mca_metadata = SantanderMetadataObject::try_from(&item.data.connector_meta_data)?;
 
-    let response = item.response.clone();
-    let expiration_time = item.response.calendar.expiration;
+    let response = pix_data.clone();
+    let expiration_time = response.calendar.expiration;
 
     let expiration_i64 = i64::from(expiration_time);
 
@@ -652,8 +956,35 @@ impl<F> TryFrom<RefundsResponseRouterData<F, SantanderRefundResponse>> for Refun
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub enum SantanderErrorResponse {
+    PixQrCode(SantanderPixQRCodeErrorResponse),
+    Boleto(SantanderBoletoErrorResponse),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SantanderBoletoErrorResponse {
+    #[serde(rename = "_errorCode")]
+    pub error_code: String,
+
+    #[serde(rename = "_message")]
+    pub error_message: String,
+
+    #[serde(rename = "_details")]
+    pub issuer_error_message: String,
+
+    #[serde(rename = "_timestamp")]
+    pub timestamp: String,
+
+    #[serde(rename = "_traceId")]
+    pub trace_id: String,
+
+    #[serde(skip_serializing, skip_deserializing)]
+    pub errors: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SantanderErrorResponse {
+pub struct SantanderPixQRCodeErrorResponse {
     #[serde(rename = "type")]
     pub field_type: Secret<String>,
     pub title: String,
@@ -672,4 +1003,88 @@ pub struct SantanderViolations {
     pub property: Option<String>,
     #[serde(rename = "valor")]
     pub value: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderWebhookBody {
+    pub message: MessageCode,
+    pub function: FunctionType,
+    pub payment_type: WebhookPaymentType,
+    pub issue_date: String,
+    pub payment_date: String,
+    pub bank_code: String,
+    pub payment_channel: PaymentChannel,
+    pub payment_kind: PaymentKind,
+    pub covenant: String,
+    pub type_of_person_agreement: DocumentType,
+    pub agreement_document: String,
+    pub bank_number: String,
+    pub client_number: String,
+    pub participant_code: String,
+    pub tx_id: String,
+    pub payer_document_type: DocumentType,
+    pub payer_document_number: String,
+    pub payer_name: String,
+    pub final_beneficiaryr_document_type: DocumentType,
+    pub final_beneficiary_document_number: String,
+    pub final_beneficiary_name: String,
+    pub due_date: String,
+    pub nominal_value: String,
+    pub payed_value: String,
+    pub interest_value: String,
+    pub fine: String,
+    pub deduction_value: String,
+    pub rebate_value: String,
+    pub iof_value: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum MessageCode {
+    Wbhkpagest,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum FunctionType {
+    Pagamento,
+    Estorno,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum WebhookPaymentType {
+    Santander,
+    OutrosBancos,
+    Pix,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PaymentChannel {
+    AgenciasAutoAtendimento,
+    InternetBanking,
+    CorrespondenteBancarioFisico,
+    CentralDeAtendimento,
+    ArquivoEletronico,
+    Dda,
+    CorrespondenteBancarioDigital,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PaymentKind {
+    Especie,
+    DebitoEmConta,
+    CartaoDeCredito,
+    Cheque,
+}
+
+pub(crate) fn get_webhook_object_from_body(
+    body: &[u8],
+) -> CustomResult<SantanderWebhookBody, common_utils::errors::ParsingError> {
+    let webhook: SantanderWebhookBody = body.parse_struct("SantanderIncomingWebhook")?;
+
+    Ok(webhook)
 }

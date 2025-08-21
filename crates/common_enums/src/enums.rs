@@ -571,6 +571,13 @@ pub enum CallConnectorAction {
     HandleResponse(Vec<u8>),
 }
 
+#[derive(Clone, PartialEq, Debug, serde::Deserialize, serde::Serialize, Eq)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum DocumentType {
+    Cnpj,
+    Cpf,
+}
+
 /// The three-letter ISO 4217 currency code (e.g., "USD", "EUR") for the payment amount. This field is mandatory for creating a payment.
 #[allow(clippy::upper_case_acronyms)]
 #[derive(
