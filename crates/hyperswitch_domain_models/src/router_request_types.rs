@@ -305,6 +305,36 @@ impl TryFrom<SetupMandateRequestData> for ConnectorCustomerData {
         })
     }
 }
+
+impl TryFrom<SetupMandateRequestData> for PaymentsPreProcessingData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: SetupMandateRequestData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: Some(data.payment_method_data),
+            amount: data.amount,
+            minor_amount: data.minor_amount,
+            email: data.email,
+            currency: Some(data.currency),
+            payment_method_type: data.payment_method_type,
+            setup_mandate_details: data.setup_mandate_details,
+            capture_method: data.capture_method,
+            order_details: None,
+            router_return_url: data.router_return_url,
+            webhook_url: data.webhook_url,
+            complete_authorize_url: data.complete_authorize_url,
+            browser_info: data.browser_info,
+            surcharge_details: None,
+            connector_transaction_id: None,
+            mandate_id: data.mandate_id,
+            related_transaction_id: None,
+            redirect_response: None,
+            enrolled_for_3ds: false,
+            split_payments: None,
+            metadata: data.metadata,
+        })
+    }
+}
 impl
     TryFrom<
         &RouterData<flows::Authorize, PaymentsAuthorizeData, response_types::PaymentsResponseData>,

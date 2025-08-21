@@ -21,11 +21,11 @@ use hyperswitch_domain_models::{
     },
     router_flow_types::{
         refunds::{Execute, RSync},
-        Authorize, Capture, CompleteAuthorize, PSync, PostCaptureVoid, Void,
+        Authorize, Capture, CompleteAuthorize, PSync, PostCaptureVoid, SetupMandate, Void,
     },
     router_request_types::{
         authentication::MessageExtensionAttribute, BrowserInformation, PaymentsAuthorizeData,
-        PaymentsPreProcessingData, ResponseId,
+        PaymentsPreProcessingData, ResponseId, SetupMandateRequestData,
     },
     router_response_types::{
         MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
@@ -90,6 +90,84 @@ trait NuveiAuthorizePreprocessingCommon {
     fn get_order_tax_amount(
         &self,
     ) -> Result<Option<i64>, error_stack::Report<errors::ConnectorError>>;
+}
+
+impl NuveiAuthorizePreprocessingCommon for SetupMandateRequestData {
+    fn get_browser_info(&self) -> Option<BrowserInformation> {
+        self.browser_info.clone()
+    }
+
+    fn get_related_transaction_id(&self) -> Option<String> {
+        None
+    }
+    fn get_is_moto(&self) -> Option<bool> {
+        match self.payment_channel {
+            Some(PaymentChannel::MailOrder) | Some(PaymentChannel::TelephoneOrder) => Some(true),
+            _ => None,
+        }
+    }
+
+    fn get_customer_id_required(&self) -> Option<CustomerId> {
+        self.customer_id.clone()
+    }
+
+    fn get_setup_mandate_details(&self) -> Option<MandateData> {
+        self.setup_mandate_details.clone()
+    }
+
+    fn get_complete_authorize_url(&self) -> Option<String> {
+        self.complete_authorize_url.clone()
+    }
+
+    fn get_connector_mandate_id(&self) -> Option<String> {
+        self.mandate_id.as_ref().and_then(|mandate_ids| {
+            mandate_ids
+                .mandate_reference_id
+                .as_ref()
+                .and_then(|mandate_ref_id| match mandate_ref_id {
+                    api_models::payments::MandateReferenceId::ConnectorMandateId(id) => {
+                        id.get_connector_mandate_id()
+                    }
+                    _ => None,
+                })
+        })
+    }
+
+    fn get_return_url_required(
+        &self,
+    ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+        self.router_return_url
+            .clone()
+            .ok_or_else(missing_field_err("return_url"))
+    }
+
+    fn get_capture_method(&self) -> Option<CaptureMethod> {
+        self.capture_method
+    }
+
+    fn get_amount_required(&self) -> Result<i64, error_stack::Report<errors::ConnectorError>> {
+        Ok(self.amount.unwrap_or(0))
+    }
+
+    fn get_currency_required(
+        &self,
+    ) -> Result<enums::Currency, error_stack::Report<errors::ConnectorError>> {
+        Ok(self.currency)
+    }
+    fn get_payment_method_data_required(
+        &self,
+    ) -> Result<PaymentMethodData, error_stack::Report<errors::ConnectorError>> {
+        Ok(self.payment_method_data.clone())
+    }
+    fn get_order_tax_amount(
+        &self,
+    ) -> Result<Option<i64>, error_stack::Report<errors::ConnectorError>> {
+        Ok(None)
+    }
+
+    fn get_email_required(&self) -> Result<Email, error_stack::Report<errors::ConnectorError>> {
+        self.email.clone().ok_or_else(missing_field_err("email"))
+    }
 }
 
 impl NuveiAuthorizePreprocessingCommon for PaymentsAuthorizeData {
@@ -596,6 +674,33 @@ impl TryFrom<&types::PaymentsAuthorizeSessionTokenRouterData> for NuveiSessionRe
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: &types::PaymentsAuthorizeSessionTokenRouterData,
+    ) -> Result<Self, Self::Error> {
+        let connector_meta: NuveiAuthType = NuveiAuthType::try_from(&item.connector_auth_type)?;
+        let merchant_id = connector_meta.merchant_id;
+        let merchant_site_id = connector_meta.merchant_site_id;
+        let client_request_id = item.connector_request_reference_id.clone();
+        let time_stamp = date_time::DateTime::<date_time::YYYYMMDDHHmmss>::from(date_time::now());
+        let merchant_secret = connector_meta.merchant_secret;
+        Ok(Self {
+            merchant_id: merchant_id.clone(),
+            merchant_site_id: merchant_site_id.clone(),
+            client_request_id: client_request_id.clone(),
+            time_stamp: time_stamp.clone(),
+            checksum: Secret::new(encode_payload(&[
+                merchant_id.peek(),
+                merchant_site_id.peek(),
+                &client_request_id,
+                &time_stamp.to_string(),
+                merchant_secret.peek(),
+            ])?),
+        })
+    }
+}
+
+impl TryFrom<&types::PaymentsSessionRouterData> for NuveiSessionRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &types::PaymentsSessionRouterData,
     ) -> Result<Self, Self::Error> {
         let connector_meta: NuveiAuthType = NuveiAuthType::try_from(&item.connector_auth_type)?;
         let merchant_id = connector_meta.merchant_id;
@@ -1760,6 +1865,43 @@ impl NuveiPaymentsGenericResponse for Void {}
 impl NuveiPaymentsGenericResponse for PSync {}
 impl NuveiPaymentsGenericResponse for Capture {}
 impl NuveiPaymentsGenericResponse for PostCaptureVoid {}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            SetupMandate,
+            NuveiPaymentsResponse,
+            SetupMandateRequestData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            SetupMandate,
+            NuveiPaymentsResponse,
+            SetupMandateRequestData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let amount = item.data.request.amount;
+
+        let (status, redirection_data, connector_response_data) =
+            process_nuvei_payment_response(&item, amount)?;
+
+        Ok(Self {
+            status,
+            response: Ok(create_transaction_response(
+                &item.response,
+                redirection_data,
+                item.http_code,
+            )?),
+            connector_response: connector_response_data,
+            ..item.data
+        })
+    }
+}
 
 // Helper function to process Nuvei payment response
 
