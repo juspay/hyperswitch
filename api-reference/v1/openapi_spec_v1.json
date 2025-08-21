@@ -23874,7 +23874,7 @@
           },
           "is_overcapture_enabled": {
             "type": "boolean",
-            "description": "Bool indicating if overcapture is applied for this payment",
+            "description": "Bool indicating if overcapture is enabled for this payment",
             "nullable": true
           }
         }
@@ -25284,7 +25284,7 @@
           },
           "is_overcapture_enabled": {
             "type": "boolean",
-            "description": "Bool indicating if overcapture is applied for this payment",
+            "description": "Bool indicating if overcapture is enabled for this payment",
             "nullable": true
           }
         }
