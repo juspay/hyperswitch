@@ -476,18 +476,6 @@ pub mod core {
                 .expose()
                 .clone();
 
-            // Validate template length to prevent potential memory issues
-            if domain_request.connector_payload.template.len() > 1_000_000 {
-                // 1MB limit
-                logger::error!(
-                    template_length = domain_request.connector_payload.template.len(),
-                    "Template is too large"
-                );
-                return Err(error_stack::Report::new(InjectorError::InvalidTemplate(
-                    "Template is too large".to_string(),
-                )));
-            }
-
             logger::debug!(
                 template_length = domain_request.connector_payload.template.len(),
                 vault_connector = ?domain_request.token_data.vault_connector,
