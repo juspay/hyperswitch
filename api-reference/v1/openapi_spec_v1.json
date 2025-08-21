@@ -23256,7 +23256,7 @@
             "description": "Allow partial authorization for this payment",
             "nullable": true
           },
-          "request_overcapture": {
+          "enable_overcapture": {
             "type": "boolean",
             "description": "Bool indicating if overcapture  must be requested for all payments",
             "nullable": true
@@ -23867,12 +23867,12 @@
             "description": "Allow partial authorization for this payment",
             "nullable": true
           },
-          "request_overcapture": {
+          "enable_overcapture": {
             "type": "boolean",
             "description": "Bool indicating if overcapture  must be requested for all payments",
             "nullable": true
           },
-          "overcapture_applied": {
+          "is_overcapture_enabled": {
             "type": "boolean",
             "description": "Bool indicating if overcapture is applied for this payment",
             "nullable": true
@@ -24640,7 +24640,7 @@
             "description": "Allow partial authorization for this payment",
             "nullable": true
           },
-          "request_overcapture": {
+          "enable_overcapture": {
             "type": "boolean",
             "description": "Bool indicating if overcapture  must be requested for all payments",
             "nullable": true
@@ -25277,12 +25277,12 @@
             "description": "Allow partial authorization for this payment",
             "nullable": true
           },
-          "request_overcapture": {
+          "enable_overcapture": {
             "type": "boolean",
             "description": "Bool indicating if overcapture  must be requested for all payments",
             "nullable": true
           },
-          "overcapture_applied": {
+          "is_overcapture_enabled": {
             "type": "boolean",
             "description": "Bool indicating if overcapture is applied for this payment",
             "nullable": true
@@ -25893,7 +25893,7 @@
             "description": "Allow partial authorization for this payment",
             "nullable": true
           },
-          "request_overcapture": {
+          "enable_overcapture": {
             "type": "boolean",
             "description": "Bool indicating if overcapture  must be requested for all payments",
             "nullable": true
@@ -28281,7 +28281,7 @@
             "example": 2,
             "nullable": true
           },
-          "always_request_overcapture": {
+          "always_enable_overcapture": {
             "type": "boolean",
             "description": "Bool indicating if overcapture  must be requested for all payments",
             "nullable": true
@@ -28612,7 +28612,7 @@
             "nullable": true,
             "minimum": 0
           },
-          "always_request_overcapture": {
+          "always_enable_overcapture": {
             "type": "boolean",
             "description": "Bool indicating if overcapture  must be requested for all payments",
             "nullable": true
