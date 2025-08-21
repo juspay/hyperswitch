@@ -217,7 +217,7 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::GetFailed)
     }
 
-    async fn get_multiple_keys_with_transaction<V>(
+    async fn get_multiple_keys_with_parallel_get<V>(
         &self,
         keys: &[RedisKey],
     ) -> CustomResult<Vec<Option<V>>, errors::RedisError>
@@ -230,15 +230,15 @@ impl super::RedisConnectionPool {
         let tenant_aware_keys: Vec<String> =
             keys.iter().map(|key| key.tenant_aware_key(self)).collect();
 
-        let futures = tenant_aware_keys.iter().map(|redis_key| {
-            self.pool.get::<Option<V>, _>(redis_key)
-        });
-        
+        let futures = tenant_aware_keys
+            .iter()
+            .map(|redis_key| self.pool.get::<Option<V>, _>(redis_key));
+
         let results = futures::future::try_join_all(futures)
             .await
             .change_context(errors::RedisError::GetFailed)
             .attach_printable("Failed to get keys in cluster mode")?;
-        
+
         Ok(results)
     }
 
@@ -252,7 +252,7 @@ impl super::RedisConnectionPool {
     {
         if self.config.cluster_enabled {
             // Use individual GET commands for cluster mode to avoid CROSSSLOT errors
-            self.get_multiple_keys_with_transaction(keys).await
+            self.get_multiple_keys_with_parallel_get(keys).await
         } else {
             // Use MGET for non-cluster mode for better performance
             self.get_multiple_keys_with_mget(keys).await
