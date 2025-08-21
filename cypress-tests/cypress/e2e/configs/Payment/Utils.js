@@ -10,11 +10,13 @@ import { connectorDetails as authipayConnectorDetails } from "./Authipay.js";
 import { connectorDetails as authorizedotnetConnectorDetails } from "./Authorizedotnet.js";
 import { connectorDetails as bamboraConnectorDetails } from "./Bambora.js";
 import { connectorDetails as bamboraapacConnectorDetails } from "./Bamboraapac.js";
+import { connectorDetails as barclaycardConnectorDetails } from "./Barclaycard.js";
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
 import { connectorDetails as billwerkConnectorDetails } from "./Billwerk.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
 import { connectorDetails as braintreeConnectorDetails } from "./Braintree.js";
 import { connectorDetails as checkoutConnectorDetails } from "./Checkout.js";
+import { connectorDetails as checkbookConnectorDetails } from "./Checkbook.js";
 import { connectorDetails as commonConnectorDetails } from "./Commons.js";
 import { connectorDetails as cybersourceConnectorDetails } from "./Cybersource.js";
 import { connectorDetails as datatransConnectorDetails } from "./Datatrans.js";
@@ -47,6 +49,7 @@ import { connectorDetails as payuConnectorDetails } from "./Payu.js";
 import { connectorDetails as powertranzConnectorDetails } from "./PowerTranz.js";
 import { connectorDetails as redsysConnectorDetails } from "./Redsys.js";
 import { connectorDetails as shift4ConnectorDetails } from "./Shift4.js";
+import { connectorDetails as silverflowConnectorDetails } from "./Silverflow.js";
 import { connectorDetails as squareConnectorDetails } from "./Square.js";
 import { connectorDetails as staxConnectorDetails } from "./Stax.js";
 import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
@@ -57,7 +60,7 @@ import { connectorDetails as worldpayConnectorDetails } from "./WorldPay.js";
 import { connectorDetails as worldpayvantivConnectorDetails } from "./Worldpayvantiv.js";
 import { connectorDetails as worldpayxmlConnectorDetails } from "./Worldpayxml.js";
 import { connectorDetails as xenditConnectorDetails } from "./Xendit.js";
-
+import { connectorDetails as celeroConnectorDetails } from "./Celero.js";
 const connectorDetails = {
   aci: aciConnectorDetails,
   adyen: adyenConnectorDetails,
@@ -67,11 +70,14 @@ const connectorDetails = {
   authorizedotnet: authorizedotnetConnectorDetails,
   bambora: bamboraConnectorDetails,
   bamboraapac: bamboraapacConnectorDetails,
+  barclaycard: barclaycardConnectorDetails,
   bankofamerica: bankOfAmericaConnectorDetails,
   billwerk: billwerkConnectorDetails,
   bluesnap: bluesnapConnectorDetails,
   braintree: braintreeConnectorDetails,
+  celero: celeroConnectorDetails,
   checkout: checkoutConnectorDetails,
+  checkbook: checkbookConnectorDetails,
   commons: commonConnectorDetails,
   cybersource: cybersourceConnectorDetails,
   dlocal: dlocalConnectorDetails,
@@ -104,6 +110,7 @@ const connectorDetails = {
   powertranz: powertranzConnectorDetails,
   redsys: redsysConnectorDetails,
   shift4: shift4ConnectorDetails,
+  silverflow: silverflowConnectorDetails,
   square: squareConnectorDetails,
   stax: staxConnectorDetails,
   stripe: stripeConnectorDetails,
@@ -399,6 +406,7 @@ export const CONNECTOR_LISTS = {
       "archipel",
       // "cybersource",    // issues with MULTIPLE_CONNECTORS handling
       "paypal",
+      // "stripe",
     ],
     DDC_RACE_CONDITION: ["worldpay"],
     // Add more inclusion lists

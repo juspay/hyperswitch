@@ -72,7 +72,7 @@ pub enum RoutableConnectors {
     Bambora,
     Bamboraapac,
     Bluesnap,
-    // Bluecode,
+    Bluecode,
     Boku,
     Braintree,
     Breadpay,
@@ -80,7 +80,7 @@ pub enum RoutableConnectors {
     Celero,
     Chargebee,
     Custombilling,
-    // Checkbook,
+    Checkbook,
     Checkout,
     Coinbase,
     Coingate,
@@ -90,13 +90,14 @@ pub enum RoutableConnectors {
     Deutschebank,
     Digitalvirgo,
     Dlocal,
-    // Dwolla,
+    Dwolla,
     Ebanx,
     Elavon,
     Facilitapay,
     Fiserv,
     Fiservemea,
     Fiuu,
+    Flexiti,
     Forte,
     Getnet,
     Globalpay,
@@ -118,7 +119,7 @@ pub enum RoutableConnectors {
     Nmi,
     Nomupay,
     Noon,
-    // Nordea,
+    Nordea,
     Novalnet,
     Nuvei,
     // Opayo, added as template code for future usage
@@ -130,7 +131,9 @@ pub enum RoutableConnectors {
     Payone,
     Paypal,
     Paystack,
+    Paytm,
     Payu,
+    Phonepe,
     Placetopay,
     Powertranz,
     Prophetpay,
@@ -142,6 +145,7 @@ pub enum RoutableConnectors {
     Santander,
     Shift4,
     Signifyd,
+    Silverflow,
     Square,
     Stax,
     Stripe,
@@ -235,14 +239,14 @@ pub enum Connector {
     Billwerk,
     Bitpay,
     Bluesnap,
-    // Bluecode,
+    Bluecode,
     Boku,
     Braintree,
     Breadpay,
     Cashtocode,
     Celero,
     Chargebee,
-    // Checkbook,
+    Checkbook,
     Checkout,
     Coinbase,
     Coingate,
@@ -255,13 +259,14 @@ pub enum Connector {
     Deutschebank,
     Digitalvirgo,
     Dlocal,
-    // Dwolla,
+    Dwolla,
     Ebanx,
     Elavon,
     Facilitapay,
     Fiserv,
     Fiservemea,
     Fiuu,
+    Flexiti,
     Forte,
     Getnet,
     Globalpay,
@@ -271,6 +276,7 @@ pub enum Connector {
     Hipay,
     Helcim,
     HyperswitchVault,
+    // Hyperwallet, added as template code for future usage
     Inespay,
     Iatapay,
     Itaubank,
@@ -287,7 +293,7 @@ pub enum Connector {
     Nmi,
     Nomupay,
     Noon,
-    // Nordea,
+    Nordea,
     Novalnet,
     Nuvei,
     // Opayo, added as template code for future usage
@@ -299,7 +305,9 @@ pub enum Connector {
     Payone,
     Paypal,
     Paystack,
+    Paytm,
     Payu,
+    Phonepe,
     Placetopay,
     Powertranz,
     Prophetpay,
@@ -309,6 +317,7 @@ pub enum Connector {
     Redsys,
     Santander,
     Shift4,
+    Silverflow,
     Square,
     Stax,
     Stripe,
@@ -377,6 +386,7 @@ impl Connector {
                 | (Self::Globalpay, _)
                 | (Self::Jpmorgan, _)
                 | (Self::Moneris, _)
+                | (Self::Nordea, _)
                 | (Self::Paypal, _)
                 | (Self::Payu, _)
                 | (
@@ -387,13 +397,14 @@ impl Connector {
                 | (Self::Volt, _)
                 | (Self::Itaubank, _)
                 | (Self::Facilitapay, _)
+                | (Self::Dwolla, _)
         )
     }
     pub fn requires_order_creation_before_payment(self, payment_method: PaymentMethod) -> bool {
         matches!((self, payment_method), (Self::Razorpay, PaymentMethod::Upi))
     }
     pub fn supports_file_storage_module(self) -> bool {
-        matches!(self, Self::Stripe | Self::Checkout)
+        matches!(self, Self::Stripe | Self::Checkout | Self::Worldpayvantiv)
     }
     pub fn requires_defend_dispute(self) -> bool {
         matches!(self, Self::Checkout)
@@ -425,14 +436,14 @@ impl Connector {
             | Self::Billwerk
             | Self::Bitpay
             | Self::Bluesnap
-            // | Self::Bluecode
+            | Self::Bluecode
             | Self::Boku
             | Self::Braintree
             | Self::Breadpay
             | Self::Cashtocode
             | Self::Celero
             | Self::Chargebee
-            // | Self::Checkbook
+            | Self::Checkbook
             | Self::Coinbase
             | Self::Coingate
             | Self::Cryptopay
@@ -440,13 +451,14 @@ impl Connector {
             | Self::Deutschebank
             | Self::Digitalvirgo
             | Self::Dlocal
-            // | Self::Dwolla
+            | Self::Dwolla
             | Self::Ebanx
             | Self::Elavon
             | Self::Facilitapay
             | Self::Fiserv
             | Self::Fiservemea
             | Self::Fiuu
+            | Self::Flexiti
             | Self::Forte
             | Self::Getnet
             | Self::Globalpay
@@ -469,7 +481,7 @@ impl Connector {
             | Self::Nexinets
             | Self::Nexixpay
             | Self::Nomupay
-            // | Self::Nordea
+            | Self::Nordea
             | Self::Novalnet
             | Self::Nuvei
             | Self::Opennode
@@ -488,6 +500,7 @@ impl Connector {
             | Self::Redsys
             | Self::Santander
             | Self::Shift4
+            | Self::Silverflow
             | Self::Square
             | Self::Stax
             | Self::Stripebilling
@@ -520,7 +533,9 @@ impl Connector {
             | Self::Noon
             | Self::Tokenio
             | Self::Stripe
-            | Self::Datatrans => false,
+            | Self::Datatrans
+            | Self::Paytm
+            | Self::Phonepe => false,
             Self::Checkout | Self::Nmi |Self::Cybersource | Self::Archipel => true,
         }
     }
@@ -593,7 +608,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Bambora => Self::Bambora,
             RoutableConnectors::Bamboraapac => Self::Bamboraapac,
             RoutableConnectors::Bluesnap => Self::Bluesnap,
-            // RoutableConnectors::Bluecode => Self::Bluecode,
+            RoutableConnectors::Bluecode => Self::Bluecode,
             RoutableConnectors::Boku => Self::Boku,
             RoutableConnectors::Braintree => Self::Braintree,
             RoutableConnectors::Breadpay => Self::Breadpay,
@@ -601,7 +616,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Celero => Self::Celero,
             RoutableConnectors::Chargebee => Self::Chargebee,
             RoutableConnectors::Custombilling => Self::Custombilling,
-            // RoutableConnectors::Checkbook => Self::Checkbook,
+            RoutableConnectors::Checkbook => Self::Checkbook,
             RoutableConnectors::Checkout => Self::Checkout,
             RoutableConnectors::Coinbase => Self::Coinbase,
             RoutableConnectors::Cryptopay => Self::Cryptopay,
@@ -610,13 +625,14 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Deutschebank => Self::Deutschebank,
             RoutableConnectors::Digitalvirgo => Self::Digitalvirgo,
             RoutableConnectors::Dlocal => Self::Dlocal,
-            // RoutableConnectors::Dwolla => Self::Dwolla,
+            RoutableConnectors::Dwolla => Self::Dwolla,
             RoutableConnectors::Ebanx => Self::Ebanx,
             RoutableConnectors::Elavon => Self::Elavon,
             RoutableConnectors::Facilitapay => Self::Facilitapay,
             RoutableConnectors::Fiserv => Self::Fiserv,
             RoutableConnectors::Fiservemea => Self::Fiservemea,
             RoutableConnectors::Fiuu => Self::Fiuu,
+            RoutableConnectors::Flexiti => Self::Flexiti,
             RoutableConnectors::Forte => Self::Forte,
             RoutableConnectors::Getnet => Self::Getnet,
             RoutableConnectors::Globalpay => Self::Globalpay,
@@ -636,7 +652,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Nmi => Self::Nmi,
             RoutableConnectors::Nomupay => Self::Nomupay,
             RoutableConnectors::Noon => Self::Noon,
-            // RoutableConnectors::Nordea => Self::Nordea,
+            RoutableConnectors::Nordea => Self::Nordea,
             RoutableConnectors::Novalnet => Self::Novalnet,
             RoutableConnectors::Nuvei => Self::Nuvei,
             RoutableConnectors::Opennode => Self::Opennode,
@@ -658,6 +674,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Santander => Self::Santander,
             RoutableConnectors::Shift4 => Self::Shift4,
             RoutableConnectors::Signifyd => Self::Signifyd,
+            RoutableConnectors::Silverflow => Self::Silverflow,
             RoutableConnectors::Square => Self::Square,
             RoutableConnectors::Stax => Self::Stax,
             RoutableConnectors::Stripe => Self::Stripe,
@@ -680,6 +697,8 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Inespay => Self::Inespay,
             RoutableConnectors::Coingate => Self::Coingate,
             RoutableConnectors::Hipay => Self::Hipay,
+            RoutableConnectors::Paytm => Self::Paytm,
+            RoutableConnectors::Phonepe => Self::Phonepe,
         }
     }
 }
@@ -719,14 +738,14 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Bambora => Ok(Self::Bambora),
             Connector::Bamboraapac => Ok(Self::Bamboraapac),
             Connector::Bluesnap => Ok(Self::Bluesnap),
-            // Connector::Bluecode => Ok(Self::Bluecode),
+            Connector::Bluecode => Ok(Self::Bluecode),
             Connector::Boku => Ok(Self::Boku),
             Connector::Braintree => Ok(Self::Braintree),
             Connector::Breadpay => Ok(Self::Breadpay),
             Connector::Cashtocode => Ok(Self::Cashtocode),
             Connector::Celero => Ok(Self::Celero),
             Connector::Chargebee => Ok(Self::Chargebee),
-            // Connector::Checkbook => Ok(Self::Checkbook),
+            Connector::Checkbook => Ok(Self::Checkbook),
             Connector::Checkout => Ok(Self::Checkout),
             Connector::Coinbase => Ok(Self::Coinbase),
             Connector::Coingate => Ok(Self::Coingate),
@@ -737,13 +756,14 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Deutschebank => Ok(Self::Deutschebank),
             Connector::Digitalvirgo => Ok(Self::Digitalvirgo),
             Connector::Dlocal => Ok(Self::Dlocal),
-            // Connector::Dwolla => Ok(Self::Dwolla),
+            Connector::Dwolla => Ok(Self::Dwolla),
             Connector::Ebanx => Ok(Self::Ebanx),
             Connector::Elavon => Ok(Self::Elavon),
             Connector::Facilitapay => Ok(Self::Facilitapay),
             Connector::Fiserv => Ok(Self::Fiserv),
             Connector::Fiservemea => Ok(Self::Fiservemea),
             Connector::Fiuu => Ok(Self::Fiuu),
+            Connector::Flexiti => Ok(Self::Flexiti),
             Connector::Forte => Ok(Self::Forte),
             Connector::Globalpay => Ok(Self::Globalpay),
             Connector::Globepay => Ok(Self::Globepay),
@@ -762,7 +782,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Nmi => Ok(Self::Nmi),
             Connector::Nomupay => Ok(Self::Nomupay),
             Connector::Noon => Ok(Self::Noon),
-            // Connector::Nordea => Ok(Self::Nordea),
+            Connector::Nordea => Ok(Self::Nordea),
             Connector::Novalnet => Ok(Self::Novalnet),
             Connector::Nuvei => Ok(Self::Nuvei),
             Connector::Opennode => Ok(Self::Opennode),
@@ -782,6 +802,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Santander => Ok(Self::Santander),
             Connector::Shift4 => Ok(Self::Shift4),
             Connector::Signifyd => Ok(Self::Signifyd),
+            Connector::Silverflow => Ok(Self::Silverflow),
             Connector::Square => Ok(Self::Square),
             Connector::Stax => Ok(Self::Stax),
             Connector::Stripe => Ok(Self::Stripe),
@@ -805,6 +826,8 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Hipay => Ok(Self::Hipay),
             Connector::Inespay => Ok(Self::Inespay),
             Connector::Redsys => Ok(Self::Redsys),
+            Connector::Paytm => Ok(Self::Paytm),
+            Connector::Phonepe => Ok(Self::Phonepe),
             Connector::CtpMastercard
             | Connector::Gpayments
             | Connector::HyperswitchVault

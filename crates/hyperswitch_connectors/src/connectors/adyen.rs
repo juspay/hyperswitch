@@ -155,6 +155,7 @@ impl ConnectorCommon for Adyen {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -340,7 +341,9 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::InstantBankTransferPoland
                 | PaymentMethodType::IndonesianBankTransfer
                 | PaymentMethodType::SepaBankTransfer
-                | PaymentMethodType::RevolutPay => {
+                | PaymentMethodType::Flexiti
+                | PaymentMethodType::RevolutPay
+                | PaymentMethodType::Bluecode => {
                     capture_method_not_supported!(connector, capture_method, payment_method_type)
                 }
             },
@@ -1034,6 +1037,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..data.clone()
             })

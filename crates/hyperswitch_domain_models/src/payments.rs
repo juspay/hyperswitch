@@ -116,6 +116,13 @@ pub struct PaymentIntent {
     pub force_3ds_challenge_trigger: Option<bool>,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_payment_id_from_merchant: Option<bool>,
+    pub payment_channel: Option<common_enums::PaymentChannel>,
+    pub tax_status: Option<storage_enums::TaxStatus>,
+    pub discount_amount: Option<MinorUnit>,
+    pub order_date: Option<PrimitiveDateTime>,
+    pub shipping_amount_tax: Option<MinorUnit>,
+    pub duty_amount: Option<MinorUnit>,
+    pub enable_partial_authorization: Option<bool>,
 }
 
 impl PaymentIntent {
@@ -873,6 +880,7 @@ where
     pub mandate_data: Option<api_models::payments::MandateIds>,
     pub payment_method: Option<payment_methods::PaymentMethod>,
     pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
+    pub external_vault_pmd: Option<payment_method_data::ExternalVaultPaymentMethodData>,
 }
 
 #[cfg(feature = "v2")]

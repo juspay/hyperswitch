@@ -497,6 +497,7 @@ pub enum PaymentMethodUpdateData {
 #[serde(rename = "payment_method_data")]
 pub enum PaymentMethodCreateData {
     Card(CardDetail),
+    ProxyCard(ProxyCardDetails),
 }
 
 #[cfg(feature = "v1")]
@@ -605,6 +606,57 @@ pub struct CardDetail {
 
     /// Card Type
     pub card_type: Option<CardType>,
+
+    /// The CVC number for the card
+    /// This is optional in case the card needs to be vaulted
+    #[schema(value_type = String, example = "242")]
+    pub card_cvc: Option<masking::Secret<String>>,
+}
+
+// This struct is for collecting Proxy Card Data
+// All card related data present in this struct are tokenzied
+// No strict type is present to accept tokenized data
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct ProxyCardDetails {
+    /// Tokenized Card Number
+    #[schema(value_type = String,example = "tok_sjfowhoejsldj")]
+    pub card_number: masking::Secret<String>,
+
+    /// Card Expiry Month
+    #[schema(value_type = String,example = "10")]
+    pub card_exp_month: masking::Secret<String>,
+
+    /// Card Expiry Year
+    #[schema(value_type = String,example = "25")]
+    pub card_exp_year: masking::Secret<String>,
+
+    /// First Six Digit of Card Number
+    pub bin_number: Option<String>,
+
+    ///Last Four Digit of Card Number
+    pub last_four: Option<String>,
+
+    /// Issuer Bank for Card
+    pub card_issuer: Option<String>,
+
+    /// Card's Network
+    #[schema(value_type = Option<CardNetwork>)]
+    pub card_network: Option<common_enums::CardNetwork>,
+
+    /// Card Type
+    pub card_type: Option<String>,
+
+    /// Issuing Country of the Card
+    pub card_issuing_country: Option<String>,
+
+    /// Card Holder's Nick Name
+    #[schema(value_type = Option<String>,example = "John Doe")]
+    pub nick_name: Option<masking::Secret<String>>,
+
+    /// Card Holder Name
+    #[schema(value_type = String,example = "John Doe")]
+    pub card_holder_name: Option<masking::Secret<String>>,
 
     /// The CVC number for the card
     /// This is optional in case the card needs to be vaulted
@@ -944,6 +996,12 @@ pub enum PaymentMethodsData {
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct ExternalVaultTokenData {
+    /// Tokenized reference for Card Number
+    pub tokenized_card_number: masking::Secret<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CardDetailsPaymentMethod {
     pub last4_digits: Option<String>,
     pub issuer_country: Option<String>,
@@ -1229,6 +1287,8 @@ impl From<CardDetailFromLocker> for payments::AdditionalCardInfo {
             card_holder_name: item.card_holder_name,
             payment_checks: None,
             authentication_data: None,
+            is_regulated: None,
+            signature_network: None,
         }
     }
 }
@@ -1252,6 +1312,8 @@ impl From<CardDetailFromLocker> for payments::AdditionalCardInfo {
             card_holder_name: item.card_holder_name,
             payment_checks: None,
             authentication_data: None,
+            is_regulated: None,
+            signature_network: None,
         }
     }
 }
@@ -1442,7 +1504,8 @@ pub struct ResponsePaymentMethodTypes {
     /// The list of card networks enabled, if applicable for a payment method type
     pub card_networks: Option<Vec<CardNetworkTypes>>,
 
-    /// The list of banks enabled, if applicable for a payment method type
+    #[schema(deprecated)]
+    /// The list of banks enabled, if applicable for a payment method type . To be deprecated soon.
     pub bank_names: Option<Vec<BankCodeResponse>>,
 
     /// The Bank debit payment method information, if applicable for a payment method type.
@@ -1778,7 +1841,7 @@ impl<'de> serde::Deserialize<'de> for PaymentMethodListRequest {
 //List Payment Method
 #[derive(Debug, Clone, serde::Serialize, Default, ToSchema)]
 #[serde(deny_unknown_fields)]
-pub struct PaymentMethodListRequest {
+pub struct ListMethodsForPaymentMethodsRequest {
     /// This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK
     #[schema(max_length = 30, min_length = 30, example = "secret_k2uj3he2893eiu2d")]
     pub client_secret: Option<String>,
@@ -1809,7 +1872,7 @@ pub struct PaymentMethodListRequest {
 }
 
 #[cfg(feature = "v2")]
-impl<'de> serde::Deserialize<'de> for PaymentMethodListRequest {
+impl<'de> serde::Deserialize<'de> for ListMethodsForPaymentMethodsRequest {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -1817,7 +1880,7 @@ impl<'de> serde::Deserialize<'de> for PaymentMethodListRequest {
         struct FieldVisitor;
 
         impl<'de> de::Visitor<'de> for FieldVisitor {
-            type Value = PaymentMethodListRequest;
+            type Value = ListMethodsForPaymentMethodsRequest;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 formatter.write_str("Failed while deserializing as map")
@@ -1827,7 +1890,7 @@ impl<'de> serde::Deserialize<'de> for PaymentMethodListRequest {
             where
                 A: de::MapAccess<'de>,
             {
-                let mut output = PaymentMethodListRequest::default();
+                let mut output = ListMethodsForPaymentMethodsRequest::default();
 
                 while let Some(key) = map.next_key()? {
                     match key {
@@ -2622,6 +2685,7 @@ impl PaymentMethodRecord {
                 zip: self.billing_address_zip.clone(),
                 first_name: self.billing_address_first_name.clone(),
                 last_name: self.billing_address_last_name.clone(),
+                origin_zip: None,
             })
         } else {
             None

@@ -157,6 +157,7 @@ impl ConnectorCommon for Threedsecureio {
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 })
             }
             Err(err) => {
@@ -486,6 +487,8 @@ impl
                 trans_status: response.trans_status.into(),
                 authentication_value: response.authentication_value,
                 eci: response.eci,
+                challenge_cancel: None,
+                challenge_code_reason: None,
             }),
             ..data.clone()
         })

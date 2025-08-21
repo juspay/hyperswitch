@@ -1220,6 +1220,25 @@ pub async fn save_network_token_in_locker(
     }
 }
 
+pub fn handle_tokenization_response<F, Req>(
+    resp: &mut types::RouterData<F, Req, types::PaymentsResponseData>,
+) {
+    let response = resp.response.clone();
+    if let Err(err) = response {
+        if let Some(secret_metadata) = &err.connector_metadata {
+            let metadata = secret_metadata.clone().expose();
+            if let Some(token) = metadata
+                .get("payment_method_token")
+                .and_then(|t| t.as_str())
+            {
+                resp.response = Ok(types::PaymentsResponseData::TokenizationResponse {
+                    token: token.to_string(),
+                });
+            }
+        }
+    }
+}
+
 pub fn create_payment_method_metadata(
     metadata: Option<&pii::SecretSerdeValue>,
     connector_token: Option<(String, String)>,
@@ -1276,7 +1295,7 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
                     .request
                     .set_session_token(pm_token_router_data.session_token.clone());
 
-                let resp = services::execute_connector_processing_step(
+                let mut resp = services::execute_connector_processing_step(
                     state,
                     connector_integration,
                     &pm_token_router_data,
@@ -1286,6 +1305,9 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
                 )
                 .await
                 .to_payment_failed_response()?;
+
+                // checks for metadata in the ErrorResponse, if present bypasses it and constructs an Ok response
+                handle_tokenization_response(&mut resp);
 
                 metrics::CONNECTOR_PAYMENT_METHOD_TOKENIZATION.add(
                     1,

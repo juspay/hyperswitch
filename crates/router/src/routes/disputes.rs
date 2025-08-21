@@ -34,16 +34,19 @@ pub async fn retrieve_dispute(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<String>,
+    json_payload: web::Query<dispute_models::DisputeRetrieveBody>,
 ) -> HttpResponse {
     let flow = Flow::DisputesRetrieve;
-    let dispute_id = dispute_types::DisputeId {
+    let payload = dispute_models::DisputeRetrieveRequest {
         dispute_id: path.into_inner(),
+        force_sync: json_payload.force_sync,
     };
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        dispute_id,
+        payload,
         |state, auth: auth::AuthenticationData, req, _| {
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
@@ -64,6 +67,45 @@ pub async fn retrieve_dispute(
     ))
     .await
 }
+
+#[cfg(feature = "v1")]
+#[instrument(skip_all, fields(flow = ?Flow::DisputesRetrieve))]
+pub async fn fetch_disputes(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+    json_payload: web::Query<dispute_types::DisputeFetchQueryData>,
+) -> HttpResponse {
+    let flow = Flow::DisputesList;
+    let connector_id = path.into_inner();
+    let payload = json_payload.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            disputes::connector_sync_disputes(state, merchant_context, connector_id.clone(), req)
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
+            &auth::JWTAuth {
+                permission: Permission::ProfileDisputeRead,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 /// Disputes - List Disputes
 #[utoipa::path(
     get,
