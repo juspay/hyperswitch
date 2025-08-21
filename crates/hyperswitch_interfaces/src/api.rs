@@ -395,7 +395,7 @@ pub trait ConnectorSpecifications {
         false
     }
 
-    #[cfg(not(feature = "v2"))]
+    #[cfg(feature = "v1")]
     /// Generate connector request reference ID
     fn generate_connector_request_reference_id(
         &self,

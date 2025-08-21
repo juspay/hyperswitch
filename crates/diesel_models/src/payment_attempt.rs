@@ -894,8 +894,8 @@ impl PaymentAttemptUpdateInternal {
             status,
             authentication_type,
             error_message,
-            connector_payment_id: _,
-            modified_at: _,
+            connector_payment_id,
+            modified_at,
             browser_info,
             error_code,
             connector_metadata,
@@ -1098,7 +1098,7 @@ impl PaymentAttemptUpdateInternal {
 
 #[cfg(feature = "v2")]
 impl PaymentAttemptUpdate {
-    #[allow(clippy::todo)]
+    // #[allow(clippy::todo)]
     pub fn apply_changeset(self, _source: PaymentAttempt) -> PaymentAttempt {
         todo!()
         // let PaymentAttemptUpdateInternal {
@@ -1326,7 +1326,7 @@ impl PaymentAttemptUpdate {
 
 #[cfg(feature = "v2")]
 impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
-    #[allow(clippy::todo)]
+    // #[allow(clippy::todo)]
     fn from(_payment_attempt_update: PaymentAttemptUpdate) -> Self {
         todo!()
         // match payment_attempt_update {
