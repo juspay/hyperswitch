@@ -302,7 +302,6 @@ pub enum StripeRequestIncrementalAuthorization {
 #[serde(rename_all = "snake_case")]
 pub enum StripeRequestOvercaptureBool {
     IfAvailable,
-    Never,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -1936,7 +1935,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                             item.request.request_incremental_authorization,
                             item.request
                                 .enable_overcapture
-                                .map(StripeRequestOvercaptureBool::from),
+                                .and_then(get_stripe_overcapture_request),
                         )?;
 
                     validate_shipping_address_against_payment_method(
@@ -2804,15 +2803,11 @@ fn extract_payment_method_connector_response_from_latest_charge(
     }
 }
 
-impl From<common_types::primitive_wrappers::EnableOvercaptureBool>
-    for StripeRequestOvercaptureBool
-{
-    fn from(enable_overcapture: common_types::primitive_wrappers::EnableOvercaptureBool) -> Self {
+fn get_stripe_overcapture_request(enable_overcapture: common_types::primitive_wrappers::EnableOvercaptureBool) -> Option<StripeRequestOvercaptureBool> {
         match enable_overcapture.deref() {
-            true => Self::IfAvailable,
-            false => Self::Never,
+            true => Some(StripeRequestOvercaptureBool::IfAvailable),
+            false => None
         }
-    }
 }
 
 fn extract_payment_method_connector_response_from_latest_attempt(
