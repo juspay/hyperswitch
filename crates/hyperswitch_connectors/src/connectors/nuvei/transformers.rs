@@ -8,7 +8,7 @@ use common_utils::{
     id_type::CustomerId,
     pii::{Email, IpAddress},
     request::Method,
-    types::{MinorUnit, StringMajorUnit},
+    types::{MinorUnit, StringMajorUnit, StringMajorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -44,16 +44,17 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-    connectors::Nuvei,
     types::{
         PaymentsPreprocessingResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
     },
     utils::{
-        self, missing_field_err, AddressDetailsData, BrowserInformationData, ForeignTryFrom,
-        PaymentsAuthorizeRequestData, PaymentsCancelRequestData, PaymentsPreProcessingRequestData,
-        RouterData as _,
+        self, convert_amount, missing_field_err, AddressData, AddressDetailsData,
+        BrowserInformationData, ForeignTryFrom, PaymentsAuthorizeRequestData,
+        PaymentsCancelRequestData, PaymentsPreProcessingRequestData, RouterData as _,
     },
 };
+
+pub static NUVEI_AMOUNT_CONVERTOR: &StringMajorUnitForConnector = &StringMajorUnitForConnector;
 
 fn to_boolean(string: String) -> bool {
     let str = string.as_str();
@@ -82,7 +83,9 @@ trait NuveiAuthorizePreprocessingCommon {
         &self,
     ) -> Result<String, error_stack::Report<errors::ConnectorError>>;
     fn get_capture_method(&self) -> Option<CaptureMethod>;
-    fn get_amount_required(&self) -> Result<i64, error_stack::Report<errors::ConnectorError>>;
+    fn get_minor_amount_required(
+        &self,
+    ) -> Result<MinorUnit, error_stack::Report<errors::ConnectorError>>;
     fn get_customer_id_required(&self) -> Option<CustomerId>;
     fn get_email_required(&self) -> Result<Email, error_stack::Report<errors::ConnectorError>>;
     fn get_currency_required(
@@ -94,7 +97,7 @@ trait NuveiAuthorizePreprocessingCommon {
     fn get_is_partial_approval(&self) -> Option<PartialApprovalFlag>;
     fn get_order_tax_amount(
         &self,
-    ) -> Result<Option<i64>, error_stack::Report<errors::ConnectorError>>;
+    ) -> Result<Option<MinorUnit>, error_stack::Report<errors::ConnectorError>>;
 }
 
 impl NuveiAuthorizePreprocessingCommon for PaymentsAuthorizeData {
@@ -138,8 +141,10 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsAuthorizeData {
         self.capture_method
     }
 
-    fn get_amount_required(&self) -> Result<i64, error_stack::Report<errors::ConnectorError>> {
-        Ok(self.amount)
+    fn get_minor_amount_required(
+        &self,
+    ) -> Result<MinorUnit, error_stack::Report<errors::ConnectorError>> {
+        Ok(self.minor_amount)
     }
 
     fn get_currency_required(
@@ -154,8 +159,8 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsAuthorizeData {
     }
     fn get_order_tax_amount(
         &self,
-    ) -> Result<Option<i64>, error_stack::Report<errors::ConnectorError>> {
-        Ok(self.order_tax_amount.map(|tax| tax.get_amount_as_i64()))
+    ) -> Result<Option<MinorUnit>, error_stack::Report<errors::ConnectorError>> {
+        Ok(self.order_tax_amount)
     }
 
     fn get_email_required(&self) -> Result<Email, error_stack::Report<errors::ConnectorError>> {
@@ -209,8 +214,10 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsPreProcessingData {
         self.capture_method
     }
 
-    fn get_amount_required(&self) -> Result<i64, error_stack::Report<errors::ConnectorError>> {
-        self.get_amount()
+    fn get_minor_amount_required(
+        &self,
+    ) -> Result<MinorUnit, error_stack::Report<errors::ConnectorError>> {
+        self.get_minor_amount()
     }
 
     fn get_currency_required(
@@ -230,7 +237,7 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsPreProcessingData {
     }
     fn get_order_tax_amount(
         &self,
-    ) -> Result<Option<i64>, error_stack::Report<errors::ConnectorError>> {
+    ) -> Result<Option<MinorUnit>, error_stack::Report<errors::ConnectorError>> {
         Ok(None)
     }
 
@@ -276,7 +283,7 @@ pub struct NuveiSessionResponse {
 #[derive(Debug, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct NuvieAmountDetails {
-    total_tax: Option<String>,
+    total_tax: Option<StringMajorUnit>,
 }
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize, Default)]
@@ -287,7 +294,7 @@ pub struct NuveiPaymentsRequest {
     pub merchant_id: Secret<String>,
     pub merchant_site_id: Secret<String>,
     pub client_request_id: Secret<String>,
-    pub amount: String,
+    pub amount: StringMajorUnit,
     pub currency: enums::Currency,
     /// This ID uniquely identifies your consumer/user in your system.
     pub user_token_id: Option<CustomerId>,
@@ -340,7 +347,7 @@ pub struct NuveiInitPaymentRequest {
     pub merchant_id: Secret<String>,
     pub merchant_site_id: Secret<String>,
     pub client_request_id: String,
-    pub amount: String,
+    pub amount: StringMajorUnit,
     pub currency: String,
     pub payment_option: PaymentOption,
     pub checksum: Secret<String>,
@@ -354,7 +361,7 @@ pub struct NuveiPaymentFlowRequest {
     pub merchant_id: Secret<String>,
     pub merchant_site_id: Secret<String>,
     pub client_request_id: String,
-    pub amount: String,
+    pub amount: StringMajorUnit,
     pub currency: enums::Currency,
     pub related_transaction_id: Option<String>,
     pub checksum: Secret<String>,
@@ -489,27 +496,27 @@ pub struct ShippingAddress {
 impl From<&Address> for BillingAddress {
     fn from(address: &Address) -> Self {
         let address_details = address.address.as_ref();
-
         Self {
             email: address.email.clone().unwrap_or_default(),
-            first_name: address_details.and_then(|details| details.first_name.clone()),
-            last_name: address_details.and_then(|details| details.last_name.clone()),
+            first_name: address.get_optional_first_name(),
+            last_name: address_details.and_then(|address| address.get_optional_last_name()),
             country: address_details
-                .and_then(|details| details.country)
+                .and_then(|address| address.get_optional_country())
                 .unwrap_or_default(),
             phone: address
                 .phone
                 .as_ref()
                 .and_then(|phone| phone.number.clone()),
-            city: address_details.and_then(|details| details.city.clone().map(Secret::new)),
-            address: address_details.and_then(|details| details.line1.clone()),
+            city: address_details
+                .and_then(|address| address.get_optional_city().map(|city| city.into())),
+            address: address_details.and_then(|address| address.get_optional_line1()),
             street_number: None,
-            zip: address_details.and_then(|details| details.zip.clone()),
+            zip: address_details.and_then(|details| details.get_optional_zip()),
             state: None,
             cell: None,
             address_match: None,
-            address_line2: address_details.and_then(|details| details.line2.clone()),
-            address_line3: address_details.and_then(|details| details.line3.clone()),
+            address_line2: address_details.and_then(|address| address.get_optional_line2()),
+            address_line3: address_details.and_then(|address| address.get_optional_line3()),
             home_phone: None,
             work_phone: None,
         }
@@ -522,26 +529,24 @@ impl From<&Address> for ShippingAddress {
 
         Self {
             email: address.email.clone().unwrap_or_default(),
-            first_name: address_details.and_then(|details| details.first_name.clone()),
-            last_name: address_details.and_then(|details| details.last_name.clone()),
+            first_name: address_details.and_then(|details| details.get_optional_first_name()),
+            last_name: address_details.and_then(|details| details.get_optional_last_name()),
             country: address_details
-                .and_then(|details| details.country)
+                .and_then(|details| details.get_optional_country())
                 .unwrap_or_default(),
             phone: address
                 .phone
                 .as_ref()
                 .and_then(|phone| phone.number.clone()),
-            city: address_details.and_then(|details| details.city.clone().map(Secret::new)),
-            address: address_details.and_then(|details| details.line1.clone()),
+            city: address_details
+                .and_then(|details| details.get_optional_city().map(|city| city.into())),
+            address: address_details.and_then(|details| details.get_optional_line1()),
             street_number: None,
-            zip: address_details.and_then(|details| details.zip.clone()),
+            zip: address_details.and_then(|details| details.get_optional_zip()),
             state: None,
-            cell: address
-                .phone
-                .as_ref()
-                .and_then(|phone| phone.number.clone()),
-            address_line2: address_details.and_then(|details| details.line2.clone()),
-            address_line3: address_details.and_then(|details| details.line3.clone()),
+            cell: None,
+            address_line2: address_details.and_then(|details| details.get_optional_line2()),
+            address_line3: address_details.and_then(|details| details.get_optional_line2()),
             county: None,
             company_name: None,
             care_of: None,
@@ -784,8 +789,8 @@ pub struct NuveiCardDetails {
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct GooglePayCamelCase {
-    pm_type: String,
-    description: String,
+    pm_type: Secret<String>,
+    description: Secret<String>,
     info: GooglePayInfoCamelCase,
     tokenization_data: GooglePayTokenizationDataCamelCase,
 }
@@ -793,8 +798,8 @@ struct GooglePayCamelCase {
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct GooglePayInfoCamelCase {
-    card_network: String,
-    card_details: String,
+    card_network: Secret<String>,
+    card_details: Secret<String>,
     assurance_details: Option<GooglePayAssuranceDetailsCamelCase>,
 }
 
@@ -809,73 +814,26 @@ struct GooglePayAssuranceDetailsCamelCase {
 #[serde(rename_all = "camelCase")]
 struct GooglePayTokenizationDataCamelCase {
     #[serde(rename = "type")]
-    token_type: String,
-    token: String,
+    token_type: Secret<String>,
+    token: Secret<String>,
 }
 
 // Define ApplePay structs with camelCase serialization
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct ApplePayCamelCase {
-    payment_data: String,
+    payment_data: Secret<String>,
     payment_method: ApplePayPaymentMethodCamelCase,
-    transaction_identifier: String,
+    transaction_identifier: Secret<String>,
 }
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct ApplePayPaymentMethodCamelCase {
-    display_name: String,
-    network: String,
+    display_name: Secret<String>,
+    network: Secret<String>,
     #[serde(rename = "type")]
-    pm_type: String,
-}
-
-impl From<&ApplePayWalletData> for ApplePayCamelCase {
-    fn from(apple_pay_data: &ApplePayWalletData) -> Self {
-        let payment_data = match &apple_pay_data.payment_data {
-            ApplePayPaymentData::Encrypted(encrypted_data) => encrypted_data.clone(),
-            ApplePayPaymentData::Decrypted(_) => "".to_string(),
-        };
-
-        Self {
-            payment_data,
-            payment_method: ApplePayPaymentMethodCamelCase {
-                display_name: apple_pay_data.payment_method.display_name.clone(),
-                network: apple_pay_data.payment_method.network.clone(),
-                pm_type: apple_pay_data.payment_method.pm_type.clone(),
-            },
-            transaction_identifier: apple_pay_data.transaction_identifier.clone(),
-        }
-    }
-}
-
-impl From<&GooglePayWalletData> for GooglePayCamelCase {
-    fn from(gpay_data: &GooglePayWalletData) -> Self {
-        let (token_type, token) = match &gpay_data.tokenization_data {
-            GpayTokenizationData::Encrypted(encrypted_data) => (
-                encrypted_data.token_type.clone(),
-                encrypted_data.token.clone(),
-            ),
-            GpayTokenizationData::Decrypted(_) => ("".to_string(), "".to_string()),
-        };
-
-        Self {
-            pm_type: gpay_data.pm_type.clone(),
-            description: gpay_data.description.clone(),
-            info: GooglePayInfoCamelCase {
-                card_network: gpay_data.info.card_network.clone(),
-                card_details: gpay_data.info.card_details.clone(),
-                assurance_details: gpay_data.info.assurance_details.as_ref().map(|details| {
-                    GooglePayAssuranceDetailsCamelCase {
-                        card_holder_authenticated: details.card_holder_authenticated,
-                        account_verified: details.account_verified,
-                    }
-                }),
-            },
-            tokenization_data: GooglePayTokenizationDataCamelCase { token_type, token },
-        }
-    }
+    pm_type: Secret<String>,
 }
 
 impl TryFrom<GooglePayWalletData> for NuveiPaymentsRequest {
@@ -911,14 +869,43 @@ impl TryFrom<GooglePayWalletData> for NuveiPaymentsRequest {
                 },
                 ..Default::default()
             }),
-            GpayTokenizationData::Encrypted(_) => Ok(Self {
+            GpayTokenizationData::Encrypted(encrypted_data) => Ok(Self {
                 payment_option: PaymentOption {
                     card: Some(Card {
                         external_token: Some(ExternalToken {
                             external_token_provider: ExternalTokenProvider::GooglePay,
 
                             mobile_token: {
-                                let google_pay: GooglePayCamelCase = (&gpay_data).into();
+                                let (token_type, token) = (
+                                    encrypted_data.token_type.clone(),
+                                    encrypted_data.token.clone(),
+                                );
+
+                                let google_pay: GooglePayCamelCase = GooglePayCamelCase {
+                                    pm_type: Secret::new(gpay_data.pm_type.clone()),
+                                    description: Secret::new(gpay_data.description.clone()),
+                                    info: GooglePayInfoCamelCase {
+                                        card_network: Secret::new(
+                                            gpay_data.info.card_network.clone(),
+                                        ),
+                                        card_details: Secret::new(
+                                            gpay_data.info.card_details.clone(),
+                                        ),
+                                        assurance_details: gpay_data
+                                            .info
+                                            .assurance_details
+                                            .as_ref()
+                                            .map(|details| GooglePayAssuranceDetailsCamelCase {
+                                                card_holder_authenticated: details
+                                                    .card_holder_authenticated,
+                                                account_verified: details.account_verified,
+                                            }),
+                                    },
+                                    tokenization_data: GooglePayTokenizationDataCamelCase {
+                                        token_type: token_type.into(),
+                                        token: token.into(),
+                                    },
+                                };
                                 Some(Secret::new(
                                     google_pay.encode_to_string_of_json().change_context(
                                         errors::ConnectorError::RequestEncodingFailed,
@@ -986,13 +973,22 @@ impl TryFrom<ApplePayWalletData> for NuveiPaymentsRequest {
                 },
                 ..Default::default()
             }),
-            ApplePayPaymentData::Encrypted(_) => Ok(Self {
+            ApplePayPaymentData::Encrypted(encrypted_data) => Ok(Self {
                 payment_option: PaymentOption {
                     card: Some(Card {
                         external_token: Some(ExternalToken {
                             external_token_provider: ExternalTokenProvider::ApplePay,
                             mobile_token: {
-                                let apple_pay: ApplePayCamelCase = (&apple_pay_data).into();
+                                let apple_pay: ApplePayCamelCase = ApplePayCamelCase {
+                                     payment_data:encrypted_data.into(),
+                                     payment_method: ApplePayPaymentMethodCamelCase {
+                                         display_name: Secret::new(apple_pay_data.payment_method.display_name.clone()),
+                                         network: Secret::new(apple_pay_data.payment_method.network.clone()),
+                                         pm_type: Secret::new(apple_pay_data.payment_method.pm_type.clone()),
+                                     },
+                                     transaction_identifier: Secret::new(apple_pay_data.transaction_identifier.clone()),
+                                    };
+
                                 Some(Secret::new(
                                     apple_pay.encode_to_string_of_json().change_context(
                                         errors::ConnectorError::RequestEncodingFailed,
@@ -1393,7 +1389,11 @@ where
         }?;
         let currency = item.request.get_currency_required()?;
         let request = Self::try_from(NuveiPaymentRequestData {
-            amount: utils::to_currency_base_unit(item.request.get_amount_required()?, currency)?,
+            amount: convert_amount(
+                NUVEI_AMOUNT_CONVERTOR,
+                item.request.get_minor_amount_required()?,
+                currency,
+            )?,
             currency,
             connector_auth_type: item.connector_auth_type.clone(),
             client_request_id: item.connector_request_reference_id.clone(),
@@ -1406,7 +1406,7 @@ where
 
         let amount_details = match item.request.get_order_tax_amount()? {
             Some(tax) => Some(NuvieAmountDetails {
-                total_tax: Some(utils::to_currency_base_unit(tax, currency)?),
+                total_tax: Some(convert_amount(NUVEI_AMOUNT_CONVERTOR, tax, currency)?),
             }),
             None => None,
         };
@@ -1637,7 +1637,11 @@ impl TryFrom<(&types::PaymentsCompleteAuthorizeRouterData, Secret<String>)>
             )),
         }?;
         let request = Self::try_from(NuveiPaymentRequestData {
-            amount: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
+            amount: convert_amount(
+                NUVEI_AMOUNT_CONVERTOR,
+                item.request.minor_amount,
+                item.request.currency,
+            )?,
             currency: item.request.currency,
             connector_auth_type: item.connector_auth_type.clone(),
             client_request_id: item.connector_request_reference_id.clone(),
@@ -1671,7 +1675,7 @@ impl TryFrom<NuveiPaymentRequestData> for NuveiPaymentsRequest {
         let merchant_secret = connector_meta.merchant_secret;
         let transaction_type = TransactionType::get_from_capture_method_and_amount_string(
             request.capture_method.unwrap_or_default(),
-            &request.amount,
+            &request.amount.get_amount_as_string(),
         );
         Ok(Self {
             merchant_id: merchant_id.clone(),
@@ -1684,7 +1688,7 @@ impl TryFrom<NuveiPaymentRequestData> for NuveiPaymentsRequest {
                 merchant_id.peek(),
                 merchant_site_id.peek(),
                 &client_request_id,
-                &request.amount.clone(),
+                &request.amount.get_amount_as_string(),
                 &request.currency.to_string(),
                 &time_stamp,
                 merchant_secret.peek(),
@@ -1717,7 +1721,7 @@ impl TryFrom<NuveiPaymentRequestData> for NuveiPaymentFlowRequest {
                 merchant_id.peek(),
                 merchant_site_id.peek(),
                 &client_request_id,
-                &request.amount.clone(),
+                &request.amount.get_amount_as_string(),
                 &request.currency.to_string(),
                 &request.related_transaction_id.clone().unwrap_or_default(),
                 &time_stamp,
@@ -1732,7 +1736,7 @@ impl TryFrom<NuveiPaymentRequestData> for NuveiPaymentFlowRequest {
 
 #[derive(Debug, Clone, Default)]
 pub struct NuveiPaymentRequestData {
-    pub amount: String,
+    pub amount: StringMajorUnit,
     pub currency: enums::Currency,
     pub related_transaction_id: Option<String>,
     pub client_request_id: String,
@@ -1747,8 +1751,9 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for NuveiPaymentFlowRequest {
         Self::try_from(NuveiPaymentRequestData {
             client_request_id: item.connector_request_reference_id.clone(),
             connector_auth_type: item.connector_auth_type.clone(),
-            amount: utils::to_currency_base_unit(
-                item.request.amount_to_capture,
+            amount: convert_amount(
+                NUVEI_AMOUNT_CONVERTOR,
+                item.request.minor_amount_to_capture,
                 item.request.currency,
             )?,
             currency: item.request.currency,
@@ -1763,8 +1768,9 @@ impl TryFrom<&types::RefundExecuteRouterData> for NuveiPaymentFlowRequest {
         Self::try_from(NuveiPaymentRequestData {
             client_request_id: item.connector_request_reference_id.clone(),
             connector_auth_type: item.connector_auth_type.clone(),
-            amount: utils::to_currency_base_unit(
-                item.request.refund_amount,
+            amount: convert_amount(
+                NUVEI_AMOUNT_CONVERTOR,
+                item.request.minor_refund_amount,
                 item.request.currency,
             )?,
             currency: item.request.currency,
@@ -1841,8 +1847,11 @@ impl TryFrom<&types::PaymentsCancelRouterData> for NuveiPaymentFlowRequest {
         Self::try_from(NuveiPaymentRequestData {
             client_request_id: item.connector_request_reference_id.clone(),
             connector_auth_type: item.connector_auth_type.clone(),
-            amount: utils::to_currency_base_unit(
-                item.request.get_amount()?,
+            amount: convert_amount(
+                NUVEI_AMOUNT_CONVERTOR,
+                item.request
+                    .minor_amount
+                    .ok_or_else(missing_field_err("amount"))?,
                 item.request.get_currency()?,
             )?,
             currency: item.request.get_currency()?,
@@ -1961,7 +1970,7 @@ impl NuveiPaymentsResponse {
         match &self.partial_approval {
             Some(partial_approval) => {
                 let amount = utils::convert_back_amount_to_minor_units(
-                    Nuvei::new().amount_convertor,
+                    NUVEI_AMOUNT_CONVERTOR,
                     partial_approval.processed_amount.clone(),
                     partial_approval.processed_currency,
                 )?;

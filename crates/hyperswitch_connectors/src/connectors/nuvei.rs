@@ -60,7 +60,7 @@ use crate::{
 
 #[derive(Clone)]
 pub struct Nuvei {
-    amount_convertor: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+    pub amount_convertor: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
 }
 impl Nuvei {
     pub fn new() -> &'static Self {
