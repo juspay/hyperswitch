@@ -326,3 +326,6 @@ pub const UCS_AUTH_BODY_KEY: &str = "body-key";
 
 /// Header value indicating that header-key-based authentication is used.
 pub const UCS_AUTH_HEADER_KEY: &str = "header-key";
+
+/// Header value indicating that currency-auth-key-based authentication is used.
+pub const UCS_AUTH_CURRENCY_AUTH_KEY: &str = "currency-auth-key";

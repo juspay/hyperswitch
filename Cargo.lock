@@ -3041,6 +3041,7 @@ dependencies = [
  "aws-sdk-sts",
  "aws-smithy-runtime",
  "base64 0.22.1",
+ "common_enums",
  "common_utils",
  "dyn-clone",
  "error-stack 0.4.1",
@@ -3061,6 +3062,7 @@ dependencies = [
  "router_env",
  "rust-grpc-client",
  "serde",
+ "serde_json",
  "thiserror 1.0.69",
  "time",
  "tokio 1.45.1",
@@ -3538,7 +3540,7 @@ dependencies = [
 [[package]]
 name = "grpc-api-types"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=4387a6310dc9c2693b453b455a8032623f3d6a81#4387a6310dc9c2693b453b455a8032623f3d6a81"
+source = "git+https://github.com/juspay/connector-service?rev=aae51574fed25b0a7849e3832cff8904bc310cf5#aae51574fed25b0a7849e3832cff8904bc310cf5"
 dependencies = [
  "axum 0.8.4",
  "error-stack 0.5.0",
@@ -6914,7 +6916,7 @@ dependencies = [
 [[package]]
 name = "rust-grpc-client"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=4387a6310dc9c2693b453b455a8032623f3d6a81#4387a6310dc9c2693b453b455a8032623f3d6a81"
+source = "git+https://github.com/juspay/connector-service?rev=aae51574fed25b0a7849e3832cff8904bc310cf5#aae51574fed25b0a7849e3832cff8904bc310cf5"
 dependencies = [
  "grpc-api-types",
 ]

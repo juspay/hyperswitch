@@ -1,13 +1,12 @@
 pub mod transformers;
 
-use std::fmt::Debug;
-
 use common_enums::enums;
 use common_utils::{
     crypto,
     errors::CustomResult,
     ext_traits::ByteSliceExt,
     request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -47,10 +46,24 @@ use masking::Mask;
 use transformers as coinbase;
 
 use self::coinbase::CoinbaseWebhookDetails;
-use crate::{constants::headers, types::ResponseRouterData, utils};
+use crate::{
+    constants::headers,
+    types::ResponseRouterData,
+    utils::{self, convert_amount},
+};
 
-#[derive(Debug, Clone)]
-pub struct Coinbase;
+#[derive(Clone)]
+pub struct Coinbase {
+    amount_convertor: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+}
+
+impl Coinbase {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_convertor: &StringMajorUnitForConnector,
+        }
+    }
+}
 
 impl api::Payment for Coinbase {}
 impl api::PaymentToken for Coinbase {}
@@ -138,6 +151,7 @@ impl ConnectorCommon for Coinbase {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -197,7 +211,14 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = coinbase::CoinbasePaymentsRequest::try_from(req)?;
+        let amount = convert_amount(
+            self.amount_convertor,
+            req.request.minor_amount,
+            req.request.currency,
+        )?;
+
+        let connector_router_data = coinbase::CoinbaseRouterData::from((amount, req));
+        let connector_req = coinbase::CoinbasePaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 

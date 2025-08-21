@@ -4058,8 +4058,7 @@
             "type": "string",
             "nullable": true
           }
-        },
-        "additionalProperties": false
+        }
       },
       "AddressDetails": {
         "type": "object",
@@ -4135,8 +4134,7 @@
             "nullable": true,
             "maxLength": 50
           }
-        },
-        "additionalProperties": false
+        }
       },
       "AdyenConnectorMetadata": {
         "type": "object",
@@ -8384,6 +8382,7 @@
           "deutschebank",
           "digitalvirgo",
           "dlocal",
+          "dwolla",
           "ebanx",
           "elavon",
           "facilitapay",
@@ -11530,6 +11529,34 @@
             "type": "string",
             "enum": [
               "user_bank_routing_number"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "user_bank_type"
+            ],
+            "properties": {
+              "user_bank_type": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_bank_account_holder_name"
             ]
           },
           {
@@ -17138,6 +17165,17 @@
                 "$ref": "#/components/schemas/CardDetail"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "proxy_card"
+            ],
+            "properties": {
+              "proxy_card": {
+                "$ref": "#/components/schemas/ProxyCardDetails"
+              }
+            }
           }
         ]
       },
@@ -22141,6 +22179,82 @@
           }
         }
       },
+      "ProxyCardDetails": {
+        "type": "object",
+        "required": [
+          "card_number",
+          "card_exp_month",
+          "card_exp_year",
+          "card_holder_name",
+          "card_cvc"
+        ],
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "description": "Tokenized Card Number",
+            "example": "tok_sjfowhoejsldj"
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "Card Expiry Month",
+            "example": "10"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "Card Expiry Year",
+            "example": "25"
+          },
+          "bin_number": {
+            "type": "string",
+            "description": "First Six Digit of Card Number",
+            "nullable": true
+          },
+          "last_four": {
+            "type": "string",
+            "description": "Last Four Digit of Card Number",
+            "nullable": true
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "Issuer Bank for Card",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "description": "Card Type",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "description": "Issuing Country of the Card",
+            "nullable": true
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "Card Holder's Nick Name",
+            "example": "John Doe",
+            "nullable": true
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "Card Holder Name",
+            "example": "John Doe"
+          },
+          "card_cvc": {
+            "type": "string",
+            "description": "The CVC number for the card\nThis is optional in case the card needs to be vaulted",
+            "example": "242"
+          }
+        }
+      },
       "ProxyRequest": {
         "type": "object",
         "required": [
@@ -22770,7 +22884,8 @@
         "type": "string",
         "enum": [
           "true",
-          "false"
+          "false",
+          "default"
         ]
       },
       "RequestPaymentMethodTypes": {
@@ -23343,6 +23458,7 @@
           "deutschebank",
           "digitalvirgo",
           "dlocal",
+          "dwolla",
           "ebanx",
           "elavon",
           "facilitapay",

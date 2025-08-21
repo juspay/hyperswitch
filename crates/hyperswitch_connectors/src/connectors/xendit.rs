@@ -163,6 +163,7 @@ impl ConnectorCommon for Xendit {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -626,31 +627,18 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: xendit::XenditPaymentResponse = res
+        let response: xendit::XenditCaptureResponse = res
             .response
             .parse_struct("Xendit PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        let response_integrity_object = connector_utils::get_capture_integrity_object(
-            self.amount_converter,
-            Some(response.amount),
-            response.currency.to_string().clone(),
-        )?;
-
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-
-        let new_router_data = RouterData::try_from(ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed);
-
-        new_router_data.map(|mut router_data| {
-            router_data.request.integrity_object = Some(response_integrity_object);
-            router_data
-        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(

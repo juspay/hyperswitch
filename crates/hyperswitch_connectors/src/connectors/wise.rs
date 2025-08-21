@@ -4,7 +4,7 @@ use api_models::webhooks::IncomingWebhookEvent;
 #[cfg(feature = "payouts")]
 use common_utils::request::{Method, RequestBuilder, RequestContent};
 #[cfg(feature = "payouts")]
-use common_utils::types::{AmountConvertor, MinorUnit, MinorUnitForConnector};
+use common_utils::types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector};
 use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt, request::Request};
 #[cfg(not(feature = "payouts"))]
 use error_stack::report;
@@ -60,14 +60,14 @@ use crate::{types::ResponseRouterData, utils::convert_amount};
 #[derive(Clone)]
 pub struct Wise {
     #[cfg(feature = "payouts")]
-    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+    amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
 }
 
 impl Wise {
     pub fn new() -> &'static Self {
         &Self {
             #[cfg(feature = "payouts")]
-            amount_converter: &MinorUnitForConnector,
+            amount_converter: &FloatMajorUnitForConnector,
         }
     }
 }
@@ -133,7 +133,7 @@ impl ConnectorCommon for Wise {
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        let default_status = response.status.unwrap_or_default().to_string();
+        let default_status = response.status.unwrap_or_default().get_status();
         match response.errors {
             Some(errs) => {
                 if let Some(e) = errs.first() {
@@ -147,6 +147,7 @@ impl ConnectorCommon for Wise {
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     })
                 } else {
                     Ok(ErrorResponse {
@@ -159,6 +160,7 @@ impl ConnectorCommon for Wise {
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     })
                 }
             }
@@ -172,6 +174,7 @@ impl ConnectorCommon for Wise {
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             }),
         }
     }
@@ -308,7 +311,7 @@ impl ConnectorIntegration<PoCancel, PayoutsData, PayoutsResponseData> for Wise {
         event_builder.map(|i| i.set_error_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        let def_res = response.status.unwrap_or_default().to_string();
+        let def_res = response.status.unwrap_or_default().get_status();
         let errors = response.errors.unwrap_or_default();
         let (code, message) = if let Some(e) = errors.first() {
             (e.code.clone(), e.message.clone())
@@ -325,6 +328,7 @@ impl ConnectorIntegration<PoCancel, PayoutsData, PayoutsResponseData> for Wise {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
