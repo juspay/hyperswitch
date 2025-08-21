@@ -94,7 +94,11 @@ pub enum SmithyTrait {
     #[serde(rename = "smithy.api#documentation")]
     Documentation { documentation: String },
     #[serde(rename = "smithy.api#length")]
-    Length { min: Option<u64>, max: Option<u64> }
+    Length { min: Option<u64>, max: Option<u64> },
+    #[serde(rename = "smithy.api#httpLabel")]
+    HttpLabel,
+    #[serde(rename = "smithy.api#httpQuery")]
+    HttpQuery { name: String },
 }
 
 #[derive(Debug, Clone)]
@@ -120,7 +124,9 @@ pub enum SmithyConstraint {
     Pattern(String),
     Range(Option<i64>, Option<i64>),
     Length(Option<u64>, Option<u64>),
-    Required
+    Required,
+    HttpLabel,
+    HttpQuery(String),
 }
 
 pub trait SmithyModelGenerator {

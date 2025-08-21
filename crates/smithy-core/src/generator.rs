@@ -281,6 +281,10 @@ impl SmithyGenerator {
                 (None, Some(max)) => format!("length(max: {})", max),
                 (None, None) => "length".to_string(),
             },
+            crate::types::SmithyTrait::HttpLabel => "httpLabel".to_string(),
+            crate::types::SmithyTrait::HttpQuery { name } => {
+                format!("httpQuery(\"{}\")", name)
+            },
         }
     }
 }

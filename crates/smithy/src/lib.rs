@@ -141,6 +141,12 @@ fn generate_struct_impl(
                         SmithyConstraint::Required => quote! {
                             smithy_core::SmithyTrait::Required
                         },
+                        SmithyConstraint::HttpLabel => quote! {
+                            smithy_core::SmithyTrait::HttpLabel
+                        },
+                        SmithyConstraint::HttpQuery(name) => quote! {
+                            smithy_core::SmithyTrait::HttpQuery { name: #name.to_string() }
+                        },
                     })
                     .collect::<Vec<_>>();
 
@@ -341,6 +347,12 @@ fn generate_enum_impl(
                                     },
                                     SmithyConstraint::Required => quote! {
                                         smithy_core::SmithyTrait::Required
+                                    },
+                                    SmithyConstraint::HttpLabel => quote! {
+                                        smithy_core::SmithyTrait::HttpLabel
+                                    },
+                                    SmithyConstraint::HttpQuery(name) => quote! {
+                                        smithy_core::SmithyTrait::HttpQuery { name: #name.to_string() }
                                     },
                                 })
                                 .collect::<Vec<_>>();
@@ -781,9 +793,28 @@ fn parse_smithy_field_attributes(attrs: &[Attribute]) -> syn::Result<SmithyField
                     }
                 } else if meta.path.is_ident("required") {
                     field_attributes.constraints.push(SmithyConstraint::Required);
+                } else if meta.path.is_ident("http_label") {
+                    field_attributes.constraints.push(SmithyConstraint::HttpLabel);
+                } else if meta.path.is_ident("http_query") {
+                    if let Ok(value) = meta.value() {
+                        if let Ok(lit) = value.parse::<Lit>() {
+                            if let Lit::Str(lit_str) = lit {
+                                field_attributes
+                                    .constraints
+                                    .push(SmithyConstraint::HttpQuery(lit_str.value()));
+                            }
+                        }
+                    }
                 }
                 Ok(())
             })?;
+        }
+    }
+
+    // Automatically add Required for http_label fields
+    if field_attributes.constraints.iter().any(|c| matches!(c, SmithyConstraint::HttpLabel)) {
+        if !field_attributes.constraints.iter().any(|c| matches!(c, SmithyConstraint::Required)) {
+            field_attributes.constraints.push(SmithyConstraint::Required);
         }
     }
 
