@@ -402,6 +402,7 @@ impl IncomingWebhook for Adyenplatform {
                 webhook_body.webhook_type,
                 webhook_body.data.status,
                 webhook_body.data.tracking,
+                webhook_body.data.category.as_ref(),
             ))
         }
         #[cfg(not(feature = "payouts"))]
