@@ -5384,7 +5384,7 @@ pub struct PaymentsResponse {
     #[schema(value_type = Option<bool>)]
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
 
-    /// Bool indicating if overcapture is applied for this payment
+    /// Bool indicating if overcapture is enabled for this payment
     #[schema(value_type = Option<bool>)]
     pub is_overcapture_enabled: Option<common_types::primitive_wrappers::OvercaptureEnabledBool>,
 }
