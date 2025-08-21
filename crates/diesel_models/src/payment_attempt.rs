@@ -1341,7 +1341,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     .map(ConnectorTransactionId::form_id_and_data)
                     .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
                     .unwrap_or((None, None));
-                
+
                 Self {
                     status: Some(status),
                     connector,
@@ -1388,7 +1388,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     .map(ConnectorTransactionId::form_id_and_data)
                     .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
                     .unwrap_or((None, None));
-                
+
                 Self {
                     connector,
                     status: Some(status),
@@ -1433,7 +1433,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     .map(ConnectorTransactionId::form_id_and_data)
                     .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
                     .unwrap_or((None, None));
-                
+
                 Self {
                     status: Some(status),
                     connector,
@@ -1476,7 +1476,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     .map(ConnectorTransactionId::form_id_and_data)
                     .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
                     .unwrap_or((None, None));
-                
+
                 Self {
                     status: Some(status),
                     payment_method_id,
@@ -1515,7 +1515,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     .map(ConnectorTransactionId::form_id_and_data)
                     .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
                     .unwrap_or((None, None));
-                
+
                 Self {
                     connector_payment_id,
                     connector_payment_data,
@@ -1559,7 +1559,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     .map(ConnectorTransactionId::form_id_and_data)
                     .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
                     .unwrap_or((None, None));
-                
+
                 Self {
                     status,
                     error_code: error_code.map(Some).flatten(),
