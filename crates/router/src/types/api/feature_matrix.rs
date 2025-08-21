@@ -50,7 +50,7 @@ impl FeatureMatrixConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Bankofamerica)))
                 }
                 enums::Connector::Barclaycard => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Barclaycard)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Barclaycard::new())))
                 }
                 enums::Connector::Billwerk => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Billwerk::new())))
@@ -154,9 +154,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::DummyBillingConnector => Ok(ConnectorEnum::Old(Box::new(
                     connector::DummyConnector::<8>::new(),
                 ))),
-                // enums::Connector::Dwolla => {
-                //     Ok(ConnectorEnum::Old(Box::new(connector::Dwolla::new())))
-                // }
+                enums::Connector::Dwolla => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Dwolla::new())))
+                }
                 enums::Connector::Ebanx => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Ebanx::new())))
                 }
