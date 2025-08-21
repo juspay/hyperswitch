@@ -4,17 +4,17 @@ use hyperswitch_domain_models::{
     router_data_v2::PaymentFlowData,
     router_flow_types::payments::{
         Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
-        CreateConnectorCustomer, CreateOrder, IncrementalAuthorization, PSync, PaymentMethodToken,
-        PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing, Reject,
-        SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
+        CreateConnectorCustomer, CreateOrder, ExternalVaultProxy, IncrementalAuthorization, PSync,
+        PaymentMethodToken, PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing,
+        Reject, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
     },
     router_request_types::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
-        CreateOrderRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
-        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
+        CreateOrderRequestData, ExternalVaultProxyPaymentsData, PaymentMethodTokenizationData,
+        PaymentsApproveData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
+        PaymentsRejectData, PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
         PaymentsUpdateMetadataData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
     },
     router_response_types::{PaymentsResponseData, TaxCalculationResponseData},
@@ -210,6 +210,17 @@ pub trait PaymentsPostProcessingV2:
 {
 }
 
+/// trait ExternalVaultProxyPaymentsCreate
+pub trait ExternalVaultProxyPaymentsCreate:
+    ConnectorIntegrationV2<
+    ExternalVaultProxy,
+    PaymentFlowData,
+    ExternalVaultProxyPaymentsData,
+    PaymentsResponseData,
+>
+{
+}
+
 /// trait PaymentV2
 pub trait PaymentV2:
     ConnectorCommon
@@ -236,5 +247,6 @@ pub trait PaymentV2:
     + PaymentPostSessionTokensV2
     + PaymentUpdateMetadataV2
     + PaymentCreateOrderV2
+    + ExternalVaultProxyPaymentsCreate
 {
 }
