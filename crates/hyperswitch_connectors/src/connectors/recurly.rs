@@ -4,8 +4,7 @@ use base64::Engine;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use common_utils::request::{Method, Request, RequestBuilder};
 use common_utils::{consts, errors::CustomResult, ext_traits::BytesExt};
-use error_stack::report;
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse},
     router_data_v2::UasFlowData,

@@ -8,8 +8,7 @@ use common_utils::{
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
-use error_stack::report;
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{
     revenue_recovery, router_flow_types::revenue_recovery::RecoveryRecordBack,
