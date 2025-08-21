@@ -2946,10 +2946,6 @@ where
                 .response
                 .amount_received
                 .map(|amount| amount.get_amount_as_i64()),
-            // item
-            //     .response
-            //     .amount_received
-            //     .map(|amount| amount.get_amount_as_i64()),
             minor_amount_captured: item.response.amount_received,
             connector_response: connector_response_data,
             minor_amount_capturable,
