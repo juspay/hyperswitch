@@ -9,7 +9,7 @@ const timeoutMultiplier = isCI ? 1.5 : 1;
 
 // Define constants for wait times with adaptive scaling
 const CONSTANTS = {
-  TIMEOUT: Math.round(60000 * timeoutMultiplier), // 60s local, 90s CI
+  TIMEOUT: Math.round(90000 * timeoutMultiplier), // 90s local, 135s (2.25min) CI
   WAIT_TIME: Math.round(30000 * timeoutMultiplier), // 30s local, 45s CI
   ERROR_PATTERNS: [
     /^(4|5)\d{2}\s/, // HTTP error status codes

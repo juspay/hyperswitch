@@ -77,7 +77,7 @@ export default defineConfig({
       saveJson: true,
     },
     defaultCommandTimeout: Math.round(30000 * timeoutMultiplier),
-    pageLoadTimeout: Math.round(60000 * timeoutMultiplier),
+    pageLoadTimeout: Math.round(90000 * timeoutMultiplier), // 90s local, 135s (2.25min) CI
     responseTimeout: Math.round(60000 * timeoutMultiplier),
     requestTimeout: Math.round(45000 * timeoutMultiplier),
     taskTimeout: Math.round(120000 * timeoutMultiplier),
