@@ -198,6 +198,7 @@ impl super::RedisConnectionPool {
         }
     }
 
+    #[instrument(level = "DEBUG", skip(self))]
     async fn get_multiple_keys_with_mget<V>(
         &self,
         keys: &[RedisKey],
@@ -217,6 +218,7 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::GetFailed)
     }
 
+    #[instrument(level = "DEBUG", skip(self))]
     async fn get_multiple_keys_with_parallel_get<V>(
         &self,
         keys: &[RedisKey],
@@ -243,6 +245,7 @@ impl super::RedisConnectionPool {
     }
 
     /// Helper method to encapsulate the logic for choosing between cluster and non-cluster modes
+    #[instrument(level = "DEBUG", skip(self))]
     async fn get_keys_by_mode<V>(
         &self,
         keys: &[RedisKey],
