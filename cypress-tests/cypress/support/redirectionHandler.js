@@ -642,7 +642,7 @@ function bankRedirectRedirection(
 
 function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
   let responseContentType = null;
-  
+
   // Check response content-type first for all connectors to handle JSON responses
   cy.log(`Checking response content-type for ${connectorId} 3DS flow`);
 
@@ -653,7 +653,7 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
   }).then((response) => {
     cy.log(`Response status: ${response.status}`);
     cy.log(`Response content-type: ${response.headers["content-type"]}`);
-    
+
     responseContentType = response.headers["content-type"];
 
     // Check if the response is JSON
@@ -1180,7 +1180,10 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
   // The verification logic is now handled within the cy.request().then() callback above
   // Only verify return URL for non-JSON responses, which will be handled by the standard flow
   cy.then(() => {
-    if (responseContentType && !responseContentType.includes("application/json")) {
+    if (
+      responseContentType &&
+      !responseContentType.includes("application/json")
+    ) {
       // Verify return URL after handling the specific connector
       verifyReturnUrl(redirectionUrl, expectedUrl, true);
     }
@@ -1489,11 +1492,15 @@ function handleFlow(
           cy.get("iframe", { timeout: CONSTANTS.TIMEOUT })
             .should("be.visible")
             .then(() => {
-              cy.log("Iframe detected and ready, executing callback targeting iframe context");
+              cy.log(
+                "Iframe detected and ready, executing callback targeting iframe context"
+              );
               callback(callbackArgs);
             });
         } else {
-          cy.log("No iframe detected initially, waiting for dynamic iframe or executing direct callback");
+          cy.log(
+            "No iframe detected initially, waiting for dynamic iframe or executing direct callback"
+          );
 
           // Wait a bit for dynamic iframes to appear
           cy.wait(2000);
@@ -1503,7 +1510,9 @@ function handleFlow(
             const iframesAfterWait = $bodyAfterWait.find("iframe");
 
             if (iframesAfterWait.length > 0) {
-              cy.log("Dynamic iframe detected after wait, executing iframe flow");
+              cy.log(
+                "Dynamic iframe detected after wait, executing iframe flow"
+              );
               cy.get("iframe", { timeout: CONSTANTS.TIMEOUT })
                 .should("be.visible")
                 .then(() => {
