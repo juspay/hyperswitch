@@ -54,12 +54,13 @@ use hyperswitch_domain_models::{
         AcceptDisputeRequestData, AccessTokenAuthenticationRequestData, AuthorizeSessionTokenData,
         CompleteAuthorizeData, ConnectorCustomerData, CreateOrderRequestData,
         DefendDisputeRequestData, DisputeSyncData, FetchDisputesRequestData,
-        MandateRevokeRequestData, PaymentsApproveData, PaymentsAuthorizeData,
-        PaymentsCancelPostCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
-        PaymentsRejectData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData,
-        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SubmitEvidenceRequestData,
-        UploadFileRequestData, VaultRequestData, VerifyWebhookSourceRequestData,
+        MandateRevokeRequestData, PaymentsApproveData, PaymentsAuthenticateData,
+        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
+        PaymentsPreProcessingData, PaymentsRejectData, PaymentsTaxCalculationData,
+        PaymentsUpdateMetadataData, RetrieveFileRequestData, SdkPaymentsSessionUpdateData,
+        SubmitEvidenceRequestData, UploadFileRequestData, VaultRequestData,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
@@ -1712,6 +1713,7 @@ default_imp_for_pre_authenticate_steps!(
     connectors::Hipay,
     connectors::Helcim,
     connectors::HyperswitchVault,
+    connectors::Hyperwallet,
     connectors::Iatapay,
     connectors::Inespay,
     connectors::Itaubank,
@@ -1788,7 +1790,7 @@ macro_rules! default_imp_for_authenticate_steps{
             impl
             ConnectorIntegration<
             Authenticate,
-            PaymentsPreProcessingData,
+            PaymentsAuthenticateData,
             PaymentsResponseData,
         > for $path::$connector
         {}
@@ -1853,6 +1855,7 @@ default_imp_for_authenticate_steps!(
     connectors::Hipay,
     connectors::Helcim,
     connectors::HyperswitchVault,
+    connectors::Hyperwallet,
     connectors::Iatapay,
     connectors::Inespay,
     connectors::Itaubank,
@@ -1929,7 +1932,7 @@ macro_rules! default_imp_for_post_authenticate_steps{
             impl
             ConnectorIntegration<
             PostAuthenticate,
-            PaymentsPreProcessingData,
+            PaymentsPostAuthenticateData,
             PaymentsResponseData,
         > for $path::$connector
         {}
@@ -1994,6 +1997,7 @@ default_imp_for_post_authenticate_steps!(
     connectors::Hipay,
     connectors::Helcim,
     connectors::HyperswitchVault,
+    connectors::Hyperwallet,
     connectors::Iatapay,
     connectors::Inespay,
     connectors::Itaubank,
@@ -8241,8 +8245,7 @@ impl<const T: u8> ConnectorIntegration<PreAuthenticate, PaymentsAuthorizeData, P
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> PaymentsAuthenticate for connectors::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    ConnectorIntegration<Authenticate, PaymentsPreProcessingData, PaymentsResponseData>
+impl<const T: u8> ConnectorIntegration<Authenticate, PaymentsAuthenticateData, PaymentsResponseData>
     for connectors::DummyConnector<T>
 {
 }
@@ -8251,7 +8254,7 @@ impl<const T: u8>
 impl<const T: u8> PaymentsPostAuthenticate for connectors::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
-    ConnectorIntegration<PostAuthenticate, PaymentsPreProcessingData, PaymentsResponseData>
+    ConnectorIntegration<PostAuthenticate, PaymentsPostAuthenticateData, PaymentsResponseData>
     for connectors::DummyConnector<T>
 {
 }

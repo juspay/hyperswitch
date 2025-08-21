@@ -13,11 +13,12 @@ use hyperswitch_domain_models::{
     router_request_types::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
         CreateOrderRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
-        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
-        PaymentsUpdateMetadataData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
+        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
+        PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData, PaymentsSyncData,
+        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, SdkPaymentsSessionUpdateData,
+        SetupMandateRequestData,
     },
     router_response_types::{PaymentsResponseData, TaxCalculationResponseData},
 };
@@ -181,13 +182,13 @@ pub trait PaymentsPreAuthenticate:
 
 /// trait PaymentsPreProcessing
 pub trait PaymentsAuthenticate:
-    api::ConnectorIntegration<Authenticate, PaymentsPreProcessingData, PaymentsResponseData>
+    api::ConnectorIntegration<Authenticate, PaymentsAuthenticateData, PaymentsResponseData>
 {
 }
 
 /// trait PaymentsPreProcessing
 pub trait PaymentsPostAuthenticate:
-    api::ConnectorIntegration<PostAuthenticate, PaymentsPreProcessingData, PaymentsResponseData>
+    api::ConnectorIntegration<PostAuthenticate, PaymentsPostAuthenticateData, PaymentsResponseData>
 {
 }
 

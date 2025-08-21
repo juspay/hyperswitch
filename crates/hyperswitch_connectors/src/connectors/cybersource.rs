@@ -25,9 +25,10 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         AccessTokenRequestData, CompleteAuthorizeData, MandateRevokeRequestData,
-        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPreProcessingData,
-        PaymentsSessionData, PaymentsSyncData, RefundsData, SetupMandateRequestData,
+        PaymentMethodTokenizationData, PaymentsAuthenticateData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostAuthenticateData, PaymentsPreProcessingData, PaymentsSessionData,
+        PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData},
     types::{
@@ -817,7 +818,7 @@ impl ConnectorIntegration<PreAuthenticate, PaymentsAuthorizeData, PaymentsRespon
     }
 }
 
-impl ConnectorIntegration<Authenticate, PaymentsPreProcessingData, PaymentsResponseData>
+impl ConnectorIntegration<Authenticate, PaymentsAuthenticateData, PaymentsResponseData>
     for Cybersource
 {
     fn get_headers(
@@ -911,7 +912,7 @@ impl ConnectorIntegration<Authenticate, PaymentsPreProcessingData, PaymentsRespo
     }
 }
 
-impl ConnectorIntegration<PostAuthenticate, PaymentsPreProcessingData, PaymentsResponseData>
+impl ConnectorIntegration<PostAuthenticate, PaymentsPostAuthenticateData, PaymentsResponseData>
     for Cybersource
 {
     fn get_headers(
