@@ -13,6 +13,8 @@ use com.hyperswitch.smithy.types#CustomerDeleteResponse
 use com.hyperswitch.smithy.types#CustomerPaymentMethodsListResponse
 use com.hyperswitch.smithy.types#PaymentMethodListRequest
 use com.hyperswitch.smithy.types#CustomerListRequest
+use com.hyperswitch.smithy.types#MandateResponse
+use com.hyperswitch.smithy.types#MandateRevokedResponse
 
 use aws.protocols#restJson1
 
@@ -26,7 +28,7 @@ use aws.protocols#restJson1
 )
 service Hyperswitch {
     version: "2024-07-31",
-    operations: [PaymentsCreate, PaymentsRetrieve, RefundsCreate, RefundsRetrieve, PaymentsCapture, CustomersCreate, CustomersRetrieve, CustomersUpdate, CustomersDelete, CustomersList, CustomersPaymentMethods, CustomersRetrievePaymentMethods]
+    operations: [PaymentsCreate, PaymentsRetrieve, RefundsCreate, RefundsRetrieve, PaymentsCapture, CustomersCreate, CustomersRetrieve, CustomersUpdate, CustomersDelete, CustomersList, CustomersPaymentMethods, CustomersRetrievePaymentMethods, MandatesRetrieve, MandatesRevoke]
 }
 
 /// Input structure for capturing a payment
@@ -208,4 +210,32 @@ structure CustomersRetrievePaymentMethodsRequest with [PaymentMethodListRequest]
     @required
     @httpLabel
     customer_id: smithy.api#String
+}
+
+@documentation("Retrieve a mandate using the mandate_id.")
+@http(method: "GET", uri: "/mandates/{id}")
+operation MandatesRetrieve {
+    input: MandatesRetrieveRequest,
+    output: MandateResponse,
+}
+
+structure MandatesRetrieveRequest {
+    /// The unique identifier for the mandate to retrieve
+    @required
+    @httpLabel
+    id: smithy.api#String
+}
+
+@documentation("Revoke a mandate using the mandate_id.")
+@http(method: "POST", uri: "/mandates/revoke/{id}")
+operation MandatesRevoke {
+    input: MandatesRevokeRequest,
+    output: MandateRevokedResponse,
+}
+
+structure MandatesRevokeRequest {
+    /// The unique identifier for the mandate to revoke
+    @required
+    @httpLabel
+    id: smithy.api#String
 }
