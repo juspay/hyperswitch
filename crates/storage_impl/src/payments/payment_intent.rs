@@ -1499,7 +1499,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 };
 
                 if let Some(card_network) = &params.card_network {
-                    query = query.filter(pa_dsl::card_network.eq(card_network.clone()));
+                    query = query.filter(pa_dsl::card_network.eq(*card_network));
                 }
                 query
             }

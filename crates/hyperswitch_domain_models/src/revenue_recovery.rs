@@ -227,7 +227,7 @@ impl
             network_error_message: None,
             retry_count: invoice_details.retry_count,
             invoice_next_billing_time: invoice_details.next_billing_at,
-            card_network: billing_connector_payment_details.card_network.clone(),
+            card_network: billing_connector_payment_details.card_network,
             card_isin: billing_connector_payment_details.card_isin.clone(),
             charge_id: billing_connector_payment_details.charge_id.clone(),
             invoice_billing_started_at_time: invoice_details.billing_started_at,

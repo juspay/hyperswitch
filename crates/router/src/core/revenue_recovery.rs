@@ -273,9 +273,9 @@ pub async fn perform_payments_sync(
         pcr_status.update_pt_status_based_on_attempt_status_for_payments_sync(
             state,
             payment_intent,
-            process.clone(),
+            &process.clone(),
             revenue_recovery_payment_data,
-            payment_attempt,
+            &payment_attempt,
             &mut revenue_recovery_metadata,
         ),
     )
