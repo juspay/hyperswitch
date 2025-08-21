@@ -23255,6 +23255,11 @@
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
             "nullable": true
+          },
+          "request_overcapture": {
+            "type": "boolean",
+            "description": "Bool indicating if overcapture  must be requested for all payments",
+            "nullable": true
           }
         }
       },
@@ -23860,6 +23865,16 @@
           "enable_partial_authorization": {
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
+            "nullable": true
+          },
+          "request_overcapture": {
+            "type": "boolean",
+            "description": "Bool indicating if overcapture  must be requested for all payments",
+            "nullable": true
+          },
+          "overcapture_applied": {
+            "type": "boolean",
+            "description": "Bool indicating if overcapture is applied for this payment",
             "nullable": true
           }
         }
@@ -24624,6 +24639,11 @@
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
             "nullable": true
+          },
+          "request_overcapture": {
+            "type": "boolean",
+            "description": "Bool indicating if overcapture  must be requested for all payments",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -25256,6 +25276,16 @@
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
             "nullable": true
+          },
+          "request_overcapture": {
+            "type": "boolean",
+            "description": "Bool indicating if overcapture  must be requested for all payments",
+            "nullable": true
+          },
+          "overcapture_applied": {
+            "type": "boolean",
+            "description": "Bool indicating if overcapture is applied for this payment",
+            "nullable": true
           }
         }
       },
@@ -25861,6 +25891,11 @@
           "enable_partial_authorization": {
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
+            "nullable": true
+          },
+          "request_overcapture": {
+            "type": "boolean",
+            "description": "Bool indicating if overcapture  must be requested for all payments",
             "nullable": true
           }
         }
@@ -28242,8 +28277,13 @@
           "dispute_polling_interval": {
             "type": "integer",
             "format": "int32",
-            "description": "Time interval (in hours) for polling the connector to check dispute statuses",
+            "description": "Time interval (in hours) for polling the connector to check  for new disputes",
             "example": 2,
+            "nullable": true
+          },
+          "always_request_overcapture": {
+            "type": "boolean",
+            "description": "Bool indicating if overcapture  must be requested for all payments",
             "nullable": true
           }
         },
@@ -28567,9 +28607,15 @@
           "dispute_polling_interval": {
             "type": "integer",
             "format": "int32",
+            "description": "Time interval (in hours) for polling the connector to check dispute statuses",
             "example": 2,
             "nullable": true,
             "minimum": 0
+          },
+          "always_request_overcapture": {
+            "type": "boolean",
+            "description": "Bool indicating if overcapture  must be requested for all payments",
+            "nullable": true
           }
         }
       },
