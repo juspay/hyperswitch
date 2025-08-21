@@ -571,9 +571,23 @@ pub enum CallConnectorAction {
     HandleResponse(Vec<u8>),
 }
 
-#[derive(Clone, PartialEq, Debug, serde::Deserialize, serde::Serialize, Eq)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
 #[serde(rename_all = "UPPERCASE")]
-pub enum DocumentType {
+pub enum DocumentKind {
     Cnpj,
     Cpf,
 }

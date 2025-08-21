@@ -268,7 +268,7 @@ impl
                 .clone(),
             payer: Payer {
                 name: value.0.router_data.get_billing_full_name()?,
-                document_type: voucher_data.document_type.clone().ok_or_else(|| {
+                document_type: voucher_data.document_type.ok_or_else(|| {
                     errors::ConnectorError::MissingRequiredField {
                         field_name: "document_type",
                     }
@@ -282,13 +282,13 @@ impl
             },
             beneficiary: Some(Beneficiary {
                 name: value.0.router_data.get_optional_billing_full_name(),
-                document_type: voucher_data.document_type.clone(),
+                document_type: voucher_data.document_type,
                 document_number: voucher_data
                     .social_security_number
                     .clone()
                     .map(|s| s.expose()),
             }),
-            document_kind: DocumentKind::BoletoProposta, // to change
+            document_kind: BoletoDocumentKind::BoletoProposta, // to change
             discount: DiscountType::Isento,              // to change
             discount_one: None,
             discount_two: None,
@@ -377,7 +377,7 @@ pub struct SantanderBoletoPaymentRequest {
     pub participant_code: Option<String>,
     pub payer: Payer,
     pub beneficiary: Option<Beneficiary>,
-    pub document_kind: DocumentKind,
+    pub document_kind: BoletoDocumentKind,
     pub discount: DiscountType,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub discount_one: Option<Discount>,
@@ -408,7 +408,7 @@ pub struct SantanderBoletoPaymentRequest {
 #[serde(rename_all = "camelCase")]
 pub struct Payer {
     pub name: Secret<String>,
-    pub document_type: enums::DocumentType,
+    pub document_type: enums::DocumentKind,
     pub document_number: Option<Secret<String>>,
     pub address: Secret<String>,
     pub neighborhood: Secret<String>,
@@ -421,7 +421,7 @@ pub struct Payer {
 #[serde(rename_all = "camelCase")]
 pub struct Beneficiary {
     pub name: Option<Secret<String>>,
-    pub document_type: Option<enums::DocumentType>,
+    pub document_type: Option<enums::DocumentKind>,
     pub document_number: Option<String>,
 }
 
@@ -434,14 +434,14 @@ pub enum Environment {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
-pub enum DocumentType {
+pub enum SantanderDocumentKind {
     Cpf,
     Cnpj,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum DocumentKind {
+pub enum BoletoDocumentKind {
     DuplicataMercantil,
     DuplicataServico,
     NotaPromissoria,
@@ -1017,16 +1017,16 @@ pub struct SantanderWebhookBody {
     pub payment_channel: PaymentChannel,
     pub payment_kind: PaymentKind,
     pub covenant: String,
-    pub type_of_person_agreement: DocumentType,
+    pub type_of_person_agreement: enums::DocumentKind,
     pub agreement_document: String,
     pub bank_number: String,
     pub client_number: String,
     pub participant_code: String,
     pub tx_id: String,
-    pub payer_document_type: DocumentType,
+    pub payer_document_type: enums::DocumentKind,
     pub payer_document_number: String,
     pub payer_name: String,
-    pub final_beneficiaryr_document_type: DocumentType,
+    pub final_beneficiaryr_document_type: enums::DocumentKind,
     pub final_beneficiary_document_number: String,
     pub final_beneficiary_name: String,
     pub due_date: String,

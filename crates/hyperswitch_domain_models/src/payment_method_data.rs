@@ -649,7 +649,7 @@ pub struct BoletoVoucherData {
     /// The shopper's social security number
     pub social_security_number: Option<Secret<String>>,
     pub bank_number: Option<String>,
-    pub document_type: Option<common_enums::DocumentType>,
+    pub document_type: Option<common_enums::DocumentKind>,
     pub fine_percentage: Option<FloatMajorUnit>,
     pub fine_quantity_days: Option<MinorUnit>,
     pub interest_percentage: Option<FloatMajorUnit>,
