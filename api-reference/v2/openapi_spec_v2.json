@@ -4923,7 +4923,13 @@
         }
       },
       "ApplePayRedirectData": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "nullable": true
+          }
+        }
       },
       "ApplePayRegularBillingDetails": {
         "type": "object",
@@ -12410,7 +12416,13 @@
         }
       },
       "GooglePayRedirectData": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "nullable": true
+          }
+        }
       },
       "GooglePaySessionResponse": {
         "type": "object",
