@@ -149,6 +149,7 @@ impl ConnectorCommon for Wise {
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     })
                 } else {
                     Ok(ErrorResponse {
@@ -161,6 +162,7 @@ impl ConnectorCommon for Wise {
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     })
                 }
             }
@@ -174,6 +176,7 @@ impl ConnectorCommon for Wise {
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             }),
         }
     }
@@ -327,6 +330,7 @@ impl ConnectorIntegration<PoCancel, PayoutsData, PayoutsResponseData> for Wise {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }

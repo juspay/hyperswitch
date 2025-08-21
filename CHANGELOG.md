@@ -4,6 +4,23 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.08.21.0
+
+### Features
+
+- **connector:**
+  - [DWOLLA] Connector integration ([#8586](https://github.com/juspay/hyperswitch/pull/8586)) ([`c09c936`](https://github.com/juspay/hyperswitch/commit/c09c936643170c595303293601d41c4207e12068))
+  - [CELERO] Integrate Card Payments (Alpha) ([#8574](https://github.com/juspay/hyperswitch/pull/8574)) ([`e1fc141`](https://github.com/juspay/hyperswitch/commit/e1fc14135cc3527cfb5afeccd4934bad8386c7b1))
+- **payment-methods:** [Proxy] add saved card flow for proxy payments ([#8964](https://github.com/juspay/hyperswitch/pull/8964)) ([`73dfa5e`](https://github.com/juspay/hyperswitch/commit/73dfa5e4fa3da2772648678e5ce0dbee4d1a63b5))
+
+### Bug Fixes
+
+- **authentication:** Changed required value for juspayThreedsserver config ([#8890](https://github.com/juspay/hyperswitch/pull/8890)) ([`a56d78a`](https://github.com/juspay/hyperswitch/commit/a56d78a46a3ee80cdb2b48f9abfd2cd7b297e328))
+
+**Full Changelog:** [`2025.08.20.0...2025.08.21.0`](https://github.com/juspay/hyperswitch/compare/2025.08.20.0...2025.08.21.0)
+
+- - -
+
 ## 2025.08.20.0
 
 ### Features

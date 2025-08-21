@@ -194,6 +194,10 @@ impl AttemptStatus {
             | Self::IntegrityFailure => false,
         }
     }
+
+    pub fn is_success(self) -> bool {
+        matches!(self, Self::Charged | Self::PartialCharged)
+    }
 }
 
 #[derive(

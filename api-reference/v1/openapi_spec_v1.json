@@ -11834,6 +11834,7 @@
           "deutschebank",
           "digitalvirgo",
           "dlocal",
+          "dwolla",
           "ebanx",
           "elavon",
           "facilitapay",
@@ -15439,6 +15440,34 @@
             "type": "string",
             "enum": [
               "user_bank_routing_number"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "user_bank_type"
+            ],
+            "properties": {
+              "user_bank_type": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_bank_account_holder_name"
             ]
           },
           {
@@ -29785,6 +29814,7 @@
           "deutschebank",
           "digitalvirgo",
           "dlocal",
+          "dwolla",
           "ebanx",
           "elavon",
           "facilitapay",
