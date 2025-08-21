@@ -5358,3 +5358,7 @@ type = "Text"
 [hyperwallet.connector_auth.BodyKey]
 api_key = "Password"
 key1 = "Username"
+
+[paysafe]
+[paysafe.connector_auth.HeaderKey]
+api_key = "API Key"
