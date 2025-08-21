@@ -198,8 +198,7 @@ impl super::RedisConnectionPool {
         }
     }
 
-    #[instrument(level = "DEBUG", skip(self))]
-    pub async fn get_multiple_keys<V>(
+    async fn get_multiple_keys_with_mget<V>(
         &self,
         keys: &[RedisKey],
     ) -> CustomResult<Vec<Option<V>>, errors::RedisError>
@@ -212,13 +211,75 @@ impl super::RedisConnectionPool {
 
         let tenant_aware_keys: Vec<String> =
             keys.iter().map(|key| key.tenant_aware_key(self)).collect();
-
-        match self
-            .pool
-            .mget(tenant_aware_keys.clone())
+        self.pool
+            .mget(tenant_aware_keys)
             .await
             .change_context(errors::RedisError::GetFailed)
-        {
+    }
+
+    async fn get_multiple_keys_with_transaction<V>(
+        &self,
+        keys: &[RedisKey],
+    ) -> CustomResult<Vec<Option<V>>, errors::RedisError>
+    where
+        V: FromRedis + Unpin + Send + 'static,
+    {
+        if keys.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let tenant_aware_keys: Vec<String> =
+            keys.iter().map(|key| key.tenant_aware_key(self)).collect();
+        let trx = self.get_transaction();
+
+        // Queue all GET commands in the transaction
+        for redis_key in &tenant_aware_keys {
+            trx.get::<Option<V>, _>(redis_key)
+                .await
+                .change_context(errors::RedisError::GetFailed)
+                .attach_printable("Failed to queue get command")?;
+        }
+
+        // Execute the transaction and get results
+        let results: Vec<Option<V>> = trx
+            .exec(true)
+            .await
+            .change_context(errors::RedisError::GetFailed)
+            .attach_printable("Failed to execute the redis transaction")?;
+
+        Ok(results)
+    }
+
+    /// Helper method to encapsulate the logic for choosing between cluster and non-cluster modes
+    async fn get_keys_by_mode<V>(
+        &self,
+        keys: &[RedisKey],
+    ) -> CustomResult<Vec<Option<V>>, errors::RedisError>
+    where
+        V: FromRedis + Unpin + Send + 'static,
+    {
+        if self.config.cluster_enabled {
+            // Use transaction for cluster mode to ensure atomicity across nodes
+            self.get_multiple_keys_with_transaction(keys).await
+        } else {
+            // Use MGET for non-cluster mode for better performance
+            self.get_multiple_keys_with_mget(keys).await
+        }
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn get_multiple_keys<V>(
+        &self,
+        keys: &[RedisKey],
+    ) -> CustomResult<Vec<Option<V>>, errors::RedisError>
+    where
+        V: FromRedis + Unpin + Send + 'static,
+    {
+        if keys.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        match self.get_keys_by_mode(keys).await {
             Ok(values) => Ok(values),
             Err(_err) => {
                 #[cfg(not(feature = "multitenancy_fallback"))]
@@ -228,15 +289,12 @@ impl super::RedisConnectionPool {
 
                 #[cfg(feature = "multitenancy_fallback")]
                 {
-                    let tenant_unaware_keys: Vec<String> = keys
+                    let tenant_unaware_keys: Vec<RedisKey> = keys
                         .iter()
-                        .map(|key| key.tenant_unaware_key(self))
+                        .map(|key| key.tenant_unaware_key(self).into())
                         .collect();
 
-                    self.pool
-                        .mget(tenant_unaware_keys)
-                        .await
-                        .change_context(errors::RedisError::GetFailed)
+                    self.get_keys_by_mode(&tenant_unaware_keys).await
                 }
             }
         }
