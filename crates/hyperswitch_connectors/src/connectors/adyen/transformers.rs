@@ -4653,8 +4653,7 @@ impl<F, Req>
 
         Ok(Self {
             status,
-            amount_captured: minor_amount_captured
-            .map(|amount| amount.get_amount_as_i64()),
+            amount_captured: minor_amount_captured.map(|amount| amount.get_amount_as_i64()),
             response: error.map_or_else(|| Ok(payment_response_data), Err),
             minor_amount_captured,
             ..item.data
