@@ -2803,11 +2803,13 @@ fn extract_payment_method_connector_response_from_latest_charge(
     }
 }
 
-fn get_stripe_overcapture_request(enable_overcapture: common_types::primitive_wrappers::EnableOvercaptureBool) -> Option<StripeRequestOvercaptureBool> {
-        match enable_overcapture.deref() {
-            true => Some(StripeRequestOvercaptureBool::IfAvailable),
-            false => None
-        }
+fn get_stripe_overcapture_request(
+    enable_overcapture: common_types::primitive_wrappers::EnableOvercaptureBool,
+) -> Option<StripeRequestOvercaptureBool> {
+    match enable_overcapture.deref() {
+        true => Some(StripeRequestOvercaptureBool::IfAvailable),
+        false => None,
+    }
 }
 
 fn extract_payment_method_connector_response_from_latest_attempt(
