@@ -289,7 +289,7 @@ impl
                     .map(|s| s.expose()),
             }),
             document_kind: BoletoDocumentKind::BoletoProposta, // to change
-            discount: DiscountType::Isento,              // to change
+            discount: DiscountType::Isento,                    // to change
             discount_one: None,
             discount_two: None,
             discount_three: None,
