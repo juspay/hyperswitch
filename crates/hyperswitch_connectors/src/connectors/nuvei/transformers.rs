@@ -2340,7 +2340,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, NuveiPaymentsResponse>>
             get_refund_response(item.response.clone(), item.http_code, transaction_id);
 
         Ok(Self {
-            response: refund_response,
+            response: refund_response.map_err(|err| *err),
             ..item.data
         })
     }
@@ -2363,7 +2363,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, NuveiPaymentsResponse>>
             get_refund_response(item.response.clone(), item.http_code, transaction_id);
 
         Ok(Self {
-            response: refund_response,
+            response: refund_response.map_err(|err| *err),
             ..item.data
         })
     }
@@ -2421,30 +2421,30 @@ fn get_refund_response(
     response: NuveiPaymentsResponse,
     http_code: u16,
     txn_id: String,
-) -> Result<RefundsResponseData, ErrorResponse> {
+) -> Result<RefundsResponseData, Box<ErrorResponse>> {
     let refund_status = response
         .transaction_status
         .clone()
         .map(enums::RefundStatus::from)
         .unwrap_or(enums::RefundStatus::Failure);
     match response.status {
-        NuveiPaymentStatus::Error => Err(get_error_response(
+        NuveiPaymentStatus::Error => Err(Box::new(get_error_response(
             response.err_code,
             &response.reason,
             http_code,
             &response.merchant_advice_code,
             &response.gw_error_code.map(|e| e.to_string()),
             &response.gw_error_reason,
-        )),
+        ))),
         _ => match response.transaction_status {
-            Some(NuveiTransactionStatus::Error) => Err(get_error_response(
+            Some(NuveiTransactionStatus::Error) => Err(Box::new(get_error_response(
                 response.err_code,
                 &response.reason,
                 http_code,
                 &response.merchant_advice_code,
                 &response.gw_error_code.map(|e| e.to_string()),
                 &response.gw_error_reason,
-            )),
+            ))),
             _ => Ok(RefundsResponseData {
                 connector_refund_id: txn_id,
                 refund_status,
