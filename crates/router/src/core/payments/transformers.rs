@@ -1702,6 +1702,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         network_decline_code: None,
         network_advice_code: None,
         network_error_message: None,
+        connector_metadata: None,
     });
 
     let additional_data = PaymentAdditionalData {

@@ -4,6 +4,49 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.08.21.0
+
+### Features
+
+- **connector:**
+  - [DWOLLA] Connector integration ([#8586](https://github.com/juspay/hyperswitch/pull/8586)) ([`c09c936`](https://github.com/juspay/hyperswitch/commit/c09c936643170c595303293601d41c4207e12068))
+  - [CELERO] Integrate Card Payments (Alpha) ([#8574](https://github.com/juspay/hyperswitch/pull/8574)) ([`e1fc141`](https://github.com/juspay/hyperswitch/commit/e1fc14135cc3527cfb5afeccd4934bad8386c7b1))
+- **payment-methods:** [Proxy] add saved card flow for proxy payments ([#8964](https://github.com/juspay/hyperswitch/pull/8964)) ([`73dfa5e`](https://github.com/juspay/hyperswitch/commit/73dfa5e4fa3da2772648678e5ce0dbee4d1a63b5))
+
+### Bug Fixes
+
+- **authentication:** Changed required value for juspayThreedsserver config ([#8890](https://github.com/juspay/hyperswitch/pull/8890)) ([`a56d78a`](https://github.com/juspay/hyperswitch/commit/a56d78a46a3ee80cdb2b48f9abfd2cd7b297e328))
+
+**Full Changelog:** [`2025.08.20.0...2025.08.21.0`](https://github.com/juspay/hyperswitch/compare/2025.08.20.0...2025.08.21.0)
+
+- - -
+
+## 2025.08.20.0
+
+### Features
+
+- Added create endpoint for dynamic_routing ([#8755](https://github.com/juspay/hyperswitch/pull/8755)) ([`58abb60`](https://github.com/juspay/hyperswitch/commit/58abb604d7a89519befa296d59506857bbdb0b8b))
+
+### Bug Fixes
+
+- **connector:** [Wise] change amount conversion unit ([#8991](https://github.com/juspay/hyperswitch/pull/8991)) ([`c5174fd`](https://github.com/juspay/hyperswitch/commit/c5174fd6ed720340fcffe8715503eb4e5fcfc774))
+- **core:** Address Deserialization issue ([#8980](https://github.com/juspay/hyperswitch/pull/8980)) ([`f76c6a7`](https://github.com/juspay/hyperswitch/commit/f76c6a7839cc21421cc38fe2cb332f99d13c6fdf))
+
+### Refactors
+
+- **connector:**
+  - [Nuvei] Fix card 3ds ([#8913](https://github.com/juspay/hyperswitch/pull/8913)) ([`ba15c0f`](https://github.com/juspay/hyperswitch/commit/ba15c0f194e2e128a1304e11d45f794cd3b69cbe))
+  - [AdyenPlatform] update required fields ([#8990](https://github.com/juspay/hyperswitch/pull/8990)) ([`72eb25f`](https://github.com/juspay/hyperswitch/commit/72eb25f074b600aa7db6c5ddab640a89f074e725))
+- [Netcetera] Handle response deserialization error ([#8988](https://github.com/juspay/hyperswitch/pull/8988)) ([`0816699`](https://github.com/juspay/hyperswitch/commit/08166991f814c73b4217800ecdee560626b4986c))
+
+### Documentation
+
+- Update connector guide ([#8739](https://github.com/juspay/hyperswitch/pull/8739)) ([`6a17a6f`](https://github.com/juspay/hyperswitch/commit/6a17a6f0f5cc0f2c5ca1ba42eb7ccff8c9d9b0b6))
+
+**Full Changelog:** [`2025.08.19.0...2025.08.20.0`](https://github.com/juspay/hyperswitch/compare/2025.08.19.0...2025.08.20.0)
+
+- - -
+
 ## 2025.08.19.0
 
 ### Features
