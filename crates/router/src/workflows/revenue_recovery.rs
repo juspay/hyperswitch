@@ -33,7 +33,7 @@ use hyperswitch_domain_models::router_flow_types;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
-    payments::{PaymentConfirmData, PaymentIntent, PaymentIntentData},
+    payments::{payment_attempt, PaymentConfirmData, PaymentIntent, PaymentIntentData},
     router_flow_types::Authorize,
 };
 #[cfg(feature = "v2")]
@@ -64,8 +64,6 @@ use crate::types::storage::revenue_recovery::RetryLimitsConfig;
 use crate::types::storage::revenue_recovery_redis_operation::{
     PaymentProcessorTokenStatus, PaymentProcessorTokenWithRetryInfo, RedisTokenManager,
 };
-#[cfg(feature = "v2")]
-use crate::workflows::revenue_recovery::payments::helpers;
 #[cfg(feature = "v2")]
 use crate::workflows::revenue_recovery::pcr::api;
 #[cfg(feature = "v2")]
@@ -699,17 +697,18 @@ pub async fn get_token_with_schedule_time_based_on_retry_alogrithm_type(
     state: &SessionState,
     connector_customer_id: &str,
     payment_intent: &PaymentIntent,
+    retry_algorithm_type: RevenueRecoveryAlgorithmType,
     retry_count: i32,
 ) -> CustomResult<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
-    let retry_algorithm_type = state.conf.revenue_recovery.retry_algorithm_type;
+    let mut scheduled_time = None;
 
     match retry_algorithm_type {
         RevenueRecoveryAlgorithmType::Monitoring => {
             logger::error!("Monitoring type found for Revenue Recovery retry payment");
-            Ok(None)
         }
+
         RevenueRecoveryAlgorithmType::Cascading => {
-            let scheduled_time = get_schedule_time_to_retry_mit_payments(
+            let time = get_schedule_time_to_retry_mit_payments(
                 state.store.as_ref(),
                 &payment_intent.merchant_id,
                 retry_count,
@@ -717,20 +716,48 @@ pub async fn get_token_with_schedule_time_based_on_retry_alogrithm_type(
             .await
             .ok_or(errors::ProcessTrackerError::EApiErrorResponse)?;
 
-            Ok(Some(scheduled_time))
+
+            scheduled_time = Some(time);
+
+            let token = RedisTokenManager::get_token_with_max_retry_remaining(
+                state,
+                connector_customer_id,
+            )
+            .await
+            .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
+
+            match token {
+                Some(token) => {
+                    RedisTokenManager::update_payment_processor_token_schedule_time(
+                        state,
+                        connector_customer_id,
+                        &token.token_status.payment_processor_token_details.payment_processor_token,
+                        scheduled_time,
+                    )
+                    .await
+                    .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
+            
+                    logger::debug!("PSP token available for cascading retry");
+                }
+                None => {
+                    logger::debug!("No PSP token available for cascading retry");
+                    scheduled_time = None;
+                }
+            }
         }
+
         RevenueRecoveryAlgorithmType::Smart => {
-            let scheduled_time = get_best_psp_token_available_for_smart_retry(
+            scheduled_time = get_best_psp_token_available_for_smart_retry(
                 state,
                 connector_customer_id,
                 payment_intent,
             )
             .await
             .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
-
-            Ok(scheduled_time)
         }
     }
+
+    Ok(scheduled_time)
 }
 
 #[cfg(feature = "v2")]
@@ -887,31 +914,36 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
         .min_by_key(|token| token.schedule_time)
         .cloned();
 
-    best_token
-        .is_none()
-        .then(|| tracing::debug!("No payment processor tokens available for scheduling"));
-
-    best_token
-        .async_map(|token| async move {
-            tracing::debug!("Found payment processor token with least schedule time");
-            RedisTokenManager::update_payment_processor_token_schedule_time(
-                state,
-                connector_customer_id,
-                &token.token_details.payment_processor_token,
-                Some(token.schedule_time),
-            )
-            .await
-            .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
-            Ok(token.schedule_time)
-        })
-        .await
-        .transpose()
+        match best_token {
+            None => {
+                RedisTokenManager::unlock_connector_customer_status(state, connector_customer_id)
+                .await
+                .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
+                tracing::debug!("No payment processor tokens available for scheduling");
+                Ok(None)
+            }
+        
+            Some(token) => {
+                tracing::debug!("Found payment processor token with least schedule time");
+        
+                RedisTokenManager::update_payment_processor_token_schedule_time(
+                    state,
+                    connector_customer_id,
+                    &token.token_details.payment_processor_token,
+                    Some(token.schedule_time),
+                )
+                .await
+                .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
+        
+                Ok(Some(token.schedule_time))
+            }
+        }
 }
 
 #[cfg(feature = "v2")]
-pub async fn decide_retry_failure_action(
+pub async fn check_hard_decline(
     state: &SessionState,
-    payment_attempt: &PaymentAttemptResponse,
+    payment_attempt: &payment_attempt::PaymentAttempt,
 ) -> Result<bool, error_stack::Report<storage_impl::errors::RecoveryError>> {
     let error_message = payment_attempt
         .error
@@ -929,7 +961,7 @@ pub async fn decide_retry_failure_action(
         .ok_or(storage_impl::errors::RecoveryError::ValueNotFound)
         .attach_printable("unable to derive payment connector from payment attempt")?;
 
-    let gsm_record = helpers::get_gsm_record(
+    let gsm_record = payments::helpers::get_gsm_record(
         state,
         error_code,
         error_message,
