@@ -546,7 +546,7 @@ impl From<&Address> for ShippingAddress {
             state: None,
             cell: None,
             address_line2: address_details.and_then(|details| details.get_optional_line2()),
-            address_line3: address_details.and_then(|details| details.get_optional_line2()),
+            address_line3: address_details.and_then(|details| details.get_optional_line3()),
             county: None,
             company_name: None,
             care_of: None,
