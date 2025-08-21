@@ -2192,7 +2192,7 @@ pub struct ProfileCreate {
 
     /// Bool indicating if overcapture  must be requested for all payments
     #[schema(value_type = Option<bool>)]
-    pub always_request_overcapture: Option<primitive_wrappers::AlwaysRequestOvercapture>,
+    pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
 }
 
 #[nutype::nutype(
@@ -2535,7 +2535,7 @@ pub struct ProfileResponse {
 
     /// Bool indicating if overcapture  must be requested for all payments
     #[schema(value_type = Option<bool>)]
-    pub always_request_overcapture: Option<primitive_wrappers::AlwaysRequestOvercapture>,
+    pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
 }
 
 #[cfg(feature = "v2")]
@@ -2871,7 +2871,7 @@ pub struct ProfileUpdate {
 
     /// Bool indicating if overcapture  must be requested for all payments
     #[schema(value_type = Option<bool>)]
-    pub always_request_overcapture: Option<primitive_wrappers::AlwaysRequestOvercapture>,
+    pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
 }
 
 #[cfg(feature = "v2")]

@@ -517,7 +517,7 @@ where
                 charges,
                 setup_future_usage_applied: None,
                 debit_routing_savings,
-                overcapture_applied: None,
+                is_overcapture_enabled: None,
             };
 
             #[cfg(feature = "v1")]

@@ -1,7 +1,7 @@
 #[cfg(feature = "v2")]
 use common_types::payments as common_payments_types;
 use common_types::primitive_wrappers::{
-    ExtendedAuthorizationAppliedBool, OvercaptureAppliedBool, RequestExtendedAuthorizationBool,
+    ExtendedAuthorizationAppliedBool, OvercaptureEnabledBool, RequestExtendedAuthorizationBool,
 };
 use common_utils::{
     id_type, pii,
@@ -96,7 +96,7 @@ pub struct PaymentAttempt {
     pub processor_merchant_id: Option<id_type::MerchantId>,
     pub created_by: Option<String>,
     pub connector_request_reference_id: Option<String>,
-    pub overcapture_applied: Option<OvercaptureAppliedBool>,
+    pub is_overcapture_enabled: Option<OvercaptureEnabledBool>,
     #[diesel(deserialize_as = RequiredFromNullable<storage_enums::PaymentMethod>)]
     pub payment_method_type_v2: storage_enums::PaymentMethod,
     pub connector_payment_id: Option<ConnectorTransactionId>,
@@ -211,7 +211,7 @@ pub struct PaymentAttempt {
     pub setup_future_usage_applied: Option<storage_enums::FutureUsage>,
     pub routing_approach: Option<storage_enums::RoutingApproach>,
     pub connector_request_reference_id: Option<String>,
-    pub overcapture_applied: Option<OvercaptureAppliedBool>,
+    pub is_overcapture_enabled: Option<OvercaptureEnabledBool>,
 }
 
 #[cfg(feature = "v1")]
@@ -559,7 +559,7 @@ pub enum PaymentAttemptUpdate {
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
         charges: Option<common_types::payments::ConnectorChargeResponseData>,
         setup_future_usage_applied: Option<storage_enums::FutureUsage>,
-        overcapture_applied: Option<OvercaptureAppliedBool>,
+        is_overcapture_enabled: Option<OvercaptureEnabledBool>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -995,7 +995,7 @@ impl PaymentAttemptUpdateInternal {
             network_error_message: network_error_message.or(source.network_error_message),
             connector_request_reference_id: connector_request_reference_id
                 .or(source.connector_request_reference_id),
-            overcapture_applied: source.overcapture_applied,
+            is_overcapture_enabled: source.is_overcapture_enabled,
         }
     }
 }
@@ -1062,7 +1062,7 @@ pub struct PaymentAttemptUpdateInternal {
     pub setup_future_usage_applied: Option<storage_enums::FutureUsage>,
     pub routing_approach: Option<storage_enums::RoutingApproach>,
     pub connector_request_reference_id: Option<String>,
-    pub overcapture_applied: Option<OvercaptureAppliedBool>,
+    pub is_overcapture_enabled: Option<OvercaptureEnabledBool>,
 }
 
 #[cfg(feature = "v1")]
@@ -1254,7 +1254,7 @@ impl PaymentAttemptUpdate {
             setup_future_usage_applied,
             routing_approach,
             connector_request_reference_id,
-            overcapture_applied,
+            is_overcapture_enabled,
         } = PaymentAttemptUpdateInternal::from(self).populate_derived_fields(&source);
         PaymentAttempt {
             amount: amount.unwrap_or(source.amount),
@@ -1324,7 +1324,7 @@ impl PaymentAttemptUpdate {
             routing_approach: routing_approach.or(source.routing_approach),
             connector_request_reference_id: connector_request_reference_id
                 .or(source.connector_request_reference_id),
-            overcapture_applied: overcapture_applied.or(source.overcapture_applied),
+            is_overcapture_enabled: is_overcapture_enabled.or(source.is_overcapture_enabled),
             ..source
         }
     }
@@ -2385,7 +2385,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 setup_future_usage_applied: None,
                 routing_approach: None,
                 connector_request_reference_id: None,
-                overcapture_applied: None,
+                is_overcapture_enabled: None,
             },
             PaymentAttemptUpdate::AuthenticationTypeUpdate {
                 authentication_type,
@@ -2450,7 +2450,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 setup_future_usage_applied: None,
                 routing_approach: None,
                 connector_request_reference_id: None,
-                overcapture_applied: None,
+                is_overcapture_enabled: None,
             },
             PaymentAttemptUpdate::ConfirmUpdate {
                 amount,
@@ -2548,7 +2548,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 setup_future_usage_applied: None,
                 routing_approach,
                 connector_request_reference_id,
-                overcapture_applied: None,
+                is_overcapture_enabled: None,
             },
             PaymentAttemptUpdate::VoidUpdate {
                 status,
@@ -2614,7 +2614,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 setup_future_usage_applied: None,
                 routing_approach: None,
                 connector_request_reference_id: None,
-                overcapture_applied: None,
+                is_overcapture_enabled: None,
             },
             PaymentAttemptUpdate::RejectUpdate {
                 status,
@@ -2681,7 +2681,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 setup_future_usage_applied: None,
                 routing_approach: None,
                 connector_request_reference_id: None,
-                overcapture_applied: None,
+                is_overcapture_enabled: None,
             },
             PaymentAttemptUpdate::BlocklistUpdate {
                 status,
@@ -2748,7 +2748,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 setup_future_usage_applied: None,
                 routing_approach: None,
                 connector_request_reference_id: None,
-                overcapture_applied: None,
+                is_overcapture_enabled: None,
             },
             PaymentAttemptUpdate::ConnectorMandateDetailUpdate {
                 connector_mandate_detail,
@@ -2813,7 +2813,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 setup_future_usage_applied: None,
                 routing_approach: None,
                 connector_request_reference_id: None,
-                overcapture_applied: None,
+                is_overcapture_enabled: None,
             },
             PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
                 payment_method_id,
@@ -2878,7 +2878,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 setup_future_usage_applied: None,
                 routing_approach: None,
                 connector_request_reference_id: None,
-                overcapture_applied: None,
+                is_overcapture_enabled: None,
             },
             PaymentAttemptUpdate::ResponseUpdate {
                 status,
@@ -2905,7 +2905,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_mandate_detail,
                 charges,
                 setup_future_usage_applied,
-                overcapture_applied,
+                is_overcapture_enabled,
             } => {
                 let (connector_transaction_id, processor_transaction_data) =
                     connector_transaction_id
@@ -2972,7 +2972,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     setup_future_usage_applied,
                     routing_approach: None,
                     connector_request_reference_id: None,
-                    overcapture_applied,
+                    is_overcapture_enabled,
                 }
             }
             PaymentAttemptUpdate::ErrorUpdate {
@@ -3056,7 +3056,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     setup_future_usage_applied: None,
                     routing_approach: None,
                     connector_request_reference_id: None,
-                    overcapture_applied: None,
+                    is_overcapture_enabled: None,
                 }
             }
             PaymentAttemptUpdate::StatusUpdate { status, updated_by } => Self {
@@ -3119,7 +3119,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 setup_future_usage_applied: None,
                 routing_approach: None,
                 connector_request_reference_id: None,
-                overcapture_applied: None,
+                is_overcapture_enabled: None,
             },
             PaymentAttemptUpdate::UpdateTrackers {
                 payment_token,
@@ -3191,7 +3191,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 setup_future_usage_applied: None,
                 routing_approach,
                 connector_request_reference_id: None,
-                overcapture_applied: None,
+                is_overcapture_enabled: None,
             },
             PaymentAttemptUpdate::UnresolvedResponseUpdate {
                 status,
@@ -3269,7 +3269,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     setup_future_usage_applied: None,
                     routing_approach: None,
                     connector_request_reference_id: None,
-                    overcapture_applied: None,
+                    is_overcapture_enabled: None,
                 }
             }
             PaymentAttemptUpdate::PreprocessingUpdate {
@@ -3346,7 +3346,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     setup_future_usage_applied: None,
                     routing_approach: None,
                     connector_request_reference_id: None,
-                    overcapture_applied: None,
+                    is_overcapture_enabled: None,
                 }
             }
             PaymentAttemptUpdate::CaptureUpdate {
@@ -3413,7 +3413,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 setup_future_usage_applied: None,
                 routing_approach: None,
                 connector_request_reference_id: None,
-                overcapture_applied: None,
+                is_overcapture_enabled: None,
             },
             PaymentAttemptUpdate::AmountToCaptureUpdate {
                 status,
@@ -3479,7 +3479,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 setup_future_usage_applied: None,
                 routing_approach: None,
                 connector_request_reference_id: None,
-                overcapture_applied: None,
+                is_overcapture_enabled: None,
             },
             PaymentAttemptUpdate::ConnectorResponse {
                 authentication_data,
@@ -3554,7 +3554,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     setup_future_usage_applied: None,
                     routing_approach: None,
                     connector_request_reference_id: None,
-                    overcapture_applied: None,
+                    is_overcapture_enabled: None,
                 }
             }
             PaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
@@ -3620,7 +3620,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 setup_future_usage_applied: None,
                 routing_approach: None,
                 connector_request_reference_id: None,
-                overcapture_applied: None,
+                is_overcapture_enabled: None,
             },
             PaymentAttemptUpdate::AuthenticationUpdate {
                 status,
@@ -3688,7 +3688,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 setup_future_usage_applied: None,
                 routing_approach: None,
                 connector_request_reference_id: None,
-                overcapture_applied: None,
+                is_overcapture_enabled: None,
             },
             PaymentAttemptUpdate::ManualUpdate {
                 status,
@@ -3765,7 +3765,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     setup_future_usage_applied: None,
                     routing_approach: None,
                     connector_request_reference_id: None,
-                    overcapture_applied: None,
+                    is_overcapture_enabled: None,
                 }
             }
             PaymentAttemptUpdate::PostSessionTokensUpdate {
@@ -3831,7 +3831,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 setup_future_usage_applied: None,
                 routing_approach: None,
                 connector_request_reference_id: None,
-                overcapture_applied: None,
+                is_overcapture_enabled: None,
             },
         }
     }

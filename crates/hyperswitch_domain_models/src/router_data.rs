@@ -463,7 +463,7 @@ pub struct PaymentMethodBalance {
 pub struct ConnectorResponseData {
     pub additional_payment_method_data: Option<AdditionalPaymentMethodConnectorResponse>,
     extended_authorization_response_data: Option<ExtendedAuthorizationResponseData>,
-    overcapture_applied: Option<primitive_wrappers::OvercaptureAppliedBool>,
+    is_overcapture_enabled: Option<primitive_wrappers::OvercaptureEnabledBool>,
 }
 
 impl ConnectorResponseData {
@@ -473,18 +473,18 @@ impl ConnectorResponseData {
         Self {
             additional_payment_method_data: Some(additional_payment_method_data),
             extended_authorization_response_data: None,
-            overcapture_applied: None,
+            is_overcapture_enabled: None,
         }
     }
     pub fn new(
         additional_payment_method_data: Option<AdditionalPaymentMethodConnectorResponse>,
-        overcapture_applied: Option<primitive_wrappers::OvercaptureAppliedBool>,
+        is_overcapture_enabled: Option<primitive_wrappers::OvercaptureEnabledBool>,
         extended_authorization_response_data: Option<ExtendedAuthorizationResponseData>,
     ) -> Self {
         Self {
             additional_payment_method_data,
             extended_authorization_response_data,
-            overcapture_applied,
+            is_overcapture_enabled,
         }
     }
     pub fn get_extended_authorization_response_data(
@@ -493,8 +493,8 @@ impl ConnectorResponseData {
         self.extended_authorization_response_data.as_ref()
     }
 
-    pub fn is_overcapture_applied(&self) -> Option<primitive_wrappers::OvercaptureAppliedBool> {
-        self.overcapture_applied
+    pub fn is_is_overcapture_enabled(&self) -> Option<primitive_wrappers::OvercaptureEnabledBool> {
+        self.is_overcapture_enabled
     }
 }
 

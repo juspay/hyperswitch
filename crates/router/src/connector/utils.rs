@@ -179,14 +179,14 @@ where
                     payment_data,
                 );
                 let total_capturable_amount = payment_data.payment_attempt.get_total_amount();
-                let is_overcapture_applied = *payment_data
+                let is_is_overcapture_enabled = *payment_data
                     .payment_attempt
-                    .overcapture_applied
+                    .is_overcapture_enabled
                     .as_deref()
                     .unwrap_or(&false);
 
                 if Some(total_capturable_amount) == captured_amount.map(MinorUnit::new)
-                    || (is_overcapture_applied
+                    || (is_is_overcapture_enabled
                         && captured_amount.is_some_and(|captured_amount| {
                             MinorUnit::new(captured_amount) > total_capturable_amount
                         }))
@@ -208,16 +208,16 @@ where
                     payment_data.payment_attempt.status,
                 );
                 let total_capturable_amount = payment_data.payment_attempt.get_total_amount();
-                let is_overcapture_applied = *payment_data
+                let is_is_overcapture_enabled = *payment_data
                     .payment_attempt
-                    .overcapture_applied
+                    .is_overcapture_enabled
                     .unwrap_or_default()
                     .deref();
 
                 if Some(total_capturable_amount) == capturable_amount.map(MinorUnit::new)
                     || (capturable_amount.is_some_and(|capturable_amount| {
                         MinorUnit::new(capturable_amount) > total_capturable_amount
-                    }) && is_overcapture_applied)
+                    }) && is_is_overcapture_enabled)
                 {
                     Ok(enums::AttemptStatus::Authorized)
                 } else if capturable_amount.is_some_and(|capturable_amount| {
@@ -236,7 +236,7 @@ where
                     .is_some_and(|val| val))
                     || (capturable_amount.is_some_and(|capturable_amount| {
                         MinorUnit::new(capturable_amount) > total_capturable_amount
-                    }) && !is_overcapture_applied)
+                    }) && !is_is_overcapture_enabled)
                 {
                     Err(ApiErrorResponse::IntegrityCheckFailed {
                         reason: "capturable_amount is less than the total attempt amount"

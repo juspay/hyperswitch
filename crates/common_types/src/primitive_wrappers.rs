@@ -175,15 +175,15 @@ mod bool_wrappers {
         Clone, Copy, Debug, Eq, PartialEq, diesel::expression::AsExpression, Serialize, Deserialize,
     )]
     #[diesel(sql_type = diesel::sql_types::Bool)]
-    pub struct AlwaysRequestOvercapture(bool);
-    impl Deref for AlwaysRequestOvercapture {
+    pub struct AlwaysEnableOvercaptureBool(bool);
+    impl Deref for AlwaysEnableOvercaptureBool {
         type Target = bool;
 
         fn deref(&self) -> &Self::Target {
             &self.0
         }
     }
-    impl<DB> diesel::serialize::ToSql<diesel::sql_types::Bool, DB> for AlwaysRequestOvercapture
+    impl<DB> diesel::serialize::ToSql<diesel::sql_types::Bool, DB> for AlwaysEnableOvercaptureBool
     where
         DB: diesel::backend::Backend,
         bool: diesel::serialize::ToSql<diesel::sql_types::Bool, DB>,
@@ -195,7 +195,7 @@ mod bool_wrappers {
             self.0.to_sql(out)
         }
     }
-    impl<DB> diesel::deserialize::FromSql<diesel::sql_types::Bool, DB> for AlwaysRequestOvercapture
+    impl<DB> diesel::deserialize::FromSql<diesel::sql_types::Bool, DB> for AlwaysEnableOvercaptureBool
     where
         DB: diesel::backend::Backend,
         bool: diesel::deserialize::FromSql<diesel::sql_types::Bool, DB>,
@@ -205,8 +205,8 @@ mod bool_wrappers {
         }
     }
 
-    impl Default for AlwaysRequestOvercapture {
-        /// Default for `AlwaysRequestOvercapture` is `false`
+    impl Default for AlwaysEnableOvercaptureBool {
+        /// Default for `AlwaysEnableOvercaptureBool` is `false`
         fn default() -> Self {
             Self(false)
         }
@@ -217,22 +217,22 @@ mod bool_wrappers {
         Clone, Copy, Debug, Eq, PartialEq, diesel::expression::AsExpression, Serialize, Deserialize,
     )]
     #[diesel(sql_type = diesel::sql_types::Bool)]
-    pub struct RequestOvercapture(bool);
+    pub struct EnableOvercaptureBool(bool);
 
-    impl From<bool> for RequestOvercapture {
+    impl From<bool> for EnableOvercaptureBool {
         fn from(value: bool) -> Self {
             Self(value)
         }
     }
 
-    impl Deref for RequestOvercapture {
+    impl Deref for EnableOvercaptureBool {
         type Target = bool;
 
         fn deref(&self) -> &Self::Target {
             &self.0
         }
     }
-    impl<DB> diesel::serialize::ToSql<diesel::sql_types::Bool, DB> for RequestOvercapture
+    impl<DB> diesel::serialize::ToSql<diesel::sql_types::Bool, DB> for EnableOvercaptureBool
     where
         DB: diesel::backend::Backend,
         bool: diesel::serialize::ToSql<diesel::sql_types::Bool, DB>,
@@ -244,7 +244,7 @@ mod bool_wrappers {
             self.0.to_sql(out)
         }
     }
-    impl<DB> diesel::deserialize::FromSql<diesel::sql_types::Bool, DB> for RequestOvercapture
+    impl<DB> diesel::deserialize::FromSql<diesel::sql_types::Bool, DB> for EnableOvercaptureBool
     where
         DB: diesel::backend::Backend,
         bool: diesel::deserialize::FromSql<diesel::sql_types::Bool, DB>,
@@ -254,8 +254,8 @@ mod bool_wrappers {
         }
     }
 
-    impl Default for RequestOvercapture {
-        /// Default for `RequestOvercapture` is `false`
+    impl Default for EnableOvercaptureBool {
+        /// Default for `EnableOvercaptureBool` is `false`
         fn default() -> Self {
             Self(false)
         }
@@ -266,23 +266,23 @@ mod bool_wrappers {
         Clone, Copy, Debug, Eq, PartialEq, diesel::expression::AsExpression, Serialize, Deserialize,
     )]
     #[diesel(sql_type = diesel::sql_types::Bool)]
-    pub struct OvercaptureAppliedBool(bool);
+    pub struct OvercaptureEnabledBool(bool);
 
-    impl OvercaptureAppliedBool {
-        /// Creates a new instance of `OvercaptureAppliedBool`
+    impl OvercaptureEnabledBool {
+        /// Creates a new instance of `OvercaptureEnabledBool`
         pub fn new(value: bool) -> Self {
             Self(value)
         }
     }
 
-    impl Deref for OvercaptureAppliedBool {
+    impl Deref for OvercaptureEnabledBool {
         type Target = bool;
 
         fn deref(&self) -> &Self::Target {
             &self.0
         }
     }
-    impl<DB> diesel::serialize::ToSql<diesel::sql_types::Bool, DB> for OvercaptureAppliedBool
+    impl<DB> diesel::serialize::ToSql<diesel::sql_types::Bool, DB> for OvercaptureEnabledBool
     where
         DB: diesel::backend::Backend,
         bool: diesel::serialize::ToSql<diesel::sql_types::Bool, DB>,
@@ -294,7 +294,7 @@ mod bool_wrappers {
             self.0.to_sql(out)
         }
     }
-    impl<DB> diesel::deserialize::FromSql<diesel::sql_types::Bool, DB> for OvercaptureAppliedBool
+    impl<DB> diesel::deserialize::FromSql<diesel::sql_types::Bool, DB> for OvercaptureEnabledBool
     where
         DB: diesel::backend::Backend,
         bool: diesel::deserialize::FromSql<diesel::sql_types::Bool, DB>,
@@ -304,8 +304,8 @@ mod bool_wrappers {
         }
     }
 
-    impl Default for OvercaptureAppliedBool {
-        /// Default for `OvercaptureAppliedBool` is `false`
+    impl Default for OvercaptureEnabledBool {
+        /// Default for `OvercaptureEnabledBool` is `false`
         fn default() -> Self {
             Self(false)
         }

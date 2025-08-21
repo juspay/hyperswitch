@@ -417,6 +417,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         locale: None,
         payment_channel: None,
         enable_partial_authorization: None,
+        enable_overcapture: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -498,7 +499,6 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         is_payment_id_from_merchant: payment_data.payment_intent.is_payment_id_from_merchant,
         l2_l3_data: None,
         minor_amount_capturable: None,
-        request_overcapture: None,
     };
 
     Ok(router_data)
@@ -3360,8 +3360,8 @@ where
             whole_connector_response: payment_data.get_whole_connector_response(),
             payment_channel: payment_intent.payment_channel,
             enable_partial_authorization: payment_intent.enable_partial_authorization,
-            request_overcapture: payment_intent.request_overcapture,
-            overcapture_applied: payment_attempt.overcapture_applied,
+            enable_overcapture: payment_intent.enable_overcapture,
+            is_overcapture_enabled: payment_attempt.is_overcapture_enabled,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -3659,8 +3659,8 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             payment_channel: pi.payment_channel,
             network_transaction_id: None,
             enable_partial_authorization: pi.enable_partial_authorization,
-            request_overcapture: pi.request_overcapture,
-            overcapture_applied: pa.overcapture_applied,
+            enable_overcapture: pi.enable_overcapture,
+            is_overcapture_enabled: pa.is_overcapture_enabled,
         }
     }
 }
@@ -3992,7 +3992,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             locale: None,
             payment_channel: None,
             enable_partial_authorization: None,
-            request_overcapture: None,
+            enable_overcapture: None,
         })
     }
 }
@@ -4226,7 +4226,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             locale: Some(additional_data.state.locale.clone()),
             payment_channel: payment_data.payment_intent.payment_channel,
             enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
-            request_overcapture: payment_data.payment_intent.request_overcapture,
+            enable_overcapture: payment_data.payment_intent.enable_overcapture,
         })
     }
 }

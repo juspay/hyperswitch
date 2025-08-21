@@ -1023,7 +1023,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
         )?;
 
         helpers::validate_overcapture_request(
-            &request.request_overcapture,
+            &request.enable_overcapture,
             &request.capture_method,
         )?;
 
@@ -1634,7 +1634,7 @@ impl PaymentCreate {
             tax_status: request.tax_status,
             shipping_amount_tax: request.shipping_amount_tax,
             enable_partial_authorization: request.enable_partial_authorization,
-            request_overcapture: request.request_overcapture,
+            enable_overcapture: request.enable_overcapture,
         })
     }
 

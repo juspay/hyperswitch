@@ -1230,7 +1230,7 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             locale: None,
             payment_channel: None,
             enable_partial_authorization: data.request.enable_partial_authorization,
-            request_overcapture: None,
+            enable_overcapture: None,
         }
     }
 }

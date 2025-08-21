@@ -233,7 +233,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             merchant_category_code: item.merchant_category_code,
             merchant_country_code: item.merchant_country_code,
             dispute_polling_interval: item.dispute_polling_interval,
-            always_request_overcapture: item.always_request_overcapture,
+            always_enable_overcapture: item.always_enable_overcapture,
         })
     }
 }
@@ -490,6 +490,6 @@ pub async fn create_profile_from_merchant_account(
         merchant_category_code: request.merchant_category_code,
         merchant_country_code: request.merchant_country_code,
         dispute_polling_interval: request.dispute_polling_interval,
-        always_request_overcapture: request.always_request_overcapture,
+        always_enable_overcapture: request.always_enable_overcapture,
     }))
 }

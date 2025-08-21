@@ -1844,16 +1844,16 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 payment_data.payment_attempt.connector.clone(),
                                 payment_data.payment_attempt.merchant_id.clone(),
                             );
-                            let overcapture_applied = router_data
+                            let is_overcapture_enabled = router_data
                                 .connector_response
                                 .as_ref()
                                 .and_then(|connector_response| {
-                                    connector_response.is_overcapture_applied()
+                                    connector_response.is_is_overcapture_enabled()
                                 }).or_else(|| {
                                     payment_data.payment_intent
-                                                    .request_overcapture
+                                                    .enable_overcapture
                                                     .as_ref()
-                                                    .map(|request_overcapture| common_types::primitive_wrappers::OvercaptureAppliedBool::new(*request_overcapture.deref()))
+                                                    .map(|enable_overcapture| common_types::primitive_wrappers::OvercaptureEnabledBool::new(*enable_overcapture.deref()))
                                             });
 
                             let (capture_before, extended_authorization_applied) = router_data
@@ -1944,7 +1944,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                             .payment_attempt
                                             .setup_future_usage_applied,
                                         debit_routing_savings,
-                                        overcapture_applied,
+                                        is_overcapture_enabled,
                                     }),
                                 ),
                             };

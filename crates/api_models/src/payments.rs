@@ -1221,7 +1221,7 @@ pub struct PaymentsRequest {
     /// Bool indicating if overcapture  must be requested for all payments
     #[remove_in(PaymentsConfirmRequest)]
     #[schema(value_type = Option<bool>)]
-    pub request_overcapture: Option<common_types::primitive_wrappers::RequestOvercapture>,
+    pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -5382,11 +5382,11 @@ pub struct PaymentsResponse {
 
     /// Bool indicating if overcapture  must be requested for all payments
     #[schema(value_type = Option<bool>)]
-    pub request_overcapture: Option<common_types::primitive_wrappers::RequestOvercapture>,
+    pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
 
     /// Bool indicating if overcapture is applied for this payment
     #[schema(value_type = Option<bool>)]
-    pub overcapture_applied: Option<common_types::primitive_wrappers::OvercaptureAppliedBool>,
+    pub is_overcapture_enabled: Option<common_types::primitive_wrappers::OvercaptureEnabledBool>,
 }
 
 #[cfg(feature = "v2")]

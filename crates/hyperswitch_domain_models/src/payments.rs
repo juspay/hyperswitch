@@ -7,7 +7,7 @@ use std::ops::Deref;
 use api_models::payments::{SessionToken, VaultSessionDetails};
 #[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
-    AlwaysRequestExtendedAuthorization, RequestExtendedAuthorizationBool, RequestOvercapture,
+    AlwaysRequestExtendedAuthorization, EnableOvercaptureBool, RequestExtendedAuthorizationBool,
 };
 use common_utils::{
     self,
@@ -125,7 +125,7 @@ pub struct PaymentIntent {
     pub shipping_amount_tax: Option<MinorUnit>,
     pub duty_amount: Option<MinorUnit>,
     pub enable_partial_authorization: Option<bool>,
-    pub request_overcapture: Option<RequestOvercapture>,
+    pub enable_overcapture: Option<EnableOvercaptureBool>,
 }
 
 impl PaymentIntent {
@@ -204,22 +204,22 @@ impl PaymentIntent {
     }
 
     #[cfg(feature = "v1")]
-    pub fn get_request_overcapture_bool_if_connector_supports(
+    pub fn get_enable_overcapture_bool_if_connector_supports(
         &self,
         connector: common_enums::connector_enums::Connector,
-        always_request_overcapture: Option<
-            common_types::primitive_wrappers::AlwaysRequestOvercapture,
+        always_enable_overcapture: Option<
+            common_types::primitive_wrappers::AlwaysEnableOvercaptureBool,
         >,
         capture_method: &Option<common_enums::CaptureMethod>,
-    ) -> Option<RequestOvercapture> {
+    ) -> Option<EnableOvercaptureBool> {
         let is_overcapture_supported_by_connector =
             connector.is_overcapture_supported_by_connector();
         if matches!(capture_method, Some(common_enums::CaptureMethod::Manual))
             && is_overcapture_supported_by_connector
         {
-            self.request_overcapture.or_else(|| {
-                always_request_overcapture.map(|should_request_overcapture| {
-                    RequestOvercapture::from(*should_request_overcapture.deref())
+            self.enable_overcapture.or_else(|| {
+                always_enable_overcapture.map(|should_enable_overcapture| {
+                    EnableOvercaptureBool::from(*should_enable_overcapture.deref())
                 })
             })
         } else {
