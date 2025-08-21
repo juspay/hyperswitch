@@ -227,26 +227,18 @@ impl super::RedisConnectionPool {
         if keys.is_empty() {
             return Ok(Vec::new());
         }
-
         let tenant_aware_keys: Vec<String> =
             keys.iter().map(|key| key.tenant_aware_key(self)).collect();
-        let trx = self.get_transaction();
 
-        // Queue all GET commands in the transaction
-        for redis_key in &tenant_aware_keys {
-            trx.get::<Option<V>, _>(redis_key)
-                .await
-                .change_context(errors::RedisError::GetFailed)
-                .attach_printable("Failed to queue get command")?;
-        }
-
-        // Execute the transaction and get results
-        let results: Vec<Option<V>> = trx
-            .exec(true)
+        let futures = tenant_aware_keys.iter().map(|redis_key| {
+            self.pool.get::<Option<V>, _>(redis_key)
+        });
+        
+        let results = futures::future::try_join_all(futures)
             .await
             .change_context(errors::RedisError::GetFailed)
-            .attach_printable("Failed to execute the redis transaction")?;
-
+            .attach_printable("Failed to get keys in cluster mode")?;
+        
         Ok(results)
     }
 
@@ -259,7 +251,7 @@ impl super::RedisConnectionPool {
         V: FromRedis + Unpin + Send + 'static,
     {
         if self.config.cluster_enabled {
-            // Use transaction for cluster mode to ensure atomicity across nodes
+            // Use individual GET commands for cluster mode to avoid CROSSSLOT errors
             self.get_multiple_keys_with_transaction(keys).await
         } else {
             // Use MGET for non-cluster mode for better performance
