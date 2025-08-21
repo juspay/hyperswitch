@@ -57,7 +57,7 @@ impl<T> From<(StringMajorUnit, T)> for SantanderRouterData<T> {
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
-#[serde(rename_all="camelCase")]
+#[serde(rename_all = "camelCase")]
 pub struct SantanderMetadataObject {
     pub pix_key: Secret<String>,
     pub expiration_time: i32,
