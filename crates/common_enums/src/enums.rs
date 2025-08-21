@@ -8471,10 +8471,40 @@ pub enum AuthenticationProduct {
 )]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
-pub enum PaymentConnectorCategory {
+pub enum HyperswitchConnectorCategory {
     PaymentGateway,
     AlternativePaymentMethod,
     BankAcquirer,
+    PayoutProcessor,
+    AuthenticationProvider,
+    FraudAndRiskManagementProvider,
+    TaxCalculationProvider,
+}
+
+/// Connector Integration Status
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum ConnectorIntegrationStatus {
+    /// Connector is integrated and live on production
+    Live,
+    /// Connector is integrated and fully tested on sandbox
+    Sandbox,
+    /// Connector is integrated and partially tested on sandbox
+    Beta,
+    /// Connector is integrated using the online documentation but not tested yet
+    Alpha,
 }
 
 /// The status of the feature

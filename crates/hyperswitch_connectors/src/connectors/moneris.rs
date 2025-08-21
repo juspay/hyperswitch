@@ -873,7 +873,8 @@ static MONERIS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = La
 static MONERIS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Moneris",
     description: "Moneris is Canada's top payment solutions provider, empowering businesses with innovative mobile, online & in-store solutions.",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Sandbox,
 };
 
 static MONERIS_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

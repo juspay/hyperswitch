@@ -8501,7 +8501,10 @@
         "type": "object",
         "required": [
           "name",
-          "supported_payment_methods"
+          "display_name",
+          "description",
+          "category",
+          "integration_status"
         ],
         "properties": {
           "name": {
@@ -8510,28 +8513,25 @@
           },
           "display_name": {
             "type": "string",
-            "description": "The display name of the connector",
-            "nullable": true
+            "description": "The display name of the connector"
           },
           "description": {
             "type": "string",
-            "description": "The description of the connector",
-            "nullable": true
+            "description": "The description of the connector"
           },
           "category": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentConnectorCategory"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/HyperswitchConnectorCategory"
+          },
+          "integration_status": {
+            "$ref": "#/components/schemas/ConnectorIntegrationStatus"
           },
           "supported_payment_methods": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/SupportedPaymentMethod"
             },
-            "description": "The list of payment methods supported by the connector"
+            "description": "The list of payment methods supported by the connector",
+            "nullable": true
           },
           "supported_webhook_flows": {
             "type": "array",
@@ -8542,6 +8542,16 @@
             "nullable": true
           }
         }
+      },
+      "ConnectorIntegrationStatus": {
+        "type": "string",
+        "description": "Connector Integration Status",
+        "enum": [
+          "live",
+          "sandbox",
+          "beta",
+          "alpha"
+        ]
       },
       "ConnectorMetadata": {
         "type": "object",
@@ -12746,6 +12756,19 @@
           }
         }
       },
+      "HyperswitchConnectorCategory": {
+        "type": "string",
+        "description": "Connector Access Method",
+        "enum": [
+          "payment_gateway",
+          "alternative_payment_method",
+          "bank_acquirer",
+          "payout_processor",
+          "authentication_provider",
+          "fraud_and_risk_management_provider",
+          "tax_calculation_provider"
+        ]
+      },
       "HyperswitchVaultSessionDetails": {
         "type": "object",
         "required": [
@@ -16389,15 +16412,6 @@
               }
             }
           }
-        ]
-      },
-      "PaymentConnectorCategory": {
-        "type": "string",
-        "description": "Connector Access Method",
-        "enum": [
-          "payment_gateway",
-          "alternative_payment_method",
-          "bank_acquirer"
         ]
       },
       "PaymentConnectorTransmission": {
