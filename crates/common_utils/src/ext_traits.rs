@@ -290,7 +290,10 @@ impl<T> StringExt<T> for String {
         serde_json::from_str::<T>(self)
             .change_context(errors::ParsingError::StructParseFailure(type_name))
             .attach_printable_lazy(|| {
-                format!("Unable to parse {type_name} from string {:?}", &self)
+                format!(
+                    "Unable to parse {type_name} from string {:?}",
+                    Secret::<_, masking::WithType>::new(self.clone())
+                )
             })
     }
 }
