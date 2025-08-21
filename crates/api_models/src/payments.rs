@@ -4155,7 +4155,9 @@ pub struct AmazonPayMerchantCredentials {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct ApplePayRedirectData {}
+pub struct ApplePayRedirectData {
+    pub token: Option<String>,
+}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct AmazonPayRedirectData {}
@@ -4167,7 +4169,9 @@ pub struct SkrillData {}
 pub struct PayseraData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct GooglePayRedirectData {}
+pub struct GooglePayRedirectData {
+    pub token: Option<String>,
+}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct GooglePayThirdPartySdkData {}
