@@ -1088,7 +1088,8 @@ static NOVALNET_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
 static NOVALNET_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Novalnet",
     description: "Novalnet provides tailored, data-driven payment solutions that maximize acceptance, boost conversions, and deliver seamless customer experiences worldwide.",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Live,
 };
 
 static NOVALNET_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 4] = [
