@@ -693,23 +693,23 @@ pub async fn link_routing_config(
             );
 
                 // Call to DE here to update SR configs
-            #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-            {
-                if state.conf.open_router.dynamic_routing_enabled {
-                    let chk = update_decision_engine_dynamic_routing_setup(
-                        &state,
-                        business_profile.get_id(),
-                        routing_algorithm.algorithm_data.clone(),
-                        routing_types::DynamicRoutingType::SuccessRateBasedRouting,
-                        &mut dynamic_routing_ref,
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "Failed to update the success rate routing config in Decision Engine",
-                    );
-                    if let Err(_e) = chk {
-                        let data: routing_types::SuccessBasedRoutingConfig =
+                #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+                {
+                    if state.conf.open_router.dynamic_routing_enabled {
+                        let chk = update_decision_engine_dynamic_routing_setup(
+                            &state,
+                            business_profile.get_id(),
+                            routing_algorithm.algorithm_data.clone(),
+                            routing_types::DynamicRoutingType::SuccessRateBasedRouting,
+                            &mut dynamic_routing_ref,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Failed to update the success rate routing config in Decision Engine",
+                        );
+                        if let Err(_e) = chk {
+                            let data: routing_types::SuccessBasedRoutingConfig =
                             routing_algorithm.algorithm_data
                                 .clone()
                                 .parse_value("SuccessBasedRoutingConfig")
@@ -718,7 +718,7 @@ pub async fn link_routing_config(
                                     "unable to deserialize SuccessBasedRoutingConfig from routing algorithm data",
                                 )?;
 
-                        enable_decision_engine_dynamic_routing_setup(
+                            enable_decision_engine_dynamic_routing_setup(
                             &state,
                             business_profile.get_id(),
                             routing_types::DynamicRoutingType::SuccessRateBasedRouting,
@@ -728,10 +728,10 @@ pub async fn link_routing_config(
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Unable to setup decision engine dynamic routing")?;
+                        }
                     }
                 }
-            }
-            }else if routing_algorithm.name == helpers::ELIMINATION_BASED_DYNAMIC_ROUTING_ALGORITHM
+            } else if routing_algorithm.name == helpers::ELIMINATION_BASED_DYNAMIC_ROUTING_ALGORITHM
             {
                 dynamic_routing_ref.update_algorithm_id(
                 algorithm_id,
@@ -748,20 +748,20 @@ pub async fn link_routing_config(
                 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                 {
                     if state.conf.open_router.dynamic_routing_enabled {
-                    let chk = update_decision_engine_dynamic_routing_setup(
-                        &state,
-                        business_profile.get_id(),
-                        routing_algorithm.algorithm_data.clone(),
-                        routing_types::DynamicRoutingType::EliminationRouting,
-                        &mut dynamic_routing_ref,
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "Failed to update the elimination routing config in Decision Engine",
-                    );
-                    if let Err(_e) = chk {
-                        let data: routing_types::EliminationRoutingConfig =
+                        let chk = update_decision_engine_dynamic_routing_setup(
+                            &state,
+                            business_profile.get_id(),
+                            routing_algorithm.algorithm_data.clone(),
+                            routing_types::DynamicRoutingType::EliminationRouting,
+                            &mut dynamic_routing_ref,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Failed to update the elimination routing config in Decision Engine",
+                        );
+                        if let Err(_e) = chk {
+                            let data: routing_types::EliminationRoutingConfig =
                             routing_algorithm.algorithm_data
                                 .clone()
                                 .parse_value("EliminationRoutingConfig")
@@ -770,19 +770,23 @@ pub async fn link_routing_config(
                                     "unable to deserialize EliminationRoutingConfig from routing algorithm data",
                                 )?;
 
-                        enable_decision_engine_dynamic_routing_setup(
-                            &state,
-                            business_profile.get_id(),
-                            routing_types::DynamicRoutingType::EliminationRouting,
-                            &mut dynamic_routing_ref,
-                            Some(routing_types::DynamicRoutingPayload::EliminationRoutingPayload(data)),
-                        )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Unable to setup decision engine dynamic routing")?;
+                            enable_decision_engine_dynamic_routing_setup(
+                                &state,
+                                business_profile.get_id(),
+                                routing_types::DynamicRoutingType::EliminationRouting,
+                                &mut dynamic_routing_ref,
+                                Some(
+                                    routing_types::DynamicRoutingPayload::EliminationRoutingPayload(
+                                        data,
+                                    ),
+                                ),
+                            )
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Unable to setup decision engine dynamic routing")?;
+                        }
                     }
                 }
-            }
             } else if routing_algorithm.name == helpers::CONTRACT_BASED_DYNAMIC_ROUTING_ALGORITHM {
                 dynamic_routing_ref.update_algorithm_id(
                 algorithm_id,

@@ -2307,8 +2307,6 @@ pub async fn create_specific_dynamic_routing_setup(
         }
     };
 
-   
-
     let record = db
         .insert_routing_algorithm(algo)
         .await
