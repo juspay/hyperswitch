@@ -139,10 +139,7 @@ where
 
         if !self.is_debit_routed.is_empty() {
             builder
-                .add_filter_in_range_clause(
-                    PaymentDimensions::IsDebitRouted,
-                    &self.is_debit_routed,
-                )
+                .add_filter_in_range_clause(PaymentDimensions::IsDebitRouted, &self.is_debit_routed)
                 .attach_printable("Error adding is debit routed filter")?;
         }
 
