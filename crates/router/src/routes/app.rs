@@ -1348,38 +1348,52 @@ impl Payouts {
     }
 }
 
-#[cfg(all(feature = "oltp", feature = "v2"))]
+#[cfg(all(feature = "v2", any(feature = "olap", feature = "oltp")))]
 impl PaymentMethods {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/v2/payment-methods").app_data(web::Data::new(state));
-        route = route
-            .service(
-                web::resource("").route(web::post().to(payment_methods::create_payment_method_api)),
-            )
-            .service(
-                web::resource("/create-intent")
-                    .route(web::post().to(payment_methods::create_payment_method_intent_api)),
-            );
 
-        route = route.service(
-            web::scope("/{id}")
+        #[cfg(feature = "olap")]
+        {
+            route =
+                route.service(web::resource("/filter").route(
+                    web::get().to(
+                        payment_methods::list_countries_currencies_for_connector_payment_method,
+                    ),
+                ));
+        }
+        #[cfg(feature = "oltp")]
+        {
+            route = route
                 .service(
                     web::resource("")
-                        .route(web::get().to(payment_methods::payment_method_retrieve_api))
-                        .route(web::delete().to(payment_methods::payment_method_delete_api)),
-                )
-                .service(web::resource("/list-enabled-payment-methods").route(
-                    web::get().to(payment_methods::payment_method_session_list_payment_methods),
-                ))
-                .service(
-                    web::resource("/update-saved-payment-method")
-                        .route(web::put().to(payment_methods::payment_method_update_api)),
+                        .route(web::post().to(payment_methods::create_payment_method_api)),
                 )
                 .service(
-                    web::resource("/get-token")
-                        .route(web::get().to(payment_methods::get_payment_method_token_data)),
-                ),
-        );
+                    web::resource("/create-intent")
+                        .route(web::post().to(payment_methods::create_payment_method_intent_api)),
+                );
+
+            route = route.service(
+                web::scope("/{id}")
+                    .service(
+                        web::resource("")
+                            .route(web::get().to(payment_methods::payment_method_retrieve_api))
+                            .route(web::delete().to(payment_methods::payment_method_delete_api)),
+                    )
+                    .service(web::resource("/list-enabled-payment-methods").route(
+                        web::get().to(payment_methods::payment_method_session_list_payment_methods),
+                    ))
+                    .service(
+                        web::resource("/update-saved-payment-method")
+                            .route(web::put().to(payment_methods::payment_method_update_api)),
+                    )
+                    .service(
+                        web::resource("/get-token")
+                            .route(web::get().to(payment_methods::get_payment_method_token_data)),
+                    ),
+            );
+        }
 
         route
     }
