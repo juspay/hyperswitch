@@ -26,10 +26,6 @@ use crate::{
     errors::api_error_response,
     type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
 };
-
-#[cfg(feature = "v1")]
-use crate::errors::api_error_response;
-use crate::type_encryption::{crypto_operation, AsyncLift, CryptoOperation};
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug)]
 pub struct Profile {

@@ -42,8 +42,6 @@ use crate::{
 };
 #[cfg(feature = "v1")]
 use crate::{payment_method_data, RemoteStorageObject};
-#[cfg(feature = "v1")]
-use crate::{payment_method_data, RemoteStorageObject};
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToEncryption)]
