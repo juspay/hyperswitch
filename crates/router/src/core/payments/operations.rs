@@ -50,6 +50,9 @@ pub mod payment_update_intent;
 pub mod proxy_payments_intent;
 
 #[cfg(feature = "v2")]
+pub mod external_vault_proxy_payment_intent;
+
+#[cfg(feature = "v2")]
 pub mod payment_get;
 
 #[cfg(feature = "v2")]
@@ -398,6 +401,17 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         payment_data: &mut D,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
+    }
+
+    // does not propagate error to not affect the payment flow
+    // must add debugger in case of internal error
+    #[cfg(feature = "v2")]
+    async fn update_payment_method<'a>(
+        &'a self,
+        state: &SessionState,
+        merchant_context: &domain::MerchantContext,
+        payment_data: &mut D,
+    ) {
     }
 
     /// This function is used to apply the 3DS authentication strategy

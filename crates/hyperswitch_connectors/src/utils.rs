@@ -55,11 +55,11 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         AuthenticationData, AuthoriseIntegrityObject, BrowserInformation, CaptureIntegrityObject,
-        CompleteAuthorizeData, ConnectorCustomerData, MandateRevokeRequestData,
-        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCaptureData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
-        PaymentsSyncData, RefundIntegrityObject, RefundsData, ResponseId, SetupMandateRequestData,
-        SyncIntegrityObject,
+        CompleteAuthorizeData, ConnectorCustomerData, ExternalVaultProxyPaymentsData,
+        MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsPostSessionTokensData,
+        PaymentsPreProcessingData, PaymentsSyncData, RefundIntegrityObject, RefundsData,
+        ResponseId, SetupMandateRequestData, SyncIntegrityObject,
     },
     router_response_types::{CaptureSyncResponse, PaymentsResponseData},
     types::{OrderDetailsWithAmount, SetupMandateRouterData},
@@ -364,6 +364,7 @@ pub(crate) fn handle_json_response_deserialization_failure(
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         }
     }
@@ -6617,6 +6618,11 @@ impl SplitPaymentData for PaymentsCancelData {
 }
 
 impl SplitPaymentData for SetupMandateRequestData {
+    fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
+        None
+    }
+}
+impl SplitPaymentData for ExternalVaultProxyPaymentsData {
     fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
         None
     }

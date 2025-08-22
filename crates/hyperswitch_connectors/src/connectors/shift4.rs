@@ -143,6 +143,7 @@ impl ConnectorCommon for Shift4 {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -1053,7 +1054,8 @@ lazy_static! {
         display_name: "Shift4",
         description:
             "Shift4 Payments, Inc. is an American payment processing company based in Allentown, Pennsylvania. ",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Live,
     };
 
     static ref SHIFT4_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = vec![enums::EventClass::Payments, enums::EventClass::Refunds];

@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fmt::Debug};
 
 use common_enums::enums::{self, CardNetwork};
-use common_utils::{ext_traits::ValueExt, id_type};
+use common_utils::{date_time, ext_traits::ValueExt, id_type};
 use error_stack::ResultExt;
 use external_services::grpc_client::{self as external_grpc_client, GrpcHeaders};
 use hyperswitch_domain_models::{
@@ -41,6 +41,7 @@ impl RevenueRecoveryPaymentData {
         retry_count: i32,
         payment_attempt: &PaymentAttempt,
         payment_intent: &PaymentIntent,
+        is_hard_decline: bool,
     ) -> Option<time::PrimitiveDateTime> {
         match self.retry_algorithm {
             enums::RevenueRecoveryAlgorithmType::Monitoring => {
