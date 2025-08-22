@@ -2601,7 +2601,7 @@ pub async fn get_decision_engine_active_dynamic_routing_algorithm(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get active dynamic algorithm from decision engine")?
         .response;
-    
+
     Ok(response)
 }
 
