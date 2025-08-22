@@ -499,6 +499,7 @@ pub trait RouterData {
     fn is_three_ds(&self) -> bool;
     fn get_payment_method_token(&self) -> Result<PaymentMethodToken, Error>;
     fn get_customer_id(&self) -> Result<id_type::CustomerId, Error>;
+    fn get_optional_customer_id(&self) -> Option<id_type::CustomerId>;
     fn get_connector_customer_id(&self) -> Result<String, Error>;
     fn get_preprocessing_id(&self) -> Result<String, Error>;
     fn get_recurring_mandate_payment_data(&self) -> Result<RecurringMandatePaymentData, Error>;
@@ -1025,6 +1026,11 @@ impl<Flow, Request, Response> RouterData
 
     fn get_optional_l2_l3_data(&self) -> Option<L2L3Data> {
         self.l2_l3_data.clone()
+    }
+
+    fn get_optional_customer_id(&self) -> Option<id_type::CustomerId> {
+        self.customer_id
+            .clone()
     }
 }
 
