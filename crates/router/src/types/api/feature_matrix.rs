@@ -239,7 +239,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Novalnet => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Novalnet::new())))
                 }
-                enums::Connector::Nuvei => Ok(ConnectorEnum::Old(Box::new(&connector::Nuvei))),
+                enums::Connector::Nuvei => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Nuvei::new())))
+                }
                 enums::Connector::Opennode => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Opennode::new())))
                 }
