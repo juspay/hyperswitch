@@ -690,6 +690,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                         .connector_request_reference_id
                         .clone(),
                     debit_routing_savings: None,
+                    network_transaction_id: payment_attempt.network_transaction_id.clone(),
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -1898,6 +1899,7 @@ impl DataModelExt for PaymentAttempt {
             processor_merchant_id: Some(self.processor_merchant_id),
             created_by: self.created_by.map(|created_by| created_by.to_string()),
             connector_request_reference_id: self.connector_request_reference_id,
+            network_transaction_id: self.network_transaction_id,
         }
     }
 
@@ -1991,6 +1993,7 @@ impl DataModelExt for PaymentAttempt {
             routing_approach: storage_model.routing_approach,
             connector_request_reference_id: storage_model.connector_request_reference_id,
             debit_routing_savings: None,
+            network_transaction_id: storage_model.network_transaction_id,
         }
     }
 }
@@ -2082,6 +2085,7 @@ impl DataModelExt for PaymentAttemptNew {
             setup_future_usage_applied: self.setup_future_usage_applied,
             routing_approach: self.routing_approach,
             connector_request_reference_id: self.connector_request_reference_id,
+            network_transaction_id: self.network_transaction_id,
         }
     }
 
@@ -2166,6 +2170,7 @@ impl DataModelExt for PaymentAttemptNew {
             setup_future_usage_applied: storage_model.setup_future_usage_applied,
             routing_approach: storage_model.routing_approach,
             connector_request_reference_id: storage_model.connector_request_reference_id,
+            network_transaction_id: storage_model.network_transaction_id,
         }
     }
 }
