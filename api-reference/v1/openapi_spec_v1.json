@@ -23258,7 +23258,8 @@
           },
           "enable_overcapture": {
             "type": "boolean",
-            "description": "Bool indicating if overcapture  must be requested for all payments",
+            "description": "Boolean indicating whether to enable overcapture for this payment",
+            "example": true,
             "nullable": true
           }
         }
@@ -23874,7 +23875,7 @@
           },
           "is_overcapture_enabled": {
             "type": "boolean",
-            "description": "Bool indicating if overcapture is enabled for this payment",
+            "description": "Boolean indicating whether overcapture is effectively enabled for this payment",
             "nullable": true
           }
         }
@@ -24642,7 +24643,8 @@
           },
           "enable_overcapture": {
             "type": "boolean",
-            "description": "Bool indicating if overcapture  must be requested for all payments",
+            "description": "Boolean indicating whether to enable overcapture for this payment",
+            "example": true,
             "nullable": true
           }
         },
@@ -25284,7 +25286,7 @@
           },
           "is_overcapture_enabled": {
             "type": "boolean",
-            "description": "Bool indicating if overcapture is enabled for this payment",
+            "description": "Boolean indicating whether overcapture is effectively enabled for this payment",
             "nullable": true
           }
         }
@@ -25895,7 +25897,8 @@
           },
           "enable_overcapture": {
             "type": "boolean",
-            "description": "Bool indicating if overcapture  must be requested for all payments",
+            "description": "Boolean indicating whether to enable overcapture for this payment",
+            "example": true,
             "nullable": true
           }
         }
