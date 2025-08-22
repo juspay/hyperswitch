@@ -65,7 +65,7 @@ fn to_boolean(string: String) -> bool {
 // The dimensions of the challenge window for full screen.
 const CHALLENGE_WINDOW_SIZE: &str = "05";
 // The challenge preference for the challenge flow.
-const CHALLENGE_PREFERNCE: &str = "01";
+const CHALLENGE_PREFERENCE: &str = "01";
 
 trait NuveiAuthorizePreprocessingCommon {
     fn get_browser_info(&self) -> Option<BrowserInformation>;
@@ -1215,7 +1215,7 @@ where
                     rebill_expiry: None,
                     rebill_frequency: None,
                     challenge_window_size: Some(CHALLENGE_WINDOW_SIZE.to_string()),
-                    challenge_preference: Some(CHALLENGE_PREFERNCE.to_string()),
+                    challenge_preference: Some(CHALLENGE_PREFERENCE.to_string()),
                 }),
                 None,
             ),
