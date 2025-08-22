@@ -244,19 +244,19 @@ where
                             .connector_transaction_id
                             .clone(),
                     })?
-                } else if 
-                    (capturable_amount.is_some_and(|capturable_amount| {
-                        MinorUnit::new(capturable_amount) > total_capturable_amount
-                    }) && !is_is_overcapture_enabled) {
-                        Err(ApiErrorResponse::IntegrityCheckFailed {
-                            reason: "capturable_amount is greater than the total attempt amount"
-                                .to_string(),
-                            field_names: "amount_capturable".to_string(),
-                            connector_transaction_id: payment_data
-                                .payment_attempt
-                                .connector_transaction_id
-                                .clone(),
-                        })?
+                } else if (capturable_amount.is_some_and(|capturable_amount| {
+                    MinorUnit::new(capturable_amount) > total_capturable_amount
+                }) && !is_is_overcapture_enabled)
+                {
+                    Err(ApiErrorResponse::IntegrityCheckFailed {
+                        reason: "capturable_amount is greater than the total attempt amount"
+                            .to_string(),
+                        field_names: "amount_capturable".to_string(),
+                        connector_transaction_id: payment_data
+                            .payment_attempt
+                            .connector_transaction_id
+                            .clone(),
+                    })?
                 } else {
                     Ok(self.status)
                 }
