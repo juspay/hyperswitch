@@ -1715,8 +1715,7 @@ impl ConnectorSpecifications for Worldpayvantiv {
         payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
         payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> String {
-        if payment_intent.is_payment_id_from_merchant.unwrap_or(false)
-        {
+        if payment_intent.is_payment_id_from_merchant.unwrap_or(false) {
             payment_attempt.payment_id.get_string_repr().to_owned()
         } else {
             connector_utils::generate_12_digit_number().to_string()
