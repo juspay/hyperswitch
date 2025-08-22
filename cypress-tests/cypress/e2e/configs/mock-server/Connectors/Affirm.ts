@@ -27,7 +27,7 @@ const mockData: MockData = {
 
 // Valid API keys (public_key:private_key)
 const validApiKeys: Record<string, string> = {
-  "public_key_123": "private_key_456",
+  public_key_123: "private_key_456",
 };
 
 // Helper functions
@@ -76,9 +76,13 @@ function authenticateApiKey(
 
 // Logging middleware
 router.use((req: Request, res: Response, next: NextFunction): void => {
-  console.log(`[Affirm Mock] ${new Date().toISOString()} - ${req.method} ${req.path}`);
-  if (Object.keys(req.headers).length > 0) console.log("Headers:", JSON.stringify(req.headers, null, 2));
-  if (Object.keys(req.body).length > 0) console.log("Body:", JSON.stringify(req.body, null, 2));
+  console.log(
+    `[Affirm Mock] ${new Date().toISOString()} - ${req.method} ${req.path}`
+  );
+  if (Object.keys(req.headers).length > 0)
+    console.log("Headers:", JSON.stringify(req.headers, null, 2));
+  if (Object.keys(req.body).length > 0)
+    console.log("Body:", JSON.stringify(req.body, null, 2));
   next();
 });
 
@@ -160,11 +164,13 @@ router.post(
       created: now,
       order_id: checkout.order_id,
       checkout_id: transaction_id,
-      events: [{
-        id: generateId("evt"),
-        type: "auth",
-        created: now,
-      }],
+      events: [
+        {
+          id: generateId("evt"),
+          type: "auth",
+          created: now,
+        },
+      ],
     };
     mockData.transactions[transactionId] = transaction;
 
