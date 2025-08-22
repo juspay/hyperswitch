@@ -939,8 +939,12 @@ async fn payments_incoming_webhook_flow(
         let resource_object = webhook_details.resource_object;
 
         match webhook_transform_data.as_ref() {
-            Some(_transform_data) => {
-                payments::CallConnectorAction::UCSHandleResponse(resource_object)
+            Some(transform_data) => {
+                // Serialize the transform data to pass to UCS handler
+                let transform_data_bytes = serde_json::to_vec(transform_data.as_ref())
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to serialize UCS webhook transform data")?;
+                payments::CallConnectorAction::UCSHandleResponse(transform_data_bytes)
             }
             None => payments::CallConnectorAction::HandleResponse(resource_object),
         }

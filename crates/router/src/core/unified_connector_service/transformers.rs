@@ -1218,6 +1218,7 @@ impl ForeignTryFrom<&hyperswitch_interfaces::webhooks::IncomingWebhookRequestDet
 }
 
 /// Webhook transform data structure containing UCS response information
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct WebhookTransformData {
     pub event_type: api_models::webhooks::IncomingWebhookEvent,
     pub source_verified: bool,

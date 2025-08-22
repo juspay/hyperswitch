@@ -165,10 +165,53 @@ where
             };
             connector_integration.handle_response(req, None, response)
         }
-        payments::CallConnectorAction::UCSHandleResponse(_res) => {
-            // UCS has already transformed the response, directly return RouterData
-            // The actual response processing will be handled by the post-processing flow
-            Ok(router_data)
+        payments::CallConnectorAction::UCSHandleResponse(transform_data_bytes) => {
+            let webhook_transform_data: crate::core::unified_connector_service::WebhookTransformData = 
+                serde_json::from_slice(&transform_data_bytes)
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+                    .attach_printable("Failed to deserialize UCS webhook transform data")?;
+
+            let webhook_content = webhook_transform_data
+                .webhook_content
+                .ok_or(errors::ConnectorError::ResponseDeserializationFailed)
+                .attach_printable("UCS webhook transform data missing webhook_content")?;
+
+            let payment_get_response = match webhook_content.content {
+                Some(unified_connector_service_client::payments::webhook_response_content::Content::PaymentsResponse(payments_response)) => {
+                    payments_response
+                },
+                Some(unified_connector_service_client::payments::webhook_response_content::Content::RefundsResponse(_)) => {
+                    return Err(errors::ConnectorError::ProcessingStepFailed(Some("UCS webhook contains refund response but payment processing was expected".to_string().into())).into());
+                },
+                Some(unified_connector_service_client::payments::webhook_response_content::Content::DisputesResponse(_)) => {
+                    return Err(errors::ConnectorError::ProcessingStepFailed(Some("UCS webhook contains dispute response but payment processing was expected".to_string().into())).into());
+                },
+                None => {
+                    return Err(errors::ConnectorError::ResponseDeserializationFailed)
+                        .attach_printable("UCS webhook content missing payments_response");
+                }
+            };
+
+            let (status, router_data_response, status_code) =
+                crate::core::unified_connector_service::handle_unified_connector_service_response_for_payment_get(payment_get_response.clone())
+                    .change_context(errors::ConnectorError::ProcessingStepFailed(None))
+                    .attach_printable("Failed to process UCS webhook response using PSync handler")?;
+
+            let mut updated_router_data = router_data;
+            updated_router_data.status = status;
+
+            match router_data_response {
+                Ok(_payments_response_data) => {}
+                Err(error_response) => {
+                    updated_router_data.response = Err(error_response);
+                }
+            }
+
+            updated_router_data.raw_connector_response =
+                payment_get_response.raw_connector_response.map(Secret::new);
+            updated_router_data.connector_http_status_code = Some(status_code);
+
+            Ok(updated_router_data)
         }
         payments::CallConnectorAction::Avoid => Ok(router_data),
         payments::CallConnectorAction::StatusUpdate {
