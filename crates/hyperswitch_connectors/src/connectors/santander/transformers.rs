@@ -257,7 +257,7 @@ impl
 
         Ok(Self::Boleto(Box::new(SantanderBoletoPaymentRequest {
             workspace_id: santander_mca_metadata.workspace_id.clone(),
-            environment: Environment::from(value.2.clone()),
+            environment: Environment::from(*value.2),
             nsu_code: value.0.router_data.payment_id.clone(), // size: 20
             nsu_date: Utc::now().date_naive(),
             covenant_code: santander_mca_metadata.covenant_code.clone(), // size: 9
@@ -304,11 +304,7 @@ impl
             },
             beneficiary: None,
             document_kind: BoletoDocumentKind::BoletoProposta, // to change
-<<<<<<< Updated upstream
             discount: DiscountType::Isento,                    // to change
-=======
-            discount: DiscountType::Isento,
->>>>>>> Stashed changes
             discount_one: None,
             discount_two: None,
             discount_three: None,

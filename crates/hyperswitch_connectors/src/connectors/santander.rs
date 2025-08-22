@@ -907,15 +907,9 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Santander
 fn get_webhook_object_from_body(
     body: &[u8],
 ) -> CustomResult<santander::SantanderWebhookBody, common_utils::errors::ParsingError> {
-    let mut webhook: santander::SantanderWebhookBody =
-        body.parse_struct("SantanderIncomingWebhook")?;
+    let webhook: santander::SantanderWebhookBody = body.parse_struct("SantanderIncomingWebhook")?;
 
-    let item_object = webhook
-        .drain(..)
-        .next()
-        .ok_or(common_utils::errors::ParsingError::UnknownError)?;
-
-    Ok(item_object.notification_request_item)
+    Ok(webhook)
 }
 
 #[async_trait::async_trait]
@@ -989,7 +983,7 @@ static SANTANDER_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::NotSupported,
-                supported_capture_methods: supported_capture_methods,
+                supported_capture_methods,
                 specific_features: None,
             },
         );

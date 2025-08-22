@@ -7184,6 +7184,12 @@
             },
             "description": "Custom messages or instructions to display on the boleto",
             "nullable": true
+          },
+          "due_date": {
+            "type": "string",
+            "format": "date",
+            "example": "2025-08-22",
+            "nullable": true
           }
         }
       },
