@@ -55,7 +55,6 @@ impl<T> From<(StringMajorUnit, T)> for SantanderRouterData<T> {
         }
     }
 }
-
 #[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SantanderMetadataObject {
@@ -194,23 +193,33 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderAuthUpdateResponse, T, AccessT
     }
 }
 
-impl TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>> for SantanderPaymentRequest {
+impl
+    TryFrom<(
+        &SantanderRouterData<&PaymentsAuthorizeRouterData>,
+        &router_env::env::Env,
+    )> for SantanderPaymentRequest
+{
     type Error = Error;
     fn try_from(
-        item: &SantanderRouterData<&PaymentsAuthorizeRouterData>,
+        value: (
+            &SantanderRouterData<&PaymentsAuthorizeRouterData>,
+            &router_env::env::Env,
+        ),
     ) -> Result<Self, Self::Error> {
-        if item.router_data.request.capture_method != Some(enums::CaptureMethod::Automatic) {
+        if value.0.router_data.request.capture_method != Some(enums::CaptureMethod::Automatic) {
             return Err(errors::ConnectorError::FlowNotSupported {
-                flow: format!("{:?}", item.router_data.request.capture_method),
+                flow: format!("{:?}", value.0.router_data.request.capture_method),
                 connector: "Santander".to_string(),
             }
             .into());
         }
-        match item.router_data.request.payment_method_data.clone() {
+        match value.0.router_data.request.payment_method_data.clone() {
             PaymentMethodData::BankTransfer(ref bank_transfer_data) => {
-                Self::try_from((item, bank_transfer_data.as_ref()))
+                Self::try_from((value.0, bank_transfer_data.as_ref()))
             }
-            PaymentMethodData::Voucher(ref voucher_data) => Self::try_from((item, voucher_data)),
+            PaymentMethodData::Voucher(ref voucher_data) => {
+                Self::try_from((value.0, voucher_data, value.1))
+            }
             _ => Err(errors::ConnectorError::NotImplemented(
                 crate::utils::get_unimplemented_payment_method_error_message("Santander"),
             ))?,
@@ -222,6 +231,7 @@ impl
     TryFrom<(
         &SantanderRouterData<&PaymentsAuthorizeRouterData>,
         &VoucherData,
+        &router_env::env::Env,
     )> for SantanderPaymentRequest
 {
     type Error = Error;
@@ -229,6 +239,7 @@ impl
         value: (
             &SantanderRouterData<&PaymentsAuthorizeRouterData>,
             &VoucherData,
+            &router_env::env::Env,
         ),
     ) -> Result<Self, Self::Error> {
         let santander_mca_metadata =
@@ -246,9 +257,9 @@ impl
 
         Ok(Self::Boleto(Box::new(SantanderBoletoPaymentRequest {
             workspace_id: santander_mca_metadata.workspace_id.clone(),
-            environment: Environment::Teste, // to change
+            environment: Environment::from(value.2.clone()),
             nsu_code: value.0.router_data.payment_id.clone(), // size: 20
-            nsu_date: Utc::now().format("%Y-%m-%d").to_string(),
+            nsu_date: Utc::now().date_naive(),
             covenant_code: santander_mca_metadata.covenant_code.clone(), // size: 9
             bank_number: voucher_data.bank_number.clone().ok_or_else(|| {
                 errors::ConnectorError::MissingRequiredField {
@@ -256,8 +267,12 @@ impl
                 }
             })?, // size: 13
             client_number: Some(value.0.router_data.get_customer_id()?),
-            due_date: Utc::now().format("%Y-%m-%d").to_string(), // hardcoded as of now - what to map it with?
-            issue_date: Utc::now().format("%Y-%m-%d").to_string(),
+            due_date: voucher_data.due_date.ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "due_date",
+                },
+            )?, // format: YYYY-MM-DD
+            issue_date: Utc::now().date_naive(),
             currency: Some(value.0.router_data.request.currency),
             nominal_value: value.0.amount.to_owned(),
             participant_code: value
@@ -274,22 +289,26 @@ impl
                     }
                 })?,
                 document_number: voucher_data.social_security_number.clone(),
-                address: value.0.router_data.get_billing_line1()?,
+                address: Secret::new(
+                    [
+                        value.0.router_data.get_billing_line1()?,
+                        value.0.router_data.get_billing_line2()?,
+                    ]
+                    .map(|s| s.expose())
+                    .join(" "),
+                ),
                 neighborhood: value.0.router_data.get_billing_line1()?,
                 city: value.0.router_data.get_billing_city()?,
                 state: value.0.router_data.get_billing_state()?,
                 zipcode: value.0.router_data.get_billing_zip()?,
             },
-            beneficiary: Some(Beneficiary {
-                name: value.0.router_data.get_optional_billing_full_name(),
-                document_type: voucher_data.document_type,
-                document_number: voucher_data
-                    .social_security_number
-                    .clone()
-                    .map(|s| s.expose()),
-            }),
+            beneficiary: None,
             document_kind: BoletoDocumentKind::BoletoProposta, // to change
+<<<<<<< Updated upstream
             discount: DiscountType::Isento,                    // to change
+=======
+            discount: DiscountType::Isento,
+>>>>>>> Stashed changes
             discount_one: None,
             discount_two: None,
             discount_three: None,
@@ -297,20 +316,17 @@ impl
             fine_quantity_days: voucher_data.fine_quantity_days,
             interest_percentage: voucher_data.interest_percentage,
             deduction_value: None,
-            protest_type: None,          // to change
-            protest_quantity_days: None, // to change
+            protest_type: None,
+            protest_quantity_days: None,
             write_off_quantity_days: voucher_data.write_off_quantity_days,
-            payment_type: PaymentType::Registro, // to change
+            payment_type: PaymentType::Registro,
             parcels_quantity: None,
             value_type: None,
             min_value_or_percentage: None,
             max_value_or_percentage: None,
-            iof_percentage: None, // to change
+            iof_percentage: None,
             sharing: None,
-            key: Some(Key {
-                key_type: None, // to change
-                dict_key: None, // to change
-            }),
+            key: None,
             tx_id: None,
             messages: voucher_data.messages.clone(),
         })))
@@ -366,12 +382,12 @@ pub struct SantanderBoletoPaymentRequest {
     pub workspace_id: String,
     pub environment: Environment,
     pub nsu_code: String,
-    pub nsu_date: String, // YYYY-MM-DD
+    pub nsu_date: chrono::NaiveDate,
     pub covenant_code: String,
     pub bank_number: String,
     pub client_number: Option<id_type::CustomerId>,
-    pub due_date: String,
-    pub issue_date: String,
+    pub due_date: chrono::NaiveDate,
+    pub issue_date: chrono::NaiveDate,
     pub currency: Option<enums::Currency>,
     pub nominal_value: StringMajorUnit,
     pub participant_code: Option<String>,
@@ -379,11 +395,8 @@ pub struct SantanderBoletoPaymentRequest {
     pub beneficiary: Option<Beneficiary>,
     pub document_kind: BoletoDocumentKind,
     pub discount: DiscountType,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub discount_one: Option<Discount>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub discount_two: Option<Discount>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub discount_three: Option<Discount>,
     pub fine_percentage: Option<FloatMajorUnit>,
     pub fine_quantity_days: Option<MinorUnit>,
@@ -585,6 +598,15 @@ impl From<SantanderPaymentStatus> for common_enums::AttemptStatus {
     }
 }
 
+impl From<router_env::env::Env> for Environment {
+    fn from(item: router_env::env::Env) -> Self {
+        match item {
+            router_env::env::Env::Sandbox | router_env::env::Env::Development => Self::Teste,
+            router_env::env::Env::Production => Self::Producao,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum SantanderPaymentsResponse {
     PixQRCode(SantanderPixQRCodePaymentsResponse),
@@ -593,11 +615,9 @@ pub enum SantanderPaymentsResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct SantanderBoletoPaymentsResponse {
-    barcode: String,
-    digitable_line: String,
-    entry_date: i64,
-    qr_code_pix: Option<String>,
-    qr_code_url: Option<String>,
+    barcode: String,        // data type not clear
+    digitable_line: String, // data type not clear
+    entry_date: i64,        // data type not clear
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -1008,11 +1028,11 @@ pub struct SantanderViolations {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SantanderWebhookBody {
-    pub message: MessageCode,
-    pub function: FunctionType,
+    pub message: MessageCode,   // meaning of this enum variant is not clear
+    pub function: FunctionType, // event type of the webhook
     pub payment_type: WebhookPaymentType,
-    pub issue_date: String,
-    pub payment_date: String,
+    pub issue_date: chrono::NaiveDate,
+    pub payment_date: chrono::NaiveDate,
     pub bank_code: String,
     pub payment_channel: PaymentChannel,
     pub payment_kind: PaymentKind,
@@ -1048,8 +1068,8 @@ pub enum MessageCode {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum FunctionType {
-    Pagamento,
-    Estorno,
+    Pagamento, // Payment
+    Estorno,   // Refund
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1062,22 +1082,44 @@ pub enum WebhookPaymentType {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+/// Represents the channel through which a boleto payment was made.
 pub enum PaymentChannel {
+    /// Payment made at a bank branch or ATM (self-service).
     AgenciasAutoAtendimento,
+
+    /// Payment made through online banking.
     InternetBanking,
+
+    /// Payment made at a physical correspondent agent (e.g., convenience stores, partner outlets).
     CorrespondenteBancarioFisico,
+
+    /// Payment made via Santander’s call center.
     CentralDeAtendimento,
+
+    /// Payment made via electronic file, typically for bulk company payments.
     ArquivoEletronico,
+
+    /// Payment made via DDA (Débito Direto Autorizado) / electronic bill presentment system.
     Dda,
+
+    /// Payment made via digital correspondent channels (apps, kiosks, digital partners).
     CorrespondenteBancarioDigital,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+/// Represents the type of payment instrument used to pay a boleto.
 pub enum PaymentKind {
+    /// Payment made in cash or physical form (not via account or card).
     Especie,
+
+    /// Payment made via direct debit from a bank account.
     DebitoEmConta,
+
+    /// Payment made via credit card.
     CartaoDeCredito,
+
+    /// Payment made via check.
     Cheque,
 }
 
@@ -1087,4 +1129,14 @@ pub(crate) fn get_webhook_object_from_body(
     let webhook: SantanderWebhookBody = body.parse_struct("SantanderIncomingWebhook")?;
 
     Ok(webhook)
+}
+
+pub(crate) fn get_santander_webhook_event(
+    event_type: FunctionType,
+) -> api_models::webhooks::IncomingWebhookEvent {
+    // need to confirm about the other possible webhook event statues, as of now only two known
+    match event_type {
+        FunctionType::Pagamento => api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess,
+        FunctionType::Estorno => api_models::webhooks::IncomingWebhookEvent::RefundSuccess,
+    }
 }

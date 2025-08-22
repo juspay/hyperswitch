@@ -4186,6 +4186,10 @@ pub struct BoletoVoucherData {
     /// Custom messages or instructions to display on the boleto
     #[schema(value_type = Option<Vec<String>>)]
     pub messages: Option<Vec<String>>,
+
+    #[schema(value_type = Option<NaiveDate>)]
+    // The date upon which the boleto is due and is of format: "YYYY-MM-DD"
+    pub due_date: Option<chrono::NaiveDate>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]

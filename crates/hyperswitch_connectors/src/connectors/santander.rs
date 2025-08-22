@@ -7,7 +7,7 @@ use common_enums::enums;
 use common_utils::{
     crypto,
     errors::CustomResult,
-    ext_traits::BytesExt,
+    ext_traits::{ByteSliceExt, BytesExt},
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector},
 };
@@ -324,7 +324,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     fn get_request_body(
         &self,
         req: &PaymentsAuthorizeRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = convert_amount(
             self.amount_converter,
@@ -332,8 +332,17 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             req.request.currency,
         )?;
 
+        let url = connectors.santander.secondary_base_url.as_deref();
+        let env =
+            if url == Some("https://trust-open.api.santander.com.br/collection_bill_management/") {
+                router_env::env::Env::Sandbox // change later when PROD url is confirmed
+            } else {
+                router_env::env::Env::Production
+            };
+
         let connector_router_data = santander::SantanderRouterData::from((amount, req));
-        let connector_req = santander::SantanderPaymentRequest::try_from(&connector_router_data)?;
+        let connector_req =
+            santander::SantanderPaymentRequest::try_from((&connector_router_data, &env))?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -895,6 +904,20 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Santander
     }
 }
 
+fn get_webhook_object_from_body(
+    body: &[u8],
+) -> CustomResult<santander::SantanderWebhookBody, common_utils::errors::ParsingError> {
+    let mut webhook: santander::SantanderWebhookBody =
+        body.parse_struct("SantanderIncomingWebhook")?;
+
+    let item_object = webhook
+        .drain(..)
+        .next()
+        .ok_or(common_utils::errors::ParsingError::UnknownError)?;
+
+    Ok(item_object.notification_request_item)
+}
+
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Santander {
     async fn verify_webhook_source(
@@ -924,9 +947,12 @@ impl webhooks::IncomingWebhook for Santander {
 
     fn get_webhook_event_type(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess) //Hardcoded because webhook body doesnt sent a status
+        let body = get_webhook_object_from_body(request.body)
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+
+        Ok(transformers::get_santander_webhook_event(body.function))
     }
 
     fn get_webhook_resource_object(
@@ -952,7 +978,18 @@ static SANTANDER_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        santander_supported_payment_methods.add(
+            enums::PaymentMethod::Voucher,
+            enums::PaymentMethodType::Boleto,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::NotSupported,
+                supported_capture_methods: supported_capture_methods,
                 specific_features: None,
             },
         );
@@ -967,7 +1004,8 @@ static SANTANDER_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
 };
 
-static SANTANDER_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+static SANTANDER_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
+    [enums::EventClass::Payments, enums::EventClass::Refunds];
 
 impl ConnectorSpecifications for Santander {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

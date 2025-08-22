@@ -655,6 +655,8 @@ pub struct BoletoVoucherData {
     pub interest_percentage: Option<FloatMajorUnit>,
     pub write_off_quantity_days: Option<MinorUnit>,
     pub messages: Option<Vec<String>>,
+    // The date upon which the boleto is due and is of format: "YYYY-MM-DD"
+    pub due_date: Option<chrono::NaiveDate>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -1412,6 +1414,7 @@ impl From<api_models::payments::VoucherData> for VoucherData {
                     interest_percentage: boleto_data.interest_percentage,
                     write_off_quantity_days: boleto_data.write_off_quantity_days,
                     messages: boleto_data.messages,
+                    due_date: boleto_data.due_date,
                 }))
             }
             api_models::payments::VoucherData::Alfamart(_) => {
@@ -1448,6 +1451,7 @@ impl From<Box<BoletoVoucherData>> for Box<api_models::payments::BoletoVoucherDat
             interest_percentage: value.interest_percentage,
             write_off_quantity_days: value.write_off_quantity_days,
             messages: value.messages,
+            due_date: value.due_date,
         })
     }
 }
