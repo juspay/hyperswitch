@@ -63,9 +63,6 @@ pub struct ProcessedAmountAccumulator {
 pub struct DebitRoutingAccumulator {
     pub transaction_count: u64,
     pub savings_amount: u64,
-    pub signature_network: Option<String>,
-    pub is_issuer_regulated: Option<bool>,
-    pub is_debit_routed: Option<bool>,
 }
 
 #[derive(Debug, Default)]
@@ -198,9 +195,6 @@ impl PaymentMetricAccumulator for DebitRoutingAccumulator {
         Option<u64>,
         Option<u64>,
         Option<u64>,
-        Option<String>,
-        Option<bool>,
-        Option<bool>,
     );
 
     fn add_metrics_bucket(&mut self, metrics: &PaymentMetricRow) {
@@ -210,15 +204,6 @@ impl PaymentMetricAccumulator for DebitRoutingAccumulator {
         if let Some(total) = metrics.total.as_ref().and_then(ToPrimitive::to_u64) {
             self.savings_amount += total;
         }
-        if let Some(signature_network) = &metrics.signature_network {
-            self.signature_network = Some(signature_network.clone());
-        }
-        if let Some(is_issuer_regulated) = metrics.is_issuer_regulated {
-            self.is_issuer_regulated = Some(is_issuer_regulated);
-        }
-        if let Some(is_debit_routed) = metrics.is_debit_routed {
-            self.is_debit_routed = Some(is_debit_routed);
-        }
     }
 
     fn collect(self) -> Self::MetricOutput {
@@ -226,9 +211,6 @@ impl PaymentMetricAccumulator for DebitRoutingAccumulator {
             Some(self.transaction_count),
             Some(self.savings_amount),
             Some(0),
-            self.signature_network,
-            self.is_issuer_regulated,
-            self.is_debit_routed,
         )
     }
 }
@@ -494,9 +476,6 @@ impl PaymentMetricsAccumulator {
             debit_routed_transaction_count,
             debit_routing_savings,
             debit_routing_savings_in_usd,
-            signature_network,
-            is_issuer_regulated,
-            is_debit_routed,
         ) = self.debit_routing.collect();
 
         PaymentMetricsBucketValue {
@@ -525,9 +504,6 @@ impl PaymentMetricsAccumulator {
             debit_routed_transaction_count,
             debit_routing_savings,
             debit_routing_savings_in_usd,
-            signature_network,
-            is_issuer_regulated,
-            is_debit_routed,
         }
     }
 }
