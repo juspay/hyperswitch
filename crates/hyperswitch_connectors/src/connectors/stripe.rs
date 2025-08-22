@@ -1,6 +1,6 @@
 pub mod transformers;
 
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::LazyLock};
 
 use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::{
@@ -34,8 +34,9 @@ use hyperswitch_domain_models::{
         SplitRefundsRequest, SubmitEvidenceRequestData, UploadFileRequestData,
     },
     router_response_types::{
-        PaymentsResponseData, RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
-        UploadFileResponse,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        RetrieveFileResponse, SubmitEvidenceResponse, SupportedPaymentMethods,
+        SupportedPaymentMethodsExt, UploadFileResponse,
     },
     types::{
         ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
@@ -189,6 +190,7 @@ impl ConnectorCommon for Stripe {
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
+            connector_metadata: None,
         })
     }
 }
@@ -391,6 +393,7 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
+            connector_metadata: None,
         })
     }
 }
@@ -542,6 +545,7 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
+            connector_metadata: None,
         })
     }
 }
@@ -689,6 +693,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
+            connector_metadata: None,
         })
     }
 }
@@ -856,6 +861,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Str
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
+            connector_metadata: None,
         })
     }
 }
@@ -1029,6 +1035,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
+            connector_metadata: None,
         })
     }
 }
@@ -1080,7 +1087,7 @@ impl
             MinorUnit::new(req.request.total_amount),
             req.request.currency,
         )?;
-        let connector_req = stripe::StripeIncrementalAuthRequest { amount };
+        let connector_req = stripe::StripeIncrementalAuthRequest { amount }; // Incremental authorization can be done a maximum of 10 times in Stripe
 
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
@@ -1156,7 +1163,8 @@ impl
                 .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .code
+                .message
+                .clone()
                 .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
             reason: response.error.message.map(|message| {
                 response
@@ -1173,6 +1181,7 @@ impl
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
+            connector_metadata: None,
         })
     }
 }
@@ -1378,6 +1387,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for St
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
+            connector_metadata: None,
         })
     }
 }
@@ -1508,6 +1518,7 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
+            connector_metadata: None,
         })
     }
 }
@@ -1673,6 +1684,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Stripe 
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
+            connector_metadata: None,
         })
     }
 }
@@ -1804,6 +1816,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Stripe {
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
+            connector_metadata: None,
         })
     }
 }
@@ -1948,6 +1961,7 @@ impl ConnectorIntegration<Upload, UploadFileRequestData, UploadFileResponse> for
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
+            connector_metadata: None,
         })
     }
 }
@@ -2048,6 +2062,7 @@ impl ConnectorIntegration<Retrieve, RetrieveFileRequestData, RetrieveFileRespons
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
+            connector_metadata: None,
         })
     }
 }
@@ -2173,6 +2188,7 @@ impl ConnectorIntegration<Evidence, SubmitEvidenceRequestData, SubmitEvidenceRes
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
+            connector_metadata: None,
         })
     }
 }
@@ -2911,4 +2927,378 @@ impl ConnectorIntegration<PoRecipientAccount, PayoutsData, PayoutsResponseData> 
     }
 }
 
-impl ConnectorSpecifications for Stripe {}
+static STRIPE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
+    let default_capture_methods = vec![
+        CaptureMethod::Automatic,
+        CaptureMethod::Manual,
+        CaptureMethod::SequentialAutomatic,
+    ];
+
+    let automatic_capture_supported =
+        vec![CaptureMethod::Automatic, CaptureMethod::SequentialAutomatic];
+
+    let supported_card_network = vec![
+        common_enums::CardNetwork::Visa,
+        common_enums::CardNetwork::Mastercard,
+        common_enums::CardNetwork::AmericanExpress,
+        common_enums::CardNetwork::Discover,
+        common_enums::CardNetwork::JCB,
+        common_enums::CardNetwork::DinersClub,
+        common_enums::CardNetwork::UnionPay,
+    ];
+
+    let mut stripe_supported_payment_methods = SupportedPaymentMethods::new();
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::Card,
+        PaymentMethodType::Credit,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::Supported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: default_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card(
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::Supported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    },
+                ),
+            ),
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::Card,
+        PaymentMethodType::Debit,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::Supported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: default_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card(
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::Supported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    },
+                ),
+            ),
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::PayLater,
+        PaymentMethodType::Klarna,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::NotSupported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: default_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::PayLater,
+        PaymentMethodType::Affirm,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::NotSupported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: default_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::PayLater,
+        PaymentMethodType::AfterpayClearpay,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::NotSupported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: default_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::Wallet,
+        PaymentMethodType::AliPay,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::NotSupported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: default_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::Wallet,
+        PaymentMethodType::AmazonPay,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::Supported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: default_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::Wallet,
+        PaymentMethodType::ApplePay,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::Supported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: default_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::Wallet,
+        PaymentMethodType::GooglePay,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::Supported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: default_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::Wallet,
+        PaymentMethodType::WeChatPay,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::NotSupported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: automatic_capture_supported.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::Wallet,
+        PaymentMethodType::Cashapp,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::Supported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: default_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::Wallet,
+        PaymentMethodType::RevolutPay,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::Supported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: default_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::BankDebit,
+        PaymentMethodType::Becs,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::Supported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: default_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::BankDebit,
+        PaymentMethodType::Ach,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::Supported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: automatic_capture_supported.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::BankDebit,
+        PaymentMethodType::Sepa,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::Supported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: automatic_capture_supported.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::BankDebit,
+        PaymentMethodType::Bacs,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::Supported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: default_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::BankRedirect,
+        PaymentMethodType::BancontactCard,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::Supported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: automatic_capture_supported.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::BankRedirect,
+        PaymentMethodType::Blik,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::NotSupported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: automatic_capture_supported.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::BankTransfer,
+        PaymentMethodType::Ach,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::NotSupported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: automatic_capture_supported.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::BankTransfer,
+        PaymentMethodType::SepaBankTransfer,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::NotSupported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: automatic_capture_supported.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::BankTransfer,
+        PaymentMethodType::Bacs,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::NotSupported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: automatic_capture_supported.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::BankTransfer,
+        PaymentMethodType::Multibanco,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::NotSupported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: automatic_capture_supported.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::BankRedirect,
+        PaymentMethodType::Giropay,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::NotSupported,
+            refunds: common_enums::FeatureStatus::NotSupported,
+            supported_capture_methods: automatic_capture_supported.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::BankRedirect,
+        PaymentMethodType::Ideal,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::Supported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: automatic_capture_supported.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::BankRedirect,
+        PaymentMethodType::Przelewy24,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::NotSupported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: automatic_capture_supported.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::BankRedirect,
+        PaymentMethodType::Eps,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::NotSupported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: automatic_capture_supported.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::BankRedirect,
+        PaymentMethodType::OnlineBankingFpx,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::NotSupported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: automatic_capture_supported.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods.add(
+        common_enums::PaymentMethod::BankRedirect,
+        PaymentMethodType::Sofort,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::Supported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: automatic_capture_supported.clone(),
+            specific_features: None,
+        },
+    );
+
+    stripe_supported_payment_methods
+});
+
+static STRIPE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Stripe",
+    description: "Stripe is a payment processing platform that provides businesses with tools and APIs to accept payments online and manage their financial infrastructure",
+    connector_type: common_enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: common_enums::ConnectorIntegrationStatus::Live,
+};
+
+static STRIPE_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 3] = [
+    common_enums::EventClass::Payments,
+    common_enums::EventClass::Refunds,
+    common_enums::EventClass::Disputes,
+];
+
+impl ConnectorSpecifications for Stripe {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&STRIPE_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*STRIPE_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::EventClass]> {
+        Some(&STRIPE_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}

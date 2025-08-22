@@ -406,7 +406,10 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         authentication_data: None,
         customer_acceptance: None,
         split_payments: None,
-        merchant_order_reference_id: None,
+        merchant_order_reference_id: payment_data
+            .payment_intent
+            .merchant_reference_id
+            .map(|reference_id| reference_id.get_string_repr().to_owned()),
         integrity_object: None,
         shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
         additional_payment_method_data: None,
@@ -1702,6 +1705,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         network_decline_code: None,
         network_advice_code: None,
         network_error_message: None,
+        connector_metadata: None,
     });
 
     let additional_data = PaymentAdditionalData {
