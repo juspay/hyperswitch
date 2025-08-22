@@ -7,7 +7,6 @@ rust-version.workspace = true
 license.workspace = true
 
 [features]
-# Default feature enables all core functionality
 default = [
     "dep:hyperswitch_interfaces",
     "dep:common_utils",
@@ -24,21 +23,18 @@ default = [
     "dep:url"
 ]
 
-# Legacy compatibility features for workspace builds
-v1 = []  # No-op feature for v1 compatibility - injector doesn't need v1/v2 distinction
-v2 = []  # No-op feature for v2 compatibility - injector doesn't need v1/v2 distinction  
-serde = []  # No-op feature for workspace compatibility - always enabled via default
-tracing-actix-web = []  # No-op feature for workspace compatibility
+v1 = []
+v2 = []
+serde = []
+tracing-actix-web = []
 
 [dependencies]
-# First party crates (optional dependencies enabled by default feature)
 hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces", optional = true }
 common_utils = { version = "0.1.0", path = "../common_utils", optional = true }
 external_services = { version = "0.1.0", path = "../external_services", optional = true }
 masking = { version = "0.1.0", path = "../masking", optional = true }
 router_env = { version = "0.1.0", path = "../router_env", optional = true }
 
-# Third party dependencies (optional dependencies enabled by default feature)
 async-trait = { version = "0.1.88", optional = true }
 error-stack = { version = "0.4.1", optional = true }
 nom = { version = "7.1.3", optional = true }
