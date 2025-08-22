@@ -240,10 +240,3 @@ resurrect database_name=db_name:
 
 ci_hack:
     scripts/ci-checks.sh
-
-ci_hack_parallel jobs='':
-    #! /usr/bin/env bash
-    if [[ -n "{{ jobs }}" ]]; then
-        export MAX_PARALLEL="{{ jobs }}"
-    fi
-    scripts/ci-check-parallel.sh
