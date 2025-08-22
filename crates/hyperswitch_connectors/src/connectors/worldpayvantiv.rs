@@ -1694,7 +1694,7 @@ impl ConnectorSpecifications for Worldpayvantiv {
     fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::EventClass]> {
         Some(&WORLDPAYVANTIV_SUPPORTED_WEBHOOK_FLOWS)
     }
-
+    #[cfg(feature = "v1")]
     fn generate_connector_request_reference_id(
         &self,
         payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
@@ -1703,6 +1703,19 @@ impl ConnectorSpecifications for Worldpayvantiv {
     ) -> String {
         if is_config_enabled_to_send_payment_id_as_connector_request_id
             && payment_intent.is_payment_id_from_merchant.unwrap_or(false)
+        {
+            payment_attempt.payment_id.get_string_repr().to_owned()
+        } else {
+            connector_utils::generate_12_digit_number().to_string()
+        }
+    }
+    #[cfg(feature = "v2")]
+    fn generate_connector_request_reference_id(
+        &self,
+        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> String {
+        if payment_intent.is_payment_id_from_merchant.unwrap_or(false)
         {
             payment_attempt.payment_id.get_string_repr().to_owned()
         } else {
