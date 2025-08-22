@@ -1,104 +1,18 @@
 use std::str::FromStr;
 
 use error_stack::{report, ResultExt};
-use hyperswitch_connectors::connectors::{Paytm, Phonepe};
 
 use crate::{
-    configs::settings::Connectors,
     connector,
     core::errors::{self, CustomResult},
     services::connector_integration_interface::ConnectorEnum,
-    types::{self, api::enums},
+    types::api::enums,
 };
 
-/// Routing algorithm will output merchant connector identifier instead of connector name
-/// In order to support backwards compatibility for older routing algorithms and merchant accounts
-/// the support for connector name is retained
-#[derive(Clone, Debug)]
-pub struct ConnectorData {
-    pub connector: ConnectorEnum,
-    pub connector_name: types::Connector,
-    pub get_token: GetToken,
-    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
-}
+#[derive(Clone)]
+pub struct FeatureMatrixConnectorData {}
 
-// Normal flow will call the connector and follow the flow specific operations (capture, authorize)
-// SessionTokenFromMetadata will avoid calling the connector instead create the session token ( for sdk )
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub enum GetToken {
-    GpayMetadata,
-    SamsungPayMetadata,
-    ApplePayMetadata,
-    PaypalSdkMetadata,
-    PazeMetadata,
-    Connector,
-}
-
-impl ConnectorData {
-    pub fn get_connector_by_name(
-        _connectors: &Connectors,
-        name: &str,
-        connector_type: GetToken,
-        connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
-    ) -> CustomResult<Self, errors::ApiErrorResponse> {
-        let connector = Self::convert_connector(name)?;
-        let connector_name = enums::Connector::from_str(name)
-            .change_context(errors::ConnectorError::InvalidConnectorName)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable_lazy(|| format!("unable to parse connector name {name}"))?;
-        Ok(Self {
-            connector,
-            connector_name,
-            get_token: connector_type,
-            merchant_connector_id: connector_id,
-        })
-    }
-
-    #[cfg(feature = "payouts")]
-    pub fn get_payout_connector_by_name(
-        _connectors: &Connectors,
-        name: &str,
-        connector_type: GetToken,
-        connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
-    ) -> CustomResult<Self, errors::ApiErrorResponse> {
-        let connector = Self::convert_connector(name)?;
-        let payout_connector_name = enums::PayoutConnectors::from_str(name)
-            .change_context(errors::ConnectorError::InvalidConnectorName)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable_lazy(|| format!("unable to parse payout connector name {name}"))?;
-        let connector_name = enums::Connector::from(payout_connector_name);
-        Ok(Self {
-            connector,
-            connector_name,
-            get_token: connector_type,
-            merchant_connector_id: connector_id,
-        })
-    }
-
-    #[cfg(feature = "v2")]
-    pub fn get_external_vault_connector_by_name(
-        _connectors: &Connectors,
-        connector: &enums::Connector,
-        connector_type: GetToken,
-        connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
-    ) -> CustomResult<Self, errors::ApiErrorResponse> {
-        let connector_enum = Self::convert_connector(&connector.to_string())?;
-        let external_vault_connector_name =
-            enums::VaultConnectors::from_str(&connector.to_string())
-                .change_context(errors::ConnectorError::InvalidConnectorName)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable_lazy(|| {
-                    format!("unable to parse external vault connector name {connector:?}")
-                })?;
-        let connector_name = enums::Connector::from(external_vault_connector_name);
-        Ok(Self {
-            connector: connector_enum,
-            connector_name,
-            get_token: connector_type,
-            merchant_connector_id: connector_id,
-        })
-    }
-
+impl FeatureMatrixConnectorData {
     pub fn convert_connector(
         connector_name: &str,
     ) -> CustomResult<ConnectorEnum, errors::ApiErrorResponse> {
@@ -150,6 +64,9 @@ impl ConnectorData {
                 enums::Connector::Bluecode => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Bluecode::new())))
                 }
+                // enums::Connector::Bluecode => {
+                //     Ok(ConnectorEnum::Old(Box::new(connector::Bluecode::new())))
+                // }
                 enums::Connector::Boku => Ok(ConnectorEnum::Old(Box::new(connector::Boku::new()))),
                 enums::Connector::Braintree => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Braintree::new())))
@@ -256,11 +173,11 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Fiservemea::new())))
                 }
                 enums::Connector::Fiuu => Ok(ConnectorEnum::Old(Box::new(connector::Fiuu::new()))),
-                enums::Connector::Flexiti => {
-                    Ok(ConnectorEnum::Old(Box::new(connector::Flexiti::new())))
-                }
                 enums::Connector::Forte => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Forte::new())))
+                }
+                enums::Connector::Flexiti => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Flexiti::new())))
                 }
                 enums::Connector::Getnet => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Getnet::new())))
@@ -326,8 +243,14 @@ impl ConnectorData {
                 enums::Connector::Opennode => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Opennode::new())))
                 }
+                enums::Connector::Phonepe => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Phonepe::new())))
+                }
                 enums::Connector::Paybox => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Paybox::new())))
+                }
+                enums::Connector::Paytm => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Paytm::new())))
                 }
                 // "payeezy" => Ok(ConnectorIntegrationEnum::Old(Box::new(&connector::Payeezy)), As psync and rsync are not supported by this connector, it is added as template code for future usage
                 // enums::Connector::Payload => {
@@ -369,9 +292,6 @@ impl ConnectorData {
                 }
                 enums::Connector::Shift4 => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Shift4::new())))
-                }
-                enums::Connector::Silverflow => {
-                    Ok(ConnectorEnum::Old(Box::new(connector::Silverflow::new())))
                 }
                 enums::Connector::Square => Ok(ConnectorEnum::Old(Box::new(&connector::Square))),
                 enums::Connector::Stax => Ok(ConnectorEnum::Old(Box::new(&connector::Stax))),
@@ -443,17 +363,24 @@ impl ConnectorData {
                 enums::Connector::Plaid => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Plaid::new())))
                 }
-                enums::Connector::Signifyd
-                | enums::Connector::Riskified
-                | enums::Connector::Gpayments
-                | enums::Connector::Threedsecureio
-                | enums::Connector::Taxjar => {
-                    Err(report!(errors::ConnectorError::InvalidConnectorName)
-                        .attach_printable(format!("invalid connector name: {connector_name}")))
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                enums::Connector::Signifyd => {
+                    Ok(ConnectorEnum::Old(Box::new(&connector::Signifyd)))
                 }
-                enums::Connector::Phonepe => Ok(ConnectorEnum::Old(Box::new(Phonepe::new()))),
-                enums::Connector::Paytm => Ok(ConnectorEnum::Old(Box::new(Paytm::new()))),
+                enums::Connector::Silverflow => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Silverflow::new())))
+                }
+                enums::Connector::Riskified => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Riskified::new())))
+                }
+                enums::Connector::Gpayments => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Gpayments::new())))
+                }
+                enums::Connector::Threedsecureio => {
+                    Ok(ConnectorEnum::Old(Box::new(&connector::Threedsecureio)))
+                }
+                enums::Connector::Taxjar => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Taxjar::new())))
+                }
             },
             Err(_) => Err(report!(errors::ConnectorError::InvalidConnectorName)
                 .attach_printable(format!("invalid connector name: {connector_name}")))
