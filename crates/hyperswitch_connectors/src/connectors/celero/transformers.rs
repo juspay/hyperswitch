@@ -248,13 +248,7 @@ impl TryFrom<&CeleroRouterData<&PaymentsAuthorizeRouterData>> for CeleroPayments
         let is_three_ds = item.router_data.is_three_ds();
 
         // Determine CIT/MIT fields based on mandate data
-        let (
-            card_on_file_indicator,
-            initiated_by,
-            initial_transaction_id,
-            stored_credential_indicator,
-            billing_method,
-        ) = determine_cit_mit_fields(item.router_data);
+        let mandate_fields = determine_cit_mit_fields(item.router_data);
 
         let request = Self {
             idempotency_key: item.router_data.connector_request_reference_id.clone(),
@@ -268,66 +262,58 @@ impl TryFrom<&CeleroRouterData<&PaymentsAuthorizeRouterData>> for CeleroPayments
             billing_address,
             shipping_address,
             create_vault_record: Some(false),
-            card_on_file_indicator,
-            initiated_by,
-            initial_transaction_id,
-            stored_credential_indicator,
-            billing_method,
+            card_on_file_indicator: mandate_fields.card_on_file_indicator,
+            initiated_by: mandate_fields.initiated_by,
+            initial_transaction_id: mandate_fields.initial_transaction_id,
+            stored_credential_indicator: mandate_fields.stored_credential_indicator,
+            billing_method: mandate_fields.billing_method,
         };
 
         Ok(request)
     }
 }
 
+// Define a struct to hold CIT/MIT fields to avoid complex tuple return type
+#[derive(Debug, Default)]
+pub struct CeleroMandateFields {
+    pub card_on_file_indicator: Option<CardOnFileIndicator>,
+    pub initiated_by: Option<InitiatedBy>,
+    pub initial_transaction_id: Option<String>,
+    pub stored_credential_indicator: Option<StoredCredentialIndicator>,
+    pub billing_method: Option<BillingMethod>,
+}
+
 // Helper function to determine CIT/MIT fields based on mandate data
-fn determine_cit_mit_fields(
-    router_data: &PaymentsAuthorizeRouterData,
-) -> (
-    Option<CardOnFileIndicator>,
-    Option<InitiatedBy>,
-    Option<String>,
-    Option<StoredCredentialIndicator>,
-    Option<BillingMethod>,
-) {
+fn determine_cit_mit_fields(router_data: &PaymentsAuthorizeRouterData) -> CeleroMandateFields {
     // Default values
-    let mut card_on_file_indicator = None;
-    let mut initiated_by = None;
-    let mut initial_transaction_id = None;
-    let mut stored_credential_indicator = None;
-    let mut billing_method = None;
+    let mut mandate_fields = CeleroMandateFields::default();
 
     // Check if this is a mandate payment
     if router_data.request.is_mandate_payment() {
         // This is a merchant-initiated transaction for a recurring payment
-        card_on_file_indicator = Some(CardOnFileIndicator::RecurringPayment);
-        initiated_by = Some(InitiatedBy::Merchant);
-        stored_credential_indicator = Some(StoredCredentialIndicator::Used);
-        billing_method = Some(BillingMethod::Recurring);
+        mandate_fields.card_on_file_indicator = Some(CardOnFileIndicator::RecurringPayment);
+        mandate_fields.initiated_by = Some(InitiatedBy::Merchant);
+        mandate_fields.stored_credential_indicator = Some(StoredCredentialIndicator::Used);
+        mandate_fields.billing_method = Some(BillingMethod::Recurring);
         // Get the initial transaction ID if available
-        initial_transaction_id = router_data.request.related_transaction_id.clone();
+        mandate_fields.initial_transaction_id = router_data.request.related_transaction_id.clone();
     } else if router_data.request.setup_mandate_details.is_some() {
         // This is the initial transaction that will be used for future mandate payments
-        card_on_file_indicator = Some(CardOnFileIndicator::RecurringPayment);
-        initiated_by = Some(InitiatedBy::Customer);
-        stored_credential_indicator = Some(StoredCredentialIndicator::Stored);
-        billing_method = Some(BillingMethod::InitialRecurring);
+        mandate_fields.card_on_file_indicator = Some(CardOnFileIndicator::RecurringPayment);
+        mandate_fields.initiated_by = Some(InitiatedBy::Customer);
+        mandate_fields.stored_credential_indicator = Some(StoredCredentialIndicator::Stored);
+        mandate_fields.billing_method = Some(BillingMethod::InitialRecurring);
     } else if router_data.request.off_session.unwrap_or(false) {
         // Off-session payment (merchant-initiated)
-        card_on_file_indicator = Some(CardOnFileIndicator::GeneralPurposeStorage);
-        initiated_by = Some(InitiatedBy::Merchant);
-        stored_credential_indicator = Some(StoredCredentialIndicator::Used);
+        mandate_fields.card_on_file_indicator = Some(CardOnFileIndicator::GeneralPurposeStorage);
+        mandate_fields.initiated_by = Some(InitiatedBy::Merchant);
+        mandate_fields.stored_credential_indicator = Some(StoredCredentialIndicator::Used);
     } else {
         // Regular customer-initiated transaction
-        initiated_by = Some(InitiatedBy::Customer);
+        mandate_fields.initiated_by = Some(InitiatedBy::Customer);
     }
 
-    (
-        card_on_file_indicator,
-        initiated_by,
-        initial_transaction_id,
-        stored_credential_indicator,
-        billing_method,
-    )
+    mandate_fields
 }
 
 // Auth Struct for CeleroCommerce API key authentication
