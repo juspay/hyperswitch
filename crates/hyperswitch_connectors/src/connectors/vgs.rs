@@ -3,7 +3,7 @@ pub mod transformers;
 use base64::Engine;
 use common_utils::{
     errors::CustomResult,
-    ext_traits::BytesExt,
+    ext_traits::{BytesExt, OptionExt},
     request::{Method, Request, RequestBuilder, RequestContent},
 };
 use error_stack::{report, ResultExt};
@@ -135,11 +135,19 @@ impl ConnectorCommon for Vgs {
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
+        let error = response
+            .errors
+            .get(0)
+            .get_required_value("VgsErrorItem")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "VgsErrorItem",
+            })?;
+
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.errors[0].code.clone(),
-            message: response.errors[0].code.clone(),
-            reason: response.errors[0].detail.clone(),
+            code: error.code.clone(),
+            message: error.code.clone(),
+            reason: error.detail.clone(),
             attempt_status: None,
             connector_transaction_id: None,
             network_decline_code: None,

@@ -1,5 +1,5 @@
 use common_utils::{
-    ext_traits::{Encode, StringExt},
+    ext_traits::{Encode, OptionExt, StringExt},
     types::StringMinorUnit,
 };
 use error_stack::ResultExt;
@@ -130,11 +130,21 @@ impl
             VaultResponseData,
         >,
     ) -> Result<Self, Self::Error> {
+        let vgs_alias = item
+            .response
+            .data
+            .get(0)
+            .and_then(|val| val.aliases.get(0))
+            .get_required_value("VgsAliasItem")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "VgsAliasItem",
+            })?;
+
         Ok(Self {
             status: common_enums::AttemptStatus::Failure,
             response: Ok(VaultResponseData::ExternalVaultInsertResponse {
-                connector_vault_id: item.response.data[0].aliases[0].alias.clone(),
-                fingerprint_id: item.response.data[0].aliases[0].alias.clone(),
+                connector_vault_id: vgs_alias.alias.clone(),
+                fingerprint_id: vgs_alias.alias.clone(),
             }),
             ..item.data
         })
@@ -160,7 +170,16 @@ impl
             VaultResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let card_detail: api_models::payment_methods::CardDetail = item.response.data[0]
+        let token_response_item = item
+            .response
+            .data
+            .get(0)
+            .get_required_value("VgsTokenResponseItem")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "VgsTokenResponseItem",
+            })?;
+
+        let card_detail: api_models::payment_methods::CardDetail = token_response_item
             .value
             .clone()
             .expose()
