@@ -1,13 +1,9 @@
-#[cfg(feature = "v1")]
 use common_utils::{
     crypto::Encryptable, encryption::Encryption, errors::CustomResult, pii,
     types::keymanager::ToEncryptable,
 };
-#[cfg(feature = "v1")]
 use masking::Secret;
-#[cfg(feature = "v1")]
 use rustc_hash::FxHashMap;
-#[cfg(feature = "v1")]
 use serde_json::Value;
 
 #[cfg(feature = "v1")]

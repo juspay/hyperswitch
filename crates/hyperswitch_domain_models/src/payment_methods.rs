@@ -1,8 +1,6 @@
-use api_models::customers;
 #[cfg(feature = "v2")]
 use api_models::payment_methods::PaymentMethodsData;
-#[cfg(feature = "v1")]
-use api_models::{payment_methods, payments};
+use api_models::{customers, payment_methods, payments};
 // specific imports because of using the macro
 use common_enums::enums::MerchantStorageScheme;
 #[cfg(feature = "v1")]
@@ -26,17 +24,15 @@ use rustc_hash::FxHashMap;
 #[cfg(feature = "v2")]
 use serde_json::Value;
 use time::PrimitiveDateTime;
-
 #[cfg(feature = "v2")]
 use crate::address::Address;
 #[cfg(feature = "v1")]
 use crate::type_encryption::AsyncLift;
-#[cfg(feature = "v1")]
-use crate::{mandates, transformers::ForeignTryFrom};
 use crate::{
-    mandates::CommonMandateReference,
+    mandates::{self, CommonMandateReference},
     merchant_key_store::MerchantKeyStore,
     payment_method_data as domain_payment_method_data,
+    transformers::ForeignTryFrom,
     type_encryption::{crypto_operation, CryptoOperation},
 };
 

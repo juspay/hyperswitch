@@ -33,16 +33,15 @@ use common_enums as storage_enums;
 use diesel_models::types::{FeatureMetadata, OrderDetailsWithAmount};
 
 use self::payment_attempt::PaymentAttempt;
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-use crate::merchant_connector_account;
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-use crate::revenue_recovery;
 #[cfg(feature = "v2")]
 use crate::{
-    address::Address, business_profile, customer, errors,
+    address::Address, business_profile, customer, errors, merchant_connector_account,
     merchant_connector_account::MerchantConnectorAccountTypeDetails, merchant_context,
-    payment_address, payment_method_data, payment_methods, routing, ApiModelToDieselModelConvertor,
+    payment_address, payment_method_data, payment_methods, revenue_recovery, routing,
+    ApiModelToDieselModelConvertor,
 };
+#[cfg(feature = "v1")]
+use crate::{payment_method_data, RemoteStorageObject};
 #[cfg(feature = "v1")]
 use crate::{payment_method_data, RemoteStorageObject};
 
@@ -699,7 +698,6 @@ impl PaymentIntent {
         self.feature_metadata.clone()
     }
 
-    #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
     pub fn create_revenue_recovery_attempt_data(
         &self,
         revenue_recovery_metadata: api_models::payments::PaymentRevenueRecoveryMetadata,

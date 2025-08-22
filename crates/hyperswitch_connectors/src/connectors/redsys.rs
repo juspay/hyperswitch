@@ -920,16 +920,16 @@ impl ConnectorSpecifications for Redsys {
         }
     }
 
-    #[cfg(feature = "v2")]
-    fn generate_connector_request_reference_id(
-        &self,
-        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
-        _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
-    ) -> String {
-        payment_intent
-            .merchant_reference_id
-            .as_ref()
-            .map(|id| id.get_string_repr().to_owned())
-            .unwrap_or_else(|| connector_utils::generate_12_digit_number().to_string())
-    }
+    // #[cfg(feature = "v2")]
+    // fn generate_connector_request_reference_id(
+    //     &self,
+    //     payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+    //     _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    // ) -> String {
+    //     payment_intent
+    //         .merchant_reference_id
+    //         .as_ref()
+    //         .map(|id| id.get_string_repr().to_owned())
+    //         .unwrap_or_else(|| connector_utils::generate_12_digit_number().to_string())
+    // }
 }

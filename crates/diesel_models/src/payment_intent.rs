@@ -2,7 +2,6 @@ use common_enums::{PaymentMethodType, RequestIncrementalAuthorization};
 use common_types::primitive_wrappers::RequestExtendedAuthorizationBool;
 use common_utils::{encryption::Encryption, pii, types::MinorUnit};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
-#[cfg(feature = "v1")]
 use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;

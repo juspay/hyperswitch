@@ -8,7 +8,7 @@ use common_types::primitive_wrappers::{
     ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
 };
 #[cfg(feature = "v2")]
-use common_utils::{crypto::Encryptable, encryption::Encryption, types::keymanager::ToEncryptable};
+use common_utils::{crypto::Encryptable, encryption::Encryption, types::keymanager::ToEncryptable, ext_traits::Encode};
 use common_utils::{
     errors::{CustomResult, ValidationError},
     ext_traits::{OptionExt, ValueExt},
