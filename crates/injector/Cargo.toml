@@ -7,61 +7,45 @@ rust-version.workspace = true
 license.workspace = true
 
 [features]
-default = []
-
-# Main v2 feature that enables all functionality
-v2 = [
-    "dep:api_models",
-    "dep:hyperswitch_domain_models", 
+# Default feature enables all core functionality
+default = [
     "dep:hyperswitch_interfaces",
     "dep:common_utils",
-    "dep:common_enums",
     "dep:external_services",
     "dep:masking",
     "dep:router_env",
     "dep:async-trait",
     "dep:error-stack",
     "dep:nom",
-    "dep:regex",
-    "dep:reqwest",
     "dep:serde",
     "dep:serde_json",
     "dep:thiserror",
     "dep:tokio",
-    "dep:tracing",
-    "dep:url",
-    "api_models?/v2", 
-    "hyperswitch_domain_models?/v2", 
-    "common_utils?/v2"
+    "dep:url"
 ]
 
-# Individual features that might be enabled by workspace commands
-# Note: These are no-op features for v1 compatibility since injector is v2-only
-serde = []
-tracing-actix-web = []
+# Legacy compatibility features for workspace builds
+v1 = []  # No-op feature for v1 compatibility - injector doesn't need v1/v2 distinction
+v2 = []  # No-op feature for v2 compatibility - injector doesn't need v1/v2 distinction  
+serde = []  # No-op feature for workspace compatibility - always enabled via default
+tracing-actix-web = []  # No-op feature for workspace compatibility
 
 [dependencies]
-# First party crates (only available with v2 feature)
-api_models = { version = "0.1.0", path = "../api_models", optional = true }
-hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models", optional = true }
+# First party crates (optional dependencies enabled by default feature)
 hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces", optional = true }
 common_utils = { version = "0.1.0", path = "../common_utils", optional = true }
-common_enums = { version = "0.1.0", path = "../common_enums", optional = true }
 external_services = { version = "0.1.0", path = "../external_services", optional = true }
 masking = { version = "0.1.0", path = "../masking", optional = true }
 router_env = { version = "0.1.0", path = "../router_env", optional = true }
 
-# Third party dependencies (only available with v2 feature)
+# Third party dependencies (optional dependencies enabled by default feature)
 async-trait = { version = "0.1.88", optional = true }
 error-stack = { version = "0.4.1", optional = true }
 nom = { version = "7.1.3", optional = true }
-regex = { version = "1.11.1", optional = true }
-reqwest = { version = "0.11.27", features = ["json"], optional = true }
 serde = { version = "1.0.219", features = ["derive"], optional = true }
 serde_json = { version = "1.0.140", optional = true }
 thiserror = { version = "1.0.69", optional = true }
 tokio = { version = "1.42.0", features = ["macros", "rt-multi-thread"], optional = true }
-tracing = { workspace = true, optional = true }
 url = { version = "2.5.4", features = ["serde"], optional = true }
 
 [lints]

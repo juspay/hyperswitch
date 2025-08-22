@@ -1,6 +1,6 @@
-#[cfg(feature = "v2")]
 pub mod injector;
+pub mod types;
 
-// Re-export for v2 feature
-#[cfg(feature = "v2")]
+// Re-export all functionality
 pub use injector::*;
+pub use types::*;

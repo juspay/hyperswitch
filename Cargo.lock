@@ -4389,24 +4389,18 @@ dependencies = [
 name = "injector"
 version = "0.1.0"
 dependencies = [
- "api_models",
  "async-trait",
- "common_enums",
  "common_utils",
  "error-stack 0.4.1",
  "external_services",
- "hyperswitch_domain_models",
  "hyperswitch_interfaces",
  "masking",
  "nom 7.1.3",
- "regex",
- "reqwest 0.11.27",
  "router_env",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
  "tokio 1.45.1",
- "tracing",
  "url",
 ]
 

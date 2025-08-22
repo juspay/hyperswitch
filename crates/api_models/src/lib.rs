@@ -23,8 +23,6 @@ pub mod feature_matrix;
 pub mod files;
 pub mod gsm;
 pub mod health_check;
-#[cfg(feature = "v2")]
-pub mod injector;
 pub mod locker_migration;
 pub mod mandates;
 pub mod open_router;

@@ -1,13 +1,12 @@
-#[cfg(feature = "v2")]
 pub mod core {
     use std::collections::HashMap;
 
-    use api_models::injector::{ContentType, InjectorRequest, InjectorResponse};
+    use crate::{ContentType, InjectorRequest, InjectorResponse};
     use async_trait::async_trait;
     use common_utils::request::{Method, RequestBuilder, RequestContent};
     use error_stack::ResultExt;
     use external_services::http_client;
-    use hyperswitch_domain_models::injector;
+    use crate as injector_types;
     use hyperswitch_interfaces::types::Proxy;
     use masking::{self, ExposeInterface};
     use nom::{
@@ -142,7 +141,7 @@ pub mod core {
             &self,
             template: String,
             vault_data: &Value,
-            vault_connector: &injector::types::VaultConnectors,
+            vault_connector: &injector_types::VaultConnectors,
         ) -> error_stack::Result<String, InjectorError> {
             // Find all tokens using nom parser
             let tokens = find_all_tokens(&template);
@@ -172,7 +171,7 @@ pub mod core {
             &self,
             value: Value,
             vault_data: &Value,
-            vault_connector: &injector::types::VaultConnectors,
+            vault_connector: &injector_types::VaultConnectors,
         ) -> error_stack::Result<Value, InjectorError> {
             match value {
                 Value::Object(obj) => {
@@ -206,7 +205,7 @@ pub mod core {
             &self,
             vault_data: &Value,
             field_name: &str,
-            vault_connector: &injector::types::VaultConnectors,
+            vault_connector: &injector_types::VaultConnectors,
         ) -> error_stack::Result<Value, InjectorError> {
             logger::debug!(
                 "Extracting field '{}' from vault data using vault type {:?}",
@@ -238,11 +237,11 @@ pub mod core {
         fn apply_vault_specific_transformation(
             &self,
             extracted_field_value: Value,
-            vault_connector: &injector::types::VaultConnectors,
+            vault_connector: &injector_types::VaultConnectors,
             field_name: &str,
         ) -> error_stack::Result<Value, InjectorError> {
             match vault_connector {
-                injector::types::VaultConnectors::VGS => {
+                injector_types::VaultConnectors::VGS => {
                     logger::debug!(
                         "VGS vault: Using direct token replacement for field '{}'",
                         field_name
@@ -261,7 +260,7 @@ pub mod core {
         #[instrument(skip_all)]
         async fn make_http_request(
             &self,
-            config: &injector::ConnectionConfig,
+            config: &injector_types::DomainConnectionConfig,
             payload: &str,
             content_type: &ContentType,
         ) -> error_stack::Result<Value, InjectorError> {
@@ -302,11 +301,11 @@ pub mod core {
 
             // Determine method and request content
             let method = match config.http_method {
-                injector::HttpMethod::GET => Method::Get,
-                injector::HttpMethod::POST => Method::Post,
-                injector::HttpMethod::PUT => Method::Put,
-                injector::HttpMethod::PATCH => Method::Patch,
-                injector::HttpMethod::DELETE => Method::Delete,
+                injector_types::HttpMethod::GET => Method::Get,
+                injector_types::HttpMethod::POST => Method::Post,
+                injector_types::HttpMethod::PUT => Method::Put,
+                injector_types::HttpMethod::PATCH => Method::Patch,
+                injector_types::HttpMethod::DELETE => Method::Delete,
             };
 
             // Determine request content based on content type with error handling
@@ -467,7 +466,7 @@ pub mod core {
             let start_time = std::time::Instant::now();
 
             // Convert API model to domain model
-            let domain_request: injector::InjectorRequest = request.into();
+            let domain_request: injector_types::DomainInjectorRequest = request.into();
 
             // Extract token data from SecretSerdeValue for vault data lookup
             let vault_data = domain_request
@@ -535,10 +534,10 @@ pub mod core {
     }
 }
 
-#[cfg(all(test, feature = "v2"))]
+#[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
-    use api_models::injector::*;
+    use crate::*;
     use router_env::logger;
 
     use super::core::*;
@@ -673,6 +672,7 @@ connection_config: ConnectionConfig {
     insecure: None,
     cert_password: None,
     cert_format: None,
+    max_response_size: None, // Use default
 },
 };
 
@@ -745,6 +745,7 @@ connection_config: ConnectionConfig {
                 insecure: Some(true), // This allows testing with self-signed certs
                 cert_password: None,
                 cert_format: Some("PEM".to_string()),
+                max_response_size: None, // Use default
             },
         };
 
@@ -786,6 +787,5 @@ connection_config: ConnectionConfig {
     }
 }
 
-// Re-export all items when v2 feature is enabled
-#[cfg(feature = "v2")]
+// Re-export all items
 pub use core::*;
