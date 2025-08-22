@@ -9,7 +9,10 @@ use error_stack::ResultExt;
 use external_services::http_client;
 use hyperswitch_domain_models::chat as chat_domain;
 use masking::ExposeInterface;
-use router_env::{instrument, logger, tracing::{self, Instrument}};
+use router_env::{
+    instrument, logger,
+    tracing::{self, Instrument},
+};
 
 use crate::{
     db::errors::chat::ChatErrors,
@@ -83,28 +86,31 @@ pub async fn get_data_from_hyperswitch_ai_workflow(
     .attach_printable("Error when deserializing response from AI service")?;
 
     let response_to_return = response.clone();
-    tokio::spawn(async move {
-        let new_hyperswitch_ai_interaction = utils::chat::construct_hyperswitch_ai_interaction(
-            &state,
-            &user_from_token,
-            &req,
-            &response,
-            &request_id,
-        )
-        .await;
+    tokio::spawn(
+        async move {
+            let new_hyperswitch_ai_interaction = utils::chat::construct_hyperswitch_ai_interaction(
+                &state,
+                &user_from_token,
+                &req,
+                &response,
+                &request_id,
+            )
+            .await;
 
-        match new_hyperswitch_ai_interaction {
-            Ok(interaction) => {
-                let db = state.store.as_ref();
-                if let Err(e) = db.insert_hyperswitch_ai_interaction(interaction).await {
-                    logger::error!("Failed to insert hyperswitch_ai_interaction: {:?}", e);
+            match new_hyperswitch_ai_interaction {
+                Ok(interaction) => {
+                    let db = state.store.as_ref();
+                    if let Err(e) = db.insert_hyperswitch_ai_interaction(interaction).await {
+                        logger::error!("Failed to insert hyperswitch_ai_interaction: {:?}", e);
+                    }
+                }
+                Err(e) => {
+                    logger::error!("Failed to construct hyperswitch_ai_interaction: {:?}", e);
                 }
             }
-            Err(e) => {
-                logger::error!("Failed to construct hyperswitch_ai_interaction: {:?}", e);
-            }
         }
-    }.in_current_span());
+        .in_current_span(),
+    );
 
     Ok(ApplicationResponse::Json(response_to_return))
 }
