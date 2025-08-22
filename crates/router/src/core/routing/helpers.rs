@@ -2307,18 +2307,7 @@ pub async fn create_specific_dynamic_routing_setup(
         }
     };
 
-    if state.conf.open_router.dynamic_routing_enabled {
-        enable_decision_engine_dynamic_routing_setup(
-            state,
-            business_profile.get_id(),
-            dynamic_routing_type,
-            &mut dynamic_routing_algo_ref,
-            Some(payload),
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to setup decision engine dynamic routing")?;
-    }
+   
 
     let record = db
         .insert_routing_algorithm(algo)
