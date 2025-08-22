@@ -123,9 +123,9 @@ impl ConnectorData {
                 enums::Connector::Authipay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Authipay::new())))
                 }
-                enums::Connector::Authorizedotnet => {
-                    Ok(ConnectorEnum::Old(Box::new(connector::Authorizedotnet::new())))
-                }
+                enums::Connector::Authorizedotnet => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Authorizedotnet::new(),
+                ))),
                 enums::Connector::Bambora => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Bambora::new())))
                 }
