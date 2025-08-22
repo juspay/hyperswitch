@@ -5,11 +5,10 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::router_flow_types::ExternalVaultRetrieveFlow;
 use hyperswitch_domain_models::{
-    payments::VaultData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -23,10 +22,7 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData, VaultRequestData,
     },
     router_response_types::{PaymentsResponseData, RefundsResponseData, VaultResponseData},
-    types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData, VaultRouterData,
-    },
+    types::VaultRouterData,
 };
 use hyperswitch_interfaces::{
     api::{
@@ -39,23 +35,13 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask};
+use masking::Mask;
 use transformers as vgs;
 
-use crate::{constants::headers, types::ResponseRouterData, utils};
+use crate::{constants::headers, types::ResponseRouterData};
 
 #[derive(Clone)]
-pub struct Vgs {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
-}
-
-impl Vgs {
-    pub fn new() -> &'static Self {
-        &Self {
-            amount_converter: &StringMinorUnitForConnector,
-        }
-    }
-}
+pub struct Vgs;
 
 impl api::Payment for Vgs {}
 impl api::PaymentSession for Vgs {}
@@ -69,10 +55,9 @@ impl api::Refund for Vgs {}
 impl api::RefundExecute for Vgs {}
 impl api::RefundSync for Vgs {}
 impl api::PaymentToken for Vgs {}
-#[cfg(feature = "v2")]
 impl api::ExternalVaultInsert for Vgs {}
-#[cfg(feature = "v2")]
 impl api::ExternalVault for Vgs {}
+impl api::ExternalVaultRetrieve for Vgs {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Vgs
@@ -105,10 +90,7 @@ impl ConnectorCommon for Vgs {
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        todo!()
-        //    TODO! Check connector documentation, on which unit they are processing the currency.
-        //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
-        //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
+        api::CurrencyUnit::Minor
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -169,13 +151,9 @@ impl ConnectorCommon for Vgs {
     }
 }
 
-impl ConnectorValidation for Vgs {
-    //TODO: implement functions when support enabled
-}
+impl ConnectorValidation for Vgs {}
 
-impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Vgs {
-    //TODO: implement sessions flow
-}
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Vgs {}
 
 impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Vgs {}
 
@@ -193,7 +171,6 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Vgs {}
 
 impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Vgs {}
 
-#[cfg(feature = "v2")]
 impl ConnectorIntegration<ExternalVaultInsertFlow, VaultRequestData, VaultResponseData> for Vgs {
     fn get_url(
         &self,
@@ -213,11 +190,10 @@ impl ConnectorIntegration<ExternalVaultInsertFlow, VaultRequestData, VaultRespon
         let auth_value = auth
             .username
             .zip(auth.password)
-            .map(|(project_id, secret_key)| {
+            .map(|(username, password)| {
                 format!(
                     "Basic {}",
-                    common_utils::consts::BASE64_ENGINE
-                        .encode(format!("{}:{}", project_id, secret_key))
+                    common_utils::consts::BASE64_ENGINE.encode(format!("{username}:{password}"))
                 )
             });
         Ok(vec![(
@@ -231,8 +207,7 @@ impl ConnectorIntegration<ExternalVaultInsertFlow, VaultRequestData, VaultRespon
         req: &VaultRouterData<ExternalVaultInsertFlow>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        // let connector_router_data = vgs::VgsRouterData::from((amount, req));
-        let connector_req = vgs::VgsPaymentsRequest::try_from(req)?;
+        let connector_req = vgs::VgsInsertRequest::try_from(req)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -264,10 +239,103 @@ impl ConnectorIntegration<ExternalVaultInsertFlow, VaultRequestData, VaultRespon
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<VaultRouterData<ExternalVaultInsertFlow>, errors::ConnectorError> {
-        let response: vgs::VgsPaymentsResponse = res
+        let response: vgs::VgsInsertResponse = res
             .response
-            .parse_struct("Vgs PaymentsAuthorizeResponse")
+            .parse_struct("VgsInsertResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+impl ConnectorIntegration<ExternalVaultRetrieveFlow, VaultRequestData, VaultResponseData> for Vgs {
+    fn get_url(
+        &self,
+        req: &VaultRouterData<ExternalVaultRetrieveFlow>,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        use common_utils::ext_traits::OptionExt;
+
+        let alias = req
+            .request
+            .connector_vault_id
+            .clone()
+            .get_required_value("connector_vault_id")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "connector_vault_id",
+            })?;
+
+        Ok(format!("{}aliases/{alias}", self.base_url(connectors)))
+    }
+
+    fn get_headers(
+        &self,
+        req: &VaultRouterData<ExternalVaultRetrieveFlow>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        let auth = vgs::VgsAuthType::try_from(&req.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let auth_value = auth
+            .username
+            .zip(auth.password)
+            .map(|(username, password)| {
+                format!(
+                    "Basic {}",
+                    common_utils::consts::BASE64_ENGINE.encode(format!("{username}:{password}"))
+                )
+            });
+        Ok(vec![(
+            headers::AUTHORIZATION.to_string(),
+            auth_value.into_masked(),
+        )])
+    }
+
+    fn get_http_method(&self) -> Method {
+        Method::Get
+    }
+
+    fn build_request(
+        &self,
+        req: &VaultRouterData<ExternalVaultRetrieveFlow>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Get)
+                .url(&types::ExternalVaultRetrieveType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::ExternalVaultRetrieveType::get_headers(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &VaultRouterData<ExternalVaultRetrieveFlow>,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<VaultRouterData<ExternalVaultRetrieveFlow>, errors::ConnectorError> {
+        let response: vgs::VgsRetrieveResponse =
+            res.response
+                .parse_struct("VgsRetrieveResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
