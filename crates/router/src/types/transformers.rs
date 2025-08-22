@@ -368,9 +368,9 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::SepaBankTransfer
             | api_enums::PaymentMethodType::IndonesianBankTransfer
             | api_enums::PaymentMethodType::Pix => Self::BankTransfer,
-            api_enums::PaymentMethodType::Givex | api_enums::PaymentMethodType::PaySafeCard => {
-                Self::GiftCard
-            }
+            api_enums::PaymentMethodType::Givex
+            | api_enums::PaymentMethodType::PaySafeCard
+            | api_enums::PaymentMethodType::BhnCardNetwork => Self::GiftCard,
             api_enums::PaymentMethodType::Benefit
             | api_enums::PaymentMethodType::Knet
             | api_enums::PaymentMethodType::MomoAtm

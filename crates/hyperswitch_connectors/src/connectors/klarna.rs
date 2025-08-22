@@ -552,6 +552,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::AliPayHk
                         | common_enums::PaymentMethodType::Alma
                         | common_enums::PaymentMethodType::AmazonPay
+                        | common_enums::PaymentMethodType::BhnCardNetwork
                         | common_enums::PaymentMethodType::Paysera
                         | common_enums::PaymentMethodType::Skrill
                         | common_enums::PaymentMethodType::ApplePay
@@ -686,6 +687,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Blik
                         | common_enums::PaymentMethodType::Boleto
                         | common_enums::PaymentMethodType::BcaBankTransfer
+                        | common_enums::PaymentMethodType::BhnCardNetwork
                         | common_enums::PaymentMethodType::BniVa
                         | common_enums::PaymentMethodType::BriVa
                         | common_enums::PaymentMethodType::CardRedirect
@@ -817,6 +819,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Bizum
                         | common_enums::PaymentMethodType::Blik
                         | common_enums::PaymentMethodType::Boleto
+                        | common_enums::PaymentMethodType::BhnCardNetwork
                         | common_enums::PaymentMethodType::BcaBankTransfer
                         | common_enums::PaymentMethodType::BniVa
                         | common_enums::PaymentMethodType::BriVa
@@ -940,6 +943,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Blik
                         | common_enums::PaymentMethodType::Boleto
                         | common_enums::PaymentMethodType::BcaBankTransfer
+                        | common_enums::PaymentMethodType::BhnCardNetwork
                         | common_enums::PaymentMethodType::BniVa
                         | common_enums::PaymentMethodType::BriVa
                         | common_enums::PaymentMethodType::CardRedirect
