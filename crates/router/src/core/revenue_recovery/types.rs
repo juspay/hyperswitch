@@ -156,10 +156,9 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                     );
                 };
 
-                let is_hard_decline =
-                    revenue_recovery::check_hard_decline(state, &payment_attempt)
-                        .await
-                        .ok();
+                let is_hard_decline = revenue_recovery::check_hard_decline(state, &payment_attempt)
+                    .await
+                    .ok();
 
                 // update the status of token in redis
                 let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
@@ -211,10 +210,9 @@ impl RevenueRecoveryPaymentsAttemptStatus {
 
                 let error_code = recovery_payment_attempt.error_code;
 
-                let is_hard_decline =
-                    revenue_recovery::check_hard_decline(state, &payment_attempt)
-                        .await
-                        .ok();
+                let is_hard_decline = revenue_recovery::check_hard_decline(state, &payment_attempt)
+                    .await
+                    .ok();
 
                 // update the status of token in redis
                 let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
