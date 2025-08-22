@@ -2584,9 +2584,9 @@ pub async fn get_decision_engine_active_dynamic_routing_algorithm(
         "decision_engine_euclid: GET api call for decision active {:?} routing algorithm",
         dynamic_routing_type
     );
-    let request = open_router::GetDecisionEngineConfigRequest {
+    let request = open_router::GetDecisionEngineAlgoRequest {
         merchant_id: profile_id.get_string_repr().to_owned(),
-        config: dynamic_routing_type,
+        algorithm: dynamic_routing_type,
     };
     let response: Option<open_router::DecisionEngineConfigSetupRequest> =
         routing_utils::ConfigApiClient::send_decision_engine_request(
@@ -2601,7 +2601,7 @@ pub async fn get_decision_engine_active_dynamic_routing_algorithm(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get active dynamic algorithm from decision engine")?
         .response;
-
+    
     Ok(response)
 }
 

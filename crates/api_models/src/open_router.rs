@@ -255,6 +255,12 @@ pub struct GetDecisionEngineConfigRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct GetDecisionEngineAlgoRequest {
+    pub merchant_id: String,
+    pub algorithm: DecisionEngineDynamicAlgorithmType,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub enum DecisionEngineDynamicAlgorithmType {
     SuccessRate,

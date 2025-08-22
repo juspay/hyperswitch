@@ -696,7 +696,15 @@ pub async fn link_routing_config(
                 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                 {
                     if state.conf.open_router.dynamic_routing_enabled {
-                        let chk = update_decision_engine_dynamic_routing_setup(
+                        let existing_config = helpers::get_decision_engine_active_dynamic_routing_algorithm(
+                        &state,
+                        business_profile.get_id(),
+                        api_models::open_router::DecisionEngineDynamicAlgorithmType::SuccessRate,
+                    )
+                    .await;
+
+                        if let Ok(Some(_config)) = existing_config {
+                            update_decision_engine_dynamic_routing_setup(
                             &state,
                             business_profile.get_id(),
                             routing_algorithm.algorithm_data.clone(),
@@ -707,8 +715,8 @@ pub async fn link_routing_config(
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable(
                             "Failed to update the success rate routing config in Decision Engine",
-                        );
-                        if let Err(_e) = chk {
+                        )?;
+                        } else {
                             let data: routing_types::SuccessBasedRoutingConfig =
                             routing_algorithm.algorithm_data
                                 .clone()
@@ -748,27 +756,35 @@ pub async fn link_routing_config(
                 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                 {
                     if state.conf.open_router.dynamic_routing_enabled {
-                        let chk = update_decision_engine_dynamic_routing_setup(
+                        let existing_config = helpers::get_decision_engine_active_dynamic_routing_algorithm(
                             &state,
                             business_profile.get_id(),
-                            routing_algorithm.algorithm_data.clone(),
-                            routing_types::DynamicRoutingType::EliminationRouting,
-                            &mut dynamic_routing_ref,
+                            api_models::open_router::DecisionEngineDynamicAlgorithmType::Elimination,
                         )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable(
-                            "Failed to update the elimination routing config in Decision Engine",
-                        );
-                        if let Err(_e) = chk {
+                        .await;
+
+                        if let Ok(Some(_config)) = existing_config {
+                            update_decision_engine_dynamic_routing_setup(
+                                &state,
+                                business_profile.get_id(),
+                                routing_algorithm.algorithm_data.clone(),
+                                routing_types::DynamicRoutingType::EliminationRouting,
+                                &mut dynamic_routing_ref,
+                            )
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable(
+                                "Failed to update the elimination routing config in Decision Engine",
+                            )?;
+                        } else {
                             let data: routing_types::EliminationRoutingConfig =
-                            routing_algorithm.algorithm_data
-                                .clone()
-                                .parse_value("EliminationRoutingConfig")
-                                .change_context(errors::ApiErrorResponse::InternalServerError)
-                                .attach_printable(
-                                    "unable to deserialize EliminationRoutingConfig from routing algorithm data",
-                                )?;
+                                routing_algorithm.algorithm_data
+                                    .clone()
+                                    .parse_value("EliminationRoutingConfig")
+                                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                                    .attach_printable(
+                                        "unable to deserialize EliminationRoutingConfig from routing algorithm data",
+                                    )?;
 
                             enable_decision_engine_dynamic_routing_setup(
                                 &state,
