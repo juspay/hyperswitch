@@ -2780,7 +2780,9 @@ pub enum CountryAlpha3 {
     Deserialize,
     Serialize,
     utoipa::ToSchema,
+    SmithyModel
 )]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum Country {
     Afghanistan,
     AlandIslands,

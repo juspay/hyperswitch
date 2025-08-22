@@ -637,7 +637,8 @@ fn parse_serde_enum_attributes(attrs: &[Attribute]) -> syn::Result<SerdeEnumAttr
 
     for attr in attrs {
         if attr.path().is_ident("serde") {
-            attr.parse_nested_meta(|meta| {
+            // Use more robust parsing that handles all serde attributes
+            let parse_result = attr.parse_nested_meta(|meta| {
                 if meta.path.is_ident("rename_all") {
                     if let Ok(value) = meta.value() {
                         if let Ok(lit) = value.parse::<Lit>() {
@@ -647,21 +648,59 @@ fn parse_serde_enum_attributes(attrs: &[Attribute]) -> syn::Result<SerdeEnumAttr
                         }
                     }
                 } else if meta.path.is_ident("tag") {
-                    // Parse and ignore the tag attribute for now
-                    // This prevents parsing errors when tag is present
+                    // Parse and ignore the tag attribute
                     if let Ok(value) = meta.value() {
                         let _ = value.parse::<Lit>();
                     }
                 } else if meta.path.is_ident("content") {
-                    // Parse and ignore the content attribute for now
-                    // This prevents parsing errors when content is present
+                    // Parse and ignore the content attribute
+                    if let Ok(value) = meta.value() {
+                        let _ = value.parse::<Lit>();
+                    }
+                } else if meta.path.is_ident("rename") {
+                    // Parse and ignore the rename attribute (used for enum renaming)
+                    if let Ok(value) = meta.value() {
+                        let _ = value.parse::<Lit>();
+                    }
+                } else if meta.path.is_ident("deny_unknown_fields") {
+                    // Handle deny_unknown_fields (no value needed)
+                    // This is a flag attribute with no value
+                } else if meta.path.is_ident("skip_serializing") {
+                    // Handle skip_serializing
+                } else if meta.path.is_ident("skip_deserializing") {
+                    // Handle skip_deserializing
+                } else if meta.path.is_ident("skip_serializing_if") {
+                    // Handle skip_serializing_if
+                    if let Ok(value) = meta.value() {
+                        let _ = value.parse::<syn::Expr>();
+                    }
+                } else if meta.path.is_ident("default") {
+                    // Handle default attribute
+                    // Could have a value or be a flag
+                    if meta.value().is_ok() {
+                        let _ = meta.value().and_then(|v| v.parse::<syn::Expr>());
+                    }
+                } else if meta.path.is_ident("flatten") {
+                    // Handle flatten (flag attribute)
+                } else if meta.path.is_ident("untagged") {
+                    // Handle untagged (flag attribute)
+                } else if meta.path.is_ident("bound") {
+                    // Handle bound attribute
                     if let Ok(value) = meta.value() {
                         let _ = value.parse::<Lit>();
                     }
                 }
-                // Ignore other serde attributes to prevent parsing errors
+                // Silently ignore any other serde attributes to prevent parsing errors
                 Ok(())
-            })?;
+            });
+
+            // If parsing failed, provide a more helpful error message
+            if let Err(e) = parse_result {
+                return Err(syn::Error::new_spanned(
+                    attr,
+                    format!("Failed to parse serde attribute: {}. This may be due to multiple serde attributes on separate lines. Consider consolidating them into a single #[serde(...)] attribute.", e)
+                ));
+            }
         }
     }
 

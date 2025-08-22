@@ -393,32 +393,41 @@ pub struct PixBankTransfer {
     pub tax_id: Option<Secret<String>>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum Wallet {
+    #[smithy(value_type = "Paypal")]
     Paypal(Paypal),
+    #[smithy(value_type = "Venmo")]
     Venmo(Venmo),
 }
 
-#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct Paypal {
     /// Email linked with paypal account
     #[schema(value_type = String, example = "john.doe@example.com")]
+    #[smithy(value_type = "String")]
     pub email: Option<Email>,
 
     /// mobile number linked to paypal account
     #[schema(value_type = String, example = "16608213349")]
+    #[smithy(value_type = "String")]
     pub telephone_number: Option<Secret<String>>,
 
     /// id of the paypal account
     #[schema(value_type = String, example = "G83KXTJ5EHCQ2")]
+    #[smithy(value_type = "String")]
     pub paypal_id: Option<Secret<String>>,
 }
 
-#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct Venmo {
     /// mobile number linked to venmo account
     #[schema(value_type = String, example = "16608213349")]
+    #[smithy(value_type = "String")]
     pub telephone_number: Option<Secret<String>>,
 }
 
