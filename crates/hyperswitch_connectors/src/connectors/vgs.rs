@@ -136,7 +136,7 @@ impl ConnectorCommon for Vgs {
 
         let error = response
             .errors
-            .get(0)
+            .first()
             .get_required_value("VgsErrorItem")
             .change_context(errors::ConnectorError::MissingRequiredField {
                 field_name: "VgsErrorItem",
