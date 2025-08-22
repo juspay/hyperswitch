@@ -3,18 +3,17 @@ use std::collections::HashMap;
 
 #[cfg(feature = "v2")]
 use api_models::{enums::RevenueRecoveryAlgorithmType, payments::PaymentsGetIntentRequest};
-
 #[cfg(feature = "v2")]
 use common_utils::{
-    ext_traits::{StringExt, ValueExt},
-    id_type,
     errors::CustomResult,
     ext_traits::AsyncExt,
+    ext_traits::{StringExt, ValueExt},
+    id_type,
 };
 #[cfg(feature = "v2")]
 use diesel_models::types::BillingConnectorPaymentMethodDetails;
 #[cfg(feature = "v2")]
-use error_stack::{Report,ResultExt};
+use error_stack::{Report, ResultExt};
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 use external_services::{
     date_time, grpc_client::revenue_recovery::recovery_decider_client as external_grpc_client,
@@ -23,14 +22,13 @@ use external_services::{
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     payments::{payment_attempt, PaymentConfirmData, PaymentIntent, PaymentIntentData},
-    router_flow_types::Authorize,
     router_flow_types,
+    router_flow_types::Authorize,
 };
 #[cfg(feature = "v2")]
 use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
-use router_env::{logger,tracing};
-
+use router_env::{logger, tracing};
 use scheduler::{consumer::workflows::ProcessTrackerWorkflow, errors};
 #[cfg(feature = "v2")]
 use scheduler::{types::process_data, utils as scheduler_utils};
@@ -47,9 +45,10 @@ use crate::routes::app::ReqState;
 use crate::services;
 #[cfg(feature = "v2")]
 use crate::types::storage::{
+    revenue_recovery::RetryLimitsConfig,
     revenue_recovery_redis_operation::{
-    PaymentProcessorTokenStatus, PaymentProcessorTokenWithRetryInfo, RedisTokenManager,
-}, revenue_recovery::RetryLimitsConfig
+        PaymentProcessorTokenStatus, PaymentProcessorTokenWithRetryInfo, RedisTokenManager,
+    },
 };
 #[cfg(feature = "v2")]
 use crate::workflows::revenue_recovery::pcr::api;

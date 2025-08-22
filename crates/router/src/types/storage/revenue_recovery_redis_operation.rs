@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+
 use common_enums::enums::CardNetwork;
 use common_utils::{date_time, errors::CustomResult, id_type};
 use error_stack::ResultExt;
@@ -7,6 +8,7 @@ use redis_interface::{DelReply, SetnxReply};
 use router_env::{instrument, tracing};
 use serde::{Deserialize, Serialize};
 use time::{Date, Duration, OffsetDateTime, PrimitiveDateTime};
+
 use crate::{db::errors, SessionState};
 
 // Constants for retry window management
@@ -65,7 +67,7 @@ pub struct PaymentProcessorTokenWithRetryInfo {
 pub struct RedisTokenManager;
 
 impl RedisTokenManager {
-    /// Lock connector customer 
+    /// Lock connector customer
     #[instrument(skip_all)]
     pub async fn lock_connector_customer_status(
         state: &SessionState,
@@ -342,7 +344,7 @@ impl RedisTokenManager {
             .sum()
     }
 
-    /// Calculate wait hours 
+    /// Calculate wait hours
     fn calculate_wait_hours(target_date: Date, now: OffsetDateTime) -> i64 {
         let expiry_time = target_date.midnight().assume_utc();
         (expiry_time - now).whole_hours().max(0)
@@ -392,7 +394,7 @@ impl RedisTokenManager {
         }
     }
 
-    // Upsert payment processor token 
+    // Upsert payment processor token
     #[instrument(skip_all)]
     pub async fn upsert_payment_processor_token(
         state: &SessionState,
@@ -447,7 +449,7 @@ impl RedisTokenManager {
         Ok(!was_existing)
     }
 
-    // Update payment processor token error code with billing connector response 
+    // Update payment processor token error code with billing connector response
     #[instrument(skip_all)]
     pub async fn update_payment_processor_token_error_code_from_process_tracker(
         state: &SessionState,
