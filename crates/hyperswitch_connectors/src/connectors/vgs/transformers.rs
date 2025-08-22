@@ -1,5 +1,5 @@
 use common_utils::{
-    ext_traits::{Encode, OptionExt, StringExt},
+    ext_traits::{Encode, StringExt},
     types::StringMinorUnit,
 };
 use error_stack::ResultExt;

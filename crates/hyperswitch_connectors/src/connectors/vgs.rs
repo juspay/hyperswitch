@@ -3,7 +3,7 @@ pub mod transformers;
 use base64::Engine;
 use common_utils::{
     errors::CustomResult,
-    ext_traits::{BytesExt, OptionExt},
+    ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
 };
 use error_stack::{report, ResultExt};
