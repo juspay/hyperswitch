@@ -47,14 +47,23 @@ impl<F> TryFrom<&VaultRouterData<F>> for VgsInsertRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &VaultRouterData<F>) -> Result<Self, Self::Error> {
         match item.request.payment_method_vaulting_data.clone() {
-            Some(PaymentMethodVaultingData::Card(req_card)) => Ok(Self {
-                data: vec![VgsTokenRequestItem {
-                    value: Secret::new(req_card.encode_to_string_of_json().unwrap()),
-                    classifiers: vec!["data".to_string()],
-                    format: "UUID".to_string(),
-                }],
-            }),
-            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
+            Some(PaymentMethodVaultingData::Card(req_card)) => {
+                let stringified_card = req_card
+                    .encode_to_string_of_json()
+                    .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+                Ok(Self {
+                    data: vec![VgsTokenRequestItem {
+                        value: Secret::new(stringified_card),
+                        classifiers: vec!["data".to_string()],
+                        format: "UUID".to_string(),
+                    }],
+                })
+            }
+            _ => Err(errors::ConnectorError::NotImplemented(
+                "Payment method apart from card".to_string(),
+            )
+            .into()),
         }
     }
 }
