@@ -166,7 +166,7 @@ where
             connector_integration.handle_response(req, None, response)
         }
         payments::CallConnectorAction::UCSHandleResponse(transform_data_bytes) => {
-            let webhook_transform_data: crate::core::unified_connector_service::WebhookTransformData = 
+            let webhook_transform_data: crate::core::unified_connector_service::WebhookTransformData =
                 serde_json::from_slice(&transform_data_bytes)
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)
                     .attach_printable("Failed to deserialize UCS webhook transform data")?;
