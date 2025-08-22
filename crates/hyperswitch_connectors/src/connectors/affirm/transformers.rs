@@ -271,7 +271,7 @@ impl TryFrom<&ConnectorAuthType> for AffirmAuthType {
 impl From<AffirmTransactionStatus> for common_enums::AttemptStatus {
     fn from(item: AffirmTransactionStatus) -> Self {
         match item {
-            AffirmTransactionStatus::Authorized => Self::Pending,
+            AffirmTransactionStatus::Authorized => Self::Authorized,
             AffirmTransactionStatus::AuthExpired => Self::Failure,
             AffirmTransactionStatus::Canceled => Self::Voided,
             AffirmTransactionStatus::Captured => Self::Charged,
