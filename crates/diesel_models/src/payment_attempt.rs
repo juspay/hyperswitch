@@ -982,7 +982,7 @@ impl PaymentAttemptUpdateInternal {
             processor_merchant_id: source.processor_merchant_id,
             created_by: source.created_by,
             payment_method_type_v2: source.payment_method_type_v2,
-            network_transaction_id:source.network_transaction_id,
+            network_transaction_id: source.network_transaction_id,
             connector_payment_id: source.connector_payment_id,
             payment_method_subtype: source.payment_method_subtype,
             routing_result: source.routing_result,
@@ -3560,7 +3560,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     setup_future_usage_applied: None,
                     routing_approach: None,
                     connector_request_reference_id: None,
-                    network_transaction_id:None,
+                    network_transaction_id: None,
                 }
             }
             PaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
