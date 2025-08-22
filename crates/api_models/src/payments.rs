@@ -1218,9 +1218,9 @@ pub struct PaymentsRequest {
     /// Allow partial authorization for this payment
     pub enable_partial_authorization: Option<bool>,
 
-    /// Bool indicating if overcapture  must be requested for all payments
+    /// Boolean indicating whether to enable overcapture for this payment
     #[remove_in(PaymentsConfirmRequest)]
-    #[schema(value_type = Option<bool>)]
+    #[schema(value_type = Option<bool>, example = true)]
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
 }
 
@@ -5384,7 +5384,7 @@ pub struct PaymentsResponse {
     #[schema(value_type = Option<bool>)]
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
 
-    /// Bool indicating if overcapture is enabled for this payment
+    /// Boolean indicating whether overcapture is effectively enabled for this payment
     #[schema(value_type = Option<bool>)]
     pub is_overcapture_enabled: Option<common_types::primitive_wrappers::OvercaptureEnabledBool>,
 }
