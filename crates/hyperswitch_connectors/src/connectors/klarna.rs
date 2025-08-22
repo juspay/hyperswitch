@@ -134,6 +134,7 @@ impl ConnectorCommon for Klarna {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -1421,7 +1422,8 @@ static KLARNA_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Laz
 static KLARNA_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Klarna",
     description: "Klarna provides payment processing services for the e-commerce industry, managing store claims and customer payments.",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Live,
 };
 
 static KLARNA_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

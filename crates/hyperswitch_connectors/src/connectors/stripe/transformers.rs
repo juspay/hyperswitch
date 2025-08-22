@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::Deref};
+use std::{collections::HashMap, fmt::Debug, ops::Deref};
 
 use api_models::{self, enums as api_enums, payments};
 use common_enums::{enums, AttemptStatus, PaymentChargeType, StripeChargeType};
@@ -24,7 +24,8 @@ use hyperswitch_domain_models::{
     router_flow_types::{Execute, RSync},
     router_request_types::{
         BrowserInformation, ChargeRefundsOptions, DestinationChargeRefund, DirectChargeRefund,
-        ResponseId, SplitRefundsRequest,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        PaymentsIncrementalAuthorizationData, ResponseId, SplitRefundsRequest,
     },
     router_response_types::{
         MandateReference, PaymentsResponseData, PreprocessingResponseId, RedirectForm,
@@ -45,8 +46,12 @@ use url::Url;
 
 use crate::{
     constants::headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT,
-    utils::{convert_uppercase, ApplePay, ApplePayDecrypt, RouterData as OtherRouterData},
+    utils::{
+        convert_uppercase, deserialize_zero_minor_amount_as_none, ApplePay,
+        RouterData as OtherRouterData,
+    },
 };
+
 #[cfg(feature = "payouts")]
 pub mod connect;
 #[cfg(feature = "payouts")]
@@ -64,6 +69,28 @@ use crate::{
 pub mod auth_headers {
     pub const STRIPE_API_VERSION: &str = "stripe-version";
     pub const STRIPE_VERSION: &str = "2022-11-15";
+}
+
+trait GetRequestIncrementalAuthorization {
+    fn get_request_incremental_authorization(&self) -> Option<bool>;
+}
+
+impl GetRequestIncrementalAuthorization for PaymentsAuthorizeData {
+    fn get_request_incremental_authorization(&self) -> Option<bool> {
+        Some(self.request_incremental_authorization)
+    }
+}
+
+impl GetRequestIncrementalAuthorization for PaymentsCaptureData {
+    fn get_request_incremental_authorization(&self) -> Option<bool> {
+        None
+    }
+}
+
+impl GetRequestIncrementalAuthorization for PaymentsCancelData {
+    fn get_request_incremental_authorization(&self) -> Option<bool> {
+        None
+    }
 }
 
 pub struct StripeAuthType {
@@ -257,7 +284,18 @@ pub struct StripeCardData {
     pub payment_method_auth_type: Option<Auth3ds>,
     #[serde(rename = "payment_method_options[card][network]")]
     pub payment_method_data_card_preferred_network: Option<StripeCardNetwork>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "payment_method_options[card][request_incremental_authorization]")]
+    pub request_incremental_authorization: Option<StripeRequestIncrementalAuthorization>,
 }
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StripeRequestIncrementalAuthorization {
+    IfAvailable,
+    Never,
+}
+
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripePayLaterData {
     #[serde(rename = "payment_method_data[type]")]
@@ -590,7 +628,7 @@ pub enum StripeWallet {
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeApplePayPredecrypt {
     #[serde(rename = "card[number]")]
-    number: Secret<String>,
+    number: cards::CardNumber,
     #[serde(rename = "card[exp_year]")]
     exp_year: Secret<String>,
     #[serde(rename = "card[exp_month]")]
@@ -1219,6 +1257,7 @@ fn create_stripe_payment_method(
     payment_method_token: Option<PaymentMethodToken>,
     is_customer_initiated_mandate_payment: Option<bool>,
     billing_address: StripeBillingAddress,
+    request_incremental_authorization: bool,
 ) -> Result<
     (
         StripePaymentMethodData,
@@ -1234,7 +1273,11 @@ fn create_stripe_payment_method(
                 enums::AuthenticationType::NoThreeDs => Auth3ds::Automatic,
             };
             Ok((
-                StripePaymentMethodData::try_from((card_details, payment_method_auth_type))?,
+                StripePaymentMethodData::try_from((
+                    card_details,
+                    payment_method_auth_type,
+                    request_incremental_authorization,
+                ))?,
                 Some(StripePaymentMethodType::Card),
                 billing_address,
             ))
@@ -1452,9 +1495,11 @@ fn get_stripe_card_network(card_network: common_enums::CardNetwork) -> Option<St
     }
 }
 
-impl TryFrom<(&Card, Auth3ds)> for StripePaymentMethodData {
+impl TryFrom<(&Card, Auth3ds, bool)> for StripePaymentMethodData {
     type Error = ConnectorError;
-    fn try_from((card, payment_method_auth_type): (&Card, Auth3ds)) -> Result<Self, Self::Error> {
+    fn try_from(
+        (card, payment_method_auth_type, request_incremental_authorization): (&Card, Auth3ds, bool),
+    ) -> Result<Self, Self::Error> {
         Ok(Self::Card(StripeCardData {
             payment_method_data_type: StripePaymentMethodType::Card,
             payment_method_data_card_number: card.card_number.clone(),
@@ -1466,6 +1511,11 @@ impl TryFrom<(&Card, Auth3ds)> for StripePaymentMethodData {
                 .card_network
                 .clone()
                 .and_then(get_stripe_card_network),
+            request_incremental_authorization: if request_incremental_authorization {
+                Some(StripeRequestIncrementalAuthorization::IfAvailable)
+            } else {
+                None
+            },
         }))
     }
 }
@@ -1481,14 +1531,12 @@ impl TryFrom<(&WalletData, Option<PaymentMethodToken>)> for StripePaymentMethodD
                     if let Some(PaymentMethodToken::ApplePayDecrypt(decrypt_data)) =
                         payment_method_token
                     {
-                        let expiry_year_4_digit = decrypt_data.get_four_digit_expiry_year()?;
-                        let exp_month = decrypt_data.get_expiry_month()?;
-
+                        let expiry_year_4_digit = decrypt_data.get_four_digit_expiry_year();
                         Some(Self::Wallet(StripeWallet::ApplePayPredecryptToken(
                             Box::new(StripeApplePayPredecrypt {
                                 number: decrypt_data.clone().application_primary_account_number,
                                 exp_year: expiry_year_4_digit,
-                                exp_month,
+                                exp_month: decrypt_data.application_expiration_month,
                                 eci: decrypt_data.payment_data.eci_indicator,
                                 cryptogram: decrypt_data.payment_data.online_payment_cryptogram,
                                 tokenization_method: "apple_pay".to_string(),
@@ -1665,7 +1713,10 @@ impl TryFrom<&GooglePayWalletData> for StripePaymentMethodData {
             token: Secret::new(
                 gpay_data
                     .tokenization_data
-                    .token
+                    .get_encrypted_google_pay_token()
+                    .change_context(ConnectorError::MissingRequiredField {
+                        field_name: "gpay wallet_token",
+                    })?
                     .as_bytes()
                     .parse_struct::<StripeGpayToken>("StripeGpayToken")
                     .change_context(ConnectorError::InvalidWalletToken {
@@ -1813,6 +1864,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                                     .card_network
                                     .clone()
                                     .and_then(get_stripe_card_network),
+                            request_incremental_authorization: None,
                         }),
                         PaymentMethodData::CardRedirect(_)
                         | PaymentMethodData::Wallet(_)
@@ -1861,6 +1913,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                                     field_name: "billing_address",
                                 }
                             })?,
+                            item.request.request_incremental_authorization,
                         )?;
 
                     validate_shipping_address_against_payment_method(
@@ -2186,6 +2239,7 @@ impl TryFrom<&TokenizationRouterData> for TokenRequest {
                     item.payment_method_token.clone(),
                     None,
                     StripeBillingAddress::default(),
+                    false,
                 )?
                 .0
             }
@@ -2299,6 +2353,11 @@ impl TryFrom<&PaymentsAuthorizeRouterData> for StripeSplitPaymentRequest {
     }
 }
 
+#[derive(Debug, Serialize)]
+pub struct StripeIncrementalAuthRequest {
+    pub amount: MinorUnit,
+}
+
 #[derive(Clone, Default, Debug, Eq, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum StripePaymentStatus {
@@ -2342,6 +2401,8 @@ pub struct PaymentIntentResponse {
     pub id: String,
     pub object: String,
     pub amount: MinorUnit,
+    #[serde(default, deserialize_with = "deserialize_zero_minor_amount_as_none")]
+    // stripe gives amount_captured as 0 for payment intents instead of 0
     pub amount_received: Option<MinorUnit>,
     pub amount_capturable: Option<MinorUnit>,
     pub currency: String,
@@ -2660,10 +2721,11 @@ fn extract_payment_method_connector_response_from_latest_attempt(
 impl<F, T> TryFrom<ResponseRouterData<F, PaymentIntentResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 where
-    T: SplitPaymentData,
+    T: SplitPaymentData + GetRequestIncrementalAuthorization,
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
+        //
         item: ResponseRouterData<F, PaymentIntentResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let redirect_data = item.response.next_action.clone();
@@ -2742,7 +2804,10 @@ where
                 connector_metadata,
                 network_txn_id,
                 connector_response_reference_id: Some(item.response.id),
-                incremental_authorization_allowed: None,
+                incremental_authorization_allowed: item
+                    .data
+                    .request
+                    .get_request_incremental_authorization(),
                 charges,
             })
         };
@@ -2755,10 +2820,12 @@ where
 
         Ok(Self {
             status,
-            // client_secret: Some(item.response.client_secret.clone().as_str()),
-            // description: item.response.description.map(|x| x.as_str()),
-            // statement_descriptor_suffix: item.response.statement_descriptor_suffix.map(|x| x.as_str()),
-            // three_ds_form,
+            /* Commented out fields:
+            client_secret: Some(item.response.client_secret.clone().as_str()),
+            description: item.response.description.map(|x| x.as_str()),
+            statement_descriptor_suffix: item.response.statement_descriptor_suffix.map(|x| x.as_str()),
+            three_ds_form,
+            */
             response,
             amount_captured: item
                 .response
@@ -2766,6 +2833,55 @@ where
                 .map(|amount| amount.get_amount_as_i64()),
             minor_amount_captured: item.response.amount_received,
             connector_response: connector_response_data,
+            ..item.data
+        })
+    }
+}
+
+impl From<StripePaymentStatus> for common_enums::AuthorizationStatus {
+    fn from(item: StripePaymentStatus) -> Self {
+        match item {
+            StripePaymentStatus::Succeeded
+            | StripePaymentStatus::RequiresCapture
+            | StripePaymentStatus::Chargeable
+            | StripePaymentStatus::RequiresCustomerAction
+            | StripePaymentStatus::RequiresConfirmation
+            | StripePaymentStatus::Consumed => Self::Success,
+            StripePaymentStatus::Processing | StripePaymentStatus::Pending => Self::Processing,
+            StripePaymentStatus::Failed
+            | StripePaymentStatus::Canceled
+            | StripePaymentStatus::RequiresPaymentMethod => Self::Failure,
+        }
+    }
+}
+
+impl<F>
+    TryFrom<
+        ResponseRouterData<
+            F,
+            PaymentIntentResponse,
+            PaymentsIncrementalAuthorizationData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<F, PaymentsIncrementalAuthorizationData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            F,
+            PaymentIntentResponse,
+            PaymentsIncrementalAuthorizationData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let status = common_enums::AuthorizationStatus::from(item.response.status);
+        Ok(Self {
+            response: Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
+                status,
+                error_code: None,
+                error_message: None,
+                connector_authorization_id: Some(item.response.id),
+            }),
             ..item.data
         })
     }
@@ -3432,6 +3548,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRout
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         } else {
             Ok(RefundsResponseData {
@@ -3468,6 +3585,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         } else {
             Ok(RefundsResponseData {
@@ -3759,6 +3877,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ChargesResponse, T, PaymentsResponseDat
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
@@ -4040,7 +4159,11 @@ impl
                     enums::AuthenticationType::ThreeDs => Auth3ds::Any,
                     enums::AuthenticationType::NoThreeDs => Auth3ds::Automatic,
                 };
-                Ok(Self::try_from((ccard, payment_method_auth_type))?)
+                Ok(Self::try_from((
+                    ccard,
+                    payment_method_auth_type,
+                    item.request.request_incremental_authorization,
+                ))?)
             }
             PaymentMethodData::PayLater(_) => Ok(Self::PayLater(StripePayLaterData {
                 payment_method_data_type: pm_type,
@@ -4391,6 +4514,7 @@ fn get_stripe_payments_response_data(
         network_error_message: response
             .as_ref()
             .and_then(|res| res.decline_code.clone().or(res.advice_code.clone())),
+        connector_metadata: None,
     }))
 }
 

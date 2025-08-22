@@ -13,6 +13,8 @@ use common_utils::id_type;
 use external_services::email::{
     no_email::NoEmailClient, ses::AwsSes, smtp::SmtpServer, EmailClientConfigs, EmailService,
 };
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+use external_services::grpc_client::revenue_recovery::GrpcRecoveryHeaders;
 use external_services::{
     file_storage::FileStorageInterface,
     grpc_client::{GrpcClients, GrpcHeaders},
@@ -148,6 +150,12 @@ impl SessionState {
     pub fn get_grpc_headers(&self) -> GrpcHeaders {
         GrpcHeaders {
             tenant_id: self.tenant.tenant_id.get_string_repr().to_string(),
+            request_id: self.request_id.map(|req_id| (*req_id).to_string()),
+        }
+    }
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+    pub fn get_recovery_grpc_headers(&self) -> GrpcRecoveryHeaders {
+        GrpcRecoveryHeaders {
             request_id: self.request_id.map(|req_id| (*req_id).to_string()),
         }
     }
@@ -557,9 +565,20 @@ impl AppState {
 
 pub struct Health;
 
+#[cfg(feature = "v1")]
 impl Health {
     pub fn server(state: AppState) -> Scope {
         web::scope("health")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::get().to(health)))
+            .service(web::resource("/ready").route(web::get().to(deep_health_check)))
+    }
+}
+
+#[cfg(feature = "v2")]
+impl Health {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/v2/health")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::get().to(health)))
             .service(web::resource("/ready").route(web::get().to(deep_health_check)))
@@ -646,6 +665,10 @@ impl Payments {
                 web::resource("/aggregate").route(web::get().to(payments::get_payments_aggregates)),
             )
             .service(
+                web::resource("/recovery")
+                    .route(web::post().to(payments::recovery_payments_create)),
+            )
+            .service(
                 web::resource("/profile/aggregate")
                     .route(web::get().to(payments::get_payments_aggregates_profile)),
             );
@@ -674,6 +697,10 @@ impl Payments {
                 .service(
                     web::resource("/proxy-confirm-intent")
                         .route(web::post().to(payments::proxy_confirm_intent)),
+                )
+                .service(
+                    web::resource("/confirm-intent/external-vault-proxy")
+                        .route(web::post().to(payments::confirm_intent_with_external_vault_proxy)),
                 )
                 .service(
                     web::resource("/get-intent")
@@ -731,7 +758,7 @@ pub struct Proxy;
 #[cfg(all(feature = "oltp", feature = "v2"))]
 impl Proxy {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/proxy")
+        web::scope("/v2/proxy")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(proxy::proxy)))
     }
@@ -804,6 +831,9 @@ impl Payments {
                 )
                 .service(
                     web::resource("/{payment_id}/cancel").route(web::post().to(payments::payments_cancel)),
+                )
+                .service(
+                    web::resource("/{payment_id}/cancel_post_capture").route(web::post().to(payments::payments_cancel_post_capture)),
                 )
                 .service(
                     web::resource("/{payment_id}/capture").route(web::post().to(payments::payments_capture)),
@@ -1476,11 +1506,16 @@ pub struct Tokenization;
 #[cfg(all(feature = "v2", feature = "oltp"))]
 impl Tokenization {
     pub fn server(state: AppState) -> Scope {
-        let mut token_route = web::scope("/v2/tokenize").app_data(web::Data::new(state));
-        token_route = token_route.service(
-            web::resource("").route(web::post().to(tokenization_routes::create_token_vault_api)),
-        );
-        token_route
+        web::scope("/v2/tokenize")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("")
+                    .route(web::post().to(tokenization_routes::create_token_vault_api)),
+            )
+            .service(
+                web::resource("/{id}")
+                    .route(web::delete().to(tokenization_routes::delete_tokenized_data_api)),
+            )
     }
 }
 
@@ -1852,10 +1887,25 @@ impl Webhooks {
 
 pub struct Configs;
 
-#[cfg(any(feature = "olap", feature = "oltp"))]
+#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
 impl Configs {
     pub fn server(config: AppState) -> Scope {
         web::scope("/configs")
+            .app_data(web::Data::new(config))
+            .service(web::resource("/").route(web::post().to(config_key_create)))
+            .service(
+                web::resource("/{key}")
+                    .route(web::get().to(config_key_retrieve))
+                    .route(web::post().to(config_key_update))
+                    .route(web::delete().to(config_key_delete)),
+            )
+    }
+}
+
+#[cfg(all(feature = "v2", any(feature = "olap", feature = "oltp")))]
+impl Configs {
+    pub fn server(config: AppState) -> Scope {
+        web::scope("/v2/configs")
             .app_data(web::Data::new(config))
             .service(web::resource("/").route(web::post().to(config_key_create)))
             .service(
@@ -1967,6 +2017,10 @@ impl Disputes {
             )
             .service(
                 web::resource("/{dispute_id}").route(web::get().to(disputes::retrieve_dispute)),
+            )
+            .service(
+                web::resource("/{connector_id}/fetch")
+                    .route(web::get().to(disputes::fetch_disputes)),
             )
     }
 }
@@ -2139,6 +2193,10 @@ impl Profile {
                                 web::resource("/toggle")
                                     .route(web::post().to(routing::toggle_success_based_routing)),
                             )
+                            .service(
+                                web::resource("/create")
+                                    .route(web::post().to(routing::create_success_based_routing)),
+                            )
                             .service(web::resource("/config/{algorithm_id}").route(
                                 web::patch().to(|state, req, path, payload| {
                                     routing::success_based_routing_update_configs(
@@ -2160,6 +2218,10 @@ impl Profile {
                             .service(
                                 web::resource("/toggle")
                                     .route(web::post().to(routing::toggle_elimination_routing)),
+                            )
+                            .service(
+                                web::resource("/create")
+                                    .route(web::post().to(routing::create_elimination_routing)),
                             )
                             .service(web::resource("config/{algorithm_id}").route(
                                 web::patch().to(|state, req, path, payload| {
@@ -2230,7 +2292,7 @@ impl ProfileNew {
 
 pub struct Gsm;
 
-#[cfg(all(feature = "olap", feature = "v1"))]
+#[cfg(all(feature = "v1", feature = "olap"))]
 impl Gsm {
     pub fn server(state: AppState) -> Scope {
         web::scope("/gsm")
@@ -2242,6 +2304,17 @@ impl Gsm {
     }
 }
 
+#[cfg(all(feature = "v2", feature = "olap"))]
+impl Gsm {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/v2/gsm")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::post().to(gsm::create_gsm_rule)))
+            .service(web::resource("/get").route(web::post().to(gsm::get_gsm_rule)))
+            .service(web::resource("/update").route(web::post().to(gsm::update_gsm_rule)))
+            .service(web::resource("/delete").route(web::post().to(gsm::delete_gsm_rule)))
+    }
+}
 pub struct Chat;
 
 #[cfg(feature = "olap")]

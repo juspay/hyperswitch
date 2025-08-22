@@ -1,7 +1,5 @@
 pub mod transformers;
 
-use std::fmt::Debug;
-
 use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
 use common_enums::{CaptureMethod, PaymentMethod, PaymentMethodType};
 use common_utils::{
@@ -9,6 +7,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -45,15 +44,26 @@ use hyperswitch_interfaces::{
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
 use masking::{Mask as _, Maskable};
+use transformers as dummyconnector;
 
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{construct_not_supported_error_report, RefundsRequestData as _},
+    utils::{construct_not_supported_error_report, convert_amount, RefundsRequestData as _},
 };
 
-#[derive(Debug, Clone)]
-pub struct DummyConnector<const T: u8>;
+#[derive(Clone)]
+pub struct DummyConnector<const T: u8> {
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+}
+
+impl<const T: u8> DummyConnector<T> {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &MinorUnitForConnector,
+        }
+    }
+}
 
 impl<const T: u8> Payment for DummyConnector<T> {}
 impl<const T: u8> PaymentSession for DummyConnector<T> {}
@@ -151,6 +161,7 @@ impl<const T: u8> ConnectorCommon for DummyConnector<T> {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -237,7 +248,15 @@ impl<const T: u8> ConnectorIntegration<Authorize, PaymentsAuthorizeData, Payment
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, ConnectorError> {
-        let connector_req = transformers::DummyConnectorPaymentsRequest::<T>::try_from(req)?;
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.currency,
+        )?;
+
+        let connector_router_data = dummyconnector::DummyConnectorRouterData::from((amount, req));
+        let connector_req =
+            transformers::DummyConnectorPaymentsRequest::<T>::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -480,7 +499,15 @@ impl<const T: u8> ConnectorIntegration<Execute, RefundsData, RefundsResponseData
         req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, ConnectorError> {
-        let connector_req = transformers::DummyConnectorRefundRequest::try_from(req)?;
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
+            req.request.currency,
+        )?;
+
+        let connector_router_data = dummyconnector::DummyConnectorRouterData::from((amount, req));
+        let connector_req =
+            transformers::DummyConnectorRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
