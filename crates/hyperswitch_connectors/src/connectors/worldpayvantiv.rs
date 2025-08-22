@@ -1,7 +1,6 @@
 pub mod transformers;
 
 use std::sync::LazyLock;
-
 use base64::Engine;
 use common_utils::{
     consts::BASE64_ENGINE,
@@ -1706,7 +1705,9 @@ impl ConnectorSpecifications for Worldpayvantiv {
         {
             payment_attempt.payment_id.get_string_repr().to_owned()
         } else {
-            connector_utils::generate_12_digit_number().to_string()
+            let max_payment_reference_id_length =
+                worldpayvantiv::worldpayvantiv_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH;
+            nanoid::nanoid!(max_payment_reference_id_length)
         }
     }
     #[cfg(feature = "v2")]
