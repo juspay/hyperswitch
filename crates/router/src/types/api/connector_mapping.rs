@@ -108,6 +108,9 @@ impl ConnectorData {
                 enums::Connector::Adyen => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Adyen::new())))
                 }
+                enums::Connector::Affirm => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Affirm::new())))
+                }
                 enums::Connector::Adyenplatform => Ok(ConnectorEnum::Old(Box::new(
                     connector::Adyenplatform::new(),
                 ))),

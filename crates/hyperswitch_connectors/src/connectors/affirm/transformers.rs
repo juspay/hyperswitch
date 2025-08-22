@@ -155,17 +155,27 @@ pub struct Address {
 
 #[derive(Debug, Serialize)]
 pub struct Metadata {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub shipping_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub entity_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub platform_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub platform_version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub platform_affirm: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub webhook_session_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub mode: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub customer: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub itinerary: Option<Vec<Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub checkout_channel_type: Option<String>,
-    #[serde(rename = "BOPIS")]
+    #[serde(rename = "BOPIS", skip_serializing_if = "Option::is_none")]
     pub bopis: Option<bool>,
 }
 
@@ -346,57 +356,26 @@ impl TryFrom<&ConnectorAuthType> for AffirmAuthType {
     }
 }
 
-#[derive(Debug, Copy, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "lowercase")]
-pub enum AffirmPaymentStatus {
-    Authorized,
-    Completed,
-    Succeeded,
-    Failed,
-    Pending,
-    Processing,
-    Abandoned,
-    Settled,
-    Refunded,
-    Declined,
-}
-
-impl From<AffirmPaymentStatus> for common_enums::AttemptStatus {
-    fn from(item: AffirmPaymentStatus) -> Self {
-        match item {
-            AffirmPaymentStatus::Authorized => Self::Authorizing,
-            AffirmPaymentStatus::Completed
-            | AffirmPaymentStatus::Succeeded
-            | AffirmPaymentStatus::Settled => Self::Charged,
-            AffirmPaymentStatus::Failed
-            | AffirmPaymentStatus::Declined
-            | AffirmPaymentStatus::Abandoned => Self::Failure,
-            AffirmPaymentStatus::Pending | AffirmPaymentStatus::Processing => Self::Authorizing,
-            AffirmPaymentStatus::Refunded => Self::Charged,
-        }
-    }
-}
-
 impl From<AffirmTransactionStatus> for common_enums::AttemptStatus {
     fn from(item: AffirmTransactionStatus) -> Self {
         match item {
             AffirmTransactionStatus::Authorized => Self::Authorized,
-            AffirmTransactionStatus::AuthExpired => Self::AuthorizationFailed,
+            AffirmTransactionStatus::AuthExpired => Self::Failure,
             AffirmTransactionStatus::Canceled => Self::Voided,
             AffirmTransactionStatus::Captured => Self::Charged,
-            AffirmTransactionStatus::ConfirmationExpired => Self::AuthorizationFailed,
+            AffirmTransactionStatus::ConfirmationExpired => Self::Failure,
             AffirmTransactionStatus::Confirmed => Self::Authorized,
             AffirmTransactionStatus::Created => Self::Pending,
             AffirmTransactionStatus::Declined => Self::Failure,
             AffirmTransactionStatus::Disputed => Self::Unresolved,
             AffirmTransactionStatus::DisputeRefunded => Self::AutoRefunded,
-            AffirmTransactionStatus::ExpiredAuthorization => Self::AuthorizationFailed,
-            AffirmTransactionStatus::ExpiredConfirmation => Self::AuthorizationFailed,
+            AffirmTransactionStatus::ExpiredAuthorization => Self::Failure,
+            AffirmTransactionStatus::ExpiredConfirmation => Self::Failure,
             AffirmTransactionStatus::PartiallyCaptured => Self::PartialCharged,
-            AffirmTransactionStatus::PartiallyRefunded => Self::PartialChargedAndChargeable,
+            AffirmTransactionStatus::PartiallyRefunded => Self::PartialCharged,
             AffirmTransactionStatus::Refunded => Self::AutoRefunded,
             AffirmTransactionStatus::Voided => Self::Voided,
-            AffirmTransactionStatus::PartiallyVoided => Self::VoidInitiated,
+            AffirmTransactionStatus::PartiallyVoided => Self::Voided,
         }
     }
 }
@@ -412,8 +391,8 @@ pub struct AffirmPaymentsResponse {
 pub struct AffirmCompleteAuthorizeResponse {
     pub id: String,
     pub status: AffirmTransactionStatus,
-    pub amount: i64,
-    pub amount_refunded: i64,
+    pub amount: MinorUnit,
+    pub amount_refunded: MinorUnit,
     pub authorization_expiration: String,
     pub checkout_id: String,
     pub created: String,
@@ -441,11 +420,11 @@ pub struct AffirmCompleteAuthorizeResponse {
 #[serde(rename_all = "snake_case")]
 pub struct TransactionEvent {
     pub id: String,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub created: String,
     pub currency: Currency,
     pub fee: Option<i64>,
-    pub fee_refunded: Option<i64>,
+    pub fee_refunded: Option<MinorUnit>,
     pub reference_id: Option<String>,
     #[serde(rename = "type")]
     pub event_type: AffirmEventType,
@@ -468,7 +447,7 @@ pub struct LoanInformation {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct LoanFees {
-    pub amount: Option<i64>,
+    pub amount: Option<MinorUnit>,
     pub description: Option<String>,
 }
 
@@ -497,8 +476,8 @@ pub enum AffirmTransactionStatus {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct AffirmPSyncResponse {
-    pub amount: i64,
-    pub amount_refunded: i64,
+    pub amount: MinorUnit,
+    pub amount_refunded: MinorUnit,
     pub authorization_expiration: String,
     pub checkout_id: String,
     pub created: String,
@@ -511,7 +490,7 @@ pub struct AffirmPSyncResponse {
     pub status: AffirmEventType,
     pub checkout: Option<Value>,
     pub refund_expires: Option<String>,
-    pub remaining_capturable_amount: Option<i64>,
+    pub remaining_capturable_amount: Option<MinorUnit>,
     pub loan_information: Option<LoanInformation>,
     pub shipping_carrier: Option<String>,
     pub shipping_confirmation: Option<String>,
@@ -779,16 +758,15 @@ pub enum AffirmEventType {
 impl From<AffirmEventType> for enums::AttemptStatus {
     fn from(event_type: AffirmEventType) -> Self {
         match event_type {
-            AffirmEventType::Auth => Self::Authorizing,
-            AffirmEventType::AuthExpired => Self::AuthorizationFailed,
+            AffirmEventType::Auth => Self::Authorized,
             AffirmEventType::Capture | AffirmEventType::SplitCapture | AffirmEventType::Confirm => {
                 Self::Charged
             }
-            AffirmEventType::ChargeOff => Self::Failure,
-            AffirmEventType::ConfirmationExpired => Self::Failure,
-            AffirmEventType::ExpireAuthorization | AffirmEventType::ExpireConfirmation => {
-                Self::AuthorizationFailed
-            }
+            AffirmEventType::AuthExpired
+            | AffirmEventType::ChargeOff
+            | AffirmEventType::ConfirmationExpired
+            | AffirmEventType::ExpireAuthorization
+            | AffirmEventType::ExpireConfirmation => Self::Failure,
             AffirmEventType::Refund | AffirmEventType::RefundVoided => Self::AutoRefunded,
             AffirmEventType::Update => Self::Pending,
             AffirmEventType::Void | AffirmEventType::PartialVoid => Self::Voided,
