@@ -714,11 +714,12 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
             item.router_data.request.payment_channel.clone(),
         ));
 
-
         let (authorization, sale) =
             if item.router_data.request.is_auto_capture()? && item.amount != MinorUnit::zero() {
-                let merchant_txn_id =
-                get_valid_transaction_id(item.router_data.connector_request_reference_id.clone(), "sale.id")?;
+                let merchant_txn_id = get_valid_transaction_id(
+                    item.router_data.connector_request_reference_id.clone(),
+                    "sale.id",
+                )?;
                 (
                     None,
                     Some(Sale {
@@ -750,8 +751,10 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
                 } else {
                     OperationId::Auth
                 };
-                let merchant_txn_id =
-                get_valid_transaction_id(item.router_data.connector_request_reference_id.clone(), "authorization.id")?;
+                let merchant_txn_id = get_valid_transaction_id(
+                    item.router_data.connector_request_reference_id.clone(),
+                    "authorization.id",
+                )?;
                 (
                     Some(Authorization {
                         id: format!("{operation_id}_{merchant_txn_id}"),
@@ -852,8 +855,10 @@ impl TryFrom<&SetupMandateRouterData> for CnpOnlineRequest {
             item.request.payment_method_data.clone(),
             item.request.payment_channel.clone(),
         ));
-        let merchant_txn_id =
-            get_valid_transaction_id(item.connector_request_reference_id.clone(), "authorization.id")?;
+        let merchant_txn_id = get_valid_transaction_id(
+            item.connector_request_reference_id.clone(),
+            "authorization.id",
+        )?;
         let authorization_data = Authorization {
             id: format!("{}_{merchant_txn_id}", OperationId::Sale),
             report_group: report_group.clone(),
@@ -1039,8 +1044,10 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsCaptureRouterData>> for CnpOnlin
                 "Failed to obtain report_group from metadata".to_string(),
             ),
         )?;
-        let merchant_txn_id =
-            get_valid_transaction_id(item.router_data.connector_request_reference_id.clone(), "capture.id")?;
+        let merchant_txn_id = get_valid_transaction_id(
+            item.router_data.connector_request_reference_id.clone(),
+            "capture.id",
+        )?;
         let capture = Some(Capture {
             id: format!("{}_{}", OperationId::Capture, merchant_txn_id),
             report_group,
@@ -1086,8 +1093,10 @@ impl<F> TryFrom<&WorldpayvantivRouterData<&RefundsRouterData<F>>> for CnpOnlineR
             ),
         )?;
         let customer_id = extract_customer_id(item.router_data);
-        let merchant_txn_id =
-            get_valid_transaction_id(item.router_data.connector_request_reference_id.clone(), "credit.id")?;
+        let merchant_txn_id = get_valid_transaction_id(
+            item.router_data.connector_request_reference_id.clone(),
+            "credit.id",
+        )?;
 
         let credit = Some(RefundRequest {
             id: format!("{}_{merchant_txn_id}", OperationId::Refund),
@@ -1750,8 +1759,10 @@ impl TryFrom<&PaymentsCancelRouterData> for CnpOnlineRequest {
                 "Failed to obtain report_group from metadata".to_string(),
             ),
         )?;
-        let merchant_txn_id =
-            get_valid_transaction_id(item.connector_request_reference_id.clone(), "authReversal.id")?;
+        let merchant_txn_id = get_valid_transaction_id(
+            item.connector_request_reference_id.clone(),
+            "authReversal.id",
+        )?;
         let auth_reversal = Some(AuthReversal {
             id: format!("{}_{merchant_txn_id}", OperationId::Void),
             report_group,
