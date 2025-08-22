@@ -15,8 +15,6 @@ pub mod disputes;
 pub mod errors;
 pub mod ext_traits;
 pub mod gsm;
-#[cfg(feature = "v2")]
-pub mod injector;
 pub mod mandates;
 pub mod merchant_account;
 pub mod merchant_connector_account;

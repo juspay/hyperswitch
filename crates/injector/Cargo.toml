@@ -23,10 +23,10 @@ default = [
     "dep:url"
 ]
 
-v1 = []
-v2 = []
-serde = []
-tracing-actix-web = []
+v1 = ["default"]
+v2 = ["default"] 
+serde = ["default"]
+tracing-actix-web = ["default"]
 
 [dependencies]
 hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces", optional = true }

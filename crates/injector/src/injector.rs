@@ -535,6 +535,9 @@ pub mod core {
     }
 }
 
+// Re-export all items
+pub use core::*;
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
@@ -787,6 +790,3 @@ connection_config: ConnectionConfig {
         );
     }
 }
-
-// Re-export all items
-pub use core::*;
