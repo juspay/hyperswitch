@@ -1,12 +1,10 @@
 pub mod core {
     use std::collections::HashMap;
 
-    use crate::{ContentType, InjectorRequest, InjectorResponse};
     use async_trait::async_trait;
     use common_utils::request::{Method, RequestBuilder, RequestContent};
     use error_stack::ResultExt;
     use external_services::http_client;
-    use crate as injector_types;
     use hyperswitch_interfaces::types::Proxy;
     use masking::{self, ExposeInterface};
     use nom::{
@@ -18,6 +16,9 @@ pub mod core {
     use router_env::{instrument, logger, tracing};
     use serde_json::Value;
     use thiserror::Error;
+
+    use crate as injector_types;
+    use crate::{ContentType, InjectorRequest, InjectorResponse};
 
     #[derive(Error, Debug)]
     pub enum InjectorError {
@@ -537,10 +538,10 @@ pub mod core {
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
-    use crate::*;
     use router_env::logger;
 
     use super::core::*;
+    use crate::*;
 
     #[test]
     fn test_token_parsing() {
