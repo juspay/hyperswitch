@@ -5,9 +5,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, Encode},
     id_type,
-    types::{
-        AmountConvertor, FloatMajorUnit, MinorUnit, StringMajorUnit, StringMajorUnitForConnector,
-    },
+    types::{AmountConvertor, FloatMajorUnit, StringMajorUnit, StringMajorUnitForConnector},
 };
 use crc::{Algorithm, Crc};
 use error_stack::ResultExt;
@@ -256,7 +254,6 @@ impl
         };
 
         Ok(Self::Boleto(Box::new(SantanderBoletoPaymentRequest {
-            workspace_id: santander_mca_metadata.workspace_id.clone(),
             environment: Environment::from(*value.2),
             nsu_code: value.0.router_data.payment_id.clone(), // size: 20
             nsu_date: Utc::now().date_naive(),
@@ -299,23 +296,27 @@ impl
                 ),
                 neighborhood: value.0.router_data.get_billing_line1()?,
                 city: value.0.router_data.get_billing_city()?,
-                state: value.0.router_data.get_billing_state()?,
+                state: BrazilianState::try_from(
+                    value.0.router_data.get_billing_state()?.expose().as_str(),
+                )?,
                 zipcode: value.0.router_data.get_billing_zip()?,
             },
             beneficiary: None,
-            document_kind: BoletoDocumentKind::BoletoProposta, // to change
-            discount: DiscountType::Isento,                    // to change
-            discount_one: None,
-            discount_two: None,
-            discount_three: None,
-            fine_percentage: voucher_data.fine_percentage,
-            fine_quantity_days: voucher_data.fine_quantity_days,
-            interest_percentage: voucher_data.interest_percentage,
+            document_kind: BoletoDocumentKind::BillProposal, // to change
+            discount: Some(Discount {
+                discount_type: DiscountType::Free, // to change
+                discount_one: None,
+                discount_two: None,
+                discount_three: None,
+            }),
+            fine_percentage: voucher_data.fine_percentage.clone(),
+            fine_quantity_days: voucher_data.fine_quantity_days.clone(),
+            interest_percentage: voucher_data.interest_percentage.clone(),
             deduction_value: None,
             protest_type: None,
             protest_quantity_days: None,
-            write_off_quantity_days: voucher_data.write_off_quantity_days,
-            payment_type: PaymentType::Registro,
+            write_off_quantity_days: voucher_data.write_off_quantity_days.clone(),
+            payment_type: PaymentType::Registration,
             parcels_quantity: None,
             value_type: None,
             min_value_or_percentage: None,
@@ -372,10 +373,19 @@ pub enum SantanderPaymentRequest {
     Boleto(Box<SantanderBoletoPaymentRequest>),
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Discount {
+    #[serde(rename = "type")]
+    pub discount_type: DiscountType,
+    pub discount_one: Option<DiscountObject>,
+    pub discount_two: Option<DiscountObject>,
+    pub discount_three: Option<DiscountObject>,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SantanderBoletoPaymentRequest {
-    pub workspace_id: String,
+    // pub workspace_id: String,
     pub environment: Environment,
     pub nsu_code: String,
     pub nsu_date: chrono::NaiveDate,
@@ -390,30 +400,58 @@ pub struct SantanderBoletoPaymentRequest {
     pub payer: Payer,
     pub beneficiary: Option<Beneficiary>,
     pub document_kind: BoletoDocumentKind,
-    pub discount: DiscountType,
-    pub discount_one: Option<Discount>,
-    pub discount_two: Option<Discount>,
-    pub discount_three: Option<Discount>,
-    pub fine_percentage: Option<FloatMajorUnit>,
-    pub fine_quantity_days: Option<MinorUnit>,
-    pub interest_percentage: Option<FloatMajorUnit>,
+    pub discount: Option<Discount>,
+    pub fine_percentage: Option<String>,
+    pub fine_quantity_days: Option<String>,
+    pub interest_percentage: Option<String>,
     pub deduction_value: Option<FloatMajorUnit>,
     pub protest_type: Option<ProtestType>,
-    pub protest_quantity_days: Option<MinorUnit>,
-    pub write_off_quantity_days: Option<MinorUnit>,
+    pub protest_quantity_days: Option<i64>,
+    pub write_off_quantity_days: Option<String>,
     pub payment_type: PaymentType,
-    pub parcels_quantity: Option<MinorUnit>,
+    pub parcels_quantity: Option<i64>,
     pub value_type: Option<String>,
-    pub min_value_or_percentage: Option<FloatMajorUnit>,
-    pub max_value_or_percentage: Option<FloatMajorUnit>,
-    pub iof_percentage: Option<FloatMajorUnit>,
+    pub min_value_or_percentage: Option<f64>,
+    pub max_value_or_percentage: Option<f64>,
+    pub iof_percentage: Option<f64>,
     pub sharing: Option<Sharing>,
     pub key: Option<Key>,
     pub tx_id: Option<String>,
     pub messages: Option<Vec<String>>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum BrazilianState {
+    RR, // Roraima
+    AM, // Amazonas
+    AP, // Amapá
+    PA, // Pará
+    AC, // Acre
+    RO, // Rondônia
+    TO, // Tocantins
+    MA, // Maranhão
+    PI, // Piauí
+    CE, // Ceará
+    RN, // Rio Grande do Norte
+    PB, // Paraíba
+    PE, // Pernambuco
+    AL, // Alagoas
+    SE, // Sergipe
+    BA, // Bahia
+    MT, // Mato Grosso
+    DF, // Distrito Federal
+    GO, // Goiás
+    MS, // Mato Grosso do Sul
+    MG, // Minas Gerais
+    ES, // Espírito Santo
+    RJ, // Rio de Janeiro
+    SP, // São Paulo
+    PR, // Paraná
+    SC, // Santa Catarina
+    RS, // Rio Grande do Sul
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Payer {
     pub name: Secret<String>,
@@ -422,11 +460,11 @@ pub struct Payer {
     pub address: Secret<String>,
     pub neighborhood: Secret<String>,
     pub city: String,
-    pub state: Secret<String>,
+    pub state: BrazilianState,
     pub zipcode: Secret<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Beneficiary {
     pub name: Option<Secret<String>>,
@@ -434,11 +472,13 @@ pub struct Beneficiary {
     pub document_number: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum Environment {
-    Teste,
-    Producao,
+    #[serde(rename = "Teste")]
+    Sandbox,
+    #[serde(rename = "Producao")]
+    Production,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -448,63 +488,91 @@ pub enum SantanderDocumentKind {
     Cnpj,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BoletoDocumentKind {
-    DuplicataMercantil,
-    DuplicataServico,
-    NotaPromissoria,
-    NotaPromissoriaRural,
-    Recibo,
-    ApoliceSeguro,
-    BoletoCartaoCredito,
-    BoletoProposta,
-    BoletoDepositoAporte,
-    Cheque,
-    NotaPromissoriaDireta,
-    Outros,
+    #[serde(rename = "DUPLICATA_MERCANTIL")]
+    DuplicateMercantil,
+    #[serde(rename = "DUPLICATA_SERVICO")]
+    DuplicateService,
+    #[serde(rename = "NOTA_PROMISSORIA")]
+    PromissoryNote,
+    #[serde(rename = "NOTA_PROMISSORIA_RURAL")]
+    RuralPromissoryNote,
+    #[serde(rename = "RECIBO")]
+    Receipt,
+    #[serde(rename = "APOLICE_SEGURO")]
+    InsurancePolicy,
+    #[serde(rename = "BOLETO_CARTAO_CREDITO")]
+    BillCreditCard,
+    #[serde(rename = "BOLETO_PROPOSTA")]
+    BillProposal,
+    #[serde(rename = "BOLETO_DEPOSITO_APORTE")]
+    BoletoDepositoAponte,
+    #[serde(rename = "CHEQUE")]
+    Check,
+    #[serde(rename = "NOTA_PROMISSORIA_DIRETA")]
+    DirectPromissoryNote,
+    #[serde(rename = "OUTROS")]
+    Others,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum DiscountType {
-    Isento,
-    ValorDataFixa,
-    ValorDiaCorrido,
-    ValorDiaUtil,
+    #[serde(rename = "ISENTO")]
+    Free,
+    #[serde(rename = "VALOR_DATA_FIXA")]
+    FixedDateValue,
+    #[serde(rename = "VALOR_DIA_CORRIDO")]
+    ValueDayConductor,
+    #[serde(rename = "VALOR_DIA_UTIL")]
+    ValueWorthDay,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub struct Discount {
+pub struct DiscountObject {
     pub value: StringMajorUnit, // Changed from f64 → String for API safety
     pub limit_date: String,     // YYYY-MM-DD
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ProtestType {
-    SemProtesto,
-    DiasCorridos,
-    DiasUteis,
-    CadastroConvenio,
+    #[serde(rename = "SEM_PROTESTO")]
+    WithoutProtest,
+
+    #[serde(rename = "DIAS_CORRIDOS")]
+    DaysConducted,
+
+    #[serde(rename = "DIAS_UTEIS")]
+    WorkingDays,
+
+    #[serde(rename = "CADASTRO_CONVENIO")]
+    RegistrationAgreement,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum PaymentType {
-    Registro,
-    Divergente,
-    Parcial,
+    #[serde(rename = "REGISTRO")]
+    Registration,
+
+    #[serde(rename = "DIVERGENTE")]
+    Divergent,
+
+    #[serde(rename = "PARCIAL")]
+    Partial,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Sharing {
     pub code: String,
     pub value: FloatMajorUnit, // Changed from f64 → String for monetary precision
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Key {
     #[serde(rename = "type")]
     pub key_type: Option<String>,
@@ -594,29 +662,102 @@ impl From<SantanderPaymentStatus> for common_enums::AttemptStatus {
     }
 }
 
-impl From<router_env::env::Env> for Environment {
-    fn from(item: router_env::env::Env) -> Self {
-        match item {
-            router_env::env::Env::Sandbox | router_env::env::Env::Development => Self::Teste,
-            router_env::env::Env::Production => Self::Producao,
+impl TryFrom<&str> for BrazilianState {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(name: &str) -> Result<Self, Self::Error> {
+        match name.to_lowercase().as_str() {
+            "roraima" => Ok(Self::RR),
+            "amazonas" => Ok(Self::AM),
+            "amapá" | "amapa" => Ok(Self::AP),
+            "pará" | "para" => Ok(Self::PA),
+            "acre" => Ok(Self::AC),
+            "rondônia" | "rondonia" => Ok(Self::RO),
+            "tocantins" => Ok(Self::TO),
+            "maranhão" | "maranhao" => Ok(Self::MA),
+            "piauí" | "piaui" => Ok(Self::PI),
+            "ceará" | "ceara" => Ok(Self::CE),
+            "rio grande do norte" => Ok(Self::RN),
+            "paraíba" | "paraiba" => Ok(Self::PB),
+            "pernambuco" => Ok(Self::PE),
+            "alagoas" => Ok(Self::AL),
+            "sergipe" => Ok(Self::SE),
+            "bahia" => Ok(Self::BA),
+            "mato grosso" => Ok(Self::MT),
+            "distrito federal" => Ok(Self::DF),
+            "goiás" | "goias" => Ok(Self::GO),
+            "mato grosso do sul" => Ok(Self::MS),
+            "minas gerais" => Ok(Self::MG),
+            "espírito santo" | "espirito santo" => Ok(Self::ES),
+            "rio de janeiro" => Ok(Self::RJ),
+            "são paulo" | "sao paulo" => Ok(Self::SP),
+            "paraná" | "parana" => Ok(Self::PR),
+            "santa catarina" => Ok(Self::SC),
+            "rio grande do sul" => Ok(Self::RS),
+            _ => Err(errors::ConnectorError::InvalidDataFormat {
+                field_name: "state",
+            }
+            .into()),
         }
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+impl From<router_env::env::Env> for Environment {
+    fn from(item: router_env::env::Env) -> Self {
+        match item {
+            router_env::env::Env::Sandbox | router_env::env::Env::Development => Self::Sandbox,
+            router_env::env::Env::Production => Self::Production,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SantanderPaymentsResponse {
-    PixQRCode(SantanderPixQRCodePaymentsResponse),
-    Boleto(SantanderBoletoPaymentsResponse),
+    PixQRCode(Box<SantanderPixQRCodePaymentsResponse>),
+    Boleto(Box<SantanderBoletoPaymentsResponse>),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SantanderBoletoPaymentsResponse {
-    barcode: String,        // data type not clear
-    digitable_line: String, // data type not clear
-    entry_date: i64,        // data type not clear
+    pub environment: Environment,
+    pub nsu_code: String,
+    pub nsu_date: chrono::NaiveDate,
+    pub covenant_code: String,
+    pub bank_number: String,
+    pub client_number: Option<id_type::CustomerId>,
+    pub due_date: chrono::NaiveDate,
+    pub issue_date: chrono::NaiveDate,
+    pub participant_code: Option<String>,
+    pub nominal_value: StringMajorUnit,
+    pub payer: Payer,
+    pub beneficiary: Option<Beneficiary>,
+    pub document_kind: BoletoDocumentKind,
+    pub discount: Option<Discount>,
+    pub fine_percentage: Option<String>,
+    pub fine_quantity_days: Option<String>,
+    pub interest_percentage: Option<String>,
+    pub deduction_value: Option<FloatMajorUnit>,
+    pub protest_type: Option<ProtestType>,
+    pub protest_quantity_days: Option<i64>,
+    pub write_off_quantity_days: Option<String>,
+    pub payment_type: PaymentType,
+    pub parcels_quantity: Option<i64>,
+    pub value_type: Option<String>,
+    pub min_value_or_percentage: Option<f64>,
+    pub max_value_or_percentage: Option<f64>,
+    pub iof_percentage: Option<f64>,
+    pub sharing: Option<Sharing>,
+    pub key: Option<Key>,
+    pub tx_id: Option<String>,
+    pub messages: Option<Vec<String>>,
+    pub barcode: Option<String>,
+    pub digitable_line: Option<String>,
+    pub entry_date: Option<chrono::NaiveDate>,
+    pub qr_code_pix: Option<String>,
+    pub qr_code_url: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SantanderPixQRCodePaymentsResponse {
     #[serde(rename = "calendario")]
     pub calendar: SantanderCalendar,
@@ -669,8 +810,14 @@ pub struct SantanderCalendar {
     pub expiration: i32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct SantanderPaymentsSyncResponse {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum SantanderPaymentsSyncResponse {
+    PixQRCode(Box<SantanderPixQRCodeResponse>),
+    Boleto(Box<SantanderBoletoPaymentsResponse>),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SantanderPixQRCodeResponse {
     pub status: SantanderPaymentStatus,
     pub pix: Vec<SantanderPix>,
     #[serde(rename = "calendario")]
@@ -720,25 +867,70 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
         item: ResponseRouterData<F, SantanderPaymentsSyncResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let response = item.response.clone();
-        let connector_metadata = response.pix.first().map(|pix| {
-            serde_json::json!({
-                "end_to_end_id": pix.end_to_end_id.clone().expose()
-            })
-        });
-        Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.status),
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(response.transaction_id.clone()),
-                redirection_data: Box::new(None),
-                mandate_reference: Box::new(None),
-                connector_metadata,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
-                charges: None,
-            }),
-            ..item.data
-        })
+
+        match response {
+            SantanderPaymentsSyncResponse::PixQRCode(pix_data) => {
+                let connector_metadata = pix_data.pix.first().map(|pix| {
+                    serde_json::json!({
+                        "end_to_end_id": pix.end_to_end_id.clone().expose()
+                    })
+                });
+                Ok(Self {
+                    status: common_enums::AttemptStatus::from(pix_data.status),
+                    response: Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(
+                            pix_data.transaction_id.clone(),
+                        ),
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
+                        connector_metadata,
+                        network_txn_id: None,
+                        connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
+                        charges: None,
+                    }),
+                    ..item.data
+                })
+            }
+            SantanderPaymentsSyncResponse::Boleto(boleto_data) => {
+                let voucher_data = VoucherNextStepData {
+                    expires_at: None,
+                    digitable_line: boleto_data.digitable_line,
+                    reference: boleto_data.barcode.ok_or(
+                        errors::ConnectorError::MissingConnectorRedirectionPayload {
+                            field_name: "barcode",
+                        },
+                    )?,
+                    entry_date: boleto_data.entry_date,
+                    download_url: None,
+                    instructions_url: None,
+                };
+
+                let connector_metadata = Some(voucher_data.encode_to_value())
+                    .transpose()
+                    .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+
+                let resource_id = match boleto_data.tx_id {
+                    Some(tx_id) => ResponseId::ConnectorTransactionId(tx_id),
+                    None => ResponseId::NoResponseId,
+                };
+
+                Ok(Self {
+                    status: common_enums::AttemptStatus::AuthenticationPending,
+                    response: Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id,
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
+                        connector_metadata,
+                        network_txn_id: None,
+                        connector_response_reference_id: Some(boleto_data.bank_number),
+                        incremental_authorization_allowed: None,
+                        charges: None,
+                    }),
+                    ..item.data
+                })
+            }
+        }
     }
 }
 
@@ -771,9 +963,13 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
             SantanderPaymentsResponse::Boleto(boleto_data) => {
                 let voucher_data = VoucherNextStepData {
                     expires_at: None,
-                    digitable_line: Some(boleto_data.digitable_line),
-                    reference: boleto_data.barcode,
-                    entry_date: Some(boleto_data.entry_date),
+                    digitable_line: boleto_data.digitable_line,
+                    reference: boleto_data.barcode.ok_or(
+                        errors::ConnectorError::MissingConnectorRedirectionPayload {
+                            field_name: "barcode",
+                        },
+                    )?,
+                    entry_date: boleto_data.entry_date,
                     download_url: None,
                     instructions_url: None,
                 };
@@ -782,15 +978,20 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
                     .transpose()
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
+                let resource_id = match boleto_data.tx_id {
+                    Some(tx_id) => ResponseId::ConnectorTransactionId(tx_id),
+                    None => ResponseId::NoResponseId,
+                };
+
                 Ok(Self {
                     status: common_enums::AttemptStatus::AuthenticationPending,
                     response: Ok(PaymentsResponseData::TransactionResponse {
-                        resource_id: ResponseId::NoResponseId,
+                        resource_id,
                         redirection_data: Box::new(None),
                         mandate_reference: Box::new(None),
                         connector_metadata,
                         network_txn_id: None,
-                        connector_response_reference_id: None,
+                        connector_response_reference_id: Some(boleto_data.bank_number),
                         incremental_authorization_allowed: None,
                         charges: None,
                     }),
@@ -980,7 +1181,7 @@ pub enum SantanderErrorResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SantanderBoletoErrorResponse {
     #[serde(rename = "_errorCode")]
-    pub error_code: String,
+    pub error_code: i64,
 
     #[serde(rename = "_message")]
     pub error_message: String,
@@ -994,8 +1195,20 @@ pub struct SantanderBoletoErrorResponse {
     #[serde(rename = "_traceId")]
     pub trace_id: String,
 
-    #[serde(skip_serializing, skip_deserializing)]
-    pub errors: Option<String>,
+    #[serde(rename = "_errors")]
+    pub errors: Option<Vec<ErrorObject>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ErrorObject {
+    #[serde(rename = "_code")]
+    pub code: Option<i64>,
+
+    #[serde(rename = "_field")]
+    pub field: Option<String>,
+
+    #[serde(rename = "_message")]
+    pub message: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -1046,7 +1259,7 @@ pub struct SantanderWebhookBody {
     pub final_beneficiary_document_number: String,
     pub final_beneficiary_name: String,
     pub due_date: String,
-    pub nominal_value: String,
+    pub nominal_value: StringMajorUnit,
     pub payed_value: String,
     pub interest_value: String,
     pub fine: String,

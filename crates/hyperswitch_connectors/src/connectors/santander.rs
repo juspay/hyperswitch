@@ -164,7 +164,14 @@ impl ConnectorCommon for Santander {
                 status_code: res.status_code,
                 code: response.error_code.to_string(),
                 message: response.error_message.clone(),
-                reason: response.errors.clone(),
+                reason: Some(
+                    response
+                        .errors
+                        .as_ref()
+                        .and_then(|v| v.first())
+                        .map(|e| e.message.clone())
+                        .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                ),
                 attempt_status: None,
                 connector_transaction_id: None,
                 network_advice_code: None,
@@ -333,12 +340,13 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         )?;
 
         let url = connectors.santander.secondary_base_url.as_deref();
-        let env =
-            if url == Some("https://trust-open.api.santander.com.br/collection_bill_management/") {
-                router_env::env::Env::Sandbox // change later when PROD url is confirmed
-            } else {
-                router_env::env::Env::Production
-            };
+        let env = if url
+            == Some("https://trust-sandbox.api.santander.com.br/collection_bill_management/")
+        {
+            router_env::env::Env::Sandbox // change later when PROD url is confirmed
+        } else {
+            router_env::env::Env::Production
+        };
 
         let connector_router_data = santander::SantanderRouterData::from((amount, req));
         let connector_req =
@@ -443,18 +451,46 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_payment_id = req
-            .request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        match req.request.payment_method_type {
+            Some(enums::PaymentMethodType::Pix) => {
+                let connector_payment_id = req
+                    .request
+                    .connector_transaction_id
+                    .get_connector_transaction_id()
+                    .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
 
-        Ok(format!(
-            "{}{}{}",
-            self.base_url(connectors),
-            "cob/",
-            connector_payment_id
-        ))
+                Ok(format!(
+                    "{}{}{}",
+                    self.base_url(connectors),
+                    "cob/",
+                    connector_payment_id
+                ))
+            }
+            Some(enums::PaymentMethodType::Boleto) => {
+                let santander_mca_metadata =
+                    santander::SantanderMetadataObject::try_from(&req.connector_meta_data)?;
+
+                let workspace_id = santander_mca_metadata.workspace_id.clone();
+
+                let bank_number = req.request.connector_reference_id.clone().ok_or(
+                    errors::ConnectorError::MissingConnectorRelatedTransactionID {
+                        id: "bank_number".to_string(),
+                    },
+                )?;
+
+                Ok(format!(
+                    "{:?}{}/workspaces/{}/bank_slips/{}",
+                    connectors.santander.secondary_base_url.clone(),
+                    santander_constants::SANTANDER_VERSION,
+                    workspace_id,
+                    bank_number
+                ))
+            }
+            _ => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "payment_method_type",
+            }
+            .into()),
+        }
     }
 
     fn build_request(
@@ -482,7 +518,15 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
             .response
             .parse_struct("santander SantanderPaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let original_amount = response.value.original.clone();
+
+        let original_amount = match response {
+            santander::SantanderPaymentsSyncResponse::PixQRCode(ref pix_data) => {
+                pix_data.value.original.clone()
+            }
+            santander::SantanderPaymentsSyncResponse::Boleto(ref boleto_data) => {
+                boleto_data.nominal_value.clone()
+            }
+        };
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);

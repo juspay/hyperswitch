@@ -16,7 +16,6 @@ use common_utils::{
         MaskedBankAccount, MaskedIban, MaskedRoutingNumber, MaskedSortCode, MaskedUpiVpaId,
     },
     pii::{self, Email},
-    types::{FloatMajorUnit, MinorUnit},
 };
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -650,10 +649,10 @@ pub struct BoletoVoucherData {
     pub social_security_number: Option<Secret<String>>,
     pub bank_number: Option<String>,
     pub document_type: Option<common_enums::DocumentKind>,
-    pub fine_percentage: Option<FloatMajorUnit>,
-    pub fine_quantity_days: Option<MinorUnit>,
-    pub interest_percentage: Option<FloatMajorUnit>,
-    pub write_off_quantity_days: Option<MinorUnit>,
+    pub fine_percentage: Option<String>,
+    pub fine_quantity_days: Option<String>,
+    pub interest_percentage: Option<String>,
+    pub write_off_quantity_days: Option<String>,
     pub messages: Option<Vec<String>>,
     // The date upon which the boleto is due and is of format: "YYYY-MM-DD"
     pub due_date: Option<chrono::NaiveDate>,

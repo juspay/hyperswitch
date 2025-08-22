@@ -24,6 +24,7 @@ revenue_recovery = []
 tokenization_v2 = ["common_utils/tokenization_v2"]
 
 [dependencies]
+ordered-float = { version = "3", features = ["serde"] }
 actix-multipart = { version = "0.6.2", optional = true }
 actix-web = { version = "4.11.0", optional = true }
 error-stack = "0.4.1"

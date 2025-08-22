@@ -21,6 +21,7 @@ revenue_recovery= []
 
 [dependencies]
 # First party deps
+ordered-float = { version = "3", features = ["serde"] }
 api_models = { version = "0.1.0", path = "../api_models", features = ["errors"] }
 cards = { version = "0.1.0", path = "../cards" }
 common_enums = { version = "0.1.0", path = "../common_enums" }

@@ -26,7 +26,7 @@ use common_utils::{
     id_type,
     new_type::MaskedBankAccount,
     pii::{self, Email},
-    types::{FloatMajorUnit, MinorUnit, StringMajorUnit},
+    types::{MinorUnit, StringMajorUnit},
 };
 #[cfg(feature = "v2")]
 use deserialize_form_style_query_parameter::option_form_vec_deserialize;
@@ -4170,20 +4170,20 @@ pub struct BoletoVoucherData {
     pub document_type: Option<common_enums::DocumentKind>,
 
     /// The fine percentage charged if payment is overdue
-    #[schema(value_type = Option<f64>)]
-    pub fine_percentage: Option<FloatMajorUnit>,
+    #[schema(value_type = Option<String>)]
+    pub fine_percentage: Option<String>,
 
     /// The number of days after the due date when the fine is applied
-    #[schema(value_type = Option<i64>)]
-    pub fine_quantity_days: Option<MinorUnit>,
+    #[schema(value_type = Option<String>)]
+    pub fine_quantity_days: Option<String>,
 
     /// The interest percentage charged on late payments
-    #[schema(value_type = Option<f64>)]
-    pub interest_percentage: Option<FloatMajorUnit>,
+    #[schema(value_type = Option<String>)]
+    pub interest_percentage: Option<String>,
 
     /// The number of days after which the boleto is written off (canceled)
-    #[schema(value_type = Option<i64>)]
-    pub write_off_quantity_days: Option<MinorUnit>,
+    #[schema(value_type = Option<String>)]
+    pub write_off_quantity_days: Option<String>,
 
     /// Custom messages or instructions to display on the boleto
     #[schema(value_type = Option<Vec<String>>)]
@@ -4900,7 +4900,7 @@ pub struct BankTransferNextStepsData {
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct VoucherNextStepData {
     /// Voucher entry date
-    pub entry_date: Option<i64>,
+    pub entry_date: Option<NaiveDate>,
     /// Voucher expiry date and time
     pub expires_at: Option<i64>,
     /// Reference number required for the transaction

@@ -7154,26 +7154,22 @@
             "nullable": true
           },
           "fine_percentage": {
-            "type": "number",
-            "format": "double",
+            "type": "string",
             "description": "The fine percentage charged if payment is overdue",
             "nullable": true
           },
           "fine_quantity_days": {
-            "type": "integer",
-            "format": "int64",
+            "type": "string",
             "description": "The number of days after the due date when the fine is applied",
             "nullable": true
           },
           "interest_percentage": {
-            "type": "number",
-            "format": "double",
+            "type": "string",
             "description": "The interest percentage charged on late payments",
             "nullable": true
           },
           "write_off_quantity_days": {
-            "type": "integer",
-            "format": "int64",
+            "type": "string",
             "description": "The number of days after which the boleto is written off (canceled)",
             "nullable": true
           },

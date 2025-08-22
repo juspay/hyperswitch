@@ -602,16 +602,9 @@ where
     }
 }
 
-impl PartialEq for FloatMajorUnit {
-    fn eq(&self, other: &Self) -> bool {
-        self.0.total_cmp(&other.0) == std::cmp::Ordering::Equal
-    }
-}
-impl Eq for FloatMajorUnit {}
-
 /// Connector specific types to send
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy)]
-pub struct FloatMajorUnit(pub f64);
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq)]
+pub struct FloatMajorUnit(f64);
 
 impl FloatMajorUnit {
     /// forms a new major unit from amount
