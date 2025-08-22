@@ -191,11 +191,7 @@ impl PaymentMetricAccumulator for SuccessRateAccumulator {
 }
 
 impl PaymentMetricAccumulator for DebitRoutingAccumulator {
-    type MetricOutput = (
-        Option<u64>,
-        Option<u64>,
-        Option<u64>,
-    );
+    type MetricOutput = (Option<u64>, Option<u64>, Option<u64>);
 
     fn add_metrics_bucket(&mut self, metrics: &PaymentMetricRow) {
         if let Some(count) = metrics.count {
@@ -472,11 +468,8 @@ impl PaymentMetricsAccumulator {
         ) = self.payments_distribution.collect();
         let (failure_reason_count, failure_reason_count_without_smart_retries) =
             self.failure_reasons_distribution.collect();
-        let (
-            debit_routed_transaction_count,
-            debit_routing_savings,
-            debit_routing_savings_in_usd,
-        ) = self.debit_routing.collect();
+        let (debit_routed_transaction_count, debit_routing_savings, debit_routing_savings_in_usd) =
+            self.debit_routing.collect();
 
         PaymentMetricsBucketValue {
             payment_success_rate: self.payment_success_rate.collect(),
