@@ -201,6 +201,7 @@ impl ConnectorCommon for Fiserv {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -1018,7 +1019,8 @@ static FISERV_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Fiserv",
     description:
         "Fiserv is a global fintech and payments company with solutions for banking, global commerce, merchant acquiring, billing and payments, and point-of-sale ",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Sandbox,
 };
 
 static FISERV_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

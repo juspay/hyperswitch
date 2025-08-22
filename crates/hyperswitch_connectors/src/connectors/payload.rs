@@ -168,6 +168,7 @@ impl ConnectorCommon for Payload {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -853,7 +854,8 @@ static PAYLOAD_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = La
 static PAYLOAD_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Payload",
     description: "Payload is an embedded finance solution for modern platforms and businesses, automating inbound and outbound payments with an industry-leading platform and driving innovation into the future.",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 
 static PAYLOAD_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 3] = [

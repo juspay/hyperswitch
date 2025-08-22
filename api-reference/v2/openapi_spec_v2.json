@@ -2441,11 +2441,10 @@
             "description": "The connector to filter payments list",
             "required": true,
             "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/Connector"
-                }
-              ],
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/Connector"
+              },
               "nullable": true
             }
           },
@@ -2455,11 +2454,10 @@
             "description": "The currency to filter payments list",
             "required": true,
             "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/Currency"
-                }
-              ],
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/Currency"
+              },
               "nullable": true
             }
           },
@@ -2469,11 +2467,10 @@
             "description": "The payment status to filter payments list",
             "required": true,
             "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/IntentStatus"
-                }
-              ],
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/IntentStatus"
+              },
               "nullable": true
             }
           },
@@ -2483,11 +2480,10 @@
             "description": "The payment method type to filter payments list",
             "required": true,
             "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/PaymentMethod"
-                }
-              ],
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/PaymentMethod"
+              },
               "nullable": true
             }
           },
@@ -2497,11 +2493,10 @@
             "description": "The payment method subtype to filter payments list",
             "required": true,
             "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/PaymentMethodType"
-                }
-              ],
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              },
               "nullable": true
             }
           },
@@ -2511,11 +2506,10 @@
             "description": "The authentication type to filter payments list",
             "required": true,
             "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/AuthenticationType"
-                }
-              ],
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/AuthenticationType"
+              },
               "nullable": true
             }
           },
@@ -2525,7 +2519,10 @@
             "description": "The merchant connector id to filter payments list",
             "required": true,
             "schema": {
-              "type": "string",
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
               "nullable": true
             }
           },
@@ -2553,11 +2550,10 @@
             "description": "The card networks to filter payments list",
             "required": true,
             "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/CardNetwork"
-                }
-              ],
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/CardNetwork"
+              },
               "nullable": true
             }
           },
@@ -4058,8 +4054,7 @@
             "type": "string",
             "nullable": true
           }
-        },
-        "additionalProperties": false
+        }
       },
       "AddressDetails": {
         "type": "object",
@@ -4135,8 +4130,7 @@
             "nullable": true,
             "maxLength": 50
           }
-        },
-        "additionalProperties": false
+        }
       },
       "AdyenConnectorMetadata": {
         "type": "object",
@@ -8384,6 +8378,7 @@
           "deutschebank",
           "digitalvirgo",
           "dlocal",
+          "dwolla",
           "ebanx",
           "elavon",
           "facilitapay",
@@ -8506,7 +8501,10 @@
         "type": "object",
         "required": [
           "name",
-          "supported_payment_methods"
+          "display_name",
+          "description",
+          "category",
+          "integration_status"
         ],
         "properties": {
           "name": {
@@ -8515,28 +8513,25 @@
           },
           "display_name": {
             "type": "string",
-            "description": "The display name of the connector",
-            "nullable": true
+            "description": "The display name of the connector"
           },
           "description": {
             "type": "string",
-            "description": "The description of the connector",
-            "nullable": true
+            "description": "The description of the connector"
           },
           "category": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentConnectorCategory"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/HyperswitchConnectorCategory"
+          },
+          "integration_status": {
+            "$ref": "#/components/schemas/ConnectorIntegrationStatus"
           },
           "supported_payment_methods": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/SupportedPaymentMethod"
             },
-            "description": "The list of payment methods supported by the connector"
+            "description": "The list of payment methods supported by the connector",
+            "nullable": true
           },
           "supported_webhook_flows": {
             "type": "array",
@@ -8547,6 +8542,16 @@
             "nullable": true
           }
         }
+      },
+      "ConnectorIntegrationStatus": {
+        "type": "string",
+        "description": "Connector Integration Status",
+        "enum": [
+          "live",
+          "sandbox",
+          "beta",
+          "alpha"
+        ]
       },
       "ConnectorMetadata": {
         "type": "object",
@@ -10719,7 +10724,9 @@
           "processor_downtime",
           "processor_decline_unauthorized",
           "issue_with_payment_method",
-          "processor_decline_incorrect_data"
+          "processor_decline_incorrect_data",
+          "hard_decline",
+          "soft_decline"
         ]
       },
       "ErrorDetails": {
@@ -11530,6 +11537,34 @@
             "type": "string",
             "enum": [
               "user_bank_routing_number"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "user_bank_type"
+            ],
+            "properties": {
+              "user_bank_type": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_bank_account_holder_name"
             ]
           },
           {
@@ -12722,6 +12757,19 @@
             "nullable": true
           }
         }
+      },
+      "HyperswitchConnectorCategory": {
+        "type": "string",
+        "description": "Connector Access Method",
+        "enum": [
+          "payment_gateway",
+          "alternative_payment_method",
+          "bank_acquirer",
+          "payout_processor",
+          "authentication_provider",
+          "fraud_and_risk_management_provider",
+          "tax_calculation_provider"
+        ]
       },
       "HyperswitchVaultSessionDetails": {
         "type": "object",
@@ -16368,15 +16416,6 @@
           }
         ]
       },
-      "PaymentConnectorCategory": {
-        "type": "string",
-        "description": "Connector Access Method",
-        "enum": [
-          "payment_gateway",
-          "alternative_payment_method",
-          "bank_acquirer"
-        ]
-      },
       "PaymentConnectorTransmission": {
         "type": "string",
         "enum": [
@@ -17136,6 +17175,17 @@
             "properties": {
               "card": {
                 "$ref": "#/components/schemas/CardDetail"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "proxy_card"
+            ],
+            "properties": {
+              "proxy_card": {
+                "$ref": "#/components/schemas/ProxyCardDetails"
               }
             }
           }
@@ -22141,6 +22191,82 @@
           }
         }
       },
+      "ProxyCardDetails": {
+        "type": "object",
+        "required": [
+          "card_number",
+          "card_exp_month",
+          "card_exp_year",
+          "card_holder_name",
+          "card_cvc"
+        ],
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "description": "Tokenized Card Number",
+            "example": "tok_sjfowhoejsldj"
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "Card Expiry Month",
+            "example": "10"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "Card Expiry Year",
+            "example": "25"
+          },
+          "bin_number": {
+            "type": "string",
+            "description": "First Six Digit of Card Number",
+            "nullable": true
+          },
+          "last_four": {
+            "type": "string",
+            "description": "Last Four Digit of Card Number",
+            "nullable": true
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "Issuer Bank for Card",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "description": "Card Type",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "description": "Issuing Country of the Card",
+            "nullable": true
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "Card Holder's Nick Name",
+            "example": "John Doe",
+            "nullable": true
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "Card Holder Name",
+            "example": "John Doe"
+          },
+          "card_cvc": {
+            "type": "string",
+            "description": "The CVC number for the card\nThis is optional in case the card needs to be vaulted",
+            "example": "242"
+          }
+        }
+      },
       "ProxyRequest": {
         "type": "object",
         "required": [
@@ -22770,7 +22896,8 @@
         "type": "string",
         "enum": [
           "true",
-          "false"
+          "false",
+          "default"
         ]
       },
       "RequestPaymentMethodTypes": {
@@ -23343,6 +23470,7 @@
           "deutschebank",
           "digitalvirgo",
           "dlocal",
+          "dwolla",
           "ebanx",
           "elavon",
           "facilitapay",

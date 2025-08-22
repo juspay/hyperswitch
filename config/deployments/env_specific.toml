@@ -384,6 +384,7 @@ connector_names = "connector_names"     # Comma-separated list of allowed connec
 [grpc_client.unified_connector_service]
 base_url = "http://localhost:8000"      # Unified Connector Service Base URL
 connection_timeout = 10                 # Connection Timeout Duration in Seconds
+ucs_only_connectors = "paytm, phonepe"    # Comma-separated list of connectors that use UCS only
 
 [revenue_recovery.recovery_timestamp] # Timestamp configuration for Revenue Recovery
 initial_timestamp_in_hours = 1        # number of hours added to start time for Decider service of Revenue Recovery

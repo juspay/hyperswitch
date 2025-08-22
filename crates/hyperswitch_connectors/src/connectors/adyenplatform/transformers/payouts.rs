@@ -2,9 +2,9 @@ use api_models::{payouts, webhooks};
 use common_enums::enums;
 use common_utils::pii;
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::types;
+use hyperswitch_domain_models::types::{self, PayoutsRouterData};
 use hyperswitch_interfaces::errors::ConnectorError;
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use super::{AdyenPlatformRouterData, Error};
@@ -68,10 +68,11 @@ pub struct AdyenBankAccountDetails {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenAccountHolder {
-    address: AdyenAddress,
+    address: Option<AdyenAddress>,
     first_name: Option<Secret<String>>,
     last_name: Option<Secret<String>>,
     full_name: Option<Secret<String>>,
+    email: Option<pii::Email>,
     #[serde(rename = "reference")]
     customer_id: Option<String>,
     #[serde(rename = "type")]
@@ -251,40 +252,94 @@ impl TryFrom<&hyperswitch_domain_models::address::AddressDetails> for AdyenAddre
     }
 }
 
-impl<F> TryFrom<(&types::PayoutsRouterData<F>, enums::PayoutType)> for AdyenAccountHolder {
+impl<F> TryFrom<(&PayoutsRouterData<F>, &payouts::CardPayout)> for AdyenAccountHolder {
     type Error = Error;
 
     fn try_from(
-        (router_data, payout_type): (&types::PayoutsRouterData<F>, enums::PayoutType),
+        (router_data, card): (&PayoutsRouterData<F>, &payouts::CardPayout),
     ) -> Result<Self, Self::Error> {
-        let billing_address = router_data.get_billing_address()?;
-        let (first_name, last_name, full_name) = match payout_type {
-            enums::PayoutType::Card => (
-                Some(router_data.get_billing_first_name()?),
-                Some(router_data.get_billing_last_name()?),
-                None,
-            ),
-            enums::PayoutType::Bank => (None, None, Some(router_data.get_billing_full_name()?)),
-            _ => Err(ConnectorError::NotSupported {
-                message: "Payout method not supported".to_string(),
-                connector: "Adyen",
-            })?,
+        let billing_address = router_data.get_optional_billing();
+
+        // Address is required for both card and bank payouts
+        let address = billing_address
+            .and_then(|billing| billing.address.as_ref().map(|addr| addr.try_into()))
+            .transpose()?
+            .ok_or(ConnectorError::MissingRequiredField {
+                field_name: "address",
+            })?;
+
+        let (first_name, last_name) = if let Some(card_holder_name) = &card.card_holder_name {
+            let exposed_name = card_holder_name.clone().expose();
+            let name_parts: Vec<&str> = exposed_name.split_whitespace().collect();
+            let first_name = name_parts
+                .first()
+                .map(|s| Secret::new(s.to_string()))
+                .ok_or(ConnectorError::MissingRequiredField {
+                    field_name: "card_holder_name.first_name",
+                })?;
+            let last_name = if name_parts.len() > 1 {
+                let remaining_names: Vec<&str> = name_parts.iter().skip(1).copied().collect();
+                Some(Secret::new(remaining_names.join(" ")))
+            } else {
+                return Err(ConnectorError::MissingRequiredField {
+                    field_name: "card_holder_name.last_name",
+                }
+                .into());
+            };
+            (Some(first_name), last_name)
+        } else {
+            return Err(ConnectorError::MissingRequiredField {
+                field_name: "card_holder_name",
+            }
+            .into());
         };
+
         Ok(Self {
-            address: billing_address.try_into()?,
+            address: Some(address),
             first_name,
             last_name,
-            full_name,
+            full_name: None,
+            email: router_data.get_optional_billing_email(),
             customer_id: Some(router_data.get_customer_id()?.get_string_repr().to_owned()),
             entity_type: Some(EntityType::from(router_data.request.entity_type)),
         })
     }
 }
 
-impl<F> TryFrom<&AdyenPlatformRouterData<&types::PayoutsRouterData<F>>> for AdyenTransferRequest {
+impl<F> TryFrom<(&PayoutsRouterData<F>, &payouts::Bank)> for AdyenAccountHolder {
+    type Error = Error;
+
+    fn try_from(
+        (router_data, _bank): (&PayoutsRouterData<F>, &payouts::Bank),
+    ) -> Result<Self, Self::Error> {
+        let billing_address = router_data.get_optional_billing();
+
+        // Address is required for both card and bank payouts
+        let address = billing_address
+            .and_then(|billing| billing.address.as_ref().map(|addr| addr.try_into()))
+            .transpose()?
+            .ok_or(ConnectorError::MissingRequiredField {
+                field_name: "address",
+            })?;
+
+        let full_name = router_data.get_billing_full_name()?;
+
+        Ok(Self {
+            address: Some(address),
+            first_name: None,
+            last_name: None,
+            full_name: Some(full_name),
+            email: router_data.get_optional_billing_email(),
+            customer_id: Some(router_data.get_customer_id()?.get_string_repr().to_owned()),
+            entity_type: Some(EntityType::from(router_data.request.entity_type)),
+        })
+    }
+}
+
+impl<F> TryFrom<&AdyenPlatformRouterData<&PayoutsRouterData<F>>> for AdyenTransferRequest {
     type Error = Error;
     fn try_from(
-        item: &AdyenPlatformRouterData<&types::PayoutsRouterData<F>>,
+        item: &AdyenPlatformRouterData<&PayoutsRouterData<F>>,
     ) -> Result<Self, Self::Error> {
         let request = &item.router_data.request;
         let (counterparty, priority) = match item.router_data.get_payout_method_data()? {
@@ -292,8 +347,7 @@ impl<F> TryFrom<&AdyenPlatformRouterData<&types::PayoutsRouterData<F>>> for Adye
                 utils::get_unimplemented_payment_method_error_message("Adyenplatform"),
             ))?,
             payouts::PayoutMethodData::Card(c) => {
-                let card_holder: AdyenAccountHolder =
-                    (item.router_data, enums::PayoutType::Card).try_into()?;
+                let card_holder: AdyenAccountHolder = (item.router_data, &c).try_into()?;
                 let card_identification = AdyenCardIdentification {
                     card_number: c.card_number,
                     expiry_month: c.expiry_month,
@@ -309,8 +363,7 @@ impl<F> TryFrom<&AdyenPlatformRouterData<&types::PayoutsRouterData<F>>> for Adye
                 (counterparty, None)
             }
             payouts::PayoutMethodData::Bank(bd) => {
-                let account_holder: AdyenAccountHolder =
-                    (item.router_data, enums::PayoutType::Bank).try_into()?;
+                let account_holder: AdyenAccountHolder = (item.router_data, &bd).try_into()?;
                 let bank_details = match bd {
                     payouts::Bank::Sepa(b) => AdyenBankAccountIdentification {
                         bank_type: "iban".to_string(),
@@ -367,9 +420,7 @@ impl<F> TryFrom<&AdyenPlatformRouterData<&types::PayoutsRouterData<F>>> for Adye
     }
 }
 
-impl<F> TryFrom<PayoutsResponseRouterData<F, AdyenTransferResponse>>
-    for types::PayoutsRouterData<F>
-{
+impl<F> TryFrom<PayoutsResponseRouterData<F, AdyenTransferResponse>> for PayoutsRouterData<F> {
     type Error = Error;
     fn try_from(
         item: PayoutsResponseRouterData<F, AdyenTransferResponse>,
@@ -462,6 +513,7 @@ pub struct AdyenplatformIncomingWebhookData {
     pub status: AdyenplatformWebhookStatus,
     pub reference: String,
     pub tracking: Option<AdyenplatformInstantStatus>,
+    pub category: Option<AdyenPayoutMethod>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -500,6 +552,7 @@ pub fn get_adyen_webhook_event(
     event_type: AdyenplatformWebhookEventType,
     status: AdyenplatformWebhookStatus,
     instant_status: Option<AdyenplatformInstantStatus>,
+    category: Option<&AdyenPayoutMethod>,
 ) -> webhooks::IncomingWebhookEvent {
     match (event_type, status, instant_status) {
         (AdyenplatformWebhookEventType::PayoutCreated, _, _) => {
@@ -514,9 +567,25 @@ pub fn get_adyen_webhook_event(
             }
         }
         (AdyenplatformWebhookEventType::PayoutUpdated, status, _) => match status {
-            AdyenplatformWebhookStatus::Authorised
-            | AdyenplatformWebhookStatus::Booked
-            | AdyenplatformWebhookStatus::Received => webhooks::IncomingWebhookEvent::PayoutCreated,
+            AdyenplatformWebhookStatus::Authorised | AdyenplatformWebhookStatus::Received => {
+                webhooks::IncomingWebhookEvent::PayoutCreated
+            }
+            AdyenplatformWebhookStatus::Booked => {
+                match category {
+                    Some(AdyenPayoutMethod::Card) => {
+                        // For card payouts, "booked" is the final success state
+                        webhooks::IncomingWebhookEvent::PayoutSuccess
+                    }
+                    Some(AdyenPayoutMethod::Bank) => {
+                        // For bank payouts, "booked" is intermediate - wait for final confirmation
+                        webhooks::IncomingWebhookEvent::PayoutProcessing
+                    }
+                    None => {
+                        // Default to processing if category is unknown
+                        webhooks::IncomingWebhookEvent::PayoutProcessing
+                    }
+                }
+            }
             AdyenplatformWebhookStatus::Pending => webhooks::IncomingWebhookEvent::PayoutProcessing,
             AdyenplatformWebhookStatus::Failed => webhooks::IncomingWebhookEvent::PayoutFailure,
             AdyenplatformWebhookStatus::Returned => webhooks::IncomingWebhookEvent::PayoutReversed,
