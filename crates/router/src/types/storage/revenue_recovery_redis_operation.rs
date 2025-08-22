@@ -86,7 +86,11 @@ impl RedisTokenManager {
         let seconds = 3888000;
 
         let result: bool = match redis_conn
-            .set_key_if_not_exists_with_expiry(&lock_key.into(), payment_id.get_string_repr(), Some(seconds))
+            .set_key_if_not_exists_with_expiry(
+                &lock_key.into(),
+                payment_id.get_string_repr(),
+                Some(seconds),
+            )
             .await
         {
             Ok(resp) => resp == SetnxReply::KeySet,
@@ -390,7 +394,6 @@ impl RedisTokenManager {
         }
     }
 
-
     #[instrument(skip_all)]
     pub async fn upsert_payment_processor_token(
         state: &SessionState,
@@ -425,7 +428,6 @@ impl RedisTokenManager {
                         .and_modify(|v| *v += value)
                         .or_insert(value);
                 }
-
             })
             .or_else(|| {
                 token_map.insert(token_id.clone(), token_data);
@@ -633,11 +635,10 @@ impl RedisTokenManager {
             && tokens_map
                 .values()
                 .all(|token| token.is_hard_decline.unwrap_or(false));
-        
 
         tracing::debug!(
             connector_customer_id = connector_customer_id,
-            all_hard_declined ,
+            all_hard_declined,
             "Checked if all tokens are hard declined or no token found for the customer",
         );
 

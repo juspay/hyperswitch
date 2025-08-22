@@ -716,27 +716,27 @@ pub async fn get_token_with_schedule_time_based_on_retry_alogrithm_type(
             .await
             .ok_or(errors::ProcessTrackerError::EApiErrorResponse)?;
 
-
             scheduled_time = Some(time);
 
-            let token = RedisTokenManager::get_token_with_max_retry_remaining(
-                state,
-                connector_customer_id,
-            )
-            .await
-            .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
+            let token =
+                RedisTokenManager::get_token_with_max_retry_remaining(state, connector_customer_id)
+                    .await
+                    .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
 
             match token {
                 Some(token) => {
                     RedisTokenManager::update_payment_processor_token_schedule_time(
                         state,
                         connector_customer_id,
-                        &token.token_status.payment_processor_token_details.payment_processor_token,
+                        &token
+                            .token_status
+                            .payment_processor_token_details
+                            .payment_processor_token,
                         scheduled_time,
                     )
                     .await
                     .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
-            
+
                     logger::debug!("PSP token available for cascading retry");
                 }
                 None => {
@@ -914,30 +914,30 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
         .min_by_key(|token| token.schedule_time)
         .cloned();
 
-        match best_token {
-            None => {
-                RedisTokenManager::unlock_connector_customer_status(state, connector_customer_id)
+    match best_token {
+        None => {
+            RedisTokenManager::unlock_connector_customer_status(state, connector_customer_id)
                 .await
                 .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
-                tracing::debug!("No payment processor tokens available for scheduling");
-                Ok(None)
-            }
-        
-            Some(token) => {
-                tracing::debug!("Found payment processor token with least schedule time");
-        
-                RedisTokenManager::update_payment_processor_token_schedule_time(
-                    state,
-                    connector_customer_id,
-                    &token.token_details.payment_processor_token,
-                    Some(token.schedule_time),
-                )
-                .await
-                .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
-        
-                Ok(Some(token.schedule_time))
-            }
+            tracing::debug!("No payment processor tokens available for scheduling");
+            Ok(None)
         }
+
+        Some(token) => {
+            tracing::debug!("Found payment processor token with least schedule time");
+
+            RedisTokenManager::update_payment_processor_token_schedule_time(
+                state,
+                connector_customer_id,
+                &token.token_details.payment_processor_token,
+                Some(token.schedule_time),
+            )
+            .await
+            .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
+
+            Ok(Some(token.schedule_time))
+        }
+    }
 }
 
 #[cfg(feature = "v2")]
