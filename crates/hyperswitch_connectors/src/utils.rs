@@ -1029,8 +1029,7 @@ impl<Flow, Request, Response> RouterData
     }
 
     fn get_optional_customer_id(&self) -> Option<id_type::CustomerId> {
-        self.customer_id
-            .clone()
+        self.customer_id.clone()
     }
 }
 
