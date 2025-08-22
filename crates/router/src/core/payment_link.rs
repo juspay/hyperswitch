@@ -394,7 +394,7 @@ pub async fn initiate_secure_payment_link_flow(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to serialize PaymentLinkData")?;
             let url_encoded_str = urlencoding::encode(&payment_details_str);
-            let js_script = format!("window.__PAYMENT_DETAILS = '{}';", url_encoded_str);
+            let js_script = format!("window.__PAYMENT_DETAILS = '{url_encoded_str}';");
             let html_meta_tags = get_meta_tags_html(&link_details);
             let payment_link_data = services::PaymentLinkFormData {
                 js_script,
@@ -570,7 +570,7 @@ fn get_payment_link_css_script(
     let color_scheme_css = get_color_scheme_css(payment_link_config);
 
     if let Some(custom_rules_css) = custom_rules_css_option {
-        Ok(format!("{}\n{}", color_scheme_css, custom_rules_css))
+        Ok(format!("{color_scheme_css}\n{custom_rules_css}"))
     } else {
         Ok(color_scheme_css)
     }
@@ -725,7 +725,7 @@ pub fn get_payment_link_config_based_on_priority(
                     .clone()
                     .map(|d_name| {
                         logger::info!("domain name set to custom domain https://{:?}", d_name);
-                        format!("https://{}", d_name)
+                        format!("https://{d_name}")
                     })
                     .unwrap_or_else(|| default_domain_name.clone()),
                 payment_link_config_id

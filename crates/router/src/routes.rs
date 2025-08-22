@@ -3,6 +3,7 @@ pub mod api_keys;
 pub mod app;
 #[cfg(feature = "v1")]
 pub mod apple_pay_certificates_migration;
+pub mod authentication;
 #[cfg(all(feature = "olap", feature = "v1"))]
 pub mod blocklist;
 pub mod cache;
@@ -74,6 +75,8 @@ pub mod process_tracker;
 #[cfg(feature = "v2")]
 pub mod proxy;
 
+pub mod chat;
+
 #[cfg(feature = "dummy_connector")]
 pub use self::app::DummyConnector;
 #[cfg(feature = "v2")]
@@ -85,11 +88,12 @@ pub use self::app::Recon;
 #[cfg(feature = "v2")]
 pub use self::app::Tokenization;
 pub use self::app::{
-    ApiKeys, AppState, ApplePayCertificatesMigration, Cache, Cards, Configs, ConnectorOnboarding,
-    Customers, Disputes, EphemeralKey, FeatureMatrix, Files, Forex, Gsm, Health, Hypersense,
-    Mandates, MerchantAccount, MerchantConnectorAccount, PaymentLink, PaymentMethods, Payments,
-    Poll, ProcessTracker, Profile, ProfileAcquirer, ProfileNew, Refunds, Relay, RelayWebhooks,
-    SessionState, ThreeDsDecisionRule, User, Webhooks,
+    ApiKeys, AppState, ApplePayCertificatesMigration, Authentication, Cache, Cards, Chat, Configs,
+    ConnectorOnboarding, Customers, Disputes, EphemeralKey, FeatureMatrix, Files, Forex, Gsm,
+    Health, Hypersense, Mandates, MerchantAccount, MerchantConnectorAccount, PaymentLink,
+    PaymentMethods, Payments, Poll, ProcessTracker, ProcessTrackerDeprecated, Profile,
+    ProfileAcquirer, ProfileNew, Refunds, Relay, RelayWebhooks, SessionState, ThreeDsDecisionRule,
+    User, UserDeprecated, Webhooks,
 };
 #[cfg(feature = "olap")]
 pub use self::app::{Blocklist, Organization, Routing, Verify, WebhookEvents};

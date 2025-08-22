@@ -34,7 +34,12 @@ use wasm_bindgen::prelude::*;
 use crate::utils::JsResultExt;
 type JsResult = Result<JsValue, JsValue>;
 use api_models::payment_methods::CountryCodeWithName;
-use common_enums::{CountryAlpha2, MerchantCategoryCode, MerchantCategoryCodeWithName};
+#[cfg(feature = "payouts")]
+use common_enums::PayoutStatus;
+use common_enums::{
+    CountryAlpha2, DisputeStatus, EventClass, EventType, IntentStatus, MandateStatus,
+    MerchantCategoryCode, MerchantCategoryCodeWithName, RefundStatus,
+};
 use strum::IntoEnumIterator;
 
 struct SeedData {
@@ -471,4 +476,43 @@ pub fn get_payout_description_category() -> JsResult {
     }
 
     Ok(serde_wasm_bindgen::to_value(&category)?)
+}
+
+#[wasm_bindgen(js_name = getValidWebhookStatus)]
+pub fn get_valid_webhook_status(key: &str) -> JsResult {
+    let event_class = EventClass::from_str(key)
+        .map_err(|_| "Invalid webhook event type received".to_string())
+        .err_to_js()?;
+
+    match event_class {
+        EventClass::Payments => {
+            let statuses: Vec<IntentStatus> = IntentStatus::iter()
+                .filter(|intent_status| Into::<Option<EventType>>::into(*intent_status).is_some())
+                .collect();
+            Ok(serde_wasm_bindgen::to_value(&statuses)?)
+        }
+        EventClass::Refunds => {
+            let statuses: Vec<RefundStatus> = RefundStatus::iter()
+                .filter(|status| Into::<Option<EventType>>::into(*status).is_some())
+                .collect();
+            Ok(serde_wasm_bindgen::to_value(&statuses)?)
+        }
+        EventClass::Disputes => {
+            let statuses: Vec<DisputeStatus> = DisputeStatus::iter().collect();
+            Ok(serde_wasm_bindgen::to_value(&statuses)?)
+        }
+        EventClass::Mandates => {
+            let statuses: Vec<MandateStatus> = MandateStatus::iter()
+                .filter(|status| Into::<Option<EventType>>::into(*status).is_some())
+                .collect();
+            Ok(serde_wasm_bindgen::to_value(&statuses)?)
+        }
+        #[cfg(feature = "payouts")]
+        EventClass::Payouts => {
+            let statuses: Vec<PayoutStatus> = PayoutStatus::iter()
+                .filter(|status| Into::<Option<EventType>>::into(*status).is_some())
+                .collect();
+            Ok(serde_wasm_bindgen::to_value(&statuses)?)
+        }
+    }
 }

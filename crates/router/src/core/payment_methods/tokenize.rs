@@ -272,8 +272,12 @@ where
             card_network: card_details.card_network.clone(),
             card_type: card_details.card_type.clone(),
             saved_to_locker,
-            co_badged_card_data: card_details.co_badged_card_data.clone(),
+            co_badged_card_data: card_details
+                .co_badged_card_data
+                .as_ref()
+                .map(|data| data.into()),
         });
+
         create_encrypted_data(&self.state.into(), self.key_store, pm_data)
             .await
             .inspect_err(|err| logger::info!("Error encrypting payment method data: {:?}", err))
@@ -371,8 +375,7 @@ where
                 } else {
                     Err(report!(errors::ApiErrorResponse::NotSupported {
                         message: format!(
-                            "Network tokenization for {} is not supported",
-                            card_network
+                            "Network tokenization for {card_network} is not supported",
                         )
                     }))
                 }

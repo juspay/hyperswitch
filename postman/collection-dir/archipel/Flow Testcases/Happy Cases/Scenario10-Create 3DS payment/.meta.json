@@ -1,9 +1,0 @@
-{
-  "childrenOrder": [
-    "Payments - Create",
-    "Payments - Confirm",
-    "Payments - External 3ds authentication",
-    "Payments - Authorize request intent",
-    "Payments - Retrieve after confirm"
-  ]
-}

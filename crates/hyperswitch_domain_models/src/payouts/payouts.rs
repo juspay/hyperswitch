@@ -20,7 +20,7 @@ pub trait PayoutsInterface {
     async fn find_payout_by_merchant_id_payout_id(
         &self,
         _merchant_id: &id_type::MerchantId,
-        _payout_id: &str,
+        _payout_id: &id_type::PayoutId,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Payouts, Self::Error>;
 
@@ -35,7 +35,7 @@ pub trait PayoutsInterface {
     async fn find_optional_payout_by_merchant_id_payout_id(
         &self,
         _merchant_id: &id_type::MerchantId,
-        _payout_id: &str,
+        _payout_id: &id_type::PayoutId,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Option<Payouts>, Self::Error>;
 
@@ -76,7 +76,7 @@ pub trait PayoutsInterface {
     async fn get_total_count_of_filtered_payouts(
         &self,
         _merchant_id: &id_type::MerchantId,
-        _active_payout_ids: &[String],
+        _active_payout_ids: &[id_type::PayoutId],
         _connector: Option<Vec<api_models::enums::PayoutConnectors>>,
         _currency: Option<Vec<storage_enums::Currency>>,
         _status: Option<Vec<storage_enums::PayoutStatus>>,
@@ -88,12 +88,12 @@ pub trait PayoutsInterface {
         &self,
         _merchant_id: &id_type::MerchantId,
         _constraints: &PayoutFetchConstraints,
-    ) -> error_stack::Result<Vec<String>, Self::Error>;
+    ) -> error_stack::Result<Vec<id_type::PayoutId>, Self::Error>;
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Payouts {
-    pub payout_id: String,
+    pub payout_id: id_type::PayoutId,
     pub merchant_id: id_type::MerchantId,
     pub customer_id: Option<id_type::CustomerId>,
     pub address_id: Option<String>,
@@ -121,7 +121,7 @@ pub struct Payouts {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PayoutsNew {
-    pub payout_id: String,
+    pub payout_id: id_type::PayoutId,
     pub merchant_id: id_type::MerchantId,
     pub customer_id: Option<id_type::CustomerId>,
     pub address_id: Option<String>,

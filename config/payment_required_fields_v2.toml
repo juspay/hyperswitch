@@ -47,6 +47,14 @@ common = [
   { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" }
 ]
 
+[required_fields.Card.Debit.fields.Authipay]
+common = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" }
+]
+
 [required_fields.Card.Debit.fields.Bambora]
 non_mandate = [
   { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
@@ -539,6 +547,14 @@ non_mandate = [
 ]
 
 [required_fields.Card.Credit.fields.Authorizedotnet]
+common = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" }
+]
+
+[required_fields.Card.Credit.fields.Authipay]
 common = [
   { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
   { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
@@ -2098,6 +2114,26 @@ common = [
 mandate = []
 non_mandate = []
 
+[required_fields.upi.upi_collect.fields.Phonepe]
+common = [
+    { required_field = "payment_method_data.upi.vpa_id", display_name = "vpa_id", field_type = "text" },
+    { required_field = "payment_method_data.billing.email", display_name = "email", field_type = "user_email_address" },
+    { required_field = "payment_method_data.billing.phone.number", display_name = "phone", field_type = "user_phone_number" },
+    { required_field = "payment_method_data.billing.phone.country_code", display_name = "dialing_code", field_type = "user_phone_number_country_code" }
+]
+mandate = []
+non_mandate = []
+
+[required_fields.upi.upi_collect.fields.Paytm]
+common = [
+    { required_field = "payment_method_data.upi.vpa_id", display_name = "vpa_id", field_type = "text" },
+    { required_field = "payment_method_data.billing.email", display_name = "email", field_type = "user_email_address" },
+    { required_field = "payment_method_data.billing.phone.number", display_name = "phone", field_type = "user_phone_number" },
+    { required_field = "payment_method_data.billing.phone.country_code", display_name = "dialing_code", field_type = "user_phone_number_country_code" }
+]
+mandate = []
+non_mandate = []
+
 # BankDebit
 # Payment method type: Ach
 [required_fields.bank_debit.ach.fields.Stripe]
@@ -2123,19 +2159,19 @@ non_mandate = []
 # Payment method type: Sepa
 [required_fields.bank_debit.sepa.fields.Stripe]
 common = [
-    { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_address_first_name", field_type = "text" },
-    { required_field = "payment_method_data.billing.address.last_name", display_name = "billing_address_last_name", field_type = "text" },
-    { required_field = "payment_method_data.bank_debit.sepa.iban", display_name = "iban", field_type = "text" },
-    { required_field = "email", display_name = "email", field_type = "text" }
+    { required_field = "payment_method_data.billing.address.first_name", display_name = "owner_name", field_type = "user_billing_name" },
+    { required_field = "payment_method_data.billing.address.last_name", display_name = "owner_name", field_type = "user_billing_name" },
+    { required_field = "payment_method_data.bank_debit.sepa_bank_debit.iban", display_name = "iban", field_type = "user_iban" },
+    { required_field = "email", display_name = "email", field_type = "user_iban" }
 ]
 mandate = []
 non_mandate = []
 
 [required_fields.bank_debit.sepa.fields.Adyen]
 common = [
-    { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_address_first_name", field_type = "text" },
-    { required_field = "payment_method_data.billing.address.last_name", display_name = "billing_address_last_name", field_type = "text" },
-    { required_field = "payment_method_data.bank_debit.sepa.iban", display_name = "iban", field_type = "text" }
+    { required_field = "payment_method_data.billing.address.first_name", display_name = "owner_name", field_type = "user_billing_name" },
+    { required_field = "payment_method_data.billing.address.last_name", display_name = "owner_name", field_type = "user_billing_name" },
+    { required_field = "payment_method_data.bank_debit.sepa_bank_debit.iban", display_name = "iban", field_type = "user_iban" }
 ]
 mandate = []
 non_mandate = []
@@ -2194,10 +2230,10 @@ non_mandate = []
 
 [required_fields.bank_debit.becs.fields.Adyen]
 common = [
-    { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_address_first_name", field_type = "text" },
-    { required_field = "payment_method_data.billing.address.last_name", display_name = "billing_address_last_name", field_type = "text" },
-    { required_field = "payment_method_data.bank_debit.becs.account_number", display_name = "account_number", field_type = "text" },
-    { required_field = "payment_method_data.bank_debit.bacs.sort_code", display_name = "sort_code", field_type = "text" } # Corrected from becs.sort_code as per V1
+    { required_field = "payment_method_data.billing.address.first_name", display_name = "owner_name", field_type = "user_billing_name" },
+    { required_field = "payment_method_data.billing.address.last_name", display_name = "owner_name", field_type = "user_billing_name" },
+    { required_field = "ppayment_method_data.bank_debit.becs_bank_debit.account_number", display_name = "bank_account_number", field_type = "user_bank_account_number" },
+    { required_field = "payment_method_data.bank_debit.becs_bank_debit.sort_code", display_name = "bank_sort_code", field_type = "user_bank_sort_code" } # Corrected from becs.sort_code as per V1
 ]
 mandate = []
 non_mandate = []

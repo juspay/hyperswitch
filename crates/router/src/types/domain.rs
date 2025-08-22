@@ -2,6 +2,10 @@ pub mod behaviour {
     pub use hyperswitch_domain_models::behaviour::{Conversion, ReverseConversion};
 }
 
+mod payment_attempt {
+    pub use hyperswitch_domain_models::payments::payment_attempt::*;
+}
+
 mod merchant_account {
     pub use hyperswitch_domain_models::merchant_account::*;
 }
@@ -19,7 +23,7 @@ mod customers {
     pub use hyperswitch_domain_models::customer::*;
 }
 
-mod callback_mapper {
+pub mod callback_mapper {
     pub use hyperswitch_domain_models::callback_mapper::CallbackMapper;
 }
 
@@ -56,6 +60,11 @@ pub mod vault {
     pub use hyperswitch_domain_models::vault::*;
 }
 
+#[cfg(feature = "v2")]
+pub mod tokenization {
+    pub use hyperswitch_domain_models::tokenization::*;
+}
+
 mod routing {
     pub use hyperswitch_domain_models::routing::*;
 }
@@ -75,9 +84,12 @@ pub use merchant_connector_account::*;
 pub use merchant_context::*;
 pub use merchant_key_store::*;
 pub use network_tokenization::*;
+pub use payment_attempt::*;
 pub use payment_method_data::*;
 pub use payment_methods::*;
 pub use routing::*;
+#[cfg(feature = "v2")]
+pub use tokenization::*;
 #[cfg(feature = "olap")]
 pub use user::*;
 pub use user_key_store::*;

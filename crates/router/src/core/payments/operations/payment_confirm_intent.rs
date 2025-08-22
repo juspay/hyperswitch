@@ -47,13 +47,16 @@ impl ValidateStatusForOperation for PaymentIntentConfirm {
             | common_enums::IntentStatus::Conflicted
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Processing
             | common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
             | common_enums::IntentStatus::PartiallyCaptured
             | common_enums::IntentStatus::RequiresConfirmation
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => {
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::Expired => {
                 Err(errors::ApiErrorResponse::PaymentUnexpectedState {
                     current_flow: format!("{self:?}"),
                     field_name: "status".to_string(),
@@ -272,6 +275,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             mandate_data: None,
             payment_method: None,
             merchant_connector_details,
+            external_vault_pmd: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };
@@ -299,7 +303,6 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                     .find_customer_by_global_id(
                         &state.into(),
                         &id,
-                        &payment_data.payment_intent.merchant_id,
                         merchant_key_store,
                         storage_scheme,
                     )
@@ -416,6 +419,15 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                             .ok_or(errors::ApiErrorResponse::InvalidDataValue {
                                 field_name: "card_cvc",
                             })
+                            .or(
+                                payment_methods::vault::retrieve_and_delete_cvc_from_payment_token(
+                                    state,
+                                    payment_token,
+                                    payment_data.payment_attempt.payment_method_type,
+                                    merchant_context.get_merchant_key_store().key.get_inner(),
+                                )
+                                .await,
+                            )
                             .attach_printable("card_cvc not provided")?,
                         card_token.card_holder_name.clone(),
                     )
@@ -484,14 +496,15 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                     network_tokenization: None,
                 };
 
-                let (_pm_response, payment_method) = payment_methods::create_payment_method_core(
-                    state,
-                    &state.get_req_state(),
-                    req,
-                    merchant_context,
-                    business_profile,
-                )
-                .await?;
+                let (_pm_response, payment_method) =
+                    Box::pin(payment_methods::create_payment_method_core(
+                        state,
+                        &state.get_req_state(),
+                        req,
+                        merchant_context,
+                        business_profile,
+                    ))
+                    .await?;
 
                 // Don't modify payment_method_data in this case, only the payment_method and payment_method_id
                 (Some(payment_method), None)
@@ -589,6 +602,12 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
             .connector_request_reference_id
             .clone();
 
+        // Updates payment_attempt for cases where authorize flow is not performed.
+        let connector_response_reference_id = payment_data
+            .payment_attempt
+            .connector_response_reference_id
+            .clone();
+
         let payment_attempt_update = match &payment_data.payment_method {
             // In the case of a tokenized payment method, we update the payment attempt with the tokenized payment method details.
             Some(payment_method) => {
@@ -612,6 +631,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
                     merchant_connector_id,
                     authentication_type,
                     connector_request_reference_id,
+                    connector_response_reference_id,
                 }
             }
         };
@@ -653,7 +673,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
                     key_manager_state,
                     &customer_id,
                     customer,
-                    &customer_merchant_id,
                     updated_customer,
                     key_store,
                     storage_scheme,

@@ -3,8 +3,11 @@ pub mod fraud_check;
 pub mod revenue_recovery;
 use std::collections::HashMap;
 
-use common_utils::{request::Method, types::MinorUnit};
-pub use disputes::{AcceptDisputeResponse, DefendDisputeResponse, SubmitEvidenceResponse};
+use common_utils::{pii, request::Method, types::MinorUnit};
+pub use disputes::{
+    AcceptDisputeResponse, DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse,
+    SubmitEvidenceResponse,
+};
 
 use crate::{
     errors::api_error_response::ApiErrorResponse,
@@ -91,7 +94,7 @@ pub struct TaxCalculationResponseData {
 pub struct MandateReference {
     pub connector_mandate_id: Option<String>,
     pub payment_method_id: Option<String>,
-    pub mandate_metadata: Option<common_utils::pii::SecretSerdeValue>,
+    pub mandate_metadata: Option<pii::SecretSerdeValue>,
     pub connector_mandate_request_reference_id: Option<String>,
 }
 
@@ -256,6 +259,15 @@ pub enum RedirectForm {
     Html {
         html_data: String,
     },
+    BarclaycardAuthSetup {
+        access_token: String,
+        ddc_url: String,
+        reference_id: String,
+    },
+    BarclaycardConsumerAuth {
+        access_token: String,
+        step_up_url: String,
+    },
     BlueSnap {
         payment_fields_token: String, // payment-field-token
     },
@@ -329,6 +341,22 @@ impl From<RedirectForm> for diesel_models::payment_attempt::RedirectForm {
                 form_fields,
             },
             RedirectForm::Html { html_data } => Self::Html { html_data },
+            RedirectForm::BarclaycardAuthSetup {
+                access_token,
+                ddc_url,
+                reference_id,
+            } => Self::BarclaycardAuthSetup {
+                access_token,
+                ddc_url,
+                reference_id,
+            },
+            RedirectForm::BarclaycardConsumerAuth {
+                access_token,
+                step_up_url,
+            } => Self::BarclaycardConsumerAuth {
+                access_token,
+                step_up_url,
+            },
             RedirectForm::BlueSnap {
                 payment_fields_token,
             } => Self::BlueSnap {
@@ -413,6 +441,22 @@ impl From<diesel_models::payment_attempt::RedirectForm> for RedirectForm {
             diesel_models::payment_attempt::RedirectForm::Html { html_data } => {
                 Self::Html { html_data }
             }
+            diesel_models::payment_attempt::RedirectForm::BarclaycardAuthSetup {
+                access_token,
+                ddc_url,
+                reference_id,
+            } => Self::BarclaycardAuthSetup {
+                access_token,
+                ddc_url,
+                reference_id,
+            },
+            diesel_models::payment_attempt::RedirectForm::BarclaycardConsumerAuth {
+                access_token,
+                step_up_url,
+            } => Self::BarclaycardConsumerAuth {
+                access_token,
+                step_up_url,
+            },
             diesel_models::payment_attempt::RedirectForm::BlueSnap {
                 payment_fields_token,
             } => Self::BlueSnap {
@@ -546,18 +590,24 @@ pub enum AuthenticationResponseData {
         connector_metadata: Option<serde_json::Value>,
         ds_trans_id: Option<String>,
         eci: Option<String>,
+        challenge_code: Option<String>,
+        challenge_cancel: Option<String>,
+        challenge_code_reason: Option<String>,
+        message_extension: Option<pii::SecretSerdeValue>,
     },
     PostAuthNResponse {
         trans_status: common_enums::TransactionStatus,
         authentication_value: Option<masking::Secret<String>>,
         eci: Option<String>,
+        challenge_cancel: Option<String>,
+        challenge_code_reason: Option<String>,
     },
 }
 
 #[derive(Debug, Clone)]
 pub struct CompleteAuthorizeRedirectResponse {
     pub params: Option<masking::Secret<String>>,
-    pub payload: Option<common_utils::pii::SecretSerdeValue>,
+    pub payload: Option<pii::SecretSerdeValue>,
 }
 
 /// Represents details of a payment method.
@@ -586,7 +636,9 @@ pub struct ConnectorInfo {
     /// Description of the connector.
     pub description: &'static str,
     /// Connector Type
-    pub connector_type: common_enums::PaymentConnectorCategory,
+    pub connector_type: common_enums::HyperswitchConnectorCategory,
+    /// Integration status of the connector
+    pub integration_status: common_enums::ConnectorIntegrationStatus,
 }
 
 pub trait SupportedPaymentMethodsExt {

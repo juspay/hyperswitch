@@ -281,6 +281,8 @@ pub struct ChargebeeWebhookContent {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ChargebeeSubscriptionData {
     #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
+    pub current_term_start: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
     pub next_billing_at: Option<PrimitiveDateTime>,
 }
 #[derive(Serialize, Deserialize, Debug)]
@@ -488,6 +490,11 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
             .subscription
             .as_ref()
             .and_then(|subscription| subscription.next_billing_at);
+        let invoice_billing_started_at_time = item
+            .content
+            .subscription
+            .as_ref()
+            .and_then(|subscription| subscription.current_term_start);
         Ok(Self {
             amount,
             currency,
@@ -507,6 +514,7 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
             network_error_message: None,
             retry_count,
             invoice_next_billing_time,
+            invoice_billing_started_at_time,
             card_network: Some(payment_method_details.card.brand),
             card_isin: Some(payment_method_details.card.iin),
             // This field is none because it is specific to stripebilling.
@@ -576,6 +584,11 @@ impl TryFrom<ChargebeeInvoiceBody> for revenue_recovery::RevenueRecoveryInvoiceD
             .subscription
             .as_ref()
             .and_then(|subscription| subscription.next_billing_at);
+        let billing_started_at = item
+            .content
+            .subscription
+            .as_ref()
+            .and_then(|subscription| subscription.current_term_start);
         Ok(Self {
             amount: item.content.invoice.total,
             currency: item.content.invoice.currency_code,
@@ -583,6 +596,7 @@ impl TryFrom<ChargebeeInvoiceBody> for revenue_recovery::RevenueRecoveryInvoiceD
             billing_address: Some(api_models::payments::Address::from(item.content.invoice)),
             retry_count,
             next_billing_at: invoice_next_billing_time,
+            billing_started_at,
         })
     }
 }
@@ -613,6 +627,7 @@ impl From<ChargebeeInvoiceBillingAddress> for api_models::payments::AddressDetai
             line3: item.line3,
             first_name: None,
             last_name: None,
+            origin_zip: None,
         }
     }
 }
@@ -679,10 +694,12 @@ impl TryFrom<enums::AttemptStatus> for ChargebeeRecordStatus {
             | enums::AttemptStatus::AuthenticationPending
             | enums::AttemptStatus::AuthenticationSuccessful
             | enums::AttemptStatus::Authorized
+            | enums::AttemptStatus::PartiallyAuthorized
             | enums::AttemptStatus::AuthorizationFailed
             | enums::AttemptStatus::Authorizing
             | enums::AttemptStatus::CodInitiated
             | enums::AttemptStatus::Voided
+            | enums::AttemptStatus::VoidedPostCharge
             | enums::AttemptStatus::VoidInitiated
             | enums::AttemptStatus::CaptureInitiated
             | enums::AttemptStatus::VoidFailed
@@ -692,7 +709,8 @@ impl TryFrom<enums::AttemptStatus> for ChargebeeRecordStatus {
             | enums::AttemptStatus::PaymentMethodAwaited
             | enums::AttemptStatus::ConfirmationAwaited
             | enums::AttemptStatus::DeviceDataCollectionPending
-            | enums::AttemptStatus::IntegrityFailure => Err(errors::ConnectorError::NotSupported {
+            | enums::AttemptStatus::IntegrityFailure
+            | enums::AttemptStatus::Expired => Err(errors::ConnectorError::NotSupported {
                 message: "Record back flow is only supported for terminal status".to_string(),
                 connector: "chargebee",
             }

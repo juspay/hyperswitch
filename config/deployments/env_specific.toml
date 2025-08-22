@@ -94,6 +94,7 @@ consolidated_events_topic = "topic"      # Kafka topic to be used for Consolidat
 authentication_analytics_topic = "topic" # Kafka topic to be used for Authentication events
 fraud_check_analytics_topic = "topic"    # Kafka topic to be used for Fraud Check events
 routing_logs_topic = "topic"             # Kafka topic to be used for Routing events
+revenue_recovery_topic = "topic"         # Kafka topic to be used for Revenue Recovery Events 
 
 # File storage configuration
 [file_storage]
@@ -346,11 +347,15 @@ private_key= ""               # private key to decrypt  response payload from to
 key_id= ""                    # key id to encrypt data for token service
 delete_token_url= ""          # base url to delete token from token service
 check_token_status_url= ""    # base url to check token status from token service
+webhook_source_verification_key= "" # webhook source verification key to verify the webhook payload from token service
 
 [grpc_client.dynamic_routing_client] # Dynamic Routing Client Configuration
 host = "localhost" # Client Host
 port = 7000        # Client Port
 service = "dynamo" # Service name
+
+[grpc_client.recovery_decider_client] # Revenue recovery client base url
+base_url = "http://127.0.0.1:8080"  #Base URL
 
 [theme.storage]
 file_storage_backend = "aws_s3" # Theme storage backend to be used
@@ -375,3 +380,18 @@ base_url = "http://localhost:8080" # base url to call hyperswitch vault service
 [clone_connector_allowlist]
 merchant_ids = "merchant_ids"           # Comma-separated list of allowed merchant IDs
 connector_names = "connector_names"     # Comma-separated list of allowed connector names
+
+[grpc_client.unified_connector_service]
+base_url = "http://localhost:8000"      # Unified Connector Service Base URL
+connection_timeout = 10                 # Connection Timeout Duration in Seconds
+ucs_only_connectors = "paytm, phonepe"    # Comma-separated list of connectors that use UCS only
+
+[revenue_recovery.recovery_timestamp] # Timestamp configuration for Revenue Recovery
+initial_timestamp_in_hours = 1        # number of hours added to start time for Decider service of Revenue Recovery
+
+[chat]
+enabled = false                                # Enable or disable chat features
+hyperswitch_ai_host = "http://0.0.0.0:8000"    # Hyperswitch ai workflow host
+
+[proxy_status_mapping]
+proxy_connector_http_status_code = false    # If enabled, the http status code of the connector will be proxied in the response

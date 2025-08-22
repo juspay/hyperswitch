@@ -42,7 +42,6 @@ use nanoid::nanoid;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 use tracing_futures::Instrument;
-use uuid::Uuid;
 
 pub use self::ext_traits::{OptionExt, ValidateCall};
 use crate::{
@@ -56,10 +55,7 @@ use crate::{
     logger,
     routes::{metrics, SessionState},
     services::{self, authentication::get_header_value_by_key},
-    types::{
-        self, domain,
-        transformers::{ForeignFrom, ForeignInto},
-    },
+    types::{self, domain, transformers::ForeignInto},
 };
 #[cfg(feature = "v1")]
 use crate::{core::webhooks as webhooks_core, types::storage};
@@ -119,11 +115,6 @@ pub fn generate_id(length: usize, prefix: &str) -> String {
     format!("{}_{}", prefix, nanoid!(length, &consts::ALPHABETS))
 }
 
-#[inline]
-pub fn generate_uuid() -> String {
-    Uuid::new_v4().to_string()
-}
-
 pub trait ConnectorResponseExt: Sized {
     fn get_response(self) -> RouterResult<types::Response>;
     fn get_error_response(self) -> RouterResult<types::Response>;
@@ -168,7 +159,7 @@ impl<E> ConnectorResponseExt
 }
 
 #[inline]
-pub fn get_payout_attempt_id(payout_id: impl std::fmt::Display, attempt_count: i16) -> String {
+pub fn get_payout_attempt_id(payout_id: &str, attempt_count: i16) -> String {
     format!("{payout_id}_{attempt_count}")
 }
 
@@ -331,7 +322,7 @@ pub async fn find_mca_from_authentication_id_type(
         webhooks::AuthenticationIdType::AuthenticationId(authentication_id) => db
             .find_authentication_by_merchant_id_authentication_id(
                 merchant_context.get_merchant_account().get_id(),
-                authentication_id,
+                &authentication_id,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?,
@@ -346,19 +337,21 @@ pub async fn find_mca_from_authentication_id_type(
     };
     #[cfg(feature = "v1")]
     {
+        // raise error if merchant_connector_id is not present since it should we be present in the current flow
+        let mca_id = authentication
+            .merchant_connector_id
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("merchant_connector_id not present in authentication record")?;
         db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             &state.into(),
             merchant_context.get_merchant_account().get_id(),
-            &authentication.merchant_connector_id,
+            &mca_id,
             merchant_context.get_merchant_key_store(),
         )
         .await
         .to_not_found_response(
             errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: authentication
-                    .merchant_connector_id
-                    .get_string_repr()
-                    .to_string(),
+                id: mca_id.get_string_repr().to_string(),
             },
         )
     }
@@ -684,6 +677,7 @@ pub fn handle_json_response_deserialization_failure(
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         }
     }
@@ -771,6 +765,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                         .email
                         .as_ref()
                         .map(|a| a.clone().expose().switch_strategy()),
+                    origin_zip: address_details.origin_zip.clone(),
                 },
             )),
             Identifier::Merchant(merchant_id.to_owned()),
@@ -804,6 +799,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                     );
                 encryptable
             }),
+            origin_zip: encryptable_address.origin_zip,
         })
     }
 
@@ -833,6 +829,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                         .email
                         .as_ref()
                         .map(|a| a.clone().expose().switch_strategy()),
+                    origin_zip: address_details.origin_zip.clone(),
                 },
             )),
             Identifier::Merchant(merchant_id.to_owned()),
@@ -870,6 +867,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                     );
                 encryptable
             }),
+            origin_zip: encryptable_address.origin_zip,
         };
 
         Ok(domain::CustomerAddress {
@@ -907,6 +905,7 @@ impl CustomerAddress for api_models::customers::CustomerUpdateRequest {
                         .email
                         .as_ref()
                         .map(|a| a.clone().expose().switch_strategy()),
+                    origin_zip: address_details.origin_zip.clone(),
                 },
             )),
             Identifier::Merchant(merchant_id.to_owned()),
@@ -939,6 +938,7 @@ impl CustomerAddress for api_models::customers::CustomerUpdateRequest {
                     );
                 encryptable
             }),
+            origin_zip: encryptable_address.origin_zip,
         })
     }
 
@@ -968,6 +968,7 @@ impl CustomerAddress for api_models::customers::CustomerUpdateRequest {
                         .email
                         .as_ref()
                         .map(|a| a.clone().expose().switch_strategy()),
+                    origin_zip: address_details.origin_zip.clone(),
                 },
             )),
             Identifier::Merchant(merchant_id.to_owned()),
@@ -1004,6 +1005,7 @@ impl CustomerAddress for api_models::customers::CustomerUpdateRequest {
                     );
                 encryptable
             }),
+            origin_zip: encryptable_address.origin_zip,
         };
 
         Ok(domain::CustomerAddress {
@@ -1155,25 +1157,21 @@ where
     D: payments_core::OperationSessionGetters<F>,
 {
     let status = payment_data.get_payment_intent().status;
-    let payment_id = payment_data.get_payment_intent().get_id().to_owned();
+    let should_trigger_webhook = business_profile
+        .get_payment_webhook_statuses()
+        .contains(&status);
 
-    let captures = payment_data
-        .get_multiple_capture_data()
-        .map(|multiple_capture_data| {
-            multiple_capture_data
-                .get_all_captures()
-                .into_iter()
-                .cloned()
-                .collect()
-        });
-
-    if matches!(
-        status,
-        enums::IntentStatus::Succeeded
-            | enums::IntentStatus::Failed
-            | enums::IntentStatus::PartiallyCaptured
-            | enums::IntentStatus::RequiresMerchantAction
-    ) {
+    if should_trigger_webhook {
+        let captures = payment_data
+            .get_multiple_capture_data()
+            .map(|multiple_capture_data| {
+                multiple_capture_data
+                    .get_all_captures()
+                    .into_iter()
+                    .cloned()
+                    .collect()
+            });
+        let payment_id = payment_data.get_payment_intent().get_id().to_owned();
         let payments_response = crate::core::payments::transformers::payments_to_payments_response(
             payment_data,
             captures,
@@ -1187,7 +1185,7 @@ where
             None,
         )?;
 
-        let event_type = ForeignFrom::foreign_from(status);
+        let event_type = status.into();
 
         if let services::ApplicationResponse::JsonWithHeaders((payments_response_json, _)) =
             payments_response
@@ -1249,27 +1247,28 @@ pub async fn trigger_refund_outgoing_webhook(
     profile_id: id_type::ProfileId,
 ) -> RouterResult<()> {
     let refund_status = refund.refund_status;
-    if matches!(
-        refund_status,
-        enums::RefundStatus::Success
-            | enums::RefundStatus::Failure
-            | enums::RefundStatus::TransactionFailure
-    ) {
-        let event_type = ForeignFrom::foreign_from(refund_status);
+
+    let key_manager_state = &(state).into();
+    let business_profile = state
+        .store
+        .find_business_profile_by_profile_id(
+            key_manager_state,
+            merchant_context.get_merchant_key_store(),
+            &profile_id,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+            id: profile_id.get_string_repr().to_owned(),
+        })?;
+
+    let should_trigger_webhook = business_profile
+        .get_refund_webhook_statuses()
+        .contains(&refund_status);
+
+    if should_trigger_webhook {
+        let event_type = refund_status.into();
         let refund_response: api_models::refunds::RefundResponse = refund.clone().foreign_into();
-        let key_manager_state = &(state).into();
         let refund_id = refund_response.refund_id.clone();
-        let business_profile = state
-            .store
-            .find_business_profile_by_profile_id(
-                key_manager_state,
-                merchant_context.get_merchant_key_store(),
-                &profile_id,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
-                id: profile_id.get_string_repr().to_owned(),
-            })?;
         let cloned_state = state.clone();
         let cloned_merchant_context = merchant_context.clone();
         let primary_object_created_at = refund_response.created_at;
@@ -1315,4 +1314,73 @@ pub fn get_locale_from_header(headers: &actix_web::http::header::HeaderMap) -> S
         .flatten()
         .map(|val| val.to_string())
         .unwrap_or(common_utils::consts::DEFAULT_LOCALE.to_string())
+}
+
+#[cfg(all(feature = "payouts", feature = "v1"))]
+pub async fn trigger_payouts_webhook(
+    state: &SessionState,
+    merchant_context: &domain::MerchantContext,
+    payout_response: &api_models::payouts::PayoutCreateResponse,
+) -> RouterResult<()> {
+    let key_manager_state = &(state).into();
+    let profile_id = &payout_response.profile_id;
+    let business_profile = state
+        .store
+        .find_business_profile_by_profile_id(
+            key_manager_state,
+            merchant_context.get_merchant_key_store(),
+            profile_id,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+            id: profile_id.get_string_repr().to_owned(),
+        })?;
+
+    let status = &payout_response.status;
+    let should_trigger_webhook = business_profile
+        .get_payout_webhook_statuses()
+        .contains(status);
+
+    if should_trigger_webhook {
+        let event_type = (*status).into();
+        if let Some(event_type) = event_type {
+            let cloned_merchant_context = merchant_context.clone();
+            let cloned_state = state.clone();
+            let cloned_response = payout_response.clone();
+
+            // This spawns this futures in a background thread, the exception inside this future won't affect
+            // the current thread and the lifecycle of spawn thread is not handled by runtime.
+            // So when server shutdown won't wait for this thread's completion.
+            tokio::spawn(
+                async move {
+                    let primary_object_created_at = cloned_response.created;
+                    Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
+                        cloned_state,
+                        cloned_merchant_context,
+                        business_profile,
+                        event_type,
+                        diesel_models::enums::EventClass::Payouts,
+                        cloned_response.payout_id.get_string_repr().to_owned(),
+                        diesel_models::enums::EventObjectType::PayoutDetails,
+                        webhooks::OutgoingWebhookContent::PayoutDetails(Box::new(cloned_response)),
+                        primary_object_created_at,
+                    ))
+                    .await
+                }
+                .in_current_span(),
+            );
+        } else {
+            logger::warn!("Outgoing webhook not sent because of missing event type status mapping");
+        }
+    }
+    Ok(())
+}
+
+#[cfg(all(feature = "payouts", feature = "v2"))]
+pub async fn trigger_payouts_webhook(
+    state: &SessionState,
+    merchant_context: &domain::MerchantContext,
+    payout_response: &api_models::payouts::PayoutCreateResponse,
+) -> RouterResult<()> {
+    todo!()
 }

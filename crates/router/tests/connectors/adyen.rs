@@ -64,6 +64,7 @@ impl AdyenTest {
                         line3: None,
                         first_name: Some(Secret::new("John".to_string())),
                         last_name: Some(Secret::new("Dough".to_string())),
+                        origin_zip: None,
                     }),
                     phone: Some(PhoneDetails {
                         number: Some(Secret::new("9123456789".to_string())),
@@ -183,6 +184,7 @@ impl AdyenTest {
             metadata: None,
             authentication_data: None,
             customer_acceptance: None,
+            locale: None,
             ..utils::PaymentAuthorizeType::default().0
         })
     }
@@ -465,7 +467,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
         )
         .await
         .unwrap();
-    assert_eq!(response.response.unwrap_err().message, "Refused",);
+    assert_eq!(response.response.unwrap_err().message, "Refused");
 }
 
 // Creates a payment with incorrect CVC.
@@ -529,7 +531,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
         )
         .await
         .unwrap();
-    assert_eq!(response.response.unwrap_err().message, "Expired Card",);
+    assert_eq!(response.response.unwrap_err().message, "Expired Card");
 }
 
 // Captures a payment using invalid connector payment id.

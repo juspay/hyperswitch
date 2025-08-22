@@ -17,13 +17,12 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use super::payments::AddressDetails;
-#[cfg(feature = "v1")]
-use crate::routing;
 use crate::{
     consts::{MAX_ORDER_FULFILLMENT_EXPIRY, MIN_ORDER_FULFILLMENT_EXPIRY},
     enums as api_enums, payment_methods,
-    profile_acquirer::ProfileAcquirerResponse,
 };
+#[cfg(feature = "v1")]
+use crate::{profile_acquirer::ProfileAcquirerResponse, routing};
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 pub struct MerchantAccountListRequest {
@@ -703,6 +702,57 @@ pub struct WebhookDetails {
     /// If this property is true, a webhook message is posted whenever a payment fails
     #[schema(example = true)]
     pub payment_failed_enabled: Option<bool>,
+
+    /// List of payment statuses that triggers a webhook for payment intents
+    #[schema(value_type = Vec<IntentStatus>, example = json!(["succeeded", "failed", "partially_captured", "requires_merchant_action"]))]
+    pub payment_statuses_enabled: Option<Vec<api_enums::IntentStatus>>,
+
+    /// List of refund statuses that triggers a webhook for refunds
+    #[schema(value_type = Vec<IntentStatus>, example = json!(["success", "failure"]))]
+    pub refund_statuses_enabled: Option<Vec<api_enums::RefundStatus>>,
+
+    /// List of payout statuses that triggers a webhook for payouts
+    #[cfg(feature = "payouts")]
+    #[schema(value_type = Option<Vec<PayoutStatus>>, example = json!(["success", "failed"]))]
+    pub payout_statuses_enabled: Option<Vec<api_enums::PayoutStatus>>,
+}
+
+impl WebhookDetails {
+    fn validate_statuses<T>(statuses: &[T], status_type_name: &str) -> Result<(), String>
+    where
+        T: strum::IntoEnumIterator + Copy + PartialEq + std::fmt::Debug,
+        T: Into<Option<api_enums::EventType>>,
+    {
+        let valid_statuses: Vec<T> = T::iter().filter(|s| (*s).into().is_some()).collect();
+
+        for status in statuses {
+            if !valid_statuses.contains(status) {
+                return Err(format!(
+                    "Invalid {status_type_name} webhook status provided: {status:?}"
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    pub fn validate(&self) -> Result<(), String> {
+        if let Some(payment_statuses) = &self.payment_statuses_enabled {
+            Self::validate_statuses(payment_statuses, "payment")?;
+        }
+
+        if let Some(refund_statuses) = &self.refund_statuses_enabled {
+            Self::validate_statuses(refund_statuses, "refund")?;
+        }
+
+        #[cfg(feature = "payouts")]
+        {
+            if let Some(payout_statuses) = &self.payout_statuses_enabled {
+                Self::validate_statuses(payout_statuses, "payout")?;
+            }
+        }
+
+        Ok(())
+    }
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -1160,7 +1210,9 @@ pub enum ConnectorAuthType {
         auth_key_map: HashMap<common_enums::Currency, pii::SecretSerdeValue>,
     },
     CertificateAuth {
+        // certificate should be base64 encoded
         certificate: Secret<String>,
+        // private_key should be base64 encoded
         private_key: Secret<String>,
     },
     #[default]
@@ -2126,6 +2178,17 @@ pub struct ProfileCreate {
     /// Four-digit code assigned based on business type to determine processing fees and risk level
     #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
+
+    /// Merchant country code.
+    /// This is a 3-digit ISO 3166-1 numeric country code that represents the country in which the merchant is registered or operates.
+    /// Merchants typically receive this value based on their business registration information or during onboarding via payment processors or acquiring banks.
+    /// It is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior.
+    #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
+    pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+
+    /// Time interval (in hours) for polling the connector to check dispute statuses
+    #[schema(value_type = Option<i32>, example = 2)]
+    pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
 }
 
 #[nutype::nutype(
@@ -2272,6 +2335,13 @@ pub struct ProfileCreate {
     /// Four-digit code assigned based on business type to determine processing fees and risk level
     #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
+
+    /// Merchant country code.
+    /// This is a 3-digit ISO 3166-1 numeric country code that represents the country in which the merchant is registered or operates.
+    /// Merchants typically receive this value based on their business registration information or during onboarding via payment processors or acquiring banks.
+    /// It is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior.
+    #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
+    pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
 }
 
 #[cfg(feature = "v1")]
@@ -2447,6 +2517,16 @@ pub struct ProfileResponse {
     /// Four-digit code assigned based on business type to determine processing fees and risk level
     #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
+
+    /// Merchant country code.
+    /// This is a 3-digit ISO 3166-1 numeric country code that represents the country in which the merchant is registered or operates.
+    /// Merchants typically receive this value based on their business registration information or during onboarding via payment processors or acquiring banks.
+    /// It is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior.
+    #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
+    pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+
+    #[schema(value_type = Option<u32>, example = 2)]
+    pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
 }
 
 #[cfg(feature = "v2")]
@@ -2601,6 +2681,13 @@ pub struct ProfileResponse {
     /// Four-digit code assigned based on business type to determine processing fees and risk level
     #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
+
+    /// Merchant country code.
+    /// This is a 3-digit ISO 3166-1 numeric country code that represents the country in which the merchant is registered or operates.
+    /// Merchants typically receive this value based on their business registration information or during onboarding via payment processors or acquiring banks.
+    /// It is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior.
+    #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
+    pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
 }
 
 #[cfg(feature = "v1")]
@@ -2761,6 +2848,16 @@ pub struct ProfileUpdate {
     /// Four-digit code assigned based on business type to determine processing fees and risk level
     #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
+
+    /// Merchant country code.
+    /// This is a 3-digit ISO 3166-1 numeric country code that represents the country in which the merchant is registered or operates.
+    /// Merchants typically receive this value based on their business registration information or during onboarding via payment processors or acquiring banks.
+    /// It is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior.
+    #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
+    pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+
+    #[schema(value_type = Option<u32>, example = 2)]
+    pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
 }
 
 #[cfg(feature = "v2")]
@@ -2897,6 +2994,18 @@ pub struct ProfileUpdate {
     /// Four-digit code assigned based on business type to determine processing fees and risk level
     #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
+
+    /// Merchant country code.
+    /// This is a 3-digit ISO 3166-1 numeric country code that represents the country in which the merchant is registered or operates.
+    /// Merchants typically receive this value based on their business registration information or during onboarding via payment processors or acquiring banks.
+    /// It is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior.
+    #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
+    pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+
+    /// Indicates the state of revenue recovery algorithm type
+    #[schema(value_type = Option<RevenueRecoveryAlgorithmType>, example = "cascading")]
+    pub revenue_recovery_retry_algorithm_type:
+        Option<common_enums::enums::RevenueRecoveryAlgorithmType>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

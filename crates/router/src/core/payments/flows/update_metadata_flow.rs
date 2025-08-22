@@ -58,16 +58,6 @@ impl
     ) -> RouterResult<types::PaymentsUpdateMetadataRouterData> {
         todo!()
     }
-
-    async fn get_merchant_recipient_data<'a>(
-        &self,
-        _state: &SessionState,
-        _merchant_context: &domain::MerchantContext,
-        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
-        _connector: &api::ConnectorData,
-    ) -> RouterResult<Option<types::MerchantRecipientData>> {
-        Ok(None)
-    }
 }
 
 #[async_trait]
@@ -86,7 +76,7 @@ impl Feature<api::UpdateMetadata, types::PaymentsUpdateMetadataData>
         connector_request: Option<services::Request>,
         _business_profile: &domain::Profile,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-        all_keys_required: Option<bool>,
+        return_raw_connector_response: Option<bool>,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::UpdateMetadata,
@@ -100,7 +90,7 @@ impl Feature<api::UpdateMetadata, types::PaymentsUpdateMetadataData>
             &self,
             call_connector_action,
             connector_request,
-            all_keys_required,
+            return_raw_connector_response,
         )
         .await
         .to_payment_failed_response()?;
@@ -114,8 +104,14 @@ impl Feature<api::UpdateMetadata, types::PaymentsUpdateMetadataData>
         merchant_context: &domain::MerchantContext,
         creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
-        access_token::add_access_token(state, connector, merchant_context, self, creds_identifier)
-            .await
+        Box::pin(access_token::add_access_token(
+            state,
+            connector,
+            merchant_context,
+            self,
+            creds_identifier,
+        ))
+        .await
     }
 
     async fn build_flow_specific_connector_request(

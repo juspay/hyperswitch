@@ -31,6 +31,7 @@ diesel::table! {
         #[max_length = 32]
         updated_by -> Varchar,
         email -> Nullable<Bytea>,
+        origin_zip -> Nullable<Bytea>,
     }
 }
 
@@ -67,7 +68,7 @@ diesel::table! {
         #[max_length = 64]
         merchant_id -> Varchar,
         #[max_length = 64]
-        authentication_connector -> Varchar,
+        authentication_connector -> Nullable<Varchar>,
         #[max_length = 64]
         connector_authentication_id -> Nullable<Varchar>,
         authentication_data -> Nullable<Jsonb>,
@@ -113,7 +114,7 @@ diesel::table! {
         #[max_length = 255]
         payment_id -> Nullable<Varchar>,
         #[max_length = 128]
-        merchant_connector_id -> Varchar,
+        merchant_connector_id -> Nullable<Varchar>,
         #[max_length = 64]
         ds_trans_id -> Nullable<Varchar>,
         #[max_length = 128]
@@ -123,6 +124,24 @@ diesel::table! {
         service_details -> Nullable<Jsonb>,
         #[max_length = 32]
         organization_id -> Varchar,
+        #[max_length = 128]
+        authentication_client_secret -> Nullable<Varchar>,
+        force_3ds_challenge -> Nullable<Bool>,
+        psd2_sca_exemption_type -> Nullable<ScaExemptionType>,
+        #[max_length = 2048]
+        return_url -> Nullable<Varchar>,
+        amount -> Nullable<Int8>,
+        currency -> Nullable<Currency>,
+        billing_address -> Nullable<Bytea>,
+        shipping_address -> Nullable<Bytea>,
+        browser_info -> Nullable<Jsonb>,
+        email -> Nullable<Bytea>,
+        #[max_length = 128]
+        profile_acquirer_id -> Nullable<Varchar>,
+        challenge_code -> Nullable<Varchar>,
+        challenge_cancel -> Nullable<Varchar>,
+        challenge_code_reason -> Nullable<Varchar>,
+        message_extension -> Nullable<Jsonb>,
     }
 }
 
@@ -231,6 +250,9 @@ diesel::table! {
         acquirer_config_map -> Nullable<Jsonb>,
         #[max_length = 16]
         merchant_category_code -> Nullable<Varchar>,
+        #[max_length = 32]
+        merchant_country_code -> Nullable<Varchar>,
+        dispute_polling_interval -> Nullable<Int4>,
     }
 }
 
@@ -350,6 +372,7 @@ diesel::table! {
         #[max_length = 64]
         updated_by -> Nullable<Varchar>,
         version -> ApiVersion,
+        tax_registration_id -> Nullable<Bytea>,
     }
 }
 
@@ -579,6 +602,9 @@ diesel::table! {
         #[max_length = 64]
         error_category -> Nullable<Varchar>,
         clear_pan_possible -> Bool,
+        feature_data -> Nullable<Jsonb>,
+        #[max_length = 64]
+        feature -> Nullable<Varchar>,
     }
 }
 
@@ -707,6 +733,8 @@ diesel::table! {
         merchant_connector_id -> Nullable<Varchar>,
         #[max_length = 64]
         updated_by -> Nullable<Varchar>,
+        #[max_length = 2048]
+        customer_user_agent_extended -> Nullable<Varchar>,
     }
 }
 
@@ -950,6 +978,9 @@ diesel::table! {
         #[max_length = 255]
         created_by -> Nullable<Varchar>,
         setup_future_usage_applied -> Nullable<FutureUsage>,
+        routing_approach -> Nullable<RoutingApproach>,
+        #[max_length = 255]
+        connector_request_reference_id -> Nullable<Varchar>,
     }
 }
 
@@ -1044,6 +1075,15 @@ diesel::table! {
         is_iframe_redirection_enabled -> Nullable<Bool>,
         #[max_length = 2048]
         extended_return_url -> Nullable<Varchar>,
+        is_payment_id_from_merchant -> Nullable<Bool>,
+        #[max_length = 64]
+        payment_channel -> Nullable<Varchar>,
+        tax_status -> Nullable<Varchar>,
+        discount_amount -> Nullable<Int8>,
+        shipping_amount_tax -> Nullable<Int8>,
+        duty_amount -> Nullable<Int8>,
+        order_date -> Nullable<Timestamp>,
+        enable_partial_authorization -> Nullable<Bool>,
     }
 }
 
@@ -1142,7 +1182,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    payout_attempt (payout_attempt_id) {
+    payout_attempt (merchant_id, payout_attempt_id) {
         #[max_length = 64]
         payout_attempt_id -> Varchar,
         #[max_length = 64]
@@ -1179,6 +1219,8 @@ diesel::table! {
         #[max_length = 1024]
         unified_message -> Nullable<Varchar>,
         additional_payout_method_data -> Nullable<Jsonb>,
+        #[max_length = 255]
+        merchant_order_reference_id -> Nullable<Varchar>,
     }
 }
 
@@ -1186,7 +1228,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    payouts (payout_id) {
+    payouts (merchant_id, payout_id) {
         #[max_length = 64]
         payout_id -> Varchar,
         #[max_length = 64]

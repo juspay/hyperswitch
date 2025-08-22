@@ -60,6 +60,9 @@ impl TryFrom<&GlobepayRouterData<&types::PaymentsAuthorizeRouterData>> for Globe
                 WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
                 | WalletData::AmazonPayRedirect(_)
+                | WalletData::Paysera(_)
+                | WalletData::Skrill(_)
+                | WalletData::BluecodeRedirect {}
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -329,6 +332,7 @@ fn get_error_response(
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        connector_metadata: None,
     }
 }
 

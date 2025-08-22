@@ -1304,9 +1304,10 @@ pub async fn add_payment_method_to_vault(
     merchant_context: &domain::MerchantContext,
     pmd: &domain::PaymentMethodVaultingData,
     existing_vault_id: Option<domain::VaultId>,
+    customer_id: &id_type::GlobalCustomerId,
 ) -> CustomResult<pm_types::AddVaultResponse, errors::VaultError> {
     let payload = pm_types::AddVaultRequest {
-        entity_id: merchant_context.get_merchant_account().get_id().to_owned(),
+        entity_id: customer_id.to_owned(),
         vault_id: existing_vault_id
             .unwrap_or(domain::VaultId::generate(uuid::Uuid::now_v7().to_string())),
         data: pmd,
@@ -1335,9 +1336,10 @@ pub async fn retrieve_payment_method_from_vault_internal(
     state: &routes::SessionState,
     merchant_context: &domain::MerchantContext,
     vault_id: &domain::VaultId,
+    customer_id: &id_type::GlobalCustomerId,
 ) -> CustomResult<pm_types::VaultRetrieveResponse, errors::VaultError> {
     let payload = pm_types::VaultRetrieveRequest {
-        entity_id: merchant_context.get_merchant_account().get_id().to_owned(),
+        entity_id: customer_id.to_owned(),
         vault_id: vault_id.to_owned(),
     }
     .encode_to_vec()
@@ -1527,6 +1529,105 @@ pub async fn retrieve_payment_method_from_vault_using_payment_token(
     Ok((payment_method, vault_data))
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct TemporaryVaultCvc {
+    card_cvc: masking::Secret<String>,
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub async fn insert_cvc_using_payment_token(
+    state: &routes::SessionState,
+    payment_token: &String,
+    payment_method_data: api_models::payment_methods::PaymentMethodCreateData,
+    payment_method: common_enums::PaymentMethod,
+    fulfillment_time: i64,
+    encryption_key: &masking::Secret<Vec<u8>>,
+) -> RouterResult<()> {
+    let card_cvc = domain::PaymentMethodVaultingData::try_from(payment_method_data)?
+        .get_card()
+        .and_then(|card| card.card_cvc.clone());
+
+    if let Some(card_cvc) = card_cvc {
+        let redis_conn = state
+            .store
+            .get_redis_conn()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get redis connection")?;
+
+        let key = format!("pm_token_{payment_token}_{payment_method}_hyperswitch_cvc");
+
+        let payload_to_be_encrypted = TemporaryVaultCvc { card_cvc };
+
+        let payload = payload_to_be_encrypted
+            .encode_to_string_of_json()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        // Encrypt the CVC and store it in Redis
+        let encrypted_payload = GcmAes256
+            .encode_message(encryption_key.peek().as_ref(), payload.as_bytes())
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encode TemporaryVaultCvc for vault")?;
+
+        redis_conn
+            .set_key_if_not_exists_with_expiry(
+                &key.as_str().into(),
+                bytes::Bytes::from(encrypted_payload),
+                Some(fulfillment_time),
+            )
+            .await
+            .change_context(errors::StorageError::KVError)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to add token in redis")?;
+    };
+
+    Ok(())
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub async fn retrieve_and_delete_cvc_from_payment_token(
+    state: &routes::SessionState,
+    payment_token: &String,
+    payment_method: common_enums::PaymentMethod,
+    encryption_key: &masking::Secret<Vec<u8>>,
+) -> RouterResult<masking::Secret<String>> {
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
+
+    let key = format!("pm_token_{payment_token}_{payment_method}_hyperswitch_cvc",);
+
+    let data = redis_conn
+        .get_key::<bytes::Bytes>(&key.clone().into())
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch the token from redis")?;
+
+    // decrypt the cvc data
+    let decrypted_payload = GcmAes256
+        .decode_message(
+            encryption_key.peek().as_ref(),
+            masking::Secret::new(data.into()),
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to decode TemporaryVaultCvc from vault")?;
+
+    let cvc_data: TemporaryVaultCvc = bytes::Bytes::from(decrypted_payload)
+        .parse_struct("TemporaryVaultCvc")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to deserialize TemporaryVaultCvc")?;
+
+    // delete key after retrieving the cvc
+    redis_conn.delete_key(&key.into()).await.map_err(|err| {
+        logger::error!("Failed to delete token from redis: {:?}", err);
+    });
+
+    Ok(cvc_data.card_cvc)
+}
+
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn delete_payment_token(
@@ -1592,10 +1693,15 @@ pub async fn retrieve_payment_method_from_vault(
                 })
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Missing locker_id for VaultRetrieveRequest")?;
-            retrieve_payment_method_from_vault_internal(state, merchant_context, &vault_id)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to retrieve payment method from vault")
+            retrieve_payment_method_from_vault_internal(
+                state,
+                merchant_context,
+                &vault_id,
+                &pm.customer_id,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to retrieve payment method from vault")
         }
     }
 }
@@ -1605,9 +1711,10 @@ pub async fn delete_payment_method_data_from_vault_internal(
     state: &routes::SessionState,
     merchant_context: &domain::MerchantContext,
     vault_id: domain::VaultId,
+    customer_id: &id_type::GlobalCustomerId,
 ) -> CustomResult<pm_types::VaultDeleteResponse, errors::VaultError> {
     let payload = pm_types::VaultDeleteRequest {
-        entity_id: merchant_context.get_merchant_account().get_id().to_owned(),
+        entity_id: customer_id.to_owned(),
         vault_id,
     }
     .encode_to_vec()
@@ -1633,6 +1740,7 @@ pub async fn delete_payment_method_data_from_vault_external(
     merchant_account: &domain::MerchantAccount,
     merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
     vault_id: domain::VaultId,
+    customer_id: &id_type::GlobalCustomerId,
 ) -> RouterResult<pm_types::VaultDeleteResponse> {
     let connector_vault_id = vault_id.get_string_repr().to_owned();
 
@@ -1685,21 +1793,21 @@ pub async fn delete_payment_method_data_from_vault_external(
 
     get_vault_response_for_delete_payment_method_data::<ExternalVaultDeleteFlow>(
         router_data_resp,
-        merchant_account.get_id().to_owned(),
+        customer_id.to_owned(),
     )
 }
 
 #[cfg(feature = "v2")]
 pub fn get_vault_response_for_delete_payment_method_data<F>(
     router_data: VaultRouterData<F>,
-    merchant_id: id_type::MerchantId,
+    customer_id: id_type::GlobalCustomerId,
 ) -> RouterResult<pm_types::VaultDeleteResponse> {
     match router_data.response {
         Ok(response) => match response {
             types::VaultResponseData::ExternalVaultDeleteResponse { connector_vault_id } => {
                 Ok(pm_types::VaultDeleteResponse {
                     vault_id: domain::VaultId::generate(connector_vault_id), // converted to VaultId type
-                    entity_id: merchant_id,
+                    entity_id: customer_id,
                 })
             }
             types::VaultResponseData::ExternalVaultInsertResponse { .. }
@@ -1751,13 +1859,19 @@ pub async fn delete_payment_method_data_from_vault(
                 merchant_context.get_merchant_account(),
                 merchant_connector_account,
                 vault_id.clone(),
+                &pm.customer_id,
             )
             .await
         }
-        false => delete_payment_method_data_from_vault_internal(state, merchant_context, vault_id)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to delete payment method from vault"),
+        false => delete_payment_method_data_from_vault_internal(
+            state,
+            merchant_context,
+            vault_id,
+            &pm.customer_id,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to delete payment method from vault"),
     }
 }
 

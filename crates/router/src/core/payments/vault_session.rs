@@ -4,7 +4,7 @@ pub use common_enums::enums::CallConnectorAction;
 use common_utils::id_type;
 use error_stack::ResultExt;
 pub use hyperswitch_domain_models::{
-    mandates::{CustomerAcceptance, MandateData},
+    mandates::MandateData,
     payment_address::PaymentAddress,
     payments::{HeaderPayload, PaymentIntentData},
     router_data::{PaymentMethodToken, RouterData},
@@ -105,7 +105,6 @@ where
                     &state.into(),
                     &customer_id,
                     customer,
-                    &customer_merchant_id,
                     updated_customer,
                     merchant_context.get_merchant_key_store(),
                     merchant_context.get_merchant_account().storage_scheme,

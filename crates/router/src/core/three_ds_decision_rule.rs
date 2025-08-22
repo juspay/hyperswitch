@@ -26,13 +26,27 @@ pub async fn execute_three_ds_decision_rule(
     merchant_context: MerchantContext,
     request: api_models::three_ds_decision_rule::ThreeDsDecisionRuleExecuteRequest,
 ) -> RouterResponse<api_models::three_ds_decision_rule::ThreeDsDecisionRuleExecuteResponse> {
+    let decision = get_three_ds_decision_rule_output(
+        &state,
+        merchant_context.get_merchant_account().get_id(),
+        request.clone(),
+    )
+    .await?;
+    // Construct response
+    let response =
+        api_models::three_ds_decision_rule::ThreeDsDecisionRuleExecuteResponse { decision };
+    Ok(services::ApplicationResponse::Json(response))
+}
+
+pub async fn get_three_ds_decision_rule_output(
+    state: &SessionState,
+    merchant_id: &common_utils::id_type::MerchantId,
+    request: api_models::three_ds_decision_rule::ThreeDsDecisionRuleExecuteRequest,
+) -> errors::RouterResult<common_types::three_ds_decision_rule_engine::ThreeDSDecision> {
     let db = state.store.as_ref();
     // Retrieve the rule from database
     let routing_algorithm = db
-        .find_routing_algorithm_by_algorithm_id_merchant_id(
-            &request.routing_id,
-            merchant_context.get_merchant_account().get_id(),
-        )
+        .find_routing_algorithm_by_algorithm_id_merchant_id(&request.routing_id, merchant_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
     let algorithm: Algorithm = routing_algorithm
@@ -59,11 +73,7 @@ pub async fn execute_three_ds_decision_rule(
     // Apply PSD2 validations to the decision
     let final_decision =
         utils::apply_psd2_validations_during_execute(result.get_output().get_decision(), &request);
-    // Construct response
-    let response = api_models::three_ds_decision_rule::ThreeDsDecisionRuleExecuteResponse {
-        decision: final_decision,
-    };
-    Ok(services::ApplicationResponse::Json(response))
+    Ok(final_decision)
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

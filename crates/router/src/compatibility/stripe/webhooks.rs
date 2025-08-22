@@ -4,9 +4,12 @@ use api_models::{
     enums::{Currency, DisputeStatus, MandateStatus},
     webhooks::{self as api},
 };
-#[cfg(feature = "payouts")]
-use common_utils::pii::{self, Email};
 use common_utils::{crypto::SignMessage, date_time, ext_traits::Encode};
+#[cfg(feature = "payouts")]
+use common_utils::{
+    id_type,
+    pii::{self, Email},
+};
 use error_stack::ResultExt;
 use router_env::logger;
 use serde::Serialize;
@@ -94,7 +97,7 @@ pub struct StripeDisputeResponse {
     pub id: String,
     pub amount: String,
     pub currency: Currency,
-    pub payment_intent: common_utils::id_type::PaymentId,
+    pub payment_intent: id_type::PaymentId,
     pub reason: Option<String>,
     pub status: StripeDisputeStatus,
 }
@@ -110,7 +113,7 @@ pub struct StripeMandateResponse {
 #[cfg(feature = "payouts")]
 #[derive(Clone, Serialize, Debug)]
 pub struct StripePayoutResponse {
-    pub id: String,
+    pub id: id_type::PayoutId,
     pub amount: i64,
     pub currency: String,
     pub payout_type: Option<common_enums::PayoutType>,
@@ -266,8 +269,11 @@ fn get_stripe_event_type(event_type: api_models::enums::EventType) -> &'static s
     match event_type {
         api_models::enums::EventType::PaymentSucceeded => "payment_intent.succeeded",
         api_models::enums::EventType::PaymentFailed => "payment_intent.payment_failed",
-        api_models::enums::EventType::PaymentProcessing => "payment_intent.processing",
-        api_models::enums::EventType::PaymentCancelled => "payment_intent.canceled",
+        api_models::enums::EventType::PaymentProcessing
+        | api_models::enums::EventType::PaymentPartiallyAuthorized => "payment_intent.processing",
+        api_models::enums::EventType::PaymentCancelled
+        | api_models::enums::EventType::PaymentCancelledPostCapture
+        | api_models::enums::EventType::PaymentExpired => "payment_intent.canceled",
 
         // the below are not really stripe compatible because stripe doesn't provide this
         api_models::enums::EventType::ActionRequired => "action.required",

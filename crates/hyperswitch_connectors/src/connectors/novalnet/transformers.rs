@@ -292,7 +292,15 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                         let novalnet_google_pay: NovalNetPaymentData =
                             NovalNetPaymentData::GooglePay(NovalnetGooglePay {
                                 wallet_data: Secret::new(
-                                    req_wallet.tokenization_data.token.clone(),
+                                    req_wallet
+                                        .tokenization_data
+                                        .get_encrypted_google_pay_token()
+                                        .change_context(
+                                            errors::ConnectorError::MissingRequiredField {
+                                                field_name: "gpay wallet_token",
+                                            },
+                                        )?
+                                        .clone(),
                                 ),
                             });
 
@@ -348,6 +356,9 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                     | WalletDataPaymentMethod::AliPayRedirect(_)
                     | WalletDataPaymentMethod::AliPayHkRedirect(_)
                     | WalletDataPaymentMethod::AmazonPayRedirect(_)
+                    | WalletDataPaymentMethod::Paysera(_)
+                    | WalletDataPaymentMethod::Skrill(_)
+                    | WalletDataPaymentMethod::BluecodeRedirect {}
                     | WalletDataPaymentMethod::MomoRedirect(_)
                     | WalletDataPaymentMethod::KakaoPayRedirect(_)
                     | WalletDataPaymentMethod::GoPayRedirect(_)
@@ -599,6 +610,7 @@ pub fn get_error_response(result: ResultData, status_code: u16) -> ErrorResponse
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        connector_metadata: None,
     }
 }
 
@@ -1546,7 +1558,15 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
                 WalletDataPaymentMethod::GooglePay(ref req_wallet) => {
                     let novalnet_google_pay: NovalNetPaymentData =
                         NovalNetPaymentData::GooglePay(NovalnetGooglePay {
-                            wallet_data: Secret::new(req_wallet.tokenization_data.token.clone()),
+                            wallet_data: Secret::new(
+                                req_wallet
+                                    .tokenization_data
+                                    .get_encrypted_google_pay_token()
+                                    .change_context(errors::ConnectorError::MissingRequiredField {
+                                        field_name: "gpay wallet_token",
+                                    })?
+                                    .clone(),
+                            ),
                         });
 
                     let transaction = NovalnetPaymentsRequestTransaction {
@@ -1600,6 +1620,9 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
                 | WalletDataPaymentMethod::AliPayRedirect(_)
                 | WalletDataPaymentMethod::AliPayHkRedirect(_)
                 | WalletDataPaymentMethod::AmazonPayRedirect(_)
+                | WalletDataPaymentMethod::Paysera(_)
+                | WalletDataPaymentMethod::Skrill(_)
+                | WalletDataPaymentMethod::BluecodeRedirect {}
                 | WalletDataPaymentMethod::MomoRedirect(_)
                 | WalletDataPaymentMethod::KakaoPayRedirect(_)
                 | WalletDataPaymentMethod::GoPayRedirect(_)

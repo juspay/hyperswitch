@@ -85,7 +85,7 @@ impl ConnectorIntegration<ExternalVaultCreateFlow, VaultRequestData, VaultRespon
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}/v2/payment-methods-session",
+            "{}/v2/payment-method-sessions",
             self.base_url(connectors)
         ))
     }
@@ -243,6 +243,7 @@ impl ConnectorCommon for HyperswitchVault {
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }

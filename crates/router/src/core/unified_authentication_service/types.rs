@@ -12,10 +12,7 @@ use hyperswitch_domain_models::{
 };
 
 use crate::{
-    core::{
-        errors::RouterResult,
-        payments::{helpers::MerchantConnectorAccountType, PaymentData},
-    },
+    core::{errors::RouterResult, payments::helpers::MerchantConnectorAccountType},
     db::domain,
     routes::SessionState,
 };
@@ -35,9 +32,17 @@ pub struct ClickToPay;
 pub struct ExternalAuthentication;
 
 #[async_trait::async_trait]
-pub trait UnifiedAuthenticationService<F: Clone + Sync> {
+pub trait UnifiedAuthenticationService {
+    #[allow(clippy::too_many_arguments)]
     fn get_pre_authentication_request_data(
-        _payment_data: &PaymentData<F>,
+        _payment_method_data: Option<&domain::PaymentMethodData>,
+        _service_details: Option<payments::CtpServiceDetails>,
+        _amount: common_utils::types::MinorUnit,
+        _currency: Option<common_enums::Currency>,
+        _merchant_details: Option<&hyperswitch_domain_models::router_request_types::unified_authentication_service::MerchantDetails>,
+        _billing_address: Option<&hyperswitch_domain_models::address::Address>,
+        _acquirer_bin: Option<String>,
+        _acquirer_merchant_id: Option<String>,
     ) -> RouterResult<UasPreAuthenticationRequestData> {
         Err(errors::ApiErrorResponse::NotImplemented {
             message: NotImplementedMessage::Reason(
@@ -50,13 +55,20 @@ pub trait UnifiedAuthenticationService<F: Clone + Sync> {
     #[allow(clippy::too_many_arguments)]
     async fn pre_authentication(
         _state: &SessionState,
-        _key_store: &domain::MerchantKeyStore,
-        _business_profile: &domain::Profile,
-        _payment_data: &PaymentData<F>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _payment_id: Option<&common_utils::id_type::PaymentId>,
+        _payment_method_data: Option<&domain::PaymentMethodData>,
         _merchant_connector_account: &MerchantConnectorAccountType,
         _connector_name: &str,
-        _authentication_id: &str,
+        _authentication_id: &common_utils::id_type::AuthenticationId,
         _payment_method: common_enums::PaymentMethod,
+        _amount: common_utils::types::MinorUnit,
+        _currency: Option<common_enums::Currency>,
+        _service_details: Option<payments::CtpServiceDetails>,
+        _merchant_details: Option<&hyperswitch_domain_models::router_request_types::unified_authentication_service::MerchantDetails>,
+        _billing_address: Option<&hyperswitch_domain_models::address::Address>,
+        _acquirer_bin: Option<String>,
+        _acquirer_merchant_id: Option<String>,
     ) -> RouterResult<hyperswitch_domain_models::types::UasPreAuthenticationRouterData> {
         Err(errors::ApiErrorResponse::NotImplemented {
             message: NotImplementedMessage::Reason("pre_authentication".to_string()),
@@ -66,9 +78,6 @@ pub trait UnifiedAuthenticationService<F: Clone + Sync> {
 
     #[allow(clippy::too_many_arguments)]
     fn get_authentication_request_data(
-        _payment_method_data: domain::PaymentMethodData,
-        _billing_address: hyperswitch_domain_models::address::Address,
-        _shipping_address: Option<hyperswitch_domain_models::address::Address>,
         _browser_details: Option<BrowserInformation>,
         _amount: Option<common_utils::types::MinorUnit>,
         _currency: Option<common_enums::Currency>,
@@ -80,7 +89,6 @@ pub trait UnifiedAuthenticationService<F: Clone + Sync> {
         _threeds_method_comp_ind: payments::ThreeDsCompletionIndicator,
         _email: Option<common_utils::pii::Email>,
         _webhook_url: String,
-        _three_ds_requestor_url: String,
     ) -> RouterResult<UasAuthenticationRequestData> {
         Err(errors::ApiErrorResponse::NotImplemented {
             message: NotImplementedMessage::Reason(
@@ -94,10 +102,7 @@ pub trait UnifiedAuthenticationService<F: Clone + Sync> {
     async fn authentication(
         _state: &SessionState,
         _business_profile: &domain::Profile,
-        _payment_method: common_enums::PaymentMethod,
-        _payment_method_data: domain::PaymentMethodData,
-        _billing_address: hyperswitch_domain_models::address::Address,
-        _shipping_address: Option<hyperswitch_domain_models::address::Address>,
+        _payment_method: &common_enums::PaymentMethod,
         _browser_details: Option<BrowserInformation>,
         _amount: Option<common_utils::types::MinorUnit>,
         _currency: Option<common_enums::Currency>,
@@ -109,10 +114,9 @@ pub trait UnifiedAuthenticationService<F: Clone + Sync> {
         _threeds_method_comp_ind: payments::ThreeDsCompletionIndicator,
         _email: Option<common_utils::pii::Email>,
         _webhook_url: String,
-        _three_ds_requestor_url: String,
         _merchant_connector_account: &MerchantConnectorAccountType,
         _connector_name: &str,
-        _payment_id: common_utils::id_type::PaymentId,
+        _payment_id: Option<common_utils::id_type::PaymentId>,
     ) -> RouterResult<hyperswitch_domain_models::types::UasAuthenticationRouterData> {
         Err(errors::ApiErrorResponse::NotImplemented {
             message: NotImplementedMessage::Reason("authentication".to_string()),
@@ -132,13 +136,14 @@ pub trait UnifiedAuthenticationService<F: Clone + Sync> {
     #[allow(clippy::too_many_arguments)]
     async fn post_authentication(
         _state: &SessionState,
-        _key_store: &domain::MerchantKeyStore,
         _business_profile: &domain::Profile,
-        _payment_data: &PaymentData<F>,
+        _payment_id: Option<&common_utils::id_type::PaymentId>,
         _merchant_connector_account: &MerchantConnectorAccountType,
         _connector_name: &str,
+        _authentication_id: &common_utils::id_type::AuthenticationId,
         _payment_method: common_enums::PaymentMethod,
-        _authentication: Option<diesel_models::authentication::Authentication>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _authentication: Option<&diesel_models::authentication::Authentication>,
     ) -> RouterResult<hyperswitch_domain_models::types::UasPostAuthenticationRouterData> {
         Err(errors::ApiErrorResponse::NotImplemented {
             message: NotImplementedMessage::Reason("post_authentication".to_string()),
@@ -146,14 +151,21 @@ pub trait UnifiedAuthenticationService<F: Clone + Sync> {
         .into())
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn confirmation(
         _state: &SessionState,
         _key_store: &domain::MerchantKeyStore,
         _business_profile: &domain::Profile,
-        _payment_data: &PaymentData<F>,
+        _authentication_id: Option<&common_utils::id_type::AuthenticationId>,
+        _currency: Option<common_enums::Currency>,
+        _status: common_enums::AttemptStatus,
+        _service_details: Option<payments::CtpServiceDetails>,
         _merchant_connector_account: &MerchantConnectorAccountType,
         _connector_name: &str,
         _payment_method: common_enums::PaymentMethod,
+        _net_amount: common_utils::types::MinorUnit,
+        _payment_id: Option<&common_utils::id_type::PaymentId>,
+        _merchant_id: &common_utils::id_type::MerchantId,
     ) -> RouterResult<()> {
         Err(errors::ApiErrorResponse::NotImplemented {
             message: NotImplementedMessage::Reason("confirmation".to_string()),

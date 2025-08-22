@@ -4,14 +4,13 @@ use std::str::FromStr;
 use api_models::{
     mandates,
     payment_methods::{self},
-    payments::{
-        additional_info as payment_additional_types, AmazonPayRedirectData, ExtendedCardInfo,
-    },
+    payments::{additional_info as payment_additional_types, ExtendedCardInfo},
 };
 use common_enums::enums as api_enums;
 #[cfg(feature = "v2")]
 use common_utils::ext_traits::OptionExt;
 use common_utils::{
+    ext_traits::StringExt,
     id_type,
     new_type::{
         MaskedBankAccount, MaskedIban, MaskedRoutingNumber, MaskedSortCode, MaskedUpiVpaId,
@@ -24,7 +23,7 @@ use time::Date;
 
 // We need to derive Serialize and Deserialize because some parts of payment method data are being
 // stored in the database as serde_json::Value
-#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum PaymentMethodData {
     Card(Card),
     CardDetailsForNetworkTransactionId(CardDetailsForNetworkTransactionId),
@@ -45,6 +44,12 @@ pub enum PaymentMethodData {
     OpenBanking(OpenBankingData),
     NetworkToken(NetworkTokenData),
     MobilePayment(MobilePaymentData),
+}
+
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+pub enum ExternalVaultPaymentMethodData {
+    Card(Box<ExternalVaultCard>),
+    VaultToken(VaultToken),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -77,6 +82,14 @@ impl PaymentMethodData {
         }
     }
 
+    pub fn get_wallet_data(&self) -> Option<&WalletData> {
+        if let Self::Wallet(wallet_data) = self {
+            Some(wallet_data)
+        } else {
+            None
+        }
+    }
+
     pub fn is_network_token_payment_method_data(&self) -> bool {
         matches!(self, Self::NetworkToken(_))
     }
@@ -88,9 +101,29 @@ impl PaymentMethodData {
             None
         }
     }
+
+    pub fn get_card_data(&self) -> Option<&Card> {
+        if let Self::Card(card) = self {
+            Some(card)
+        } else {
+            None
+        }
+    }
+
+    pub fn extract_debit_routing_saving_percentage(
+        &self,
+        network: &common_enums::CardNetwork,
+    ) -> Option<f64> {
+        self.get_co_badged_card_data()?
+            .co_badged_card_networks_info
+            .0
+            .iter()
+            .find(|info| &info.network == network)
+            .map(|info| info.saving_percentage)
+    }
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
 pub struct Card {
     pub card_number: cards::CardNumber,
     pub card_exp_month: Secret<String>,
@@ -104,6 +137,30 @@ pub struct Card {
     pub nick_name: Option<Secret<String>>,
     pub card_holder_name: Option<Secret<String>>,
     pub co_badged_card_data: Option<payment_methods::CoBadgedCardData>,
+}
+
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
+pub struct ExternalVaultCard {
+    pub card_number: Secret<String>,
+    pub card_exp_month: Secret<String>,
+    pub card_exp_year: Secret<String>,
+    pub card_cvc: Secret<String>,
+    pub bin_number: Option<String>,
+    pub last_four: Option<String>,
+    pub card_issuer: Option<String>,
+    pub card_network: Option<common_enums::CardNetwork>,
+    pub card_type: Option<String>,
+    pub card_issuing_country: Option<String>,
+    pub bank_code: Option<String>,
+    pub nick_name: Option<Secret<String>>,
+    pub card_holder_name: Option<Secret<String>>,
+    pub co_badged_card_data: Option<payment_methods::CoBadgedCardData>,
+}
+
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
+pub struct VaultToken {
+    pub card_cvc: Secret<String>,
+    pub card_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
@@ -120,7 +177,7 @@ pub struct CardDetailsForNetworkTransactionId {
     pub card_holder_name: Option<Secret<String>>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
 pub struct CardDetail {
     pub card_number: cards::CardNumber,
     pub card_exp_month: Secret<String>,
@@ -213,8 +270,10 @@ pub enum PayLaterData {
     AfterpayClearpayRedirect {},
     PayBrightRedirect {},
     WalleyRedirect {},
+    FlexitiRedirect {},
     AlmaRedirect {},
     AtomeRedirect {},
+    BreadpayRedirect {},
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -222,7 +281,10 @@ pub enum WalletData {
     AliPayQr(Box<AliPayQr>),
     AliPayRedirect(AliPayRedirection),
     AliPayHkRedirect(AliPayHkRedirection),
-    AmazonPayRedirect(Box<AmazonPayRedirectData>),
+    AmazonPayRedirect(Box<AmazonPayRedirect>),
+    BluecodeRedirect {},
+    Paysera(Box<PayseraData>),
+    Skrill(Box<SkrillData>),
     MomoRedirect(MomoRedirection),
     KakaoPayRedirect(KakaoPayRedirection),
     GoPayRedirect(GoPayRedirection),
@@ -249,6 +311,32 @@ pub enum WalletData {
     SwishQr(SwishQrData),
     Mifinity(MifinityData),
     RevolutPay(RevolutPayData),
+}
+
+impl WalletData {
+    pub fn get_paze_wallet_data(&self) -> Option<&PazeWalletData> {
+        if let Self::Paze(paze_wallet_data) = self {
+            Some(paze_wallet_data)
+        } else {
+            None
+        }
+    }
+
+    pub fn get_apple_pay_wallet_data(&self) -> Option<&ApplePayWalletData> {
+        if let Self::ApplePay(apple_pay_wallet_data) = self {
+            Some(apple_pay_wallet_data)
+        } else {
+            None
+        }
+    }
+
+    pub fn get_google_pay_wallet_data(&self) -> Option<&GooglePayWalletData> {
+        if let Self::GooglePay(google_pay_wallet_data) = self {
+            Some(google_pay_wallet_data)
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -300,7 +388,7 @@ pub struct GooglePayWalletData {
     /// The information of the payment method
     pub info: GooglePayPaymentMethodInfo,
     /// The tokenization data of Google pay
-    pub tokenization_data: GpayTokenizationData,
+    pub tokenization_data: common_types::payments::GpayTokenizationData,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -343,6 +431,18 @@ pub struct AliPayRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct AliPayHkRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct AmazonPayRedirect {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct BluecodeQrRedirect {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct PayseraData {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct SkrillData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct MomoRedirection {}
@@ -394,21 +494,33 @@ pub struct TouchNGoRedirection {}
 pub struct SwishQrData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
-pub struct GpayTokenizationData {
-    /// The type of the token
-    pub token_type: String,
-    /// Token generated for the wallet
-    pub token: String,
-}
-
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct ApplePayWalletData {
     /// The payment data of Apple pay
-    pub payment_data: String,
+    pub payment_data: common_types::payments::ApplePayPaymentData,
     /// The payment method of Apple pay
     pub payment_method: ApplepayPaymentMethod,
     /// The unique identifier for the transaction
     pub transaction_identifier: String,
+}
+
+impl ApplePayWalletData {
+    pub fn get_payment_method_type(&self) -> Option<api_enums::PaymentMethodType> {
+        self.payment_method
+            .pm_type
+            .clone()
+            .parse_enum("ApplePayPaymentMethodType")
+            .ok()
+            .and_then(|payment_type| match payment_type {
+                common_enums::ApplePayPaymentMethodType::Debit => {
+                    Some(api_enums::PaymentMethodType::Debit)
+                }
+                common_enums::ApplePayPaymentMethodType::Credit => {
+                    Some(api_enums::PaymentMethodType::Credit)
+                }
+                common_enums::ApplePayPaymentMethodType::Prepaid
+                | common_enums::ApplePayPaymentMethodType::Store => None,
+            })
+    }
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -634,6 +746,8 @@ pub enum BankTransferData {
         source_bank_account_id: Option<MaskedBankAccount>,
         /// Destination bank account UUID.
         destination_bank_account_id: Option<MaskedBankAccount>,
+        /// The expiration date and time for the Pix QR code
+        expiry_date: Option<time::PrimitiveDateTime>,
     },
     Pse {},
     LocalBankTransfer {
@@ -642,6 +756,9 @@ pub enum BankTransferData {
     InstantBankTransfer {},
     InstantBankTransferFinland {},
     InstantBankTransferPoland {},
+    IndonesianBankTransfer {
+        bank_name: Option<common_enums::BankNames>,
+    },
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -741,6 +858,12 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodData {
                 card_holder_name,
                 co_badged_card_data: None,
             })),
+            payment_methods::PaymentMethodCreateData::ProxyCard(_) => Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "Payment method data",
+                }
+                .into(),
+            ),
         }
     }
 }
@@ -799,6 +922,67 @@ impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
     }
 }
 
+impl From<api_models::payments::ProxyPaymentMethodData> for ExternalVaultPaymentMethodData {
+    fn from(api_model_payment_method_data: api_models::payments::ProxyPaymentMethodData) -> Self {
+        match api_model_payment_method_data {
+            api_models::payments::ProxyPaymentMethodData::VaultDataCard(card_data) => {
+                Self::Card(Box::new(ExternalVaultCard::from(*card_data)))
+            }
+            api_models::payments::ProxyPaymentMethodData::VaultToken(vault_data) => {
+                Self::VaultToken(VaultToken::from(vault_data))
+            }
+        }
+    }
+}
+impl From<api_models::payments::ProxyCardData> for ExternalVaultCard {
+    fn from(value: api_models::payments::ProxyCardData) -> Self {
+        let api_models::payments::ProxyCardData {
+            card_number,
+            card_exp_month,
+            card_exp_year,
+            card_holder_name,
+            card_cvc,
+            bin_number,
+            last_four,
+            card_issuer,
+            card_network,
+            card_type,
+            card_issuing_country,
+            bank_code,
+            nick_name,
+        } = value;
+
+        Self {
+            card_number,
+            card_exp_month,
+            card_exp_year,
+            card_cvc,
+            bin_number,
+            last_four,
+            card_issuer,
+            card_network,
+            card_type,
+            card_issuing_country,
+            bank_code,
+            nick_name,
+            card_holder_name,
+            co_badged_card_data: None,
+        }
+    }
+}
+impl From<api_models::payments::VaultToken> for VaultToken {
+    fn from(value: api_models::payments::VaultToken) -> Self {
+        let api_models::payments::VaultToken {
+            card_cvc,
+            card_holder_name,
+        } = value;
+
+        Self {
+            card_cvc,
+            card_holder_name,
+        }
+    }
+}
 impl
     From<(
         api_models::payments::Card,
@@ -892,6 +1076,26 @@ impl From<Card> for payment_methods::CardDetail {
     }
 }
 
+#[cfg(feature = "v2")]
+impl From<ExternalVaultCard> for payment_methods::ProxyCardDetails {
+    fn from(card: ExternalVaultCard) -> Self {
+        Self {
+            card_number: card.card_number,
+            card_exp_month: card.card_exp_month,
+            card_exp_year: card.card_exp_year,
+            card_holder_name: card.card_holder_name,
+            nick_name: card.nick_name,
+            card_issuing_country: card.card_issuing_country,
+            card_network: card.card_network,
+            card_issuer: card.card_issuer,
+            card_type: card.card_type,
+            card_cvc: Some(card.card_cvc),
+            bin_number: card.bin_number,
+            last_four: card.last_four,
+        }
+    }
+}
+
 impl From<api_models::payments::CardRedirectData> for CardRedirectData {
     fn from(value: api_models::payments::CardRedirectData) -> Self {
         match value {
@@ -925,8 +1129,10 @@ impl From<api_models::payments::WalletData> for WalletData {
                 Self::AliPayHkRedirect(AliPayHkRedirection {})
             }
             api_models::payments::WalletData::AmazonPayRedirect(_) => {
-                Self::AmazonPayRedirect(Box::new(AmazonPayRedirectData {}))
+                Self::AmazonPayRedirect(Box::new(AmazonPayRedirect {}))
             }
+            api_models::payments::WalletData::Skrill(_) => Self::Skrill(Box::new(SkrillData {})),
+            api_models::payments::WalletData::Paysera(_) => Self::Paysera(Box::new(PayseraData {})),
             api_models::payments::WalletData::MomoRedirect(_) => {
                 Self::MomoRedirect(MomoRedirection {})
             }
@@ -1001,6 +1207,7 @@ impl From<api_models::payments::WalletData> for WalletData {
                     language_preference: mifinity_data.language_preference,
                 })
             }
+            api_models::payments::WalletData::BluecodeRedirect {} => Self::BluecodeRedirect {},
             api_models::payments::WalletData::RevolutPay(_) => Self::RevolutPay(RevolutPayData {}),
         }
     }
@@ -1021,10 +1228,7 @@ impl From<api_models::payments::GooglePayWalletData> for GooglePayWalletData {
                     }
                 }),
             },
-            tokenization_data: GpayTokenizationData {
-                token_type: value.tokenization_data.token_type,
-                token: value.tokenization_data.token,
-            },
+            tokenization_data: value.tokenization_data,
         }
     }
 }
@@ -1098,6 +1302,7 @@ impl From<api_models::payments::PayLaterData> for PayLaterData {
             api_models::payments::PayLaterData::KlarnaRedirect { .. } => Self::KlarnaRedirect {},
             api_models::payments::PayLaterData::KlarnaSdk { token } => Self::KlarnaSdk { token },
             api_models::payments::PayLaterData::AffirmRedirect {} => Self::AffirmRedirect {},
+            api_models::payments::PayLaterData::FlexitiRedirect {} => Self::FlexitiRedirect {},
             api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
                 Self::AfterpayClearpayRedirect {}
             }
@@ -1105,6 +1310,7 @@ impl From<api_models::payments::PayLaterData> for PayLaterData {
             api_models::payments::PayLaterData::WalleyRedirect {} => Self::WalleyRedirect {},
             api_models::payments::PayLaterData::AlmaRedirect {} => Self::AlmaRedirect {},
             api_models::payments::PayLaterData::AtomeRedirect {} => Self::AtomeRedirect {},
+            api_models::payments::PayLaterData::BreadpayRedirect {} => Self::BreadpayRedirect {},
         }
     }
 }
@@ -1540,12 +1746,14 @@ impl From<api_models::payments::BankTransferData> for BankTransferData {
                 cnpj,
                 source_bank_account_id,
                 destination_bank_account_id,
+                expiry_date,
             } => Self::Pix {
                 pix_key,
                 cpf,
                 cnpj,
                 source_bank_account_id,
                 destination_bank_account_id,
+                expiry_date,
             },
             api_models::payments::BankTransferData::Pse {} => Self::Pse {},
             api_models::payments::BankTransferData::LocalBankTransfer { bank_code } => {
@@ -1559,6 +1767,9 @@ impl From<api_models::payments::BankTransferData> for BankTransferData {
             }
             api_models::payments::BankTransferData::InstantBankTransferPoland {} => {
                 Self::InstantBankTransferPoland {}
+            }
+            api_models::payments::BankTransferData::IndonesianBankTransfer { bank_name } => {
+                Self::IndonesianBankTransfer { bank_name }
             }
         }
     }
@@ -1584,6 +1795,7 @@ impl From<BankTransferData> for api_models::payments::additional_info::BankTrans
                 cnpj,
                 source_bank_account_id,
                 destination_bank_account_id,
+                expiry_date,
             } => Self::Pix(Box::new(
                 api_models::payments::additional_info::PixBankTransferAdditionalData {
                     pix_key: pix_key.map(MaskedBankAccount::from),
@@ -1591,6 +1803,7 @@ impl From<BankTransferData> for api_models::payments::additional_info::BankTrans
                     cnpj: cnpj.map(MaskedBankAccount::from),
                     source_bank_account_id,
                     destination_bank_account_id,
+                    expiry_date,
                 },
             )),
             BankTransferData::Pse {} => Self::Pse {},
@@ -1602,6 +1815,9 @@ impl From<BankTransferData> for api_models::payments::additional_info::BankTrans
             BankTransferData::InstantBankTransfer {} => Self::InstantBankTransfer {},
             BankTransferData::InstantBankTransferFinland {} => Self::InstantBankTransferFinland {},
             BankTransferData::InstantBankTransferPoland {} => Self::InstantBankTransferPoland {},
+            BankTransferData::IndonesianBankTransfer { bank_name } => {
+                Self::IndonesianBankTransfer { bank_name }
+            }
         }
     }
 }
@@ -1748,6 +1964,8 @@ impl GetPaymentMethodType for WalletData {
             Self::AliPayQr(_) | Self::AliPayRedirect(_) => api_enums::PaymentMethodType::AliPay,
             Self::AliPayHkRedirect(_) => api_enums::PaymentMethodType::AliPayHk,
             Self::AmazonPayRedirect(_) => api_enums::PaymentMethodType::AmazonPay,
+            Self::Skrill(_) => api_enums::PaymentMethodType::Skrill,
+            Self::Paysera(_) => api_enums::PaymentMethodType::Paysera,
             Self::MomoRedirect(_) => api_enums::PaymentMethodType::Momo,
             Self::KakaoPayRedirect(_) => api_enums::PaymentMethodType::KakaoPay,
             Self::GoPayRedirect(_) => api_enums::PaymentMethodType::GoPay,
@@ -1759,6 +1977,7 @@ impl GetPaymentMethodType for WalletData {
             Self::GooglePay(_) | Self::GooglePayRedirect(_) | Self::GooglePayThirdPartySdk(_) => {
                 api_enums::PaymentMethodType::GooglePay
             }
+            Self::BluecodeRedirect {} => api_enums::PaymentMethodType::Bluecode,
             Self::MbWayRedirect(_) => api_enums::PaymentMethodType::MbWay,
             Self::MobilePayRedirect(_) => api_enums::PaymentMethodType::MobilePay,
             Self::PaypalRedirect(_) | Self::PaypalSdk(_) => api_enums::PaymentMethodType::Paypal,
@@ -1783,12 +2002,14 @@ impl GetPaymentMethodType for PayLaterData {
         match self {
             Self::KlarnaRedirect { .. } => api_enums::PaymentMethodType::Klarna,
             Self::KlarnaSdk { .. } => api_enums::PaymentMethodType::Klarna,
+            Self::FlexitiRedirect { .. } => api_enums::PaymentMethodType::Flexiti,
             Self::AffirmRedirect {} => api_enums::PaymentMethodType::Affirm,
             Self::AfterpayClearpayRedirect { .. } => api_enums::PaymentMethodType::AfterpayClearpay,
             Self::PayBrightRedirect {} => api_enums::PaymentMethodType::PayBright,
             Self::WalleyRedirect {} => api_enums::PaymentMethodType::Walley,
             Self::AlmaRedirect {} => api_enums::PaymentMethodType::Alma,
             Self::AtomeRedirect {} => api_enums::PaymentMethodType::Atome,
+            Self::BreadpayRedirect {} => api_enums::PaymentMethodType::Breadpay,
         }
     }
 }
@@ -1859,6 +2080,9 @@ impl GetPaymentMethodType for BankTransferData {
             }
             Self::InstantBankTransferPoland {} => {
                 api_enums::PaymentMethodType::InstantBankTransferPoland
+            }
+            Self::IndonesianBankTransfer { .. } => {
+                api_enums::PaymentMethodType::IndonesianBankTransfer
             }
         }
     }
@@ -1951,6 +2175,25 @@ impl From<Card> for ExtendedCardInfo {
     }
 }
 
+impl From<ApplePayWalletData> for payment_methods::PaymentMethodDataWalletInfo {
+    fn from(item: ApplePayWalletData) -> Self {
+        Self {
+            last4: item
+                .payment_method
+                .display_name
+                .chars()
+                .rev()
+                .take(4)
+                .collect::<Vec<_>>()
+                .into_iter()
+                .rev()
+                .collect(),
+            card_network: item.payment_method.network,
+            card_type: Some(item.payment_method.pm_type),
+        }
+    }
+}
+
 impl From<GooglePayWalletData> for payment_methods::PaymentMethodDataWalletInfo {
     fn from(item: GooglePayWalletData) -> Self {
         Self {
@@ -1961,7 +2204,7 @@ impl From<GooglePayWalletData> for payment_methods::PaymentMethodDataWalletInfo 
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub enum PaymentMethodsData {
     Card(CardDetailsPaymentMethod),
     BankDetails(payment_methods::PaymentMethodDataBankCreds), //PaymentMethodDataBankCreds and its transformations should be moved to the domain models
@@ -2005,7 +2248,7 @@ fn saved_in_locker_default() -> bool {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CardDetailsPaymentMethod {
     pub last4_digits: Option<String>,
     pub issuer_country: Option<String>,

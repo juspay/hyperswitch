@@ -7,7 +7,7 @@ use common_utils::{consts, id_type};
 use time::PrimitiveDateTime;
 
 pub enum PayoutFetchConstraints {
-    Single { payout_id: String },
+    Single { payout_id: id_type::PayoutId },
     List(Box<PayoutListParams>),
 }
 
@@ -21,10 +21,11 @@ pub struct PayoutListParams {
     pub payout_method: Option<Vec<common_enums::PayoutType>>,
     pub profile_id: Option<id_type::ProfileId>,
     pub customer_id: Option<id_type::CustomerId>,
-    pub starting_after_id: Option<String>,
-    pub ending_before_id: Option<String>,
+    pub starting_after_id: Option<id_type::PayoutId>,
+    pub ending_before_id: Option<id_type::PayoutId>,
     pub entity_type: Option<common_enums::PayoutEntityType>,
     pub limit: Option<u32>,
+    pub merchant_order_reference_id: Option<String>,
 }
 
 impl From<api_models::payouts::PayoutListConstraints> for PayoutFetchConstraints {
@@ -44,6 +45,7 @@ impl From<api_models::payouts::PayoutListConstraints> for PayoutFetchConstraints
             starting_after_id: value.starting_after,
             ending_before_id: value.ending_before,
             entity_type: None,
+            merchant_order_reference_id: None,
             limit: Some(std::cmp::min(
                 value.limit,
                 consts::PAYOUTS_LIST_MAX_LIMIT_GET,
@@ -67,6 +69,7 @@ impl From<common_utils::types::TimeRange> for PayoutFetchConstraints {
             starting_after_id: None,
             ending_before_id: None,
             entity_type: None,
+            merchant_order_reference_id: None,
             limit: None,
         }))
     }
@@ -90,6 +93,7 @@ impl From<api_models::payouts::PayoutListFilterConstraints> for PayoutFetchConst
                 starting_after_id: None,
                 ending_before_id: None,
                 entity_type: value.entity_type,
+                merchant_order_reference_id: value.merchant_order_reference_id,
                 limit: Some(std::cmp::min(
                     value.limit,
                     consts::PAYOUTS_LIST_MAX_LIMIT_POST,

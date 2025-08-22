@@ -17,8 +17,7 @@ olap = []
 openapi = ["common_enums/openapi", "olap", "recon", "dummy_connector", "olap"]
 recon = []
 v1 = ["common_utils/v1"]
-v2 = ["common_types/v2", "common_utils/v2", "refunds_v2", "tokenization_v2", "dep:reqwest"]
-refunds_v2 = []
+v2 = ["common_types/v2", "common_utils/v2", "tokenization_v2", "dep:reqwest"]
 dynamic_routing = []
 control_center_theme = ["dep:actix-web", "dep:actix-multipart"]
 revenue_recovery = []
@@ -37,6 +36,7 @@ time = { version = "0.3.41", features = ["serde", "serde-well-known", "std"] }
 url = { version = "2.5.4", features = ["serde"] }
 utoipa = { version = "4.2.3", features = ["preserve_order", "preserve_path_order"] }
 nutype = { version = "0.4.3", features = ["serde"] }
+deserialize_form_style_query_parameter = "0.2.2"
 
 # First party crates
 cards = { version = "0.1.0", path = "../cards" }

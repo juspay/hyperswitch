@@ -74,11 +74,11 @@ pub struct KafkaPaymentIntentEvent<'a> {
     pub return_url: Option<&'a common_types::Url>,
     pub metadata: Option<&'a Secret<Value>>,
     pub statement_descriptor: Option<&'a common_types::StatementDescriptor>,
-    #[serde(with = "time::serde::timestamp")]
+    #[serde(with = "time::serde::timestamp::nanoseconds")]
     pub created_at: OffsetDateTime,
-    #[serde(with = "time::serde::timestamp")]
+    #[serde(with = "time::serde::timestamp::nanoseconds")]
     pub modified_at: OffsetDateTime,
-    #[serde(default, with = "time::serde::timestamp::option")]
+    #[serde(default, with = "time::serde::timestamp::nanoseconds::option")]
     pub last_synced: Option<OffsetDateTime>,
     pub setup_future_usage: storage_enums::FutureUsage,
     pub off_session: bool,
@@ -97,7 +97,7 @@ pub struct KafkaPaymentIntentEvent<'a> {
     pub surcharge_applicable: Option<bool>,
     pub request_incremental_authorization: RequestIncrementalAuthorization,
     pub authorization_count: Option<i32>,
-    #[serde(with = "time::serde::timestamp")]
+    #[serde(with = "time::serde::timestamp::nanoseconds")]
     pub session_expiry: OffsetDateTime,
     pub request_external_three_ds_authentication: common_enums::External3dsAuthenticationRequest,
     pub frm_metadata: Option<Secret<&'a Value>>,
@@ -244,6 +244,7 @@ impl<'a> KafkaPaymentIntentEvent<'a> {
             processor_merchant_id,
             created_by,
             is_iframe_redirection_enabled,
+            is_payment_id_from_merchant,
         } = intent;
 
         Self {

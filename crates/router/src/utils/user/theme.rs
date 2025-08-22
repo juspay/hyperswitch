@@ -29,7 +29,7 @@ pub fn get_theme_file_key(theme_id: &str) -> PathBuf {
 fn path_buf_to_str(path: &PathBuf) -> UserResult<&str> {
     path.to_str()
         .ok_or(UserErrors::InternalServerError)
-        .attach_printable(format!("Failed to convert path {:#?} to string", path))
+        .attach_printable(format!("Failed to convert path {path:#?} to string"))
 }
 
 pub async fn retrieve_file_from_theme_bucket(
@@ -220,6 +220,84 @@ pub async fn get_theme_using_optional_theme_id(
                 Ok(None)
             } else {
                 Err(e.change_context(UserErrors::InternalServerError))
+            }
+        }
+    }
+}
+pub async fn get_theme_lineage_from_user_token(
+    user_from_token: &UserFromToken,
+    state: &SessionState,
+    request_entity_type: &EntityType,
+) -> UserResult<ThemeLineage> {
+    let tenant_id = user_from_token
+        .tenant_id
+        .clone()
+        .unwrap_or(state.tenant.tenant_id.clone());
+    let org_id = user_from_token.org_id.clone();
+    let merchant_id = user_from_token.merchant_id.clone();
+    let profile_id = user_from_token.profile_id.clone();
+
+    Ok(ThemeLineage::new(
+        *request_entity_type,
+        tenant_id,
+        org_id,
+        merchant_id,
+        profile_id,
+    ))
+}
+
+pub async fn can_user_access_theme(
+    user: &UserFromToken,
+    user_entity_type: &EntityType,
+    theme: &Theme,
+) -> UserResult<()> {
+    if user_entity_type < &theme.entity_type {
+        return Err(UserErrors::ThemeNotFound.into());
+    }
+
+    match theme.entity_type {
+        EntityType::Tenant => {
+            if user.tenant_id.as_ref() == Some(&theme.tenant_id)
+                && theme.org_id.is_none()
+                && theme.merchant_id.is_none()
+                && theme.profile_id.is_none()
+            {
+                Ok(())
+            } else {
+                Err(UserErrors::ThemeNotFound.into())
+            }
+        }
+        EntityType::Organization => {
+            if user.tenant_id.as_ref() == Some(&theme.tenant_id)
+                && theme.org_id.as_ref() == Some(&user.org_id)
+                && theme.merchant_id.is_none()
+                && theme.profile_id.is_none()
+            {
+                Ok(())
+            } else {
+                Err(UserErrors::ThemeNotFound.into())
+            }
+        }
+        EntityType::Merchant => {
+            if user.tenant_id.as_ref() == Some(&theme.tenant_id)
+                && theme.org_id.as_ref() == Some(&user.org_id)
+                && theme.merchant_id.as_ref() == Some(&user.merchant_id)
+                && theme.profile_id.is_none()
+            {
+                Ok(())
+            } else {
+                Err(UserErrors::ThemeNotFound.into())
+            }
+        }
+        EntityType::Profile => {
+            if user.tenant_id.as_ref() == Some(&theme.tenant_id)
+                && theme.org_id.as_ref() == Some(&user.org_id)
+                && theme.merchant_id.as_ref() == Some(&user.merchant_id)
+                && theme.profile_id.as_ref() == Some(&user.profile_id)
+            {
+                Ok(())
+            } else {
+                Err(UserErrors::ThemeNotFound.into())
             }
         }
     }

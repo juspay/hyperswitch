@@ -2,12 +2,11 @@
 use std::marker::PhantomData;
 
 #[cfg(feature = "v2")]
-use api_models::payments::{MerchantConnectorDetails, SessionToken, VaultSessionDetails};
+use api_models::payments::{SessionToken, VaultSessionDetails};
+#[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
     AlwaysRequestExtendedAuthorization, RequestExtendedAuthorizationBool,
 };
-#[cfg(feature = "v2")]
-use common_utils::ext_traits::OptionExt;
 use common_utils::{
     self,
     crypto::Encryptable,
@@ -21,8 +20,6 @@ use diesel_models::payment_intent::TaxDetails;
 #[cfg(feature = "v2")]
 use error_stack::ResultExt;
 use masking::Secret;
-#[cfg(feature = "v2")]
-use payment_intent::PaymentIntentUpdate;
 use router_derive::ToEncryption;
 use rustc_hash::FxHashMap;
 use serde_json::Value;
@@ -33,18 +30,15 @@ pub mod payment_intent;
 
 use common_enums as storage_enums;
 #[cfg(feature = "v2")]
-use diesel_models::{
-    ephemeral_key,
-    types::{FeatureMetadata, OrderDetailsWithAmount},
-};
+use diesel_models::types::{FeatureMetadata, OrderDetailsWithAmount};
 
 use self::payment_attempt::PaymentAttempt;
 #[cfg(feature = "v2")]
 use crate::{
-    address::Address, business_profile, customer, errors, merchant_account,
-    merchant_connector_account, merchant_connector_account::MerchantConnectorAccountTypeDetails,
-    merchant_context, payment_address, payment_method_data, payment_methods, revenue_recovery,
-    routing, ApiModelToDieselModelConvertor,
+    address::Address, business_profile, customer, errors, merchant_connector_account,
+    merchant_connector_account::MerchantConnectorAccountTypeDetails, merchant_context,
+    payment_address, payment_method_data, payment_methods, revenue_recovery, routing,
+    ApiModelToDieselModelConvertor,
 };
 #[cfg(feature = "v1")]
 use crate::{payment_method_data, RemoteStorageObject};
@@ -121,6 +115,14 @@ pub struct PaymentIntent {
     pub force_3ds_challenge: Option<bool>,
     pub force_3ds_challenge_trigger: Option<bool>,
     pub is_iframe_redirection_enabled: Option<bool>,
+    pub is_payment_id_from_merchant: Option<bool>,
+    pub payment_channel: Option<common_enums::PaymentChannel>,
+    pub tax_status: Option<storage_enums::TaxStatus>,
+    pub discount_amount: Option<MinorUnit>,
+    pub order_date: Option<PrimitiveDateTime>,
+    pub shipping_amount_tax: Option<MinorUnit>,
+    pub duty_amount: Option<MinorUnit>,
+    pub enable_partial_authorization: Option<bool>,
 }
 
 impl PaymentIntent {
@@ -508,6 +510,10 @@ pub struct PaymentIntent {
 
     /// Indicates if the redirection has to open in the iframe
     pub is_iframe_redirection_enabled: Option<bool>,
+
+    /// Indicates whether the payment_id was provided by the merchant (true),
+    /// or generated internally by Hyperswitch (false)
+    pub is_payment_id_from_merchant: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -674,6 +680,7 @@ impl PaymentIntent {
             processor_merchant_id: merchant_context.get_merchant_account().get_id().clone(),
             created_by: None,
             is_iframe_redirection_enabled: None,
+            is_payment_id_from_merchant: None,
         })
     }
 
@@ -744,6 +751,7 @@ impl PaymentIntent {
             network_error_message: None,
             retry_count: None,
             invoice_next_billing_time: None,
+            invoice_billing_started_at_time: None,
             card_isin: None,
             card_network: None,
             // No charge id is present here since it is an internal payment and we didn't call connector yet.
@@ -871,7 +879,8 @@ where
     pub payment_address: payment_address::PaymentAddress,
     pub mandate_data: Option<api_models::payments::MandateIds>,
     pub payment_method: Option<payment_methods::PaymentMethod>,
-    pub merchant_connector_details: Option<MerchantConnectorDetails>,
+    pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
+    pub external_vault_pmd: Option<payment_method_data::ExternalVaultPaymentMethodData>,
 }
 
 #[cfg(feature = "v2")]
@@ -924,7 +933,7 @@ where
     /// Should the payment status be synced with connector
     /// This will depend on the payment status and the force sync flag in the request
     pub should_sync_with_connector: bool,
-    pub merchant_connector_details: Option<MerchantConnectorDetails>,
+    pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -1068,6 +1077,9 @@ where
                     errors::api_error_response::ApiErrorResponse::InternalServerError
                 })?,
                 invoice_next_billing_time: self.revenue_recovery_data.invoice_next_billing_time,
+                invoice_billing_started_at_time: self
+                    .revenue_recovery_data
+                    .invoice_next_billing_time,
                 billing_connector_payment_method_details,
                 first_payment_attempt_network_advice_code: first_network_advice_code,
                 first_payment_attempt_network_decline_code: first_network_decline_code,

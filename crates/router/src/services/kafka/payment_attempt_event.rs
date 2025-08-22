@@ -70,11 +70,18 @@ pub struct KafkaPaymentAttemptEvent<'a> {
     pub organization_id: &'a id_type::OrganizationId,
     pub card_network: Option<String>,
     pub card_discovery: Option<String>,
+    pub routing_approach: Option<storage_enums::RoutingApproach>,
+    pub debit_routing_savings: Option<MinorUnit>,
+    pub signature_network: Option<common_enums::CardNetwork>,
+    pub is_issuer_regulated: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
 impl<'a> KafkaPaymentAttemptEvent<'a> {
     pub fn from_storage(attempt: &'a PaymentAttempt) -> Self {
+        let card_payment_method_data = attempt
+            .get_payment_method_data()
+            .and_then(|data| data.get_additional_card_info());
         Self {
             payment_id: &attempt.payment_id,
             merchant_id: &attempt.merchant_id,
@@ -131,6 +138,12 @@ impl<'a> KafkaPaymentAttemptEvent<'a> {
             card_discovery: attempt
                 .card_discovery
                 .map(|discovery| discovery.to_string()),
+            routing_approach: attempt.routing_approach.clone(),
+            debit_routing_savings: attempt.debit_routing_savings,
+            signature_network: card_payment_method_data
+                .as_ref()
+                .and_then(|data| data.signature_network.clone()),
+            is_issuer_regulated: card_payment_method_data.and_then(|data| data.is_regulated),
         }
     }
 }
@@ -152,11 +165,11 @@ pub struct KafkaPaymentAttemptEvent<'a> {
     pub payment_method: storage_enums::PaymentMethod,
     pub connector_transaction_id: Option<&'a String>,
     pub authentication_type: storage_enums::AuthenticationType,
-    #[serde(with = "time::serde::timestamp")]
+    #[serde(with = "time::serde::timestamp::nanoseconds")]
     pub created_at: OffsetDateTime,
-    #[serde(with = "time::serde::timestamp")]
+    #[serde(with = "time::serde::timestamp::nanoseconds")]
     pub modified_at: OffsetDateTime,
-    #[serde(default, with = "time::serde::timestamp::option")]
+    #[serde(default, with = "time::serde::timestamp::nanoseconds::option")]
     pub last_synced: Option<OffsetDateTime>,
     pub cancellation_reason: Option<&'a String>,
     pub amount_to_capture: Option<MinorUnit>,
@@ -191,7 +204,7 @@ pub struct KafkaPaymentAttemptEvent<'a> {
     pub authentication_connector: Option<String>,
     pub authentication_id: Option<String>,
     pub fingerprint_id: Option<String>,
-    pub customer_acceptance: Option<&'a masking::Secret<serde_json::Value>>,
+    pub customer_acceptance: Option<&'a masking::Secret<payments::CustomerAcceptance>>,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
     pub charges: Option<payments::ConnectorChargeResponseData>,
@@ -334,7 +347,9 @@ impl<'a> KafkaPaymentAttemptEvent<'a> {
             encoded_data: encoded_data.as_ref(),
             external_three_ds_authentication_attempted: *external_three_ds_authentication_attempted,
             authentication_connector: authentication_connector.clone(),
-            authentication_id: authentication_id.clone(),
+            authentication_id: authentication_id
+                .as_ref()
+                .map(|id| id.get_string_repr().to_string()),
             fingerprint_id: fingerprint_id.clone(),
             customer_acceptance: customer_acceptance.as_ref(),
             shipping_cost: amount_details.get_shipping_cost(),

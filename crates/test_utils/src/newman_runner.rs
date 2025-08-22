@@ -340,11 +340,11 @@ pub fn check_for_custom_headers(headers: Option<Vec<String>>, path: &str) -> Opt
                     eprintln!("An error occurred while inserting the custom header: {err}");
                 }
             } else {
-                eprintln!("Invalid header format: {}", header);
+                eprintln!("Invalid header format: {header}");
             }
         }
 
-        return Some(format!("{}/event.prerequest.js", path));
+        return Some(format!("{path}/event.prerequest.js"));
     }
     None
 }
@@ -400,8 +400,7 @@ pub fn remove_quotes_for_integer_values(
     let mut contents = fs::read_to_string(&collection_path)?;
     for value_to_replace in values_to_replace {
         if let Ok(re) = Regex::new(&format!(
-            r#"\\"(?P<field>\{{\{{{}\}}\}})\\""#,
-            value_to_replace
+            r#"\\"(?P<field>\{{\{{{value_to_replace}\}}\}})\\""#,
         )) {
             contents = re.replace_all(&contents, "$field").to_string();
         } else {
@@ -440,7 +439,7 @@ pub fn export_collection(connector_name: &str, collection_dir_path: String) {
             }
         }
         Err(err) => {
-            eprintln!("Failed to execute dir-import: {:?}", err);
+            eprintln!("Failed to execute dir-import: {err:?}");
             exit(1);
         }
     }

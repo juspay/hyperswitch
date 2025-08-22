@@ -110,7 +110,7 @@ mod storage {
                         merchant_id,
                         mandate_id,
                     };
-                    let field = format!("mandate_{}", mandate_id);
+                    let field = format!("mandate_{mandate_id}");
 
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
@@ -225,7 +225,7 @@ mod storage {
                 merchant_id,
                 mandate_id,
             };
-            let field = format!("mandate_{}", mandate_id);
+            let field = format!("mandate_{mandate_id}");
             let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_models::Mandate>(
                 self,
                 storage_scheme,
@@ -342,7 +342,7 @@ mod storage {
                         mandate_id: mandate_id.as_str(),
                     };
                     let key_str = key.to_string();
-                    let field = format!("mandate_{}", mandate_id);
+                    let field = format!("mandate_{mandate_id}");
 
                     let storage_mandate = storage_types::Mandate::from(&mandate);
 
@@ -661,6 +661,8 @@ impl MandateInterface for MockDb {
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage_types::Mandate, errors::StorageError> {
         let mut mandates = self.mandates.lock().await;
+        let customer_user_agent_extended = mandate_new.get_customer_user_agent_extended();
+
         let mandate = storage_types::Mandate {
             mandate_id: mandate_new.mandate_id.clone(),
             customer_id: mandate_new.customer_id,
@@ -671,7 +673,7 @@ impl MandateInterface for MockDb {
             mandate_type: mandate_new.mandate_type,
             customer_accepted_at: mandate_new.customer_accepted_at,
             customer_ip_address: mandate_new.customer_ip_address,
-            customer_user_agent: mandate_new.customer_user_agent,
+            customer_user_agent: None,
             network_transaction_id: mandate_new.network_transaction_id,
             previous_attempt_id: mandate_new.previous_attempt_id,
             created_at: mandate_new
@@ -688,6 +690,7 @@ impl MandateInterface for MockDb {
             connector_mandate_ids: mandate_new.connector_mandate_ids,
             merchant_connector_id: mandate_new.merchant_connector_id,
             updated_by: mandate_new.updated_by,
+            customer_user_agent_extended,
         };
         mandates.push(mandate.clone());
         Ok(mandate)

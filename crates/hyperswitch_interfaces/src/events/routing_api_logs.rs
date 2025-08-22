@@ -33,7 +33,7 @@ impl fmt::Display for ApiMethod {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Grpc => write!(f, "Grpc"),
-            Self::Rest(method) => write!(f, "Rest ({})", method),
+            Self::Rest(method) => write!(f, "Rest ({method})"),
         }
     }
 }

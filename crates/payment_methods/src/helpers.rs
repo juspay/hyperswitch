@@ -1,6 +1,8 @@
 use api_models::{enums as api_enums, payment_methods as api};
+#[cfg(feature = "v1")]
 use common_utils::ext_traits::AsyncExt;
 pub use hyperswitch_domain_models::{errors::api_error_response, payment_methods as domain};
+#[cfg(feature = "v1")]
 use router_env::logger;
 
 use crate::state;
@@ -96,10 +98,15 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::PayBright
                 | api_enums::PaymentMethodType::Atome
                 | api_enums::PaymentMethodType::Walley
+                | api_enums::PaymentMethodType::Breadpay
+                | api_enums::PaymentMethodType::Flexiti
         ),
         api_enums::PaymentMethod::Wallet => matches!(
             payment_method_type,
             api_enums::PaymentMethodType::AmazonPay
+                | api_enums::PaymentMethodType::Bluecode
+                | api_enums::PaymentMethodType::Paysera
+                | api_enums::PaymentMethodType::Skrill
                 | api_enums::PaymentMethodType::ApplePay
                 | api_enums::PaymentMethodType::GooglePay
                 | api_enums::PaymentMethodType::Paypal
@@ -165,6 +172,7 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::InstantBankTransfer
                 | api_enums::PaymentMethodType::InstantBankTransferFinland
                 | api_enums::PaymentMethodType::InstantBankTransferPoland
+                | api_enums::PaymentMethodType::IndonesianBankTransfer
         ),
         api_enums::PaymentMethod::BankDebit => matches!(
             payment_method_type,
@@ -277,7 +285,7 @@ impl ForeignFrom<(Option<api::CardDetailFromLocker>, domain::PaymentMethod)>
     for api::PaymentMethodResponse
 {
     fn foreign_from(
-        (card_details, item): (Option<api::CardDetailFromLocker>, domain::PaymentMethod),
+        (_card_details, _item): (Option<api::CardDetailFromLocker>, domain::PaymentMethod),
     ) -> Self {
         todo!()
     }

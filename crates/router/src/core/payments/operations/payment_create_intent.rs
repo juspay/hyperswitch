@@ -253,13 +253,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsCreateIntentRequest, payments::Pa
         if let Some(id) = payment_data.payment_intent.customer_id.clone() {
             state
                 .store
-                .find_customer_by_global_id(
-                    &state.into(),
-                    &id,
-                    &payment_data.payment_intent.merchant_id,
-                    merchant_key_store,
-                    storage_scheme,
-                )
+                .find_customer_by_global_id(&state.into(), &id, merchant_key_store, storage_scheme)
                 .await?;
         }
         Ok((Box::new(self), None))

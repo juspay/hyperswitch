@@ -1,6 +1,7 @@
 #![allow(unused)]
 
 pub mod api_keys;
+pub mod authentication;
 pub mod blocklist;
 pub mod customers;
 pub mod disputes;
@@ -13,6 +14,7 @@ pub mod payment_link;
 pub mod payment_method;
 pub mod payments;
 pub mod payouts;
+pub mod platform;
 pub mod poll;
 pub mod profile;
 pub mod profile_acquirer;

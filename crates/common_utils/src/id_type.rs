@@ -2,6 +2,7 @@
 //! The id type can be used to create specific id types with custom behaviour
 
 mod api_key;
+mod authentication;
 mod client_secret;
 mod customer;
 #[cfg(feature = "v2")]
@@ -10,6 +11,7 @@ mod merchant;
 mod merchant_connector_account;
 mod organization;
 mod payment;
+mod payout;
 mod profile;
 mod profile_acquirer;
 mod refunds;
@@ -26,6 +28,7 @@ use diesel::{
     serialize::{Output, ToSql},
     sql_types,
 };
+pub use payout::PayoutId;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -40,6 +43,7 @@ pub use self::global_id::{
 };
 pub use self::{
     api_key::ApiKeyId,
+    authentication::AuthenticationId,
     client_secret::ClientSecretId,
     customer::CustomerId,
     merchant::MerchantId,

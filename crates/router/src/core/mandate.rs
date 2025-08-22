@@ -1,6 +1,7 @@
 pub mod helpers;
 pub mod utils;
 use api_models::payments;
+use common_types::payments as common_payments_types;
 use common_utils::{ext_traits::Encode, id_type};
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
@@ -445,5 +446,5 @@ pub trait MandateBehaviour {
     fn get_setup_mandate_details(
         &self,
     ) -> Option<&hyperswitch_domain_models::mandates::MandateData>;
-    fn get_customer_acceptance(&self) -> Option<payments::CustomerAcceptance>;
+    fn get_customer_acceptance(&self) -> Option<common_payments_types::CustomerAcceptance>;
 }

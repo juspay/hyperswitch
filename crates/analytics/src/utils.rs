@@ -24,6 +24,7 @@ pub fn get_payment_dimensions() -> Vec<NameDescription> {
         PaymentDimensions::ProfileId,
         PaymentDimensions::CardNetwork,
         PaymentDimensions::MerchantId,
+        PaymentDimensions::RoutingApproach,
     ]
     .into_iter()
     .map(Into::into)

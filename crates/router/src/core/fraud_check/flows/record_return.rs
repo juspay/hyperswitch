@@ -11,7 +11,7 @@ use crate::{
     },
     errors, services,
     types::{
-        api::{self, RecordReturn},
+        api::RecordReturn,
         domain,
         fraud_check::{
             FraudCheckRecordReturnData, FraudCheckResponseData, FrmRecordReturnRouterData,
@@ -129,20 +129,13 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
             connector_mandate_request_reference_id: None,
             authentication_id: None,
             psd2_sca_exemption_type: None,
-            whole_connector_response: None,
+            raw_connector_response: None,
+            is_payment_id_from_merchant: None,
+            l2_l3_data: None,
+            minor_amount_capturable: None,
         };
 
         Ok(router_data)
-    }
-
-    async fn get_merchant_recipient_data<'a>(
-        &self,
-        _state: &SessionState,
-        _merchant_context: &domain::MerchantContext,
-        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
-        _connector: &api::ConnectorData,
-    ) -> RouterResult<Option<MerchantRecipientData>> {
-        Ok(None)
     }
 }
 

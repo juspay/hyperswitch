@@ -1,4 +1,5 @@
 pub mod apple_pay_certificates_migration;
+pub mod chat;
 pub mod connector_onboarding;
 pub mod customer;
 pub mod dispute;
@@ -237,3 +238,9 @@ impl ApiEventMetric for tokenization::GenericTokenizationRequest {}
 
 #[cfg(feature = "tokenization_v2")]
 impl ApiEventMetric for tokenization::GenericTokenizationResponse {}
+
+#[cfg(feature = "tokenization_v2")]
+impl ApiEventMetric for tokenization::DeleteTokenDataResponse {}
+
+#[cfg(feature = "tokenization_v2")]
+impl ApiEventMetric for tokenization::DeleteTokenDataRequest {}

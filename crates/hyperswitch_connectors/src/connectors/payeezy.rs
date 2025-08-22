@@ -75,10 +75,7 @@ where
         let nonce = rand::distributions::Alphanumeric.sample_string(&mut rand::thread_rng(), 19);
         let signature_string = auth.api_key.clone().zip(auth.merchant_token.clone()).map(
             |(api_key, merchant_token)| {
-                format!(
-                    "{}{}{}{}{}",
-                    api_key, nonce, timestamp, merchant_token, request_payload
-                )
+                format!("{api_key}{nonce}{timestamp}{merchant_token}{request_payload}")
             },
         );
         let key = hmac::Key::new(hmac::HMAC_SHA256, auth.api_secret.expose().as_bytes());
@@ -152,6 +149,7 @@ impl ConnectorCommon for Payeezy {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }

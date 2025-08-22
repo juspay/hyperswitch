@@ -161,6 +161,13 @@ pub enum ConnectorError {
     },
     #[error("{flow} flow not supported by {connector} connector")]
     FlowNotSupported { flow: String, connector: String },
+    #[error("Connector '{connector}' rejected field '{field_name}': length {received_length} exceeds maximum of {max_length}'")]
+    MaxFieldLengthViolated {
+        connector: String,
+        field_name: String,
+        max_length: usize,
+        received_length: usize,
+    },
     #[error("Capture method not supported")]
     CaptureMethodNotSupported,
     #[error("Missing connector transaction ID")]
@@ -282,9 +289,14 @@ pub enum RecoveryError {
     #[error("Failed to fetch billing connector account id")]
     BillingMerchantConnectorAccountIdNotFound,
 }
-
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum HealthCheckDecisionEngineError {
     #[error("Failed to establish Decision Engine connection")]
     FailedToCallDecisionEngineService,
+}
+
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum HealthCheckUnifiedConnectorServiceError {
+    #[error("Failed to establish Unified Connector Service connection")]
+    FailedToCallUnifiedConnectorService,
 }

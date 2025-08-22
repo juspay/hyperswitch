@@ -889,7 +889,7 @@ fn get_firefox_profile_path() -> Result<String, WebDriverError> {
     } else if env::consts::OS == "linux" {
         if let Some(home_dir) = env::var_os("HOME") {
             if let Some(home_path) = home_dir.to_str() {
-                let profile_path = format!("{}/.mozilla/firefox/hs-test", home_path);
+                let profile_path = format!("{home_path}/.mozilla/firefox/hs-test");
                 return Ok(profile_path);
             }
         }
@@ -911,12 +911,12 @@ pub fn handle_test_error(
     match res {
         Ok(Ok(_)) => true,
         Ok(Err(web_driver_error)) => {
-            eprintln!("test future failed to resolve: {:?}", web_driver_error);
+            eprintln!("test future failed to resolve: {web_driver_error:?}");
             false
         }
         Err(e) => {
             if let Some(web_driver_error) = e.downcast_ref::<WebDriverError>() {
-                eprintln!("test future panicked: {:?}", web_driver_error);
+                eprintln!("test future panicked: {web_driver_error:?}");
             } else {
                 eprintln!("test future panicked; an assertion probably failed");
             }

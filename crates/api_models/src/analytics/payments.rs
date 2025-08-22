@@ -8,7 +8,7 @@ use common_utils::id_type;
 use super::{ForexMetric, NameDescription, TimeRange};
 use crate::enums::{
     AttemptStatus, AuthenticationType, CardNetwork, Connector, Currency, PaymentMethod,
-    PaymentMethodType,
+    PaymentMethodType, RoutingApproach,
 };
 
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
@@ -43,6 +43,8 @@ pub struct PaymentFilters {
     pub error_reason: Vec<String>,
     #[serde(default)]
     pub first_attempt: Vec<bool>,
+    #[serde(default)]
+    pub routing_approach: Vec<RoutingApproach>,
 }
 
 #[derive(
@@ -84,6 +86,7 @@ pub enum PaymentDimensions {
     CardLast4,
     CardIssuer,
     ErrorReason,
+    RoutingApproach,
 }
 
 #[derive(
@@ -108,6 +111,7 @@ pub enum PaymentMetrics {
     AvgTicketSize,
     RetriesCount,
     ConnectorSuccessRate,
+    DebitRouting,
     SessionizedPaymentSuccessRate,
     SessionizedPaymentCount,
     SessionizedPaymentSuccessCount,
@@ -115,6 +119,7 @@ pub enum PaymentMetrics {
     SessionizedAvgTicketSize,
     SessionizedRetriesCount,
     SessionizedConnectorSuccessRate,
+    SessionizedDebitRouting,
     PaymentsDistribution,
     FailureReasons,
 }
@@ -125,8 +130,10 @@ impl ForexMetric for PaymentMetrics {
             self,
             Self::PaymentProcessedAmount
                 | Self::AvgTicketSize
+                | Self::DebitRouting
                 | Self::SessionizedPaymentProcessedAmount
                 | Self::SessionizedAvgTicketSize
+                | Self::SessionizedDebitRouting,
         )
     }
 }
@@ -200,6 +207,7 @@ pub struct PaymentMetricsBucketIdentifier {
     pub card_last_4: Option<String>,
     pub card_issuer: Option<String>,
     pub error_reason: Option<String>,
+    pub routing_approach: Option<RoutingApproach>,
     #[serde(rename = "time_range")]
     pub time_bucket: TimeRange,
     // Coz FE sucks
@@ -225,6 +233,7 @@ impl PaymentMetricsBucketIdentifier {
         card_last_4: Option<String>,
         card_issuer: Option<String>,
         error_reason: Option<String>,
+        routing_approach: Option<RoutingApproach>,
         normalized_time_range: TimeRange,
     ) -> Self {
         Self {
@@ -242,6 +251,7 @@ impl PaymentMetricsBucketIdentifier {
             card_last_4,
             card_issuer,
             error_reason,
+            routing_approach,
             time_bucket: normalized_time_range,
             start_time: normalized_time_range.start_time,
         }
@@ -264,6 +274,10 @@ impl Hash for PaymentMetricsBucketIdentifier {
         self.card_last_4.hash(state);
         self.card_issuer.hash(state);
         self.error_reason.hash(state);
+        self.routing_approach
+            .clone()
+            .map(|i| i.to_string())
+            .hash(state);
         self.time_bucket.hash(state);
     }
 }
@@ -302,6 +316,11 @@ pub struct PaymentMetricsBucketValue {
     pub payments_failure_rate_distribution_with_only_retries: Option<f64>,
     pub failure_reason_count: Option<u64>,
     pub failure_reason_count_without_smart_retries: Option<u64>,
+    pub debit_routed_transaction_count: Option<u64>,
+    pub debit_routing_savings: Option<u64>,
+    pub debit_routing_savings_in_usd: Option<u64>,
+    pub signature_network: Option<String>,
+    pub is_issuer_regulated: Option<bool>,
 }
 
 #[derive(Debug, serde::Serialize)]

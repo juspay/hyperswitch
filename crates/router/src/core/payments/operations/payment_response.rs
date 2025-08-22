@@ -61,7 +61,7 @@ use crate::{
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
 #[operation(
     operations = "post_update_tracker",
-    flow = "sync_data, cancel_data, authorize_data, capture_data, complete_authorize_data, approve_data, reject_data, setup_mandate_data, session_data,incremental_authorization_data, sdk_session_update_data, post_session_tokens_data, update_metadata_data"
+    flow = "sync_data, cancel_data, authorize_data, capture_data, complete_authorize_data, approve_data, reject_data, setup_mandate_data, session_data,incremental_authorization_data, sdk_session_update_data, post_session_tokens_data, update_metadata_data, cancel_post_capture_data"
 )]
 pub struct PaymentResponse;
 
@@ -1025,6 +1025,49 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
 
 #[cfg(feature = "v1")]
 #[async_trait]
+impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelPostCaptureData>
+    for PaymentResponse
+{
+    async fn update_tracker<'b>(
+        &'b self,
+        db: &'b SessionState,
+        mut payment_data: PaymentData<F>,
+        router_data: types::RouterData<
+            F,
+            types::PaymentsCancelPostCaptureData,
+            types::PaymentsResponseData,
+        >,
+        key_store: &domain::MerchantKeyStore,
+        storage_scheme: enums::MerchantStorageScheme,
+        locale: &Option<String>,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
+            RoutableConnectorChoice,
+        >,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
+    ) -> RouterResult<PaymentData<F>>
+    where
+        F: 'b + Send,
+    {
+        payment_data = Box::pin(payment_response_update_tracker(
+            db,
+            payment_data,
+            router_data,
+            key_store,
+            storage_scheme,
+            locale,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            routable_connector,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            business_profile,
+        ))
+        .await?;
+
+        Ok(payment_data)
+    }
+}
+
+#[cfg(feature = "v1")]
+#[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
     for PaymentResponse
 {
@@ -1412,7 +1455,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             .as_mut()
             .map(|info| info.status = status)
     });
-    payment_data.whole_connector_response = router_data.whole_connector_response.clone();
+    payment_data.whole_connector_response = router_data.raw_connector_response.clone();
 
     // TODO: refactor of gsm_error_category with respective feature flag
     #[allow(unused_variables)]
@@ -1533,7 +1576,13 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 error_reason: Some(err.reason),
                                 amount_capturable: router_data
                                     .request
-                                    .get_amount_capturable(&payment_data, status)
+                                    .get_amount_capturable(
+                                        &payment_data,
+                                        router_data
+                                            .minor_amount_capturable
+                                            .map(MinorUnit::get_amount_as_i64),
+                                        status,
+                                    )
                                     .map(MinorUnit::new),
                                 updated_by: storage_scheme.to_string(),
                                 unified_code: Some(Some(unified_code)),
@@ -1602,9 +1651,21 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         ) => match frm_message.frm_status {
                             enums::FraudCheckStatus::Fraud
                             | enums::FraudCheckStatus::ManualReview => attempt_status,
-                            _ => router_data.get_attempt_status_for_db_update(&payment_data),
+                            _ => router_data.get_attempt_status_for_db_update(
+                                &payment_data,
+                                router_data.amount_captured,
+                                router_data
+                                    .minor_amount_capturable
+                                    .map(MinorUnit::get_amount_as_i64),
+                            )?,
                         },
-                        _ => router_data.get_attempt_status_for_db_update(&payment_data),
+                        _ => router_data.get_attempt_status_for_db_update(
+                            &payment_data,
+                            router_data.amount_captured,
+                            router_data
+                                .minor_amount_capturable
+                                .map(MinorUnit::get_amount_as_i64),
+                        )?,
                     };
                     match payments_response {
                         types::PaymentsResponseData::PreProcessingResponse {
@@ -1693,7 +1754,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             // update connector_mandate_details in case of Authorized/Charged Payment Status
                             if matches!(
                                 router_data.status,
-                                enums::AttemptStatus::Charged | enums::AttemptStatus::Authorized
+                                enums::AttemptStatus::Charged
+                                    | enums::AttemptStatus::Authorized
+                                    | enums::AttemptStatus::PartiallyAuthorized
                             ) {
                                 payment_data
                                     .payment_intent
@@ -1767,6 +1830,14 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             let payment_method_id =
                                 payment_data.payment_attempt.payment_method_id.clone();
 
+                            let debit_routing_savings =
+                                payment_data.payment_method_data.as_ref().and_then(|data| {
+                                    payments_helpers::get_debit_routing_savings_amount(
+                                        data,
+                                        &payment_data.payment_attempt,
+                                    )
+                                });
+
                             utils::add_apple_pay_payment_status_metrics(
                                 router_data.status,
                                 router_data.apple_pay_flow.clone(),
@@ -1830,6 +1901,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                             .request
                                             .get_amount_capturable(
                                                 &payment_data,
+                                                router_data
+                                                    .minor_amount_capturable
+                                                    .map(MinorUnit::get_amount_as_i64),
                                                 updated_attempt_status,
                                             )
                                             .map(MinorUnit::new),
@@ -1857,6 +1931,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         setup_future_usage_applied: payment_data
                                             .payment_attempt
                                             .setup_future_usage_applied,
+                                        debit_routing_savings,
                                     }),
                                 ),
                             };
@@ -2038,6 +2113,11 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             updated_by: storage_scheme.to_string(),
             // make this false only if initial payment fails, if incremental authorization call fails don't make it false
             incremental_authorization_allowed: Some(false),
+            feature_metadata: payment_data
+                .payment_intent
+                .feature_metadata
+                .clone()
+                .map(masking::Secret::new),
         },
         Ok(_) => storage::PaymentIntentUpdate::ResponseUpdate {
             status: api_models::enums::IntentStatus::foreign_from(
@@ -2049,6 +2129,11 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             incremental_authorization_allowed: payment_data
                 .payment_intent
                 .incremental_authorization_allowed,
+            feature_metadata: payment_data
+                .payment_intent
+                .feature_metadata
+                .clone()
+                .map(masking::Secret::new),
         },
     };
 
@@ -2158,7 +2243,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 );
             tokio::spawn(
                 async move {
-                    let should_route_to_open_router = state.conf.open_router.enabled;
+                    let should_route_to_open_router =
+                        state.conf.open_router.dynamic_routing_enabled;
 
                     if should_route_to_open_router {
                         routing_helpers::update_gateway_score_helper_with_open_router(
@@ -2549,18 +2635,21 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
                 | common_enums::AttemptStatus::RouterDeclined
                 | common_enums::AttemptStatus::AuthorizationFailed
                 | common_enums::AttemptStatus::Voided
+                | common_enums::AttemptStatus::VoidedPostCharge
                 | common_enums::AttemptStatus::VoidInitiated
                 | common_enums::AttemptStatus::CaptureFailed
                 | common_enums::AttemptStatus::VoidFailed
                 | common_enums::AttemptStatus::AutoRefunded
                 | common_enums::AttemptStatus::Unresolved
                 | common_enums::AttemptStatus::Pending
-                | common_enums::AttemptStatus::Failure => (),
+                | common_enums::AttemptStatus::Failure
+                | common_enums::AttemptStatus::Expired => (),
 
                 common_enums::AttemptStatus::Started
                 | common_enums::AttemptStatus::AuthenticationPending
                 | common_enums::AttemptStatus::AuthenticationSuccessful
                 | common_enums::AttemptStatus::Authorized
+                | common_enums::AttemptStatus::PartiallyAuthorized
                 | common_enums::AttemptStatus::Charged
                 | common_enums::AttemptStatus::Authorizing
                 | common_enums::AttemptStatus::CodInitiated
@@ -2691,6 +2780,133 @@ impl<F: Send + Clone> Operation<F, types::SetupMandateRequestData> for PaymentRe
         &(dyn PostUpdateTracker<F, Self::Data, types::SetupMandateRequestData> + Send + Sync),
     > {
         Ok(self)
+    }
+}
+
+#[cfg(feature = "v2")]
+impl
+    Operation<
+        hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
+        hyperswitch_domain_models::router_request_types::ExternalVaultProxyPaymentsData,
+    > for PaymentResponse
+{
+    type Data =
+        PaymentConfirmData<hyperswitch_domain_models::router_flow_types::ExternalVaultProxy>;
+    fn to_post_update_tracker(
+        &self,
+    ) -> RouterResult<
+        &(dyn PostUpdateTracker<
+            hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
+            Self::Data,
+            hyperswitch_domain_models::router_request_types::ExternalVaultProxyPaymentsData,
+        > + Send
+              + Sync),
+    > {
+        Ok(self)
+    }
+}
+
+#[cfg(feature = "v2")]
+impl
+    Operation<
+        hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
+        hyperswitch_domain_models::router_request_types::ExternalVaultProxyPaymentsData,
+    > for &PaymentResponse
+{
+    type Data =
+        PaymentConfirmData<hyperswitch_domain_models::router_flow_types::ExternalVaultProxy>;
+    fn to_post_update_tracker(
+        &self,
+    ) -> RouterResult<
+        &(dyn PostUpdateTracker<
+            hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
+            Self::Data,
+            hyperswitch_domain_models::router_request_types::ExternalVaultProxyPaymentsData,
+        > + Send
+              + Sync),
+    > {
+        Ok(*self)
+    }
+}
+
+#[cfg(feature = "v2")]
+#[async_trait]
+impl
+    PostUpdateTracker<
+        hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
+        PaymentConfirmData<hyperswitch_domain_models::router_flow_types::ExternalVaultProxy>,
+        hyperswitch_domain_models::router_request_types::ExternalVaultProxyPaymentsData,
+    > for PaymentResponse
+{
+    async fn update_tracker<'b>(
+        &'b self,
+        state: &'b SessionState,
+        mut payment_data: PaymentConfirmData<
+            hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
+        >,
+        response: types::RouterData<
+            hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
+            hyperswitch_domain_models::router_request_types::ExternalVaultProxyPaymentsData,
+            types::PaymentsResponseData,
+        >,
+        key_store: &domain::MerchantKeyStore,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> RouterResult<
+        PaymentConfirmData<hyperswitch_domain_models::router_flow_types::ExternalVaultProxy>,
+    >
+    where
+        types::RouterData<
+            hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
+            hyperswitch_domain_models::router_request_types::ExternalVaultProxyPaymentsData,
+            types::PaymentsResponseData,
+        >: hyperswitch_domain_models::router_data::TrackerPostUpdateObjects<
+            hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
+            hyperswitch_domain_models::router_request_types::ExternalVaultProxyPaymentsData,
+            PaymentConfirmData<hyperswitch_domain_models::router_flow_types::ExternalVaultProxy>,
+        >,
+    {
+        use hyperswitch_domain_models::router_data::TrackerPostUpdateObjects;
+
+        let db = &*state.store;
+        let key_manager_state = &state.into();
+
+        let response_router_data = response;
+
+        let payment_intent_update =
+            response_router_data.get_payment_intent_update(&payment_data, storage_scheme);
+        let payment_attempt_update =
+            response_router_data.get_payment_attempt_update(&payment_data, storage_scheme);
+
+        let updated_payment_intent = db
+            .update_payment_intent(
+                key_manager_state,
+                payment_data.payment_intent,
+                payment_intent_update,
+                key_store,
+                storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to update payment intent")?;
+
+        let updated_payment_attempt = db
+            .update_payment_attempt(
+                key_manager_state,
+                key_store,
+                payment_data.payment_attempt,
+                payment_attempt_update,
+                storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to update payment attempt")?;
+
+        payment_data.payment_intent = updated_payment_intent;
+        payment_data.payment_attempt = updated_payment_attempt;
+
+        // TODO: Add external vault specific post-update logic if needed
+
+        Ok(payment_data)
     }
 }
 
@@ -2978,7 +3194,10 @@ fn get_total_amount_captured<F: Clone, T: types::Capturable>(
         None => {
             //Non multiple capture
             let amount = request
-                .get_captured_amount(payment_data)
+                .get_captured_amount(
+                    amount_captured.map(MinorUnit::get_amount_as_i64),
+                    payment_data,
+                )
                 .map(MinorUnit::new);
             amount_captured.or_else(|| {
                 if router_data_status == enums::AttemptStatus::Charged {

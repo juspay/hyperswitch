@@ -156,7 +156,7 @@ pub struct PaymentMethodCollectLinkData {
 #[diesel(primary_key(link_id))]
 pub struct PayoutLink {
     pub link_id: String,
-    pub primary_reference: String,
+    pub primary_reference: common_utils::id_type::PayoutId,
     pub merchant_id: common_utils::id_type::MerchantId,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,

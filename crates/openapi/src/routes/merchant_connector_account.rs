@@ -4,7 +4,7 @@
 #[cfg(feature = "v1")]
 #[utoipa::path(
     post,
-    path = "/accounts/{account_id}/connectors",
+    path = "/account/{account_id}/connectors",
     params(
         ("account_id" = String, Path, description = "The unique identifier for the merchant account")
     ),
@@ -133,10 +133,10 @@ pub async fn connector_create() {}
 #[cfg(feature = "v1")]
 #[utoipa::path(
     get,
-    path = "/accounts/{account_id}/connectors/{connector_id}",
+    path = "/account/{account_id}/connectors/{merchant_connector_id}",
     params(
         ("account_id" = String, Path, description = "The unique identifier for the merchant account"),
-        ("connector_id" = i32, Path, description = "The unique identifier for the Merchant Connector")
+        ("merchant_connector_id" = String, Path, description = "The unique identifier for the Merchant Connector")
     ),
     responses(
         (status = 200, description = "Merchant Connector retrieved successfully", body = MerchantConnectorResponse),
@@ -175,7 +175,7 @@ pub async fn connector_retrieve() {}
 /// List Merchant Connector Details for the merchant
 #[utoipa::path(
     get,
-    path = "/accounts/{account_id}/connectors",
+    path = "/account/{account_id}/connectors",
     params(
         ("account_id" = String, Path, description = "The unique identifier for the merchant account"),
     ),
@@ -196,7 +196,7 @@ pub async fn connector_list() {}
 #[cfg(feature = "v1")]
 #[utoipa::path(
     post,
-    path = "/accounts/{account_id}/connectors/{connector_id}",
+    path = "/account/{account_id}/connectors/{merchant_connector_id}",
     request_body(
         content = MerchantConnectorUpdate,
         examples(
@@ -225,7 +225,7 @@ pub async fn connector_list() {}
     ),
     params(
         ("account_id" = String, Path, description = "The unique identifier for the merchant account"),
-        ("connector_id" = i32, Path, description = "The unique identifier for the Merchant Connector")
+        ("merchant_connector_id" = String, Path, description = "The unique identifier for the Merchant Connector")
     ),
     responses(
         (status = 200, description = "Merchant Connector Updated", body = MerchantConnectorResponse),
@@ -291,10 +291,10 @@ pub async fn connector_update() {}
 #[cfg(feature = "v1")]
 #[utoipa::path(
     delete,
-    path = "/accounts/{account_id}/connectors/{connector_id}",
+    path = "/account/{account_id}/connectors/{merchant_connector_id}",
     params(
         ("account_id" = String, Path, description = "The unique identifier for the merchant account"),
-        ("connector_id" = i32, Path, description = "The unique identifier for the Merchant Connector")
+        ("merchant_connector_id" = String, Path, description = "The unique identifier for the Merchant Connector")
     ),
     responses(
         (status = 200, description = "Merchant Connector Deleted", body = MerchantConnectorDeleteResponse),

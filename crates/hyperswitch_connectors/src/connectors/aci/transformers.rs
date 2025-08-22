@@ -6,11 +6,16 @@ use error_stack::report;
 use hyperswitch_domain_models::{
     payment_method_data::{BankRedirectData, Card, PayLaterData, PaymentMethodData, WalletData},
     router_data::{ConnectorAuthType, RouterData},
-    router_request_types::ResponseId,
+    router_request_types::{
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsSyncData, ResponseId,
+    },
     router_response_types::{
         MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
     },
-    types::{PaymentsAuthorizeRouterData, PaymentsCancelRouterData, RefundsRouterData},
+    types::{
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        RefundsRouterData,
+    },
 };
 use hyperswitch_interfaces::errors;
 use masking::{ExposeInterface, Secret};
@@ -24,6 +29,28 @@ use crate::{
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
+
+trait GetCaptureMethod {
+    fn get_capture_method(&self) -> Option<enums::CaptureMethod>;
+}
+
+impl GetCaptureMethod for PaymentsAuthorizeData {
+    fn get_capture_method(&self) -> Option<enums::CaptureMethod> {
+        self.capture_method
+    }
+}
+
+impl GetCaptureMethod for PaymentsSyncData {
+    fn get_capture_method(&self) -> Option<enums::CaptureMethod> {
+        self.capture_method
+    }
+}
+
+impl GetCaptureMethod for PaymentsCancelData {
+    fn get_capture_method(&self) -> Option<enums::CaptureMethod> {
+        None
+    }
+}
 
 #[derive(Debug, Serialize)]
 pub struct AciRouterData<T> {
@@ -116,6 +143,8 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for PaymentDetails {
             })),
             WalletData::AliPayHkRedirect(_)
             | WalletData::AmazonPayRedirect(_)
+            | WalletData::Paysera(_)
+            | WalletData::Skrill(_)
             | WalletData::MomoRedirect(_)
             | WalletData::KakaoPayRedirect(_)
             | WalletData::GoPayRedirect(_)
@@ -124,6 +153,7 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for PaymentDetails {
             | WalletData::ApplePayThirdPartySdk(_)
             | WalletData::DanaRedirect { .. }
             | WalletData::GooglePay(_)
+            | WalletData::BluecodeRedirect {}
             | WalletData::GooglePayThirdPartySdk(_)
             | WalletData::MobilePayRedirect(_)
             | WalletData::PaypalRedirect(_)
@@ -629,14 +659,18 @@ pub enum AciPaymentStatus {
     RedirectShopper,
 }
 
-impl From<AciPaymentStatus> for enums::AttemptStatus {
-    fn from(item: AciPaymentStatus) -> Self {
-        match item {
-            AciPaymentStatus::Succeeded => Self::Charged,
-            AciPaymentStatus::Failed => Self::Failure,
-            AciPaymentStatus::Pending => Self::Authorizing,
-            AciPaymentStatus::RedirectShopper => Self::AuthenticationPending,
+fn map_aci_attempt_status(item: AciPaymentStatus, auto_capture: bool) -> enums::AttemptStatus {
+    match item {
+        AciPaymentStatus::Succeeded => {
+            if auto_capture {
+                enums::AttemptStatus::Charged
+            } else {
+                enums::AttemptStatus::Authorized
+            }
         }
+        AciPaymentStatus::Failed => enums::AttemptStatus::Failure,
+        AciPaymentStatus::Pending => enums::AttemptStatus::Authorizing,
+        AciPaymentStatus::RedirectShopper => enums::AttemptStatus::AuthenticationPending,
     }
 }
 impl FromStr for AciPaymentStatus {
@@ -708,12 +742,14 @@ pub struct ErrorParameters {
     pub(super) message: String,
 }
 
-impl<F, T> TryFrom<ResponseRouterData<F, AciPaymentsResponse, T, PaymentsResponseData>>
-    for RouterData<F, T, PaymentsResponseData>
+impl<F, Req> TryFrom<ResponseRouterData<F, AciPaymentsResponse, Req, PaymentsResponseData>>
+    for RouterData<F, Req, PaymentsResponseData>
+where
+    Req: GetCaptureMethod,
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, AciPaymentsResponse, T, PaymentsResponseData>,
+        item: ResponseRouterData<F, AciPaymentsResponse, Req, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let redirection_data = item.response.redirect.map(|data| {
             let form_fields = std::collections::HashMap::<_, _>::from_iter(
@@ -740,16 +776,22 @@ impl<F, T> TryFrom<ResponseRouterData<F, AciPaymentsResponse, T, PaymentsRespons
             connector_mandate_request_reference_id: None,
         });
 
+        let auto_capture = matches!(
+            item.data.request.get_capture_method(),
+            Some(enums::CaptureMethod::Automatic) | None
+        );
+
+        let status = if redirection_data.is_some() {
+            map_aci_attempt_status(AciPaymentStatus::RedirectShopper, auto_capture)
+        } else {
+            map_aci_attempt_status(
+                AciPaymentStatus::from_str(&item.response.result.code)?,
+                auto_capture,
+            )
+        };
+
         Ok(Self {
-            status: {
-                if redirection_data.is_some() {
-                    enums::AttemptStatus::from(AciPaymentStatus::RedirectShopper)
-                } else {
-                    enums::AttemptStatus::from(AciPaymentStatus::from_str(
-                        &item.response.result.code,
-                    )?)
-                }
-            },
+            status,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: Box::new(redirection_data),
@@ -757,6 +799,95 @@ impl<F, T> TryFrom<ResponseRouterData<F, AciPaymentsResponse, T, PaymentsRespons
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
+                incremental_authorization_allowed: None,
+                charges: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AciCaptureRequest {
+    #[serde(flatten)]
+    pub txn_details: TransactionDetails,
+}
+
+impl TryFrom<&AciRouterData<&PaymentsCaptureRouterData>> for AciCaptureRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(item: &AciRouterData<&PaymentsCaptureRouterData>) -> Result<Self, Self::Error> {
+        let auth = AciAuthType::try_from(&item.router_data.connector_auth_type)?;
+        Ok(Self {
+            txn_details: TransactionDetails {
+                entity_id: auth.entity_id,
+                amount: item.amount.to_owned(),
+                currency: item.router_data.request.currency.to_string(),
+                payment_type: AciPaymentType::Capture,
+            },
+        })
+    }
+}
+
+#[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AciCaptureResponse {
+    id: String,
+    referenced_id: String,
+    payment_type: AciPaymentType,
+    amount: StringMajorUnit,
+    currency: String,
+    descriptor: String,
+    result: AciCaptureResult,
+    result_details: AciCaptureResultDetails,
+    build_number: String,
+    timestamp: String,
+    ndc: Secret<String>,
+    source: Secret<String>,
+    payment_method: String,
+    short_id: String,
+}
+
+#[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AciCaptureResult {
+    code: String,
+    description: String,
+}
+
+#[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct AciCaptureResultDetails {
+    extended_description: String,
+    #[serde(rename = "clearingInstituteName")]
+    clearing_institute_name: String,
+    connector_tx_id1: String,
+    connector_tx_id3: String,
+    connector_tx_id2: String,
+    acquirer_response: String,
+}
+
+impl<F, T> TryFrom<ResponseRouterData<F, AciCaptureResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, AciCaptureResponse, T, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: map_aci_attempt_status(
+                AciPaymentStatus::from_str(&item.response.result.code)?,
+                false,
+            ),
+            reference_id: Some(item.response.referenced_id.clone()),
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: Some(item.response.referenced_id),
                 incremental_authorization_allowed: None,
                 charges: None,
             }),
@@ -853,4 +984,90 @@ impl<F> TryFrom<RefundsResponseRouterData<F, AciRefundResponse>> for RefundsRout
             ..item.data
         })
     }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+pub enum AciWebhookEventType {
+    Payment,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+pub enum AciWebhookAction {
+    Created,
+    Updated,
+    Deleted,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AciWebhookCardDetails {
+    pub bin: Option<String>,
+    #[serde(rename = "last4Digits")]
+    pub last4_digits: Option<String>,
+    pub holder: Option<String>,
+    pub expiry_month: Option<Secret<String>>,
+    pub expiry_year: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AciWebhookCustomerDetails {
+    #[serde(rename = "givenName")]
+    pub given_name: Option<Secret<String>>,
+    pub surname: Option<Secret<String>>,
+    #[serde(rename = "merchantCustomerId")]
+    pub merchant_customer_id: Option<Secret<String>>,
+    pub sex: Option<Secret<String>>,
+    pub email: Option<Email>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AciWebhookAuthenticationDetails {
+    #[serde(rename = "entityId")]
+    pub entity_id: Secret<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AciWebhookRiskDetails {
+    pub score: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AciPaymentWebhookPayload {
+    pub id: String,
+    pub payment_type: String,
+    pub payment_brand: String,
+    pub amount: StringMajorUnit,
+    pub currency: String,
+    pub presentation_amount: Option<StringMajorUnit>,
+    pub presentation_currency: Option<String>,
+    pub descriptor: Option<String>,
+    pub result: ResultCode,
+    pub authentication: Option<AciWebhookAuthenticationDetails>,
+    pub card: Option<AciWebhookCardDetails>,
+    pub customer: Option<AciWebhookCustomerDetails>,
+    #[serde(rename = "customParameters")]
+    pub custom_parameters: Option<serde_json::Value>,
+    pub risk: Option<AciWebhookRiskDetails>,
+    pub build_number: Option<String>,
+    pub timestamp: String,
+    pub ndc: String,
+    #[serde(rename = "channelName")]
+    pub channel_name: Option<String>,
+    pub source: Option<String>,
+    pub payment_method: Option<String>,
+    #[serde(rename = "shortId")]
+    pub short_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AciWebhookNotification {
+    #[serde(rename = "type")]
+    pub event_type: AciWebhookEventType,
+    pub action: Option<AciWebhookAction>,
+    pub payload: serde_json::Value,
 }

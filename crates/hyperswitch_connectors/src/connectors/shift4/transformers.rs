@@ -9,8 +9,8 @@ use common_utils::{
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{
-        BankRedirectData, BankTransferData, Card as CardData, GiftCardData, PaymentMethodData,
-        VoucherData, WalletData,
+        BankRedirectData, BankTransferData, Card as CardData, CryptoData, GiftCardData,
+        PayLaterData, PaymentMethodData, VoucherData, WalletData,
     },
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
@@ -133,6 +133,38 @@ pub enum Shift4PaymentMethod {
     CardsNon3DSRequest(Box<CardsNon3DSRequest>),
     BankRedirectRequest(Box<BankRedirectRequest>),
     Cards3DSRequest(Box<Cards3DSRequest>),
+    VoucherRequest(Box<VoucherRequest>),
+    WalletRequest(Box<WalletRequest>),
+    PayLaterRequest(Box<PayLaterRequest>),
+    CryptoRequest(Box<CryptoRequest>),
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WalletRequest {
+    flow: Flow,
+    payment_method: PaymentMethod,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PayLaterRequest {
+    flow: Flow,
+    payment_method: PaymentMethod,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CryptoRequest {
+    flow: Flow,
+    payment_method: PaymentMethod,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VoucherRequest {
+    flow: Flow,
+    payment_method: PaymentMethod,
 }
 
 #[derive(Debug, Serialize)]
@@ -169,12 +201,21 @@ pub struct Flow {
 }
 
 #[derive(Debug, Serialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 pub enum PaymentMethodType {
     Eps,
     Giropay,
     Ideal,
     Sofort,
+    Boleto,
+    Trustly,
+    Alipay,
+    Wechatpay,
+    Blik,
+    KlarnaDebitRisk,
+    Bitpay,
+    Paysera,
+    Skrill,
 }
 
 #[derive(Debug, Serialize)]
@@ -189,6 +230,8 @@ pub struct Billing {
     name: Option<Secret<String>>,
     email: Option<pii::Email>,
     address: Option<Address>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    vat: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -242,6 +285,50 @@ where
     }
 }
 
+impl TryFrom<&PayLaterData> for PaymentMethodType {
+    type Error = Error;
+    fn try_from(value: &PayLaterData) -> Result<Self, Self::Error> {
+        match value {
+            PayLaterData::KlarnaRedirect { .. } => Ok(Self::KlarnaDebitRisk),
+            PayLaterData::AffirmRedirect { .. }
+            | PayLaterData::AfterpayClearpayRedirect { .. }
+            | PayLaterData::PayBrightRedirect { .. }
+            | PayLaterData::WalleyRedirect { .. }
+            | PayLaterData::AlmaRedirect { .. }
+            | PayLaterData::AtomeRedirect { .. }
+            | PayLaterData::FlexitiRedirect { .. }
+            | PayLaterData::KlarnaSdk { .. }
+            | PayLaterData::BreadpayRedirect { .. } => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Shift4"),
+            )
+            .into()),
+        }
+    }
+}
+
+impl<T, Req> TryFrom<(&RouterData<T, Req, PaymentsResponseData>, &PayLaterData)>
+    for Shift4PaymentMethod
+where
+    Req: Shift4AuthorizePreprocessingCommon,
+{
+    type Error = Error;
+    fn try_from(
+        (item, pay_later_data): (&RouterData<T, Req, PaymentsResponseData>, &PayLaterData),
+    ) -> Result<Self, Self::Error> {
+        let flow = Flow::try_from(item.request.get_router_return_url())?;
+        let method_type = PaymentMethodType::try_from(pay_later_data)?;
+        let billing = Billing::try_from(item)?;
+        let payment_method = PaymentMethod {
+            method_type,
+            billing,
+        };
+        Ok(Self::BankRedirectRequest(Box::new(BankRedirectRequest {
+            payment_method,
+            flow,
+        })))
+    }
+}
+
 impl<T, Req> TryFrom<&RouterData<T, Req, PaymentsResponseData>> for Shift4PaymentMethod
 where
     Req: Shift4AuthorizePreprocessingCommon,
@@ -251,18 +338,20 @@ where
         match item.request.get_payment_method_data_required()? {
             PaymentMethodData::Card(ref ccard) => Self::try_from((item, ccard)),
             PaymentMethodData::BankRedirect(ref redirect) => Self::try_from((item, redirect)),
-            PaymentMethodData::Wallet(ref wallet_data) => Self::try_from(wallet_data),
+            PaymentMethodData::Wallet(ref wallet_data) => Self::try_from((item, wallet_data)),
             PaymentMethodData::BankTransfer(ref bank_transfer_data) => {
                 Self::try_from(bank_transfer_data.as_ref())
             }
-            PaymentMethodData::Voucher(ref voucher_data) => Self::try_from(voucher_data),
+            PaymentMethodData::Voucher(ref voucher_data) => Self::try_from((item, voucher_data)),
             PaymentMethodData::GiftCard(ref giftcard_data) => {
                 Self::try_from(giftcard_data.as_ref())
             }
+            PaymentMethodData::PayLater(ref pay_later_data) => {
+                Self::try_from((item, pay_later_data))
+            }
+            PaymentMethodData::Crypto(ref crypto_data) => Self::try_from((item, crypto_data)),
             PaymentMethodData::CardRedirect(_)
-            | PaymentMethodData::PayLater(_)
             | PaymentMethodData::BankDebit(_)
-            | PaymentMethodData::Crypto(_)
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
@@ -281,29 +370,32 @@ where
     }
 }
 
-impl TryFrom<&WalletData> for Shift4PaymentMethod {
+impl TryFrom<&WalletData> for PaymentMethodType {
     type Error = Error;
-    fn try_from(wallet_data: &WalletData) -> Result<Self, Self::Error> {
-        match wallet_data {
-            WalletData::AliPayRedirect(_)
-            | WalletData::AmazonPayRedirect(_)
-            | WalletData::ApplePay(_)
-            | WalletData::WeChatPayRedirect(_)
-            | WalletData::AliPayQr(_)
+    fn try_from(value: &WalletData) -> Result<Self, Self::Error> {
+        match value {
+            WalletData::AliPayRedirect { .. } => Ok(Self::Alipay),
+            WalletData::WeChatPayRedirect { .. } => Ok(Self::Wechatpay),
+            WalletData::Paysera(_) => Ok(Self::Paysera),
+            WalletData::Skrill(_) => Ok(Self::Skrill),
+            WalletData::AliPayQr(_)
             | WalletData::AliPayHkRedirect(_)
+            | WalletData::AmazonPayRedirect(_)
             | WalletData::MomoRedirect(_)
             | WalletData::KakaoPayRedirect(_)
             | WalletData::GoPayRedirect(_)
             | WalletData::GcashRedirect(_)
+            | WalletData::ApplePay(_)
             | WalletData::ApplePayRedirect(_)
             | WalletData::ApplePayThirdPartySdk(_)
             | WalletData::DanaRedirect {}
-            | WalletData::GooglePay(_)
             | WalletData::GooglePayRedirect(_)
             | WalletData::GooglePayThirdPartySdk(_)
+            | WalletData::GooglePay(_)
+            | WalletData::BluecodeRedirect {}
+            | WalletData::PaypalRedirect(_)
             | WalletData::MbWayRedirect(_)
             | WalletData::MobilePayRedirect(_)
-            | WalletData::PaypalRedirect(_)
             | WalletData::PaypalSdk(_)
             | WalletData::Paze(_)
             | WalletData::SamsungPay(_)
@@ -322,6 +414,28 @@ impl TryFrom<&WalletData> for Shift4PaymentMethod {
     }
 }
 
+impl<T, Req> TryFrom<(&RouterData<T, Req, PaymentsResponseData>, &WalletData)>
+    for Shift4PaymentMethod
+where
+    Req: Shift4AuthorizePreprocessingCommon,
+{
+    type Error = Error;
+    fn try_from(
+        (item, wallet_data): (&RouterData<T, Req, PaymentsResponseData>, &WalletData),
+    ) -> Result<Self, Self::Error> {
+        let flow = Flow::try_from(item.request.get_router_return_url())?;
+        let method_type = PaymentMethodType::try_from(wallet_data)?;
+        let billing = Billing::try_from(item)?;
+        let payment_method = PaymentMethod {
+            method_type,
+            billing,
+        };
+        Ok(Self::WalletRequest(Box::new(WalletRequest {
+            payment_method,
+            flow,
+        })))
+    }
+}
 impl TryFrom<&BankTransferData> for Shift4PaymentMethod {
     type Error = Error;
     fn try_from(bank_transfer_data: &BankTransferData) -> Result<Self, Self::Error> {
@@ -342,6 +456,7 @@ impl TryFrom<&BankTransferData> for Shift4PaymentMethod {
             | BankTransferData::InstantBankTransfer {}
             | BankTransferData::InstantBankTransferFinland { .. }
             | BankTransferData::InstantBankTransferPoland { .. }
+            | BankTransferData::IndonesianBankTransfer { .. }
             | BankTransferData::LocalBankTransfer { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Shift4"),
@@ -352,28 +467,61 @@ impl TryFrom<&BankTransferData> for Shift4PaymentMethod {
     }
 }
 
-impl TryFrom<&VoucherData> for Shift4PaymentMethod {
+impl TryFrom<&VoucherData> for PaymentMethodType {
     type Error = Error;
-    fn try_from(voucher_data: &VoucherData) -> Result<Self, Self::Error> {
-        match voucher_data {
-            VoucherData::Boleto(_)
+    fn try_from(value: &VoucherData) -> Result<Self, Self::Error> {
+        match value {
+            VoucherData::Boleto { .. } => Ok(Self::Boleto),
+            VoucherData::Alfamart { .. }
+            | VoucherData::Indomaret { .. }
             | VoucherData::Efecty
             | VoucherData::PagoEfectivo
             | VoucherData::RedCompra
-            | VoucherData::RedPagos
-            | VoucherData::Alfamart(_)
-            | VoucherData::Indomaret(_)
             | VoucherData::Oxxo
-            | VoucherData::SevenEleven(_)
-            | VoucherData::Lawson(_)
-            | VoucherData::MiniStop(_)
-            | VoucherData::FamilyMart(_)
-            | VoucherData::Seicomart(_)
-            | VoucherData::PayEasy(_) => Err(errors::ConnectorError::NotImplemented(
+            | VoucherData::RedPagos
+            | VoucherData::SevenEleven { .. }
+            | VoucherData::Lawson { .. }
+            | VoucherData::MiniStop { .. }
+            | VoucherData::FamilyMart { .. }
+            | VoucherData::Seicomart { .. }
+            | VoucherData::PayEasy { .. } => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Shift4"),
             )
             .into()),
         }
+    }
+}
+
+impl<T, Req> TryFrom<(&RouterData<T, Req, PaymentsResponseData>, &VoucherData)>
+    for Shift4PaymentMethod
+where
+    Req: Shift4AuthorizePreprocessingCommon,
+{
+    type Error = Error;
+    fn try_from(
+        (item, voucher_data): (&RouterData<T, Req, PaymentsResponseData>, &VoucherData),
+    ) -> Result<Self, Self::Error> {
+        let mut billing = Billing::try_from(item)?;
+        match voucher_data {
+            VoucherData::Boleto(boleto_data) => {
+                billing.vat = boleto_data.social_security_number.clone();
+            }
+            _ => {
+                billing.vat = None;
+            }
+        };
+
+        let method_type = PaymentMethodType::try_from(voucher_data)?;
+
+        let payment_method_details = PaymentMethod {
+            method_type,
+            billing,
+        };
+        let flow = Flow::try_from(item.request.get_router_return_url())?;
+        Ok(Self::VoucherRequest(Box::new(VoucherRequest {
+            payment_method: payment_method_details,
+            flow,
+        })))
     }
 }
 
@@ -450,6 +598,37 @@ where
     }
 }
 
+impl TryFrom<&CryptoData> for PaymentMethodType {
+    type Error = Error;
+
+    fn try_from(_value: &CryptoData) -> Result<Self, Self::Error> {
+        Ok(Self::Bitpay)
+    }
+}
+
+impl<T, Req> TryFrom<(&RouterData<T, Req, PaymentsResponseData>, &CryptoData)>
+    for Shift4PaymentMethod
+where
+    Req: Shift4AuthorizePreprocessingCommon,
+{
+    type Error = Error;
+    fn try_from(
+        (item, redirect_data): (&RouterData<T, Req, PaymentsResponseData>, &CryptoData),
+    ) -> Result<Self, Self::Error> {
+        let flow = Flow::try_from(item.request.get_router_return_url())?;
+        let method_type = PaymentMethodType::try_from(redirect_data)?;
+        let billing = Billing::try_from(item)?;
+        let payment_method = PaymentMethod {
+            method_type,
+            billing,
+        };
+        Ok(Self::CryptoRequest(Box::new(CryptoRequest {
+            payment_method,
+            flow,
+        })))
+    }
+}
+
 impl<T> TryFrom<&Shift4RouterData<&RouterData<T, CompleteAuthorizeData, PaymentsResponseData>>>
     for Shift4PaymentsRequest
 {
@@ -507,10 +686,10 @@ impl TryFrom<&BankRedirectData> for PaymentMethodType {
             BankRedirectData::Giropay { .. } => Ok(Self::Giropay),
             BankRedirectData::Ideal { .. } => Ok(Self::Ideal),
             BankRedirectData::Sofort { .. } => Ok(Self::Sofort),
+            BankRedirectData::Trustly { .. } => Ok(Self::Trustly),
+            BankRedirectData::Blik { .. } => Ok(Self::Blik),
             BankRedirectData::BancontactCard { .. }
-            | BankRedirectData::Blik { .. }
             | BankRedirectData::Eft { .. }
-            | BankRedirectData::Trustly { .. }
             | BankRedirectData::Przelewy24 { .. }
             | BankRedirectData::Bizum {}
             | BankRedirectData::Interac { .. }
@@ -546,17 +725,15 @@ where
 {
     type Error = Error;
     fn try_from(item: &RouterData<T, Req, PaymentsResponseData>) -> Result<Self, Self::Error> {
-        let billing_address = item
-            .get_optional_billing()
-            .as_ref()
-            .and_then(|billing| billing.address.as_ref());
-        let address = get_address_details(billing_address);
+        let billing_details = item.get_optional_billing();
+        let address_details_model = billing_details.as_ref().and_then(|b| b.address.as_ref());
+        let address = get_address_details(address_details_model);
+
         Ok(Self {
-            name: billing_address.map(|billing| {
-                Secret::new(format!("{:?} {:?}", billing.first_name, billing.last_name))
-            }),
+            name: item.get_optional_billing_full_name(),
             email: item.request.get_email_optional(),
             address,
+            vat: None,
         })
     }
 }

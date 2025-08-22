@@ -38,7 +38,7 @@ pub enum OutgoingWebhookEventContent {
         content: Value,
     },
     Payout {
-        payout_id: String,
+        payout_id: common_utils::id_type::PayoutId,
         content: Value,
     },
     #[cfg(feature = "v1")]

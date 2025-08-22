@@ -1,0 +1,86 @@
+{
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json"
+    },
+    {
+      "key": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "body": {
+    "mode": "raw",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "amount": 500,
+      "amount_to_capture": 500,
+      "currency": "EUR",
+      "confirm": true,
+      "capture_method": "automatic",
+      "authentication_type": "three_ds",
+      "request_external_three_ds_authentication": true,
+      "payment_method": "card",
+      "payment_method_type": "credit",
+      "payment_method_data": {
+        "card": {
+          "card_number": "5267648608924299",
+          "card_exp_month": "01",
+          "card_exp_year": "50",
+          "card_holder_name": "John Doe",
+          "card_cvc": "123"
+        }
+      },
+      "profile_id": "{{profile_id}}",
+      "email": "john_doe@gmail.com",
+      "name": "John Doe",
+      "phone": "8056594427",
+      "phone_country_code": "+91",
+      "description": "{{$randomLoremSentence}}",
+      "billing": {
+        "address": {
+          "line1": "2 ter",
+          "line2": "rue du château",
+          "line3": "",
+          "city": "Neuilly-sur-Seine",
+          "state": "France",
+          "zip": "92200",
+          "country": "FR"
+        },
+        "phone": {
+          "number": "8056594427",
+          "country_code": "+91"
+        }
+      },
+      "shipping": {
+        "address": {
+          "line1": "1467",
+          "line2": "Harrison Street",
+          "line3": "Harrison Street",
+          "city": "San Fransico",
+          "state": "California",
+          "zip": "94122",
+          "country": "US",
+          "first_name": "joseph",
+          "last_name": "Doe"
+        },
+        "phone": {
+          "number": "8056594427",
+          "country_code": "+91"
+        }
+      },
+      "statement_descriptor_name": "Joseph Doe",
+      "statement_descriptor_suffix": "JS"
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/payments",
+    "host": ["{{baseUrl}}"],
+    "path": ["payments"]
+  }
+}

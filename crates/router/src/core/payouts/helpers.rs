@@ -767,6 +767,7 @@ pub(super) async fn get_or_create_customer_details(
                                     .clone()
                                     .map(|a| a.expose().switch_strategy()),
                                 phone: customer_details.phone.clone(),
+                                tax_registration_id: customer_details.tax_registration_id.clone(),
                             },
                         ),
                     ),
@@ -810,6 +811,7 @@ pub(super) async fn get_or_create_customer_details(
                     default_payment_method_id: None,
                     updated_by: None,
                     version: common_types::consts::API_VERSION,
+                    tax_registration_id: encryptable_customer.tax_registration_id,
                 };
 
                 Ok(Some(
@@ -823,14 +825,13 @@ pub(super) async fn get_or_create_customer_details(
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable_lazy(|| {
                         format!(
-                            "Failed to insert customer [id - {:?}] for merchant [id - {:?}]",
-                            customer_id, merchant_id
+                            "Failed to insert customer [id - {customer_id:?}] for merchant [id - {merchant_id:?}]",
                         )
                     })?,
                 ))
             } else {
                 Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                    message: format!("customer for id - {:?} not found", customer_id),
+                    message: format!("customer for id - {customer_id:?} not found"),
                 }))
             }
         }
@@ -1061,7 +1062,7 @@ pub async fn get_gsm_record(
     error_message: Option<String>,
     connector_name: Option<String>,
     flow: &str,
-) -> Option<storage::gsm::GatewayStatusMap> {
+) -> Option<hyperswitch_domain_models::gsm::GatewayStatusMap> {
     let connector_name = connector_name.unwrap_or_default();
     let get_gsm = || async {
         state.store.find_gsm_rule(
@@ -1200,8 +1201,8 @@ pub async fn update_payouts_and_payout_attempt(
     if is_payout_terminal_state(status) || is_payout_initiated(status) {
         return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
             message: format!(
-                "Payout {} cannot be updated for status {}",
-                payout_id, status
+                "Payout {} cannot be updated for status {status}",
+                payout_id.get_string_repr()
             ),
         }));
     }
@@ -1226,12 +1227,13 @@ pub async fn update_payouts_and_payout_attempt(
 
     // We have to do this because the function that is being used to create / get address is from payments
     // which expects a payment_id
-    let payout_id_as_payment_id_type =
-        id_type::PaymentId::try_from(std::borrow::Cow::Owned(payout_id.clone()))
-            .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                message: "payout_id contains invalid data".to_string(),
-            })
-            .attach_printable("Error converting payout_id to PaymentId type")?;
+    let payout_id_as_payment_id_type = id_type::PaymentId::try_from(std::borrow::Cow::Owned(
+        payout_id.get_string_repr().to_string(),
+    ))
+    .change_context(errors::ApiErrorResponse::InvalidRequestData {
+        message: "payout_id contains invalid data for PaymentId conversion".to_string(),
+    })
+    .attach_printable("Error converting payout_id to PaymentId type")?;
 
     // Fetch address details from request and create new or else use existing address that was attached
     let billing_address = payment_helpers::create_or_find_address_for_payment_by_request(
@@ -1371,12 +1373,18 @@ pub(super) fn get_customer_details_from_request(
         .and_then(|customer_details| customer_details.phone_country_code.clone())
         .or(request.phone_country_code.clone());
 
+    let tax_registration_id = request
+        .customer
+        .as_ref()
+        .and_then(|customer_details| customer_details.tax_registration_id.clone());
+
     CustomerDetails {
         customer_id,
         name: customer_name,
         email: customer_email,
         phone: customer_phone,
         phone_country_code: customer_phone_code,
+        tax_registration_id,
     }
 }
 

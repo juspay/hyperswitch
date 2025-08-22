@@ -388,7 +388,7 @@ mod storage {
                         merchant_id,
                         payment_id,
                     };
-                    let field = format!("add_{}", address_id);
+                    let field = format!("add_{address_id}");
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
                             Box::pin(kv_wrapper(
@@ -593,6 +593,7 @@ mod storage {
                         payment_id: address_new.payment_id.clone(),
                         updated_by: storage_scheme.to_string(),
                         email: address_new.email.clone(),
+                        origin_zip: address_new.origin_zip.clone(),
                     };
 
                     let redis_entry = kv::TypedSql {

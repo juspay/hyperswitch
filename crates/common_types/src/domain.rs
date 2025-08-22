@@ -5,6 +5,8 @@ use std::collections::HashMap;
 use common_enums::enums;
 use common_utils::{impl_to_sql_from_sql_json, types::MinorUnit};
 use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
+#[cfg(feature = "v2")]
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -65,9 +67,6 @@ pub struct AcquirerConfig {
     /// merchant name
     #[schema(value_type= String,example = "NewAge Retailer")]
     pub merchant_name: String,
-    /// Merchant country code assigned by acquirer
-    #[schema(value_type= String,example = "US")]
-    pub merchant_country_code: common_enums::CountryAlpha2,
     /// Network provider
     #[schema(value_type= String,example = "VISA")]
     pub network: common_enums::CardNetwork,
@@ -88,3 +87,97 @@ pub struct AcquirerConfig {
 pub struct AcquirerConfigMap(pub HashMap<common_utils::id_type::ProfileAcquirerId, AcquirerConfig>);
 
 impl_to_sql_from_sql_json!(AcquirerConfigMap);
+
+/// Merchant connector details
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[cfg(feature = "v2")]
+pub struct MerchantConnectorAuthDetails {
+    /// The connector used for the payment
+    #[schema(value_type = Connector)]
+    pub connector_name: common_enums::connector_enums::Connector,
+
+    /// The merchant connector credentials used for the payment
+    #[schema(value_type = Object, example = r#"{
+        "merchant_connector_creds": {
+            "auth_type": "HeaderKey",
+            "api_key":"sk_test_xxxxxexamplexxxxxx12345"
+        },
+    }"#)]
+    pub merchant_connector_creds: common_utils::pii::SecretSerdeValue,
+}
+
+/// Connector Response Data that are required to be populated in response, but not persisted in DB.
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug)]
+pub struct ConnectorResponseData {
+    /// Stringified connector raw response body
+    pub raw_connector_response: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, AsExpression, ToSchema)]
+#[diesel(sql_type = Jsonb)]
+#[serde(rename_all = "snake_case")]
+/// Contains the data relevant to the specified GSM feature, if applicable.
+/// For example, if the `feature` is `Retry`, this will include configuration
+/// details specific to the retry behavior.
+pub enum GsmFeatureData {
+    /// Represents the data associated with a retry feature in GSM.
+    Retry(RetryFeatureData),
+}
+
+/// Represents the data associated with a retry feature in GSM.
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, AsExpression, ToSchema)]
+#[diesel(sql_type = Jsonb)]
+pub struct RetryFeatureData {
+    /// indicates if step_up retry is possible
+    pub step_up_possible: bool,
+    /// indicates if retry with pan is possible
+    pub clear_pan_possible: bool,
+    /// indicates if retry with alternate network possible
+    pub alternate_network_possible: bool,
+    /// decision to be taken for auto retries flow
+    #[schema(value_type = GsmDecision)]
+    pub decision: common_enums::GsmDecision,
+}
+
+impl_to_sql_from_sql_json!(GsmFeatureData);
+impl_to_sql_from_sql_json!(RetryFeatureData);
+
+impl GsmFeatureData {
+    /// Retrieves the retry feature data if it exists.
+    pub fn get_retry_feature_data(&self) -> Option<RetryFeatureData> {
+        match self {
+            Self::Retry(data) => Some(data.clone()),
+        }
+    }
+
+    /// Retrieves the decision from the retry feature data.
+    pub fn get_decision(&self) -> common_enums::GsmDecision {
+        match self {
+            Self::Retry(data) => data.decision,
+        }
+    }
+}
+
+/// Implementation of methods for `RetryFeatureData`
+impl RetryFeatureData {
+    /// Checks if step-up retry is possible.
+    pub fn is_step_up_possible(&self) -> bool {
+        self.step_up_possible
+    }
+
+    /// Checks if retry with PAN is possible.
+    pub fn is_clear_pan_possible(&self) -> bool {
+        self.clear_pan_possible
+    }
+
+    /// Checks if retry with alternate network is possible.
+    pub fn is_alternate_network_possible(&self) -> bool {
+        self.alternate_network_possible
+    }
+
+    /// Retrieves the decision to be taken for auto retries flow.
+    pub fn get_decision(&self) -> common_enums::GsmDecision {
+        self.decision
+    }
+}

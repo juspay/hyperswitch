@@ -200,79 +200,59 @@ export const connectorDetails = {
     Void: voidCase,
     VoidAfterConfirm: voidCase,
     Refund: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         amount: 6000,
       },
       Response: {
-        status: 501,
+        status: 200,
         body: {
-          type: "invalid_request",
-          message: "Refunds is not implemented",
-          code: "IR_00",
+          reason: "FRAUD",
+          status: "pending",
         },
       },
     },
     manualPaymentRefund: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         amount: 6000,
       },
       Response: {
-        status: 501,
+        status: 200,
         body: {
-          type: "invalid_request",
-          message: "Refunds is not implemented",
-          code: "IR_00",
+          reason: "FRAUD",
+          status: "pending",
         },
       },
     },
     manualPaymentPartialRefund: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         amount: 2000,
       },
       Response: {
-        status: 501,
+        status: 200,
         body: {
-          type: "invalid_request",
-          message: "Refunds is not implemented",
-          code: "IR_00",
+          reason: "FRAUD",
+          status: "pending",
         },
       },
     },
     PartialRefund: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         amount: 2000,
       },
       Response: {
-        status: 501,
+        status: 200,
         body: {
-          type: "invalid_request",
-          message: "Refunds is not implemented",
-          code: "IR_00",
+          reason: "FRAUD",
+          status: "pending",
         },
       },
     },
     SyncRefund: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Response: {
-        status: 404,
+        status: 200,
         body: {
-          type: "invalid_request",
-          message: "Refund does not exist in our records.",
-          code: "HE_02",
+          reason: "FRAUD",
+          status: "succeeded",
         },
       },
     },

@@ -120,8 +120,7 @@ fn get_auth_header(
         .zip(auth.api_key)
         .map(|((business_identifier, application_identifier), api_key)| {
             common_utils::consts::BASE64_ENGINE.encode(format!(
-                "{}.{}:{}",
-                business_identifier, application_identifier, api_key
+                "{business_identifier}.{application_identifier}:{api_key}",
             ))
         });
 
@@ -172,6 +171,7 @@ impl ConnectorCommon for Noon {
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 })
             }
             Err(error_message) => {

@@ -19,7 +19,8 @@ use hyperswitch_domain_models::{
         VerifyWebhookSource,
     },
     router_request_types::{
-        PaymentsAuthorizeData, PaymentsPostSessionTokensData, PaymentsSyncData, ResponseId,
+        CompleteAuthorizeData, PaymentsAuthorizeData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostSessionTokensData, PaymentsSyncData, ResponseId,
         VerifyWebhookSourceRequestData,
     },
     router_response_types::{
@@ -28,8 +29,9 @@ use hyperswitch_domain_models::{
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
-        PaymentsPostSessionTokensRouterData, RefreshTokenRouterData, RefundsRouterData,
-        SdkSessionUpdateRouterData, SetupMandateRouterData, VerifyWebhookSourceRouterData,
+        PaymentsIncrementalAuthorizationRouterData, PaymentsPostSessionTokensRouterData,
+        RefreshTokenRouterData, RefundsRouterData, SdkSessionUpdateRouterData,
+        SetupMandateRouterData, VerifyWebhookSourceRouterData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -54,6 +56,28 @@ use crate::{
         RouterData as OtherRouterData,
     },
 };
+
+trait GetRequestIncrementalAuthorization {
+    fn get_request_incremental_authorization(&self) -> Option<bool>;
+}
+
+impl GetRequestIncrementalAuthorization for PaymentsAuthorizeData {
+    fn get_request_incremental_authorization(&self) -> Option<bool> {
+        Some(self.request_incremental_authorization)
+    }
+}
+
+impl GetRequestIncrementalAuthorization for CompleteAuthorizeData {
+    fn get_request_incremental_authorization(&self) -> Option<bool> {
+        None
+    }
+}
+
+impl GetRequestIncrementalAuthorization for PaymentsSyncData {
+    fn get_request_incremental_authorization(&self) -> Option<bool> {
+        None
+    }
+}
 
 #[derive(Debug, Serialize)]
 pub struct PaypalRouterData<T> {
@@ -237,7 +261,7 @@ pub struct PurchaseUnitRequest {
     items: Vec<ItemDetails>,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Deserialize, Serialize, Eq, PartialEq)]
 pub struct Payee {
     merchant_id: Secret<String>,
 }
@@ -864,8 +888,8 @@ impl TryFrom<&PaypalRouterData<&SdkSessionUpdateRouterData>> for PaypalUpdateOrd
         // Create separate paths for amount and items
         let reference_id = &item.router_data.connector_request_reference_id;
 
-        let amount_path = format!("/purchase_units/@reference_id=='{}'/amount", reference_id);
-        let items_path = format!("/purchase_units/@reference_id=='{}'/items", reference_id);
+        let amount_path = format!("/purchase_units/@reference_id=='{reference_id}'/amount");
+        let items_path = format!("/purchase_units/@reference_id=='{reference_id}'/items");
 
         let amount_value = Value::Amount(OrderRequestAmount::try_from(item)?);
 
@@ -1046,6 +1070,8 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                 | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
                 | WalletData::AmazonPayRedirect(_)
+                | WalletData::Paysera(_)
+                | WalletData::Skrill(_)
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -1055,6 +1081,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                 | WalletData::ApplePayThirdPartySdk(_)
                 | WalletData::DanaRedirect {}
                 | WalletData::GooglePay(_)
+                | WalletData::BluecodeRedirect {}
                 | WalletData::GooglePayRedirect(_)
                 | WalletData::GooglePayThirdPartySdk(_)
                 | WalletData::MbWayRedirect(_)
@@ -1145,6 +1172,8 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::AliPayHk
                     | enums::PaymentMethodType::Alma
                     | enums::PaymentMethodType::AmazonPay
+                    | enums::PaymentMethodType::Paysera
+                    | enums::PaymentMethodType::Skrill
                     | enums::PaymentMethodType::ApplePay
                     | enums::PaymentMethodType::Atome
                     | enums::PaymentMethodType::Bacs
@@ -1169,6 +1198,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::Efecty
                     | enums::PaymentMethodType::Eft
                     | enums::PaymentMethodType::Eps
+                    | enums::PaymentMethodType::Bluecode
                     | enums::PaymentMethodType::Fps
                     | enums::PaymentMethodType::Evoucher
                     | enums::PaymentMethodType::Giropay
@@ -1235,7 +1265,10 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::InstantBankTransferPoland
                     | enums::PaymentMethodType::Mifinity
                     | enums::PaymentMethodType::Paze
-                    | enums::PaymentMethodType::RevolutPay => {
+                    | enums::PaymentMethodType::IndonesianBankTransfer
+                    | enums::PaymentMethodType::Flexiti
+                    | enums::PaymentMethodType::RevolutPay
+                    | enums::PaymentMethodType::Breadpay => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message("paypal"),
                         ))
@@ -1291,8 +1324,10 @@ impl TryFrom<&PayLaterData> for PaypalPaymentsRequest {
             | PayLaterData::AfterpayClearpayRedirect { .. }
             | PayLaterData::PayBrightRedirect {}
             | PayLaterData::WalleyRedirect {}
+            | PayLaterData::FlexitiRedirect {}
             | PayLaterData::AlmaRedirect {}
-            | PayLaterData::AtomeRedirect {} => Err(errors::ConnectorError::NotImplemented(
+            | PayLaterData::AtomeRedirect {}
+            | PayLaterData::BreadpayRedirect {} => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Paypal"),
             )
             .into()),
@@ -1335,6 +1370,7 @@ impl TryFrom<&BankTransferData> for PaypalPaymentsRequest {
             | BankTransferData::InstantBankTransfer {}
             | BankTransferData::InstantBankTransferFinland {}
             | BankTransferData::InstantBankTransferPoland {}
+            | BankTransferData::IndonesianBankTransfer { .. }
             | BankTransferData::LocalBankTransfer { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),
@@ -1419,6 +1455,119 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaypalAuthUpdateResponse, T, AccessToke
             response: Ok(AccessToken {
                 token: item.response.access_token,
                 expires: item.response.expires_in,
+            }),
+            ..item.data
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct PaypalIncrementalAuthRequest {
+    amount: OrderAmount,
+}
+
+impl TryFrom<&PaypalRouterData<&PaymentsIncrementalAuthorizationRouterData>>
+    for PaypalIncrementalAuthRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: &PaypalRouterData<&PaymentsIncrementalAuthorizationRouterData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount: OrderAmount {
+                currency_code: item.router_data.request.currency,
+                value: item.amount.clone(),
+            },
+        })
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PaypalIncrementalAuthResponse {
+    status: PaypalIncrementalStatus,
+    status_details: PaypalIncrementalAuthStatusDetails,
+    id: String,
+    invoice_id: String,
+    custom_id: String,
+    links: Vec<PaypalLinks>,
+    amount: OrderAmount,
+    network_transaction_reference: PaypalNetworkTransactionReference,
+    expiration_time: String,
+    create_time: String,
+    update_time: String,
+    supplementary_data: PaypalSupplementaryData,
+    payee: Payee,
+    name: Option<String>,
+    message: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PaypalIncrementalStatus {
+    CREATED,
+    CAPTURED,
+    DENIED,
+    PARTIALLYCAPTURED,
+    VOIDED,
+    PENDING,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PaypalNetworkTransactionReference {
+    id: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PaypalIncrementalAuthStatusDetails {
+    reason: PaypalStatusPendingReason,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PaypalStatusPendingReason {
+    PENDINGREVIEW,
+    DECLINEDBYRISKFRAUDFILTERS,
+}
+
+impl From<PaypalIncrementalStatus> for common_enums::AuthorizationStatus {
+    fn from(item: PaypalIncrementalStatus) -> Self {
+        match item {
+            PaypalIncrementalStatus::CREATED
+            | PaypalIncrementalStatus::CAPTURED
+            | PaypalIncrementalStatus::PARTIALLYCAPTURED => Self::Success,
+            PaypalIncrementalStatus::PENDING => Self::Processing,
+            PaypalIncrementalStatus::DENIED | PaypalIncrementalStatus::VOIDED => Self::Failure,
+        }
+    }
+}
+
+impl<F>
+    TryFrom<
+        ResponseRouterData<
+            F,
+            PaypalIncrementalAuthResponse,
+            PaymentsIncrementalAuthorizationData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<F, PaymentsIncrementalAuthorizationData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            F,
+            PaypalIncrementalAuthResponse,
+            PaymentsIncrementalAuthorizationData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let status = common_enums::AuthorizationStatus::from(item.response.status);
+        Ok(Self {
+            response: Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
+                status,
+                error_code: None,
+                error_message: None,
+                connector_authorization_id: Some(item.response.id),
             }),
             ..item.data
         })
@@ -1747,6 +1896,7 @@ pub struct CardDetails {
 pub struct PaypalMeta {
     pub authorize_id: Option<String>,
     pub capture_id: Option<String>,
+    pub incremental_authorization_id: Option<String>,
     pub psync_flow: PaypalPaymentIntent,
     pub next_action: Option<api_models::payments::NextActionCall>,
     pub order_id: Option<String>,
@@ -1782,12 +1932,25 @@ fn get_id_based_on_intent(
     .ok_or_else(|| errors::ConnectorError::MissingConnectorTransactionID.into())
 }
 
-impl<F, T> TryFrom<ResponseRouterData<F, PaypalOrdersResponse, T, PaymentsResponseData>>
-    for RouterData<F, T, PaymentsResponseData>
+fn extract_incremental_authorization_id(response: &PaypalOrdersResponse) -> Option<String> {
+    for unit in &response.purchase_units {
+        if let Some(authorizations) = &unit.payments.authorizations {
+            if let Some(first_auth) = authorizations.first() {
+                return Some(first_auth.id.clone());
+            }
+        }
+    }
+    None
+}
+
+impl<F, Req> TryFrom<ResponseRouterData<F, PaypalOrdersResponse, Req, PaymentsResponseData>>
+    for RouterData<F, Req, PaymentsResponseData>
+where
+    Req: GetRequestIncrementalAuthorization,
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, PaypalOrdersResponse, T, PaymentsResponseData>,
+        item: ResponseRouterData<F, PaypalOrdersResponse, Req, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let purchase_units = item
             .response
@@ -1801,6 +1964,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaypalOrdersResponse, T, PaymentsRespon
                 serde_json::json!(PaypalMeta {
                     authorize_id: None,
                     capture_id: Some(id),
+                    incremental_authorization_id: None,
                     psync_flow: item.response.intent.clone(),
                     next_action: None,
                     order_id: None,
@@ -1812,6 +1976,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaypalOrdersResponse, T, PaymentsRespon
                 serde_json::json!(PaypalMeta {
                     authorize_id: Some(id),
                     capture_id: None,
+                    incremental_authorization_id: extract_incremental_authorization_id(
+                        &item.response
+                    ),
                     psync_flow: item.response.intent.clone(),
                     next_action: None,
                     order_id: None,
@@ -1872,7 +2039,10 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaypalOrdersResponse, T, PaymentsRespon
                     .invoice_id
                     .clone()
                     .or(Some(item.response.id)),
-                incremental_authorization_allowed: None,
+                incremental_authorization_allowed: item
+                    .data
+                    .request
+                    .get_request_incremental_authorization(),
                 charges: None,
             }),
             ..item.data
@@ -1965,6 +2135,7 @@ impl<F, T>
         let connector_meta = serde_json::json!(PaypalMeta {
             authorize_id: None,
             capture_id: None,
+            incremental_authorization_id: None,
             psync_flow: item.response.intent,
             next_action,
             order_id: None,
@@ -2017,6 +2188,7 @@ impl
         let connector_meta = serde_json::json!(PaypalMeta {
             authorize_id: None,
             capture_id: None,
+            incremental_authorization_id: None,
             psync_flow: item.response.intent,
             next_action: None,
             order_id: None,
@@ -2072,6 +2244,7 @@ impl
         let connector_meta = serde_json::json!(PaypalMeta {
             authorize_id: None,
             capture_id: None,
+            incremental_authorization_id: None,
             psync_flow: item.response.intent,
             next_action,
             order_id: Some(item.response.id.clone()),
@@ -2144,6 +2317,7 @@ impl<F>
         let connector_meta = serde_json::json!(PaypalMeta {
             authorize_id: None,
             capture_id: None,
+            incremental_authorization_id: None,
             psync_flow: PaypalPaymentIntent::Authenticate, // when there is no capture or auth id present
             next_action: None,
             order_id: None,
@@ -2309,7 +2483,7 @@ impl TryFrom<&PaypalRouterData<&PayoutsRouterData<PoFulfill>>> for PaypalFulfill
         let item_data = PaypalPayoutItem::try_from(item)?;
         Ok(Self {
             sender_batch_header: PayoutBatchHeader {
-                sender_batch_id: item.router_data.request.payout_id.to_owned(),
+                sender_batch_id: item.router_data.connector_request_reference_id.to_owned(),
             },
             items: vec![item_data],
         })
@@ -2392,8 +2566,22 @@ pub struct PaypalFulfillResponse {
 #[cfg(feature = "payouts")]
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PaypalBatchResponse {
-    payout_batch_id: String,
-    batch_status: PaypalFulfillStatus,
+    pub payout_batch_id: String,
+    pub batch_status: PaypalFulfillStatus,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PaypalPayoutSyncResponse {
+    batch_header: PaypalSyncBatchResponse,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PaypalSyncBatchResponse {
+    pub payout_batch_id: Option<String>,
+    pub sender_batch_id: Option<String>,
+    pub batch_status: PaypalFulfillStatus,
 }
 
 #[cfg(feature = "payouts")]
@@ -2405,16 +2593,24 @@ pub enum PaypalFulfillStatus {
     Processing,
     Success,
     Cancelled,
+    Failed,
+    Refunded,
+    Returned,
 }
 
 #[cfg(feature = "payouts")]
 pub(crate) fn get_payout_status(status: PaypalFulfillStatus) -> storage_enums::PayoutStatus {
     match status {
         PaypalFulfillStatus::Success => storage_enums::PayoutStatus::Success,
-        PaypalFulfillStatus::Denied => storage_enums::PayoutStatus::Failed,
+        PaypalFulfillStatus::Denied | PaypalFulfillStatus::Failed => {
+            storage_enums::PayoutStatus::Failed
+        }
         PaypalFulfillStatus::Cancelled => storage_enums::PayoutStatus::Cancelled,
         PaypalFulfillStatus::Pending | PaypalFulfillStatus::Processing => {
             storage_enums::PayoutStatus::Pending
+        }
+        PaypalFulfillStatus::Refunded | PaypalFulfillStatus::Returned => {
+            storage_enums::PayoutStatus::Reversed
         }
     }
 }
@@ -2435,6 +2631,57 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, PaypalFulfillResponse>> for Payouts
                 error_message: None,
             }),
             ..item.data
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl<F> TryFrom<PayoutsResponseRouterData<F, PaypalPayoutSyncResponse>> for PayoutsRouterData<F> {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: PayoutsResponseRouterData<F, PaypalPayoutSyncResponse>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(PayoutsResponseData {
+                status: Some(get_payout_status(item.response.batch_header.batch_status)),
+                connector_payout_id: item.response.batch_header.payout_batch_id,
+                payout_eligible: None,
+                should_add_next_step_to_process_tracker: false,
+                error_code: None,
+                error_message: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl TryFrom<PaypalBatchPayoutWebhooks> for PaypalPayoutSyncResponse {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(webhook_body: PaypalBatchPayoutWebhooks) -> Result<Self, Self::Error> {
+        Ok(Self {
+            batch_header: PaypalSyncBatchResponse {
+                payout_batch_id: Some(webhook_body.batch_header.payout_batch_id),
+                sender_batch_id: None,
+                batch_status: webhook_body.batch_header.batch_status,
+            },
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl TryFrom<(PaypalItemPayoutWebhooks, PaypalWebhookEventType)> for PaypalPayoutSyncResponse {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (webhook_body, webhook_event): (PaypalItemPayoutWebhooks, PaypalWebhookEventType),
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            batch_header: PaypalSyncBatchResponse {
+                payout_batch_id: None,
+                sender_batch_id: Some(webhook_body.sender_batch_id),
+                batch_status: PaypalFulfillStatus::try_from(webhook_event)
+                    .attach_printable("Could not find suitable webhook event")?,
+            },
         })
     }
 }
@@ -2531,7 +2778,10 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaypalCaptureResponse>>
             | storage_enums::AttemptStatus::PaymentMethodAwaited
             | storage_enums::AttemptStatus::ConfirmationAwaited
             | storage_enums::AttemptStatus::DeviceDataCollectionPending
-            | storage_enums::AttemptStatus::Voided => 0,
+            | storage_enums::AttemptStatus::Voided
+            | storage_enums::AttemptStatus::VoidedPostCharge
+            | storage_enums::AttemptStatus::Expired
+            | storage_enums::AttemptStatus::PartiallyAuthorized => 0,
             storage_enums::AttemptStatus::Charged
             | storage_enums::AttemptStatus::PartialCharged
             | storage_enums::AttemptStatus::PartialChargedAndChargeable
@@ -2550,6 +2800,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaypalCaptureResponse>>
                 connector_metadata: Some(serde_json::json!(PaypalMeta {
                     authorize_id: connector_payment_id.authorize_id,
                     capture_id: Some(item.response.id.clone()),
+                    incremental_authorization_id: None,
                     psync_flow: PaypalPaymentIntent::Capture,
                     next_action: None,
                     order_id: None,
@@ -2762,6 +3013,42 @@ pub enum PaypalWebhookEventType {
     CustomerDisputedUpdated,
     #[serde(rename = "RISK.DISPUTE.CREATED")]
     RiskDisputeCreated,
+    #[cfg(feature = "payouts")]
+    #[serde(rename = "PAYMENT.PAYOUTSBATCH.SUCCESS")]
+    PayoutsBatchSuccess,
+    #[cfg(feature = "payouts")]
+    #[serde(rename = "PAYMENT.PAYOUTSBATCH.PROCESSING")]
+    PayoutsBatchProcessing,
+    #[cfg(feature = "payouts")]
+    #[serde(rename = "PAYMENT.PAYOUTSBATCH.DENIED")]
+    PayoutsBatchDenied,
+    #[cfg(feature = "payouts")]
+    #[serde(rename = "PAYMENT.PAYOUTS-ITEM.SUCCEEDED")]
+    PayoutsItemSuccess,
+    #[cfg(feature = "payouts")]
+    #[serde(rename = "PAYMENT.PAYOUTS-ITEM.FAILED")]
+    PayoutsItemFailed,
+    #[cfg(feature = "payouts")]
+    #[serde(rename = "PAYMENT.PAYOUTS-ITEM.BLOCKED")]
+    PayoutsItemBlocked,
+    #[cfg(feature = "payouts")]
+    #[serde(rename = "PAYMENT.PAYOUTS-ITEM.CANCELED")]
+    PayoutsItemCanceled,
+    #[cfg(feature = "payouts")]
+    #[serde(rename = "PAYMENT.PAYOUTS-ITEM.DENIED")]
+    PayoutsItemDenied,
+    #[cfg(feature = "payouts")]
+    #[serde(rename = "PAYMENT.PAYOUTS-ITEM.HELD")]
+    PayoutsItemHeld,
+    #[cfg(feature = "payouts")]
+    #[serde(rename = "PAYMENT.PAYOUTS-ITEM.REFUNDED")]
+    PayoutsItemRefunded,
+    #[cfg(feature = "payouts")]
+    #[serde(rename = "PAYMENT.PAYOUTS-ITEM.RETURNED")]
+    PayoutsItemReturned,
+    #[cfg(feature = "payouts")]
+    #[serde(rename = "PAYMENT.PAYOUTS-ITEM.UNCLAIMED")]
+    PayoutsItemUnclaimed,
     #[serde(other)]
     Unknown,
 }
@@ -2773,6 +3060,23 @@ pub enum PaypalResource {
     PaypalRedirectsWebhooks(Box<PaypalRedirectsWebhooks>),
     PaypalRefundWebhooks(Box<PaypalRefundWebhooks>),
     PaypalDisputeWebhooks(Box<PaypalDisputeWebhooks>),
+    #[cfg(feature = "payouts")]
+    PaypalBatchPayoutWebhooks(Box<PaypalBatchPayoutWebhooks>),
+    #[cfg(feature = "payouts")]
+    PaypalItemPayoutWebhooks(Box<PaypalItemPayoutWebhooks>),
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Deserialize, Debug, Serialize)]
+pub struct PaypalBatchPayoutWebhooks {
+    pub batch_header: PaypalBatchResponse,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Deserialize, Debug, Serialize)]
+pub struct PaypalItemPayoutWebhooks {
+    pub sender_batch_id: String,
+    pub transaction_status: PaypalFulfillStatus,
 }
 
 #[derive(Deserialize, Debug, Serialize)]
@@ -2913,6 +3217,23 @@ pub(crate) fn get_payapl_webhooks_event(
         | PaypalWebhookEventType::CheckoutOrderApproved
         | PaypalWebhookEventType::CustomerDisputedUpdated
         | PaypalWebhookEventType::Unknown => IncomingWebhookEvent::EventNotSupported,
+        #[cfg(feature = "payouts")]
+        PaypalWebhookEventType::PayoutsBatchSuccess
+        | PaypalWebhookEventType::PayoutsItemSuccess => IncomingWebhookEvent::PayoutSuccess,
+        #[cfg(feature = "payouts")]
+        PaypalWebhookEventType::PayoutsBatchProcessing
+        | PaypalWebhookEventType::PayoutsItemHeld
+        | PaypalWebhookEventType::PayoutsItemUnclaimed => IncomingWebhookEvent::PayoutProcessing,
+        #[cfg(feature = "payouts")]
+        PaypalWebhookEventType::PayoutsBatchDenied
+        | PaypalWebhookEventType::PayoutsItemDenied
+        | PaypalWebhookEventType::PayoutsItemBlocked
+        | PaypalWebhookEventType::PayoutsItemCanceled => IncomingWebhookEvent::PayoutCancelled,
+        #[cfg(feature = "payouts")]
+        PaypalWebhookEventType::PayoutsItemFailed => IncomingWebhookEvent::PayoutFailure,
+        #[cfg(feature = "payouts")]
+        PaypalWebhookEventType::PayoutsItemRefunded
+        | PaypalWebhookEventType::PayoutsItemReturned => IncomingWebhookEvent::PayoutReversed,
     }
 }
 
@@ -3064,6 +3385,21 @@ impl TryFrom<PaypalWebhookEventType> for PaypalPaymentStatus {
             | PaypalWebhookEventType::Unknown => {
                 Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
             }
+            #[cfg(feature = "payouts")]
+            PaypalWebhookEventType::PayoutsBatchDenied
+            | PaypalWebhookEventType::PayoutsBatchProcessing
+            | PaypalWebhookEventType::PayoutsBatchSuccess
+            | PaypalWebhookEventType::PayoutsItemBlocked
+            | PaypalWebhookEventType::PayoutsItemCanceled
+            | PaypalWebhookEventType::PayoutsItemDenied
+            | PaypalWebhookEventType::PayoutsItemFailed
+            | PaypalWebhookEventType::PayoutsItemHeld
+            | PaypalWebhookEventType::PayoutsItemRefunded
+            | PaypalWebhookEventType::PayoutsItemReturned
+            | PaypalWebhookEventType::PayoutsItemSuccess
+            | PaypalWebhookEventType::PayoutsItemUnclaimed => {
+                Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
+            }
         }
     }
 }
@@ -3074,6 +3410,58 @@ impl TryFrom<PaypalWebhookEventType> for RefundStatus {
         match event {
             PaypalWebhookEventType::PaymentCaptureRefunded => Ok(Self::Completed),
             PaypalWebhookEventType::PaymentAuthorizationCreated
+            | PaypalWebhookEventType::PaymentAuthorizationVoided
+            | PaypalWebhookEventType::PaymentCaptureDeclined
+            | PaypalWebhookEventType::PaymentCaptureCompleted
+            | PaypalWebhookEventType::PaymentCapturePending
+            | PaypalWebhookEventType::CheckoutOrderApproved
+            | PaypalWebhookEventType::CheckoutOrderCompleted
+            | PaypalWebhookEventType::CheckoutOrderProcessed
+            | PaypalWebhookEventType::CustomerDisputeCreated
+            | PaypalWebhookEventType::CustomerDisputeResolved
+            | PaypalWebhookEventType::CustomerDisputedUpdated
+            | PaypalWebhookEventType::RiskDisputeCreated
+            | PaypalWebhookEventType::Unknown => {
+                Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
+            }
+            #[cfg(feature = "payouts")]
+            PaypalWebhookEventType::PayoutsBatchDenied
+            | PaypalWebhookEventType::PayoutsBatchProcessing
+            | PaypalWebhookEventType::PayoutsBatchSuccess
+            | PaypalWebhookEventType::PayoutsItemBlocked
+            | PaypalWebhookEventType::PayoutsItemCanceled
+            | PaypalWebhookEventType::PayoutsItemDenied
+            | PaypalWebhookEventType::PayoutsItemFailed
+            | PaypalWebhookEventType::PayoutsItemHeld
+            | PaypalWebhookEventType::PayoutsItemRefunded
+            | PaypalWebhookEventType::PayoutsItemReturned
+            | PaypalWebhookEventType::PayoutsItemSuccess
+            | PaypalWebhookEventType::PayoutsItemUnclaimed => {
+                Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
+            }
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl TryFrom<PaypalWebhookEventType> for PaypalFulfillStatus {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(event: PaypalWebhookEventType) -> Result<Self, Self::Error> {
+        match event {
+            PaypalWebhookEventType::PayoutsBatchSuccess
+            | PaypalWebhookEventType::PayoutsItemSuccess => Ok(Self::Success),
+            PaypalWebhookEventType::PayoutsBatchProcessing => Ok(Self::Processing),
+            PaypalWebhookEventType::PayoutsItemHeld
+            | PaypalWebhookEventType::PayoutsItemUnclaimed => Ok(Self::Pending),
+            PaypalWebhookEventType::PayoutsItemBlocked
+            | PaypalWebhookEventType::PayoutsItemCanceled => Ok(Self::Cancelled),
+            PaypalWebhookEventType::PayoutsBatchDenied
+            | PaypalWebhookEventType::PayoutsItemDenied => Ok(Self::Denied),
+            PaypalWebhookEventType::PayoutsItemFailed => Ok(Self::Failed),
+            PaypalWebhookEventType::PayoutsItemRefunded => Ok(Self::Refunded),
+            PaypalWebhookEventType::PayoutsItemReturned => Ok(Self::Returned),
+            PaypalWebhookEventType::PaymentCaptureRefunded
+            | PaypalWebhookEventType::PaymentAuthorizationCreated
             | PaypalWebhookEventType::PaymentAuthorizationVoided
             | PaypalWebhookEventType::PaymentCaptureDeclined
             | PaypalWebhookEventType::PaymentCaptureCompleted
@@ -3110,6 +3498,21 @@ impl TryFrom<PaypalWebhookEventType> for PaypalOrderStatus {
             | PaypalWebhookEventType::CustomerDisputedUpdated
             | PaypalWebhookEventType::RiskDisputeCreated
             | PaypalWebhookEventType::Unknown => {
+                Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
+            }
+            #[cfg(feature = "payouts")]
+            PaypalWebhookEventType::PayoutsBatchDenied
+            | PaypalWebhookEventType::PayoutsBatchProcessing
+            | PaypalWebhookEventType::PayoutsBatchSuccess
+            | PaypalWebhookEventType::PayoutsItemBlocked
+            | PaypalWebhookEventType::PayoutsItemCanceled
+            | PaypalWebhookEventType::PayoutsItemDenied
+            | PaypalWebhookEventType::PayoutsItemFailed
+            | PaypalWebhookEventType::PayoutsItemHeld
+            | PaypalWebhookEventType::PayoutsItemRefunded
+            | PaypalWebhookEventType::PayoutsItemReturned
+            | PaypalWebhookEventType::PayoutsItemSuccess
+            | PaypalWebhookEventType::PayoutsItemUnclaimed => {
                 Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
             }
         }

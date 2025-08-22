@@ -1,8 +1,6 @@
 #[cfg(feature = "v2")]
 use std::collections::HashMap;
 
-#[cfg(feature = "v2")]
-use common_utils::transformers::ForeignTryFrom;
 use common_utils::{
     crypto::Encryptable,
     date_time,
@@ -26,7 +24,7 @@ use serde_json::Value;
 
 use super::behaviour;
 #[cfg(feature = "v2")]
-use crate::errors::{self, api_error_response};
+use crate::errors::api_error_response;
 use crate::{
     mandates::CommonMandateReference,
     router_data,
@@ -91,13 +89,17 @@ impl MerchantConnectorAccount {
     pub fn get_connector_name_as_string(&self) -> String {
         self.connector_name.clone()
     }
+
+    pub fn get_metadata(&self) -> Option<Secret<Value>> {
+        self.metadata.clone()
+    }
 }
 
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug)]
 pub enum MerchantConnectorAccountTypeDetails {
     MerchantConnectorAccount(Box<MerchantConnectorAccount>),
-    MerchantConnectorDetails(api_models::payments::MerchantConnectorDetails),
+    MerchantConnectorDetails(common_types::domain::MerchantConnectorAuthDetails),
 }
 
 #[cfg(feature = "v2")]
@@ -165,7 +167,9 @@ impl MerchantConnectorAccountTypeDetails {
             Self::MerchantConnectorAccount(merchant_connector_account) => {
                 Some(merchant_connector_account.connector_name)
             }
-            Self::MerchantConnectorDetails(_) => None,
+            Self::MerchantConnectorDetails(merchant_connector_details) => {
+                Some(merchant_connector_details.connector_name)
+            }
         }
     }
 
@@ -291,6 +295,7 @@ pub struct PaymentMethodsEnabledForConnector {
     pub payment_methods_enabled: common_types::payment_methods::RequestPaymentMethodTypes,
     pub payment_method: common_enums::PaymentMethod,
     pub connector: common_enums::connector_enums::Connector,
+    pub merchant_connector_id: id_type::MerchantConnectorAccountId,
 }
 
 #[cfg(feature = "v2")]
@@ -365,29 +370,40 @@ impl FlattenedPaymentMethodsEnabled {
             .into_iter()
             .map(|connector| {
                 (
-                    connector.payment_methods_enabled.unwrap_or_default(),
+                    connector
+                        .payment_methods_enabled
+                        .clone()
+                        .unwrap_or_default(),
                     connector.connector_name,
+                    connector.get_id(),
                 )
             })
-            .flat_map(|(payment_method_enabled, connector_name)| {
-                payment_method_enabled
-                    .into_iter()
-                    .flat_map(move |payment_method| {
-                        let request_payment_methods_enabled =
-                            payment_method.payment_method_subtypes.unwrap_or_default();
-                        let length = request_payment_methods_enabled.len();
-                        request_payment_methods_enabled.into_iter().zip(
-                            std::iter::repeat((connector_name, payment_method.payment_method_type))
+            .flat_map(
+                |(payment_method_enabled, connector, merchant_connector_id)| {
+                    payment_method_enabled
+                        .into_iter()
+                        .flat_map(move |payment_method| {
+                            let request_payment_methods_enabled =
+                                payment_method.payment_method_subtypes.unwrap_or_default();
+                            let length = request_payment_methods_enabled.len();
+                            request_payment_methods_enabled.into_iter().zip(
+                                std::iter::repeat((
+                                    connector,
+                                    merchant_connector_id.clone(),
+                                    payment_method.payment_method_type,
+                                ))
                                 .take(length),
-                        )
-                    })
-            })
+                            )
+                        })
+                },
+            )
             .map(
-                |(request_payment_methods, (connector_name, payment_method))| {
+                |(request_payment_methods, (connector, merchant_connector_id, payment_method))| {
                     PaymentMethodsEnabledForConnector {
                         payment_methods_enabled: request_payment_methods,
-                        connector: connector_name,
+                        connector,
                         payment_method,
+                        merchant_connector_id,
                     }
                 },
             )

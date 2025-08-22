@@ -19,7 +19,7 @@ pub trait AuthenticationInterface {
     async fn find_authentication_by_merchant_id_authentication_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        authentication_id: String,
+        authentication_id: &common_utils::id_type::AuthenticationId,
     ) -> CustomResult<storage::Authentication, errors::StorageError>;
 
     async fn find_authentication_by_merchant_id_connector_authentication_id(
@@ -53,13 +53,13 @@ impl AuthenticationInterface for Store {
     async fn find_authentication_by_merchant_id_authentication_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        authentication_id: String,
+        authentication_id: &common_utils::id_type::AuthenticationId,
     ) -> CustomResult<storage::Authentication, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::Authentication::find_by_merchant_id_authentication_id(
             &conn,
             merchant_id,
-            &authentication_id,
+            authentication_id,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -110,7 +110,12 @@ impl AuthenticationInterface for MockDb {
         }) {
             Err(errors::StorageError::DuplicateValue {
                 entity: "authentication_id",
-                key: Some(authentication.authentication_id.clone()),
+                key: Some(
+                    authentication
+                        .authentication_id
+                        .get_string_repr()
+                        .to_string(),
+                ),
             })?
         }
         let authentication = storage::Authentication {
@@ -152,6 +157,21 @@ impl AuthenticationInterface for MockDb {
             acquirer_country_code: authentication.acquirer_country_code,
             service_details: authentication.service_details,
             organization_id: authentication.organization_id,
+            authentication_client_secret: authentication.authentication_client_secret,
+            force_3ds_challenge: authentication.force_3ds_challenge,
+            psd2_sca_exemption_type: authentication.psd2_sca_exemption_type,
+            return_url: authentication.return_url,
+            amount: authentication.amount,
+            currency: authentication.currency,
+            billing_address: authentication.billing_address,
+            shipping_address: authentication.shipping_address,
+            browser_info: authentication.browser_info,
+            email: authentication.email,
+            profile_acquirer_id: authentication.profile_acquirer_id,
+            challenge_code: authentication.challenge_code,
+            challenge_cancel: authentication.challenge_cancel,
+            challenge_code_reason: authentication.challenge_code_reason,
+            message_extension: authentication.message_extension,
         };
         authentications.push(authentication.clone());
         Ok(authentication)
@@ -160,15 +180,15 @@ impl AuthenticationInterface for MockDb {
     async fn find_authentication_by_merchant_id_authentication_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        authentication_id: String,
+        authentication_id: &common_utils::id_type::AuthenticationId,
     ) -> CustomResult<storage::Authentication, errors::StorageError> {
         let authentications = self.authentications.lock().await;
         authentications
             .iter()
-            .find(|a| a.merchant_id == *merchant_id && a.authentication_id == authentication_id)
+            .find(|a| a.merchant_id == *merchant_id && a.authentication_id == *authentication_id)
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
-                    "cannot find authentication for authentication_id = {authentication_id} and merchant_id = {merchant_id:?}"
+                    "cannot find authentication for authentication_id = {authentication_id:?} and merchant_id = {merchant_id:?}"
                 )).into(),
             ).cloned()
     }
@@ -201,7 +221,7 @@ impl AuthenticationInterface for MockDb {
             })
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
-                    "cannot find authentication for authentication_id = {authentication_id} and merchant_id = {merchant_id:?}"
+                    "cannot find authentication for authentication_id = {authentication_id:?} and merchant_id = {merchant_id:?}"
                 ))
                 .into(),
             )

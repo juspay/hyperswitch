@@ -88,6 +88,10 @@ pub async fn update_trackers<F: Clone, Req>(
                 acquirer_country_code: acquirer_details
                     .and_then(|acquirer_details| acquirer_details.acquirer_country_code),
                 directory_server_id,
+                billing_address: None,
+                shipping_address: None,
+                browser_info: Box::new(None),
+                email: None,
             },
             AuthenticationResponseData::AuthNResponse {
                 authn_flow_type,
@@ -96,6 +100,10 @@ pub async fn update_trackers<F: Clone, Req>(
                 connector_metadata,
                 ds_trans_id,
                 eci,
+                challenge_code,
+                challenge_cancel,
+                challenge_code_reason,
+                message_extension,
             } => {
                 authentication_value
                     .async_map(|auth_val| {
@@ -103,7 +111,10 @@ pub async fn update_trackers<F: Clone, Req>(
                             state,
                             auth_val.expose(),
                             None,
-                            authentication.authentication_id.clone(),
+                            authentication
+                                .authentication_id
+                                .get_string_repr()
+                                .to_string(),
                             merchant_key_store.key.get_inner(),
                         )
                     })
@@ -125,12 +136,18 @@ pub async fn update_trackers<F: Clone, Req>(
                     connector_metadata,
                     ds_trans_id,
                     eci,
+                    challenge_code,
+                    challenge_cancel,
+                    challenge_code_reason,
+                    message_extension,
                 }
             }
             AuthenticationResponseData::PostAuthNResponse {
                 trans_status,
                 authentication_value,
                 eci,
+                challenge_cancel,
+                challenge_code_reason,
             } => {
                 authentication_value
                     .async_map(|auth_val| {
@@ -138,7 +155,10 @@ pub async fn update_trackers<F: Clone, Req>(
                             state,
                             auth_val.expose(),
                             None,
-                            authentication.authentication_id.clone(),
+                            authentication
+                                .authentication_id
+                                .get_string_repr()
+                                .to_string(),
                             merchant_key_store.key.get_inner(),
                         )
                     })
@@ -150,6 +170,8 @@ pub async fn update_trackers<F: Clone, Req>(
                     ),
                     trans_status,
                     eci,
+                    challenge_cancel,
+                    challenge_code_reason,
                 }
             }
             AuthenticationResponseData::PreAuthVersionCallResponse {
@@ -217,15 +239,22 @@ pub async fn create_new_authentication(
     payment_id: common_utils::id_type::PaymentId,
     merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
     organization_id: common_utils::id_type::OrganizationId,
+    force_3ds_challenge: Option<bool>,
+    psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
 ) -> RouterResult<storage::Authentication> {
-    let authentication_id =
-        common_utils::generate_id_with_default_len(consts::AUTHENTICATION_ID_PREFIX);
+    let authentication_id = common_utils::id_type::AuthenticationId::generate_authentication_id(
+        consts::AUTHENTICATION_ID_PREFIX,
+    );
+    let authentication_client_secret = Some(common_utils::generate_id_with_default_len(&format!(
+        "{}_secret",
+        authentication_id.get_string_repr()
+    )));
     let new_authorization = storage::AuthenticationNew {
         authentication_id: authentication_id.clone(),
         merchant_id,
-        authentication_connector,
+        authentication_connector: Some(authentication_connector),
         connector_authentication_id: None,
-        payment_method_id: format!("eph_{}", token),
+        payment_method_id: format!("eph_{token}"),
         authentication_type: None,
         authentication_status: common_enums::AuthenticationStatus::Started,
         authentication_lifecycle_status: common_enums::AuthenticationLifecycleStatus::Unused,
@@ -250,12 +279,27 @@ pub async fn create_new_authentication(
         acs_signed_content: None,
         profile_id,
         payment_id: Some(payment_id),
-        merchant_connector_id,
+        merchant_connector_id: Some(merchant_connector_id),
         ds_trans_id: None,
         directory_server_id: None,
         acquirer_country_code: None,
         service_details: None,
         organization_id,
+        authentication_client_secret,
+        force_3ds_challenge,
+        psd2_sca_exemption_type,
+        return_url: None,
+        amount: None,
+        currency: None,
+        billing_address: None,
+        shipping_address: None,
+        browser_info: None,
+        email: None,
+        profile_acquirer_id: None,
+        challenge_code: None,
+        challenge_cancel: None,
+        challenge_code_reason: None,
+        message_extension: None,
     };
     state
         .store
@@ -264,7 +308,7 @@ pub async fn create_new_authentication(
         .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
             message: format!(
                 "Authentication with authentication_id {} already exists",
-                authentication_id
+                authentication_id.get_string_repr()
             ),
         })
 }
@@ -306,31 +350,46 @@ pub async fn get_authentication_connector_data(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     business_profile: &domain::Profile,
+    authentication_connector: Option<String>,
 ) -> RouterResult<(
     common_enums::AuthenticationConnectors,
     payments::helpers::MerchantConnectorAccountType,
 )> {
-    let authentication_details = business_profile
-        .authentication_connector_details
-        .clone()
-        .get_required_value("authentication_details")
-        .change_context(errors::ApiErrorResponse::UnprocessableEntity {
-            message: "authentication_connector_details is not available in business profile".into(),
-        })
-        .attach_printable("authentication_connector_details not configured by the merchant")?;
-    let authentication_connector = authentication_details
-        .authentication_connectors
-        .first()
-        .ok_or(errors::ApiErrorResponse::UnprocessableEntity {
-            message: format!(
-                "No authentication_connector found for profile_id {:?}",
-                business_profile.get_id()
+    let authentication_connector = if let Some(authentication_connector) = authentication_connector
+    {
+        api_models::enums::convert_authentication_connector(&authentication_connector).ok_or(
+            errors::ApiErrorResponse::UnprocessableEntity {
+                message: format!(
+                "Invalid authentication_connector found in request : {authentication_connector}",
             ),
-        })
-        .attach_printable(
-            "No authentication_connector found from merchant_account.authentication_details",
+            },
         )?
-        .to_owned();
+    } else {
+        let authentication_details = business_profile
+            .authentication_connector_details
+            .clone()
+            .get_required_value("authentication_details")
+            .change_context(errors::ApiErrorResponse::UnprocessableEntity {
+                message: "authentication_connector_details is not available in business profile"
+                    .into(),
+            })
+            .attach_printable("authentication_connector_details not configured by the merchant")?;
+
+        authentication_details
+            .authentication_connectors
+            .first()
+            .ok_or(errors::ApiErrorResponse::UnprocessableEntity {
+                message: format!(
+                    "No authentication_connector found for profile_id {:?}",
+                    business_profile.get_id()
+                ),
+            })
+            .attach_printable(
+                "No authentication_connector found from merchant_account.authentication_details",
+            )?
+            .to_owned()
+    };
+
     let profile_id = business_profile.get_id();
     let authentication_connector_mca = payments::helpers::get_merchant_connector_account(
         state,

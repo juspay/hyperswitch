@@ -1,11 +1,10 @@
 use std::collections::HashMap;
 
 use api_models::payments::{
-    AcceptanceType as ApiAcceptanceType, CustomerAcceptance as ApiCustomerAcceptance,
     MandateAmountData as ApiMandateAmountData, MandateData as ApiMandateData, MandateType,
-    OnlineMandate as ApiOnlineMandate,
 };
 use common_enums::Currency;
+use common_types::payments as common_payments_types;
 use common_utils::{
     date_time,
     errors::{CustomResult, ParsingError},
@@ -13,7 +12,6 @@ use common_utils::{
     types::MinorUnit,
 };
 use error_stack::ResultExt;
-use masking::{PeekInterface, Secret};
 use time::PrimitiveDateTime;
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -61,37 +59,9 @@ pub struct MandateData {
     /// A way to update the mandate's payment method details
     pub update_mandate_id: Option<String>,
     /// A consent from the customer to store the payment method
-    pub customer_acceptance: Option<CustomerAcceptance>,
+    pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
     /// A way to select the type of mandate used
     pub mandate_type: Option<MandateDataType>,
-}
-
-#[derive(Default, Eq, PartialEq, Debug, Clone, serde::Deserialize, serde::Serialize)]
-pub struct CustomerAcceptance {
-    /// Type of acceptance provided by the
-    pub acceptance_type: AcceptanceType,
-    /// Specifying when the customer acceptance was provided
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
-    pub accepted_at: Option<PrimitiveDateTime>,
-    /// Information required for online mandate generation
-    pub online: Option<OnlineMandate>,
-}
-
-#[derive(Default, Debug, PartialEq, Eq, Clone, serde::Deserialize, serde::Serialize)]
-#[serde(rename_all = "lowercase")]
-pub enum AcceptanceType {
-    Online,
-    #[default]
-    Offline,
-}
-
-#[derive(Default, Eq, PartialEq, Debug, Clone, serde::Deserialize, serde::Serialize)]
-pub struct OnlineMandate {
-    /// Ip address of the customer machine from which the mandate was created
-    #[serde(skip_deserializing)]
-    pub ip_address: Option<Secret<String, pii::IpAddress>>,
-    /// The user-agent of the customer's browser
-    pub user_agent: String,
 }
 
 impl From<MandateType> for MandateDataType {
@@ -168,80 +138,10 @@ impl From<diesel_models::enums::MandateAmountData> for MandateAmountData {
 impl From<ApiMandateData> for MandateData {
     fn from(value: ApiMandateData) -> Self {
         Self {
-            customer_acceptance: value.customer_acceptance.map(|d| d.into()),
+            customer_acceptance: value.customer_acceptance,
             mandate_type: value.mandate_type.map(|d| d.into()),
             update_mandate_id: value.update_mandate_id,
         }
-    }
-}
-
-impl From<ApiCustomerAcceptance> for CustomerAcceptance {
-    fn from(value: ApiCustomerAcceptance) -> Self {
-        Self {
-            acceptance_type: value.acceptance_type.into(),
-            accepted_at: value.accepted_at,
-            online: value.online.map(|d| d.into()),
-        }
-    }
-}
-
-impl From<CustomerAcceptance> for ApiCustomerAcceptance {
-    fn from(value: CustomerAcceptance) -> Self {
-        Self {
-            acceptance_type: value.acceptance_type.into(),
-            accepted_at: value.accepted_at,
-            online: value.online.map(|d| d.into()),
-        }
-    }
-}
-
-impl From<ApiAcceptanceType> for AcceptanceType {
-    fn from(value: ApiAcceptanceType) -> Self {
-        match value {
-            ApiAcceptanceType::Online => Self::Online,
-            ApiAcceptanceType::Offline => Self::Offline,
-        }
-    }
-}
-impl From<AcceptanceType> for ApiAcceptanceType {
-    fn from(value: AcceptanceType) -> Self {
-        match value {
-            AcceptanceType::Online => Self::Online,
-            AcceptanceType::Offline => Self::Offline,
-        }
-    }
-}
-
-impl From<ApiOnlineMandate> for OnlineMandate {
-    fn from(value: ApiOnlineMandate) -> Self {
-        Self {
-            ip_address: value.ip_address,
-            user_agent: value.user_agent,
-        }
-    }
-}
-impl From<OnlineMandate> for ApiOnlineMandate {
-    fn from(value: OnlineMandate) -> Self {
-        Self {
-            ip_address: value.ip_address,
-            user_agent: value.user_agent,
-        }
-    }
-}
-
-impl CustomerAcceptance {
-    pub fn get_ip_address(&self) -> Option<String> {
-        self.online
-            .as_ref()
-            .and_then(|data| data.ip_address.as_ref().map(|ip| ip.peek().to_owned()))
-    }
-
-    pub fn get_user_agent(&self) -> Option<String> {
-        self.online.as_ref().map(|data| data.user_agent.clone())
-    }
-
-    pub fn get_accepted_at(&self) -> PrimitiveDateTime {
-        self.accepted_at.unwrap_or_else(date_time::now)
     }
 }
 

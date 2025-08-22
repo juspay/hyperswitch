@@ -1,7 +1,7 @@
 use error_stack::report;
 use hyperswitch_domain_models::callback_mapper as domain;
 use router_env::{instrument, tracing};
-use storage_impl::DataModelExt;
+use storage_impl::{DataModelExt, MockDb};
 
 use super::Store;
 use crate::{
@@ -49,5 +49,24 @@ impl CallbackMapperInterface for Store {
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
             .map(domain::CallbackMapper::from_storage_model)
+    }
+}
+
+#[async_trait::async_trait]
+impl CallbackMapperInterface for MockDb {
+    #[instrument(skip_all)]
+    async fn insert_call_back_mapper(
+        &self,
+        _call_back_mapper: domain::CallbackMapper,
+    ) -> CustomResult<domain::CallbackMapper, errors::StorageError> {
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    #[instrument(skip_all)]
+    async fn find_call_back_mapper_by_id(
+        &self,
+        _id: &str,
+    ) -> CustomResult<domain::CallbackMapper, errors::StorageError> {
+        Err(errors::StorageError::MockDbError)?
     }
 }

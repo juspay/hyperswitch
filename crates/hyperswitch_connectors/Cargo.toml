@@ -11,8 +11,15 @@ payouts = ["hyperswitch_domain_models/payouts", "api_models/payouts", "hyperswit
 v1 = ["api_models/v1", "hyperswitch_domain_models/v1", "common_utils/v1"]
 v2 = ["api_models/v2", "hyperswitch_domain_models/v2", "common_utils/v2", "hyperswitch_interfaces/v2"]
 revenue_recovery = ["hyperswitch_interfaces/revenue_recovery", "hyperswitch_domain_models/revenue_recovery"]
+default = ["dummy_connector"]
+dummy_connector = [
+    "hyperswitch_interfaces/dummy_connector",
+    "hyperswitch_domain_models/dummy_connector",
+]
 
 [dependencies]
+chrono = "0.4"
+crc = "3"
 actix-web = "4.11.0"
 async-trait = "0.1.88"
 base64 = "0.22.1"
@@ -30,6 +37,7 @@ lazy_static = "1.5.0"
 mime = "0.3.17"
 num-traits = "0.2.19"
 openssl = {version = "0.10.70"}
+pem = "3.0.5"
 qrcode = "0.14.1"
 quick-xml = { version = "0.31.0", features = ["serialize"] }
 rand = "0.8.5"

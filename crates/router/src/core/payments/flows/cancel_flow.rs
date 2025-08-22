@@ -55,16 +55,6 @@ impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::Paym
         ))
         .await
     }
-
-    async fn get_merchant_recipient_data<'a>(
-        &self,
-        _state: &SessionState,
-        _merchant_context: &domain::MerchantContext,
-        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
-        _connector: &api::ConnectorData,
-    ) -> RouterResult<Option<types::MerchantRecipientData>> {
-        Ok(None)
-    }
 }
 
 #[async_trait]
@@ -79,7 +69,7 @@ impl Feature<api::Void, types::PaymentsCancelData>
         connector_request: Option<services::Request>,
         _business_profile: &domain::Profile,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-        _all_keys_required: Option<bool>,
+        _return_raw_connector_response: Option<bool>,
     ) -> RouterResult<Self> {
         metrics::PAYMENT_CANCEL_COUNT.add(
             1,
@@ -113,8 +103,14 @@ impl Feature<api::Void, types::PaymentsCancelData>
         merchant_context: &domain::MerchantContext,
         creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
-        access_token::add_access_token(state, connector, merchant_context, self, creds_identifier)
-            .await
+        Box::pin(access_token::add_access_token(
+            state,
+            connector,
+            merchant_context,
+            self,
+            creds_identifier,
+        ))
+        .await
     }
 
     async fn build_flow_specific_connector_request(

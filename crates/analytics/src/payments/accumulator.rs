@@ -18,6 +18,7 @@ pub struct PaymentMetricsAccumulator {
     pub connector_success_rate: SuccessRateAccumulator,
     pub payments_distribution: PaymentsDistributionAccumulator,
     pub failure_reasons_distribution: FailureReasonsDistributionAccumulator,
+    pub debit_routing: DebitRoutingAccumulator,
 }
 
 #[derive(Debug, Default)]
@@ -56,6 +57,14 @@ pub struct ProcessedAmountAccumulator {
     pub total_with_retries: Option<i64>,
     pub count_without_retries: Option<i64>,
     pub total_without_retries: Option<i64>,
+}
+
+#[derive(Debug, Default)]
+pub struct DebitRoutingAccumulator {
+    pub transaction_count: u64,
+    pub savings_amount: u64,
+    pub signature_network: Option<String>,
+    pub is_issuer_regulated: Option<bool>,
 }
 
 #[derive(Debug, Default)]
@@ -180,6 +189,41 @@ impl PaymentMetricAccumulator for SuccessRateAccumulator {
                     / f64::from(u32::try_from(self.total).ok()?),
             )
         }
+    }
+}
+
+impl PaymentMetricAccumulator for DebitRoutingAccumulator {
+    type MetricOutput = (
+        Option<u64>,
+        Option<u64>,
+        Option<u64>,
+        Option<String>,
+        Option<bool>,
+    );
+
+    fn add_metrics_bucket(&mut self, metrics: &PaymentMetricRow) {
+        if let Some(count) = metrics.count {
+            self.transaction_count += u64::try_from(count).unwrap_or(0);
+        }
+        if let Some(total) = metrics.total.as_ref().and_then(ToPrimitive::to_u64) {
+            self.savings_amount += total;
+        }
+        if let Some(signature_network) = &metrics.signature_network {
+            self.signature_network = Some(signature_network.clone());
+        }
+        if let Some(is_issuer_regulated) = metrics.is_issuer_regulated {
+            self.is_issuer_regulated = Some(is_issuer_regulated);
+        }
+    }
+
+    fn collect(self) -> Self::MetricOutput {
+        (
+            Some(self.transaction_count),
+            Some(self.savings_amount),
+            Some(0),
+            self.signature_network,
+            self.is_issuer_regulated,
+        )
     }
 }
 
@@ -440,6 +484,14 @@ impl PaymentMetricsAccumulator {
         ) = self.payments_distribution.collect();
         let (failure_reason_count, failure_reason_count_without_smart_retries) =
             self.failure_reasons_distribution.collect();
+        let (
+            debit_routed_transaction_count,
+            debit_routing_savings,
+            debit_routing_savings_in_usd,
+            signature_network,
+            is_issuer_regulated,
+        ) = self.debit_routing.collect();
+
         PaymentMetricsBucketValue {
             payment_success_rate: self.payment_success_rate.collect(),
             payment_count: self.payment_count.collect(),
@@ -463,6 +515,11 @@ impl PaymentMetricsAccumulator {
             failure_reason_count_without_smart_retries,
             payment_processed_amount_in_usd,
             payment_processed_amount_without_smart_retries_usd,
+            debit_routed_transaction_count,
+            debit_routing_savings,
+            debit_routing_savings_in_usd,
+            signature_network,
+            is_issuer_regulated,
         }
     }
 }

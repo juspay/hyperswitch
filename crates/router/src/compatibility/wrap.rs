@@ -87,7 +87,7 @@ where
             let response = S::try_from(response);
             match response {
                 Ok(response) => match serde_json::to_string(&response) {
-                    Ok(res) => api::http_response_json_with_headers(res, headers, None),
+                    Ok(res) => api::http_response_json_with_headers(res, headers, None, None),
                     Err(_) => api::http_response_err(
                         r#"{
                                 "error": {
@@ -143,7 +143,7 @@ where
             ) {
                 Ok(rendered_html) => api::http_response_html_data(rendered_html, None),
                 Err(_) => {
-                    api::http_response_err(format!("Error while rendering {} HTML page", link_type))
+                    api::http_response_err(format!("Error while rendering {link_type} HTML page"))
                 }
             }
         }
