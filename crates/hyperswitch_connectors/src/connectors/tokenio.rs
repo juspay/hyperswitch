@@ -317,6 +317,7 @@ impl ConnectorCommon for Tokenio {
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -769,7 +770,8 @@ static TOKENIO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = La
 static TOKENIO_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Token.io",
     description: "Token.io is a financial technology company that provides Open Banking and real-time payment solutions across Europe. They enable secure bank-to-bank transfers using various payment rails including SEPA, Faster Payments, and other regional payment systems.",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Sandbox,
 };
 
 static TOKENIO_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];

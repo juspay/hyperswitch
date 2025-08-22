@@ -194,6 +194,10 @@ impl AttemptStatus {
             | Self::IntegrityFailure => false,
         }
     }
+
+    pub fn is_success(self) -> bool {
+        matches!(self, Self::Charged | Self::PartialCharged)
+    }
 }
 
 #[derive(
@@ -2850,6 +2854,7 @@ pub enum RequestIncrementalAuthorization {
     True,
     #[default]
     False,
+    Default,
 }
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Debug, Serialize, Deserialize, strum::Display, ToSchema,)]
@@ -7654,6 +7659,10 @@ impl TransactionStatus {
             Self::ChallengeRequired | Self::ChallengeRequiredDecoupledAuthentication
         )
     }
+
+    pub fn is_terminal_state(self) -> bool {
+        matches!(self, Self::Success | Self::Failure)
+    }
 }
 
 #[derive(
@@ -8376,6 +8385,8 @@ pub enum ErrorCategory {
     ProcessorDeclineUnauthorized,
     IssueWithPaymentMethod,
     ProcessorDeclineIncorrectData,
+    HardDecline,
+    SoftDecline,
 }
 
 impl ErrorCategory {
@@ -8384,7 +8395,9 @@ impl ErrorCategory {
             Self::ProcessorDowntime | Self::ProcessorDeclineUnauthorized => true,
             Self::IssueWithPaymentMethod
             | Self::ProcessorDeclineIncorrectData
-            | Self::FrmDecline => false,
+            | Self::FrmDecline
+            | Self::HardDecline
+            | Self::SoftDecline => false,
         }
     }
 }
@@ -8462,10 +8475,40 @@ pub enum AuthenticationProduct {
 )]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
-pub enum PaymentConnectorCategory {
+pub enum HyperswitchConnectorCategory {
     PaymentGateway,
     AlternativePaymentMethod,
     BankAcquirer,
+    PayoutProcessor,
+    AuthenticationProvider,
+    FraudAndRiskManagementProvider,
+    TaxCalculationProvider,
+}
+
+/// Connector Integration Status
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum ConnectorIntegrationStatus {
+    /// Connector is integrated and live on production
+    Live,
+    /// Connector is integrated and fully tested on sandbox
+    Sandbox,
+    /// Connector is integrated and partially tested on sandbox
+    Beta,
+    /// Connector is integrated using the online documentation but not tested yet
+    Alpha,
 }
 
 /// The status of the feature

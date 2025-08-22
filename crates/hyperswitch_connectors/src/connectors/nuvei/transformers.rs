@@ -62,6 +62,11 @@ fn to_boolean(string: String) -> bool {
     }
 }
 
+// The dimensions of the challenge window for full screen.
+const CHALLENGE_WINDOW_SIZE: &str = "05";
+// The challenge preference for the challenge flow.
+const CHALLENGE_PREFERNCE: &str = "01";
+
 trait NuveiAuthorizePreprocessingCommon {
     fn get_browser_info(&self) -> Option<BrowserInformation>;
     fn get_related_transaction_id(&self) -> Option<String>;
@@ -527,6 +532,7 @@ pub struct V2AdditionalParams {
     pub rebill_expiry: Option<String>,
     /// Recurring Frequency in days
     pub rebill_frequency: Option<String>,
+    pub challenge_preference: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -563,7 +569,7 @@ pub struct NuveiACSResponse {
     pub message_type: String,
     pub message_version: String,
     pub trans_status: Option<LiabilityShift>,
-    pub message_extension: Vec<MessageExtensionAttribute>,
+    pub message_extension: Option<Vec<MessageExtensionAttribute>>,
     pub acs_signed_content: Option<serde_json::Value>,
 }
 
@@ -1197,11 +1203,22 @@ where
                         ),
                         rebill_frequency: Some(mandate_meta.frequency),
                         challenge_window_size: None,
+                        challenge_preference: None,
                     }),
                     item.request.get_customer_id_required(),
                 )
             }
-            _ => (None, None, None),
+            // non mandate transactions
+            _ => (
+                None,
+                Some(V2AdditionalParams {
+                    rebill_expiry: None,
+                    rebill_frequency: None,
+                    challenge_window_size: Some(CHALLENGE_WINDOW_SIZE.to_string()),
+                    challenge_preference: Some(CHALLENGE_PREFERNCE.to_string()),
+                }),
+                None,
+            ),
         };
     let three_d = if item.is_three_ds() {
         let browser_details = match &browser_information {
@@ -1277,14 +1294,18 @@ impl TryFrom<(&types::PaymentsCompleteAuthorizeRouterData, Secret<String>)>
     ) -> Result<Self, Self::Error> {
         let item = data.0;
         let request_data = match item.request.payment_method_data.clone() {
-            Some(PaymentMethodData::Card(card)) => Ok(Self {
-                payment_option: PaymentOption::from(NuveiCardDetails {
-                    card,
-                    three_d: None,
-                    card_holder_name: item.get_optional_billing_full_name(),
-                }),
-                ..Default::default()
-            }),
+            Some(PaymentMethodData::Card(card)) => {
+                let device_details = DeviceDetails::foreign_try_from(&item.request.browser_info)?;
+                Ok(Self {
+                    payment_option: PaymentOption::from(NuveiCardDetails {
+                        card,
+                        three_d: None,
+                        card_holder_name: item.get_optional_billing_full_name(),
+                    }),
+                    device_details,
+                    ..Default::default()
+                })
+            }
             Some(PaymentMethodData::Wallet(..))
             | Some(PaymentMethodData::PayLater(..))
             | Some(PaymentMethodData::BankDebit(..))
@@ -1319,6 +1340,7 @@ impl TryFrom<(&types::PaymentsCompleteAuthorizeRouterData, Secret<String>)>
         Ok(Self {
             related_transaction_id: request_data.related_transaction_id,
             payment_option: request_data.payment_option,
+            device_details: request_data.device_details,
             ..request
         })
     }
@@ -2099,6 +2121,7 @@ fn get_error_response<T>(
         network_advice_code: network_advice_code.clone(),
         network_decline_code: network_decline_code.clone(),
         network_error_message: network_error_message.clone(),
+        connector_metadata: None,
     }))
 }
 
