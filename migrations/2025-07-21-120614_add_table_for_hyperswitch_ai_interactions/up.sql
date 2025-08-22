@@ -11,7 +11,7 @@ CREATE TABLE hyperswitch_ai_interaction (
     response BYTEA,
     database_query TEXT,
     interaction_status VARCHAR(64),
-    created_at TIMESTAMP NOT NULL DEFAULT now(),
+    created_at TIMESTAMP NOT NULL,
     PRIMARY KEY (id, created_at)
 ) PARTITION BY RANGE (created_at);
 

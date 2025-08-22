@@ -1,7 +1,9 @@
 use diesel::{associations::HasTable, ExpressionMethods};
 
 use crate::{
-    hyperswitch_ai_interaction::*, query::generics, schema::hyperswitch_ai_interaction::dsl,
+    hyperswitch_ai_interaction::{HyperswitchAiInteraction, HyperswitchAiInteractionNew},
+    query::generics,
+    schema::hyperswitch_ai_interaction::dsl,
     PgPooledConn, StorageResult,
 };
 

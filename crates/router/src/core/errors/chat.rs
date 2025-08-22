@@ -6,7 +6,7 @@ pub enum ChatErrors {
     MissingConfigError,
     #[error("Chat response deserialization failed")]
     ChatResponseDeserializationFailed,
-    #[error("Unauthorized access, internal role required")]
+    #[error("Unauthorized access")]
     UnauthorizedAccess,
 }
 

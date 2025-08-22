@@ -306,9 +306,13 @@ impl SecretsHandler for settings::ChatSettings {
     ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
         let chat_settings = value.get_inner();
 
-        let encryption_key = secret_management_client
-            .get_secret(chat_settings.encryption_key.clone())
-            .await?;
+        let encryption_key = if chat_settings.enabled {
+            secret_management_client
+                .get_secret(chat_settings.encryption_key.clone())
+                .await?
+        } else {
+            chat_settings.encryption_key.clone()
+        };
 
         Ok(value.transition_state(|chat_settings| Self {
             encryption_key,

@@ -9,7 +9,7 @@ use error_stack::ResultExt;
 use external_services::http_client;
 use hyperswitch_domain_models::chat as chat_domain;
 use masking::ExposeInterface;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger, tracing::{self, Instrument}};
 
 use crate::{
     db::errors::chat::ChatErrors,
@@ -104,7 +104,7 @@ pub async fn get_data_from_hyperswitch_ai_workflow(
                 logger::error!("Failed to construct hyperswitch_ai_interaction: {:?}", e);
             }
         }
-    });
+    }.in_current_span());
 
     Ok(ApplicationResponse::Json(response_to_return))
 }
@@ -158,10 +158,12 @@ pub async fn list_chat_conversations(
     for interaction in hyperswitch_ai_interactions {
         let user_query_encrypted = interaction
             .user_query
-            .ok_or(ChatErrors::InternalServerError)?;
+            .ok_or(ChatErrors::InternalServerError)
+            .attach_printable("Missing user_query field in hyperswitch_ai_interaction")?;
         let response_encrypted = interaction
             .response
-            .ok_or(ChatErrors::InternalServerError)?;
+            .ok_or(ChatErrors::InternalServerError)
+            .attach_printable("Missing response field in hyperswitch_ai_interaction")?;
 
         let user_query_decrypted_bytes = GcmAes256
             .decode_message(&key, user_query_encrypted.into_inner())

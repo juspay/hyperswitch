@@ -38,6 +38,7 @@ impl HyperswitchAiInteractionInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
+    #[instrument(skip_all)]
     async fn list_hyperswitch_ai_interactions(
         &self,
         merchant_id: Option<common_utils::id_type::MerchantId>,

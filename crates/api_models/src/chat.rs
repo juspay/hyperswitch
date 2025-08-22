@@ -38,6 +38,7 @@ pub struct ChatConversation {
     pub response: Secret<serde_json::Value>,
     pub database_query: Option<String>,
     pub interaction_status: Option<String>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
 }
 

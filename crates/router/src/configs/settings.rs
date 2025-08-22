@@ -1049,7 +1049,7 @@ impl Settings<SecuredSecret> {
         self.secrets.get_inner().validate()?;
         self.locker.validate()?;
         self.connectors.validate("connectors")?;
-
+        self.chat.get_inner().validate()?;
         self.cors.validate()?;
 
         self.scheduler
