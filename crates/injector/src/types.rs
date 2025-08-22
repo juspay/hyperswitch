@@ -7,7 +7,7 @@ pub mod models {
     use url::Url;
 
     // Enums for the injector - making it standalone
-    
+
     /// Content types supported by the injector for HTTP requests
     #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
     #[serde(rename_all = "snake_case")]
@@ -32,7 +32,7 @@ pub mod models {
 
     /// Vault connectors supported by the injector for token management
     ///
-    /// Currently supports VGS as the primary vault connector. While only VGS is 
+    /// Currently supports VGS as the primary vault connector. While only VGS is
     /// implemented today, this enum structure is maintained for future extensibility
     /// to support additional vault providers (e.g., Basis Theory, Skyflow, etc.)
     /// without breaking API compatibility.
@@ -102,7 +102,7 @@ pub mod models {
     pub type InjectorResponse = serde_json::Value;
 
     // Domain models for internal use
-    
+
     /// Domain model for token data containing vault-specific information
     #[derive(Clone, Debug)]
     pub struct DomainTokenData {
