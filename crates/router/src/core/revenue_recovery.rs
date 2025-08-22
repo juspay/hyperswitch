@@ -698,8 +698,9 @@ async fn insert_execute_pcr_task_to_pt(
 
     match existing_entry {
         Some(existing_process)
-            if existing_process.business_status == business_status::EXECUTE_WORKFLOW_FAILURE 
-            || existing_process.business_status == business_status::EXECUTE_WORKFLOW_COMPLETE_FOR_PSYNC =>
+            if existing_process.business_status == business_status::EXECUTE_WORKFLOW_FAILURE
+                || existing_process.business_status
+                    == business_status::EXECUTE_WORKFLOW_COMPLETE_FOR_PSYNC =>
         {
             // Entry exists with EXECUTE_WORKFLOW_COMPLETE status - update it
             logger::info!(
