@@ -78,6 +78,7 @@ pub struct PayoutData {
     pub payout_link: Option<PayoutLink>,
     pub current_locale: String,
     pub payment_method: Option<PaymentMethod>,
+    pub connector_transfer_method_id: Option<String>,
 }
 
 // ********************************************** CORE FLOWS **********************************************
@@ -693,27 +694,8 @@ pub async fn payouts_fulfill_core(
         .attach_printable("Connector not found for payout fulfillment")?,
     };
 
-    // Trigger fulfillment
-    let customer_id = payout_data
-        .payouts
-        .customer_id
-        .clone()
-        .get_required_value("customer_id")?;
-    payout_data.payout_method_data = Some(
-        helpers::make_payout_method_data(
-            &state,
-            None,
-            payout_attempt.payout_token.as_deref(),
-            &customer_id,
-            &payout_attempt.merchant_id,
-            payout_data.payouts.payout_type,
-            merchant_context.get_merchant_key_store(),
-            Some(&mut payout_data),
-            merchant_context.get_merchant_account().storage_scheme,
-        )
-        .await?
-        .get_required_value("payout_method_data")?,
-    );
+    helpers::fetch_payout_method_data(&state, &mut payout_data, &connector_data, &merchant_context)
+        .await?;
     Box::pin(fulfill_payout(
         &state,
         &merchant_context,
@@ -1072,25 +1054,8 @@ pub async fn call_connector_payout(
 
     // Fetch / store payout_method_data
     if payout_data.payout_method_data.is_none() || payout_attempt.payout_token.is_none() {
-        let customer_id = payouts
-            .customer_id
-            .clone()
-            .get_required_value("customer_id")?;
-        payout_data.payout_method_data = Some(
-            helpers::make_payout_method_data(
-                state,
-                payout_data.payout_method_data.to_owned().as_ref(),
-                payout_attempt.payout_token.as_deref(),
-                &customer_id,
-                &payout_attempt.merchant_id,
-                payouts.payout_type,
-                merchant_context.get_merchant_key_store(),
-                Some(payout_data),
-                merchant_context.get_merchant_account().storage_scheme,
-            )
-            .await?
-            .get_required_value("payout_method_data")?,
-        );
+        helpers::fetch_payout_method_data(state, payout_data, connector_data, merchant_context)
+            .await?;
     }
     // Eligibility flow
     Box::pin(complete_payout_eligibility(
@@ -2002,8 +1967,7 @@ pub async fn complete_create_recipient_disburse_account(
         && connector_data
             .connector_name
             .supports_vendor_disburse_account_create_for_payout()
-        && helpers::should_create_connector_transfer_method(&*payout_data, connector_data)?
-            .is_none()
+        && helpers::should_create_connector_transfer_method(payout_data, connector_data)?.is_none()
     {
         Box::pin(create_recipient_disburse_account(
             state,
@@ -2837,6 +2801,7 @@ pub async fn payout_create_db_entries(
         payout_link,
         current_locale: locale.to_string(),
         payment_method,
+        connector_transfer_method_id: None,
     })
 }
 
@@ -3031,11 +2996,10 @@ pub async fn make_payout_data(
         .await
         .transpose()?;
 
-    let payout_method_id = payouts.payout_method_id.clone();
-    let mut payment_method: Option<PaymentMethod> = None;
-
-    if let Some(pm_id) = payout_method_id {
-        payment_method = Some(
+    let payment_method = payouts
+        .payout_method_id
+        .clone()
+        .async_map(|pm_id| async move {
             db.find_payment_method(
                 &(state.into()),
                 merchant_context.get_merchant_key_store(),
@@ -3044,9 +3008,10 @@ pub async fn make_payout_data(
             )
             .await
             .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
-            .attach_printable("Unable to find payment method")?,
-        );
-    }
+            .attach_printable("Unable to find payment method")
+        })
+        .await
+        .transpose()?;
 
     Ok(PayoutData {
         billing_address,
@@ -3061,6 +3026,7 @@ pub async fn make_payout_data(
         payout_link,
         current_locale: locale.to_string(),
         payment_method,
+        connector_transfer_method_id: None,
     })
 }
 
