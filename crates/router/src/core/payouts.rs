@@ -2671,30 +2671,26 @@ pub async fn payout_create_db_entries(
             Some(api_enums::PayoutType::foreign_from(payout_method_data)),
         ),
         None => {
-            let payout_type = match req.payout_type {
-                None => payment_method
-                    .as_ref()
-                    .and_then(|pm| pm.payment_method)
-                    .and_then(|payment_method_enum| {
-                        Some(
-                            api_enums::PayoutType::foreign_try_from(payment_method_enum)
-                                .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                                    message: format!(
-                                        "PaymentMethod {:?} is not supported for payouts",
-                                        payment_method_enum
-                                    ),
-                                })
-                                .attach_printable("Failed to convert PaymentMethod to PayoutType"),
-                        )
-                    })
-                    .transpose()?,
-                payout_type => payout_type,
-            };
             (
                 payment_method
                     .as_ref()
                     .map(|pm| pm.payment_method_id.clone()),
-                payout_type,
+                match req.payout_type {
+                    None => payment_method
+                        .as_ref()
+                        .and_then(|pm| pm.payment_method)
+                        .map(|payment_method_enum| {
+                            api_enums::PayoutType::foreign_try_from(payment_method_enum)
+                                .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                                    message: format!(
+                                        "PaymentMethod {payment_method_enum:?} is not supported for payouts"
+                                    ),
+                                })
+                                .attach_printable("Failed to convert PaymentMethod to PayoutType")
+                        })
+                        .transpose()?,
+                    payout_type => payout_type,
+                },
             )
         }
     };
