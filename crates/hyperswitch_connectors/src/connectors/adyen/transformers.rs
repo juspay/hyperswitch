@@ -1415,8 +1415,7 @@ impl FromStr for AdyenRefundRequestReason {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_uppercase().as_str() {
             "FRAUD" => Ok(Self::FRAUD),
-            "CUSTOMER REQUEST"
-            | "CUSTOMERREQUEST" => Ok(Self::CUSTOMERREQUEST),
+            "CUSTOMER REQUEST" | "CUSTOMERREQUEST" => Ok(Self::CUSTOMERREQUEST),
             "RETURN" => Ok(Self::RETURN),
             "DUPLICATE" => Ok(Self::DUPLICATE),
             "OTHER" => Ok(Self::OTHER),
