@@ -133,8 +133,8 @@ impl
         let vgs_alias = item
             .response
             .data
-            .get(0)
-            .and_then(|val| val.aliases.get(0))
+            .first()
+            .and_then(|val| val.aliases.first())
             .get_required_value("VgsAliasItem")
             .change_context(errors::ConnectorError::MissingRequiredField {
                 field_name: "VgsAliasItem",
@@ -173,7 +173,7 @@ impl
         let token_response_item = item
             .response
             .data
-            .get(0)
+            .first()
             .get_required_value("VgsTokenResponseItem")
             .change_context(errors::ConnectorError::MissingRequiredField {
                 field_name: "VgsTokenResponseItem",

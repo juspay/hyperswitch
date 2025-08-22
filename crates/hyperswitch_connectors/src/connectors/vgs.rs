@@ -109,11 +109,10 @@ impl ConnectorCommon for Vgs {
         let auth_value = auth
             .username
             .zip(auth.password)
-            .map(|(project_id, secret_key)| {
+            .map(|(username, password)| {
                 format!(
                     "Basic {}",
-                    common_utils::consts::BASE64_ENGINE
-                        .encode(format!("{}:{}", project_id, secret_key))
+                    common_utils::consts::BASE64_ENGINE.encode(format!("{username}:{password}"))
                 )
             });
         Ok(vec![(
