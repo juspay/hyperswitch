@@ -4924,10 +4924,12 @@
       },
       "ApplePayRedirectData": {
         "type": "object",
+        "required": [
+          "token"
+        ],
         "properties": {
           "token": {
-            "type": "string",
-            "nullable": true
+            "type": "string"
           }
         }
       },
@@ -12417,10 +12419,12 @@
       },
       "GooglePayRedirectData": {
         "type": "object",
+        "required": [
+          "token"
+        ],
         "properties": {
           "token": {
-            "type": "string",
-            "nullable": true
+            "type": "string"
           }
         }
       },
