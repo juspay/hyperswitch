@@ -58,7 +58,7 @@ use crate::{
         api::{self, payments as payment_api_types, payouts},
         domain,
         storage::{self, PaymentRoutingInfo},
-        transformers::ForeignFrom,
+        transformers::{ForeignFrom, ForeignTryFrom},
     },
     utils::{self, OptionExt},
 };
@@ -2670,12 +2670,33 @@ pub async fn payout_create_db_entries(
                 .map(|pm| pm.payment_method_id.clone()),
             Some(api_enums::PayoutType::foreign_from(payout_method_data)),
         ),
-        None => (
-            payment_method
-                .as_ref()
-                .map(|pm| pm.payment_method_id.clone()),
-            req.payout_type.to_owned(),
-        ),
+        None => {
+            let payout_type = match req.payout_type {
+                None => payment_method
+                    .as_ref()
+                    .and_then(|pm| pm.payment_method)
+                    .and_then(|payment_method_enum| {
+                        Some(
+                            api_enums::PayoutType::foreign_try_from(payment_method_enum)
+                                .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                                    message: format!(
+                                        "PaymentMethod {:?} is not supported for payouts",
+                                        payment_method_enum
+                                    ),
+                                })
+                                .attach_printable("Failed to convert PaymentMethod to PayoutType"),
+                        )
+                    })
+                    .transpose()?,
+                payout_type => payout_type,
+            };
+            (
+                payment_method
+                    .as_ref()
+                    .map(|pm| pm.payment_method_id.clone()),
+                payout_type,
+            )
+        }
     };
 
     let client_secret = utils::generate_id(

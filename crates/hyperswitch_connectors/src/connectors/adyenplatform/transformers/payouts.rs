@@ -383,8 +383,11 @@ impl<F> TryFrom<StoredPaymentCounterparty<'_, F>>
             enums::PayoutType::Card => {
                 let billing_address = stored_payment.item.router_data.get_optional_billing();
                 let address = billing_address
-                    .and_then(|billing| billing.address.as_ref().map(|addr| addr.try_into()))
-                    .transpose()?;
+                    .and_then(|billing| billing.address.as_ref())
+                    .ok_or(ConnectorError::MissingRequiredField {
+                        field_name: "address",
+                    })?
+                    .try_into()?;
 
                 let customer_id_reference =
                     match stored_payment.item.router_data.get_connector_customer_id() {
@@ -404,7 +407,7 @@ impl<F> TryFrom<StoredPaymentCounterparty<'_, F>>
                     };
 
                 let card_holder = AdyenAccountHolder {
-                    address,
+                    address: Some(address),
                     first_name: stored_payment
                         .item
                         .router_data
