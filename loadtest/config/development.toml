@@ -426,7 +426,7 @@ klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NO,PL,PT,RO,ES,SE,CH,N
 ideal = { country = "NL", currency = "EUR" }
 
 [pm_filters.affirm]
-affirm = { country = "CAD,USD", currency = "CA,US" }
+affirm = { country = "CA,US", currency = "CAD,USD" }
 
 [pm_filters.bambora]
 credit = { country = "US,CA", currency = "USD" }

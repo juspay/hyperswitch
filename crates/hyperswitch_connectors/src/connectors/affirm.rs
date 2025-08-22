@@ -752,7 +752,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Affirm {
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: affirm::AffirmRefundResponse = res
+        let response: affirm::AffirmRsyncResponse = res
             .response
             .parse_struct("affirm RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;

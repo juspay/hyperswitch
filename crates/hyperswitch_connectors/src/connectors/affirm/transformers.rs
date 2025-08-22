@@ -44,17 +44,10 @@ pub struct AffirmPaymentsRequest {
     pub total: MinorUnit,
     pub currency: Currency,
     pub order_id: Option<String>,
-    pub metadata: Option<Metadata>,
-    pub discounts: Option<Vec<Discount>>,
-    pub tax_amount: Option<MinorUnit>,
-    pub shipping_amount: Option<MinorUnit>,
-    pub checkout_expiration: Option<String>,
-    pub expiration_time: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
 pub struct AffirmCompleteAuthorizeRequest {
-    pub expand: Option<String>,
     pub order_id: Option<String>,
     pub reference_id: Option<String>,
     pub transaction_id: String,
@@ -75,7 +68,6 @@ impl TryFrom<&PaymentsCompleteAuthorizeRouterData> for AffirmCompleteAuthorizeRe
             transaction_id,
             order_id: Some(order_id),
             reference_id,
-            expand: None,
         })
     }
 }
@@ -96,24 +88,6 @@ pub struct Item {
     pub sku: String,
     pub unit_price: MinorUnit,
     pub qty: i64,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub item_image_url: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub item_url: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub category: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub sub_category: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub brand: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub product_type: Option<common_enums::ProductType>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub product_tax_code: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tax_rate: Option<f64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub total_tax_amount: Option<MinorUnit>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -186,30 +160,6 @@ pub struct Discount {
     pub discount_code: Option<String>,
 }
 
-fn get_str(key: &str, raw: &Value) -> Option<String> {
-    raw.get(key).and_then(|v| v.as_str().map(|s| s.to_owned()))
-}
-
-fn get_bool(key: &str, riskdata: &Value) -> Option<bool> {
-    riskdata.get(key).and_then(|v| v.as_bool())
-}
-
-fn extract_metadata(raw: &Value) -> Option<Metadata> {
-    Some(Metadata {
-        shipping_type: get_str("shipping_type", raw),
-        entity_name: get_str("entity_name", raw),
-        platform_type: get_str("platform_type", raw),
-        platform_version: get_str("platform_version", raw),
-        platform_affirm: get_str("platform_affirm", raw),
-        webhook_session_id: get_str("webhook_session_id", raw),
-        mode: get_str("mode", raw),
-        customer: raw.get("customer").cloned(),
-        itinerary: raw.get("itinerary").and_then(|v| v.as_array().cloned()),
-        checkout_channel_type: get_str("checkout_channel_type", raw),
-        bopis: get_bool("BOPIS", raw),
-    })
-}
-
 impl TryFrom<&AffirmRouterData<&PaymentsAuthorizeRouterData>> for AffirmPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
 
@@ -219,57 +169,41 @@ impl TryFrom<&AffirmRouterData<&PaymentsAuthorizeRouterData>> for AffirmPayments
         let router_data = &item.router_data;
         let request = &router_data.request;
 
-        let billing = item
-            .router_data
-            .get_optional_billing()
-            .and_then(|billing_address| {
-                billing_address.address.as_ref().map(|address| Billing {
-                    name: Name {
-                        first: address.first_name.clone(),
-                        last: address.last_name.clone(),
-                        full: address.get_optional_full_name(),
-                    },
-                    address: Address {
-                        line1: address.line1.clone(),
-                        line2: address.line2.clone(),
-                        city: address.city.clone(),
-                        state: address.state.clone(),
-                        zipcode: address.zip.clone(),
-                        country: address.country,
-                    },
-                    phone_number: billing_address
-                        .phone
-                        .as_ref()
-                        .and_then(|phone| phone.number.as_ref().cloned()),
-                    email: billing_address.email.clone(),
-                })
-            });
+        let billing = Some(Billing {
+            name: Name {
+                first: item.router_data.get_optional_billing_first_name(),
+                last: item.router_data.get_optional_billing_last_name(),
+                full: item.router_data.get_optional_billing_full_name(),
+            },
+            address: Address {
+                line1: item.router_data.get_optional_billing_line1(),
+                line2: item.router_data.get_optional_billing_line2(),
+                city: item.router_data.get_optional_billing_city(),
+                state: item.router_data.get_optional_billing_state(),
+                zipcode: item.router_data.get_optional_billing_zip(),
+                country: item.router_data.get_optional_billing_country(),
+            },
+            phone_number: item.router_data.get_optional_billing_phone_number(),
+            email: item.router_data.get_optional_billing_email(),
+        });
 
-        let shipping = item
-            .router_data
-            .get_optional_shipping()
-            .and_then(|shipping_address| {
-                shipping_address.address.as_ref().map(|address| Shipping {
-                    name: Name {
-                        first: address.first_name.clone(),
-                        last: address.last_name.clone(),
-                        full: address.get_optional_full_name(),
-                    },
-                    address: Address {
-                        line1: address.line1.clone(),
-                        line2: address.line2.clone(),
-                        city: address.city.clone(),
-                        state: address.state.clone(),
-                        zipcode: address.zip.clone(),
-                        country: address.country,
-                    },
-                    phone_number: shipping_address
-                        .phone
-                        .as_ref()
-                        .and_then(|phone| phone.number.as_ref().cloned()),
-                    email: shipping_address.email.clone(),
-                })
-            });
+        let shipping = Some(Shipping {
+            name: Name {
+                first: item.router_data.get_optional_shipping_first_name(),
+                last: item.router_data.get_optional_shipping_last_name(),
+                full: item.router_data.get_optional_shipping_full_name(),
+            },
+            address: Address {
+                line1: item.router_data.get_optional_shipping_line1(),
+                line2: item.router_data.get_optional_shipping_line2(),
+                city: item.router_data.get_optional_shipping_city(),
+                state: item.router_data.get_optional_shipping_state(),
+                zipcode: item.router_data.get_optional_shipping_zip(),
+                country: item.router_data.get_optional_shipping_country(),
+            },
+            phone_number: item.router_data.get_optional_shipping_phone_number(),
+            email: item.router_data.get_optional_shipping_email(),
+        });
 
         match request.payment_method_data.clone() {
             PaymentMethodData::PayLater(PayLaterData::AffirmRedirect {}) => {
@@ -282,15 +216,6 @@ impl TryFrom<&AffirmRouterData<&PaymentsAuthorizeRouterData>> for AffirmPayments
                                 sku: data.product_id.clone().unwrap_or_default(),
                                 unit_price: data.amount,
                                 qty: data.quantity.into(),
-                                item_image_url: data.product_img_link.clone(),
-                                item_url: None,
-                                category: data.category.clone(),
-                                sub_category: data.sub_category.clone(),
-                                brand: data.brand.clone(),
-                                product_type: data.product_type.clone(),
-                                product_tax_code: data.product_tax_code.clone(),
-                                tax_rate: data.tax_rate,
-                                total_tax_amount: data.total_tax_amount,
                             })
                         })
                         .collect::<Result<Vec<_>, _>>(),
@@ -298,13 +223,6 @@ impl TryFrom<&AffirmRouterData<&PaymentsAuthorizeRouterData>> for AffirmPayments
                         field_name: "order_details",
                     })),
                 }?;
-
-                let metadata: Option<Metadata> = item
-                    .router_data
-                    .request
-                    .metadata
-                    .as_ref()
-                    .and_then(extract_metadata);
 
                 let auth_type = AffirmAuthType::try_from(&item.router_data.connector_auth_type)
                     .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -326,12 +244,6 @@ impl TryFrom<&AffirmRouterData<&PaymentsAuthorizeRouterData>> for AffirmPayments
                     total: item.amount,
                     currency: request.currency,
                     order_id: Some(item.router_data.connector_request_reference_id.clone()),
-                    metadata,
-                    discounts: None,
-                    tax_amount: request.order_tax_amount,
-                    shipping_amount: request.shipping_cost,
-                    checkout_expiration: None,
-                    expiration_time: None,
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
@@ -359,7 +271,7 @@ impl TryFrom<&ConnectorAuthType> for AffirmAuthType {
 impl From<AffirmTransactionStatus> for common_enums::AttemptStatus {
     fn from(item: AffirmTransactionStatus) -> Self {
         match item {
-            AffirmTransactionStatus::Authorized => Self::Authorized,
+            AffirmTransactionStatus::Authorized => Self::Pending,
             AffirmTransactionStatus::AuthExpired => Self::Failure,
             AffirmTransactionStatus::Canceled => Self::Voided,
             AffirmTransactionStatus::Captured => Self::Charged,
@@ -368,14 +280,21 @@ impl From<AffirmTransactionStatus> for common_enums::AttemptStatus {
             AffirmTransactionStatus::Created => Self::Pending,
             AffirmTransactionStatus::Declined => Self::Failure,
             AffirmTransactionStatus::Disputed => Self::Unresolved,
-            AffirmTransactionStatus::DisputeRefunded => Self::AutoRefunded,
+            AffirmTransactionStatus::DisputeRefunded => Self::Unresolved,
             AffirmTransactionStatus::ExpiredAuthorization => Self::Failure,
             AffirmTransactionStatus::ExpiredConfirmation => Self::Failure,
-            AffirmTransactionStatus::PartiallyCaptured => Self::PartialCharged,
-            AffirmTransactionStatus::PartiallyRefunded => Self::PartialCharged,
-            AffirmTransactionStatus::Refunded => Self::AutoRefunded,
+            AffirmTransactionStatus::PartiallyCaptured => Self::Charged,
             AffirmTransactionStatus::Voided => Self::Voided,
             AffirmTransactionStatus::PartiallyVoided => Self::Voided,
+        }
+    }
+}
+
+impl From<AffirmRefundStatus> for common_enums::RefundStatus {
+    fn from(item: AffirmRefundStatus) -> Self {
+        match item {
+            AffirmRefundStatus::PartiallyRefunded => Self::Success,
+            AffirmRefundStatus::Refunded => Self::Success,
         }
     }
 }
@@ -467,15 +386,47 @@ pub enum AffirmTransactionStatus {
     ExpiredAuthorization,
     ExpiredConfirmation,
     PartiallyCaptured,
-    PartiallyRefunded,
-    Refunded,
     Voided,
     PartiallyVoided,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AffirmRefundStatus {
+    PartiallyRefunded,
+    Refunded,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct AffirmPSyncResponse {
+    pub amount: MinorUnit,
+    pub amount_refunded: MinorUnit,
+    pub authorization_expiration: Option<String>,
+    pub checkout_id: String,
+    pub created: String,
+    pub currency: Currency,
+    pub events: Vec<TransactionEvent>,
+    pub id: String,
+    pub order_id: String,
+    pub provider_id: Option<i64>,
+    pub remove_tax: Option<bool>,
+    pub status: AffirmTransactionStatus,
+    pub checkout: Option<Value>,
+    pub refund_expires: Option<String>,
+    pub remaining_capturable_amount: Option<MinorUnit>,
+    pub loan_information: Option<LoanInformation>,
+    pub shipping_carrier: Option<String>,
+    pub shipping_confirmation: Option<String>,
+    pub shipping: Option<Shipping>,
+    pub merchant_transaction_id: Option<String>,
+    pub settlement_transaction_id: Option<String>,
+    pub transaction_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct AffirmRsyncResponse {
     pub amount: MinorUnit,
     pub amount_refunded: MinorUnit,
     pub authorization_expiration: String,
@@ -485,26 +436,19 @@ pub struct AffirmPSyncResponse {
     pub events: Vec<TransactionEvent>,
     pub id: String,
     pub order_id: String,
-    pub provider_id: Option<i64>,
-    pub remove_tax: Option<bool>,
-    pub status: AffirmEventType,
-    pub checkout: Option<Value>,
+    pub status: AffirmRefundStatus,
     pub refund_expires: Option<String>,
     pub remaining_capturable_amount: Option<MinorUnit>,
-    pub loan_information: Option<LoanInformation>,
     pub shipping_carrier: Option<String>,
     pub shipping_confirmation: Option<String>,
     pub shipping: Option<Shipping>,
-    pub agent_alias: Option<String>,
     pub merchant_transaction_id: Option<String>,
     pub settlement_transaction_id: Option<String>,
     pub transaction_id: String,
-    pub user_id: Option<String>,
-    pub platform: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(tag = "response_type", content = "data")]
+#[serde(untagged)]
 pub enum AffirmResponseWrapper {
     Authorize(AffirmPaymentsResponse),
     Psync(Box<AffirmPSyncResponse>),
@@ -540,7 +484,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AffirmResponseWrapper, T, PaymentsRespo
                 })
             }
             AffirmResponseWrapper::Psync(resp) => {
-                let status = enums::AttemptStatus::from(resp.status.clone());
+                let status = enums::AttemptStatus::from(resp.status);
                 Ok(Self {
                     status,
                     response: Ok(PaymentsResponseData::TransactionResponse {
@@ -660,15 +604,15 @@ impl TryFrom<RefundsResponseRouterData<Execute, AffirmRefundResponse>>
     }
 }
 
-impl TryFrom<RefundsResponseRouterData<RSync, AffirmRefundResponse>> for RefundsRouterData<RSync> {
+impl TryFrom<RefundsResponseRouterData<RSync, AffirmRsyncResponse>> for RefundsRouterData<RSync> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: RefundsResponseRouterData<RSync, AffirmRefundResponse>,
+        item: RefundsResponseRouterData<RSync, AffirmRsyncResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.event_type),
+                refund_status: enums::RefundStatus::from(item.response.status),
             }),
             ..item.data
         })
