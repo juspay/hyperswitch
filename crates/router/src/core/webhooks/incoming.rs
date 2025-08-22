@@ -695,6 +695,7 @@ async fn process_webhook_business_logic(
                 connector,
                 request_details,
                 event_type,
+                webhook_transform_data,
             ))
             .await
             .attach_printable("Incoming webhook flow for payments failed"),
@@ -931,9 +932,18 @@ async fn payments_incoming_webhook_flow(
     connector: &ConnectorEnum,
     request_details: &IncomingWebhookRequestDetails<'_>,
     event_type: webhooks::IncomingWebhookEvent,
+    webhook_transform_data: &Option<Box<unified_connector_service::WebhookTransformData>>,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     let consume_or_trigger_flow = if source_verified {
-        payments::CallConnectorAction::HandleResponse(webhook_details.resource_object)
+        // Determine the appropriate action based on UCS availability
+        let resource_object = webhook_details.resource_object;
+
+        match webhook_transform_data.as_ref() {
+            Some(_transform_data) => {
+                payments::CallConnectorAction::UCSHandleResponse(resource_object)
+            }
+            None => payments::CallConnectorAction::HandleResponse(resource_object),
+        }
     } else {
         payments::CallConnectorAction::Trigger
     };

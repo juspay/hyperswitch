@@ -165,6 +165,11 @@ where
             };
             connector_integration.handle_response(req, None, response)
         }
+        payments::CallConnectorAction::UCSHandleResponse(_res) => {
+            // UCS has already transformed the response, directly return RouterData
+            // The actual response processing will be handled by the post-processing flow
+            Ok(router_data)
+        }
         payments::CallConnectorAction::Avoid => Ok(router_data),
         payments::CallConnectorAction::StatusUpdate {
             status,
