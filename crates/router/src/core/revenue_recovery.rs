@@ -460,8 +460,8 @@ pub async fn perform_calculate_workflow(
         state,
         &connector_customer_id,
         payment_intent,
+        retry_algorithm_type,
         process.retry_count,
-        retry_algorithm_type
     )
     .await
     {

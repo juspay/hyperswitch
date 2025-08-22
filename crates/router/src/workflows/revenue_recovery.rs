@@ -496,7 +496,6 @@ pub async fn get_token_with_schedule_time_based_on_retry_alogrithm_type(
     payment_intent: &PaymentIntent,
     retry_algorithm_type: RevenueRecoveryAlgorithmType,
     retry_count: i32,
-    retry_algorithm_type: RevenueRecoveryAlgorithmType,
 ) -> CustomResult<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
     let mut scheduled_time = None;
 

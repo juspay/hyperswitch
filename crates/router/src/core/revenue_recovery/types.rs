@@ -157,7 +157,7 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                 };
 
                 let is_hard_decline =
-                    revenue_recovery::decide_retry_failure_action(state, &payment_attempt)
+                    revenue_recovery::check_hard_decline(state, &payment_attempt)
                         .await
                         .ok();
 
@@ -212,7 +212,7 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                 let error_code = recovery_payment_attempt.error_code;
 
                 let is_hard_decline =
-                    revenue_recovery::decide_retry_failure_action(state, &payment_attempt)
+                    revenue_recovery::check_hard_decline(state, &payment_attempt)
                         .await
                         .ok();
 
@@ -429,7 +429,7 @@ impl Action {
                             );
                         };
 
-                            let is_hard_decline = revenue_recovery::decide_retry_failure_action(
+                            let is_hard_decline = revenue_recovery::check_hard_decline(
                                 state,
                                 &payment_data.payment_attempt,
                             )
@@ -487,7 +487,7 @@ impl Action {
                                 .error
                                 .map(|error| error.code);
 
-                            let is_hard_decline = revenue_recovery::decide_retry_failure_action(
+                            let is_hard_decline = revenue_recovery::check_hard_decline(
                                 state,
                                 &payment_data.payment_attempt,
                             )
@@ -771,7 +771,7 @@ impl Action {
                         .attach_printable("Failed to extract customer ID from payment intent")?;
 
                     let is_hard_decline =
-                        revenue_recovery::decide_retry_failure_action(state, &payment_attempt)
+                        revenue_recovery::check_hard_decline(state, &payment_attempt)
                             .await
                             .ok();
 
@@ -802,7 +802,7 @@ impl Action {
                     let error_code = payment_attempt.clone().error.map(|error| error.code);
 
                     let is_hard_decline =
-                        revenue_recovery::decide_retry_failure_action(state, &payment_attempt)
+                        revenue_recovery::check_hard_decline(state, &payment_attempt)
                             .await
                             .ok();
 
