@@ -31,6 +31,9 @@ impl<T> From<(StringMinorUnit, T)> for VgsRouterData<T> {
     }
 }
 
+const VGS_FORMAT: &str = "UUID";
+const VGS_CLASSIFIER: &str = "data";
+
 #[derive(Default, Debug, Serialize, PartialEq)]
 pub struct VgsTokenRequestItem {
     value: Secret<String>,
@@ -55,8 +58,8 @@ impl<F> TryFrom<&VaultRouterData<F>> for VgsInsertRequest {
                 Ok(Self {
                     data: vec![VgsTokenRequestItem {
                         value: Secret::new(stringified_card),
-                        classifiers: vec!["data".to_string()],
-                        format: "UUID".to_string(),
+                        classifiers: vec![VGS_CLASSIFIER.to_string()],
+                        format: VGS_FORMAT.to_string(),
                     }],
                 })
             }
@@ -97,7 +100,7 @@ pub struct VgsTokenResponseItem {
     value: Secret<String>,
     classifiers: Vec<String>,
     aliases: Vec<VgsAliasItem>,
-    created_at: String,
+    created_at: Option<String>,
     storage: String,
 }
 
@@ -135,13 +138,10 @@ impl
             .data
             .first()
             .and_then(|val| val.aliases.first())
-            .get_required_value("VgsAliasItem")
-            .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "VgsAliasItem",
-            })?;
+            .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
 
         Ok(Self {
-            status: common_enums::AttemptStatus::Failure,
+            status: common_enums::AttemptStatus::Started,
             response: Ok(VaultResponseData::ExternalVaultInsertResponse {
                 connector_vault_id: vgs_alias.alias.clone(),
                 fingerprint_id: vgs_alias.alias.clone(),
@@ -174,10 +174,7 @@ impl
             .response
             .data
             .first()
-            .get_required_value("VgsTokenResponseItem")
-            .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "VgsTokenResponseItem",
-            })?;
+            .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
 
         let card_detail: api_models::payment_methods::CardDetail = token_response_item
             .value
@@ -187,7 +184,7 @@ impl
             .change_context(errors::ConnectorError::ParsingFailed)?;
 
         Ok(Self {
-            status: common_enums::AttemptStatus::Failure,
+            status: common_enums::AttemptStatus::Started,
             response: Ok(VaultResponseData::ExternalVaultRetrieveResponse {
                 vault_data: PaymentMethodVaultingData::Card(card_detail),
             }),

@@ -73,13 +73,21 @@ where
         req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            self.get_content_type().to_string().into(),
-        )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
-        Ok(header)
+        let auth = vgs::VgsAuthType::try_from(&req.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let auth_value = auth
+            .username
+            .zip(auth.password)
+            .map(|(username, password)| {
+                format!(
+                    "Basic {}",
+                    common_utils::consts::BASE64_ENGINE.encode(format!("{username}:{password}"))
+                )
+            });
+        Ok(vec![(
+            headers::AUTHORIZATION.to_string(),
+            auth_value.into_masked(),
+        )])
     }
 }
 
@@ -104,21 +112,7 @@ impl ConnectorCommon for Vgs {
         &self,
         auth_type: &ConnectorAuthType,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let auth = vgs::VgsAuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let auth_value = auth
-            .username
-            .zip(auth.password)
-            .map(|(username, password)| {
-                format!(
-                    "Basic {}",
-                    common_utils::consts::BASE64_ENGINE.encode(format!("{username}:{password}"))
-                )
-            });
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            auth_value.into_masked(),
-        )])
+        Ok(vec![])
     }
 
     fn build_error_response(
@@ -137,10 +131,7 @@ impl ConnectorCommon for Vgs {
         let error = response
             .errors
             .first()
-            .get_required_value("VgsErrorItem")
-            .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "VgsErrorItem",
-            })?;
+            .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
 
         Ok(ErrorResponse {
             status_code: res.status_code,
@@ -189,23 +180,9 @@ impl ConnectorIntegration<ExternalVaultInsertFlow, VaultRequestData, VaultRespon
     fn get_headers(
         &self,
         req: &VaultRouterData<ExternalVaultInsertFlow>,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let auth = vgs::VgsAuthType::try_from(&req.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let auth_value = auth
-            .username
-            .zip(auth.password)
-            .map(|(username, password)| {
-                format!(
-                    "Basic {}",
-                    common_utils::consts::BASE64_ENGINE.encode(format!("{username}:{password}"))
-                )
-            });
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            auth_value.into_masked(),
-        )])
+        self.build_headers(req, connectors)
     }
 
     fn get_request_body(
@@ -273,16 +250,11 @@ impl ConnectorIntegration<ExternalVaultRetrieveFlow, VaultRequestData, VaultResp
         req: &VaultRouterData<ExternalVaultRetrieveFlow>,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        use common_utils::ext_traits::OptionExt;
-
-        let alias = req
-            .request
-            .connector_vault_id
-            .clone()
-            .get_required_value("connector_vault_id")
-            .change_context(errors::ConnectorError::MissingRequiredField {
+        let alias = req.request.connector_vault_id.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
                 field_name: "connector_vault_id",
-            })?;
+            },
+        )?;
 
         Ok(format!("{}aliases/{alias}", self.base_url(connectors)))
     }
@@ -290,23 +262,9 @@ impl ConnectorIntegration<ExternalVaultRetrieveFlow, VaultRequestData, VaultResp
     fn get_headers(
         &self,
         req: &VaultRouterData<ExternalVaultRetrieveFlow>,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let auth = vgs::VgsAuthType::try_from(&req.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let auth_value = auth
-            .username
-            .zip(auth.password)
-            .map(|(username, password)| {
-                format!(
-                    "Basic {}",
-                    common_utils::consts::BASE64_ENGINE.encode(format!("{username}:{password}"))
-                )
-            });
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            auth_value.into_masked(),
-        )])
+        self.build_headers(req, connectors)
     }
 
     fn get_http_method(&self) -> Method {
