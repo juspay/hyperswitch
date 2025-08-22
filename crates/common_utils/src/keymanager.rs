@@ -8,8 +8,7 @@ use error_stack::ResultExt;
 use http::{HeaderMap, HeaderName, HeaderValue, Method, StatusCode};
 use masking::{PeekInterface, StrongSecret};
 use once_cell::sync::OnceCell;
-use router_env::{instrument, logger};
-use tracing;
+use router_env::{instrument, logger, tracing};
 
 use crate::{
     consts::{BASE64_ENGINE, TENANT_HEADER},

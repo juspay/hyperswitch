@@ -1916,7 +1916,6 @@ dependencies = [
  "thiserror 1.0.69",
  "time",
  "tokio 1.45.1",
- "tracing",
  "url",
  "utoipa",
  "uuid",

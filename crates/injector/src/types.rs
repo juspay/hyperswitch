@@ -30,6 +30,17 @@ pub mod models {
         DELETE,
     }
 
+    /// Accept types supported by the injector for HTTP requests
+    #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+    #[serde(rename_all = "snake_case")]
+    pub enum AcceptType {
+        ApplicationJson,
+        ApplicationXml,
+        TextXml,
+        TextPlain,
+        Any,
+    }
+
     /// Vault connectors supported by the injector for token management
     ///
     /// Currently supports VGS as the primary vault connector. While only VGS is
