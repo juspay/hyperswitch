@@ -1966,6 +1966,7 @@ pub enum PaymentMethodType {
     BniVa,
     Breadpay,
     BriVa,
+    BhnCardNetwork,
     #[cfg(feature = "v2")]
     Card,
     CardRedirect,
@@ -2089,6 +2090,7 @@ impl PaymentMethodType {
             Self::BniVa => "BNI Virtual Account",
             Self::Breadpay => "Breadpay",
             Self::BriVa => "BRI Virtual Account",
+            Self::BhnCardNetwork => "BHN Card Network",
             Self::CardRedirect => "Card Redirect",
             Self::CimbVa => "CIMB Virtual Account",
             Self::ClassicReward => "Classic Reward",

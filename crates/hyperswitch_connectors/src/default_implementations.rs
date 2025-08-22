@@ -1669,7 +1669,6 @@ default_imp_for_pre_processing_steps!(
     connectors::Bankofamerica,
     connectors::Billwerk,
     connectors::Bitpay,
-    connectors::Blackhawknetwork,
     connectors::Bluecode,
     connectors::Bluesnap,
     connectors::Braintree,

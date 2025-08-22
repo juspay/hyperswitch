@@ -129,6 +129,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 bluesnap::transformers::BluesnapAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Blackhawknetwork => {
+                blackhawknetwork::transformers::BlackhawknetworkAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Bluecode => {
                 bluecode::transformers::BluecodeAuthType::try_from(self.auth_type)?;
                 bluecode::transformers::BluecodeMetadataObject::try_from(self.connector_meta_data)?;
