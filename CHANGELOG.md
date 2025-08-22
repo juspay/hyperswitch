@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.08.20.0-hotfix1
+
+### Revert
+
+- Feat(core): add support for api locking with multiple keys for a single api ([#9029](https://github.com/juspay/hyperswitch/pull/9029)) ([`9a5a734`](https://github.com/juspay/hyperswitch/commit/9a5a734ba14d525e84cf87d135dd9acc443f03ed))
+
+**Full Changelog:** [`2025.08.20.0...2025.08.20.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.08.20.0...2025.08.20.0-hotfix1)
+
+- - -
+
 ## 2025.08.20.0
 
 ### Features
