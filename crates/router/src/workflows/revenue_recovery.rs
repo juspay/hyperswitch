@@ -2,46 +2,35 @@
 use std::collections::HashMap;
 
 #[cfg(feature = "v2")]
-use api_models::enums::RevenueRecoveryAlgorithmType;
-#[cfg(feature = "v2")]
-use api_models::payments as api_payments;
-#[cfg(feature = "v2")]
-use api_models::payments::PaymentAttemptResponse;
-#[cfg(feature = "v2")]
-use api_models::payments::PaymentsGetIntentRequest;
-#[cfg(feature = "v2")]
-use common_utils::errors::CustomResult;
-#[cfg(feature = "v2")]
-use common_utils::ext_traits::AsyncExt;
+use api_models::{enums::RevenueRecoveryAlgorithmType, payments::PaymentsGetIntentRequest};
+
 #[cfg(feature = "v2")]
 use common_utils::{
     ext_traits::{StringExt, ValueExt},
     id_type,
+    errors::CustomResult,
+    ext_traits::AsyncExt,
 };
 #[cfg(feature = "v2")]
 use diesel_models::types::BillingConnectorPaymentMethodDetails;
 #[cfg(feature = "v2")]
-use error_stack::Report;
-#[cfg(feature = "v2")]
-use error_stack::ResultExt;
+use error_stack::{Report,ResultExt};
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 use external_services::{
     date_time, grpc_client::revenue_recovery::recovery_decider_client as external_grpc_client,
 };
 #[cfg(feature = "v2")]
-use hyperswitch_domain_models::router_flow_types;
-#[cfg(feature = "v2")]
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     payments::{payment_attempt, PaymentConfirmData, PaymentIntent, PaymentIntentData},
     router_flow_types::Authorize,
+    router_flow_types,
 };
 #[cfg(feature = "v2")]
 use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
-use router_env::logger;
-#[cfg(feature = "v2")]
-use router_env::tracing;
+use router_env::{logger,tracing};
+
 use scheduler::{consumer::workflows::ProcessTrackerWorkflow, errors};
 #[cfg(feature = "v2")]
 use scheduler::{types::process_data, utils as scheduler_utils};
@@ -53,16 +42,14 @@ use time::Date;
 #[cfg(feature = "v2")]
 use crate::core::payments::operations;
 #[cfg(feature = "v2")]
-use crate::errors::RevenueRecoveryError;
-#[cfg(feature = "v2")]
 use crate::routes::app::ReqState;
 #[cfg(feature = "v2")]
 use crate::services;
 #[cfg(feature = "v2")]
-use crate::types::storage::revenue_recovery::RetryLimitsConfig;
-#[cfg(feature = "v2")]
-use crate::types::storage::revenue_recovery_redis_operation::{
+use crate::types::storage::{
+    revenue_recovery_redis_operation::{
     PaymentProcessorTokenStatus, PaymentProcessorTokenWithRetryInfo, RedisTokenManager,
+}, revenue_recovery::RetryLimitsConfig
 };
 #[cfg(feature = "v2")]
 use crate::workflows::revenue_recovery::pcr::api;
@@ -257,211 +244,6 @@ pub(crate) async fn get_schedule_time_to_retry_mit_payments(
 
 #[cfg(feature = "v2")]
 pub(crate) async fn get_schedule_time_for_smart_retry(
-    state: &SessionState,
-    payment_attempt: &PaymentAttemptResponse,
-    payment_intent: &PaymentIntent,
-    retry_count_left: i32,
-    retry_after_time: Option<prost_types::Timestamp>,
-    pg_error_code: Option<String>,
-) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
-    let card_config = &state.conf.revenue_recovery.card_config;
-    let first_error_message = match payment_attempt.error.as_ref() {
-        Some(error) => error.message.clone(),
-        None => "no error message found in payment attempt".to_string(),
-    };
-
-    let billing_state = payment_intent
-        .billing_address
-        .as_ref()
-        .and_then(|addr_enc| addr_enc.get_inner().address.as_ref())
-        .and_then(|details| details.state.as_ref())
-        .cloned();
-
-    // Check if payment_method_data itself is None
-    if payment_attempt.payment_method_data.is_none() {
-        logger::debug!(
-            payment_intent_id = ?payment_intent.get_id(),
-            attempt_id = ?payment_attempt.id,
-            message = "payment_attempt.payment_method_data is None"
-        );
-    }
-
-    let billing_connector_payment_method_details = payment_intent
-        .feature_metadata
-        .as_ref()
-        .and_then(|revenue_recovery_data| {
-            revenue_recovery_data
-                .payment_revenue_recovery_metadata
-                .as_ref()
-        })
-        .and_then(|payment_metadata| {
-            payment_metadata
-                .billing_connector_payment_method_details
-                .as_ref()
-        });
-
-    let revenue_recovery_metadata = payment_intent
-        .feature_metadata
-        .as_ref()
-        .and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref());
-
-    let card_network = billing_connector_payment_method_details.and_then(|details| match details {
-        BillingConnectorPaymentMethodDetails::Card(card_info) => card_info.card_network.clone(),
-    });
-
-    let total_retry_count_within_network = card_config.get_network_config(card_network.clone());
-
-    let card_network_str = card_network.map(|network| network.to_string());
-
-    let card_issuer_str =
-        billing_connector_payment_method_details.and_then(|details| match details {
-            BillingConnectorPaymentMethodDetails::Card(card_info) => card_info.card_issuer.clone(),
-        });
-
-    let card_funding_str = payment_intent
-        .feature_metadata
-        .as_ref()
-        .and_then(|revenue_recovery_data| {
-            revenue_recovery_data
-                .payment_revenue_recovery_metadata
-                .as_ref()
-        })
-        .map(|payment_metadata| payment_metadata.payment_method_subtype.to_string());
-
-    let start_time_primitive = payment_intent.created_at;
-    let recovery_timestamp_config = &state.conf.revenue_recovery.recovery_timestamp;
-
-    let modified_start_time_primitive = start_time_primitive.saturating_add(time::Duration::hours(
-        recovery_timestamp_config.initial_timestamp_in_hours,
-    ));
-
-    let start_time_proto = date_time::convert_to_prost_timestamp(modified_start_time_primitive);
-
-    let merchant_id = Some(payment_intent.merchant_id.get_string_repr().to_string());
-    let invoice_amount = Some(
-        payment_intent
-            .amount_details
-            .order_amount
-            .get_amount_as_i64(),
-    );
-    let invoice_currency = Some(payment_intent.amount_details.currency.to_string());
-
-    let billing_country = payment_intent
-        .billing_address
-        .as_ref()
-        .and_then(|addr_enc| addr_enc.get_inner().address.as_ref())
-        .and_then(|details| details.country.as_ref())
-        .map(|country| country.to_string());
-
-    let billing_city = payment_intent
-        .billing_address
-        .as_ref()
-        .and_then(|addr_enc| addr_enc.get_inner().address.as_ref())
-        .and_then(|details| details.city.as_ref())
-        .cloned();
-
-    let attempt_currency = Some(payment_intent.amount_details.currency.to_string());
-    let attempt_status = Some(payment_attempt.status.to_string());
-    let attempt_amount = Some(payment_attempt.amount.net_amount.get_amount_as_i64());
-    let attempt_response_time = Some(date_time::convert_to_prost_timestamp(
-        payment_attempt.created_at,
-    ));
-    let payment_method_type = Some(payment_attempt.payment_method_type.to_string());
-    let payment_gateway = payment_attempt.connector.clone();
-
-    let network_advice_code = payment_attempt
-        .error
-        .as_ref()
-        .and_then(|error| error.network_advice_code.clone());
-    let network_error_code = payment_attempt
-        .error
-        .as_ref()
-        .and_then(|error| error.network_decline_code.clone());
-
-    let first_pg_error_code = revenue_recovery_metadata
-        .and_then(|metadata| metadata.first_payment_attempt_pg_error_code.clone());
-    let first_network_advice_code = revenue_recovery_metadata
-        .and_then(|metadata| metadata.first_payment_attempt_network_advice_code.clone());
-    let first_network_error_code = revenue_recovery_metadata
-        .and_then(|metadata| metadata.first_payment_attempt_network_decline_code.clone());
-
-    let invoice_due_date = revenue_recovery_metadata
-        .and_then(|metadata| metadata.invoice_next_billing_time)
-        .map(date_time::convert_to_prost_timestamp);
-
-    let decider_request = InternalDeciderRequest {
-        first_error_message,
-        billing_state,
-        card_funding: card_funding_str,
-        card_network: card_network_str,
-        card_issuer: card_issuer_str,
-        invoice_start_time: Some(start_time_proto),
-        retry_count: Some(
-            (total_retry_count_within_network.max_retry_count_for_thirty_day - retry_count_left)
-                .into(),
-        ),
-        merchant_id,
-        invoice_amount,
-        invoice_currency,
-        invoice_due_date,
-        billing_country,
-        billing_city,
-        attempt_currency,
-        attempt_status,
-        attempt_amount,
-        pg_error_code,
-        network_advice_code,
-        network_error_code,
-        first_pg_error_code,
-        first_network_advice_code,
-        first_network_error_code,
-        attempt_response_time,
-        payment_method_type,
-        payment_gateway,
-        retry_count_left: Some(retry_count_left.into()),
-        total_retry_count_within_network: Some(
-            total_retry_count_within_network
-                .max_retry_count_for_thirty_day
-                .into(),
-        ),
-        first_error_msg_time: None,
-        wait_time: retry_after_time,
-    };
-
-    if let Some(mut client) = state.grpc_client.recovery_decider_client.clone() {
-        match client
-            .decide_on_retry(decider_request.into(), state.get_recovery_grpc_headers())
-            .await
-        {
-            Ok(grpc_response) => Ok(grpc_response
-                .retry_flag
-                .then_some(())
-                .and(grpc_response.retry_time)
-                .and_then(|prost_ts| {
-                    match date_time::convert_from_prost_timestamp(&prost_ts) {
-                        Ok(pdt) => Some(pdt),
-                        Err(e) => {
-                            logger::error!(
-                                "Failed to convert retry_time from prost::Timestamp: {e:?}"
-                            );
-                            None // If conversion fails, treat as no valid retry time
-                        }
-                    }
-                })),
-
-            Err(e) => {
-                logger::error!("Recovery decider gRPC call failed: {e:?}");
-                Ok(None)
-            }
-        }
-    } else {
-        logger::debug!("Recovery decider client is not configured");
-        Ok(None)
-    }
-}
-
-#[cfg(feature = "v2")]
-pub(crate) async fn get_schedule_time_without_attempt(
     state: &SessionState,
     payment_intent: &PaymentIntent,
     retry_after_time: Option<prost_types::Timestamp>,
@@ -826,7 +608,7 @@ pub async fn calculate_smart_retry_time(
         nanos: 0,
     });
 
-    get_schedule_time_without_attempt(
+    get_schedule_time_for_smart_retry(
         state,
         payment_intent,
         future_timestamp,

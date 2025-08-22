@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-
 use common_enums::enums::CardNetwork;
 use common_utils::{date_time, errors::CustomResult, id_type};
 use error_stack::ResultExt;
@@ -8,7 +7,6 @@ use redis_interface::{DelReply, SetnxReply};
 use router_env::{instrument, tracing};
 use serde::{Deserialize, Serialize};
 use time::{Date, Duration, OffsetDateTime, PrimitiveDateTime};
-
 use crate::{db::errors, SessionState};
 
 // Constants for retry window management
@@ -67,7 +65,7 @@ pub struct PaymentProcessorTokenWithRetryInfo {
 pub struct RedisTokenManager;
 
 impl RedisTokenManager {
-    /// Lock connector customer status using SETNX
+    /// Lock connector customer 
     #[instrument(skip_all)]
     pub async fn lock_connector_customer_status(
         state: &SessionState,
@@ -340,13 +338,13 @@ impl RedisTokenManager {
             .sum()
     }
 
-    /// Calculate wait hours until a date's midnight UTC
+    /// Calculate wait hours 
     fn calculate_wait_hours(target_date: Date, now: OffsetDateTime) -> i64 {
         let expiry_time = target_date.midnight().assume_utc();
         (expiry_time - now).whole_hours().max(0)
     }
 
-    /// This function safely calculates retry counts for exactly the last 30 days
+    /// Calculate retry counts for exactly the last 30 days
     pub fn payment_processor_token_retry_info(
         state: &SessionState,
         token: &PaymentProcessorTokenStatus,
@@ -390,7 +388,7 @@ impl RedisTokenManager {
         }
     }
 
-
+    // Upsert payment processor token 
     #[instrument(skip_all)]
     pub async fn upsert_payment_processor_token(
         state: &SessionState,
@@ -446,6 +444,7 @@ impl RedisTokenManager {
         Ok(!was_existing)
     }
 
+    // Update payment processor token error code with billing connector response 
     #[instrument(skip_all)]
     pub async fn update_payment_processor_token_error_code_from_process_tracker(
         state: &SessionState,
@@ -515,6 +514,7 @@ impl RedisTokenManager {
         }
     }
 
+    // Update payment processor token schedule time
     #[instrument(skip_all)]
     pub async fn update_payment_processor_token_schedule_time(
         state: &SessionState,
@@ -573,6 +573,7 @@ impl RedisTokenManager {
         }
     }
 
+    // Get payment processor token with schedule time
     #[instrument(skip_all)]
     pub async fn get_payment_processor_token_with_schedule_time(
         state: &SessionState,
@@ -594,6 +595,8 @@ impl RedisTokenManager {
 
         Ok(scheduled_token)
     }
+
+    // Get payment processor token with max retry remaining for cascading retry algorithm
     #[instrument(skip_all)]
     pub async fn get_token_with_max_retry_remaining(
         state: &SessionState,
@@ -622,6 +625,8 @@ impl RedisTokenManager {
         Ok(max_retry_token)
     }
 
+    // Check if all tokens are hard declined or no token found for the customer
+    #[instrument(skip_all)]
     pub async fn are_all_tokens_hard_declined(
         state: &SessionState,
         connector_customer_id: &str,
