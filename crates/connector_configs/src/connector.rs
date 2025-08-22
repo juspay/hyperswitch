@@ -409,6 +409,7 @@ impl ConnectorConfig {
             Connector::Bitpay => Ok(connector_data.bitpay),
             Connector::Bluesnap => Ok(connector_data.bluesnap),
             Connector::Bluecode => Ok(connector_data.bluecode),
+            Connector::Blackhawknetwork => Ok(connector_data.blackhawknetwork),
             Connector::Boku => Ok(connector_data.boku),
             Connector::Braintree => Ok(connector_data.braintree),
             Connector::Breadpay => Ok(connector_data.breadpay),
