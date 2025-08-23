@@ -1098,7 +1098,6 @@ impl PaymentAttemptUpdateInternal {
 
 #[cfg(feature = "v2")]
 impl PaymentAttemptUpdate {
-    // #[allow(clippy::todo)]
     pub fn apply_changeset(self, _source: PaymentAttempt) -> PaymentAttempt {
         todo!()
         // let PaymentAttemptUpdateInternal {
@@ -1326,7 +1325,6 @@ impl PaymentAttemptUpdate {
 
 #[cfg(feature = "v2")]
 impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
-    // #[allow(clippy::todo)]
     fn from(_payment_attempt_update: PaymentAttemptUpdate) -> Self {
         todo!()
         // match payment_attempt_update {
