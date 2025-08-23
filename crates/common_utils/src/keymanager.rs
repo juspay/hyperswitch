@@ -106,13 +106,13 @@ where
     let url = format!("{}/{endpoint}", &state.url);
 
     logger::info!(key_manager_request=?request_body);
-    let mut header = vec![(
+    let mut header = vec![];
+    header.push((
         HeaderName::from_str(CONTENT_TYPE)
             .change_context(errors::KeyManagerClientError::FailedtoConstructHeader)?,
         HeaderValue::from_str("application/json")
             .change_context(errors::KeyManagerClientError::FailedtoConstructHeader)?,
-    )];
-
+    ));
     #[cfg(feature = "km_forward_x_request_id")]
     if let Some(request_id) = state.request_id {
         header.push((
@@ -211,7 +211,7 @@ impl ConvertRaw for TransientBatchDecryptDataRequest {
     fn convert_raw(self) -> Result<Self::Output, errors::KeyManagerClientError> {
         let data = self
             .data
-            .into_iter()
+            .iter()
             .map(|(k, v)| {
                 let value = match String::from_utf8(v.peek().clone()) {
                     Ok(data) => data,
@@ -220,7 +220,7 @@ impl ConvertRaw for TransientBatchDecryptDataRequest {
                         format!("{DEFAULT_ENCRYPTION_VERSION}:{data}")
                     }
                 };
-                (k, StrongSecret::new(value))
+                (k.to_owned(), StrongSecret::new(value))
             })
             .collect();
         Ok(BatchDecryptDataRequest {
