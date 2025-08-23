@@ -148,7 +148,7 @@ pub mod core {
             let tokens = find_all_tokens(&template);
             let mut result = template;
 
-            for token_ref in tokens {
+            for token_ref in tokens.into_iter() {
                 let extracted_field_value = self.extract_field_from_vault_data(
                     vault_data,
                     &token_ref.field,
@@ -253,11 +253,6 @@ pub mod core {
         }
 
         /// Makes an HTTP request to the connector endpoint
-        ///
-        /// Note: We cannot reuse the existing `call_connector_api` function from router services
-        /// because it requires `SessionState` and is tightly coupled to the router's infrastructure.
-        /// The injector crate is designed to be lightweight and independent, operating with
-        /// minimal dependencies and without router-specific state management.
         #[instrument(skip_all)]
         async fn make_http_request(
             &self,
@@ -277,9 +272,9 @@ pub mod core {
             // Validate inputs first
             if config.endpoint_path.is_empty() {
                 logger::error!("Endpoint path is empty");
-                return Err(error_stack::Report::new(InjectorError::InvalidTemplate(
+                Err(error_stack::Report::new(InjectorError::InvalidTemplate(
                     "Endpoint path cannot be empty".to_string(),
-                )));
+                )))?;
             }
 
             // Construct URL safely by joining base URL with endpoint path
@@ -424,7 +419,7 @@ pub mod core {
                     response_length = response_text.len(),
                     "Response from connector is too large, potential DoS or memory exhaustion"
                 );
-                return Err(error_stack::Report::new(InjectorError::HttpRequestFailed));
+                Err(error_stack::Report::new(InjectorError::HttpRequestFailed))?;
             }
 
             logger::debug!(
