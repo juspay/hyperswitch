@@ -58,28 +58,25 @@ pub mod core {
 
         // Configure proxy if provided
         if let Some(proxy_url) = &client_proxy.https_url {
-            let proxy = reqwest::Proxy::https(proxy_url)
-                .map_err(|e| {
-                    logger::error!("Failed to configure HTTPS proxy: {}", e);
-                    error_stack::Report::new(InjectorError::HttpRequestFailed)
-                })?;
+            let proxy = reqwest::Proxy::https(proxy_url).map_err(|e| {
+                logger::error!("Failed to configure HTTPS proxy: {}", e);
+                error_stack::Report::new(InjectorError::HttpRequestFailed)
+            })?;
             client_builder = client_builder.proxy(proxy);
         }
 
         if let Some(proxy_url) = &client_proxy.http_url {
-            let proxy = reqwest::Proxy::http(proxy_url)
-                .map_err(|e| {
-                    logger::error!("Failed to configure HTTP proxy: {}", e);
-                    error_stack::Report::new(InjectorError::HttpRequestFailed)
-                })?;
+            let proxy = reqwest::Proxy::http(proxy_url).map_err(|e| {
+                logger::error!("Failed to configure HTTP proxy: {}", e);
+                error_stack::Report::new(InjectorError::HttpRequestFailed)
+            })?;
             client_builder = client_builder.proxy(proxy);
         }
 
-        let client = client_builder.build()
-            .map_err(|e| {
-                logger::error!("Failed to build HTTP client: {}", e);
-                error_stack::Report::new(InjectorError::HttpRequestFailed)
-            })?;
+        let client = client_builder.build().map_err(|e| {
+            logger::error!("Failed to build HTTP client: {}", e);
+            error_stack::Report::new(InjectorError::HttpRequestFailed)
+        })?;
 
         // Build the request
         let method = match request.method {
@@ -120,11 +117,10 @@ pub mod core {
         }
 
         // Send the request
-        let response = req_builder.send().await
-            .map_err(|e| {
-                logger::error!("HTTP request failed: {}", e);
-                error_stack::Report::new(InjectorError::HttpRequestFailed)
-            })?;
+        let response = req_builder.send().await.map_err(|e| {
+            logger::error!("HTTP request failed: {}", e);
+            error_stack::Report::new(InjectorError::HttpRequestFailed)
+        })?;
 
         Ok(response)
     }
@@ -506,8 +502,7 @@ pub mod core {
 
             // Send request using local standalone http client
             logger::debug!("Sending HTTP request to connector");
-            let response = send_request(&proxy, request, None)
-                .await?;
+            let response = send_request(&proxy, request, None).await?;
 
             logger::info!(
                 status_code = response.status().as_u16(),
@@ -729,10 +724,7 @@ mod tests {
                 &VaultConnectors::VGS,
             )
             .unwrap();
-        assert_eq!(
-            vgs_result,
-            serde_json::Value::String("TOKEN".to_string())
-        );
+        assert_eq!(vgs_result, serde_json::Value::String("TOKEN".to_string()));
     }
 
     #[tokio::test]
