@@ -8,14 +8,13 @@ license.workspace = true
 
 [features]
 default = [
-    "dep:hyperswitch_interfaces",
-    "dep:common_utils",
-    "dep:external_services",
+    "dep:common_utils", 
     "dep:masking",
     "dep:router_env",
     "dep:async-trait",
     "dep:error-stack",
     "dep:nom",
+    "dep:reqwest",
     "dep:serde",
     "dep:serde_json",
     "dep:thiserror",
@@ -23,21 +22,18 @@ default = [
     "dep:url"
 ]
 
-v1 = ["default"]
-v2 = ["default"] 
 serde = ["default"]
 tracing-actix-web = ["default"]
 
 [dependencies]
-hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces", optional = true }
 common_utils = { version = "0.1.0", path = "../common_utils", optional = true }
-external_services = { version = "0.1.0", path = "../external_services", optional = true }
 masking = { version = "0.1.0", path = "../masking", optional = true }
 router_env = { version = "0.1.0", path = "../router_env", optional = true }
 
 async-trait = { version = "0.1.88", optional = true }
 error-stack = { version = "0.4.1", optional = true }
 nom = { version = "7.1.3", optional = true }
+reqwest = { version = "0.12.0", features = ["json", "stream"], optional = true }
 serde = { version = "1.0.219", features = ["derive"], optional = true }
 serde_json = { version = "1.0.140", optional = true }
 thiserror = { version = "1.0.69", optional = true }

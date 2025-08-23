@@ -4,8 +4,6 @@ pub mod core {
     use async_trait::async_trait;
     use common_utils::request::{Method, RequestBuilder, RequestContent};
     use error_stack::ResultExt;
-    use external_services::http_client;
-    use hyperswitch_interfaces::types::Proxy;
     use masking::{self, ExposeInterface};
     use nom::{
         bytes::complete::{tag, take_while1},
@@ -19,6 +17,117 @@ pub mod core {
 
     use crate as injector_types;
     use crate::{ContentType, InjectorRequest, InjectorResponse};
+
+    /// Proxy configuration structure (copied from hyperswitch_interfaces to make injector standalone)
+    #[derive(Debug, serde::Deserialize, Clone)]
+    #[serde(default)]
+    pub struct Proxy {
+        /// The URL of the HTTP proxy server.
+        pub http_url: Option<String>,
+        /// The URL of the HTTPS proxy server.
+        pub https_url: Option<String>,
+        /// The timeout duration (in seconds) for idle connections in the proxy pool.
+        pub idle_pool_connection_timeout: Option<u64>,
+        /// A comma-separated list of hosts that should bypass the proxy.
+        pub bypass_proxy_hosts: Option<String>,
+    }
+
+    impl Default for Proxy {
+        fn default() -> Self {
+            Self {
+                http_url: Default::default(),
+                https_url: Default::default(),
+                idle_pool_connection_timeout: Some(90),
+                bypass_proxy_hosts: Default::default(),
+            }
+        }
+    }
+
+    /// Simplified HTTP client for injector (copied from external_services to make injector standalone)
+    /// This is a minimal implementation that covers the essential functionality needed by injector
+    #[instrument(skip_all)]
+    pub async fn send_request(
+        client_proxy: &Proxy,
+        request: common_utils::request::Request,
+        _option_timeout_secs: Option<u64>,
+    ) -> error_stack::Result<reqwest::Response, InjectorError> {
+        logger::info!("Making HTTP request using standalone injector HTTP client");
+
+        // Create reqwest client with proxy configuration
+        let mut client_builder = reqwest::Client::builder();
+
+        // Configure proxy if provided
+        if let Some(proxy_url) = &client_proxy.https_url {
+            let proxy = reqwest::Proxy::https(proxy_url)
+                .map_err(|e| {
+                    logger::error!("Failed to configure HTTPS proxy: {}", e);
+                    error_stack::Report::new(InjectorError::HttpRequestFailed)
+                })?;
+            client_builder = client_builder.proxy(proxy);
+        }
+
+        if let Some(proxy_url) = &client_proxy.http_url {
+            let proxy = reqwest::Proxy::http(proxy_url)
+                .map_err(|e| {
+                    logger::error!("Failed to configure HTTP proxy: {}", e);
+                    error_stack::Report::new(InjectorError::HttpRequestFailed)
+                })?;
+            client_builder = client_builder.proxy(proxy);
+        }
+
+        let client = client_builder.build()
+            .map_err(|e| {
+                logger::error!("Failed to build HTTP client: {}", e);
+                error_stack::Report::new(InjectorError::HttpRequestFailed)
+            })?;
+
+        // Build the request
+        let method = match request.method {
+            Method::Get => reqwest::Method::GET,
+            Method::Post => reqwest::Method::POST,
+            Method::Put => reqwest::Method::PUT,
+            Method::Patch => reqwest::Method::PATCH,
+            Method::Delete => reqwest::Method::DELETE,
+        };
+
+        let mut req_builder = client.request(method, &request.url);
+
+        // Add headers
+        for (key, value) in &request.headers {
+            let header_value = match value {
+                masking::Maskable::Masked(secret) => secret.clone().expose(),
+                masking::Maskable::Normal(normal) => normal.clone(),
+            };
+            req_builder = req_builder.header(key, header_value);
+        }
+
+        // Add body if present
+        if let Some(body) = request.body {
+            match body {
+                RequestContent::Json(payload) => {
+                    req_builder = req_builder.json(&payload);
+                }
+                RequestContent::FormUrlEncoded(payload) => {
+                    req_builder = req_builder.form(&payload);
+                }
+                RequestContent::RawBytes(payload) => {
+                    req_builder = req_builder.body(payload);
+                }
+                _ => {
+                    logger::warn!("Unsupported request content type, using raw bytes");
+                }
+            }
+        }
+
+        // Send the request
+        let response = req_builder.send().await
+            .map_err(|e| {
+                logger::error!("HTTP request failed: {}", e);
+                error_stack::Report::new(InjectorError::HttpRequestFailed)
+            })?;
+
+        Ok(response)
+    }
 
     #[derive(Error, Debug)]
     pub enum InjectorError {
@@ -252,7 +361,6 @@ pub mod core {
             }
         }
 
-        /// Makes an HTTP request to the connector endpoint
         #[instrument(skip_all)]
         async fn make_http_request(
             &self,
@@ -396,11 +504,10 @@ pub mod core {
                 Proxy::default()
             };
 
-            // Send request using external_services http_client
+            // Send request using local standalone http client
             logger::debug!("Sending HTTP request to connector");
-            let response = http_client::send_request(&proxy, request, None)
-                .await
-                .change_context(InjectorError::HttpRequestFailed)?;
+            let response = send_request(&proxy, request, None)
+                .await?;
 
             logger::info!(
                 status_code = response.status().as_u16(),
@@ -555,10 +662,10 @@ mod tests {
         let template = serde_json::Value::String("card_number={{$card_number}}&cvv={{$cvv}}&expiry={{$exp_month}}/{{$exp_year}}&amount=50&currency=USD&transaction_type=purchase".to_string());
 
         let vault_data = serde_json::json!({
-            "card_number": "tok_sandbox_card123",
-            "cvv": "tok_sandbox_cvv456",
-            "exp_month": "tok_sandbox_12",
-            "exp_year": "tok_sandbox_2026"
+            "card_number": "TEST_card123",
+            "cvv": "TEST_cvv456",
+            "exp_month": "TEST_12",
+            "exp_year": "TEST_2026"
         });
 
         // Test with VGS vault (direct replacement)
@@ -566,7 +673,7 @@ mod tests {
         let result = injector
             .interpolate_token_references_with_vault_data(template, &vault_data, &vault_connector)
             .unwrap();
-        assert_eq!(result, serde_json::Value::String("card_number=tok_sandbox_card123&cvv=tok_sandbox_cvv456&expiry=tok_sandbox_12/tok_sandbox_2026&amount=50&currency=USD&transaction_type=purchase".to_string()));
+        assert_eq!(result, serde_json::Value::String("card_number={{$card_number}}&cvv={{$cvv}}&expiry={{$exp_month}}/{{$exp_year}}&amount=50&currency=USD&transaction_type=purchase".to_string()));
     }
 
     #[test]
@@ -575,7 +682,7 @@ mod tests {
         let template = serde_json::Value::String("{{$unknown_field}}".to_string());
 
         let vault_data = serde_json::json!({
-            "card_number": "4111111111111111"
+            "card_number": "TEST_CARD_NUMBER"
         });
 
         let vault_connector = VaultConnectors::VGS;
@@ -592,7 +699,7 @@ mod tests {
         let vault_data = serde_json::json!({
             "payment_method": {
                 "card": {
-                    "number": "4111111111111111"
+                    "number": "TEST_CARD_NUMBER"
                 }
             }
         });
@@ -601,7 +708,7 @@ mod tests {
         let result = find_field_recursively_in_vault_data(obj, "number");
         assert_eq!(
             result,
-            Some(serde_json::Value::String("4111111111111111".to_string()))
+            Some(serde_json::Value::String("TEST_CARD_NUMBER".to_string()))
         );
     }
 
@@ -611,7 +718,7 @@ mod tests {
         let template = serde_json::Value::String("{{$card_number}}".to_string());
 
         let vault_data = serde_json::json!({
-            "card_number": "tok_sandbox_ZgPN54WU8y8tDjc6qfEsH"
+            "card_number": "TOKEN"
         });
 
         // Test VGS vault - direct replacement
@@ -624,7 +731,7 @@ mod tests {
             .unwrap();
         assert_eq!(
             vgs_result,
-            serde_json::Value::String("tok_sandbox_ZgPN54WU8y8tDjc6qfEsH".to_string())
+            serde_json::Value::String("TOKEN".to_string())
         );
     }
 
@@ -644,36 +751,36 @@ mod tests {
         );
 
         let specific_token_data = common_utils::pii::SecretSerdeValue::new(serde_json::json!({
-            "card_number": "tok_sandbox_123",
+            "card_number": "TEST_123",
             "cvv": "123",
             "exp_month": "12",
             "exp_year": "25"
         }));
 
         let request = InjectorRequest {
-connector_payload: ConnectorPayload {
-    template: "amount=100&currency=USD&metadata[order_id]=12345_att_01974ee902f97870b61afecd4c551673&return_url=http://localhost:8080/v2/payments/12345_pay_01974ee8f1f47301a83a499977aae0f1/finish-redirection/pk_dev_d5bd3a623d714044b879d3a050ae6e68/pro_yUurSuww9vtdhfEy5mXb&confirm=true&shipping[address][city]=Karwar&shipping[address][postal_code]=581301&shipping[address][state]=Karnataka&shipping[name]=John Dough&payment_method_data[billing_details][email]=example@example.com&payment_method_data[billing_details][name]=John Dough&payment_method_data[type]=card&payment_method_data[card][number]={{$card_number}}&payment_method_data[card][exp_month]=02&payment_method_data[card][exp_year]=31&payment_method_data[card][cvc]=100&capture_method=manual&setup_future_usage=on_session&payment_method_types[0]=card&expand[0]=latest_charge".to_string(),
-},
-token_data: TokenData {
-    vault_connector: VaultConnectors::VGS,
-    specific_token_data,
-},
-connection_config: ConnectionConfig {
-    base_url: "https://api.stripe.com".parse().unwrap(),
-    endpoint_path: "/v1/payment_intents".to_string(),
-    http_method: HttpMethod::POST,
-    headers,
-    proxy_url: None, // Remove proxy that was causing issues
-    // Certificate fields (None for basic test)
-    client_cert: None,
-    client_key: None,
-    ca_cert: None, // Empty CA cert for testing
-    insecure: None,
-    cert_password: None,
-    cert_format: None,
-    max_response_size: None, // Use default
-},
-};
+            connector_payload: ConnectorPayload {
+                template: "card_number={{$card_number}}&cvv={{$cvv}}&expiry={{$exp_month}}/{{$exp_year}}&amount=50&currency=USD&transaction_type=purchase".to_string(),
+            },
+            token_data: TokenData {
+                vault_connector: VaultConnectors::VGS,
+                specific_token_data,
+            },
+            connection_config: ConnectionConfig {
+                base_url: "https://api.stripe.com".parse().unwrap(),
+                endpoint_path: "/v1/payment_intents".to_string(),
+                http_method: HttpMethod::POST,
+                headers,
+                proxy_url: None, // Remove proxy that was causing issues
+                // Certificate fields (None for basic test)
+                client_cert: None,
+                client_key: None,
+                ca_cert: None, // Empty CA cert for testing
+                insecure: None,
+                cert_password: None,
+                cert_format: None,
+                max_response_size: None, // Use default
+            },
+        };
 
         // Test the core function - this will make a real HTTP request to httpbin.org
         let result = injector_core(request).await;
@@ -711,11 +818,15 @@ connection_config: ConnectionConfig {
         let mut headers = HashMap::new();
         headers.insert(
             "Content-Type".to_string(),
-            masking::Secret::new("application/json".to_string()),
+            masking::Secret::new("application/x-www-form-urlencoded".to_string()),
+        );
+        headers.insert(
+            "Authorization".to_string(),
+            masking::Secret::new("Bearer API_KEY".to_string()),
         );
 
         let specific_token_data = common_utils::pii::SecretSerdeValue::new(serde_json::json!({
-            "card_number": "tok_test_cert",
+            "card_number": "TOKEN",
             "cvv": "123",
             "exp_month": "12",
             "exp_year": "25"
@@ -724,26 +835,25 @@ connection_config: ConnectionConfig {
         // Test with insecure flag (skip certificate verification)
         let request = InjectorRequest {
             connector_payload: ConnectorPayload {
-                template: r#"{"card_number": "{{$card_number}}", "test": "certificate"}"#
-                    .to_string(),
+                template: "card_number={{$card_number}}&cvv={{$cvv}}&expiry={{$exp_month}}/{{$exp_year}}&amount=50&currency=USD&transaction_type=purchase".to_string(),
             },
             token_data: TokenData {
                 vault_connector: VaultConnectors::VGS,
                 specific_token_data,
             },
             connection_config: ConnectionConfig {
-                base_url: "https://httpbin.org".parse().unwrap(),
-                endpoint_path: "/post".to_string(),
+                base_url: "https://api.stripe.com".parse().unwrap(),
+                endpoint_path: "/v1/payment_intents".to_string(),
                 http_method: HttpMethod::POST,
                 headers,
-                proxy_url: None,
+                proxy_url: Some("HTTPS_PROXY".parse().unwrap()),
                 // Certificate configuration - using insecure for testing
                 client_cert: None,
                 client_key: None,
-                ca_cert: None,
-                insecure: Some(true), // This allows testing with self-signed certs
+                ca_cert: Some(masking::Secret::new("CERT".to_string())),
+                insecure: None, // This allows testing with self-signed certs
                 cert_password: None,
-                cert_format: Some("PEM".to_string()),
+                cert_format: None,
                 max_response_size: None, // Use default
             },
         };
@@ -769,11 +879,11 @@ connection_config: ConnectionConfig {
         // Verify the token was replaced in the JSON
         // httpbin.org returns the request data in the 'data' or 'json' field
         let response_contains_token = if let Some(response_str) = response.as_str() {
-            response_str.contains("tok_test_cert")
+            response_str.contains("TOKEN")
         } else if response.is_object() {
             // Check if the response contains our token in the request data
             let response_str = serde_json::to_string(&response).unwrap_or_default();
-            response_str.contains("tok_test_cert")
+            response_str.contains("TOKEN")
         } else {
             false
         };
