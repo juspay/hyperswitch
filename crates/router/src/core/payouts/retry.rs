@@ -144,15 +144,23 @@ pub async fn get_retries(
             use open_feature::EvaluationContext;
             let context = EvaluationContext {
                 custom_fields: HashMap::from([
-                    ("merchant_id".to_string(), open_feature::EvaluationContextFieldValue::String(merchant_id.get_string_repr().to_string())),
-                    ("payout_retry_type".to_string(), open_feature::EvaluationContextFieldValue::String(match retry_type {
-                        PayoutRetryType::SingleConnector => "single_connector".to_string(),
-                        PayoutRetryType::MultiConnector => "multi_connector".to_string(),
-                    })),
+                    (
+                        "merchant_id".to_string(),
+                        open_feature::EvaluationContextFieldValue::String(
+                            merchant_id.get_string_repr().to_string(),
+                        ),
+                    ),
+                    (
+                        "payout_retry_type".to_string(),
+                        open_feature::EvaluationContextFieldValue::String(match retry_type {
+                            PayoutRetryType::SingleConnector => "single_connector".to_string(),
+                            PayoutRetryType::MultiConnector => "multi_connector".to_string(),
+                        }),
+                    ),
                 ]),
                 targeting_key: Some(merchant_id.get_string_repr().to_string()),
             };
-            
+
             if let Some(superposition_client) = &state.superposition_client {
                 superposition_client
                     .get_int_value("max_auto_single_connector_payout_retries_count", Some(&context), None)
@@ -307,17 +315,24 @@ pub async fn config_should_call_gsm_payout(
     merchant_id: &common_utils::id_type::MerchantId,
     retry_type: PayoutRetryType,
 ) -> bool {
-
     use open_feature::EvaluationContext;
     let context = EvaluationContext {
         custom_fields: HashMap::from([
-            ("merchant_id".to_string(),open_feature::EvaluationContextFieldValue::String(merchant_id.get_string_repr().to_string())),
-            ("payout_retry_type".to_string(),open_feature::EvaluationContextFieldValue::String(match retry_type {
-                PayoutRetryType::SingleConnector => "single_connector".to_string(),
-                PayoutRetryType::MultiConnector => "multi_connector".to_string(),
-            })),
+            (
+                "merchant_id".to_string(),
+                open_feature::EvaluationContextFieldValue::String(
+                    merchant_id.get_string_repr().to_string(),
+                ),
+            ),
+            (
+                "payout_retry_type".to_string(),
+                open_feature::EvaluationContextFieldValue::String(match retry_type {
+                    PayoutRetryType::SingleConnector => "single_connector".to_string(),
+                    PayoutRetryType::MultiConnector => "multi_connector".to_string(),
+                }),
+            ),
         ]),
-        targeting_key: Some(merchant_id.get_string_repr().to_string())
+        targeting_key: Some(merchant_id.get_string_repr().to_string()),
     };
     let mut should_call_gsm_payout_key = false;
     if let Some(superposition_client) = &state.superposition_client {

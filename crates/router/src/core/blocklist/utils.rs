@@ -1,10 +1,11 @@
+use std::collections::HashMap;
+
 use api_models::blocklist as api_blocklist;
 use common_enums::MerchantDecision;
 use common_utils::errors::CustomResult;
 use diesel_models::configs;
 use error_stack::ResultExt;
 use masking::StrongSecret;
-use std::collections::HashMap;
 
 use super::{errors, transformers::generate_fingerprint, SessionState};
 use crate::{
@@ -75,12 +76,8 @@ pub async fn toggle_blocklist_guard_for_merchant(
         let updated_config = configs::ConfigUpdate::Update {
             config: Some(query.status.to_string()),
         };
-        match state
-            .store
-            .update_config_by_key(&key, updated_config)
-            .await
-        {
-            Ok(_) => {},
+        match state.store.update_config_by_key(&key, updated_config).await {
+            Ok(_) => {}
             Err(e) if e.current_context().is_db_not_found() => {
                 state
                     .store

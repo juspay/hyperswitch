@@ -232,8 +232,16 @@ pub async fn is_step_up_enabled_for_merchant_connector(
     use open_feature::EvaluationContext;
     let context = EvaluationContext {
         custom_fields: HashMap::from([
-            ("merchant_id".to_string(),open_feature::EvaluationContextFieldValue::String(merchant_id.get_string_repr().to_string())),
-            ("connector".to_string(),open_feature::EvaluationContextFieldValue::String(connector_name.to_string()))
+            (
+                "merchant_id".to_string(),
+                open_feature::EvaluationContextFieldValue::String(
+                    merchant_id.get_string_repr().to_string(),
+                ),
+            ),
+            (
+                "connector".to_string(),
+                open_feature::EvaluationContextFieldValue::String(connector_name.to_string()),
+            ),
         ]),
         targeting_key: Some(merchant_id.get_string_repr().to_string()),
     };
@@ -270,7 +278,10 @@ pub async fn get_merchant_max_auto_retries_enabled(
             .get_int_value("max_auto_payment_retry_count", Some(&context), None)
             .await
             .inspect_err(|error| {
-                logger::error!(?error, "Failed to fetch max_auto_payment_retry_count from Superposition");
+                logger::error!(
+                    ?error,
+                    "Failed to fetch max_auto_payment_retry_count from Superposition"
+                );
             })
             .ok()
             .and_then(|val| Some(val as i32));
@@ -758,9 +769,10 @@ pub async fn get_merchant_config_for_gsm(
     state: &app::SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
 ) -> bool {
-    use open_feature::EvaluationContext;
     use std::collections::HashMap;
-    
+
+    use open_feature::EvaluationContext;
+
     let context = EvaluationContext {
         custom_fields: HashMap::from([(
             "merchant_id".to_string(),

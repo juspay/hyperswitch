@@ -1446,7 +1446,7 @@ pub async fn get_additional_payout_data(
             } else {
                 None
             };
-            
+
             let last4 = Some(card_data.card_number.get_last4());
 
             let card_info = card_isin
