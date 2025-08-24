@@ -673,7 +673,7 @@ mod tests {
         let result = injector
             .interpolate_token_references_with_vault_data(template, &vault_data, &vault_connector)
             .unwrap();
-        assert_eq!(result, serde_json::Value::String("card_number={{$card_number}}&cvv={{$cvv}}&expiry={{$exp_month}}/{{$exp_year}}&amount=50&currency=USD&transaction_type=purchase".to_string()));
+        assert_eq!(result, serde_json::Value::String("card_number=TEST_card123&cvv=TEST_cvv456&expiry=TEST_12/TEST_2026&amount=50&currency=USD&transaction_type=purchase".to_string()));
     }
 
     #[test]
@@ -736,6 +736,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "Integration test that requires network access"]
     async fn test_injector_core_integration() {
         use std::collections::HashMap;
 
@@ -812,6 +813,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "Integration test that requires network access"]
     async fn test_certificate_configuration() {
         use std::collections::HashMap;
 
@@ -846,7 +848,7 @@ mod tests {
                 endpoint_path: "/v1/payment_intents".to_string(),
                 http_method: HttpMethod::POST,
                 headers,
-                proxy_url: Some("HTTPS_PROXY".parse().unwrap()),
+                proxy_url: Some("https://proxy.example.com:8443".parse().unwrap()),
                 // Certificate configuration - using insecure for testing
                 client_cert: None,
                 client_key: None,
