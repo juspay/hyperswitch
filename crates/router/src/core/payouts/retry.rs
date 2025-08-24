@@ -1,4 +1,4 @@
-use std::vec::IntoIter;
+use std::{collections::HashMap, vec::IntoIter};
 
 use common_enums::PayoutRetryType;
 use error_stack::ResultExt;
@@ -13,7 +13,6 @@ use crate::{
         errors::{self, RouterResult, StorageErrorExt},
         payouts,
     },
-    db::StorageInterface,
     routes::{self, app, metrics},
     types::{api, domain, storage},
     utils,
@@ -142,23 +141,30 @@ pub async fn get_retries(
     match retries {
         Some(retries) => Some(retries),
         None => {
-            let key = merchant_id.get_max_auto_single_connector_payout_retries_enabled(retry_type);
-            let db = &*state.store;
-            db.find_config_by_key(key.as_str())
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .and_then(|retries_config| {
-                    retries_config
-                        .config
-                        .parse::<i32>()
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Retries config parsing failed")
-                })
-                .map_err(|err| {
-                    logger::error!(retries_error=?err);
-                    None::<i32>
-                })
-                .ok()
+            use open_feature::EvaluationContext;
+            let context = EvaluationContext {
+                custom_fields: HashMap::from([
+                    ("merchant_id".to_string(), open_feature::EvaluationContextFieldValue::String(merchant_id.get_string_repr().to_string())),
+                    ("payout_retry_type".to_string(), open_feature::EvaluationContextFieldValue::String(match retry_type {
+                        PayoutRetryType::SingleConnector => "single_connector".to_string(),
+                        PayoutRetryType::MultiConnector => "multi_connector".to_string(),
+                    })),
+                ]),
+                targeting_key: Some(merchant_id.get_string_repr().to_string()),
+            };
+            
+            if let Some(superposition_client) = &state.superposition_client {
+                superposition_client
+                    .get_int_value("max_auto_single_connector_payout_retries_count", Some(&context), None)
+                    .await
+                    .inspect_err(|error| {
+                        logger::error!(?error, "Failed to fetch max_auto_single_connector_payout_retries_count from Superposition");
+                    })
+                    .ok()
+                    .and_then(|val| Some(val as i32))
+            } else {
+                None
+            }
         }
     }
 }
@@ -297,21 +303,30 @@ pub async fn modify_trackers(
 }
 
 pub async fn config_should_call_gsm_payout(
-    db: &dyn StorageInterface,
+    state: &app::SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
     retry_type: PayoutRetryType,
 ) -> bool {
-    let key = merchant_id.get_should_call_gsm_payout_key(retry_type);
-    let config = db
-        .find_config_by_key_unwrap_or(key.as_str(), Some("false".to_string()))
-        .await;
-    match config {
-        Ok(conf) => conf.config == "true",
-        Err(error) => {
-            logger::error!(?error);
-            false
-        }
+
+    use open_feature::EvaluationContext;
+    let context = EvaluationContext {
+        custom_fields: HashMap::from([
+            ("merchant_id".to_string(),open_feature::EvaluationContextFieldValue::String(merchant_id.get_string_repr().to_string())),
+            ("payout_retry_type".to_string(),open_feature::EvaluationContextFieldValue::String(match retry_type {
+                PayoutRetryType::SingleConnector => "single_connector".to_string(),
+                PayoutRetryType::MultiConnector => "multi_connector".to_string(),
+            })),
+        ]),
+        targeting_key: Some(merchant_id.get_string_repr().to_string())
+    };
+    let mut should_call_gsm_payout_key = false;
+    if let Some(superposition_client) = &state.superposition_client {
+        should_call_gsm_payout_key = superposition_client
+            .get_bool_value("gsm_payout_call_enabled", Some(&context), None)
+            .await
+            .unwrap_or(false);
     }
+    should_call_gsm_payout_key
 }
 
 pub trait GsmValidation {

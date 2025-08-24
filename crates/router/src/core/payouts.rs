@@ -182,7 +182,7 @@ pub async fn make_connector_decision(
             #[cfg(feature = "payout_retry")]
             {
                 let config_bool = retry::config_should_call_gsm_payout(
-                    &*state.store,
+                    state,
                     merchant_context.get_merchant_account().get_id(),
                     PayoutRetryType::SingleConnector,
                 )
@@ -217,7 +217,7 @@ pub async fn make_connector_decision(
             #[cfg(feature = "payout_retry")]
             {
                 let config_multiple_connector_bool = retry::config_should_call_gsm_payout(
-                    &*state.store,
+                    state,
                     merchant_context.get_merchant_account().get_id(),
                     PayoutRetryType::MultiConnector,
                 )
@@ -235,7 +235,7 @@ pub async fn make_connector_decision(
                 }
 
                 let config_single_connector_bool = retry::config_should_call_gsm_payout(
-                    &*state.store,
+                    state,
                     merchant_context.get_merchant_account().get_id(),
                     PayoutRetryType::SingleConnector,
                 )
@@ -2777,7 +2777,7 @@ pub async fn payout_create_db_entries(
         .clone()
         .or(stored_payout_method_data.cloned())
         .async_and_then(|payout_method_data| async move {
-            helpers::get_additional_payout_data(&payout_method_data, &*state.store, profile_id)
+            helpers::get_additional_payout_data(state.clone(),&payout_method_data, &*state.store, profile_id)
                 .await
         })
         .await;
@@ -2977,7 +2977,7 @@ pub async fn make_payout_data(
 
     if let Some(payout_method_data) = payout_method_data_req.clone() {
         let additional_payout_method_data =
-            helpers::get_additional_payout_data(&payout_method_data, &*state.store, &profile_id)
+            helpers::get_additional_payout_data(state.clone(),&payout_method_data, &*state.store, &profile_id)
                 .await;
 
         let update_additional_payout_method_data =

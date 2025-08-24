@@ -990,7 +990,7 @@ where
                     {
                         use crate::core::payments::retry::{self, GsmValidation};
                         let config_bool = retry::config_should_call_gsm(
-                            &*state.store,
+                            state,
                             merchant_context.get_merchant_account().get_id(),
                             &business_profile,
                         )
@@ -3702,36 +3702,20 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             .encode_to_string_of_json()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error while stringifying default poll config")?;
-
-        use open_feature::EvaluationContext;
-        let context = EvaluationContext {
-            custom_fields: HashMap::from([(
-                "connector".to_string(),
-                open_feature::EvaluationContextFieldValue::String(connector.clone().to_string()),
-            )]),
-            targeting_key: Some(connector.clone()), //todo
-        };
-        let poll_config: router_types::PollConfig = state
-            .superposition_client
-            .as_deref()
-            .ok_or_else(|| {
-                error_stack::report!(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Superposition client not initialized")
-            })?
-            .get_struct_value::<router_types::PollConfig>(
-                "poll_config_external_three_ds",
-                Some(&context),
-                None,
+        let poll_config = state
+            .store
+            .find_config_by_key_unwrap_or(
+                &router_types::PollConfig::get_poll_config_key(connector),
+                Some(default_config_str),
             )
             .await
-            .map_err(|e| {
-                error_stack::report!(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(format!(
-                        "Failed to get PollConfig from Superposition: {:?}",
-                        e
-                    ))
-            })?;
-
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("The poll config was not found in the DB")?;
+        let poll_config: router_types::PollConfig = poll_config
+            .config
+            .parse_struct("PollConfig")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error while parsing PollConfig")?;
         let profile_id = payments_response
             .profile_id
             .as_ref()
@@ -8601,7 +8585,7 @@ where
 
             #[cfg(feature = "retry")]
             let should_do_retry = retry::config_should_call_gsm(
-                &*state.store,
+                &state,
                 merchant_context.get_merchant_account().get_id(),
                 business_profile,
             )

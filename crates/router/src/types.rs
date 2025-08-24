@@ -15,7 +15,6 @@ pub mod fraud_check;
 pub mod payment_methods;
 pub mod pm_auth;
 use masking::Secret;
-use open_feature::StructValue;
 pub mod storage;
 pub mod transformers;
 use std::marker::PhantomData;
@@ -130,7 +129,7 @@ use crate::{
     consts,
     core::payments::{OperationSessionGetters, PaymentData},
     services,
-    types::transformers::{ForeignFrom, ForeignTryFrom}, utils::superposition::openfeature_value_to_json,
+    types::transformers::{ForeignFrom, ForeignTryFrom},
 };
 
 pub type PaymentsAuthorizeRouterData =
@@ -683,17 +682,9 @@ pub struct PollConfig {
     pub frequency: i8,
 }
 
-impl TryFrom<StructValue> for PollConfig {
-    type Error = serde_json::Error;
-
-    fn try_from(val: StructValue) -> Result<Self, Self::Error> {
-        let json_map = val
-            .fields
-            .into_iter()
-            .map(|(k, v)| (k, openfeature_value_to_json(v))) 
-            .collect::<serde_json::Map<_, _>>();
-
-        serde_json::from_value(serde_json::Value::Object(json_map))
+impl PollConfig {
+    pub fn get_poll_config_key(connector: String) -> String {
+        format!("poll_config_external_three_ds_{connector}")
     }
 }
 

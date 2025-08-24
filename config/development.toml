@@ -1,6 +1,6 @@
 [superposition]
 enabled = true
-endpoint = "http://localhost:8080/"
+endpoint = "http://localhost:8081/"
 token = ""
 org_id = "localorg"
 workspace_id = "dev"

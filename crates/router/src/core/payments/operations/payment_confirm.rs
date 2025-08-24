@@ -1,4 +1,4 @@
-use std::{collections::HashMap, marker::PhantomData};
+use std::marker::PhantomData;
 
 #[cfg(feature = "v1")]
 use api_models::payment_methods::PaymentMethodsData;
@@ -480,6 +480,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .as_ref()
             .and_then(|pmd| pmd.payment_method_data.clone());
 
+        let cloned_state = state.clone();
         let store = state.clone().store;
         let profile_id = payment_intent
             .profile_id
@@ -492,8 +493,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             async move {
                 Ok(n_request_payment_method_data
                     .async_map(|payment_method_data| async move {
+                        let payment_method_data_domain = payment_method_data.into();
                         helpers::get_additional_payment_data(
-                            &payment_method_data.into(),
+                            cloned_state.clone(),
+                            &payment_method_data_domain,
                             store.as_ref(),
                             &profile_id,
                         )
@@ -1514,17 +1517,16 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             &types::PollConfig::get_poll_config_key(
                                 authentication_connector.clone(),
                             ),
-                        )]),
-                        targeting_key: Some("connector".to_string()), //todo
-                    };
-                    let mut poll_config = types::PollConfig::default();
-                    if let Some(superposition_client) = &state.superposition_client {
-                        poll_config = superposition_client
-                            .get_struct_value::<types::PollConfig>("poll_config_external_three_ds", Some(&context), None)
-                            .await
-                            .unwrap_or(types::PollConfig::default());
-                    }
-
+                            Some(default_config_str),
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("The poll config was not found in the DB")?;
+                    let poll_config: types::PollConfig = poll_config
+                        .config
+                        .parse_struct("PollConfig")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Error while parsing PollConfig")?;
                     payment_data.poll_config = Some(poll_config)
                 }
                 },
@@ -1808,7 +1810,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .payment_method_data
             .as_ref()
             .async_map(|payment_method_data| async {
-                helpers::get_additional_payment_data(payment_method_data, &*state.store, profile_id)
+                helpers::get_additional_payment_data(state.clone(), payment_method_data, &*state.store, profile_id)
                     .await
             })
             .await

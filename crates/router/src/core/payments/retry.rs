@@ -1,4 +1,4 @@
-use std::{collections::HashMap, str::FromStr, vec::IntoIter};
+use std::{collections::HashMap, vec::IntoIter};
 
 use common_utils::{ext_traits::Encode, types::MinorUnit};
 use diesel_models::enums as storage_enums;
@@ -19,7 +19,6 @@ use crate::{
         },
         routing::helpers as routing_helpers,
     },
-    db::StorageInterface,
     routes::{
         self,
         app::{self, ReqState},
@@ -232,15 +231,13 @@ pub async fn is_step_up_enabled_for_merchant_connector(
 ) -> bool {
     use open_feature::EvaluationContext;
     let context = EvaluationContext {
-        custom_fields: HashMap::from([(
-            "merchant_id".to_string(),
-            open_feature::EvaluationContextFieldValue::String(
-                merchant_id.get_string_repr().to_string(),
-            ),
-        )]),
-        targeting_key: Some(merchant_id.get_string_repr().to_string()), //todo
+        custom_fields: HashMap::from([
+            ("merchant_id".to_string(),open_feature::EvaluationContextFieldValue::String(merchant_id.get_string_repr().to_string())),
+            ("connector".to_string(),open_feature::EvaluationContextFieldValue::String(connector_name.to_string()))
+        ]),
+        targeting_key: Some(merchant_id.get_string_repr().to_string()),
     };
-    let mut step_up_enabled_connectors: Vec<types::Connector> = Vec::new();
+    let mut step_up_enabled_connectors = Vec::new();
     if let Some(superposition_client) = &state.superposition_client {
         step_up_enabled_connectors = superposition_client
             .get_struct_value::<ConnectorList>("step_up_enabled", Some(&context), None)
@@ -254,26 +251,31 @@ pub async fn is_step_up_enabled_for_merchant_connector(
 
 #[cfg(feature = "v1")]
 pub async fn get_merchant_max_auto_retries_enabled(
-    db: &dyn StorageInterface,
+    state: &app::SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
 ) -> Option<i32> {
-    let key = merchant_id.get_max_auto_retries_enabled();
-
-    db.find_config_by_key(key.as_str())
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .and_then(|retries_config| {
-            retries_config
-                .config
-                .parse::<i32>()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Retries config parsing failed")
-        })
-        .map_err(|err| {
-            logger::error!(retries_error=?err);
-            None::<i32>
-        })
-        .ok()
+    use open_feature::EvaluationContext;
+    let context = EvaluationContext {
+        custom_fields: HashMap::from([(
+            "merchant_id".to_string(),
+            open_feature::EvaluationContextFieldValue::String(
+                merchant_id.get_string_repr().to_string(),
+            ),
+        )]),
+        targeting_key: Some(merchant_id.get_string_repr().to_string()),
+    };
+    let mut max_auto_payment_retry_count = None;
+    if let Some(superposition_client) = &state.superposition_client {
+        max_auto_payment_retry_count = superposition_client
+            .get_int_value("max_auto_payment_retry_count", Some(&context), None)
+            .await
+            .inspect_err(|error| {
+                logger::error!(?error, "Failed to fetch max_auto_payment_retry_count from Superposition");
+            })
+            .ok()
+            .and_then(|val| Some(val as i32));
+    }
+    max_auto_payment_retry_count
 }
 
 #[cfg(feature = "v1")]
@@ -286,7 +288,7 @@ pub async fn get_retries(
 ) -> Option<i32> {
     match retries {
         Some(retries) => Some(retries),
-        None => get_merchant_max_auto_retries_enabled(state.store.as_ref(), merchant_id)
+        None => get_merchant_max_auto_retries_enabled(state, merchant_id)
             .await
             .or(profile.max_auto_retries_enabled.map(i32::from)),
     }
@@ -753,31 +755,38 @@ pub fn make_new_payment_attempt(
 }
 
 pub async fn get_merchant_config_for_gsm(
-    db: &dyn StorageInterface,
+    state: &app::SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
 ) -> bool {
-    let config = db
-        .find_config_by_key_unwrap_or(
-            &merchant_id.get_should_call_gsm_key(),
-            Some("false".to_string()),
-        )
-        .await;
-    match config {
-        Ok(conf) => conf.config == "true",
-        Err(error) => {
-            logger::error!(?error);
-            false
-        }
+    use open_feature::EvaluationContext;
+    use std::collections::HashMap;
+    
+    let context = EvaluationContext {
+        custom_fields: HashMap::from([(
+            "merchant_id".to_string(),
+            open_feature::EvaluationContextFieldValue::String(
+                merchant_id.get_string_repr().to_string(),
+            ),
+        )]),
+        targeting_key: Some(merchant_id.get_string_repr().to_string()),
+    };
+    let mut should_call_gsm_key = false;
+    if let Some(superposition_client) = &state.superposition_client {
+        should_call_gsm_key = superposition_client
+            .get_bool_value("gsm_call_enabled", Some(&context), None)
+            .await
+            .unwrap_or(false);
     }
+    should_call_gsm_key
 }
 
 #[cfg(feature = "v1")]
 pub async fn config_should_call_gsm(
-    db: &dyn StorageInterface,
+    state: &app::SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
     profile: &domain::Profile,
 ) -> bool {
-    let merchant_config_gsm = get_merchant_config_for_gsm(db, merchant_id).await;
+    let merchant_config_gsm = get_merchant_config_for_gsm(state, merchant_id).await;
     let profile_config_gsm = profile.is_auto_retries_enabled;
     merchant_config_gsm || profile_config_gsm
 }

@@ -4141,7 +4141,7 @@ pub async fn list_customer_payment_method(
     let mut requires_cvv = true;
     if let Some(superposition_client) = &state.superposition_client {
         requires_cvv = superposition_client
-            .get_bool_value("requires_cvv", Some(&context), None)
+            .get_bool_value("cvv_enabled", Some(&context), None)
             .await
             .unwrap_or(true);
     }
