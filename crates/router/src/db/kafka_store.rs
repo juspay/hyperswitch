@@ -1827,12 +1827,12 @@ impl PaymentAttemptInterface for KafkaStore {
         &self,
         merchant_id: &id_type::MerchantId,
         active_attempt_ids: &[String],
-        connector: Option<api_models::enums::Connector>,
-        payment_method_type: Option<common_enums::PaymentMethod>,
-        payment_method_subtype: Option<common_enums::PaymentMethodType>,
-        authentication_type: Option<common_enums::AuthenticationType>,
-        merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
-        card_network: Option<common_enums::CardNetwork>,
+        connector: Option<Vec<api_models::enums::Connector>>,
+        payment_method_type: Option<Vec<common_enums::PaymentMethod>>,
+        payment_method_subtype: Option<Vec<common_enums::PaymentMethodType>>,
+        authentication_type: Option<Vec<common_enums::AuthenticationType>>,
+        merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
+        card_network: Option<Vec<common_enums::CardNetwork>>,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
         self.diesel_store
@@ -4287,6 +4287,24 @@ impl TokenizationInterface for KafkaStore {
     {
         self.diesel_store
             .get_entity_id_vault_id_by_token_id(token, merchant_key_store, key_manager_state)
+            .await
+    }
+
+    async fn update_tokenization_record(
+        &self,
+        tokenization: hyperswitch_domain_models::tokenization::Tokenization,
+        tokenization_update: hyperswitch_domain_models::tokenization::TokenizationUpdate,
+        merchant_key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+        key_manager_state: &KeyManagerState,
+    ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
+    {
+        self.diesel_store
+            .update_tokenization_record(
+                tokenization,
+                tokenization_update,
+                merchant_key_store,
+                key_manager_state,
+            )
             .await
     }
 }

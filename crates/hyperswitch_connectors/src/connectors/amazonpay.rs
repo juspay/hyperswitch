@@ -319,6 +319,7 @@ impl ConnectorCommon for Amazonpay {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -766,7 +767,8 @@ static AMAZONPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
 static AMAZONPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Amazon Pay",
     description: "Amazon Pay is an Alternative Payment Method (APM) connector that allows merchants to accept payments using customers' stored Amazon account details, providing a seamless checkout experience.",
-    connector_type: enums::PaymentConnectorCategory::AlternativePaymentMethod,
+    connector_type: enums::HyperswitchConnectorCategory::AlternativePaymentMethod,
+    integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 
 static AMAZONPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

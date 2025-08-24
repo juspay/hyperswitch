@@ -249,6 +249,7 @@ pub struct PaymentIntentUpdateFields {
     pub duty_amount: Option<MinorUnit>,
     pub is_confirm_operation: bool,
     pub payment_channel: Option<common_enums::PaymentChannel>,
+    pub feature_metadata: Option<Secret<serde_json::Value>>,
     pub enable_partial_authorization: Option<bool>,
 }
 
@@ -261,6 +262,7 @@ pub enum PaymentIntentUpdate {
         updated_by: String,
         fingerprint_id: Option<String>,
         incremental_authorization_allowed: Option<bool>,
+        feature_metadata: Option<Secret<serde_json::Value>>,
     },
     MetadataUpdate {
         metadata: serde_json::Value,
@@ -286,6 +288,7 @@ pub enum PaymentIntentUpdate {
         status: common_enums::IntentStatus,
         incremental_authorization_allowed: Option<bool>,
         updated_by: String,
+        feature_metadata: Option<Secret<serde_json::Value>>,
     },
     PaymentAttemptAndAttemptCountUpdate {
         active_attempt_id: String,
@@ -437,6 +440,7 @@ pub struct PaymentIntentUpdateInternal {
     pub force_3ds_challenge: Option<bool>,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub payment_channel: Option<common_enums::PaymentChannel>,
+    pub feature_metadata: Option<Secret<serde_json::Value>>,
     pub tax_status: Option<common_enums::TaxStatus>,
     pub discount_amount: Option<MinorUnit>,
     pub order_date: Option<PrimitiveDateTime>,
@@ -874,11 +878,13 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 status,
                 updated_by,
                 incremental_authorization_allowed,
+                feature_metadata,
             } => Self {
                 status: Some(status),
                 modified_at: Some(common_utils::date_time::now()),
                 updated_by,
                 incremental_authorization_allowed,
+                feature_metadata,
                 ..Default::default()
             },
             PaymentIntentUpdate::MerchantStatusUpdate {
@@ -903,6 +909,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 // customer_id,
                 updated_by,
                 incremental_authorization_allowed,
+                feature_metadata,
             } => Self {
                 // amount,
                 // currency: Some(currency),
@@ -913,6 +920,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 modified_at: Some(common_utils::date_time::now()),
                 updated_by,
                 incremental_authorization_allowed,
+                feature_metadata,
                 ..Default::default()
             },
             PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
@@ -1034,12 +1042,14 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 fingerprint_id,
                 updated_by,
                 incremental_authorization_allowed,
+                feature_metadata,
             } => Self::ResponseUpdate {
                 status,
                 amount_captured,
                 fingerprint_id,
                 updated_by,
                 incremental_authorization_allowed,
+                feature_metadata,
             },
             PaymentIntentUpdate::MetadataUpdate {
                 metadata,
@@ -1081,6 +1091,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                     force_3ds_challenge: value.force_3ds_challenge,
                     is_iframe_redirection_enabled: value.is_iframe_redirection_enabled,
                     payment_channel: value.payment_channel,
+                    feature_metadata: value.feature_metadata,
                     tax_status: value.tax_status,
                     discount_amount: value.discount_amount,
                     order_date: value.order_date,
@@ -1121,10 +1132,12 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 status,
                 updated_by,
                 incremental_authorization_allowed,
+                feature_metadata,
             } => Self::PGStatusUpdate {
                 status,
                 updated_by,
                 incremental_authorization_allowed,
+                feature_metadata,
             },
             PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id,
@@ -1246,6 +1259,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             force_3ds_challenge,
             is_iframe_redirection_enabled,
             payment_channel,
+            feature_metadata,
             tax_status,
             discount_amount,
             order_date,
@@ -1294,6 +1308,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             is_iframe_redirection_enabled,
             extended_return_url: return_url,
             payment_channel,
+            feature_metadata,
             tax_status,
             discount_amount,
             order_date,
@@ -1325,20 +1340,14 @@ impl PaymentIntentFetchConstraints {
 
 #[cfg(feature = "v2")]
 pub enum PaymentIntentFetchConstraints {
-    Single {
-        payment_intent_id: id_type::GlobalPaymentId,
-    },
     List(Box<PaymentIntentListParams>),
 }
 
 #[cfg(feature = "v2")]
 impl PaymentIntentFetchConstraints {
     pub fn get_profile_id(&self) -> Option<id_type::ProfileId> {
-        if let Self::List(pi_list_params) = self {
-            pi_list_params.profile_id.clone()
-        } else {
-            None
-        }
+        let Self::List(pi_list_params) = self;
+        pi_list_params.profile_id.clone()
     }
 }
 
@@ -1372,21 +1381,22 @@ pub struct PaymentIntentListParams {
     pub starting_at: Option<PrimitiveDateTime>,
     pub ending_at: Option<PrimitiveDateTime>,
     pub amount_filter: Option<api_models::payments::AmountFilter>,
-    pub connector: Option<api_models::enums::Connector>,
-    pub currency: Option<common_enums::Currency>,
-    pub status: Option<common_enums::IntentStatus>,
-    pub payment_method_type: Option<common_enums::PaymentMethod>,
-    pub payment_method_subtype: Option<common_enums::PaymentMethodType>,
-    pub authentication_type: Option<common_enums::AuthenticationType>,
-    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    pub connector: Option<Vec<api_models::enums::Connector>>,
+    pub currency: Option<Vec<common_enums::Currency>>,
+    pub status: Option<Vec<common_enums::IntentStatus>>,
+    pub payment_method_type: Option<Vec<common_enums::PaymentMethod>>,
+    pub payment_method_subtype: Option<Vec<common_enums::PaymentMethodType>>,
+    pub authentication_type: Option<Vec<common_enums::AuthenticationType>>,
+    pub merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
     pub profile_id: Option<id_type::ProfileId>,
     pub customer_id: Option<id_type::GlobalCustomerId>,
     pub starting_after_id: Option<id_type::GlobalPaymentId>,
     pub ending_before_id: Option<id_type::GlobalPaymentId>,
     pub limit: Option<u32>,
     pub order: api_models::payments::Order,
-    pub card_network: Option<common_enums::CardNetwork>,
+    pub card_network: Option<Vec<common_enums::CardNetwork>>,
     pub merchant_order_reference_id: Option<String>,
+    pub payment_id: Option<id_type::GlobalPaymentId>,
 }
 
 #[cfg(feature = "v1")]
@@ -1458,39 +1468,36 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             merchant_order_reference_id,
             offset,
         } = value;
-        if let Some(payment_intent_id) = payment_id {
-            Self::Single { payment_intent_id }
-        } else {
-            Self::List(Box::new(PaymentIntentListParams {
-                offset: offset.unwrap_or_default(),
-                starting_at: created_gte.or(created_gt).or(created),
-                ending_at: created_lte.or(created_lt).or(created),
-                amount_filter: (start_amount.is_some() || end_amount.is_some()).then_some({
-                    api_models::payments::AmountFilter {
-                        start_amount,
-                        end_amount,
-                    }
-                }),
-                connector,
-                currency,
-                status,
-                payment_method_type,
-                payment_method_subtype,
-                authentication_type,
-                merchant_connector_id,
-                profile_id,
-                customer_id,
-                starting_after_id: starting_after,
-                ending_before_id: ending_before,
-                limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V1)),
-                order: api_models::payments::Order {
-                    on: order_on,
-                    by: order_by,
-                },
-                card_network,
-                merchant_order_reference_id,
-            }))
-        }
+        Self::List(Box::new(PaymentIntentListParams {
+            offset: offset.unwrap_or_default(),
+            starting_at: created_gte.or(created_gt).or(created),
+            ending_at: created_lte.or(created_lt).or(created),
+            amount_filter: (start_amount.is_some() || end_amount.is_some()).then_some({
+                api_models::payments::AmountFilter {
+                    start_amount,
+                    end_amount,
+                }
+            }),
+            connector,
+            currency,
+            status,
+            payment_method_type,
+            payment_method_subtype,
+            authentication_type,
+            merchant_connector_id,
+            profile_id,
+            customer_id,
+            starting_after_id: starting_after,
+            ending_before_id: ending_before,
+            limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V1)),
+            order: api_models::payments::Order {
+                on: order_on,
+                by: order_by,
+            },
+            card_network,
+            merchant_order_reference_id,
+            payment_id,
+        }))
     }
 }
 

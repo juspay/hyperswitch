@@ -294,6 +294,7 @@ pub struct AdyenPaymentRequest<'a> {
     device_fingerprint: Option<Secret<String>>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     session_validity: Option<PrimitiveDateTime>,
+    metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1779,10 +1780,12 @@ impl TryFrom<&PaymentsPreProcessingRouterData> for AdyenBalanceRequest<'_> {
                         balance_pm,
                     )))
                 }
-                GiftCardData::PaySafeCard {} => Err(errors::ConnectorError::FlowNotSupported {
-                    flow: "Balance".to_string(),
-                    connector: "adyen".to_string(),
-                }),
+                GiftCardData::PaySafeCard {} | GiftCardData::BhnCardNetwork(_) => {
+                    Err(errors::ConnectorError::FlowNotSupported {
+                        flow: "Balance".to_string(),
+                        connector: "adyen".to_string(),
+                    })
+                }
             },
             _ => Err(errors::ConnectorError::FlowNotSupported {
                 flow: "Balance".to_string(),
@@ -2129,6 +2132,10 @@ impl TryFrom<&GiftCardData> for AdyenPaymentMethod<'_> {
                 };
                 Ok(AdyenPaymentMethod::AdyenGiftCard(Box::new(gift_card_pm)))
             }
+            GiftCardData::BhnCardNetwork(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Adyen"),
+            )
+            .into()),
         }
     }
 }
@@ -2975,6 +2982,7 @@ impl
             splits,
             device_fingerprint,
             session_validity: None,
+            metadata: item.router_data.request.metadata.clone(),
         })
     }
 }
@@ -3059,6 +3067,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
             splits,
             device_fingerprint,
             session_validity: None,
+            metadata: item.router_data.request.metadata.clone(),
         })
     }
 }
@@ -3147,6 +3156,7 @@ impl
             splits,
             device_fingerprint,
             session_validity: None,
+            metadata: item.router_data.request.metadata.clone(),
         };
         Ok(request)
     }
@@ -3223,6 +3233,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &VoucherData)>
             splits,
             device_fingerprint,
             session_validity: None,
+            metadata: item.router_data.request.metadata.clone(),
         };
         Ok(request)
     }
@@ -3341,6 +3352,7 @@ impl
             splits,
             device_fingerprint,
             session_validity,
+            metadata: item.router_data.request.metadata.clone(),
         };
         Ok(request)
     }
@@ -3418,6 +3430,7 @@ impl
             splits,
             device_fingerprint,
             session_validity: None,
+            metadata: item.router_data.request.metadata.clone(),
         };
         Ok(request)
     }
@@ -3499,6 +3512,7 @@ impl
             splits,
             device_fingerprint,
             session_validity: None,
+            metadata: item.router_data.request.metadata.clone(),
         })
     }
 }
@@ -3630,6 +3644,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &WalletData)>
             splits,
             device_fingerprint,
             session_validity: None,
+            metadata: item.router_data.request.metadata.clone(),
         })
     }
 }
@@ -3720,6 +3735,7 @@ impl
             splits,
             device_fingerprint,
             session_validity: None,
+            metadata: item.router_data.request.metadata.clone(),
         })
     }
 }
@@ -3802,6 +3818,7 @@ impl
             splits,
             device_fingerprint,
             session_validity: None,
+            metadata: item.router_data.request.metadata.clone(),
         })
     }
 }
@@ -3944,6 +3961,7 @@ pub fn get_adyen_response(
                     .clone()
                     .or(data.merchant_advice_code.clone())
             }),
+            connector_metadata: None,
         })
     } else {
         None
@@ -4019,6 +4037,7 @@ pub fn get_webhook_response(
             network_advice_code: None,
             network_decline_code: response.refusal_code_raw.clone(),
             network_error_message: response.refusal_reason_raw.clone(),
+            connector_metadata: None,
         })
     } else {
         None
@@ -4093,6 +4112,7 @@ pub fn get_redirection_response(
                 .additional_data
                 .as_ref()
                 .and_then(|data| data.refusal_reason_raw.clone()),
+            connector_metadata: None,
         })
     } else {
         None
@@ -4172,6 +4192,7 @@ pub fn get_present_to_shopper_response(
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     } else {
         None
@@ -4240,6 +4261,7 @@ pub fn get_qr_code_response(
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     } else {
         None
@@ -4309,6 +4331,7 @@ pub fn get_redirection_error_response(
             .additional_data
             .as_ref()
             .and_then(|data| data.refusal_reason_raw.clone()),
+        connector_metadata: None,
     });
     // We don't get connector transaction id for redirections in Adyen.
     let payments_response_data = PaymentsResponseData::TransactionResponse {
@@ -5856,6 +5879,7 @@ impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for AcceptDisputeRouterData {
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..data.clone()
             })
@@ -5897,6 +5921,7 @@ impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for SubmitEvidenceRouterData 
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..data.clone()
             })
@@ -5940,6 +5965,7 @@ impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for DefendDisputeRouterData {
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..data.clone()
             })
@@ -6063,6 +6089,7 @@ impl
             splits,
             device_fingerprint,
             session_validity: None,
+            metadata: item.router_data.request.metadata.clone(),
         })
     }
 }

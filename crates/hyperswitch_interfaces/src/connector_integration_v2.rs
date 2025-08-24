@@ -22,6 +22,7 @@ pub trait ConnectorV2:
     + api::payments_v2::PaymentV2
     + api::ConnectorRedirectResponse
     + webhooks::IncomingWebhook
+    + api::ConnectorAuthenticationTokenV2
     + api::ConnectorAccessTokenV2
     + api::disputes_v2::DisputeV2
     + api::files_v2::FileUploadV2
@@ -42,6 +43,7 @@ impl<
             + api::ConnectorRedirectResponse
             + Send
             + webhooks::IncomingWebhook
+            + api::ConnectorAuthenticationTokenV2
             + api::ConnectorAccessTokenV2
             + api::disputes_v2::DisputeV2
             + api::files_v2::FileUploadV2
@@ -211,6 +213,7 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 

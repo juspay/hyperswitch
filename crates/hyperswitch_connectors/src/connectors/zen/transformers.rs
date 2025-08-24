@@ -811,12 +811,12 @@ impl TryFrom<&GiftCardData> for ZenPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(value: &GiftCardData) -> Result<Self, Self::Error> {
         match value {
-            GiftCardData::PaySafeCard {} | GiftCardData::Givex(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Zen"),
-                )
-                .into())
-            }
+            GiftCardData::PaySafeCard {}
+            | GiftCardData::Givex(_)
+            | GiftCardData::BhnCardNetwork(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Zen"),
+            )
+            .into()),
         }
     }
 }
@@ -953,6 +953,7 @@ fn get_zen_response(
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     } else {
         None
@@ -1102,6 +1103,7 @@ fn get_zen_refund_response(
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     } else {
         None

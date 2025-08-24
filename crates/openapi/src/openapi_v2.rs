@@ -160,6 +160,7 @@ Never share your secret api keys. Keep them guarded and secure.
 
         // Route for tokenization
         routes::tokenization::create_token_vault_api,
+        routes::tokenization::delete_tokenized_data_api,
     ),
     components(schemas(
         common_utils::types::MinorUnit,
@@ -262,6 +263,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::PaymentMethodUpdateData,
         api_models::payment_methods::CardDetailFromLocker,
         api_models::payment_methods::PaymentMethodCreateData,
+        api_models::payment_methods::ProxyCardDetails,
         api_models::payment_methods::CardDetail,
         api_models::payment_methods::CardDetailUpdate,
         api_models::payment_methods::CardType,
@@ -320,7 +322,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::MerchantProductType,
         api_models::enums::PaymentLinkDetailsLayout,
         api_models::enums::PaymentMethodStatus,
-        api_models::enums::PaymentConnectorCategory,
+        api_models::enums::HyperswitchConnectorCategory,
+        api_models::enums::ConnectorIntegrationStatus,
         api_models::enums::FeatureStatus,
         api_models::enums::OrderFulfillmentTimeOrigin,
         api_models::enums::UIWidgetFormLayout,
@@ -613,6 +616,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::CustomerDetails,
         api_models::payments::GiftCardData,
         api_models::payments::GiftCardDetails,
+        api_models::payments::BHNGiftCardDetails,
         api_models::payments::MobilePaymentData,
         api_models::payments::MobilePaymentResponse,
         api_models::payments::Address,
@@ -802,6 +806,8 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payments::ForceSync,
         api_models::tokenization::GenericTokenizationRequest,
         api_models::tokenization::GenericTokenizationResponse,
+        api_models::tokenization::DeleteTokenDataRequest,
+        api_models::tokenization::DeleteTokenDataResponse,
     )),
     modifiers(&SecurityAddon)
 )]

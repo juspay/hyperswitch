@@ -125,8 +125,14 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         merchant_context: &domain::MerchantContext,
         creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
-        access_token::add_access_token(state, connector, merchant_context, self, creds_identifier)
-            .await
+        Box::pin(access_token::add_access_token(
+            state,
+            connector,
+            merchant_context,
+            self,
+            creds_identifier,
+        ))
+        .await
     }
 
     async fn create_connector_customer<'a>(

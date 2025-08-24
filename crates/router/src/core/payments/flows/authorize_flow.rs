@@ -248,8 +248,14 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         merchant_context: &domain::MerchantContext,
         creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
-        access_token::add_access_token(state, connector, merchant_context, self, creds_identifier)
-            .await
+        Box::pin(access_token::add_access_token(
+            state,
+            connector,
+            merchant_context,
+            self,
+            creds_identifier,
+        ))
+        .await
     }
 
     async fn add_session_token<'a>(
@@ -839,7 +845,7 @@ async fn call_unified_connector_service_authorize(
         .attach_printable("Failed to fetch Unified Connector Service client")?;
 
     let payment_authorize_request =
-        payments_grpc::PaymentServiceAuthorizeRequest::foreign_try_from(router_data)
+        payments_grpc::PaymentServiceAuthorizeRequest::foreign_try_from(&*router_data)
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct Payment Authorize Request")?;
 
