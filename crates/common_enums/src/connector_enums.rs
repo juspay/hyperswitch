@@ -70,6 +70,7 @@ pub enum RoutableConnectors {
     Billwerk,
     Bitpay,
     Bambora,
+    Blackhawknetwork,
     Bamboraapac,
     Bluesnap,
     Bluecode,
@@ -90,7 +91,7 @@ pub enum RoutableConnectors {
     Deutschebank,
     Digitalvirgo,
     Dlocal,
-    // Dwolla,
+    Dwolla,
     Ebanx,
     Elavon,
     Facilitapay,
@@ -240,6 +241,7 @@ pub enum Connector {
     Billwerk,
     Bitpay,
     Bluesnap,
+    Blackhawknetwork,
     Bluecode,
     Boku,
     Braintree,
@@ -260,7 +262,7 @@ pub enum Connector {
     Deutschebank,
     Digitalvirgo,
     Dlocal,
-    // Dwolla,
+    Dwolla,
     Ebanx,
     Elavon,
     Facilitapay,
@@ -277,6 +279,7 @@ pub enum Connector {
     Hipay,
     Helcim,
     HyperswitchVault,
+    // Hyperwallet, added as template code for future usage
     Inespay,
     Iatapay,
     Itaubank,
@@ -398,6 +401,7 @@ impl Connector {
                 | (Self::Volt, _)
                 | (Self::Itaubank, _)
                 | (Self::Facilitapay, _)
+                | (Self::Dwolla, _)
         )
     }
     pub fn requires_order_creation_before_payment(self, payment_method: PaymentMethod) -> bool {
@@ -436,6 +440,7 @@ impl Connector {
             | Self::Billwerk
             | Self::Bitpay
             | Self::Bluesnap
+            | Self::Blackhawknetwork
             | Self::Bluecode
             | Self::Boku
             | Self::Braintree
@@ -451,7 +456,7 @@ impl Connector {
             | Self::Deutschebank
             | Self::Digitalvirgo
             | Self::Dlocal
-            // | Self::Dwolla
+            | Self::Dwolla
             | Self::Ebanx
             | Self::Elavon
             | Self::Facilitapay
@@ -609,6 +614,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Bambora => Self::Bambora,
             RoutableConnectors::Bamboraapac => Self::Bamboraapac,
             RoutableConnectors::Bluesnap => Self::Bluesnap,
+            RoutableConnectors::Blackhawknetwork => Self::Blackhawknetwork,
             RoutableConnectors::Bluecode => Self::Bluecode,
             RoutableConnectors::Boku => Self::Boku,
             RoutableConnectors::Braintree => Self::Braintree,
@@ -626,7 +632,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Deutschebank => Self::Deutschebank,
             RoutableConnectors::Digitalvirgo => Self::Digitalvirgo,
             RoutableConnectors::Dlocal => Self::Dlocal,
-            // RoutableConnectors::Dwolla => Self::Dwolla,
+            RoutableConnectors::Dwolla => Self::Dwolla,
             RoutableConnectors::Ebanx => Self::Ebanx,
             RoutableConnectors::Elavon => Self::Elavon,
             RoutableConnectors::Facilitapay => Self::Facilitapay,
@@ -740,6 +746,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Bambora => Ok(Self::Bambora),
             Connector::Bamboraapac => Ok(Self::Bamboraapac),
             Connector::Bluesnap => Ok(Self::Bluesnap),
+            Connector::Blackhawknetwork => Ok(Self::Blackhawknetwork),
             Connector::Bluecode => Ok(Self::Bluecode),
             Connector::Boku => Ok(Self::Boku),
             Connector::Braintree => Ok(Self::Braintree),
@@ -758,7 +765,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Deutschebank => Ok(Self::Deutschebank),
             Connector::Digitalvirgo => Ok(Self::Digitalvirgo),
             Connector::Dlocal => Ok(Self::Dlocal),
-            // Connector::Dwolla => Ok(Self::Dwolla),
+            Connector::Dwolla => Ok(Self::Dwolla),
             Connector::Ebanx => Ok(Self::Ebanx),
             Connector::Elavon => Ok(Self::Elavon),
             Connector::Facilitapay => Ok(Self::Facilitapay),

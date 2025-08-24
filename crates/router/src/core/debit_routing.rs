@@ -726,7 +726,7 @@ fn find_matching_networks(
     fee_sorted_debit_networks
         .iter()
         .filter(|network| merchant_debit_networks.contains(network))
-        .filter(|network| is_routing_enabled || network.is_global_network())
+        .filter(|network| is_routing_enabled || network.is_signature_network())
         .map(|network| {
             if network.is_us_local_network() {
                 *has_us_local_network = true;

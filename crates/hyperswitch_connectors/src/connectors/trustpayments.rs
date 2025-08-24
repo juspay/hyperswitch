@@ -226,6 +226,7 @@ impl ConnectorCommon for Trustpayments {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -838,8 +839,9 @@ static TRUSTPAYMENTS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods
 
 static TRUSTPAYMENTS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Trustpayments",
-    description: "TrustPayments is a global payment gateway offering secure and scalable solutions for online card payments, supporting authorization, capture, refund, and tokenization flows with both automatic and manual capture options.",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    description: "Trustpayments connector",
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 
 static TRUSTPAYMENTS_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

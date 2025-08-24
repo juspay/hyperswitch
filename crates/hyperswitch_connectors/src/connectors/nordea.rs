@@ -413,6 +413,7 @@ impl ConnectorCommon for Nordea {
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -1122,7 +1123,8 @@ lazy_static! {
             "Nordea",
         description:
             "Nordea is one of the leading financial services group in the Nordics and the preferred choice for millions across the region.",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+        integration_status: common_enums::ConnectorIntegrationStatus::Beta,
     };
     static ref NORDEA_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
         let nordea_supported_capture_methods = vec![

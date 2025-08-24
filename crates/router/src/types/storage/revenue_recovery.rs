@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use common_enums::enums;
-use common_utils::{ext_traits::ValueExt, id_type};
+use common_utils::{date_time, ext_traits::ValueExt, id_type};
 use external_services::grpc_client::{self as external_grpc_client, GrpcHeaders};
 use hyperswitch_domain_models::{
     business_profile, merchant_account, merchant_connector_account, merchant_key_store,
@@ -38,6 +38,7 @@ impl RevenueRecoveryPaymentData {
         retry_count: i32,
         payment_attempt: &PaymentAttempt,
         payment_intent: &PaymentIntent,
+        is_hard_decline: bool,
     ) -> Option<time::PrimitiveDateTime> {
         match self.retry_algorithm {
             enums::RevenueRecoveryAlgorithmType::Monitoring => {
@@ -53,13 +54,18 @@ impl RevenueRecoveryPaymentData {
                 .await
             }
             enums::RevenueRecoveryAlgorithmType::Smart => {
-                revenue_recovery::get_schedule_time_for_smart_retry(
-                    state,
-                    payment_attempt,
-                    payment_intent,
-                    retry_count,
-                )
-                .await
+                if is_hard_decline {
+                    None
+                } else {
+                    // TODO: Integrate the smart retry call to return back a schedule time
+                    revenue_recovery::get_schedule_time_for_smart_retry(
+                        state,
+                        payment_attempt,
+                        payment_intent,
+                        retry_count,
+                    )
+                    .await
+                }
             }
         }
     }
