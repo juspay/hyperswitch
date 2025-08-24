@@ -127,6 +127,27 @@ pub type BoxedBillingConnectorPaymentsSyncIntegrationInterface<T, Req, Res> =
 pub type BoxedVaultConnectorIntegrationInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<T, common_types::VaultConnectorFlowData, Req, Res>;
 
+fn store_raw_connector_response_if_required<T, Req, Resp>(
+    return_raw_connector_response: Option<bool>,
+    router_data: &mut types::RouterData<T, Req, Resp>,
+    body: &types::Response,
+) -> CustomResult<(), errors::ConnectorError>
+where
+    T: Clone + Debug + 'static,
+    Req: Debug + Clone + 'static,
+    Resp: Debug + Clone + 'static,
+{
+    if return_raw_connector_response == Some(true) {
+        let mut decoded = String::from_utf8(body.response.as_ref().to_vec())
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        if decoded.starts_with('\u{feff}') {
+            decoded = decoded.trim_start_matches('\u{feff}').to_string();
+        }
+        router_data.raw_connector_response = Some(Secret::new(decoded));
+    }
+    Ok(())
+}
+
 /// Handle the flow by interacting with connector module
 /// `connector_request` is applicable only in case if the `CallConnectorAction` is `Trigger`
 /// In other cases, It will be created if required, even if it is not passed
@@ -305,17 +326,13 @@ where
                                                         val + external_latency
                                                     }),
                                             );
-                                            if return_raw_connector_response == Some(true) {
-                                                let mut decoded = String::from_utf8(body.response.as_ref().to_vec())
-                                                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-                                                if decoded.starts_with('\u{feff}') {
-                                                    decoded = decoded
-                                                        .trim_start_matches('\u{feff}')
-                                                        .to_string();
-                                                }
-                                                data.raw_connector_response =
-                                                    Some(Secret::new(decoded));
-                                            }
+
+                                            store_raw_connector_response_if_required(
+                                                return_raw_connector_response,
+                                                &mut data,
+                                                &body,
+                                            )?;
+
                                             Ok(data)
                                         }
                                         Err(err) => {
@@ -346,7 +363,7 @@ where
                                         500..=511 => {
                                             let error_res = connector_integration
                                                 .get_5xx_error_response(
-                                                    body,
+                                                    body.clone(),
                                                     Some(&mut connector_event),
                                                 )?;
                                             state.event_handler().log_event(&connector_event);
@@ -355,7 +372,7 @@ where
                                         _ => {
                                             let error_res = connector_integration
                                                 .get_error_response(
-                                                    body,
+                                                    body.clone(),
                                                     Some(&mut connector_event),
                                                 )?;
                                             if let Some(status) = error_res.attempt_status {
@@ -367,6 +384,12 @@ where
                                     };
 
                                     router_data.response = Err(error);
+
+                                    store_raw_connector_response_if_required(
+                                        return_raw_connector_response,
+                                        &mut router_data,
+                                        &body,
+                                    )?;
 
                                     router_data
                                 }
