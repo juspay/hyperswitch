@@ -194,6 +194,10 @@ impl AttemptStatus {
             | Self::IntegrityFailure => false,
         }
     }
+
+    pub fn is_success(self) -> bool {
+        matches!(self, Self::Charged | Self::PartialCharged)
+    }
 }
 
 #[derive(
@@ -8381,6 +8385,8 @@ pub enum ErrorCategory {
     ProcessorDeclineUnauthorized,
     IssueWithPaymentMethod,
     ProcessorDeclineIncorrectData,
+    HardDecline,
+    SoftDecline,
 }
 
 impl ErrorCategory {
@@ -8389,7 +8395,9 @@ impl ErrorCategory {
             Self::ProcessorDowntime | Self::ProcessorDeclineUnauthorized => true,
             Self::IssueWithPaymentMethod
             | Self::ProcessorDeclineIncorrectData
-            | Self::FrmDecline => false,
+            | Self::FrmDecline
+            | Self::HardDecline
+            | Self::SoftDecline => false,
         }
     }
 }
