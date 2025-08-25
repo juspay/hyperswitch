@@ -390,6 +390,7 @@ ucs_only_connectors = "paytm, phonepe"    # Comma-separated list of connectors t
 # monitoring threshold -  120 days
 monitoring_threshold_in_seconds = 10368000 
 retry_algorithm_type = "cascading"
+redis_ttl_in_seconds=3888000 
 
 # Card specific configuration for Revenue Recovery
 [revenue_recovery.card_config.amex]

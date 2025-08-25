@@ -425,6 +425,9 @@ paypal = { country = "AU,NZ,CN,JP,HK,MY,TH,KR,PH,ID,AE,KW,BR,ES,GB,SE,NO,SK,AT,N
 klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NO,PL,PT,RO,ES,SE,CH,NL,GB,US", currency = "AUD,EUR,CAD,CZK,DKK,NOK,PLN,RON,SEK,CHF,GBP,USD" }
 ideal = { country = "NL", currency = "EUR" }
 
+[pm_filters.affirm]
+affirm = { country = "CA,US", currency = "CAD,USD" }
+
 [pm_filters.bambora]
 credit = { country = "US,CA", currency = "USD" }
 debit = { country = "US,CA", currency = "USD" }
@@ -783,6 +786,8 @@ billing_connectors_which_requires_invoice_sync_call = "recurly"
 [chat]
 enabled = false
 hyperswitch_ai_host = "http://0.0.0.0:8000"
+
+
 
 [revenue_recovery.card_config.amex]
 max_retries_per_day = 20
