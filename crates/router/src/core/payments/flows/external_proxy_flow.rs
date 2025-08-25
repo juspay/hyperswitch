@@ -15,7 +15,7 @@ use crate::{
         payments::{
             self, access_token, customers, helpers, tokenization, transformers, PaymentData,
         },
-        unified_connector_service,
+        unified_connector_service::{self, ucs_logging_wrapper},
     },
     logger,
     routes::{metrics, SessionState},
@@ -367,6 +367,10 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         merchant_context: &domain::MerchantContext,
     ) -> RouterResult<()> {
+        // Clone data to avoid lifetime issues
+        let merchant_connector_account = merchant_connector_account.clone();
+        let merchant_context = merchant_context.clone();
+
         let client = state
             .grpc_client
             .unified_connector_service_client
@@ -381,38 +385,51 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
 
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(
-                merchant_connector_account,
-                merchant_context,
+                merchant_connector_account.clone(),
+                &merchant_context,
             )
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct request metadata")?;
 
-        let response = client
-            .payment_authorize(
-                payment_authorize_request,
-                connector_auth_metadata,
-                state.get_grpc_headers(),
-            )
-            .await
-            .change_context(ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to authorize payment")?;
+        let payment_authorize_request_clone = payment_authorize_request.clone();
+        let updated_router_data = Box::pin(ucs_logging_wrapper(
+            self.clone(),
+            state,
+            &payment_authorize_request,
+            |mut router_data| async move {
+                let response = client
+                    .payment_authorize(
+                        payment_authorize_request_clone,
+                        connector_auth_metadata,
+                        state.get_grpc_headers(),
+                    )
+                    .await
+                    .change_context(ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to authorize payment")?;
 
-        let payment_authorize_response = response.into_inner();
+                let payment_authorize_response = response.into_inner();
 
-        let (status, router_data_response, status_code) =
-            unified_connector_service::handle_unified_connector_service_response_for_payment_authorize(
-                payment_authorize_response.clone(),
-            )
-            .change_context(ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to deserialize UCS response")?;
+                let (status, router_data_response, status_code) =
+                    unified_connector_service::handle_unified_connector_service_response_for_payment_authorize(
+                        payment_authorize_response.clone(),
+                    )
+                    .change_context(ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to deserialize UCS response")?;
 
-        self.status = status;
-        self.response = router_data_response;
-        self.raw_connector_response = payment_authorize_response
-            .raw_connector_response
-            .map(masking::Secret::new);
-        self.connector_http_status_code = Some(status_code);
+                router_data.status = status;
+                router_data.response = router_data_response;
+                router_data.raw_connector_response = payment_authorize_response
+                    .raw_connector_response
+                    .clone()
+                    .map(masking::Secret::new);
+                router_data.connector_http_status_code = Some(status_code);
 
+                Ok((router_data, payment_authorize_response))
+            }
+        )).await?;
+
+        // Copy back the updated data
+        *self = updated_router_data;
         Ok(())
     }
 }
