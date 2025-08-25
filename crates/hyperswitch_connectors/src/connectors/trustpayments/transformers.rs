@@ -19,8 +19,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{self, RefundsRequestData, RouterData as RouterDataExt},
+    utils::{self, CardData, RefundsRequestData, RouterData as RouterDataExt},
 };
+
+const TRUSTPAYMENTS_API_VERSION: &str = "1.00";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum TrustpaymentsSettleStatus {
@@ -215,7 +217,14 @@ impl TrustpaymentsErrorCode {
                 Some(common_enums::CaptureMethod::Manual) => {
                     common_enums::AttemptStatus::Authorized
                 }
-                _ => common_enums::AttemptStatus::Charged,
+                Some(common_enums::CaptureMethod::Automatic) | None => {
+                    common_enums::AttemptStatus::Charged
+                }
+                Some(common_enums::CaptureMethod::ManualMultiple)
+                | Some(common_enums::CaptureMethod::Scheduled)
+                | Some(common_enums::CaptureMethod::SequentialAutomatic) => {
+                    common_enums::AttemptStatus::Failure
+                }
             },
             Self::InvalidCredentials
             | Self::AuthenticationFailed
@@ -224,7 +233,7 @@ impl TrustpaymentsErrorCode {
             | Self::InvalidUsernameOrPassword
             | Self::AccountSuspended => common_enums::AttemptStatus::Failure,
             Self::Processing => common_enums::AttemptStatus::Pending,
-            _ => common_enums::AttemptStatus::Failure,
+            _ => common_enums::AttemptStatus::Pending,
         }
     }
 
@@ -354,7 +363,7 @@ impl TryFrom<&TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>>
 
                 Ok(Self {
                     alias: auth.username.expose(),
-                    version: "1.00".to_string(),
+                    version: TRUSTPAYMENTS_API_VERSION.to_string(),
                     request: vec![TrustpaymentsPaymentRequestData {
                         accounttypedescription: "ECOM".to_string(),
                         baseamount: item.amount.to_string(),
@@ -367,11 +376,8 @@ impl TryFrom<&TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>>
                             .get_optional_billing_last_name()
                             .map(|name| name.expose()),
                         currencyiso3a: item.router_data.request.currency.to_string(),
-                        expirydate: Secret::new(format!(
-                            "{:02}/{:02}",
-                            card.card_exp_month.clone().expose(),
-                            card.card_exp_year.clone().expose()
-                        )),
+                        expirydate: card
+                            .get_card_expiry_month_year_2_digit_with_delimiter("/".to_string())?,
                         orderreference: item.router_data.connector_request_reference_id.clone(),
                         pan: card.card_number.clone(),
                         requesttypedescriptions: request_types,
@@ -460,7 +466,14 @@ impl TrustpaymentsPaymentResponseData {
                                 Some(common_enums::CaptureMethod::Manual) => {
                                     common_enums::AttemptStatus::Authorized
                                 }
-                                _ => common_enums::AttemptStatus::Charged,
+                                Some(common_enums::CaptureMethod::Automatic) | None => {
+                                    common_enums::AttemptStatus::Charged
+                                }
+                                Some(common_enums::CaptureMethod::ManualMultiple)
+                                | Some(common_enums::CaptureMethod::Scheduled)
+                                | Some(common_enums::CaptureMethod::SequentialAutomatic) => {
+                                    common_enums::AttemptStatus::Failure
+                                }
                             }
                         }
                         Some(TrustpaymentsSettleStatus::Settled) => {
@@ -508,7 +521,7 @@ impl TrustpaymentsPaymentResponseData {
                         None => common_enums::AttemptStatus::Authorized,
                     }
                 } else {
-                    common_enums::AttemptStatus::Failure
+                    common_enums::AttemptStatus::Pending
                 }
             }
             _ => self.errorcode.get_attempt_status(None),
@@ -582,6 +595,7 @@ impl
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..item.data
             });
@@ -654,6 +668,7 @@ impl
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..item.data
             });
@@ -726,6 +741,7 @@ impl
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..item.data
             });
@@ -798,6 +814,7 @@ impl
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..item.data
             });
@@ -850,7 +867,7 @@ impl TryFrom<&TrustpaymentsRouterData<&PaymentsCaptureRouterData>> for Trustpaym
 
         Ok(Self {
             alias: auth.username.expose(),
-            version: "1.00".to_string(),
+            version: TRUSTPAYMENTS_API_VERSION.to_string(),
             request: vec![TrustpaymentsCaptureRequestData {
                 requesttypedescriptions: vec!["TRANSACTIONUPDATE".to_string()],
                 filter: TrustpaymentsFilter {
@@ -897,7 +914,7 @@ impl TryFrom<&PaymentsCancelRouterData> for TrustpaymentsVoidRequest {
 
         Ok(Self {
             alias: auth.username.expose(),
-            version: "1.00".to_string(),
+            version: TRUSTPAYMENTS_API_VERSION.to_string(),
             request: vec![TrustpaymentsVoidRequestData {
                 requesttypedescriptions: vec!["TRANSACTIONUPDATE".to_string()],
                 filter: TrustpaymentsFilter {
@@ -944,7 +961,7 @@ impl<F> TryFrom<&TrustpaymentsRouterData<&RefundsRouterData<F>>> for Trustpaymen
 
         Ok(Self {
             alias: auth.username.expose(),
-            version: "1.00".to_string(),
+            version: TRUSTPAYMENTS_API_VERSION.to_string(),
             request: vec![TrustpaymentsRefundRequestData {
                 requesttypedescriptions: vec!["REFUND".to_string()],
                 sitereference: auth.site_reference.expose(),
@@ -993,7 +1010,7 @@ impl TryFrom<&PaymentsSyncRouterData> for TrustpaymentsSyncRequest {
 
         Ok(Self {
             alias: auth.username.expose(),
-            version: "1.00".to_string(),
+            version: TRUSTPAYMENTS_API_VERSION.to_string(),
             request: vec![TrustpaymentsSyncRequestData {
                 requesttypedescriptions: vec!["TRANSACTIONQUERY".to_string()],
                 filter: TrustpaymentsFilter {
@@ -1023,7 +1040,7 @@ impl TryFrom<&RefundSyncRouterData> for TrustpaymentsRefundSyncRequest {
 
         Ok(Self {
             alias: auth.username.expose(),
-            version: "1.00".to_string(),
+            version: TRUSTPAYMENTS_API_VERSION.to_string(),
             request: vec![TrustpaymentsSyncRequestData {
                 requesttypedescriptions: vec!["TRANSACTIONQUERY".to_string()],
                 filter: TrustpaymentsFilter {
@@ -1137,17 +1154,14 @@ impl
         match &item.request.payment_method_data {
             PaymentMethodData::Card(card_data) => Ok(Self {
                 alias: auth.username.expose(),
-                version: "1.00".to_string(),
+                version: TRUSTPAYMENTS_API_VERSION.to_string(),
                 request: vec![TrustpaymentsTokenizationRequestData {
                     accounttypedescription: "ECOM".to_string(),
                     requesttypedescriptions: vec!["ACCOUNTCHECK".to_string()],
                     sitereference: auth.site_reference.expose(),
                     pan: card_data.card_number.clone(),
-                    expirydate: Secret::new(format!(
-                        "{:02}/{:02}",
-                        card_data.card_exp_month.clone().expose(),
-                        card_data.card_exp_year.clone().expose()
-                    )),
+                    expirydate: card_data
+                        .get_card_expiry_month_year_2_digit_with_delimiter("/".to_string())?,
                     securitycode: card_data.card_cvc.clone(),
                     credentialsonfile:
                         TrustpaymentsCredentialsOnFile::CardholderInitiatedTransaction.to_string(),
