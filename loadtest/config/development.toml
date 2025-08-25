@@ -426,6 +426,9 @@ paypal = { country = "AU,NZ,CN,JP,HK,MY,TH,KR,PH,ID,AE,KW,BR,ES,GB,SE,NO,SK,AT,N
 klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NO,PL,PT,RO,ES,SE,CH,NL,GB,US", currency = "AUD,EUR,CAD,CZK,DKK,NOK,PLN,RON,SEK,CHF,GBP,USD" }
 ideal = { country = "NL", currency = "EUR" }
 
+[pm_filters.affirm]
+affirm = { country = "CA,US", currency = "CAD,USD" }
+
 [pm_filters.bambora]
 credit = { country = "US,CA", currency = "USD" }
 debit = { country = "US,CA", currency = "USD" }
@@ -774,6 +777,7 @@ sts_role_session_name = ""
 [temp_locker_enable_config]
 paybox = { payment_method = "card" }
 redsys = { payment_method = "card" }
+barclaycard = { payment_method = "card" }
 
 [billing_connectors_payment_sync]
 billing_connectors_which_require_payment_sync = "stripebilling, recurly"

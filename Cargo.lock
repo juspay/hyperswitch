@@ -4051,6 +4051,7 @@ dependencies = [
  "lazy_static",
  "masking",
  "mime",
+ "nanoid",
  "num-traits",
  "openssl",
  "ordered-float 3.9.2",

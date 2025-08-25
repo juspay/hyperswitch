@@ -613,7 +613,8 @@ static TRUSTPAYMENTS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods
 static TRUSTPAYMENTS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Trustpayments",
     description: "Trustpayments connector",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 
 static TRUSTPAYMENTS_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
