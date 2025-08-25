@@ -61,6 +61,7 @@ pub enum RoutableConnectors {
     DummyConnector7,
     Aci,
     Adyen,
+    Affirm,
     Airwallex,
     Amazonpay,
     Archipel,
@@ -229,6 +230,7 @@ pub enum Connector {
     DummyConnector7,
     Aci,
     Adyen,
+    Affirm,
     Airwallex,
     Amazonpay,
     Archipel,
@@ -427,6 +429,7 @@ impl Connector {
             // Add Separate authentication support for connectors
 			| Self::Authipay
             | Self::Adyen
+            | Self::Affirm
             | Self::Adyenplatform
             | Self::Airwallex
             | Self::Amazonpay
@@ -601,6 +604,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::DummyConnector7 => Self::DummyConnector7,
             RoutableConnectors::Aci => Self::Aci,
             RoutableConnectors::Adyen => Self::Adyen,
+            RoutableConnectors::Affirm => Self::Affirm,
             RoutableConnectors::Airwallex => Self::Airwallex,
             RoutableConnectors::Amazonpay => Self::Amazonpay,
             RoutableConnectors::Archipel => Self::Archipel,
@@ -733,6 +737,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::DummyConnector7 => Ok(Self::DummyConnector7),
             Connector::Aci => Ok(Self::Aci),
             Connector::Adyen => Ok(Self::Adyen),
+            Connector::Affirm => Ok(Self::Affirm),
             Connector::Airwallex => Ok(Self::Airwallex),
             Connector::Amazonpay => Ok(Self::Amazonpay),
             Connector::Archipel => Ok(Self::Archipel),
