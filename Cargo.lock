@@ -4029,7 +4029,6 @@ dependencies = [
  "base64 0.22.1",
  "bytes 1.10.1",
  "cards",
- "chrono",
  "common_enums",
  "common_types",
  "common_utils",

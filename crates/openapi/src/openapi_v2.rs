@@ -286,6 +286,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::AuthenticationConnectors,
         api_models::enums::VaultSdk,
         api_models::enums::Currency,
+        api_models::enums::DocumentKind,
         api_models::enums::IntentStatus,
         api_models::enums::CaptureMethod,
         api_models::enums::FutureUsage,
