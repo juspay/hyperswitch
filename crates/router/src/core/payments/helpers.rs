@@ -6934,7 +6934,7 @@ pub enum UnifiedAuthenticationServiceFlow {
     },
     ExternalAuthenticationPostAuthenticate {
         authentication_id: id_type::AuthenticationId,
-    }
+    },
 }
 
 #[cfg(feature = "v1")]
@@ -6980,7 +6980,7 @@ pub async fn decide_action_for_unified_authentication_service<F: Clone>(
                     && business_profile.is_click_to_pay_enabled
                     && payment_data.service_details.is_some()
                 {
-                        Some(UnifiedAuthenticationServiceFlow::ClickToPayInitiate)
+                    Some(UnifiedAuthenticationServiceFlow::ClickToPayInitiate)
                 } else {
                     None
                 }
