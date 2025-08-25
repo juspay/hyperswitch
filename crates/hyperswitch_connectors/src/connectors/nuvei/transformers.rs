@@ -1,16 +1,15 @@
-use common_enums::{enums, CaptureMethod, PaymentChannel};
+use common_enums::{enums, CaptureMethod, FutureUsage, PaymentChannel};
 use common_utils::{
     crypto::{self, GenerateDigest},
     date_time,
-    ext_traits::{Encode, OptionExt},
+    ext_traits::Encode,
     fp_utils,
     id_type::CustomerId,
-    pii::{Email, IpAddress},
+    pii::{self, Email, IpAddress},
     request::Method,
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    mandates::{MandateData, MandateDataType},
     payment_method_data::{
         self, ApplePayWalletData, BankRedirectData, GooglePayWalletData, PayLaterData,
         PaymentMethodData, WalletData,
@@ -70,7 +69,6 @@ const CHALLENGE_PREFERNCE: &str = "01";
 trait NuveiAuthorizePreprocessingCommon {
     fn get_browser_info(&self) -> Option<BrowserInformation>;
     fn get_related_transaction_id(&self) -> Option<String>;
-    fn get_setup_mandate_details(&self) -> Option<MandateData>;
     fn get_complete_authorize_url(&self) -> Option<String>;
     fn get_is_moto(&self) -> Option<bool>;
     fn get_connector_mandate_id(&self) -> Option<String>;
@@ -90,6 +88,7 @@ trait NuveiAuthorizePreprocessingCommon {
     fn get_order_tax_amount(
         &self,
     ) -> Result<Option<i64>, error_stack::Report<errors::ConnectorError>>;
+    fn is_customer_initiated_mandate_payment(&self) -> bool;
 }
 
 impl NuveiAuthorizePreprocessingCommon for SetupMandateRequestData {
@@ -109,10 +108,6 @@ impl NuveiAuthorizePreprocessingCommon for SetupMandateRequestData {
 
     fn get_customer_id_required(&self) -> Option<CustomerId> {
         self.customer_id.clone()
-    }
-
-    fn get_setup_mandate_details(&self) -> Option<MandateData> {
-        self.setup_mandate_details.clone()
     }
 
     fn get_complete_authorize_url(&self) -> Option<String> {
@@ -168,6 +163,9 @@ impl NuveiAuthorizePreprocessingCommon for SetupMandateRequestData {
     fn get_email_required(&self) -> Result<Email, error_stack::Report<errors::ConnectorError>> {
         self.email.clone().ok_or_else(missing_field_err("email"))
     }
+    fn is_customer_initiated_mandate_payment(&self) -> bool {
+        (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some()) && self.setup_future_usage == Some(FutureUsage::OffSession)
+    }
 }
 
 impl NuveiAuthorizePreprocessingCommon for PaymentsAuthorizeData {
@@ -187,10 +185,6 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsAuthorizeData {
 
     fn get_customer_id_required(&self) -> Option<CustomerId> {
         self.customer_id.clone()
-    }
-
-    fn get_setup_mandate_details(&self) -> Option<MandateData> {
-        self.setup_mandate_details.clone()
     }
 
     fn get_complete_authorize_url(&self) -> Option<String> {
@@ -234,6 +228,9 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsAuthorizeData {
     fn get_email_required(&self) -> Result<Email, error_stack::Report<errors::ConnectorError>> {
         self.get_email()
     }
+    fn is_customer_initiated_mandate_payment(&self) -> bool {
+        (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some()) && self.setup_future_usage == Some(FutureUsage::OffSession)
+    }
 }
 
 impl NuveiAuthorizePreprocessingCommon for PaymentsPreProcessingData {
@@ -255,8 +252,8 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsPreProcessingData {
     fn get_email_required(&self) -> Result<Email, error_stack::Report<errors::ConnectorError>> {
         self.get_email()
     }
-    fn get_setup_mandate_details(&self) -> Option<MandateData> {
-        self.setup_mandate_details.clone()
+    fn is_customer_initiated_mandate_payment(&self) -> bool {
+        (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some()) && self.setup_future_usage == Some(FutureUsage::OffSession)
     }
 
     fn get_complete_authorize_url(&self) -> Option<String> {
@@ -674,33 +671,6 @@ impl TryFrom<&types::PaymentsAuthorizeSessionTokenRouterData> for NuveiSessionRe
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: &types::PaymentsAuthorizeSessionTokenRouterData,
-    ) -> Result<Self, Self::Error> {
-        let connector_meta: NuveiAuthType = NuveiAuthType::try_from(&item.connector_auth_type)?;
-        let merchant_id = connector_meta.merchant_id;
-        let merchant_site_id = connector_meta.merchant_site_id;
-        let client_request_id = item.connector_request_reference_id.clone();
-        let time_stamp = date_time::DateTime::<date_time::YYYYMMDDHHmmss>::from(date_time::now());
-        let merchant_secret = connector_meta.merchant_secret;
-        Ok(Self {
-            merchant_id: merchant_id.clone(),
-            merchant_site_id: merchant_site_id.clone(),
-            client_request_id: client_request_id.clone(),
-            time_stamp: time_stamp.clone(),
-            checksum: Secret::new(encode_payload(&[
-                merchant_id.peek(),
-                merchant_site_id.peek(),
-                &client_request_id,
-                &time_stamp.to_string(),
-                merchant_secret.peek(),
-            ])?),
-        })
-    }
-}
-
-impl TryFrom<&types::PaymentsSessionRouterData> for NuveiSessionRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &types::PaymentsSessionRouterData,
     ) -> Result<Self, Self::Error> {
         let connector_meta: NuveiAuthType = NuveiAuthType::try_from(&item.connector_auth_type)?;
         let merchant_id = connector_meta.merchant_id;
@@ -1238,7 +1208,6 @@ where
                 pending_url: return_url.clone(),
             }),
             amount_details,
-
             ..request
         })
     }
@@ -1275,46 +1244,28 @@ where
         None => None,
     };
     let (is_rebilling, additional_params, user_token_id) =
-        match item.request.get_setup_mandate_details().clone() {
-            Some(mandate_data) => {
-                let details = match mandate_data
-                    .mandate_type
-                    .get_required_value("mandate_type")
-                    .change_context(errors::ConnectorError::MissingRequiredField {
-                        field_name: "mandate_type",
-                    })? {
-                    MandateDataType::SingleUse(details) => details,
-                    MandateDataType::MultiUse(details) => {
-                        details.ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "mandate_data.mandate_type.multi_use",
-                        })?
-                    }
-                };
-                let mandate_meta: NuveiMandateMeta = utils::to_connector_meta_from_secret(Some(
-                    details.get_metadata().ok_or_else(missing_field_err(
-                        "mandate_data.mandate_type.{multi_use|single_use}.metadata",
-                    ))?,
-                ))?;
+        match item.request.is_customer_initiated_mandate_payment() {
+            true => {
                 (
                     Some("0".to_string()), // In case of first installment, rebilling should be 0
                     Some(V2AdditionalParams {
                         rebill_expiry: Some(
-                            details
-                                .get_end_date(date_time::DateFormat::YYYYMMDD)
-                                .change_context(errors::ConnectorError::DateFormattingFailed)?
-                                .ok_or_else(missing_field_err(
-                                    "mandate_data.mandate_type.{multi_use|single_use}.end_date",
-                                ))?,
+                            time::OffsetDateTime::now_utc()
+                                .replace_year(time::OffsetDateTime::now_utc().year() + 5)
+                                .map_err(|_| errors::ConnectorError::DateFormattingFailed)?
+                                .date()
+                                .format(&time::macros::format_description!("[year][month][day]"))
+                                .map_err(|_| errors::ConnectorError::DateFormattingFailed)?
                         ),
-                        rebill_frequency: Some(mandate_meta.frequency),
-                        challenge_window_size: None,
-                        challenge_preference: None,
+                        rebill_frequency: Some("0".to_string()),
+                        challenge_window_size: Some(CHALLENGE_WINDOW_SIZE.to_string()),
+                        challenge_preference: Some(CHALLENGE_PREFERNCE.to_string()),
                     }),
                     item.request.get_customer_id_required(),
                 )
             }
             // non mandate transactions
-            _ => (
+            false => (
                 None,
                 Some(V2AdditionalParams {
                     rebill_expiry: None,
@@ -1889,6 +1840,21 @@ impl
 
         let (status, redirection_data, connector_response_data) =
             process_nuvei_payment_response(&item, amount)?;
+        
+        let ip_address = item
+            .data
+            .request
+            .browser_info
+            .as_ref()
+            .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                field_name: "browser_info",
+            })?
+            .ip_address
+            .as_ref()
+            .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                field_name: "browser_info.ip_address",
+            })?
+            .to_string();
 
         Ok(Self {
             status,
@@ -1896,6 +1862,7 @@ impl
                 &item.response,
                 redirection_data,
                 item.http_code,
+                Some(ip_address),
             )?),
             connector_response: connector_response_data,
             ..item.data
@@ -1955,6 +1922,7 @@ fn create_transaction_response(
     response: &NuveiPaymentsResponse,
     redirection_data: Option<RedirectForm>,
     http_code: u16,
+    ip_address: Option<String>,
 ) -> Result<PaymentsResponseData, error_stack::Report<errors::ConnectorError>> {
     if let Some(err) = build_error_response(response, http_code) {
         return err;
@@ -1976,7 +1944,7 @@ fn create_transaction_response(
                 .map(|id| MandateReference {
                     connector_mandate_id: Some(id),
                     payment_method_id: None,
-                    mandate_metadata: None,
+                    mandate_metadata: ip_address.map(|ip| pii::SecretSerdeValue::new(serde_json::Value::String(ip))),
                     connector_mandate_request_reference_id: None,
                 }),
         ),
@@ -2024,12 +1992,21 @@ impl
         let (status, redirection_data, connector_response_data) =
             process_nuvei_payment_response(&item, amount)?;
 
+        let ip_address = item
+            .data
+            .request
+            .browser_info.clone().and_then(|browser_info| {
+            browser_info
+            .ip_address.map(|ip| ip.to_string())
+            });
+
         Ok(Self {
             status,
             response: Ok(create_transaction_response(
                 &item.response,
                 redirection_data,
                 item.http_code,
+                ip_address,
             )?),
             connector_response: connector_response_data,
             ..item.data
@@ -2063,6 +2040,7 @@ where
                 &item.response,
                 redirection_data,
                 item.http_code,
+                None,
             )?),
             connector_response: connector_response_data,
             ..item.data
@@ -2174,11 +2152,27 @@ where
             } else {
                 None
             };
+
+            let ip_address = data
+                .recurring_mandate_payment_data
+                .as_ref()
+                .and_then(|r| r.mandate_metadata.as_ref())
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "browser_info.ip_address",
+                })?
+                .clone()
+                .expose()
+                .as_str()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "browser_info.ip_address",
+                })?
+                .to_owned();
+
             Ok(Self {
                 related_transaction_id,
-                device_details: DeviceDetails::foreign_try_from(
-                    &item.request.get_browser_info().clone(),
-                )?,
+                device_details: DeviceDetails {
+                    ip_address: Secret::new(ip_address)
+                },
                 is_rebilling: Some("1".to_string()), // In case of second installment, rebilling should be 1
                 user_token_id: Some(customer_id),
                 payment_option: PaymentOption {

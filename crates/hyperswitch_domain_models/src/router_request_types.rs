@@ -332,6 +332,8 @@ impl TryFrom<SetupMandateRequestData> for PaymentsPreProcessingData {
             enrolled_for_3ds: false,
             split_payments: None,
             metadata: data.metadata,
+            customer_acceptance: data.customer_acceptance,
+            setup_future_usage: data.setup_future_usage,
         })
     }
 }
@@ -545,7 +547,8 @@ pub struct PaymentsPreProcessingData {
     pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
     pub metadata: Option<Secret<serde_json::Value>>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
-
+    pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
+    pub setup_future_usage: Option<storage_enums::FutureUsage>,
     // New amount for amount frame work
     pub minor_amount: Option<MinorUnit>,
 }
@@ -576,6 +579,8 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreProcessingData {
             enrolled_for_3ds: data.enrolled_for_3ds,
             split_payments: data.split_payments,
             metadata: data.metadata.map(Secret::new),
+            customer_acceptance: data.customer_acceptance,
+            setup_future_usage: data.setup_future_usage,
         })
     }
 }
@@ -606,6 +611,8 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPreProcessingData {
             split_payments: None,
             enrolled_for_3ds: true,
             metadata: data.connector_meta.map(Secret::new),
+            customer_acceptance: data.customer_acceptance,
+            setup_future_usage: data.setup_future_usage,
         })
     }
 }
