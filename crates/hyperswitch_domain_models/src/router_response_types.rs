@@ -313,6 +313,14 @@ pub enum RedirectForm {
         form_fields: HashMap<String, String>,
         collection_id: Option<String>,
     },
+    AciThreeDSFlow {
+        precondition_url: String,
+        precondition_method: Method,
+        precondition_form_fields: HashMap<String, String>,
+        authentication_url: String,
+        authentication_method: Method,
+        authentication_form_fields: HashMap<String, String>,
+    },
 }
 
 impl From<(url::Url, Method)> for RedirectForm {
@@ -428,6 +436,21 @@ impl From<RedirectForm> for diesel_models::payment_attempt::RedirectForm {
                 form_fields,
                 collection_id,
             },
+            RedirectForm::AciThreeDSFlow {
+                precondition_url,
+                precondition_method,
+                precondition_form_fields,
+                authentication_url,
+                authentication_method,
+                authentication_form_fields,
+            } => Self::AciThreeDSFlow {
+                precondition_url,
+                precondition_method,
+                precondition_form_fields,
+                authentication_url,
+                authentication_method,
+                authentication_form_fields,
+            },
         }
     }
 }
@@ -527,6 +550,21 @@ impl From<diesel_models::payment_attempt::RedirectForm> for RedirectForm {
                 method,
                 form_fields,
                 collection_id,
+            },
+            diesel_models::payment_attempt::RedirectForm::AciThreeDSFlow {
+                precondition_url,
+                precondition_method,
+                precondition_form_fields,
+                authentication_url,
+                authentication_method,
+                authentication_form_fields,
+            } => Self::AciThreeDSFlow {
+                precondition_url,
+                precondition_method,
+                precondition_form_fields,
+                authentication_url,
+                authentication_method,
+                authentication_form_fields,
             },
         }
     }
