@@ -21,11 +21,11 @@ pub mod core {
     impl From<injector_types::HttpMethod> for Method {
         fn from(method: injector_types::HttpMethod) -> Self {
             match method {
-                injector_types::HttpMethod::GET => Method::Get,
-                injector_types::HttpMethod::POST => Method::Post,
-                injector_types::HttpMethod::PUT => Method::Put,
-                injector_types::HttpMethod::PATCH => Method::Patch,
-                injector_types::HttpMethod::DELETE => Method::Delete,
+                injector_types::HttpMethod::GET => Self::Get,
+                injector_types::HttpMethod::POST => Self::Post,
+                injector_types::HttpMethod::PUT => Self::Put,
+                injector_types::HttpMethod::PATCH => Self::Patch,
+                injector_types::HttpMethod::DELETE => Self::Delete,
             }
         }
     }
