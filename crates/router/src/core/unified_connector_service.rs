@@ -377,7 +377,7 @@ pub fn build_unified_connector_service_payment_method_for_external_proxy(
                 .map(payments_grpc::CardNetwork::foreign_try_from)
                 .transpose()?;
             let card_details = CardDetails {
-                card_number: Some(CardNumber::from_str(&external_vault_card.card_number.peek()).change_context(
+                card_number: Some(CardNumber::from_str(external_vault_card.card_number.peek()).change_context(
                     UnifiedConnectorServiceError::RequestEncodingFailedWithReason("Failed to parse card number".to_string())
                 )?),
                 card_exp_month: Some(external_vault_card.card_exp_month.expose().into()),
