@@ -397,6 +397,29 @@ pub trait ConnectorSpecifications {
         false
     }
 
+    /// Whether SDK session token generation is enabled for this connector
+    fn is_sdk_session_token_generation_enabled(&self) -> bool {
+        false
+    }
+
+    /// Payment method types that support SDK session token generation
+    fn supported_payment_methods_for_sdk_session_token(&self) -> Vec<PaymentMethodType> {
+        vec![]
+    }
+
+    /// Validate if SDK session token generation is allowed for given payment method type
+    fn validate_sdk_session_token_for_payment_method(
+        &self,
+        current_core_payment_method_type: &PaymentMethodType,
+    ) -> bool {
+        if self.is_sdk_session_token_generation_enabled() {
+            self.supported_payment_methods_for_sdk_session_token()
+                .contains(current_core_payment_method_type)
+        } else {
+            false
+        }
+    }
+
     #[cfg(not(feature = "v2"))]
     /// Generate connector request reference ID
     fn generate_connector_request_reference_id(

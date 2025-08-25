@@ -1169,6 +1169,9 @@ pub struct PaymentsSessionData {
     pub minor_amount: MinorUnit,
     pub apple_pay_recurring_details: Option<api_models::payments::ApplePayRecurringPaymentRequest>,
     pub customer_name: Option<Secret<String>>,
+    /// The specific payment method type for which the session token is being generated
+    pub payment_method_type: Option<common_enums::PaymentMethodType>,
+    pub payment_method: Option<common_enums::PaymentMethod>,
 }
 
 #[derive(Debug, Clone, Default)]

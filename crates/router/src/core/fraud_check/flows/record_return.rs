@@ -51,6 +51,8 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         _merchant_recipient_data: Option<MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+        _payment_method: Option<common_enums::PaymentMethod>,
+        _payment_method_type: Option<common_enums::PaymentMethodType>,
     ) -> RouterResult<RouterData<RecordReturn, FraudCheckRecordReturnData, FraudCheckResponseData>>
     {
         let status = storage_enums::AttemptStatus::Pending;
@@ -77,6 +79,7 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
                 self.payment_attempt.payment_method,
                 "payment_method_type",
             )?,
+            payment_method_type: None,
             connector_auth_type: auth_type,
             description: None,
             address: self.address.clone(),
