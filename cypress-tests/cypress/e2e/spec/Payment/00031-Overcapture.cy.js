@@ -73,22 +73,21 @@ describe("[Payment] Overcapture", () => {
     });
 
     it("capture-call-test", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["Overcapture"];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["Overcapture"];
 
-        cy.captureCallTest(fixtures.captureBody, data, globalState);
+      cy.captureCallTest(fixtures.captureBody, data, globalState);
 
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
-      });
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
 
-      it("retrieve-payment-call-test", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["Overcapture"];
+    it("retrieve-payment-call-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["Overcapture"];
 
-        cy.retrievePaymentCallTest(globalState, data);
-      });
+      cy.retrievePaymentCallTest(globalState, data);
+    });
   });
 });
