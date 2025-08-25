@@ -490,6 +490,7 @@ pub struct PaymentAttempt {
     /// merchantwho invoked the resource based api (identifier) and through what source (Api, Jwt(Dashboard))
     pub created_by: Option<CreatedBy>,
     pub connector_request_reference_id: Option<String>,
+    pub network_transaction_id: Option<String>,
 }
 
 impl PaymentAttempt {
@@ -622,6 +623,7 @@ impl PaymentAttempt {
             processor_merchant_id: payment_intent.merchant_id.clone(),
             created_by: None,
             connector_request_reference_id: None,
+            network_transaction_id: None,
         })
     }
 
@@ -711,6 +713,7 @@ impl PaymentAttempt {
             processor_merchant_id: payment_intent.merchant_id.clone(),
             created_by: None,
             connector_request_reference_id: None,
+            network_transaction_id: None,
         })
     }
 
@@ -806,6 +809,7 @@ impl PaymentAttempt {
             processor_merchant_id: payment_intent.merchant_id.clone(),
             created_by: None,
             connector_request_reference_id: None,
+            network_transaction_id: None,
         })
     }
 
@@ -915,6 +919,7 @@ impl PaymentAttempt {
             processor_merchant_id: payment_intent.merchant_id.clone(),
             created_by: None,
             connector_request_reference_id,
+            network_transaction_id: None,
         })
     }
 
@@ -1015,6 +1020,7 @@ pub struct PaymentAttempt {
     pub routing_approach: Option<storage_enums::RoutingApproach>,
     pub connector_request_reference_id: Option<String>,
     pub debit_routing_savings: Option<MinorUnit>,
+    pub network_transaction_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -1307,6 +1313,7 @@ pub struct PaymentAttemptNew {
     pub setup_future_usage_applied: Option<storage_enums::FutureUsage>,
     pub routing_approach: Option<storage_enums::RoutingApproach>,
     pub connector_request_reference_id: Option<String>,
+    pub network_transaction_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -1328,6 +1335,7 @@ pub enum PaymentAttemptUpdate {
         fingerprint_id: Option<String>,
         payment_method_billing_address_id: Option<String>,
         updated_by: String,
+        network_transaction_id: Option<String>,
     },
     UpdateTrackers {
         payment_token: Option<String>,
@@ -1376,6 +1384,7 @@ pub enum PaymentAttemptUpdate {
         card_discovery: Option<common_enums::CardDiscovery>,
         routing_approach: Option<storage_enums::RoutingApproach>,
         connector_request_reference_id: Option<String>,
+        network_transaction_id: Option<String>,
     },
     RejectUpdate {
         status: storage_enums::AttemptStatus,
@@ -1406,6 +1415,7 @@ pub enum PaymentAttemptUpdate {
         status: storage_enums::AttemptStatus,
         connector: Option<String>,
         connector_transaction_id: Option<String>,
+        network_transaction_id: Option<String>,
         authentication_type: Option<storage_enums::AuthenticationType>,
         payment_method_id: Option<String>,
         mandate_id: Option<String>,
@@ -1532,6 +1542,7 @@ impl PaymentAttemptUpdate {
                 amount_to_capture,
                 capture_method,
                 fingerprint_id,
+                network_transaction_id,
                 payment_method_billing_address_id,
                 updated_by,
             } => DieselPaymentAttemptUpdate::Update {
@@ -1551,6 +1562,7 @@ impl PaymentAttemptUpdate {
                 tax_amount: net_amount.get_tax_on_surcharge(),
                 fingerprint_id,
                 payment_method_billing_address_id,
+                network_transaction_id,
                 updated_by,
             },
             Self::UpdateTrackers {
@@ -1645,6 +1657,7 @@ impl PaymentAttemptUpdate {
                 card_discovery,
                 routing_approach,
                 connector_request_reference_id,
+                network_transaction_id,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount: net_amount.get_order_amount(),
                 currency,
@@ -1688,6 +1701,7 @@ impl PaymentAttemptUpdate {
                     _ => approach,
                 }),
                 connector_request_reference_id,
+                network_transaction_id,
             },
             Self::VoidUpdate {
                 status,
@@ -1723,6 +1737,7 @@ impl PaymentAttemptUpdate {
                 connector_mandate_detail,
                 charges,
                 setup_future_usage_applied,
+                network_transaction_id,
                 debit_routing_savings: _,
             } => DieselPaymentAttemptUpdate::ResponseUpdate {
                 status,
@@ -1749,6 +1764,7 @@ impl PaymentAttemptUpdate {
                 connector_mandate_detail,
                 charges,
                 setup_future_usage_applied,
+                network_transaction_id,
             },
             Self::UnresolvedResponseUpdate {
                 status,
@@ -2123,6 +2139,7 @@ impl behaviour::Conversion for PaymentAttempt {
             created_by: self.created_by.map(|cb| cb.to_string()),
             routing_approach: self.routing_approach,
             connector_request_reference_id: self.connector_request_reference_id,
+            network_transaction_id: self.network_transaction_id,
         })
     }
 
@@ -2221,6 +2238,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 routing_approach: storage_model.routing_approach,
                 connector_request_reference_id: storage_model.connector_request_reference_id,
                 debit_routing_savings: None,
+                network_transaction_id: storage_model.network_transaction_id,
             })
         }
         .await
@@ -2311,6 +2329,7 @@ impl behaviour::Conversion for PaymentAttempt {
             setup_future_usage_applied: self.setup_future_usage_applied,
             routing_approach: self.routing_approach,
             connector_request_reference_id: self.connector_request_reference_id,
+            network_transaction_id: self.network_transaction_id,
         })
     }
 }
@@ -2383,6 +2402,7 @@ impl behaviour::Conversion for PaymentAttempt {
             processor_merchant_id,
             created_by,
             connector_request_reference_id,
+            network_transaction_id,
         } = self;
 
         let AttemptAmountDetails {
@@ -2478,6 +2498,7 @@ impl behaviour::Conversion for PaymentAttempt {
             processor_merchant_id: Some(processor_merchant_id),
             created_by: created_by.map(|cb| cb.to_string()),
             connector_request_reference_id,
+            network_transaction_id,
         })
     }
 
@@ -2601,6 +2622,7 @@ impl behaviour::Conversion for PaymentAttempt {
                     .created_by
                     .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
                 connector_request_reference_id: storage_model.connector_request_reference_id,
+                network_transaction_id: storage_model.network_transaction_id,
             })
         }
         .await
@@ -2660,6 +2682,7 @@ impl behaviour::Conversion for PaymentAttempt {
             processor_merchant_id,
             created_by,
             connector_request_reference_id,
+            network_transaction_id,
         } = self;
 
         let card_network = payment_method_data
@@ -2677,6 +2700,7 @@ impl behaviour::Conversion for PaymentAttempt {
             payment_id,
             merchant_id,
             status,
+            network_transaction_id,
             error_message: error_details
                 .as_ref()
                 .map(|details| details.message.clone()),
