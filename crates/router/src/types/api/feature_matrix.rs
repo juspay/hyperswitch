@@ -22,6 +22,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Adyen => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Adyen::new())))
                 }
+                enums::Connector::Affirm => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Affirm::new())))
+                }
                 enums::Connector::Adyenplatform => Ok(ConnectorEnum::Old(Box::new(
                     connector::Adyenplatform::new(),
                 ))),
@@ -58,6 +61,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Bitpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Bitpay::new())))
                 }
+                enums::Connector::Blackhawknetwork => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Blackhawknetwork::new(),
+                ))),
                 enums::Connector::Bluesnap => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Bluesnap::new())))
                 }
@@ -239,7 +245,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Novalnet => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Novalnet::new())))
                 }
-                enums::Connector::Nuvei => Ok(ConnectorEnum::Old(Box::new(&connector::Nuvei))),
+                enums::Connector::Nuvei => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Nuvei::new())))
+                }
                 enums::Connector::Opennode => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Opennode::new())))
                 }
@@ -349,7 +357,7 @@ impl FeatureMatrixConnectorData {
                 // enums::Connector::UnifiedAuthenticationService => Ok(ConnectorEnum::Old(Box::new(
                 //     connector::UnifiedAuthenticationService,
                 // ))),
-                enums::Connector::Vgs => Ok(ConnectorEnum::Old(Box::new(connector::Vgs::new()))),
+                enums::Connector::Vgs => Ok(ConnectorEnum::Old(Box::new(&connector::Vgs))),
                 enums::Connector::Volt => Ok(ConnectorEnum::Old(Box::new(connector::Volt::new()))),
                 enums::Connector::Wellsfargo => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Wellsfargo::new())))

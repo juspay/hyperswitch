@@ -752,10 +752,25 @@ impl PaymentIntent {
             retry_count: None,
             invoice_next_billing_time: None,
             invoice_billing_started_at_time: None,
-            card_isin: None,
-            card_network: None,
             // No charge id is present here since it is an internal payment and we didn't call connector yet.
             charge_id: None,
+            card_info: api_models::payments::AdditionalCardInfo {
+                card_issuer: None,
+                card_network: None,
+                card_type: None,
+                card_issuing_country: None,
+                bank_code: None,
+                last4: None,
+                card_isin: None,
+                card_extended_bin: None,
+                card_exp_month: None,
+                card_exp_year: None,
+                card_holder_name: None,
+                payment_checks: None,
+                authentication_data: None,
+                is_regulated: None,
+                signature_network: None,
+            },
         })
     }
 
