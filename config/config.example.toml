@@ -1176,6 +1176,7 @@ billing_connectors_which_requires_invoice_sync_call = "recurly" # List of billin
 [revenue_recovery]
 monitoring_threshold_in_seconds = 60  # 60 secs , threshold for monitoring the retry system
 retry_algorithm_type = "cascading"  # type of retry algorithm
+redis_ttl_in_seconds=3888000  # ttl for redis for storing payment processor token details
 
 # Card specific configuration for Revenue Recovery
 [revenue_recovery.card_config.amex]

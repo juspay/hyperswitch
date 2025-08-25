@@ -1292,6 +1292,7 @@ ucs_only_connectors = "paytm, phonepe"    # Comma-separated list of connectors t
 [revenue_recovery]
 monitoring_threshold_in_seconds = 60
 retry_algorithm_type = "cascading"
+redis_ttl_in_seconds=3888000
 
 [revenue_recovery.recovery_timestamp]
 initial_timestamp_in_hours = 1
