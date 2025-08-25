@@ -52,62 +52,63 @@ impl Feature<Authenticate, types::PaymentsAuthenticateData>
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
         return_raw_connector_response: Option<bool>,
     ) -> RouterResult<Self> {
-        let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
-            Authenticate,
-            types::PaymentsAuthenticateData,
-            types::PaymentsResponseData,
-        > = connector.connector.get_connector_integration();
+        todo!()
+        // let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
+        //     Authenticate,
+        //     types::PaymentsAuthenticateData,
+        //     types::PaymentsResponseData,
+        // > = connector.connector.get_connector_integration();
 
-        // if self.should_proceed_with_authorize() {
-        //     self.decide_authentication_type();
-        //     logger::debug!(auth_type=?self.auth_type);
-        let mut auth_router_data = services::execute_connector_processing_step(
-            state,
-            connector_integration,
-            &self,
-            call_connector_action.clone(),
-            connector_request,
-            return_raw_connector_response,
-        )
-        .await
-        .to_payment_failed_response()?;
+        // // if self.should_proceed_with_authorize() {
+        // //     self.decide_authentication_type();
+        // //     logger::debug!(auth_type=?self.auth_type);
+        // let mut auth_router_data = services::execute_connector_processing_step(
+        //     state,
+        //     connector_integration,
+        //     &self,
+        //     call_connector_action.clone(),
+        //     connector_request,
+        //     return_raw_connector_response,
+        // )
+        // .await
+        // .to_payment_failed_response()?;
 
-        // Initiating Integrity check
-        let integrity_result = helpers::check_integrity_based_on_flow(
-            &auth_router_data.request,
-            &auth_router_data.response,
-        );
-        auth_router_data.integrity_check = integrity_result;
-        metrics::PAYMENT_COUNT.add(1, &[]); // Move outside of the if block
+        // // Initiating Integrity check
+        // let integrity_result = helpers::check_integrity_based_on_flow(
+        //     &auth_router_data.request,
+        //     &auth_router_data.response,
+        // );
+        // auth_router_data.integrity_check = integrity_result;
+        // metrics::PAYMENT_COUNT.add(1, &[]); // Move outside of the if block
 
-        match auth_router_data.response.clone() {
-            Err(_) => Ok(auth_router_data),
-            Ok(authorize_response) => {
-                // Check if the Capture API should be called based on the connector and other parameters
-                // if super::should_initiate_capture_flow(
-                //     &connector.connector_name,
-                //     self.request.customer_acceptance,
-                //     self.request.capture_method,
-                //     self.request.setup_future_usage,
-                //     auth_router_data.status,
-                // ) {
-                //     auth_router_data = Box::pin(process_capture_flow(
-                //         auth_router_data,
-                //         authorize_response,
-                //         state,
-                //         connector,
-                //         call_connector_action.clone(),
-                //         business_profile,
-                //         header_payload,
-                //     ))
-                //     .await?;
-                // }
-                Ok(auth_router_data)
-            }
-        }
-        // } else {
-        //     Ok(self.clone())
+        // match auth_router_data.response.clone() {
+        //     Err(_) => Ok(auth_router_data),
+        //     Ok(authorize_response) => {
+        //         // Check if the Capture API should be called based on the connector and other parameters
+        //         // if super::should_initiate_capture_flow(
+        //         //     &connector.connector_name,
+        //         //     self.request.customer_acceptance,
+        //         //     self.request.capture_method,
+        //         //     self.request.setup_future_usage,
+        //         //     auth_router_data.status,
+        //         // ) {
+        //         //     auth_router_data = Box::pin(process_capture_flow(
+        //         //         auth_router_data,
+        //         //         authorize_response,
+        //         //         state,
+        //         //         connector,
+        //         //         call_connector_action.clone(),
+        //         //         business_profile,
+        //         //         header_payload,
+        //         //     ))
+        //         //     .await?;
+        //         // }
+        //         Ok(auth_router_data)
+        //     }
         // }
+        // // } else {
+        // //     Ok(self.clone())
+        // // }
     }
 
     async fn add_access_token<'a>(
@@ -139,16 +140,17 @@ impl Feature<Authenticate, types::PaymentsAuthenticateData>
         tokenization_action: &payments::TokenizationAction,
         should_continue_payment: bool,
     ) -> RouterResult<types::PaymentMethodTokenResult> {
-        let request = self.request.clone();
-        tokenization::add_payment_method_token(
-            state,
-            connector,
-            tokenization_action,
-            self,
-            types::PaymentMethodTokenizationData::try_from(request)?,
-            should_continue_payment,
-        )
-        .await
+        todo!()
+        // let request = self.request.clone();
+        // tokenization::add_payment_method_token(
+        //     state,
+        //     connector,
+        //     tokenization_action,
+        //     self,
+        //     types::PaymentMethodTokenizationData::try_from(request)?,
+        //     should_continue_payment,
+        // )
+        // .await
     }
 
     async fn build_flow_specific_connector_request(
@@ -157,92 +159,93 @@ impl Feature<Authenticate, types::PaymentsAuthenticateData>
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<(Option<services::Request>, bool)> {
-        match call_connector_action {
-            payments::CallConnectorAction::Trigger => {
-                connector
-                    .connector
-                    .validate_connector_against_payment_request(
-                        self.request.capture_method,
-                        self.payment_method,
-                        self.request.payment_method_type,
-                    )
-                    .to_payment_failed_response()?;
+        todo!()
+        // match call_connector_action {
+        //     payments::CallConnectorAction::Trigger => {
+        //         connector
+        //             .connector
+        //             .validate_connector_against_payment_request(
+        //                 self.request.capture_method,
+        //                 self.payment_method,
+        //                 self.request.payment_method_type,
+        //             )
+        //             .to_payment_failed_response()?;
 
-                // Check if the connector supports mandate payment
-                // if the payment_method_type does not support mandate for the given connector, downgrade the setup future usage to on session
-                if self.request.setup_future_usage
-                    == Some(diesel_models::enums::FutureUsage::OffSession)
-                    && !self
-                        .request
-                        .payment_method_type
-                        .and_then(|payment_method_type| {
-                            state
-                                .conf
-                                .mandates
-                                .supported_payment_methods
-                                .0
-                                .get(&enums::PaymentMethod::from(payment_method_type))
-                                .and_then(|supported_pm_for_mandates| {
-                                    supported_pm_for_mandates.0.get(&payment_method_type).map(
-                                        |supported_connector_for_mandates| {
-                                            supported_connector_for_mandates
-                                                .connector_list
-                                                .contains(&connector.connector_name)
-                                        },
-                                    )
-                                })
-                        })
-                        .unwrap_or(false)
-                {
-                    // downgrade the setup future usage to on session
-                    self.request.setup_future_usage =
-                        Some(diesel_models::enums::FutureUsage::OnSession);
-                };
+        //         // Check if the connector supports mandate payment
+        //         // if the payment_method_type does not support mandate for the given connector, downgrade the setup future usage to on session
+        //         if self.request.setup_future_usage
+        //             == Some(diesel_models::enums::FutureUsage::OffSession)
+        //             && !self
+        //                 .request
+        //                 .payment_method_type
+        //                 .and_then(|payment_method_type| {
+        //                     state
+        //                         .conf
+        //                         .mandates
+        //                         .supported_payment_methods
+        //                         .0
+        //                         .get(&enums::PaymentMethod::from(payment_method_type))
+        //                         .and_then(|supported_pm_for_mandates| {
+        //                             supported_pm_for_mandates.0.get(&payment_method_type).map(
+        //                                 |supported_connector_for_mandates| {
+        //                                     supported_connector_for_mandates
+        //                                         .connector_list
+        //                                         .contains(&connector.connector_name)
+        //                                 },
+        //                             )
+        //                         })
+        //                 })
+        //                 .unwrap_or(false)
+        //         {
+        //             // downgrade the setup future usage to on session
+        //             self.request.setup_future_usage =
+        //                 Some(diesel_models::enums::FutureUsage::OnSession);
+        //         };
 
-                if crate::connector::utils::PaymentsAuthorizeRequestData::is_customer_initiated_mandate_payment(
-                    &self.request,
-                ) {
-                    connector
-                        .connector
-                        .validate_mandate_payment(
-                            self.request.payment_method_type,
-                            self.request.payment_method_data.clone(),
-                        )
-                        .to_payment_failed_response()?;
-                };
+        //         if crate::connector::utils::PaymentsAuthorizeRequestData::is_customer_initiated_mandate_payment(
+        //             &self.request,
+        //         ) {
+        //             connector
+        //                 .connector
+        //                 .validate_mandate_payment(
+        //                     self.request.payment_method_type,
+        //                     self.request.payment_method_data.clone(),
+        //                 )
+        //                 .to_payment_failed_response()?;
+        //         };
 
-                let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
-                    api::Authorize,
-                    types::PaymentsAuthorizeData,
-                    types::PaymentsResponseData,
-                > = connector.connector.get_connector_integration();
+        //         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
+        //             api::Authorize,
+        //             types::PaymentsAuthorizeData,
+        //             types::PaymentsResponseData,
+        //         > = connector.connector.get_connector_integration();
 
-                metrics::EXECUTE_PRETASK_COUNT.add(
-                    1,
-                    router_env::metric_attributes!(
-                        ("connector", connector.connector_name.to_string()),
-                        ("flow", format!("{:?}", api::Authorize)),
-                    ),
-                );
+        //         metrics::EXECUTE_PRETASK_COUNT.add(
+        //             1,
+        //             router_env::metric_attributes!(
+        //                 ("connector", connector.connector_name.to_string()),
+        //                 ("flow", format!("{:?}", api::Authorize)),
+        //             ),
+        //         );
 
-                logger::debug!(completed_pre_tasks=?true);
+        //         logger::debug!(completed_pre_tasks=?true);
 
-                // if self.should_proceed_with_authorize() {
-                //     self.decide_authentication_type();
-                //     logger::debug!(auth_type=?self.auth_type);
+        //         // if self.should_proceed_with_authorize() {
+        //         //     self.decide_authentication_type();
+        //         //     logger::debug!(auth_type=?self.auth_type);
 
-                //     Ok((
-                //         connector_integration
-                //             .build_request(self, &state.conf.connectors)
-                //             .to_payment_failed_response()?,
-                //         true,
-                //     ))
-                // } else {
-                Ok((None, false))
-                // }
-            }
-            _ => Ok((None, true)),
-        }
+        //         //     Ok((
+        //         //         connector_integration
+        //         //             .build_request(self, &state.conf.connectors)
+        //         //             .to_payment_failed_response()?,
+        //         //         true,
+        //         //     ))
+        //         // } else {
+        //         Ok((None, false))
+        //         // }
+        //     }
+        //     _ => Ok((None, true)),
+        // }
     }
 
     async fn create_order_at_connector(
@@ -251,79 +254,81 @@ impl Feature<Authenticate, types::PaymentsAuthenticateData>
         connector: &api::ConnectorData,
         should_continue_payment: bool,
     ) -> RouterResult<Option<types::CreateOrderResult>> {
-        if connector
-            .connector_name
-            .requires_order_creation_before_payment(self.payment_method)
-            && should_continue_payment
-        {
-            let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
-                api::CreateOrder,
-                types::CreateOrderRequestData,
-                types::PaymentsResponseData,
-            > = connector.connector.get_connector_integration();
+        todo!()
+        // if connector
+        //     .connector_name
+        //     .requires_order_creation_before_payment(self.payment_method)
+        //     && should_continue_payment
+        // {
+        //     let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
+        //         api::CreateOrder,
+        //         types::CreateOrderRequestData,
+        //         types::PaymentsResponseData,
+        //     > = connector.connector.get_connector_integration();
 
-            let request_data = types::CreateOrderRequestData::try_from(self.request.clone())?;
+        //     let request_data = types::CreateOrderRequestData::try_from(self.request.clone())?;
 
-            let response_data: Result<types::PaymentsResponseData, types::ErrorResponse> =
-                Err(types::ErrorResponse::default());
+        //     let response_data: Result<types::PaymentsResponseData, types::ErrorResponse> =
+        //         Err(types::ErrorResponse::default());
 
-            let createorder_router_data =
-                helpers::router_data_type_conversion::<_, api::CreateOrder, _, _, _, _>(
-                    self.clone(),
-                    request_data,
-                    response_data,
-                );
+        //     let createorder_router_data =
+        //         helpers::router_data_type_conversion::<_, api::CreateOrder, _, _, _, _>(
+        //             self.clone(),
+        //             request_data,
+        //             response_data,
+        //         );
 
-            let resp = services::execute_connector_processing_step(
-                state,
-                connector_integration,
-                &createorder_router_data,
-                payments::CallConnectorAction::Trigger,
-                None,
-                None,
-            )
-            .await
-            .to_payment_failed_response()?;
+        //     let resp = services::execute_connector_processing_step(
+        //         state,
+        //         connector_integration,
+        //         &createorder_router_data,
+        //         payments::CallConnectorAction::Trigger,
+        //         None,
+        //         None,
+        //     )
+        //     .await
+        //     .to_payment_failed_response()?;
 
-            let create_order_resp = match resp.response {
-                Ok(res) => {
-                    if let types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id } =
-                        res
-                    {
-                        Ok(order_id)
-                    } else {
-                        Err(error_stack::report!(ApiErrorResponse::InternalServerError)
-                            .attach_printable(format!(
-                                "Unexpected response format from connector: {res:?}",
-                            )))?
-                    }
-                }
-                Err(error) => Err(error),
-            };
+        //     let create_order_resp = match resp.response {
+        //         Ok(res) => {
+        //             if let types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id } =
+        //                 res
+        //             {
+        //                 Ok(order_id)
+        //             } else {
+        //                 Err(error_stack::report!(ApiErrorResponse::InternalServerError)
+        //                     .attach_printable(format!(
+        //                         "Unexpected response format from connector: {res:?}",
+        //                     )))?
+        //             }
+        //         }
+        //         Err(error) => Err(error),
+        //     };
 
-            Ok(Some(types::CreateOrderResult {
-                create_order_result: create_order_resp,
-            }))
-        } else {
-            // If the connector does not require order creation, return None
-            Ok(None)
-        }
+        //     Ok(Some(types::CreateOrderResult {
+        //         create_order_result: create_order_resp,
+        //     }))
+        // } else {
+        //     // If the connector does not require order creation, return None
+        //     Ok(None)
+        // }
     }
 
     fn update_router_data_with_create_order_response(
         &mut self,
         create_order_result: types::CreateOrderResult,
     ) {
-        match create_order_result.create_order_result {
-            Ok(order_id) => {
-                self.request.order_id = Some(order_id.clone()); // ? why this is assigned here and ucs also wants this to populate data
-                self.response =
-                    Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id });
-            }
-            Err(err) => {
-                self.response = Err(err.clone());
-            }
-        }
+        todo!()
+        // match create_order_result.create_order_result {
+        //     Ok(order_id) => {
+        //         self.request.order_id = Some(order_id.clone()); // ? why this is assigned here and ucs also wants this to populate data
+        //         self.response =
+        //             Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id });
+        //     }
+        //     Err(err) => {
+        //         self.response = Err(err.clone());
+        //     }
+        // }
     }
 
     async fn call_unified_connector_service<'a>(
@@ -409,17 +414,18 @@ impl
             types::PaymentsResponseData,
         >,
     > {
-        Box::pin(transformers::construct_payment_router_data_for_authorize(
-            state,
-            self.clone(),
-            connector_id,
-            merchant_context,
-            customer,
-            merchant_connector_account,
-            merchant_recipient_data,
-            header_payload,
-        ))
-        .await
+        todo!()
+        // Box::pin(transformers::construct_payment_router_data_for_authorize(
+        //     state,
+        //     self.clone(),
+        //     connector_id,
+        //     merchant_context,
+        //     customer,
+        //     merchant_connector_account,
+        //     merchant_recipient_data,
+        //     header_payload,
+        // ))
+        // .await
     }
 
     async fn get_merchant_recipient_data<'a>(

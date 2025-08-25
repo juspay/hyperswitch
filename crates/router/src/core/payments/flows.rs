@@ -7,8 +7,8 @@ pub mod capture_flow;
 pub mod complete_authorize_flow;
 pub mod incremental_authorization_flow;
 pub mod post_session_tokens_flow;
-pub mod postauthenticate_flow;
-pub mod preauthenticate_flow;
+// pub mod postauthenticate_flow;
+// pub mod preauthenticate_flow;
 pub mod psync_flow;
 pub mod reject_flow;
 pub mod session_flow;
@@ -339,50 +339,10 @@ pub async fn call_capture_request(
             business_profile,
             header_payload.clone(),
             None,
-            None,
         )
         .await
 }
 
-/// Executes a capture request by building a connector-specific request and deciding
-/// the appropriate flow to send it to the payment connector.
-pub async fn call_preauth_request(
-    mut capture_router_data: types::RouterData<
-        hyperswitch_domain_models::router_flow_types::PreAuthenticate,
-        PaymentsAuthorizeData,
-        types::PaymentsResponseData,
-    >,
-    state: &SessionState,
-    connector: &api::ConnectorData,
-    call_connector_action: payments::CallConnectorAction,
-    business_profile: &domain::Profile,
-    header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-) -> RouterResult<
-    types::RouterData<
-        hyperswitch_domain_models::router_flow_types::PreAuthenticate,
-        PaymentsAuthorizeData,
-        types::PaymentsResponseData,
-    >,
-> {
-    // Build capture-specific connector request
-    let (connector_request, _should_continue_further) = capture_router_data
-        .build_flow_specific_connector_request(state, connector, call_connector_action.clone())
-        .await?;
-
-    // Execute capture flow
-    capture_router_data
-        .decide_flows(
-            state,
-            connector,
-            call_connector_action,
-            connector_request,
-            business_profile,
-            header_payload.clone(),
-            None,
-            None,
-        )
-        .await
-}
 /// Processes the response from the capture flow and determines the final status and the response.
 fn handle_post_capture_response(
     authorize_router_data_response: types::PaymentsResponseData,

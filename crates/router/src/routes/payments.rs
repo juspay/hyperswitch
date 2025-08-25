@@ -2944,24 +2944,17 @@ pub async fn payment_confirm_intent(
             let payment_id = req.global_payment_id;
             let request = req.payload;
 
-            let operation = payments::operations::PaymentIntentConfirm;
+            // let operation = payments::operations::PaymentIntentConfirm;
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
 
-            Box::pin(payments::payments_core::<
-                api_types::Authorize,
-                api_models::payments::PaymentsResponse,
-                _,
-                _,
-                _,
-                PaymentConfirmData<_>,
-            >(
+            Box::pin(payments::payments_execute_core(
                 state,
                 req_state,
                 merchant_context,
                 auth.profile,
-                operation,
+                // operation,
                 request,
                 payment_id,
                 payments::CallConnectorAction::Trigger,

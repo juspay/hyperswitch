@@ -216,17 +216,6 @@ where
         .perform_routing(&merchant_context, profile, state, &mut payment_data)
         .await?;
 
-    // payment_data = tokenize_in_router_when_confirm_false_or_external_authentication(
-    //     state,
-    //     &operation,
-    //     &mut payment_data,
-    //     &merchant_context.get_merchant_account().storage_scheme,
-    //     merchant_context.get_merchant_key_store(),
-    //     &customer,
-    //     &profile,
-    // )
-    // .await?;
-
     let mut connector_http_status_code = None;
     let (payment_data, connector_response_data) = match connector {
         ConnectorCallType::PreDetermined(connector_data) => {
@@ -249,7 +238,6 @@ where
                     false,
                     false, //should_retry_with_pan is set to false in case of PreDetermined ConnectorCallType
                     req.should_return_raw_response(),
-                    NextActionFlows::Authorize,
                 )
                 .await?;
 
@@ -280,7 +268,6 @@ where
                 mca_type_details,
                 router_data,
                 updated_customer,
-                Some(connector_flow),
             )
             .await?;
 
@@ -344,7 +331,6 @@ where
                     false,
                     false, //should_retry_with_pan is set to false in case of Retryable ConnectorCallType
                     req.should_return_raw_response(),
-                    NextActionFlows::Authorize,
                 )
                 .await?;
 
@@ -368,7 +354,6 @@ where
                 mca_type_details,
                 router_data,
                 updated_customer,
-                None,
             )
             .await?;
 
@@ -2678,26 +2663,26 @@ pub async fn payments_execute_core(
         ConnectorCallType::PreDetermined(connector_data) => {
             use hyperswitch_domain_models::router_request_types::PaymentsAuthorizeData;
 
-            let operation: BoxedOperation<
-                '_,
-                hyperswitch_domain_models::router_flow_types::Authenticate,
-                payments_api::PaymentsConfirmIntentRequest,
-                PaymentConfirmData<hyperswitch_domain_models::router_flow_types::Authenticate>,
-            > = Box::new(main_operation);
+            // let operation: BoxedOperation<
+            //     '_,
+            //     hyperswitch_domain_models::router_flow_types::Authenticate,
+            //     payments_api::PaymentsConfirmIntentRequest,
+            //     PaymentConfirmData<hyperswitch_domain_models::router_flow_types::Authenticate>,
+            // > = Box::new(main_operation);
 
-            let mut payment_data: PaymentConfirmData<
-                hyperswitch_domain_models::router_flow_types::Authenticate,
-            > = PaymentConfirmData {
-                flow: PhantomData,
-                payment_intent: payment_data.payment_intent,
-                payment_attempt: payment_data.payment_attempt,
-                payment_method_data: payment_data.payment_method_data,
-                payment_address: payment_data.payment_address,
-                mandate_data: payment_data.mandate_data,
-                payment_method: payment_data.payment_method,
-                merchant_connector_details: payment_data.merchant_connector_details,
-                redirect_response: payment_data.redirect_response,
-            };
+            // let mut payment_data: PaymentConfirmData<
+            //     hyperswitch_domain_models::router_flow_types::Authenticate,
+            // > = PaymentConfirmData {
+            //     flow: PhantomData,
+            //     payment_intent: payment_data.payment_intent,
+            //     payment_attempt: payment_data.payment_attempt,
+            //     payment_method_data: payment_data.payment_method_data,
+            //     payment_address: payment_data.payment_address,
+            //     mandate_data: payment_data.mandate_data,
+            //     payment_method: payment_data.payment_method,
+            //     merchant_connector_details: payment_data.merchant_connector_details,
+            //     redirect_response: payment_data.redirect_response,
+            // };
 
             let (mca_type_details, updated_customer, mut router_data) =
                 call_connector_service_prerequisites(
@@ -2716,7 +2701,6 @@ pub async fn payments_execute_core(
                     false,
                     false, //should_retry_with_pan is set to false in case of PreDetermined ConnectorCallType
                     req.should_return_raw_response(),
-                    NextActionFlows::Authorize,
                 )
                 .await?;
 
@@ -2747,7 +2731,6 @@ pub async fn payments_execute_core(
                 mca_type_details,
                 router_data,
                 updated_customer,
-                Some(connector_flow),
             )
             .await?;
 
@@ -2815,7 +2798,6 @@ pub async fn payments_execute_core(
                     false,
                     false, //should_retry_with_pan is set to false in case of Retryable ConnectorCallType
                     req.should_return_raw_response(),
-                    NextActionFlows::Authorize,
                 )
                 .await?;
 
@@ -2839,7 +2821,6 @@ pub async fn payments_execute_core(
                 mca_type_details,
                 router_data,
                 updated_customer,
-                None,
             )
             .await?;
 
@@ -5030,7 +5011,6 @@ where
             &merchant_connector_account_type_details,
             None,
             None,
-            Some(next_action_flow),
         )
         .await?;
 
@@ -5098,7 +5078,6 @@ where
             &merchant_connector_account,
             None,
             None,
-            None,
         )
         .await?;
 
@@ -5140,7 +5119,6 @@ where
             merchant_context,
             &None,
             &merchant_connector_account_type_details,
-            None,
             None,
             None,
         )
@@ -5589,7 +5567,6 @@ where
             &merchant_connector_account,
             None,
             None,
-            None,
         )
         .await?;
 
@@ -5643,7 +5620,6 @@ where
                 business_profile,
                 header_payload.clone(),
                 return_raw_connector_response,
-                None,
             )
             .await
     } else {
@@ -6166,7 +6142,6 @@ where
                 &merchant_connector_account,
                 None,
                 None,
-                None,
             )
             .await?;
 
@@ -6178,7 +6153,6 @@ where
             business_profile,
             header_payload.clone(),
             return_raw_connector_response,
-            None,
         );
 
         join_handlers.push(res);
@@ -6693,7 +6667,6 @@ where
                         merchant_context,
                         customer,
                         merchant_connector_account,
-                        None,
                         None,
                         None,
                     )

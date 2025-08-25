@@ -331,58 +331,59 @@ pub async fn complete_authorize_authenticate_steps<F: Clone>(
     if confirm {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             Authenticate,
-            types::PaymentsPreProcessingData,
+            types::PaymentsAuthenticateData,
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
 
-        let preprocessing_request_data =
-            types::PaymentsPreProcessingData::try_from(router_data.request.to_owned())?;
+        // let preprocessing_request_data =
+        //     types::PaymentsAuthenticateData::try_from(router_data.request.to_owned())?;
 
-        let preprocessing_response_data: Result<types::PaymentsResponseData, types::ErrorResponse> =
-            Err(types::ErrorResponse::default());
+        // let preprocessing_response_data: Result<types::PaymentsResponseData, types::ErrorResponse> =
+        //     Err(types::ErrorResponse::default());
 
-        let preprocessing_router_data =
-            helpers::router_data_type_conversion::<_, Authenticate, _, _, _, _>(
-                router_data.clone(),
-                preprocessing_request_data,
-                preprocessing_response_data,
-            );
+        // let preprocessing_router_data =
+        //     helpers::router_data_type_conversion::<_, Authenticate, _, _, _, _>(
+        //         router_data.clone(),
+        //         preprocessing_request_data,
+        //         preprocessing_response_data,
+        //     );
 
-        let resp = services::execute_connector_processing_step(
-            state,
-            connector_integration,
-            &preprocessing_router_data,
-            payments::CallConnectorAction::Trigger,
-            None,
-            None,
-        )
-        .await
-        .to_payment_failed_response()?;
+        // let resp = services::execute_connector_processing_step(
+        //     state,
+        //     connector_integration,
+        //     &preprocessing_router_data,
+        //     payments::CallConnectorAction::Trigger,
+        //     None,
+        //     None,
+        // )
+        // .await
+        // .to_payment_failed_response()?;
 
-        metrics::PREPROCESSING_STEPS_COUNT.add(
-            1,
-            router_env::metric_attributes!(
-                ("connector", connector.connector_name.to_string()),
-                ("payment_method", router_data.payment_method.to_string()),
-            ),
-        );
+        // metrics::PREPROCESSING_STEPS_COUNT.add(
+        //     1,
+        //     router_env::metric_attributes!(
+        //         ("connector", connector.connector_name.to_string()),
+        //         ("payment_method", router_data.payment_method.to_string()),
+        //     ),
+        // );
 
-        let mut router_data_request = router_data.request.to_owned();
+        // let mut router_data_request = router_data.request.to_owned();
 
-        if let Ok(types::PaymentsResponseData::TransactionResponse {
-            connector_metadata, ..
-        }) = &resp.response
-        {
-            connector_metadata.clone_into(&mut router_data_request.connector_meta);
-        };
+        // if let Ok(types::PaymentsResponseData::TransactionResponse {
+        //     connector_metadata, ..
+        // }) = &resp.response
+        // {
+        //     connector_metadata.clone_into(&mut router_data_request.connector_meta);
+        // };
 
-        let authorize_router_data = helpers::router_data_type_conversion::<_, F, _, _, _, _>(
-            resp.clone(),
-            router_data_request,
-            resp.response,
-        );
+        // let authorize_router_data = helpers::router_data_type_conversion::<_, F, _, _, _, _>(
+        //     resp.clone(),
+        //     router_data_request,
+        //     resp.response,
+        // );
 
-        Ok(authorize_router_data)
+        // Ok(authorize_router_data)
+        todo!()
     } else {
         Ok(router_data.clone())
     }
@@ -397,58 +398,59 @@ pub async fn complete_authorize_postauthenticate_steps<F: Clone>(
     if confirm {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             PostAuthenticate,
-            types::PaymentsPreProcessingData,
+            types::PaymentsPostAuthenticateData,
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
 
-        let preprocessing_request_data =
-            types::PaymentsPreProcessingData::try_from(router_data.request.to_owned())?;
+        // let preprocessing_request_data =
+        //     types::PaymentsPostAuthenticateData::try_from(router_data.request.to_owned())?;
 
-        let preprocessing_response_data: Result<types::PaymentsResponseData, types::ErrorResponse> =
-            Err(types::ErrorResponse::default());
+        // let preprocessing_response_data: Result<types::PaymentsResponseData, types::ErrorResponse> =
+        //     Err(types::ErrorResponse::default());
 
-        let preprocessing_router_data =
-            helpers::router_data_type_conversion::<_, PostAuthenticate, _, _, _, _>(
-                router_data.clone(),
-                preprocessing_request_data,
-                preprocessing_response_data,
-            );
+        // let preprocessing_router_data =
+        //     helpers::router_data_type_conversion::<_, PostAuthenticate, _, _, _, _>(
+        //         router_data.clone(),
+        //         preprocessing_request_data,
+        //         preprocessing_response_data,
+        //     );
 
-        let resp = services::execute_connector_processing_step(
-            state,
-            connector_integration,
-            &preprocessing_router_data,
-            payments::CallConnectorAction::Trigger,
-            None,
-            None,
-        )
-        .await
-        .to_payment_failed_response()?;
+        // let resp = services::execute_connector_processing_step(
+        //     state,
+        //     connector_integration,
+        //     &preprocessing_router_data,
+        //     payments::CallConnectorAction::Trigger,
+        //     None,
+        //     None,
+        // )
+        // .await
+        // .to_payment_failed_response()?;
 
-        metrics::PREPROCESSING_STEPS_COUNT.add(
-            1,
-            router_env::metric_attributes!(
-                ("connector", connector.connector_name.to_string()),
-                ("payment_method", router_data.payment_method.to_string()),
-            ),
-        );
+        // metrics::PREPROCESSING_STEPS_COUNT.add(
+        //     1,
+        //     router_env::metric_attributes!(
+        //         ("connector", connector.connector_name.to_string()),
+        //         ("payment_method", router_data.payment_method.to_string()),
+        //     ),
+        // );
 
-        let mut router_data_request = router_data.request.to_owned();
+        // let mut router_data_request = router_data.request.to_owned();
 
-        if let Ok(types::PaymentsResponseData::TransactionResponse {
-            connector_metadata, ..
-        }) = &resp.response
-        {
-            connector_metadata.clone_into(&mut router_data_request.connector_meta);
-        };
+        // if let Ok(types::PaymentsResponseData::TransactionResponse {
+        //     connector_metadata, ..
+        // }) = &resp.response
+        // {
+        //     connector_metadata.clone_into(&mut router_data_request.connector_meta);
+        // };
 
-        let authorize_router_data = helpers::router_data_type_conversion::<_, F, _, _, _, _>(
-            resp.clone(),
-            router_data_request,
-            resp.response,
-        );
+        // let authorize_router_data = helpers::router_data_type_conversion::<_, F, _, _, _, _>(
+        //     resp.clone(),
+        //     router_data_request,
+        //     resp.response,
+        // );
 
-        Ok(authorize_router_data)
+        // Ok(authorize_router_data)
+        todo!()
     } else {
         Ok(router_data.clone())
     }
