@@ -18,6 +18,18 @@ pub mod core {
     use crate as injector_types;
     use crate::{ContentType, InjectorRequest, InjectorResponse};
 
+    impl From<injector_types::HttpMethod> for Method {
+        fn from(method: injector_types::HttpMethod) -> Self {
+            match method {
+                injector_types::HttpMethod::GET => Method::Get,
+                injector_types::HttpMethod::POST => Method::Post,
+                injector_types::HttpMethod::PUT => Method::Put,
+                injector_types::HttpMethod::PATCH => Method::Patch,
+                injector_types::HttpMethod::DELETE => Method::Delete,
+            }
+        }
+    }
+
     /// Proxy configuration structure (copied from hyperswitch_interfaces to make injector standalone)
     #[derive(Debug, serde::Deserialize, Clone)]
     #[serde(default)]
@@ -400,13 +412,7 @@ pub mod core {
                 .collect();
 
             // Determine method and request content
-            let method = match config.http_method {
-                injector_types::HttpMethod::GET => Method::Get,
-                injector_types::HttpMethod::POST => Method::Post,
-                injector_types::HttpMethod::PUT => Method::Put,
-                injector_types::HttpMethod::PATCH => Method::Patch,
-                injector_types::HttpMethod::DELETE => Method::Delete,
-            };
+            let method = Method::from(config.http_method);
 
             // Determine request content based on content type with error handling
             let request_content = match content_type {
@@ -513,16 +519,6 @@ pub mod core {
                 .text()
                 .await
                 .change_context(InjectorError::HttpRequestFailed)?;
-
-            // Validate response text length to prevent potential memory issues
-            if response_text.len() > 10_000_000 {
-                // 10MB limit
-                logger::error!(
-                    response_length = response_text.len(),
-                    "Response from connector is too large, potential DoS or memory exhaustion"
-                );
-                Err(error_stack::Report::new(InjectorError::HttpRequestFailed))?;
-            }
 
             logger::debug!(
                 response_length = response_text.len(),
