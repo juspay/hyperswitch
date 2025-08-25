@@ -168,7 +168,6 @@ pub struct UasConfirmationRequestData {
     pub checkout_event_status: Option<String>,
     pub confirmation_status: Option<String>,
     pub confirmation_reason: Option<String>,
-    // #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub confirmation_timestamp: Option<String>,
     // Authorisation code associated with an approved transaction.
     pub network_authorization_code: Option<String>,
