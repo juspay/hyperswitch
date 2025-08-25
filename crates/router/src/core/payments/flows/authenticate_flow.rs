@@ -7,7 +7,7 @@ use hyperswitch_domain_models::payments::PaymentConfirmData;
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse,
     router_data::RouterData,
-    router_flow_types::{Authenticate, NextActionFlows, PreAuthenticate},
+    router_flow_types::{Authenticate, PreAuthenticate},
     router_request_types::PaymentsAuthorizeData,
     router_response_types::PaymentsResponseData,
 };
@@ -51,7 +51,6 @@ impl Feature<Authenticate, types::PaymentsAuthenticateData>
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
         return_raw_connector_response: Option<bool>,
-        connector_flow: Option<NextActionFlows>,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             Authenticate,
@@ -381,5 +380,71 @@ impl Feature<Authenticate, types::PaymentsAuthenticateData>
         //     .map(Secret::new);
 
         // Ok(())
+        // call_ucs_for_authenticate
+    }
+}
+
+#[cfg(feature = "v2")]
+#[async_trait]
+impl
+    ConstructFlowSpecificData<
+        hyperswitch_domain_models::router_flow_types::Authenticate,
+        types::PaymentsAuthenticateData,
+        types::PaymentsResponseData,
+    > for PaymentConfirmData<hyperswitch_domain_models::router_flow_types::Authenticate>
+{
+    async fn construct_router_data<'a>(
+        &self,
+        state: &SessionState,
+        connector_id: &str,
+        merchant_context: &domain::MerchantContext,
+        customer: &Option<domain::Customer>,
+        merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
+        merchant_recipient_data: Option<types::MerchantRecipientData>,
+        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+    ) -> RouterResult<
+        types::RouterData<
+            hyperswitch_domain_models::router_flow_types::Authenticate,
+            types::PaymentsAuthenticateData,
+            types::PaymentsResponseData,
+        >,
+    > {
+        Box::pin(transformers::construct_payment_router_data_for_authorize(
+            state,
+            self.clone(),
+            connector_id,
+            merchant_context,
+            customer,
+            merchant_connector_account,
+            merchant_recipient_data,
+            header_payload,
+        ))
+        .await
+    }
+
+    async fn get_merchant_recipient_data<'a>(
+        &self,
+        state: &SessionState,
+        merchant_context: &domain::MerchantContext,
+        merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        connector: &api::ConnectorData,
+    ) -> RouterResult<Option<types::MerchantRecipientData>> {
+        let is_open_banking = &self
+            .payment_attempt
+            .get_payment_method()
+            .get_required_value("PaymentMethod")?
+            .eq(&enums::PaymentMethod::OpenBanking);
+
+        if *is_open_banking {
+            payments::get_merchant_bank_data_for_open_banking_connectors(
+                merchant_connector_account,
+                merchant_context,
+                connector,
+                state,
+            )
+            .await
+        } else {
+            Ok(None)
+        }
     }
 }

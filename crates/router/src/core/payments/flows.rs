@@ -18,8 +18,6 @@ pub mod update_metadata_flow;
 
 use async_trait::async_trait;
 use common_types::payments::CustomerAcceptance;
-#[cfg(feature = "v2")]
-use hyperswitch_domain_models::router_flow_types::NextActionFlows;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_flow_types::{
     BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, RecoveryRecordBack,
@@ -39,7 +37,7 @@ use crate::{
 
 #[async_trait]
 #[allow(clippy::too_many_arguments)]
-pub trait ConstructFlowSpecificData<ConnFlow, Req, Res> {
+pub trait ConstructFlowSpecificData<F, Req, Res> {
     #[cfg(feature = "v1")]
     async fn construct_router_data<'a>(
         &self,
@@ -62,8 +60,7 @@ pub trait ConstructFlowSpecificData<ConnFlow, Req, Res> {
         _merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         _merchant_recipient_data: Option<types::MerchantRecipientData>,
         _header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
-        next_action_flows: Option<NextActionFlows>,
-    ) -> RouterResult<types::RouterData<ConnFlow, Req, Res>>;
+    ) -> RouterResult<types::RouterData<F, Req, Res>>;
 
     async fn get_merchant_recipient_data<'a>(
         &self,
@@ -88,7 +85,6 @@ pub trait Feature<F, T> {
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
         return_raw_connector_response: Option<bool>,
-        connector_flow: Option<NextActionFlows>,
     ) -> RouterResult<Self>
     where
         Self: Sized,

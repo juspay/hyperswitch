@@ -1,7 +1,6 @@
 use async_trait::async_trait;
 use common_types::payments as common_payments_types;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::router_flow_types::NextActionFlows;
 use router_env::logger;
 use unified_connector_service_client::payments as payments_grpc;
 
@@ -77,7 +76,6 @@ impl
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
-        next_action_flow: Option<hyperswitch_domain_models::router_flow_types::NextActionFlows>,
     ) -> RouterResult<types::SetupMandateRouterData> {
         Box::pin(
             transformers::construct_payment_router_data_for_setup_mandate(
@@ -106,7 +104,6 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         _business_profile: &domain::Profile,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
         _return_raw_connector_response: Option<bool>,
-        connector_flow: Option<NextActionFlows>,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::SetupMandate,

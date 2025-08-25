@@ -1,7 +1,5 @@
 use async_trait::async_trait;
-use hyperswitch_domain_models::router_flow_types::{
-    Authenticate, NextActionFlows, PostAuthenticate,
-};
+use hyperswitch_domain_models::router_flow_types::{Authenticate, PostAuthenticate};
 use masking::{ExposeInterface, PeekInterface as _};
 
 use super::{ConstructFlowSpecificData, Feature};
@@ -66,7 +64,6 @@ impl
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
-        next_action_flow: Option<hyperswitch_domain_models::router_flow_types::NextActionFlows>,
     ) -> RouterResult<
         types::RouterData<
             api::CompleteAuthorize,
@@ -95,7 +92,6 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
         _return_raw_connector_response: Option<bool>,
-        connector_flow: Option<NextActionFlows>,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::CompleteAuthorize,
@@ -563,7 +559,6 @@ impl
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
-        next_action_flow: Option<hyperswitch_domain_models::router_flow_types::NextActionFlows>,
     ) -> RouterResult<
         types::RouterData<
             api::CompleteAuthorize,

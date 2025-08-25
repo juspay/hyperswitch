@@ -5,10 +5,8 @@ use error_stack::ResultExt;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentConfirmData;
 use hyperswitch_domain_models::{
-    errors::api_error_response::ApiErrorResponse,
-    router_data::RouterData,
-    router_flow_types::{NextActionFlows, PreAuthenticate},
-    router_request_types::PaymentsAuthorizeData,
+    errors::api_error_response::ApiErrorResponse, router_data::RouterData,
+    router_flow_types::PreAuthenticate, router_request_types::PaymentsAuthorizeData,
     router_response_types::PaymentsResponseData,
 };
 use masking::{ExposeInterface, Secret};
@@ -51,7 +49,6 @@ impl Feature<PreAuthenticate, types::PaymentsAuthorizeData>
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
         return_raw_connector_response: Option<bool>,
-        connector_flow: Option<NextActionFlows>,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             PreAuthenticate,

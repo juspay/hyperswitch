@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-use hyperswitch_domain_models::router_flow_types::NextActionFlows;
 
 use super::ConstructFlowSpecificData;
 use crate::{
@@ -57,7 +56,6 @@ impl
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
-        next_action_flow: Option<hyperswitch_domain_models::router_flow_types::NextActionFlows>,
     ) -> RouterResult<types::PaymentsIncrementalAuthorizationRouterData> {
         todo!()
     }
@@ -80,7 +78,6 @@ impl Feature<api::IncrementalAuthorization, types::PaymentsIncrementalAuthorizat
         _business_profile: &domain::Profile,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
         _return_raw_connector_response: Option<bool>,
-        connector_flow: Option<NextActionFlows>,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::IncrementalAuthorization,

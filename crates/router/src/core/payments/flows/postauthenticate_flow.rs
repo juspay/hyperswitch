@@ -7,7 +7,7 @@ use hyperswitch_domain_models::payments::PaymentConfirmData;
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse,
     router_data::RouterData,
-    router_flow_types::{NextActionFlows, PostAuthenticate, PreAuthenticate},
+    router_flow_types::{PostAuthenticate, PreAuthenticate},
     router_request_types::PaymentsAuthorizeData,
     router_response_types::PaymentsResponseData,
 };
@@ -51,7 +51,6 @@ impl Feature<PostAuthenticate, types::PaymentsPostAuthenticateData>
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
         return_raw_connector_response: Option<bool>,
-        connector_flow: Option<NextActionFlows>,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             PostAuthenticate,

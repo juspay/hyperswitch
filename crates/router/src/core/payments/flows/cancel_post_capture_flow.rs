@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-use hyperswitch_domain_models::router_flow_types::NextActionFlows;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -30,7 +29,6 @@ impl
         _merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         _merchant_recipient_data: Option<types::MerchantRecipientData>,
         _header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
-        connector_flow: Option<NextActionFlows>,
     ) -> RouterResult<types::PaymentsCancelPostCaptureRouterData> {
         todo!()
     }
@@ -80,7 +78,6 @@ impl Feature<api::PostCaptureVoid, types::PaymentsCancelPostCaptureData>
         _business_profile: &domain::Profile,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
         _return_raw_connector_response: Option<bool>,
-        connector_flow: Option<NextActionFlows>,
     ) -> RouterResult<Self> {
         metrics::PAYMENT_CANCEL_COUNT.add(
             1,
