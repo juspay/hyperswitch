@@ -277,6 +277,7 @@ pub trait ConnectorIntegration<T, Req, Resp>:
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 
@@ -368,6 +369,7 @@ pub trait ConnectorCommon {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }

@@ -172,6 +172,7 @@ impl ConnectorCommon for Worldpayvantiv {
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 })
             }
             Err(error_msg) => {
@@ -1504,6 +1505,7 @@ fn handle_vantiv_json_error_response(
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         }
         Err(error_msg) => {
@@ -1544,6 +1546,7 @@ fn handle_vantiv_dispute_error_response(
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         }
         Err(error_msg) => {
@@ -1673,7 +1676,8 @@ static WORLDPAYVANTIV_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethod
 static WORLDPAYVANTIV_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Worldpay Vantiv",
     description: "Worldpay Vantiv, also known as the Worldpay CNP API, is a robust XML-based interface used to process online (card-not-present) transactions such as e-commerce purchases, subscription billing, and digital payments",
-    connector_type: common_enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: common_enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: common_enums::ConnectorIntegrationStatus::Sandbox,
 };
 
 static WORLDPAYVANTIV_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 0] = [];
@@ -1689,5 +1693,34 @@ impl ConnectorSpecifications for Worldpayvantiv {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::EventClass]> {
         Some(&WORLDPAYVANTIV_SUPPORTED_WEBHOOK_FLOWS)
+    }
+    #[cfg(feature = "v1")]
+    fn generate_connector_request_reference_id(
+        &self,
+        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+        is_config_enabled_to_send_payment_id_as_connector_request_id: bool,
+    ) -> String {
+        if is_config_enabled_to_send_payment_id_as_connector_request_id
+            && payment_intent.is_payment_id_from_merchant.unwrap_or(false)
+        {
+            payment_attempt.payment_id.get_string_repr().to_owned()
+        } else {
+            let max_payment_reference_id_length =
+                worldpayvantiv::worldpayvantiv_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH;
+            nanoid::nanoid!(max_payment_reference_id_length)
+        }
+    }
+    #[cfg(feature = "v2")]
+    fn generate_connector_request_reference_id(
+        &self,
+        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> String {
+        if payment_intent.is_payment_id_from_merchant.unwrap_or(false) {
+            payment_attempt.payment_id.get_string_repr().to_owned()
+        } else {
+            connector_utils::generate_12_digit_number().to_string()
+        }
     }
 }

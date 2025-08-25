@@ -131,6 +131,7 @@ hyperswitch_connectors = { version = "0.1.0", path = "../hyperswitch_connectors"
 hyperswitch_constraint_graph = { version = "0.1.0", path = "../hyperswitch_constraint_graph" }
 hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models", default-features = false }
 hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces", default-features = false }
+injector = { version = "0.1.0", path = "../injector", optional = true }
 kgraph_utils = { version = "0.1.0", path = "../kgraph_utils" }
 masking = { version = "0.1.0", path = "../masking" }
 pm_auth = { version = "0.1.0", path = "../pm_auth", package = "pm_auth" }

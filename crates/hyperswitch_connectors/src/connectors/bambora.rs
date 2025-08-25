@@ -157,6 +157,7 @@ impl ConnectorCommon for Bambora {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -874,7 +875,8 @@ lazy_static! {
     static ref BAMBORA_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Bambora",
         description: "Bambora is a leading online payment provider in Canada and United States.",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Sandbox,
     };
     static ref BAMBORA_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
 }

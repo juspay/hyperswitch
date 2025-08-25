@@ -1212,6 +1212,34 @@ key1 = "Secret Key"
 [cryptopay.connector_webhook_details]
 merchant_secret = "Source verification key"
 
+[celero]
+[[celero.credit]]
+  payment_method_type = "AmericanExpress"
+[[celero.credit]]
+  payment_method_type = "Discover"
+[[celero.credit]]
+  payment_method_type = "DinersClub"
+[[celero.credit]]
+  payment_method_type = "JCB"
+[[celero.credit]]
+  payment_method_type = "Mastercard"
+[[celero.credit]]
+  payment_method_type = "Visa"
+[[celero.debit]]
+  payment_method_type = "AmericanExpress"
+[[celero.debit]]
+  payment_method_type = "Discover"
+[[celero.debit]]
+  payment_method_type = "DinersClub"
+[[celero.debit]]
+  payment_method_type = "JCB"
+[[celero.debit]]
+  payment_method_type = "Mastercard"
+[[celero.debit]]
+  payment_method_type = "Visa"
+[celero.connector_auth.HeaderKey]
+api_key="Celero API Key"
+
 [checkbook]
 [[checkbook.bank_transfer]]
   payment_method_type = "ach"
@@ -1684,6 +1712,20 @@ api_secret = "Secret Key"
 [dlocal.connector_webhook_details]
 merchant_secret = "Source verification key"
 
+[[dwolla.bank_debit]]
+  payment_method_type = "ach"
+[dwolla.connector_auth.BodyKey]
+api_key="Client ID"
+key1="Client Secret"
+[dwolla.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[dwolla.metadata.merchant_funding_source]
+name = "merchant_funding_source"
+label = "Funding Source ID"
+placeholder = "Enter your funding source ID"
+required = true
+type = "Text"
 
 [fiserv]
 [[fiserv.credit]]
@@ -5183,6 +5225,14 @@ placeholder = "Enter the merchant name"
 required = true
 type = "Text"
 
+[blackhawknetwork]
+[[blackhawknetwork.gift_card]]
+  payment_method_type = "bhn_card_network"
+[blackhawknetwork.connector_auth.SignatureKey]
+api_key="Client Id"
+api_secret="Client Secret"
+key1="Product Line Id"
+
 [payload]
 [[payload.credit]]
 payment_method_type = "AmericanExpress"
@@ -5225,16 +5275,16 @@ key1="Merchant Acceptor Key"
 merchant_secret="Source verification key"
 
 [affirm]
-[affirm.connector_auth.HeaderKey]
+[[affirm.pay_later]]
+  payment_method_type = "affirm"
+[affirm.connector_auth.BodyKey]
 api_key = "API Key"
+key1 = "API Secret"
 
 [trustpayments]
 [trustpayments.connector_auth.HeaderKey]
 api_key = "API Key"
 
-[blackhawknetwork]
-[blackhawknetwork.connector_auth.HeaderKey]
-api_key = "API Key"
 
 [flexiti]
 [flexiti.connector_auth.BodyKey]
@@ -5297,6 +5347,20 @@ api_key = "API Key"
 [sift]
 [sift.connector_auth.HeaderKey]
 api_key = "API Key"
+
+[juspaythreedsserver.metadata.three_ds_requestor_name]
+name = "three_ds_requestor_name"
+label = "ThreeDS requestor name"
+placeholder = "Enter ThreeDS requestor name"
+required = false
+type = "Text"
+[juspaythreedsserver.metadata.three_ds_requestor_id]
+name = "three_ds_requestor_id"
+label = "ThreeDS request id"
+placeholder = "Enter ThreeDS request id"
+required = false
+type = "Text"
+[juspaythreedsserver.connector_auth.NoKey]
 
 [hyperwallet]
 [hyperwallet.connector_auth.BodyKey]
