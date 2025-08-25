@@ -1138,7 +1138,8 @@ pub fn validate_overcapture_request(
                 ),
             || {
                 Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                    message: "Invalid overcapture request: supported only with manual capture".into()
+                    message: "Invalid overcapture request: supported only with manual capture"
+                        .into()
                 }))
             },
         )?;
